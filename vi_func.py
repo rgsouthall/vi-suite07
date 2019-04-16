@@ -2070,25 +2070,25 @@ def compass(loc, scale, wro, mat):
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
 
-    for i, edge in enumerate(bm.edges[-8:]):
-        verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
-        for vert in verts:
-            vert.co += 1.0*scale*(tmatrot@direc)
-            vert.co[2] = 0
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot@direc), rotation=tmatrot.to_euler())
-        txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
-        bpy.ops.object.convert(target='MESH')
-        bpy.ops.object.material_slot_add()
-        txt.material_slots[-1].material = mat
-        txts.append(txt)
-        tmatrot = tmatrot@matrot
+#    for i, edge in enumerate(bm.edges[-8:]):
+#        verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
+#        for vert in verts:
+#            vert.co += 1.0*scale*(tmatrot@direc)
+#            vert.co[2] = 0
+#        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot@direc), rotation=tmatrot.to_euler())
+#        txt = bpy.context.active_object
+#        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
+#        bpy.ops.object.convert(target='MESH')
+#        bpy.ops.object.material_slot_add()
+#        txt.material_slots[-1].material = mat
+#        txts.append(txt)
+#        tmatrot = tmatrot@matrot
 
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     for d in range(16):
         bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = mat
@@ -2494,10 +2494,10 @@ def sunpath(scene):
     if scene['spparams']['suns'] == '0':        
         skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
         
-        if suns and 0 in (suns[0]['solhour'] == scene.solhour, suns[0]['solday'] == scene.solday):
+        if suns and 0 in (suns[0]['solhour'] == scene.vi_params.sp_sh, suns[0]['solday'] == scene.vi_params.sp_sd):
             sunobs = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh']                
             spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
-            alt, azi, beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)
+            alt, azi, beta, phi = solarPosition(scene.vi_params.sp_sd, scene.vi_params.sp_sh, scene.vi_params.latitude, scene.vi_params.longitude)
 
             if spathobs:
                 suns[0].location.z = 100 * sin(beta)
@@ -2899,3 +2899,47 @@ def sunapply(scene, sun, values, solposs, frames):
 def retsunct(beta):
     return 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
     
+def spfc(self):
+    scene = bpy.context.scene
+    if not scene['viparams'].get('newframe'):
+        scene['viparams']['newframe'] = 1
+    else:
+        scene['viparams']['newframe'] = 0
+        scene.frame_set(scene.frame_current)
+        
+    if scene['viparams']['resnode'] == 'VI Sun Path':
+        spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
+        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+
+        if scene.world.use_nodes == False:
+            scene.world.use_nodes = True
+        nt = bpy.data.worlds[0].node_tree
+
+        if nt and nt.nodes.get('Sky Texture'):
+            scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
+
+        for ob in scene.objects:
+            if ob.get('VIType') == 'Sun':
+                ob.rotation_euler = pi * 0.5 - beta, 0, -phi 
+                ob.location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)                
+                ob.location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
+                ob.location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
+                
+                if ob.data.node_tree:
+                    for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
+                        blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
+                    for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
+                        emnode.inputs[1].default_value = 10 * sin(beta)
+
+            elif ob.get('VIType') == 'SkyMesh':
+                ont = ob.data.materials['SkyMesh'].node_tree
+                if ont and ont.nodes.get('Sky Texture'):
+                    ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
+
+            elif ob.get('VIType') == 'SunMesh':
+                ob.location = (0, 0, 0)
+                if ob.data.materials[0].node_tree:
+                    for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
+                        smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
+    else:
+        return

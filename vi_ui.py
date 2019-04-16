@@ -1,12 +1,12 @@
 import bpy
 from collections import OrderedDict
 from .vi_func import newrow, retdates, logentry
-from .envi_mat import envi_materials, envi_constructions
+#from .envi_mat import envi_materials, envi_constructions
 
-envi_mats = envi_materials()
-envi_cons = envi_constructions()
+#envi_mats = envi_materials()
+#envi_cons = envi_constructions()
 
-class Vi3DPanel(bpy.types.Panel):
+class VI_PT_3D(bpy.types.Panel):
     '''VI-Suite 3D view panel'''
     bl_label = "VI Display"
     bl_space_type = "VIEW_3D"
@@ -46,8 +46,8 @@ class Vi3DPanel(bpy.types.Panel):
                     (sdate, edate) = retdates(scene.solday, 365, 2015)
 
                 if scene['spparams']['suns'] == '0':
-                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
-                        newrow(layout, i[0], scene, i[1])
+                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh"), ("Display hours:", "sp_hd"), ("Display time:", "sp_td")):
+                        newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.hourdisp or scene.timedisp:
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                             newrow(layout, i[0], scene, i[1])
@@ -67,9 +67,11 @@ class Vi3DPanel(bpy.types.Panel):
                             newrow(layout, i[0], scene, i[1])
                 
                 newrow(layout, "Line width:", scene.vi_params, 'sp_line_width')
+                newrow(layout, "Solstice colour:", scene.vi_params, 'sp_season_main') 
                 newrow(layout, "Hour main colour:", scene.vi_params, 'sp_hour_main')            
-                newrow(layout, "Hour dash colour:", scene.vi_params, 'sp_hour_dash')     
-                
+                newrow(layout, "Hour dash colour:", scene.vi_params, 'sp_hour_dash')  
+                newrow(layout, "Hour dash ratio:", scene.vi_params, 'sp_hour_dash_ratio')
+                newrow(layout, "Hour dash density:", scene.vi_params, 'sp_hour_dash_density')
             elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 
