@@ -42,6 +42,9 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, 'Colour:', scene, 'vi_leg_col')
                 
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
+                newrow(layout, "Latitude:", scene.vi_params, 'latitude')
+                newrow(layout, "Longitude:", scene.vi_params, 'longitude')
+                
                 if scene['spparams']['suns'] in ('0', '2'):
                     (sdate, edate) = retdates(scene.solday, 365, 2015)
 
@@ -72,6 +75,7 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Hour dash colour:", scene.vi_params, 'sp_hour_dash')  
                 newrow(layout, "Hour dash ratio:", scene.vi_params, 'sp_hour_dash_ratio')
                 newrow(layout, "Hour dash density:", scene.vi_params, 'sp_hour_dash_density')
+                
             elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 

@@ -138,10 +138,8 @@ class ViLoc(Node, ViNodes):
         if self.loc == "1":
             newrow(layout, "Weather file:", self, 'weather')
         else:
-            row = layout.row()
-            row.prop(context.scene.vi_params, "latitude")
-            row = layout.row()
-            row.prop(context.scene.vi_params, "longitude")
+            newrow(layout, 'Latitude', context.scene.vi_params, "latitude")
+            newrow(layout, 'Longitude', context.scene.vi_params, "longitude")
             
     def ready(self):
         if self.loc == '1' and not self.weather:

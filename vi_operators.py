@@ -366,7 +366,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             
         return(coords, line_lengths, breaks)
         
-    def create_batch(self):
+    def create_batch(self, scene, node):
         vertex_shader = '''
             uniform mat4 viewProjectionMatrix;
             uniform mat4 sp_matrix;
@@ -487,7 +487,8 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         
         self.shader = gpu.types.GPUShader(vertex_shader, fragment_shader)  
 #        self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader, geocode = sun_geometry_shader)  
-#        self.batch = batch_for_shader(self.shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+        (coords, line_lengths, breaks) = self.ret_coords(scene, node)
+        self.batch = batch_for_shader(self.shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
 #        self.sun_batch = batch_for_shader(self.shader, 'POINTS', {"position": coords})
         print('hello')
         
@@ -508,8 +509,12 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.shader.uniform_float("color3", context.scene.vi_params.sp_season_main)
         self.shader.uniform_float("dash_ratio", context.scene.vi_params.sp_hour_dash_ratio)
         self.shader.uniform_float("dash_density", context.scene.vi_params.sp_hour_dash_density)
-        (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)
-        self.batch = batch_for_shader(self.shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+        
+        if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude:
+            (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)        
+            self.batch = batch_for_shader(self.shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+            self.latitude = context.scene.vi_params.latitude
+            self.longitude = context.scene.vi_params.longitude
         self.batch.draw(self.shader)
         
         bgl.glDisable(bgl.GL_LINE_SMOOTH)
@@ -517,8 +522,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 
     def modal(self, context, event):
         scene = context.scene
-        
-        
+       
         if context.area:
             context.area.tag_redraw()
         if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
@@ -531,8 +535,9 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         scene = context.scene
         node = context.node
         self.sp = context.active_object
-        self.create_batch()
-        
+        self.latitude = scene.vi_params.latitude
+        self.longitude = scene.vi_params.longitude
+        self.create_batch(scene, node)
         self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
 
 #        self.draw_handle_2d = bpy.types.SpaceView3D.draw_handler_add(
