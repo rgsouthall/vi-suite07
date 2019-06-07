@@ -2086,7 +2086,7 @@ def compass(loc, scale, wro, mat):
 
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     for d in range(16):
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
         txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
@@ -2146,7 +2146,7 @@ def windnum(maxws, loc, scale, wr):
     matrot = Matrix.Rotation(-pi*0.05, 4, 'Z')
     direc = Vector((0, 1, 0))
     for i in range(2, 6):
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((i**2)/25)*scale*(matrot*direc))
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=((i**2)/25)*scale*(matrot*direc))
         txt = bpy.context.active_object
         txt.data.body, txt.scale, txt.location[2] = '{:.1f}'.format((i**2)*maxws/25), (scale*0.05, scale*0.05, scale*0.05), scale*0.01
         bpy.ops.object.convert(target='MESH')
@@ -2662,7 +2662,7 @@ def selobj(vl, geo):
         bpy.ops.object.mode_set(mode = 'OBJECT') 
     for ob in vl.objects:
         bpy.context.view_layer.objects.active
-        ob.select_set(state=True) if ob == geo else ob.select_set(state=False)
+        ob.select_set(1) if ob == geo else ob.select_set(0)
 #        ob.select = True if ob == geo else False
     vl.objects.active = geo
 

@@ -75,6 +75,8 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Hour dash colour:", scene.vi_params, 'sp_hour_dash')  
                 newrow(layout, "Hour dash ratio:", scene.vi_params, 'sp_hour_dash_ratio')
                 newrow(layout, "Hour dash density:", scene.vi_params, 'sp_hour_dash_density')
+                newrow(layout, "Sun size:", scene.vi_params, 'sp_sun_size')
+                newrow(layout, "Sun colour:", scene.vi_params, 'sp_sun_colour')
                 
             elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()

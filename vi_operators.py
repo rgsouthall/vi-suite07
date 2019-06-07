@@ -83,7 +83,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        print(dir(scene))
+#        print(dir(scene))
         if viparams(self, scene):
             self.report({'ERROR'},"Save the Blender file before continuing")
             return {'CANCELLED'}
@@ -153,7 +153,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         if not suns or len(suns) < requiredsuns: 
             for rs in range(requiredsuns - len(suns)):
-                bpy.ops.object.light_add(type='SUN', radius=1, view_align=False, location=(0, 0, 0))
+                bpy.ops.object.light_add(type='SUN', radius=1, align='WORLD', location=(0, 0, 0))
 
 #                bpy.ops.object.lamp_add(type = "SUN")
                 suns.append(context.active_object)
@@ -367,28 +367,28 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         return(coords, line_lengths, breaks)
         
     def create_batch(self, scene, node):
-        vertex_shader = '''
+        sp_vertex_shader = '''
             uniform mat4 viewProjectionMatrix;
             uniform mat4 sp_matrix;
-            uniform vec4 color1;
-            uniform vec4 color2;
-            uniform vec4 color3;
+            uniform vec4 colour1;
+            uniform vec4 colour2;
+            uniform vec4 colour3;
             in vec3 position;
             in float arcLength;
             in uint line_break;
             
-            out vec4 v_color1;
-            out vec4 v_color2;
-            out vec4 v_color3;
+            out vec4 v_colour1;
+            out vec4 v_colour2;
+            out vec4 v_colour3;
             out float v_ArcLength;
             out float zpos;
             flat out uint lb;
             
             void main()
             {
-                v_color1 = color1;
-                v_color2 = color2;
-                v_color3 = color3;
+                v_colour1 = colour1;
+                v_colour2 = colour2;
+                v_colour3 = colour3;
                 v_ArcLength = arcLength;
                 gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
                 zpos = vec3(position)[2];
@@ -396,13 +396,80 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             }
         '''
         
-        sp_vertex_shader = '''
-            in float longitude;
-            in float latitude;
-            uniform mat4 basematrix;
-            
-            void
+        sp_fragment_shader = '''
+            uniform float dash_density;
+            uniform float dash_ratio;
+            in float zpos;
+            in vec4 v_colour1;
+            in vec4 v_colour2;
+            in vec4 v_colour3;
+            in float v_ArcLength;
+            flat in uint lb;
+            out vec4 FragColor;
+ 
+            void main()
+            {
+                if (zpos < 0) {discard;}
+                else if (lb == uint(1)) {discard;}
+                else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColor = v_colour1;} else {FragColor = v_colour2;}
+                if (lb == uint(2)) {FragColor = v_colour3;}
+            }
         '''
+        
+        sun_vertex_shader = '''
+            uniform mat4 viewProjectionMatrix;
+            uniform mat4 sp_matrix;
+            in vec3 position;
+            
+            void main()
+                {
+                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+                }
+            '''
+        sun_fragment_shader = '''
+            uniform vec4 sun_colour;
+        void main()
+            {
+                    vec2 pos = gl_PointCoord - vec2(0.5);
+                    if (length(pos) < 0.4) {gl_FragColor = sun_colour;}
+                    if (length(pos) <= 0.5) {
+//                            sun_colour[3] = (0.5 - length(pos)) * 10;
+                            gl_FragColor = sun_colour;
+                            gl_FragColor.a = (0.5 - length(pos)) * 10;
+                        }
+                    if (length(pos) > 0.5) {discard;}
+                    
+            }
+            
+            '''
+#            }
+#        uniform sampler2D tex0;
+#        uniform float border; // 0.01
+#        uniform float circle_radius; // 0.5
+#        uniform vec4 sun_colour; 
+#        uniform vec2 circle_center; // vec2(0.5, 0.5)    
+#        void main(void)
+#        {
+#          vec2 uv = gl_TexCoord[0].xy;
+#          
+#          vec4 bkg_color = texture2D(tex0,uv * vec2(1.0, -1.0));
+#        
+#          // Offset uv with the center of the circle.
+#          uv -= circle_center;
+#          
+#          float dist =  sqrt(dot(uv, uv));
+#          if (dist < (circle_radius-border)) {gl_FragColor = sun_colour;}
+#          else {discard;}
+#        }
+#        '''
+        
+#        sp_vertex_shader = '''
+#            in float longitude;
+#            in float latitude;
+#            uniform mat4 basematrix;
+#            
+#            void
+#        '''
 #        vertex_shader = '''
 #            uniform mat4 viewProjectionMatrix;
 #            uniform vec4 color1;
@@ -432,32 +499,14 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 #                if (step(sin(v_ArcLength * u_Scale), -0.5) == 1) {gl_FragColor = v_color1;} else {gl_FragColor = v_color2;};
 #            }
 #        '''
-        fragment_shader = '''
-            uniform float dash_density;
-            uniform float dash_ratio;
-            in float zpos;
-            in vec4 v_color1;
-            in vec4 v_color2;
-            in vec4 v_color3;
-            in float v_ArcLength;
-            flat in uint lb;
-            out vec4 FragColor;
- 
-            void main()
-            {
-                if (zpos < 0) {discard;}
-                else if (lb == uint(1)) {discard;}
-                else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColor = v_color1;} else {FragColor = v_color2;}
-                if (lb == uint(2)) {FragColor = v_color3;}
-            }
-        '''
+
         
-        sun_vertex_shader = '''
-        '''
-        sun_geometry_shader = '''
-        '''
-        sun_fragment_shader = '''
-        '''
+#        sun_vertex_shader = '''
+#        '''
+#        sun_geometry_shader = '''
+#        '''
+#        sun_fragment_shader = '''
+#        '''
         
 #        breaks, coords, sd, d = [], [], 100, 0
 #        
@@ -485,40 +534,56 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 #        for a, b in zip(coords[:-1], coords[1:]):
 #            line_lengths.append(line_lengths[-1] + (a - b).length)        
         
-        self.shader = gpu.types.GPUShader(vertex_shader, fragment_shader)  
-#        self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader, geocode = sun_geometry_shader)  
+        self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader) 
+        self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)   
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
-        self.batch = batch_for_shader(self.shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
-#        self.sun_batch = batch_for_shader(self.shader, 'POINTS', {"position": coords})
-        print('hello')
+#        print(coords, [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])])
+        sun_pos = [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])]
+        self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+        self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
+
         
     def draw_sp(self, op, context, node):
         # Draw lines
         bgl.glEnable(bgl.GL_BLEND)
         bgl.glEnable(bgl.GL_LINE_SMOOTH)
         bgl.glLineWidth(context.scene.vi_params.sp_line_width)
-        self.shader.bind()
+        bgl.glPointSize(context.scene.vi_params.sp_sun_size)
+        
+        
+        
+        self.sp_shader.bind()
         matrix = bpy.context.region_data.perspective_matrix
         sp_matrix = self.sp.matrix_world
-#        print(dir(self.shader))
-#        self.shader.uniform_vector_float("position", coords)
-        self.shader.uniform_float("viewProjectionMatrix", matrix)
-        self.shader.uniform_float("sp_matrix", sp_matrix)
-        self.shader.uniform_float("color1", context.scene.vi_params.sp_hour_dash)
-        self.shader.uniform_float("color2", context.scene.vi_params.sp_hour_main)
-        self.shader.uniform_float("color3", context.scene.vi_params.sp_season_main)
-        self.shader.uniform_float("dash_ratio", context.scene.vi_params.sp_hour_dash_ratio)
-        self.shader.uniform_float("dash_density", context.scene.vi_params.sp_hour_dash_density)
-        
-        if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude:
+        self.sp_shader.uniform_float("viewProjectionMatrix", matrix)
+        self.sp_shader.uniform_float("sp_matrix", sp_matrix)
+        self.sp_shader.uniform_float("colour1", context.scene.vi_params.sp_hour_dash)
+        self.sp_shader.uniform_float("colour2", context.scene.vi_params.sp_hour_main)
+        self.sp_shader.uniform_float("colour3", context.scene.vi_params.sp_season_main)
+        self.sp_shader.uniform_float("dash_ratio", context.scene.vi_params.sp_hour_dash_ratio)
+        self.sp_shader.uniform_float("dash_density", context.scene.vi_params.sp_hour_dash_density) 
+        self.sun_shader.bind()
+        self.sun_shader.uniform_float("viewProjectionMatrix", matrix)
+        self.sun_shader.uniform_float("sp_matrix", sp_matrix)
+        self.sun_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour) 
+
+        if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude or \
+            self.sd != context.scene.vi_params.sp_sd or self.sh != context.scene.vi_params.sp_sh:
             (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)        
-            self.batch = batch_for_shader(self.shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+            self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+            sun_pos = [Vector([so for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])]
+            self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
             self.latitude = context.scene.vi_params.latitude
             self.longitude = context.scene.vi_params.longitude
-        self.batch.draw(self.shader)
+            self.sd = context.scene.vi_params.sp_sd
+            self.sh = context.scene.vi_params.sp_sh
+        self.sun_batch.draw(self.sun_shader)
+        self.sp_batch.draw(self.sp_shader)
+        print('draw')
         
         bgl.glDisable(bgl.GL_LINE_SMOOTH)
         bgl.glDisable(bgl.GL_BLEND)
+        bgl.glPointSize(1)
 
     def modal(self, context, event):
         scene = context.scene
@@ -534,9 +599,11 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     def invoke(self, context, event):        
         scene = context.scene
         node = context.node
-        self.sp = context.active_object
+        self.sp = scene.objects['SPathMesh']
         self.latitude = scene.vi_params.latitude
         self.longitude = scene.vi_params.longitude
+        self.sd = scene.vi_params.sp_sd
+        self.sh = scene.vi_params.sp_sh
         self.create_batch(scene, node)
         self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
 

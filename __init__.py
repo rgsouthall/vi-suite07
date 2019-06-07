@@ -110,6 +110,8 @@ class VI_Params(bpy.types.PropertyGroup):
     sp_hour_main: fvprop(4, "",'Dash colour of the hour lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
     sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
     sp_season_dash: fvprop(4, "",'Dash colour of the season lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    sp_sun_colour: fvprop(4, "",'Sun colour', [0.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    sp_sun_size: iprop("",'Sun size', 1, 50, 10)
     sp_season_dash_ratio: fprop("", "Ratio of line to dash of season lines", 0, 5, 0)
     sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, -0.5)
     sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 0)
