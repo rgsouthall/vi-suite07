@@ -197,7 +197,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             if spathob.name in scene.collection.objects:
                 scene.collection.objects.unlink(spathob)
 #        scene.collection.objects.unlink(spathob)
-        spathob.location, spathob.name,  spathob['VIType'], spathmesh = (0, 0, 0), "SPathMesh", "SPathMesh", spathob.data
+        spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
 #        smesh.parent = spathob
         
         for s, sun in enumerate(suns):
@@ -209,22 +209,22 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sun['VIType'] = 'Sun'
             sun['solhour'], sun['solday'] = scene.solhour, scene.solday
             sun.name = sun.data.name ='Sun{}'.format(s)
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, radius=0.5)
-            sunob = context.active_object
+#            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, radius=0.5)
+#            sunob = context.active_object
             
-            if sunob.name not in spcoll.objects:
-                spcoll.objects.link(sunob)
-                scene.collection.objects.unlink(sunob)
+#            if sunob.name not in spcoll.objects:
+#                spcoll.objects.link(sunob)
+#                scene.collection.objects.unlink(sunob)
 #            scene.collection.objects.unlink(sunob)
-            sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh{}".format(s), "SunMesh"
-            sunob.cycles_visibility.diffuse, sunob.cycles_visibility.shadow, sunob.cycles_visibility.glossy, sunob.cycles_visibility.transmission, sunob.cycles_visibility.scatter = [False] * 5
+#            sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh{}".format(s), "SunMesh"
+#            sunob.cycles_visibility.diffuse, sunob.cycles_visibility.shadow, sunob.cycles_visibility.glossy, sunob.cycles_visibility.transmission, sunob.cycles_visibility.scatter = [False] * 5
 
-            if len(sunob.material_slots) == 0:
-                 bpy.ops.object.material_slot_add()
-                 sunob.material_slots[0].material = bpy.data.materials['Sun']
-                 
-            sun.parent = spathob
-            sunob.parent = sun
+#            if len(sunob.material_slots) == 0:
+#                 bpy.ops.object.material_slot_add()
+#                 sunob.material_slots[0].material = bpy.data.materials['Sun']
+#                 
+#            sun.parent = spathob
+#            sunob.parent = sun
         
 #        bm = bmesh.new()
 #        bm.from_mesh(spathmesh)
@@ -405,14 +405,14 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             in vec4 v_colour3;
             in float v_ArcLength;
             flat in uint lb;
-            out vec4 FragColor;
+            out vec4 FragColour;
  
             void main()
             {
                 if (zpos < 0) {discard;}
                 else if (lb == uint(1)) {discard;}
-                else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColor = v_colour1;} else {FragColor = v_colour2;}
-                if (lb == uint(2)) {FragColor = v_colour3;}
+                else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColour = v_colour1;} else {FragColour = v_colour2;}
+                if (lb == uint(2)) {FragColour = v_colour3;}
             }
         '''
         
@@ -428,19 +428,47 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             '''
         sun_fragment_shader = '''
             uniform vec4 sun_colour;
-        void main()
-            {
+            out vec4 FragColour;
+            
+            void main()
+                {
                     vec2 pos = gl_PointCoord - vec2(0.5);
-                    if (length(pos) < 0.4) {gl_FragColor = sun_colour;}
+                    if (length(pos) < 0.4) {FragColour = sun_colour;}
                     if (length(pos) <= 0.5) {
 //                            sun_colour[3] = (0.5 - length(pos)) * 10;
-                            gl_FragColor = sun_colour;
-                            gl_FragColor.a = (0.5 - length(pos)) * 10;
+                            FragColour = sun_colour;
+                            FragColour[3] = (0.5 - length(pos)) * 10;
                         }
                     if (length(pos) > 0.5) {discard;}
                     
-            }
+                }            
+            '''
+        sun2_vertex_shader = '''
+            uniform mat4 viewProjectionMatrix;
+            uniform mat4 sp_matrix;
+            in vec3 position;
             
+            void main()
+                {
+                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+                }
+            '''
+        sun2_fragment_shader = '''
+            uniform vec4 sun_colour;
+            out vec4 FragColour;
+            
+            void main()
+                {
+//                    vec2 pos = gl_PointCoord - vec2(0.5);
+//                    if (length(pos) < 0.4) {FragColour = sun_colour;}
+//                    if (length(pos) <= 0.5) {
+//                            sun_colour[3] = (0.5 - length(pos)) * 10;
+//                            FragColour = sun_colour;
+//                            FragColour[3] = (0.5 - length(pos)) * 10;
+//                        }
+//                    if (length(pos) > 0.5) {discard;}
+                    FragColour = sun_colour;
+                }            
             '''
 #            }
 #        uniform sampler2D tex0;
@@ -535,13 +563,14 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 #            line_lengths.append(line_lengths[-1] + (a - b).length)        
         
         self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader) 
-        self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)   
+        self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)  
+        self.sun2_shader = gpu.types.GPUShader(sun2_vertex_shader, sun2_fragment_shader) 
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
 #        print(coords, [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])])
         sun_pos = [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])]
         self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
         self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
-
+        self.sun2_batch = batch_for_shader(self.sun2_shader, 'TRIS', {"pos": self.sun_v_coords}, indices=self.sun_f_indices)
         
     def draw_sp(self, op, context, node):
         # Draw lines
@@ -549,8 +578,6 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         bgl.glEnable(bgl.GL_LINE_SMOOTH)
         bgl.glLineWidth(context.scene.vi_params.sp_line_width)
         bgl.glPointSize(context.scene.vi_params.sp_sun_size)
-        
-        
         
         self.sp_shader.bind()
         matrix = bpy.context.region_data.perspective_matrix
@@ -566,7 +593,11 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.sun_shader.uniform_float("viewProjectionMatrix", matrix)
         self.sun_shader.uniform_float("sp_matrix", sp_matrix)
         self.sun_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour) 
-
+        self.sun2_shader.bind()
+        self.sun2_shader.uniform_float("viewProjectionMatrix", matrix)
+        self.sun2_shader.uniform_float("sp_matrix", sp_matrix)
+        self.sun2_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour)
+        
         if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude or \
             self.sd != context.scene.vi_params.sp_sd or self.sh != context.scene.vi_params.sp_sh:
             (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)        
@@ -579,7 +610,6 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             self.sh = context.scene.vi_params.sp_sh
         self.sun_batch.draw(self.sun_shader)
         self.sp_batch.draw(self.sp_shader)
-        print('draw')
         
         bgl.glDisable(bgl.GL_LINE_SMOOTH)
         bgl.glDisable(bgl.GL_BLEND)
@@ -599,6 +629,18 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     def invoke(self, context, event):        
         scene = context.scene
         node = context.node
+        self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
+        
+        for sun in self.suns:
+            sunbm = bmesh.new()
+            bmesh.ops.create_uvsphere(sunbm, u_segments = 12, v_segments = 12, diameter = 0.1, matrix = sun.matrix_world, calc_uvs = 0)
+            bmesh.ops.triangulate(sunbm, faces = sunbm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
+            self.sun_coords = [(v.co for v in face.verts) for face in sunbm.faces]
+            self.sun_v_coords = [v.co[:] for v in sunbm.verts]
+#            self.sun_f_indices = [v.index for v in f.verts for f in sunbm.faces]
+            self.sun_f_indices = [item.index for sublist in sunbm.faces for item in sublist.verts]
+
+                            
         self.sp = scene.objects['SPathMesh']
         self.latitude = scene.vi_params.latitude
         self.longitude = scene.vi_params.longitude
