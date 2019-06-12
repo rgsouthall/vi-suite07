@@ -2495,7 +2495,7 @@ def sunpath(scene):
         skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
         
         if suns and 0 in (suns[0]['solhour'] == scene.vi_params.sp_sh, suns[0]['solday'] == scene.vi_params.sp_sd):
-            sunobs = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh']                
+#            sunobs = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh']                
             spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
             alt, azi, beta, phi = solarPosition(scene.vi_params.sp_sd, scene.vi_params.sp_sh, scene.vi_params.latitude, scene.vi_params.longitude)
 
@@ -2518,9 +2518,9 @@ def sunpath(scene):
                         blnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
                     for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
-                if sunobs and sunobs[0].data.materials[0].node_tree:
-                    for smblnode in [node for node in sunobs[0].data.materials[0].node_tree.nodes if sunobs[0].data.materials and node.bl_label == 'Blackbody']:
-                        smblnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
+#                if sunobs and sunobs[0].data.materials[0].node_tree:
+#                    for smblnode in [node for node in sunobs[0].data.materials[0].node_tree.nodes if sunobs[0].data.materials and node.bl_label == 'Blackbody']:
+#                        smblnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
                 if skyspheres and not skyspheres[0].hide_viewport and skyspheres[0].data.materials[0].node_tree:
                     for stnode in [no for no in skyspheres[0].data.materials[0].node_tree.nodes if no.bl_label == 'Sky Texture']:
                         stnode.sun_direction = -sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta) 
@@ -2539,36 +2539,38 @@ def sunpath(scene):
             suns[d].location.x = -(100**2 - (suns[d].location.z)**2)**0.5 * sin(phi)
             suns[d].location.y = -(100**2 - (suns[d].location.z)**2)**0.5 * cos(phi)
             suns[d].rotation_euler = pi * 0.5 - beta, 0, -phi
-            suns[d].hide = True if alt <= 0 else False
+            suns[d].hide_viewport = True if alt <= 0 else False
             if suns[d].children:
-                suns[d].children[0].hide = True if alt <= 0 else False
+                suns[d].children[0].hide_viewport = True if alt <= 0 else False
             suns[d].data.energy = scene.sunsstrength
             
             if scene.render.engine == 'CYCLES':
                 if suns[d].data.node_tree:
                     for emnode in [node for node in suns[d].data.node_tree.nodes if node.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = scene.sunsstrength
+                        emnode.inputs[1].default_value = scene.vi_params.sp_sun_strength
                     
-            suns[d].data.shadow_soft_size = scene.sunssize
+            suns[d].data.shadow_soft_size = scene.vi_params.sp_sun_size
     
     elif scene['spparams']['suns'] == '2':
         for h in range(24):
-            alt, azi, beta, phi = solarPosition(scene.solday, h, scene.latitude, scene.longitude)
+            alt, azi, beta, phi = solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)
             suns[h].location.z = 100 * sin(beta)
             suns[h].location.x = -(100**2 - (suns[h].location.z)**2)**0.5 * sin(phi)
             suns[h].location.y = -(100**2 - (suns[h].location.z)**2)**0.5 * cos(phi)
             suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi
             suns[h].hide_viewport = True if alt <= 0 else False
+            
             if suns[h].children:
                 suns[h].children[0].hide_viewport = True if alt <= 0 else False
-            suns[h].data.energy = scene.sunsstrength
+                
+            suns[h].data.energy = scene.vi_params.sp_sun_strength
             
             if scene.render.engine == 'CYCLES':
                 if suns[h].data.node_tree:
                     for emnode in [node for node in suns[h].data.node_tree.nodes if node.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = scene.sunsstrength
+                        emnode.inputs[1].default_value = scene.vi_params.sp_sun_strength
 
-            suns[h].data.shadow_soft_size = scene.sunssize
+            suns[h].data.angle = scene.vi_params.sp_sun_angle
                 
 def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:

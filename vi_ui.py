@@ -53,18 +53,18 @@ class VI_PT_3D(bpy.types.Panel):
                         newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.hourdisp or scene.timedisp:
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
-                            newrow(layout, i[0], scene, i[1])
+                            newrow(layout, i[0], scene.vi_params, i[1])
 
                 elif scene['spparams']['suns'] == '1':
-                    for i in (("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Sun strength:", "sunsstrength"), ("Sun size:", "sunssize")):
-                        newrow(layout, i[0], scene, i[1])
+                    for i in (("Time of day:", "sp_sh"), ("Display hours:", "sp_hour_disp"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
+                        newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.hourdisp:
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
-                            newrow(layout, i[0], scene, i[1])
+                            newrow(layout, i[0], scene.vi_params, i[1])
 
                 elif scene['spparams']['suns'] == '2':
-                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Display hours:", "hourdisp"), ("Sun strength:", "sunsstrength"), ("Sun size:", "sunssize")):
-                        newrow(layout, i[0], scene, i[1])
+                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Display hours:", "sp_hour_disp"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
+                        newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.hourdisp:
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                             newrow(layout, i[0], scene, i[1])
