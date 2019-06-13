@@ -37,6 +37,7 @@ from .vi_func import selobj, joinobj, solarPosition, viparams, compass, spfc
 #from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
 from .vi_func import spathrange, ret_plt
 from .vi_func import sunpath
+from .vi_display import spnumdisplay
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 #from .vi_chart import chart_disp
 
@@ -424,6 +425,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             void main()
                 {
                     gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+                    gl_Position[2] -= 0.001;
                 }
             '''
         sun_fragment_shader = '''
@@ -490,6 +492,31 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
                 }
            
             '''
+            
+        globe_vertex_shader = '''
+            uniform mat4 viewProjectionMatrix;
+            uniform mat4 sp_matrix;
+            in vec3 position;
+//            out float zpos;
+            
+            void main()
+                {
+                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+//                    sun_Position = viewProjectionMatrix * sp_matrix * vec4(sun_position, 1.0f); 
+//                    zpos = vec3(position)[2];
+                }
+            '''
+        globe_fragment_shader = '''
+            uniform vec4 colour;
+            out vec4 FragColour;
+            
+            void main()
+                {
+                        FragColour = colour;
+                }
+           
+            '''
+            
 #            }
 #        uniform sampler2D tex0;
 #        uniform float border; // 0.01
@@ -584,6 +611,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         
         self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader) 
         self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)  
+        self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader) 
 #        self.sun2_shader = gpu.types.GPUShader(sun2_vertex_shader, sun2_fragment_shader) 
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
 #        print(coords, [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])])
@@ -593,8 +621,11 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         
         
         sun_v_coords, sun_f_indices = self.ret_sun_geometry(scene.vi_params.sp_sun_size, self.suns)
+        globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)
+        print(globe_v_coords, globe_f_indices)
         self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
         self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
+        self.globe_batch = batch_for_shader(self.globe_shader, 'TRIS', {"position": globe_v_coords}, indices=globe_f_indices)
 #        self.sun2_batch = batch_for_shader(self.sun2_shader, 'TRIS', {"position": sun_v_coords, "sun_position": sun_pos}, indices=sun_f_indices)
         
     def draw_sp(self, op, context, node):
@@ -626,6 +657,11 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.sun_shader.uniform_float("viewProjectionMatrix", matrix)
         self.sun_shader.uniform_float("sp_matrix", sp_matrix)
         self.sun_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour) 
+        self.globe_shader.bind()
+        self.globe_shader.uniform_float("viewProjectionMatrix", matrix)
+        self.globe_shader.uniform_float("sp_matrix", sp_matrix)
+        self.globe_shader.uniform_float("colour", context.scene.vi_params.sp_globe_colour) 
+        
 #        self.sun2_shader.bind()
 #        self.sun2_shader.uniform_float("viewProjectionMatrix", matrix)
 #        self.sun2_shader.uniform_float("invviewProjectionMatrix", matrix.inverted())
@@ -655,6 +691,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             self.ss = context.scene.vi_params.sp_sun_size
         self.sun_batch.draw(self.sun_shader)
         self.sp_batch.draw(self.sp_shader)
+        self.globe_batch.draw(self.globe_shader)
 #        self.sun2_batch.draw(self.sun2_shader)
         bgl.glDisable(bgl.GL_LINE_SMOOTH)
         bgl.glDisable(bgl.GL_BLEND)
@@ -679,6 +716,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             sunbm = bmesh.new()
             bmesh.ops.create_uvsphere(sunbm, u_segments = 12, v_segments = 12, diameter = dia, matrix = sun.matrix_world, calc_uvs = 0)
             bmesh.ops.triangulate(sunbm, faces = sunbm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
+            
 #            sun_coords.append([(v.co for v in face.verts) for face in sunbm.faces])
             sun_v_coords += [v.co[:] for v in sunbm.verts]
             
@@ -688,6 +726,17 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             sunbm.free()
         return sun_v_coords, sun_f_indices
 
+    def ret_globe_geometry(self, lat, long):
+        globebm = bmesh.new()
+        bmesh.ops.create_uvsphere(globebm, u_segments = 24, v_segments = 24, diameter = 100, matrix = self.sp.matrix_world, calc_uvs = 0)
+        bmesh.ops.triangulate(globebm, faces = globebm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
+        bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.01, plane_co = (0, 0, 0), plane_no = (0, 0, 1), use_snap_center = False, clear_outer = False, clear_inner = True)
+#        bmesh.ops.bisect_plane(globebm, geom = globebm.faces, dist - 0.01, plane_co = (0, 0, 0), plane_no = (0, 0, 1), use_snap_center = False, clear_outer = False, clear_inner = True)
+        globe_v_coords = [v.co[:] for v in globebm.verts]
+        globe_f_indices = [[v.index for v in face.verts] for face in globebm.faces]
+        globebm.free()
+        return globe_v_coords, globe_f_indices
+    
     def invoke(self, context, event):        
         scene = context.scene
         node = context.node
@@ -699,7 +748,9 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.sh = scene.vi_params.sp_sh
         self.ss = scene.vi_params.sp_sun_size
         self.create_batch(scene, node)
-        self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
+        self.draw_handle_sp = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
+        self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context), 'WINDOW', 'POST_PIXEL')
+
 
 #        self.draw_handle_2d = bpy.types.SpaceView3D.draw_handler_add(
 #            self.draw_callback_2d, args, "WINDOW", "POST_PIXEL")

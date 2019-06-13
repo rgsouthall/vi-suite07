@@ -1613,7 +1613,7 @@ def lividisplay(self, scene):
             for fii, fi in enumerate(fis):
                 lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
                 
-def retvpvloc(context):
+def ret_vp_loc(context):
     return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
           
 def radpoints(o, faces, sks):
@@ -2465,12 +2465,12 @@ def draw_time(pos, time, fontsize, fontcol, shadcol):
 def blf_props(scene, width, height):
     blf.enable(0, 2)
     blf.clipping(0, 0, 0, width, height)
-    if scene.vi_display_rp_sh:
+    if scene.vi_params.display_rp_sh:
         blf.enable(0, 4)
-        blf.shadow(0, 3, *scene.vi_display_rp_fsh)
+        blf.shadow(0, 3, *scene.vi_params.display_rp_fsh)
 #    bgl.glColor4f(*scene.vi_display_rp_fc)
-    blf.color(0, *scene.vi_display_rp_fc)
-    blf.size(0, scene.vi_display_rp_fs, int(width/20))
+    blf.color(0, *scene.vi_params.display_rp_fc)
+    blf.size(0, scene.vi_params.display_rp_fs, int(width/20))
     
 def blf_unprops():
     blf.disable(0, 2)

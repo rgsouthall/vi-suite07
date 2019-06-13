@@ -111,11 +111,12 @@ class VI_Params(bpy.types.PropertyGroup):
     sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
     sp_season_dash: fvprop(4, "",'Dash colour of the season lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
     sp_sun_colour: fvprop(4, "",'Sun colour', [0.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    sp_globe_colour: fvprop(4, "",'Sun colour', [0.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
     sp_sun_angle: fprop("",'Sun angle', 0.0, 1, 0.5)
     sp_sun_size: iprop("",'Sun size', 1, 50, 10)
     sp_sun_strength: fprop("", "Sun lighting strength", 0.1, 10, 1)
     sp_season_dash_ratio: fprop("", "Ratio of line to dash of season lines", 0, 5, 0)
-    sp_hour_disp: bprop("", "",0)
+#    sp_hour_disp: bprop("", "",0)
     sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, -0.5)
     sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 0)
     sp_line_width: iprop("", "Sun path line width", 0, 50, 4)
@@ -129,8 +130,16 @@ class VI_Params(bpy.types.PropertyGroup):
     sp_hd: bprop("", "",0)
     sp_up: bprop("", "",0)
     sp_td: bprop("", "",0)
-    vi_li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
+    li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
+    display_rp_fsh: fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    display_rp_fs: iprop("", "Point result font size", 4, 24, 24)
+    display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    display_rp_sh: bprop("", "Toggle for font shadow display",  False)
     
+#    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 24, 24)
+#    Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+#    Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
+#    Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 @persistent
 def update_chart_node(dummy):
     try:
@@ -514,10 +523,7 @@ def register():
     Scene.vi_gridify_as = fprop("m", "Side direction size", 0.01, 10, 0.6)
 
 
-    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 24, 24)
-    Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
-    Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
-    Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 5, 0.001)
     Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
     Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)

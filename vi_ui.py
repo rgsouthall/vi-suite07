@@ -49,24 +49,26 @@ class VI_PT_3D(bpy.types.Panel):
                     (sdate, edate) = retdates(scene.solday, 365, 2015)
 
                 if scene['spparams']['suns'] == '0':
-                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh"), ("Display hours:", "sp_hd"), ("Display time:", "sp_td")):
+                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh"), ("Display time:", "sp_td")):
                         newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.hourdisp or scene.timedisp:
-                        for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                        for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh"), ("Shadow colour:", "display_rp_fsh")):
                             newrow(layout, i[0], scene.vi_params, i[1])
 
                 elif scene['spparams']['suns'] == '1':
-                    for i in (("Time of day:", "sp_sh"), ("Display hours:", "sp_hour_disp"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
+                    for i in (("Time of day:", "sp_sh"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
                         newrow(layout, i[0], scene.vi_params, i[1])
-                    if scene.hourdisp:
-                        for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                    if scene.vi_params.sp_hd:
+                        for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh")):
                             newrow(layout, i[0], scene.vi_params, i[1])
+                        if scene.vi_params.display_rp_sh:
+                            newrow(layout, "Shadow colour:", scene.vi_params, "display_rp_fsh")
 
                 elif scene['spparams']['suns'] == '2':
-                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Display hours:", "sp_hour_disp"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
+                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
                         newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.hourdisp:
-                        for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                        for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh"), ("Shadow colour:", "display_rp_fsh")):
                             newrow(layout, i[0], scene, i[1])
                 
                 newrow(layout, "Line width:", scene.vi_params, 'sp_line_width')
@@ -77,6 +79,7 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Hour dash density:", scene.vi_params, 'sp_hour_dash_density')
                 newrow(layout, "Sun size:", scene.vi_params, 'sp_sun_size')
                 newrow(layout, "Sun colour:", scene.vi_params, 'sp_sun_colour')
+                newrow(layout, "Globe colour:", scene.vi_params, 'sp_globe_colour')
                 
             elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()
