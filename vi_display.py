@@ -14,7 +14,7 @@ def spnumdisplay(disp_op, context):
         blf_props(scene, width, height)
         
 #        if scene.vi_params.sp_hd:
-#            pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]
+#            pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]java8-openjfx
 #            pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
 #            p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
 #            vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl, pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]

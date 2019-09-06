@@ -120,9 +120,12 @@ class VI_Params(bpy.types.PropertyGroup):
     sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, -0.5)
     sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 0)
     sp_line_width: iprop("", "Sun path line width", 0, 50, 4)
-    latitude: fprop("", "Site decimal latitude (N is positive)", -89.99, 89.99, 52.0)
-    longitude: fprop("", "Site decimal longitude (E is positive)", -180, 180, 0.0)
-    sp_suns: EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
+    latitude: FloatProperty(name = "", description = "Site decimal latitude (N is positive)", min = -89.99, max = 89.99, default = 52.0, update = sunpath1)
+    longitude: FloatProperty(name = "", description = "Site decimal longitude (E is positive)", min = -180, max = 180, default = 0.0, update = sunpath1)
+    sp_suns: EnumProperty(items = [('0', 'Single', 'Single sun'), 
+                                   ('1', 'Monthly', 'Monthly sun for chosen time'), 
+                                   ('2', 'Hourly', 'Hourly sun for chosen date')], 
+                                    name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
     sp_sst: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
     sp_ssi: FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
     sp_sd: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
