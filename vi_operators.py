@@ -117,7 +117,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
 
         matdict = {'SolEquoRings': (1, 0, 0, 1), 'HourRings': (1, 1, 0, 1), 'SPBase': (1, 1, 1, 1), 'Sun': (1, 1, 1, 1), 'PathDash': (1, 1, 1, 1),
-                   'SumAng': (1, 0, 0, 1), 'EquAng': (0, 1, 0, 1), 'WinAng': (0, 0, 1, 1)}
+                   'SumAng': (1, 0, 0, 1), 'EquAng': (0, 1, 0, 1), 'WinAng': (0, 0, 1, 1), 'SPPlat': (1, 1, 1, 1)}
         
         for mat in [mat for mat in matdict if mat not in bpy.data.materials]:
             bpy.data.materials.new(mat)
@@ -287,7 +287,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 #        bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)
 #        bpy.ops.object.mode_set(mode='OBJECT')
 #        bpy.ops.object.select_all(action='DESELECT')
-        compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
+        compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'])
 #        spro = spathrange([bpy.data.materials['SumAng'], bpy.data.materials['EquAng'], bpy.data.materials['WinAng']])
 #        joinobj(context.view_layer, [compassos] + [spro] + [spathob])
         joinobj(context.view_layer, [compassos] + [spathob])
@@ -674,6 +674,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)  
         self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader) 
         self.range_shader = gpu.types.GPUShader(range_vertex_shader, range_fragment_shader)
+#        self.ordinal_shader = gpu.types.GPUShader(ordinal_vertex_shader, ordinal_fragment_shader)
 #        self.sun2_shader = gpu.types.GPUShader(sun2_vertex_shader, sun2_fragment_shader) 
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
 #        print(coords, [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])])
@@ -685,19 +686,29 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         sun_v_coords, sun_f_indices = self.ret_sun_geometry(scene.vi_params.sp_sun_size, self.suns)
         globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)
         range_v_coords, range_f_indices, range_col_indices = self.ret_range_geometry(self.latitude, self.longitude)
+#        ord_v_coords, ord_f_indices = self.ret_ordinal_geometry()
 #        print(globe_v_coords, globe_f_indices)
         self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
         self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
         self.globe_batch = batch_for_shader(self.globe_shader, 'TRIS', {"position": globe_v_coords}, indices=globe_f_indices)
         self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})#, indices=range_f_indices)
+#        self.ordinal_batch = batch_for_shader(self.ordinal_shader, 'TRIS', {"position": ord_v_coords}, indices=ord_f_indices)
 #        self.sun2_batch = batch_for_shader(self.sun2_shader, 'TRIS', {"position": sun_v_coords, "sun_position": sun_pos}, indices=sun_f_indices)
         
     def draw_sp(self, op, context, node):
         # Draw lines
+        bgl.glEnable(bgl.GL_DEPTH_TEST)
+        bgl.glDepthFunc(bgl.GL_LESS)
+        bgl.glDepthMask(bgl.GL_FALSE)
         bgl.glEnable(bgl.GL_BLEND)
+#        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+#        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+#        bgl.glBlendFunc(bgl.GL_SRC_ALPHA,bgl.GL_SRC_ALPHA)
+#        bgl.glBlendFuncSeparate(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA, bgl.GL_SRC_ALPHA, bgl.GL_DST_ALPHA )
+#        bgl.glEnable(bgl.GL_MULTISAMPLE)
         bgl.glEnable(bgl.GL_LINE_SMOOTH)
 #        bgl.glEnable(bgl.GL_CULL_FACE)
-        bgl.glCullFace(bgl.GL_BACK)
+#        bgl.glCullFace(bgl.GL_BACK)
 #        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
 #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
         bgl.glLineWidth(context.scene.vi_params.sp_line_width)
@@ -729,6 +740,10 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.range_shader.bind()
         self.range_shader.uniform_float("viewProjectionMatrix", matrix)
         self.range_shader.uniform_float("sp_matrix", sp_matrix)
+#        self.ordinal_shader.bind()
+#        self.ordinal_shader.uniform_float("viewProjectionMatrix", matrix)
+#        self.ordinal_shader.uniform_float("sp_matrix", sp_matrix)
+#        self.ordinal_shader.uniform_float("colour", context.scene.vi_params.sp_globe_colour)
 #        self.range_shader.uniform_float("colour", [[1, 0, 0], [0,1,0], [0,0,1]]) 
         
 #        self.sun2_shader.bind()
@@ -765,12 +780,17 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             
         self.range_batch.draw(self.range_shader)    
         self.globe_batch.draw(self.globe_shader)
+#        self.ordinal_batch.draw(self.ordinal_shader)
         self.sun_batch.draw(self.sun_shader)
         self.sp_batch.draw(self.sp_shader)
         
 #        self.sun2_batch.draw(self.sun2_shader)
         bgl.glDisable(bgl.GL_LINE_SMOOTH)
+#        bgl.glDisable(bgl.GL_MULTISAMPLE)
         bgl.glDisable(bgl.GL_BLEND)
+        bgl.glDepthMask(bgl.GL_TRUE)
+        bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
+        bgl.glDisable(bgl.GL_DEPTH_TEST) 
 #        bgl.glDisable(bgl.GL_CULL_FACE)
         
 #        bgl.glDisable(bgl.GL_LINE_SMOOTH)
@@ -831,7 +851,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     
     def ret_range_geometry(self, lat, long):
         bm = bmesh.new()
-        params = ((177, 0.05, 0), (80, 0.1, 1), (355, 0.15, 2)) if lat >= 0 else ((355, 0.05, 0), (80, 0.1, 1), (177, 0.15, 2))
+        params = ((177, 0.2, 0), (80, 0.25, 1), (355, 0.3, 2)) if lat >= 0 else ((355, 0.2, 0), (80, 0.25, 1), (177, 0.3, 2))
         v1s = range(1, 159)
         v2s = range(2, 160)
         v3s = range(159, 0, -1)
@@ -847,16 +867,16 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
                 
                 startset = morn if lat >= 0 else eve
                 angrange = [startset + a * 0.0125 * mornevediff for a in range (0, 81)]
-                bm.verts.new().co = (95*sin(angrange[0]*pi/180), 95*cos(angrange[0]*pi/180), param[1])
+                bm.verts.new().co = (97*sin(angrange[0]*pi/180), 97*cos(angrange[0]*pi/180), param[1])
             
                 for a in angrange[1:-1]:
-                    bm.verts.new().co = (92*sin(a*pi/180), 92*cos(a*pi/180), param[1])
+                    bm.verts.new().co = (95*sin(a*pi/180), 95*cos(a*pi/180), param[1])
                 
-                bm.verts.new().co = (95*sin(angrange[len(angrange) - 1]*pi/180), 95*cos(angrange[len(angrange) - 1]*pi/180), param[1])
+                bm.verts.new().co = (97*sin(angrange[len(angrange) - 1]*pi/180), 97*cos(angrange[len(angrange) - 1]*pi/180), param[1])
                 angrange.reverse()
         
                 for b in angrange[1:-1]:
-                    bm.verts.new().co = (98*sin(b*pi/180), 98*cos(b*pi/180), param[1])
+                    bm.verts.new().co = (99*sin(b*pi/180), 99*cos(b*pi/180), param[1])
 
                 bm.verts.ensure_lookup_table()
                 face = bm.faces.new((bm.verts[0 + 160 * param[2]], bm.verts[1 + 160 * param[2]], bm.verts[159 + 160 * param[2]]))
@@ -873,27 +893,30 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
                 
         range_v_coords = [[v.co[:] for v in face.verts] for face in bm.faces]
         range_v_coords = [item for sublist in range_v_coords for item in sublist]
-        range_f_indices = [[v.index for v in face.verts] for face in bm.faces]
-        
+        range_f_indices = [[v.index for v in face.verts] for face in bm.faces]        
         range_col_indices = [[((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))[face.material_index] for v in face.verts] for face in bm.faces]
         range_col_indices = [item for sublist in range_col_indices for item in sublist]
         bm.free()
         return (range_v_coords, range_f_indices, range_col_indices)
     
-    def ret_ordinals():
-        txts = []
-        for d in range(16):
-            bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
-            txt = bpy.context.active_object
-            txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
-            bpy.ops.object.convert(target='MESH')
-            bpy.ops.object.material_slot_add()
-            txt.material_slots[-1].material = mat
-            txts.append(txt)
-            tmatrot = tmatrot @ degmatrot
-        joinobj(bpy.context.view_layer, txts)
-        bm = bmesh.new()
-        bm.from_mesh(bpy.context.active_object.data)
+#    def ret_ordinal_geometry(self):
+#        txts = []
+#        for d in range(16):
+#            loc = Vector((-100*sin(2 * (d/16) * (math.pi)), 100*cos(2 * (d/16) * (math.pi)), 0))
+#            bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=loc, rotation=(0, 0, (d/16) * 2 * math.pi))
+#            txt = bpy.context.active_object
+#            txt.data.size, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = 5, ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
+#            bpy.ops.object.convert(target='MESH')
+#            bpy.ops.object.material_slot_add()
+#            txts.append(txt)
+#        joinobj(bpy.context.view_layer, txts)
+#        bm = bmesh.new()
+#        bm.from_mesh(bpy.context.active_object.data)
+#        ord_v_coords = [v.co[:] for v in bm.verts]
+#        ord_f_indices = [[v.index for v in face.verts] for face in bm.faces]
+#        bm.free()
+#        return (ord_v_coords, ord_f_indices)
+    
     def invoke(self, context, event):        
         scene = context.scene
         node = context.node

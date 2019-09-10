@@ -2035,7 +2035,7 @@ def wind_rose(maxws, wrsvg, wrtype, colors):
 
     return (joinobj((wrbo, wro)), scale)
     
-def compass(loc, scale, wro, mat):
+def compass(loc, scale, wro, platmat, basemat):
     txts = []
     come = bpy.data.meshes.new("Compass")   
     coo = bpy.data.objects.new('Compass', come)
@@ -2044,27 +2044,66 @@ def compass(loc, scale, wro, mat):
     bpy.context.scene.collection.objects.link(coo)
     bpy.context.view_layer.objects.active = coo
     bpy.ops.object.material_slot_add()
-    coo.material_slots[-1].material = mat
+    coo.material_slots[-1].material = platmat
     bm = bmesh.new()
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
-    
-    for i in range(1, 11):
-        # diameter becomes radius post 2.79
-        bmesh.ops.create_circle(bm, cap_ends=False, radius=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')@Matrix.Translation((0, 0, 0)))
-    
-    for edge in bm.edges:
-        edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
-    
-    bmesh.ops.delete(bm, geom = [edge for edge in bm.edges if edge.select], context = 'FACES')
-    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
-    
-    for v, vert in enumerate(newgeo['geom'][:1320]):
-        vert.co = vert.co - (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
-        vert.co[2] = 0
+    bmesh.ops.create_circle(bm, cap_ends=True, radius=100, segments=132,  matrix=Matrix.Rotation(0, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+        
+#    for edge in bm.edges:
+#        edge.select_set(True)
+#        edge.select_set(False) if edge.index < 132 else edge.select_set(True)
 
-    # diameter becomes radius post 2.79       
-    bmesh.ops.create_circle(bm, cap_ends=True, radius=scale * 0.0025, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
+        face.material_index = 1
     
+    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
+        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
+        vert.co[2] = 0
+      
+    for edge in [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05]:
+#        print('select')
+        edge.select_set(True)
+#        edge.select_set(True)
+        
+    newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05], use_select_history=False)
+    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
+        face.material_index = 0
+    newverts = []
+    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
+        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.05
+        vert.co[2] = 0
+        newverts.append(vert)
+    for v in newverts:
+        if abs(v.co[1]) < 0.01:
+            v.co[0] += v.co[0] * 0.025
+        elif abs(v.co[0]) < 0.01:
+            v.co[1] += v.co[1] * 0.025
+        
+#    for edge in [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts]:
+#        print('select')
+#        edge.select_set(True)
+    newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts], use_select_history=False)
+    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
+        face.material_index = 1
+    newverts = []
+    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
+        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
+        vert.co[2] = 0
+        newverts.append(vert)
+    # diameter becomes radius post 2.79       
+#    bmesh.ops.create_circle(bm, cap_ends=False, radius=110, segments=132, matrix=Matrix.Rotation(pi/61, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+#    bmesh.ops.create_circle(bm, cap_ends=False, radius=100, segments=132,  matrix=Matrix.Rotation(pi/61, 4, 'Z')@Matrix.Translation((0, 0, 0)))    
+    
+    
+#    for edge in bm.edges:
+#        edge.select_set(False) if edge.index < 792 else edge.select_set(True)
+
+#    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+    
+#    for v, vert in enumerate(newgeo['geom'][:133]):
+#        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
+#        vert.co[2] = 0
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
@@ -2085,16 +2124,18 @@ def compass(loc, scale, wro, mat):
 #        tmatrot = tmatrot@matrot
 
     tmatrot = Matrix.Rotation(0, 4, 'Z')
+    f_sizes = (0.06, 0.04, 0.04, 0.04, 0.06, 0.04, 0.04, 0.04, 0.06, 0.04, 0.04, 0.04, 0.06, 0.04, 0.04, 0.04)
     for d in range(16):
-        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.025*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', 0.1
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
-        txt.material_slots[-1].material = mat
+        txt.material_slots[-1].material = basemat
         txts.append(txt)
         tmatrot = tmatrot @ degmatrot
-    
+#    for fi, face in enumerate(bm.faces):
+#        face.material_index = (1, 0)[len(face.verts) == 132]
     bm.to_mesh(come)
     bm.free()
     return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
@@ -2533,25 +2574,32 @@ def sunpath(scene):
             return
 
     elif scene['spparams']['suns'] == '1':
+        all_alts = [solarPosition(d, scene.vi_params.sp_sh, scene.vi_params.latitude, scene.vi_params.longitude)[0] for d in (20, 50, 80, 110, 140, 171, 201, 231, 261, 292, 323, 354)]
+        valid_suns = len([aa for aa in all_alts if aa > 0])
+
         for d, day in enumerate((20, 50, 80, 110, 140, 171, 201, 231, 261, 292, 323, 354)):
-            alt, azi, beta, phi = solarPosition(day, scene.solhour, scene.latitude, scene.longitude)
+            alt, azi, beta, phi = solarPosition(day, scene.vi_params.sp_sh, scene.vi_params.latitude, scene.vi_params.longitude)
             suns[d].location.z = 100 * sin(beta)
             suns[d].location.x = -(100**2 - (suns[d].location.z)**2)**0.5 * sin(phi)
             suns[d].location.y = -(100**2 - (suns[d].location.z)**2)**0.5 * cos(phi)
             suns[d].rotation_euler = pi * 0.5 - beta, 0, -phi
             suns[d].hide_viewport = True if alt <= 0 else False
+            
             if suns[d].children:
                 suns[d].children[0].hide_viewport = True if alt <= 0 else False
-            suns[d].data.energy = scene.sunsstrength
-            
-            if scene.render.engine == 'CYCLES':
-                if suns[d].data.node_tree:
-                    for emnode in [node for node in suns[d].data.node_tree.nodes if node.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = scene.vi_params.sp_sun_strength
-                    
-            suns[d].data.shadow_soft_size = scene.vi_params.sp_sun_size
+            if alt > 0:
+                suns[d].data.energy = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
+                
+                if scene.render.engine == 'CYCLES':
+                    if suns[d].data.node_tree:
+                        for emnode in [node for node in suns[d].data.node_tree.nodes if node.bl_label == 'Emission']:
+                            emnode.inputs[1].default_value = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
+                        
+                suns[d].data.angle = scene.vi_params.sp_sun_angle
     
     elif scene['spparams']['suns'] == '2':
+        all_alts = [solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)[0] for h in range(24)]
+        valid_suns = len([aa for aa in all_alts if aa > 0])
         for h in range(24):
             alt, azi, beta, phi = solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)
             suns[h].location.z = 100 * sin(beta)
@@ -2562,15 +2610,15 @@ def sunpath(scene):
             
             if suns[h].children:
                 suns[h].children[0].hide_viewport = True if alt <= 0 else False
+            if alt > 0:    
+                suns[h].data.energy = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
                 
-            suns[h].data.energy = scene.vi_params.sp_sun_strength
-            
-            if scene.render.engine == 'CYCLES':
-                if suns[h].data.node_tree:
-                    for emnode in [node for node in suns[h].data.node_tree.nodes if node.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = scene.vi_params.sp_sun_strength
-
-            suns[h].data.angle = scene.vi_params.sp_sun_angle
+                if scene.render.engine == 'CYCLES':
+                    if suns[h].data.node_tree:
+                        for emnode in [node for node in suns[h].data.node_tree.nodes if node.bl_label == 'Emission']:
+                            emnode.inputs[1].default_value = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
+    
+                suns[h].data.angle = scene.vi_params.sp_sun_angle
                 
 def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:
