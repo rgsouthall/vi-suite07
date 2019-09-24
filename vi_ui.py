@@ -44,32 +44,16 @@ class VI_PT_3D(bpy.types.Panel):
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
                 newrow(layout, "Latitude:", scene.vi_params, 'latitude')
                 newrow(layout, "Longitude:", scene.vi_params, 'longitude')
+
+                (sdate, edate) = retdates(scene.solday, 365, 2015)
+                    
+                time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh")), [("Time of day:", "sp_sh")], [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
                 
-                if scene['spparams']['suns'] in ('0', '2'):
-                    (sdate, edate) = retdates(scene.solday, 365, 2015)
-
-                if scene['spparams']['suns'] == '0':
-                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh"), ("Display time:", "sp_td")):
+                for i in time_disps[int(scene['spparams']['suns'])]:
+                    newrow(layout, i[0], scene.vi_params, i[1])
+                
+                for i in (("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
                         newrow(layout, i[0], scene.vi_params, i[1])
-                    if scene.hourdisp or scene.timedisp:
-                        for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh"), ("Shadow colour:", "display_rp_fsh")):
-                            newrow(layout, i[0], scene.vi_params, i[1])
-
-                elif scene['spparams']['suns'] == '1':
-                    for i in (("Time of day:", "sp_sh"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
-                        newrow(layout, i[0], scene.vi_params, i[1])
-                    if scene.vi_params.sp_hd:
-                        for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh")):
-                            newrow(layout, i[0], scene.vi_params, i[1])
-                        if scene.vi_params.display_rp_sh:
-                            newrow(layout, "Shadow colour:", scene.vi_params, "display_rp_fsh")
-
-                elif scene['spparams']['suns'] == '2':
-                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
-                        newrow(layout, i[0], scene.vi_params, i[1])
-                    if scene.hourdisp:
-                        for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh"), ("Shadow colour:", "display_rp_fsh")):
-                            newrow(layout, i[0], scene, i[1])
                 
                 newrow(layout, "Line width:", scene.vi_params, 'sp_line_width')
                 newrow(layout, "Solstice colour:", scene.vi_params, 'sp_season_main') 
@@ -80,6 +64,17 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Sun size:", scene.vi_params, 'sp_sun_size')
                 newrow(layout, "Sun colour:", scene.vi_params, 'sp_sun_colour')
                 newrow(layout, "Globe colour:", scene.vi_params, 'sp_globe_colour')
+                
+                time_disps = ((("Display time:", "sp_td"), ("Display hours:", "sp_hd")), [("Display hours:", "sp_hd")], [("Display hours:", "sp_hd")])
+                
+                for i in time_disps[int(scene['spparams']['suns'])]:
+                    newrow(layout, i[0], scene.vi_params, i[1])
+                
+                if (scene['spparams']['suns'] == '0' and (scene.vi_params.sp_td or scene.vi_params.sp_hd)) or scene.vi_params.sp_hd:
+                    for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh")):
+                        newrow(layout, i[0], scene.vi_params, i[1])
+                    if scene.vi_params.display_rp_sh:
+                        newrow(layout, "Shadow colour:", scene.vi_params, "display_rp_fsh")
                 
             elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()

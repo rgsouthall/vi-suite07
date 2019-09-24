@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, gpu, bgl
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, gpu, bgl, blf
 import numpy
 from numpy import arange, histogram, array, int8, float16
 import bpy_extras.io_utils as io_utils
@@ -27,6 +27,7 @@ from math import cos, sin, pi, ceil, tan, radians
 from time import sleep
 from mathutils import Euler, Vector
 from gpu_extras.batch import batch_for_shader
+from bpy_extras import view3d_utils
 #from multiprocessing import Pool
 #from .livi_export import radgexport, spfc, createoconv, createradfile
 #from .livi_calc  import li_calc
@@ -35,7 +36,7 @@ from gpu_extras.batch import batch_for_shader
 #from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, joinobj, solarPosition, viparams, compass, spfc, solarRiseSet
 #from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
-from .vi_func import spathrange, ret_plt
+from .vi_func import spathrange, ret_plt, blf_props, draw_index, viewdesc, ret_vp_loc, draw_time
 from .vi_func import sunpath
 from .vi_display import spnumdisplay
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
@@ -370,11 +371,11 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
                 elif doy == 355:
                     if hour in (120, 240):
                         wincoords.append(coord)
+                    
         self.summid = (sumcoords[0]+sumcoords[1])/2
         self.winmid = (wincoords[0]+wincoords[1])/2               
         self.sumnorm = mathutils.Matrix().Rotation(math.pi/2, 4, 'X')@mathutils.Vector([0] + list((sumcoords[0]-sumcoords[1])[1:])).normalized()   
         self.winnorm = mathutils.Matrix().Rotation(math.pi/2, 4, 'X')@mathutils.Vector([0] + list((wincoords[0]-wincoords[1])[1:])).normalized()    
-#        print(sumnorm, winnorm)
                 
         for a, b in zip(coords[:-1], coords[1:]):
             line_lengths.append(line_lengths[-1] + (a - b).length)
@@ -557,28 +558,8 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
            
             '''
             
-        ordinal_vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 sp_matrix;
-            in vec3 position;
             
-            void main()
-                {
-                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
-                }
-            '''
-        ordinal_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            
-            void main()
-                {
-                    FragColour = colour;
-                }
-           
-            '''
-            
-#            }
+
 #        uniform sampler2D tex0;
 #        uniform float border; // 0.01
 #        uniform float circle_radius; // 0.5
@@ -799,7 +780,61 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 #        bgl.glDisable(bgl.GL_BLEND)
 #        bgl.glDisable(bgl.GL_POLYGON_SMOOTH)
         bgl.glPointSize(1)
+        
+#    def ret_numpos(self, context):
+        
+    def draw_spnum(self, op, context):
+        scene = context.scene
+    
+        if bpy.data.objects.get('SPathMesh'):
+            spob = bpy.data.objects['SPathMesh'] 
+            ob_mat = spob.matrix_world
+            mid_x, mid_y, width, height = viewdesc(context)
+            vl = ret_vp_loc(context)
+            blf_props(scene, width, height)
+            
+            if scene.vi_params.sp_hd:
+                coords, scene, sd = {}, context.scene, 100
 
+                for doy in (172, 355):
+                    for hour in range(24):
+                        ([solalt, solazi]) = solarPosition(doy, hour, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
+                        if solalt > 0:
+                            coords['{}-{}'.format(str(doy), str(hour))] = (Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)])) 
+          
+                dists, hs, pos = [], [], []
+                for co in coords:
+                    dists.append((vl - coords[co]).length) 
+
+                    hs.append(int(co.split('-')[1]))
+                    pos.append(view3d_utils.location_3d_to_region_2d(context.region, context.region_data, ob_mat@coords[co]))
+            
+                if pos:
+                    draw_index(pos, hs, dists, scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
+                    
+            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene['spparams']['suns'] == '0':
+                sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
+                
+                if sobs and scene.vi_params.sp_td:
+                    sunloc = ob_mat@sobs[0].location
+                    solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
+                    
+                    try:
+                        if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
+                            soltime = datetime.datetime.fromordinal(scene.vi_params.sp_sd)
+                            soltime += datetime.timedelta(hours = scene.vi_params.sp_sh)
+                            sre = sobs[0].rotation_euler
+                            blf_props(scene, width, height)
+                            sol_text = soltime.strftime('     %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi)
+                            draw_time(solpos, sol_text, 
+                                       scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
+                            
+                    except Exception as e:
+                        print(e)
+            blf.disable(0, 4)
+        else:
+            return
+        
     def modal(self, context, event):
         scene = context.scene
        
@@ -929,7 +964,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.ss = scene.vi_params.sp_sun_size
         self.create_batch(scene, node)
         self.draw_handle_sp = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
-        self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context), 'WINDOW', 'POST_PIXEL')
+        self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_spnum, (self, context), 'WINDOW', 'POST_PIXEL')
 
 
 #        self.draw_handle_2d = bpy.types.SpaceView3D.draw_handler_add(

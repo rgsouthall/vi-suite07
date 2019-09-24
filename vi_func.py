@@ -2040,7 +2040,6 @@ def compass(loc, scale, wro, platmat, basemat):
     come = bpy.data.meshes.new("Compass")   
     coo = bpy.data.objects.new('Compass', come)
     coo.location = loc
-#    bpy.context.view_layer.objects.link(coo)
     bpy.context.scene.collection.objects.link(coo)
     bpy.context.view_layer.objects.active = coo
     bpy.ops.object.material_slot_add()
@@ -2048,45 +2047,43 @@ def compass(loc, scale, wro, platmat, basemat):
     bm = bmesh.new()
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     bmesh.ops.create_circle(bm, cap_ends=True, radius=100, segments=132,  matrix=Matrix.Rotation(0, 4, 'Z')@Matrix.Translation((0, 0, 0)))
-        
-#    for edge in bm.edges:
-#        edge.select_set(True)
-#        edge.select_set(False) if edge.index < 132 else edge.select_set(True)
 
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+    
     for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
         face.material_index = 1
     
     for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
         vert.co[2] = 0
-      
-    for edge in [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05]:
-#        print('select')
-        edge.select_set(True)
-#        edge.select_set(True)
-        
+              
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05], use_select_history=False)
+    
     for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
         face.material_index = 0
+    
     newverts = []
     for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.05
         vert.co[2] = 0
         newverts.append(vert)
+    
+#    for edge in [e for e in newgeo['geom'] if isinstance(v, bmesh.types.BMEdge) and e.calc_length < 0.05]:
+    bmesh.ops.dissolve_edges(bm, edges = [e for e in newgeo['geom'] if isinstance(v, bmesh.types.BMEdge) and e.calc_length > 0.05], use_verts = True, use_face_split = False)
+        
     for v in newverts:
         if abs(v.co[1]) < 0.01:
             v.co[0] += v.co[0] * 0.025
         elif abs(v.co[0]) < 0.01:
             v.co[1] += v.co[1] * 0.025
-        
-#    for edge in [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts]:
-#        print('select')
-#        edge.select_set(True)
+#        elif v.co
+
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts], use_select_history=False)
+    
     for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
         face.material_index = 1
     newverts = []
+    
     for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
         vert.co[2] = 0
@@ -2124,18 +2121,20 @@ def compass(loc, scale, wro, platmat, basemat):
 #        tmatrot = tmatrot@matrot
 
     tmatrot = Matrix.Rotation(0, 4, 'Z')
-    f_sizes = (0.06, 0.04, 0.04, 0.04, 0.06, 0.04, 0.04, 0.04, 0.06, 0.04, 0.04, 0.04, 0.06, 0.04, 0.04, 0.04)
+    f_sizes = (0.06, 0.04, 0.05, 0.04, 0.06, 0.04, 0.05, 0.04, 0.06, 0.04, 0.05, 0.04, 0.06, 0.04, 0.05, 0.04)
+    f_texts = ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')
+    f_texts = ('N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE', 'E', 'ENE', 'NE', 'NNE')
+
     for d in range(16):
-        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.025*(tmatrot@direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.0005*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', 0.1
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), f_texts[d], 'CENTER', 'BOTTOM', 0.1
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = basemat
         txts.append(txt)
         tmatrot = tmatrot @ degmatrot
-#    for fi, face in enumerate(bm.faces):
-#        face.material_index = (1, 0)[len(face.verts) == 132]
+
     bm.to_mesh(come)
     bm.free()
     return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
@@ -2491,9 +2490,10 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
         except Exception as e:
             print('Drawing index error: ', e)
 
-def draw_index(posis, res, fontsize, fontcol, shadcol): 
+def draw_index(posis, res, dists, fontsize, fontcol, shadcol): 
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]    
     for ri, nr in enumerate(nres):
+        blf.size(0, int(0.25 * fontsize + 0.25 * fontsize * (max(dists) - dists[ri])/(max(dists) - min(dists))), 150)
         blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)        
         blf.draw(0, nr)        
     blf.disable(0, 4)

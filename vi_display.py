@@ -13,18 +13,18 @@ def spnumdisplay(disp_op, context):
         vl = ret_vp_loc(context)
         blf_props(scene, width, height)
         
-#        if scene.vi_params.sp_hd:
-#            pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]java8-openjfx
-#            pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
-#            p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
-#            vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl, pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]
-#            
-#            if vispoints:
-#                hs = [pvals[pi] for pi in vispoints]
-#                posis = [p2ds[pi] for pi in vispoints]                
-#                draw_index(posis, hs, scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
+        if scene.vi_params.sp_hd:
+            pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]
+            pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
+            p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
+            vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl, pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]
+            
+            if vispoints:
+                hs = [pvals[pi] for pi in vispoints]
+                posis = [p2ds[pi] for pi in vispoints]                
+                draw_index(posis, hs, scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
                 
-        if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
+        if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene['spparams']['suns'] == '0':
             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
             
             if sobs and scene.vi_params.sp_td:
