@@ -24,7 +24,7 @@ def spnumdisplay(disp_op, context):
                 posis = [p2ds[pi] for pi in vispoints]                
                 draw_index(posis, hs, scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
                 
-        if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene['spparams']['suns'] == '0':
+        if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene.vi_params['spparams']['suns'] == '0':
             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
             
             if sobs and scene.vi_params.sp_td:

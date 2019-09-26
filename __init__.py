@@ -40,20 +40,20 @@ else:
     from .vi_node import vinode_categories, ViNetwork, ViLoc, ViLocSock, ViSPNode
 #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
-    from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals, py_path
+    from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
 #    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
 #    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
 #    from .vi_display import setcols
-    from .vi_operators import NODE_OT_SunPath, VIEW3D_OT_SPNumDisplay
-    from .vi_operators import *
+    from .vi_operators import NODE_OT_SunPath
+#    from .vi_operators import *
     from .vi_ui import VI_PT_3D
-    from .vi_ui import *
+#    from .vi_ui import *
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, math, mathutils
 from bpy.app.handlers import persistent
 from numpy import array, digitize, logspace, multiply
 from numpy import log10 as nlog10
-from bpy.props import StringProperty, EnumProperty, IntProperty, FloatVectorProperty, FloatProperty
+from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import AddonPreferences
 
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
@@ -105,23 +105,25 @@ class VIPreferences(AddonPreferences):
             row.label(text=entry)   
             row.prop(self, self.ui_dict[entry])
 
-class VI_Params(bpy.types.PropertyGroup):   
-    sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1) 
-    sp_hour_main: fvprop(4, "",'Dash colour of the hour lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
-    sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
-    sp_season_dash: fvprop(4, "",'Dash colour of the season lines', [1.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
-    sp_sun_colour: fvprop(4, "",'Sun colour', [0.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
-    sp_globe_colour: fvprop(4, "",'Sun colour', [0.0, 1.0, 1.0, 1.0], 'COLOR', 0, 1)
+class VI_Params(bpy.types.PropertyGroup): 
+    sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1) 
+    sp_hour_main: fvprop(4, "",'Dash colour of the hour lines', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
+    sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    sp_season_dash: fvprop(4, "",'Dash colour of the season lines', [1.0, 1.0, 1.0, 0.0], 'COLOR', 0, 1)
+    sp_sun_colour: fvprop(4, "",'Sun colour', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
+    sp_globe_colour: fvprop(4, "",'Sun colour', [0.0, 0.0, 1.0, 0.1], 'COLOR', 0, 1)
     sp_sun_angle: fprop("",'Sun angle', 0.0, 1, 0.5)
     sp_sun_size: iprop("",'Sun size', 1, 50, 10)
     sp_sun_strength: fprop("", "Sun lighting strength", 0.1, 10, 1)
     sp_season_dash_ratio: fprop("", "Ratio of line to dash of season lines", 0, 5, 0)
 #    sp_hour_disp: bprop("", "",0)
-    sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, -0.5)
-    sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 0)
-    sp_line_width: iprop("", "Sun path line width", 0, 50, 4)
-    latitude: FloatProperty(name = "", description = "Site decimal latitude (N is positive)", min = -89.99, max = 89.99, default = 52.0, update = sunpath1)
-    longitude: FloatProperty(name = "", description = "Site decimal longitude (E is positive)", min = -180, max = 180, default = 0.0, update = sunpath1)
+    sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, 0.5)
+    sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 1)
+    sp_line_width: iprop("", "Sun path line width", 0, 50, 2)
+    latitude: FloatProperty(name = "", description = "Site decimal latitude (N is positive)", 
+                            min = -89.99, max = 89.99, default = 52.0, update = sunpath1)
+    longitude: FloatProperty(name = "", description = "Site decimal longitude (E is positive)", 
+                             min = -180, max = 180, default = 0.0, update = sunpath1)
     sp_suns: EnumProperty(items = [('0', 'Single', 'Single sun'), 
                                    ('1', 'Monthly', 'Monthly sun for chosen time'), 
                                    ('2', 'Hourly', 'Hourly sun for chosen date')], 
@@ -129,7 +131,8 @@ class VI_Params(bpy.types.PropertyGroup):
     sp_sst: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
     sp_ssi: FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
     sp_sd: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
-    sp_sh: FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
+    sp_sh: FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', 
+                         min = 0, max = 24, default = 12, update=sunpath1)
     sp_hd: bprop("", "",0)
     sp_up: bprop("", "",0)
     sp_td: bprop("", "",0)
@@ -153,17 +156,17 @@ def update_chart_node(dummy):
 
 @persistent        
 def update_dir(dummy):
-    if bpy.context.scene.get('viparams'):
+    if bpy.context.scene.vi_params.get('viparams'):
         fp = bpy.data.filepath
-        bpy.context.scene['viparams']['newdir'] = os.path.join(os.path.dirname(fp), os.path.splitext(os.path.basename(fp))[0])
+        bpy.context.scene.vi_params['viparams']['newdir'] = os.path.join(os.path.dirname(fp), os.path.splitext(os.path.basename(fp))[0])
                
 @persistent
 def display_off(dummy):
-    if bpy.context.scene.get('viparams') and bpy.context.scene['viparams'].get('vidisp'):
+    if bpy.context.scene.vi_params.get('viparams') and bpy.context.scene['viparams'].get('vidisp'):
         
         ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en', 'bsdf_panel': 'bsdf'}
-        if bpy.context.scene['viparams']['vidisp'] in ifdict:
-            bpy.context.scene['viparams']['vidisp'] = ifdict[bpy.context.scene['viparams']['vidisp']]
+        if bpy.context.scene.vi_params['viparams']['vidisp'] in ifdict:
+            bpy.context.scene.vi_params['viparams']['vidisp'] = ifdict[bpy.context.scene.vi_params['viparams']['vidisp']]
         bpy.context.scene.vi_display = 0
         
 @persistent
@@ -375,7 +378,7 @@ def flovi_levels(self, context):
        self.flovi_slmin -= 1 
 
 
-classes = (VIPreferences, ViNetwork, ViLoc, ViLocSock, ViSPNode, NODE_OT_SunPath, VIEW3D_OT_SPNumDisplay, VI_PT_3D, VI_Params)
+classes = (VIPreferences, ViNetwork, ViLoc, ViLocSock, ViSPNode, NODE_OT_SunPath, VI_PT_3D, VI_Params)
 
 
 #def register():

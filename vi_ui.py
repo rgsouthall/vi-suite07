@@ -19,8 +19,8 @@ class VI_PT_3D(bpy.types.Panel):
         layout = self.layout
 
         try:
-            if cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ' and cao.vi_type == '5' and scene['viparams'].get('vidisp'):                
-                if scene['viparams']['vidisp'] != 'bsdf_panel':
+            if cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ' and cao.vi_type == '5' and scene.vi_params['viparams'].get('vidisp'):                
+                if scene.vi_params['viparams']['vidisp'] != 'bsdf_panel':
                     row = layout.row()
                     row.operator("view3d.bsdf_display", text="BSDF Display") 
                 else:
@@ -32,16 +32,16 @@ class VI_PT_3D(bpy.types.Panel):
         except Exception as e:
             logentry("Problem with BSDF panel display: {}".format(e))
 
-        if scene.get('viparams') and scene['viparams'].get('vidisp'): 
-            if scene['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
+        if scene.vi_params.get('viparams') and scene.vi_params['viparams'].get('vidisp'): 
+            if scene.vi_params['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
                 
-            elif scene['viparams']['vidisp'] == 'wrpanel' and scene.vi_display:
+            elif scene.vi_params['viparams']['vidisp'] == 'wrpanel' and scene.vi_display:
                 newrow(layout, 'Wind metric:', scene, 'wind_type')
                 newrow(layout, 'Colour:', scene, 'vi_leg_col')
                 
-            elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
+            elif scene.vi_params['viparams']['vidisp'] == 'sp' and scene.vi_display:
                 newrow(layout, "Latitude:", scene.vi_params, 'latitude')
                 newrow(layout, "Longitude:", scene.vi_params, 'longitude')
 
@@ -49,7 +49,7 @@ class VI_PT_3D(bpy.types.Panel):
                     
                 time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh")), [("Time of day:", "sp_sh")], [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
                 
-                for i in time_disps[int(scene['spparams']['suns'])]:
+                for i in time_disps[int(scene.vi_params['spparams']['suns'])]:
                     newrow(layout, i[0], scene.vi_params, i[1])
                 
                 for i in (("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
@@ -67,47 +67,47 @@ class VI_PT_3D(bpy.types.Panel):
                 
                 time_disps = ((("Display time:", "sp_td"), ("Display hours:", "sp_hd")), [("Display hours:", "sp_hd")], [("Display hours:", "sp_hd")])
                 
-                for i in time_disps[int(scene['spparams']['suns'])]:
+                for i in time_disps[int(scene.vi_params['spparams']['suns'])]:
                     newrow(layout, i[0], scene.vi_params, i[1])
                 
-                if (scene['spparams']['suns'] == '0' and (scene.vi_params.sp_td or scene.vi_params.sp_hd)) or scene.vi_params.sp_hd:
+                if (scene.vi_params['spparams']['suns'] == '0' and (scene.vi_params.sp_td or scene.vi_params.sp_hd)) or scene.vi_params.sp_hd:
                     for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh")):
                         newrow(layout, i[0], scene.vi_params, i[1])
                     if scene.vi_params.display_rp_sh:
                         newrow(layout, "Shadow colour:", scene.vi_params, "display_rp_fsh")
                 
-            elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
+            elif scene.vi_params['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 
                 row = layout.row()
                 
-                if scene['viparams']['vidisp'] == 'svf':
+                if scene.vi_params['viparams']['vidisp'] == 'svf':
                     row.operator("view3d.svfdisplay", text="Sky View Display")
-                elif scene['viparams']['vidisp'] == 'ss':
+                elif scene.vi_params['viparams']['vidisp'] == 'ss':
                     row.operator("view3d.ssdisplay", text="Shadow Display")
                 else:
                     row.operator("view3d.livibasicdisplay", text="Radiance Display")
 
-            elif scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
+            elif scene.vi_params['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
                 row = layout.row()
                 row.prop(context.space_data, "show_only_render")
 
                 if not scene.ss_disp_panel:
-                    if scene['viparams']['visimcontext'] == 'LiVi CBDM':
-                        if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Avg lux'):
+                    if scene.vi_params['viparams']['visimcontext'] == 'LiVi CBDM':
+                        if scene.vi_params['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Avg lux'):
                             newrow(layout, 'Result type:', scene, "li_disp_da")
-                        elif scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
+                        elif scene.vi_params['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
                             newrow(layout, 'Result type:', scene, "li_disp_exp")
-                        elif scene['liparams']['unit'] in ('kWh', 'kWh/m2'):
+                        elif scene.vi_params['liparams']['unit'] in ('kWh', 'kWh/m2'):
                             newrow(layout, 'Result type:', scene, "li_disp_irrad")
 
-                    elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
-                        if scene['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
+                    elif scene.vi_params['viparams']['visimcontext'] == 'LiVi Compliance': 
+                        if scene.vi_params['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
                             newrow(layout, 'Metric:', scene, 'li_disp_sda')
                         else:
                             newrow(layout, 'Metric:', scene, 'li_disp_sv')
                             
-                    elif scene['viparams']['visimcontext'] == 'LiVi Basic':
+                    elif scene.vi_params['viparams']['visimcontext'] == 'LiVi Basic':
                         newrow(layout, 'Metric:', scene, 'li_disp_basic')
                     
                     newrow(layout, 'Legend unit:', scene, "vi_leg_unit")
@@ -149,10 +149,10 @@ class VI_PT_3D(bpy.types.Panel):
                     row = layout.row()
                     row.label(text="{:-<60}".format(""))
  
-            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
+            elif scene.vi_params['viparams']['vidisp'] in ('en', 'enpanel'):
                 fs, fe = scene['enparams']['fs'], scene['enparams']['fe']
                 sedt = scene.en_disp_type
-                resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+                resnode = bpy.data.node_groups[scene.vi_params['viparams']['resnode'].split('@')[1]].nodes[scene.vi_params['viparams']['resnode'].split('@')[0]]
 
                 if sedt == '1':
                     zresdict = {}
@@ -165,7 +165,7 @@ class VI_PT_3D(bpy.types.Panel):
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
 
-                if scene['viparams']['vidisp'] == 'en': 
+                if scene.vi_params['viparams']['vidisp'] == 'en': 
                     newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
                     if sedt == '1':
                         row = layout.row()               
@@ -212,7 +212,7 @@ class VI_PT_3D(bpy.types.Panel):
                     elif sedt == '1':
                         row.operator("view3d.enpdisplay", text="EnVi Display")
                         
-            if scene['viparams']['vidisp'] == 'enpanel':                                
+            if scene.vi_params['viparams']['vidisp'] == 'enpanel':                                
                 if sedt == '0':
                     newrow(layout, 'Display unit:', scene, 'en_disp_unit')  
                     newrow(layout, 'Bar colour:', scene, "vi_leg_col")
@@ -267,8 +267,8 @@ class VIMatPanel(bpy.types.Panel):
                 row.operator("material.envi_node", text = "Create EnVi Nodes")
         
         elif cm.mattype == '1':  
-            if scene.get('viparams') and scene['viparams'].get('viexpcontext') and scene['viparams']['viexpcontext'] == 'LiVi Compliance':
-                connode = bpy.data.node_groups[scene['viparams']['connode'].split('@')[1]].nodes[scene['viparams']['connode'].split('@')[0]]
+            if scene.get('viparams') and scene.vi_params['viparams'].get('viexpcontext') and scene.vi_params['viparams']['viexpcontext'] == 'LiVi Compliance':
+                connode = bpy.data.node_groups[scene.vi_params['viparams']['connode'].split('@')[1]].nodes[scene.vi_params['viparams']['connode'].split('@')[0]]
                 coptions = connode['Options']
 
                 if coptions['canalysis'] == '0':
@@ -293,7 +293,7 @@ class VIMatPanel(bpy.types.Panel):
             rmmenu(layout, cm)
         
         elif cm.mattype == '2':
-            fvsimnode = bpy.data.node_groups[scene['viparams']['fvsimnode'].split('@')[1]].nodes[scene['viparams']['fvsimnode'].split('@')[0]] if scene.get('viparams') and 'fvsimnode' in scene['viparams'] else 0
+            fvsimnode = bpy.data.node_groups[scene.vi_params['viparams']['fvsimnode'].split('@')[1]].nodes[scene.vi_params['viparams']['fvsimnode'].split('@')[0]] if scene.get('viparams') and 'fvsimnode' in scene.vi_params['viparams'] else 0
             newrow(layout, "Type:", cm, "flovi_bmb_type")
             if fvsimnode:
                 context.scene['flparams']['solver'] = fvsimnode.solver

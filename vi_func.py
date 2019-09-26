@@ -2481,8 +2481,9 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             fsdist = (fontsize/distances).astype(int8)
             xposis = posis[0::2]
             yposis = posis[1::2]
-            
+            print(xposis, nres, yposis)
             for ri, nr in enumerate(nres):
+                
                 blf.size(0, fsdist[ri], bpy.context.user_preferences.system.dpi)
                 blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)
                 blf.draw(0, nr)
@@ -2491,7 +2492,8 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             print('Drawing index error: ', e)
 
 def draw_index(posis, res, dists, fontsize, fontcol, shadcol): 
-    nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]    
+    nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]   
+#    print(posis, nres, dists)
     for ri, nr in enumerate(nres):
         blf.size(0, int(0.25 * fontsize + 0.25 * fontsize * (max(dists) - dists[ri])/(max(dists) - min(dists))), 150)
         blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)        
@@ -2532,7 +2534,7 @@ def sunpath2(scene):
 
 def sunpath(scene):
     suns = [ob for ob in scene.objects if ob.get('VIType') == 'Sun']
-    if scene['spparams']['suns'] == '0':        
+    if scene.vi_params['spparams']['suns'] == '0':        
         skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
         
         if suns and 0 in (suns[0]['solhour'] == scene.vi_params.sp_sh, suns[0]['solday'] == scene.vi_params.sp_sd):
@@ -2573,7 +2575,7 @@ def sunpath(scene):
                 suns[0].children[0].hide_viewport = True if alt <= 0 else False
             return
 
-    elif scene['spparams']['suns'] == '1':
+    elif scene.vi_params['spparams']['suns'] == '1':
         all_alts = [solarPosition(d, scene.vi_params.sp_sh, scene.vi_params.latitude, scene.vi_params.longitude)[0] for d in (20, 50, 80, 110, 140, 171, 201, 231, 261, 292, 323, 354)]
         valid_suns = len([aa for aa in all_alts if aa > 0])
 
@@ -2597,20 +2599,30 @@ def sunpath(scene):
                         
                 suns[d].data.angle = scene.vi_params.sp_sun_angle
     
-    elif scene['spparams']['suns'] == '2':
+    elif scene.vi_params['spparams']['suns'] == '2':
         all_alts = [solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)[0] for h in range(24)]
         valid_suns = len([aa for aa in all_alts if aa > 0])
         for h in range(24):
             alt, azi, beta, phi = solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)
-            suns[h].location.z = 100 * sin(beta)
-            suns[h].location.x = -(100**2 - (suns[h].location.z)**2)**0.5 * sin(phi)
-            suns[h].location.y = -(100**2 - (suns[h].location.z)**2)**0.5 * cos(phi)
-            suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi
-            suns[h].hide_viewport = True if alt <= 0 else False
+            if alt < 0:
+                suns[h].hide_viewport = True
+                if suns[h].children:
+                    suns[h].children[0].hide_viewport = True
+            else:
+                suns[h].hide_viewport = False
+                
+                if suns[h].children:
+                    suns[h].children[0].hide_viewport = False
+                    
+                suns[h].location.z = 100 * sin(beta)
+                suns[h].location.x = -(100**2 - (suns[h].location.z)**2)**0.5 * sin(phi)
+                suns[h].location.y = -(100**2 - (suns[h].location.z)**2)**0.5 * cos(phi)
+                suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi
+#            suns[h].hide_viewport = True if alt <= 0 else False
             
-            if suns[h].children:
-                suns[h].children[0].hide_viewport = True if alt <= 0 else False
-            if alt > 0:    
+#            if suns[h].children:
+#                suns[h].children[0].hide_viewport = True if alt <= 0 else False
+#            if alt > 0:    
                 suns[h].data.energy = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
                 
                 if scene.render.engine == 'CYCLES':
@@ -2618,7 +2630,7 @@ def sunpath(scene):
                         for emnode in [node for node in suns[h].data.node_tree.nodes if node.bl_label == 'Emission']:
                             emnode.inputs[1].default_value = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
     
-                suns[h].data.angle = scene.vi_params.sp_sun_angle
+                suns[h].data.angle = math.pi * scene.vi_params.sp_sun_angle/180
                 
 def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:

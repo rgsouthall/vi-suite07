@@ -73,274 +73,11 @@ pmerrdict = {'fatal - too many prepasses, no global photons stored\n': "Too many
                'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
                'fatal - no valid photon ports found\n': 'Make sure photon ports are valid', 
                'fatal - failed photon distribution\n': 'Do the lights see enough geometry?'}
-
-
+    
 class NODE_OT_SunPath(bpy.types.Operator):
     bl_idname = "node.sunpath"
     bl_label = "Sun Path"
     bl_description = "Create a Sun Path"
-    bl_register = True
-    bl_undo = True
-#    nodeid = bpy.props.StringProperty()
-
-    def invoke(self, context, event):
-        scene = context.scene
-#        print(dir(scene))
-        if viparams(self, scene):
-            self.report({'ERROR'},"Save the Blender file before continuing")
-            return {'CANCELLED'}
-        
-        try:
-            spcoll = bpy.data.collections['SunPath']
-        except:
-            spcoll = bpy.data.collections.new('SunPath')
-            context.scene.collection.children.link(spcoll)
-            
-        for lcc in context.view_layer.layer_collection.children:
-            if lcc.name == 'SunPath':
-                context.view_layer.active_layer_collection = lcc
-            
-        solringnum, sd, numpos = 0, 100, {}
-        node = context.node
-        node.export()
-        scene['viparams']['resnode'], scene['viparams']['restree'] = node.name, node.id_data.name
-        scene.cursor.location = (0.0, 0.0, 0.0)
-        suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']
-        sunmeshes = [sunmesh for sunmesh in scene.objects if sunmesh.get('VIType') == "SunMesh"]
-
-        for sm in sunmeshes:
-            bpy.data.objects.remove(sm, do_unlink=True, do_id_user=True, do_ui_user=True)
-#            spcoll.objects.unlink(sm)
-#            delobj(context.view_layer, sm)
-            
-
-
-        requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
-
-        matdict = {'SolEquoRings': (1, 0, 0, 1), 'HourRings': (1, 1, 0, 1), 'SPBase': (1, 1, 1, 1), 'Sun': (1, 1, 1, 1), 'PathDash': (1, 1, 1, 1),
-                   'SumAng': (1, 0, 0, 1), 'EquAng': (0, 1, 0, 1), 'WinAng': (0, 0, 1, 1), 'SPPlat': (1, 1, 1, 1)}
-        
-        for mat in [mat for mat in matdict if mat not in bpy.data.materials]:
-            bpy.data.materials.new(mat)
-            bpy.data.materials[mat].diffuse_color = matdict[mat][:4]
-#            bpy.data.materials[mat].use_shadeless = 1
-            bpy.data.materials[mat].use_nodes = True
-            nodes = bpy.data.materials[mat].node_tree.nodes
-
-            for n in nodes:
-                nodes.remove(n)
-            
-            if mat == 'PathDash':
-#                bpy.data.materials[mat].diffuse_color[3] = 0
-                node_material = nodes.new(type='ShaderNodeBsdfTransparent')
-            else:
-                node_material = nodes.new(type='ShaderNodeEmission')
-                node_material.inputs[1].default_value = 1.0
-
-            node_material.inputs[0].default_value = matdict[mat]
-            node_material.location = 0,0
-            node_output = nodes.new(type='ShaderNodeOutputMaterial')   
-            node_output.location = 400,0            
-            links = bpy.data.materials[mat].node_tree.links
-            links.new(node_material.outputs[0], node_output.inputs[0])
-                            
-        if suns:
-            for sun in suns[requiredsuns:]: 
-                bpy.data.objects.remove(sun, do_unlink=True, do_id_user=True, do_ui_user=True)
-#                spcoll.objects.unlink(sun)
-#                delobj(context.view_layer, sun)
-#            [bpy.data.objects.remove(sun) for sun in suns[requiredsuns:]]
-            suns = [ob for ob in context.scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']            
-            [sun.animation_data_clear() for sun in suns]
-
-        if not suns or len(suns) < requiredsuns: 
-            for rs in range(requiredsuns - len(suns)):
-                bpy.ops.object.light_add(type='SUN', radius=1, align='WORLD', location=(0, 0, 0))
-
-#                bpy.ops.object.lamp_add(type = "SUN")
-                suns.append(context.active_object)
-       
-        if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
-            scene.world.node_tree.animation_data_clear()    
-        
-        if bpy.context.active_object and not bpy.context.active_object.hide_viewport:
-            if bpy.context.active_object.type == 'MESH':
-                bpy.ops.object.mode_set(mode = 'OBJECT')
-        
-        for ob in context.scene.objects:
-            if ob.get('VIType') == "SPathMesh": 
-#                selobj(context.view_layer, ob)
-                bpy.data.objects.remove(ob, do_unlink=True, do_id_user=True, do_ui_user=True)
-#                spcoll.objects.unlink(ob)
-#                delobj(context.view_layer, ob)
-#                bpy.ops.object.delete(use_global=True)
-
-#                context.scene.objects.unlink(ob)
-#                ob.name = 'oldspathmesh'
-
-#        if "SkyMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
-#            bpy.data.materials.new('SkyMesh')
-#            bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, radius=52.5)
-#            smesh = context.active_object
-#            smesh.location, smesh.rotation_euler[0], smesh.cycles_visibility.shadow, smesh.name, smesh['VIType']  = (0,0,0), pi, False, "SkyMesh", "SkyMesh"
-#            bpy.ops.object.material_slot_add()
-#            smesh.material_slots[0].material = bpy.data.materials['SkyMesh']
-#            bpy.ops.object.shade_smooth()
-#            smesh.hide_viewport, smesh.hide_render = True, True
-#        else:
-#            smesh =  [ob for ob in context.scene.objects if ob.get('VIType') and ob['VIType'] == "SkyMesh"][0]
-          
-            
-            
-        bpy.ops.object.add(type = "MESH")
-        spathob = context.active_object
-        if spathob.name not in spcoll.objects:
-            spcoll.objects.link(spathob)
-            if spathob.name in scene.collection.objects:
-                scene.collection.objects.unlink(spathob)
-#        scene.collection.objects.unlink(spathob)
-        spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
-#        smesh.parent = spathob
-        
-        for s, sun in enumerate(suns):
-            if sun.name not in spcoll.objects:
-                spcoll.objects.link(sun)
-                scene.collection.objects.unlink(sun)
-                
-            sun.data.shadow_soft_size = 0.01            
-            sun['VIType'] = 'Sun'
-            sun['solhour'], sun['solday'] = scene.solhour, scene.solday
-            sun.name = sun.data.name ='Sun{}'.format(s)
-#            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, radius=0.5)
-#            sunob = context.active_object
-            
-#            if sunob.name not in spcoll.objects:
-#                spcoll.objects.link(sunob)
-#                scene.collection.objects.unlink(sunob)
-#            scene.collection.objects.unlink(sunob)
-#            sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh{}".format(s), "SunMesh"
-#            sunob.cycles_visibility.diffuse, sunob.cycles_visibility.shadow, sunob.cycles_visibility.glossy, sunob.cycles_visibility.transmission, sunob.cycles_visibility.scatter = [False] * 5
-
-#            if len(sunob.material_slots) == 0:
-#                 bpy.ops.object.material_slot_add()
-#                 sunob.material_slots[0].material = bpy.data.materials['Sun']
-#                 
-            sun.parent = spathob
-#            sunob.parent = sun
-        
-#        bm = bmesh.new()
-#        bm.from_mesh(spathmesh)
-
-#        for doy in range(0, 365, 2):
-#            for hour in range(1, 25):
-#                ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
-#                bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
-#        
-#        if hasattr(bm.verts, "ensure_lookup_table"):
-#            bm.verts.ensure_lookup_table()
-#        for v in range(24, len(bm.verts)):
-#            bm.edges.new((bm.verts[v], bm.verts[v - 24]))
-#        if v in range(8568, 8761):
-#            bm.edges.new((bm.verts[v], bm.verts[v - 8568]))
-#
-#        for doy in (79, 172, 355):
-#            for hour in range(1, 241):
-#                ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene.latitude, scene.longitude)[2:]
-#                vcoord = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
-#                bm.verts.new().co = vcoord
-#                if hasattr(bm.verts, "ensure_lookup_table"):
-#                    bm.verts.ensure_lookup_table()
-#                if bm.verts[-1].co.z >= 0 and doy in (172, 355) and not hour%10:
-#                    numpos['{}-{}'.format(doy, int(hour*0.1))] = vcoord
-#                if hour != 1:
-#                    bm.edges.new((bm.verts[-2], bm.verts[-1]))
-#                    solringnum += 1
-#                if hour == 240:
-#                    bm.edges.new((bm.verts[-240], bm.verts[-1]))
-#                    solringnum += 1
-        
-#        bm.to_mesh(spathmesh)
-#        bm.free()
-        selobj(context.view_layer, spathob)
-#        bpy.ops.object.convert(target='CURVE')
-#        spathob.data.bevel_depth, spathob.data.bevel_resolution = node.th, node.res
-#        bpy.context.object.data.fill_mode = 'FULL'
-#        bpy.ops.object.convert(target='MESH')
-        
-#        bpy.ops.object.material_slot_add()
-#        spathob.material_slots[0].material, spathob['numpos'] = bpy.data.materials['HourRings'], numpos
-#        bpy.ops.object.material_slot_add()
-#        spathob.material_slots[1].material = bpy.data.materials['PathDash']
-#
-#        for face in spathob.data.polygons:
-#            face.material_index = 0 if not int(face.index/16)%2 else 1
-#                
-#        for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
-#            vert.select = True
-#
-#        bpy.ops.object.material_slot_add()
-#        spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
-#        spathob.active_material_index = 2
-#        bpy.ops.object.mode_set(mode='EDIT')
-#        bpy.ops.mesh.select_mode(type="VERT")
-#        bpy.ops.object.material_slot_assign()
-#        bpy.ops.mesh.select_all(action='SELECT')
-#        bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)
-#        bpy.ops.object.mode_set(mode='OBJECT')
-#        bpy.ops.object.select_all(action='DESELECT')
-        compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'])
-#        spro = spathrange([bpy.data.materials['SumAng'], bpy.data.materials['EquAng'], bpy.data.materials['WinAng']])
-#        joinobj(context.view_layer, [compassos] + [spro] + [spathob])
-        joinobj(context.view_layer, [compassos] + [spathob])
-#        for ob in (spathob, smesh):
-        spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission, spathob.cycles_visibility.scatter = [False] * 5
-        spathob.show_transparent = True
-
-        if spfc not in bpy.app.handlers.frame_change_post:
-            bpy.app.handlers.frame_change_post.append(spfc)
-
-        scene['viparams']['vidisp'] = 'sp'
-        scene['spparams']['suns'] = node.suns
-        context.scene['viparams']['visimcontext'] = 'SunPath'
-        bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
-        sunpath(scene)
-        return {'FINISHED'}
-
-class VIEW3D_OT_SPNumDisplayold(bpy.types.Operator):
-    '''Display results legend and stats in the 3D View'''
-    bl_idname = "view3d.spnumdisplay"
-    bl_label = "Point numbers"
-    bl_description = "Display the times and solstices on the sunpath"
-    bl_register = True
-    bl_undo = False
-
-    def modal(self, context, event):
-        scene = context.scene
-        if context.area:
-            context.area.tag_redraw()
-        if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
-            [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
-            return {'CANCELLED'}
-        return {'PASS_THROUGH'}
-
-    def invoke(self, context, event):
-        scene = context.scene
-        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-        
-        if simnode.suns != '0':
-            scene.timedisp = 0
-            
-        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-        context.window_manager.modal_handler_add(self)
-        scene.vi_display = 1
-        return {'RUNNING_MODAL'}
-    
-class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
-    '''Display results legend and stats in the 3D View'''
-    bl_idname = "view3d.spnumdisplay"
-    bl_label = "Point numbers"
-    bl_description = "Display the times and solstices on the sunpath"
     bl_register = True
     bl_undo = False
     
@@ -558,136 +295,35 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
            
             '''
             
-            
-
-#        uniform sampler2D tex0;
-#        uniform float border; // 0.01
-#        uniform float circle_radius; // 0.5
-#        uniform vec4 sun_colour; 
-#        uniform vec2 circle_center; // vec2(0.5, 0.5)    
-#        void main(void)
-#        {
-#          vec2 uv = gl_TexCoord[0].xy;
-#          
-#          vec4 bkg_color = texture2D(tex0,uv * vec2(1.0, -1.0));
-#        
-#          // Offset uv with the center of the circle.
-#          uv -= circle_center;
-#          
-#          float dist =  sqrt(dot(uv, uv));
-#          if (dist < (circle_radius-border)) {gl_FragColor = sun_colour;}
-#          else {discard;}
-#        }
-#        '''
-        
-#        sp_vertex_shader = '''
-#            in float longitude;
-#            in float latitude;
-#            uniform mat4 basematrix;
-#            
-#            void
-#        '''
-#        vertex_shader = '''
-#            uniform mat4 viewProjectionMatrix;
-#            uniform vec4 color1;
-#            uniform vec4 color2;
-#            in vec3 position;
-#            in float arcLength;
-#            
-#            out vec4 v_color1;
-#            out vec4 v_color2;
-#            out float v_ArcLength;
-#            void main()
-#            {
-#                v_color1 = color1;
-#                v_color2 = color2;
-#                v_ArcLength = arcLength;
-#                gl_Position = viewProjectionMatrix * vec4(position, 1.0f);
-#            }
-#        '''
-        
-#        fragment_shader = '''
-#            uniform float u_Scale;
-#            in vec4 v_color1;
-#            in vec4 v_color2;
-#            in float v_ArcLength;
-#            void main()
-#            {
-#                if (step(sin(v_ArcLength * u_Scale), -0.5) == 1) {gl_FragColor = v_color1;} else {gl_FragColor = v_color2;};
-#            }
-#        '''
-
-        
-#        sun_vertex_shader = '''
-#        '''
-#        sun_geometry_shader = '''
-#        '''
-#        sun_fragment_shader = '''
-#        '''
-        
-#        breaks, coords, sd, d = [], [], 100, 0
-#        
-#        
-#        for hour in range(1, 25):
-#            for doy in range(0, 365, 2):
-#                ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
-#                coords.append(Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]))
-#                if d%183 == 0:
-#                    breaks.append(1)
-#                else:
-#                    breaks.append(0)
-#                d += 1
-#
-##        blen = len(breaks)
-#                
-#        for doy in (79, 172, 355):
-#            for hour in range(1, 241):
-#                ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene.latitude, scene.longitude)[2:]
-#                coords.append(Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]))
-#                breaks.append(2)
-#            
-#        line_lengths = [0]
-#        
-#        for a, b in zip(coords[:-1], coords[1:]):
-#            line_lengths.append(line_lengths[-1] + (a - b).length)        
-        
         self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader) 
         self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)  
         self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader) 
         self.range_shader = gpu.types.GPUShader(range_vertex_shader, range_fragment_shader)
-#        self.ordinal_shader = gpu.types.GPUShader(ordinal_vertex_shader, ordinal_fragment_shader)
-#        self.sun2_shader = gpu.types.GPUShader(sun2_vertex_shader, sun2_fragment_shader) 
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
-#        print(coords, [Vector([so for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])])
         sun_pos = [so.location[:] for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
-#        sun_pos = [item for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport for item in so.location]
-
-        
-        
         sun_v_coords, sun_f_indices = self.ret_sun_geometry(scene.vi_params.sp_sun_size, self.suns)
         globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)
         range_v_coords, range_f_indices, range_col_indices = self.ret_range_geometry(self.latitude, self.longitude)
-#        ord_v_coords, ord_f_indices = self.ret_ordinal_geometry()
-#        print(globe_v_coords, globe_f_indices)
         self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
         self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
         self.globe_batch = batch_for_shader(self.globe_shader, 'TRIS', {"position": globe_v_coords}, indices=globe_f_indices)
-        self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})#, indices=range_f_indices)
-#        self.ordinal_batch = batch_for_shader(self.ordinal_shader, 'TRIS', {"position": ord_v_coords}, indices=ord_f_indices)
-#        self.sun2_batch = batch_for_shader(self.sun2_shader, 'TRIS', {"position": sun_v_coords, "sun_position": sun_pos}, indices=sun_f_indices)
+        self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})
         
     def draw_sp(self, op, context, node):
+#        context.scene.vi_params.latitude = context.scene.vi_params.latitude
         # Draw lines
         bgl.glEnable(bgl.GL_DEPTH_TEST)
         bgl.glDepthFunc(bgl.GL_LESS)
         bgl.glDepthMask(bgl.GL_FALSE)
         bgl.glEnable(bgl.GL_BLEND)
+        
+        
 #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
 #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
 #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA,bgl.GL_SRC_ALPHA)
 #        bgl.glBlendFuncSeparate(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA, bgl.GL_SRC_ALPHA, bgl.GL_DST_ALPHA )
 #        bgl.glEnable(bgl.GL_MULTISAMPLE)
-        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+#        bgl.glEnable(bgl.GL_LINE_SMOOTH)
 #        bgl.glEnable(bgl.GL_CULL_FACE)
 #        bgl.glCullFace(bgl.GL_BACK)
 #        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
@@ -698,11 +334,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.sp_shader.bind()
         matrix = bpy.context.region_data.perspective_matrix
         sp_matrix = context.scene.objects['SPathMesh'].matrix_world
-#        sun_pos = [[l for l in so.location] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
-#        [s.location for s in so.location for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
-#        sun_pos = [item for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport for item in so.location]
         sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
-
         self.sp_shader.uniform_float("viewProjectionMatrix", matrix)
         self.sp_shader.uniform_float("sp_matrix", sp_matrix)
         self.sp_shader.uniform_float("colour1", context.scene.vi_params.sp_hour_dash)
@@ -721,36 +353,15 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.range_shader.bind()
         self.range_shader.uniform_float("viewProjectionMatrix", matrix)
         self.range_shader.uniform_float("sp_matrix", sp_matrix)
-#        self.ordinal_shader.bind()
-#        self.ordinal_shader.uniform_float("viewProjectionMatrix", matrix)
-#        self.ordinal_shader.uniform_float("sp_matrix", sp_matrix)
-#        self.ordinal_shader.uniform_float("colour", context.scene.vi_params.sp_globe_colour)
-#        self.range_shader.uniform_float("colour", [[1, 0, 0], [0,1,0], [0,0,1]]) 
-        
-#        self.sun2_shader.bind()
-#        self.sun2_shader.uniform_float("viewProjectionMatrix", matrix)
-#        self.sun2_shader.uniform_float("invviewProjectionMatrix", matrix.inverted())
-#        self.sun2_shader.uniform_float("sp_matrix", sp_matrix)
-#        self.sun2_shader.uniform_float("invsp_matrix", sp_matrix.inverted())
-#        self.sun2_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour)
-
-#        self.sun2_shader.uniform_float("sun_position", sun_pos)
-        
-#        viewport = (0, 265, 1468, 746)        
-#        self.sun2_shader.uniform_float("viewport", viewport)
         
         if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude or \
             self.sd != context.scene.vi_params.sp_sd or self.sh != context.scene.vi_params.sp_sh or self.ss != context.scene.vi_params.sp_sun_size:
             (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)        
             self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
-#            sun_pos = [Vector([so for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN'][0].location[:])]
+            sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
             self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
-#            sun_v_coords, sun_f_indices = self.ret_sun_geometry(context.scene.vi_params.sp_sun_size, self.suns)
-#            self.sun2_batch = batch_for_shader(self.sun2_shader, 'TRIS', {"position": sun_v_coords}, indices=sun_f_indices)
-            globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)
-            
+            globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)            
             self.globe_batch = batch_for_shader(self.globe_shader, 'TRIS', {"position": globe_v_coords}, indices=globe_f_indices)
-#            self.sun2_batch = batch_for_shader(self.sun2_shader, 'TRIS', {"sun_position": sun_pos})
             range_v_coords, range_f_indices, range_col_indices = self.ret_range_geometry(self.latitude, self.longitude)
             self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})#, indices=range_f_indices)
             self.latitude = context.scene.vi_params.latitude
@@ -761,17 +372,23 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             
         self.range_batch.draw(self.range_shader)    
         self.globe_batch.draw(self.globe_shader)
-#        self.ordinal_batch.draw(self.ordinal_shader)
+        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+        bgl.glEnable(bgl.GL_MULTISAMPLE)
         self.sun_batch.draw(self.sun_shader)
         self.sp_batch.draw(self.sp_shader)
-        
-#        self.sun2_batch.draw(self.sun2_shader)
+        bgl.glDisable(bgl.GL_MULTISAMPLE)
         bgl.glDisable(bgl.GL_LINE_SMOOTH)
-#        bgl.glDisable(bgl.GL_MULTISAMPLE)
+        
         bgl.glDisable(bgl.GL_BLEND)
-        bgl.glDepthMask(bgl.GL_TRUE)
         bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
         bgl.glDisable(bgl.GL_DEPTH_TEST) 
+        bgl.glDepthMask(bgl.GL_TRUE)
+        
+        
+#        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+#        bgl.glEnable(bgl.GL_MULTISAMPLE)
+#        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
+#        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
 #        bgl.glDisable(bgl.GL_CULL_FACE)
         
 #        bgl.glDisable(bgl.GL_LINE_SMOOTH)
@@ -780,8 +397,6 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 #        bgl.glDisable(bgl.GL_BLEND)
 #        bgl.glDisable(bgl.GL_POLYGON_SMOOTH)
         bgl.glPointSize(1)
-        
-#    def ret_numpos(self, context):
         
     def draw_spnum(self, op, context):
         scene = context.scene
@@ -795,24 +410,27 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
             
             if scene.vi_params.sp_hd:
                 coords, scene, sd = {}, context.scene, 100
-
+                dists, hs, pos = [], [], []
+                
                 for doy in (172, 355):
                     for hour in range(24):
                         ([solalt, solazi]) = solarPosition(doy, hour, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
                         if solalt > 0:
-                            coords['{}-{}'.format(str(doy), str(hour))] = (Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)])) 
-          
-                dists, hs, pos = [], [], []
+                            coords['{}-{}'.format(str(doy), str(hour))] = (Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), 
+                                                                                   -(sd-(sd-(sd*cos(solalt))))*cos(solazi), 
+                                                                                   sd*sin(solalt)])) 
+
                 for co in coords:
                     dists.append((vl - coords[co]).length) 
-
                     hs.append(int(co.split('-')[1]))
-                    pos.append(view3d_utils.location_3d_to_region_2d(context.region, context.region_data, ob_mat@coords[co]))
-            
+                    pos.append(view3d_utils.location_3d_to_region_2d(context.region, 
+                                                                     context.region_data, 
+                                                                     ob_mat@coords[co]))
+                
                 if pos:
                     draw_index(pos, hs, dists, scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
                     
-            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene['spparams']['suns'] == '0':
+            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene.vi_params['spparams']['suns'] == '0':
                 sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
                 
                 if sobs and scene.vi_params.sp_td:
@@ -826,8 +444,8 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
                             sre = sobs[0].rotation_euler
                             blf_props(scene, width, height)
                             sol_text = soltime.strftime('     %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi)
-                            draw_time(solpos, sol_text, 
-                                       scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
+                            draw_time(solpos, sol_text, scene.vi_params.display_rp_fs, 
+                                      scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
                             
                     except Exception as e:
                         print(e)
@@ -840,8 +458,8 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
        
         if context.area:
             context.area.tag_redraw()
-        if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
+            
+        if scene.vi_display == 0 or scene.vi_params['viparams']['vidisp'] != 'sp':
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
             [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
@@ -850,28 +468,24 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     
     def ret_sun_geometry(self, dia, suns):
         sun_v_coords, sun_f_indices = [], []
+        
         for sun in suns:
             sunbm = bmesh.new()
             bmesh.ops.create_uvsphere(sunbm, u_segments = 12, v_segments = 12, diameter = dia, matrix = sun.matrix_world, calc_uvs = 0)
             bmesh.ops.triangulate(sunbm, faces = sunbm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
-            
-#            sun_coords.append([(v.co for v in face.verts) for face in sunbm.faces])
             sun_v_coords += [v.co[:] for v in sunbm.verts]
-            
-#            self.sun_f_indices = [v.index for v in f.verts for f in sunbm.faces]
-#            self.sun_f_indices = [item.index for sublist in sunbm.faces for item in sublist.verts]
             sun_f_indices += [[v.index for v in face.verts] for face in sunbm.faces]
             sunbm.free()
         return sun_v_coords, sun_f_indices
 
     def ret_globe_geometry(self, lat, long):
-#        minalt = solarPosition(355, 12, lat, long)[2]
-#        maxalt = solarPosition(172, 12, lat, long)[2]
         midalt = solarPosition(79, 12, lat, long)[2]
         globebm = bmesh.new()
         altrot = mathutils.Matrix().Rotation(midalt, 4, 'X')
-        bmesh.ops.create_uvsphere(globebm, u_segments = 48, v_segments = 48, diameter = 100, matrix = altrot@self.sp.matrix_world, calc_uvs = 0)        
-        bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.01, plane_co = (0, 0, 0), plane_no = (0, 0, 1), use_snap_center = False, clear_outer = False, clear_inner = True)
+        bmesh.ops.create_uvsphere(globebm, u_segments = 48, v_segments = 48, diameter = 100, 
+                                  matrix = altrot, calc_uvs = 0)        
+        bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.01, 
+                               plane_co = (0, 0, 0), plane_no = (0, 0, 1), use_snap_center = False, clear_outer = False, clear_inner = True)
         bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.1, 
                                plane_co = self.winmid, plane_no = self.winnorm, use_snap_center = False, 
                                clear_outer = True, clear_inner = False)
@@ -919,11 +533,13 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
                    
                 for i in range(79):
                     j = i + 80
-                    face = bm.faces.new((bm.verts[v1s[i] + 160 * param[2]], bm.verts[v2s[i] + 160 * param[2]], bm.verts[v3s[i] + 160 * param[2]]))
+                    face = bm.faces.new((bm.verts[v1s[i] + 160 * param[2]], 
+                                         bm.verts[v2s[i] + 160 * param[2]], bm.verts[v3s[i] + 160 * param[2]]))
                     face.material_index = param[2]
 
                     if j < 158:
-                        face = bm.faces.new((bm.verts[v1s[j] + 160 * param[2]], bm.verts[v2s[j] + 160 * param[2]], bm.verts[v3s[j] + 160 * param[2]]))
+                        face = bm.faces.new((bm.verts[v1s[j] + 160 * param[2]], 
+                                             bm.verts[v2s[j] + 160 * param[2]], bm.verts[v3s[j] + 160 * param[2]]))
                         face.material_index = param[2]
                 
         range_v_coords = [[v.co[:] for v in face.verts] for face in bm.faces]
@@ -933,27 +549,114 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         range_col_indices = [item for sublist in range_col_indices for item in sublist]
         bm.free()
         return (range_v_coords, range_f_indices, range_col_indices)
-    
-#    def ret_ordinal_geometry(self):
-#        txts = []
-#        for d in range(16):
-#            loc = Vector((-100*sin(2 * (d/16) * (math.pi)), 100*cos(2 * (d/16) * (math.pi)), 0))
-#            bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=loc, rotation=(0, 0, (d/16) * 2 * math.pi))
-#            txt = bpy.context.active_object
-#            txt.data.size, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = 5, ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
-#            bpy.ops.object.convert(target='MESH')
-#            bpy.ops.object.material_slot_add()
-#            txts.append(txt)
-#        joinobj(bpy.context.view_layer, txts)
-#        bm = bmesh.new()
-#        bm.from_mesh(bpy.context.active_object.data)
-#        ord_v_coords = [v.co[:] for v in bm.verts]
-#        ord_f_indices = [[v.index for v in face.verts] for face in bm.faces]
-#        bm.free()
-#        return (ord_v_coords, ord_f_indices)
-    
+        
     def invoke(self, context, event):        
         scene = context.scene
+        scene.vi_params['viparams'] = {}
+        scene.vi_params['spparams'] = {}
+#        viparams(self, scene)
+#            self.report({'ERROR'},"Save the Blender file before continuing")
+#            return {'CANCELLED'}
+        
+        try:
+            spcoll = bpy.data.collections['SunPath']
+        except:
+            spcoll = bpy.data.collections.new('SunPath')
+            context.scene.collection.children.link(spcoll)
+            
+        for lcc in context.view_layer.layer_collection.children:
+            if lcc.name == 'SunPath':
+                context.view_layer.active_layer_collection = lcc
+            
+        sd = 100
+        node = context.node
+        # Set the node colour
+        node.export()
+        
+        scene.vi_params['viparams']['resnode'], scene.vi_params['viparams']['restree'] = node.name, node.id_data.name
+        scene.cursor.location = (0.0, 0.0, 0.0)
+        suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
+        requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
+        matdict = {'SPBase': (0, 0, 0, 1), 'SPPlat': (1, 1, 1, 1)}
+        
+        for mat in [mat for mat in matdict if mat not in bpy.data.materials]:
+            bpy.data.materials.new(mat)
+            bpy.data.materials[mat].diffuse_color = matdict[mat][:4]
+            bpy.data.materials[mat].use_nodes = True
+            nodes = bpy.data.materials[mat].node_tree.nodes
+
+            for n in nodes:
+                nodes.remove(n)
+            if mat == 'SPPlat':
+                node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
+                node_material.inputs[0].default_value = matdict[mat]
+            else:
+                node_material = nodes.new(type='ShaderNodeEmission')
+                node_material.inputs[1].default_value = 1.0
+                node_material.inputs[0].default_value = matdict[mat]
+            node_material.location = 0,0
+            node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+            node_output.location = 400,0            
+            links = bpy.data.materials[mat].node_tree.links
+            links.new(node_material.outputs[0], node_output.inputs[0])
+                            
+        if suns:
+            for sun in suns[requiredsuns:]: 
+                bpy.data.objects.remove(sun, do_unlink=True, do_id_user=True, do_ui_user=True)
+
+            suns = [ob for ob in context.scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]            
+            [sun.animation_data_clear() for sun in suns]
+
+        if not suns or len(suns) < requiredsuns: 
+            for rs in range(requiredsuns - len(suns)):
+                bpy.ops.object.light_add(type='SUN', radius=1, align='WORLD', location=(0, 0, 0))
+                suns.append(context.active_object)
+       
+        if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
+            scene.world.node_tree.animation_data_clear()    
+        
+        if bpy.context.active_object and not bpy.context.active_object.hide_viewport:
+            if bpy.context.active_object.type == 'MESH':
+                bpy.ops.object.mode_set(mode = 'OBJECT')
+        
+        if any(ob.get('VIType') == "SPathMesh" for ob in context.scene.objects):
+            spathob = [ob for ob in context.scene.objects if ob.get('VIType') == "SPathMesh"][0]
+        else:
+            bpy.ops.object.add(type = "MESH")
+            spathob = context.active_object
+        
+            if spathob.name not in spcoll.objects:
+                spcoll.objects.link(spathob)
+                if spathob.name in scene.collection.objects:
+                    scene.collection.objects.unlink(spathob)
+    
+            spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
+            selobj(context.view_layer, spathob)
+            compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'])
+            joinobj(context.view_layer, [compassos] + [spathob])
+            spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission, spathob.cycles_visibility.scatter = [False] * 5
+            spathob.show_transparent = True
+        
+        for s, sun in enumerate(suns):
+            if sun.name not in spcoll.objects:
+                spcoll.objects.link(sun)
+                scene.collection.objects.unlink(sun)
+                
+            sun.data.shadow_soft_size = 0.01            
+            sun['VIType'] = 'Sun'
+            sun['solhour'], sun['solday'] = scene.solhour, scene.solday
+            sun.name = sun.data.name ='Sun{}'.format(s)
+            sun.parent = spathob
+
+
+
+        if spfc not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(spfc)
+
+        scene.vi_params['viparams']['vidisp'] = 'sp'
+        scene.vi_params['spparams']['suns'] = node.suns
+        scene.vi_params['viparams']['visimcontext'] = 'SunPath'
+        sunpath(scene)
         node = context.node
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
@@ -965,19 +668,6 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self.create_batch(scene, node)
         self.draw_handle_sp = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
         self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_spnum, (self, context), 'WINDOW', 'POST_PIXEL')
-
-
-#        self.draw_handle_2d = bpy.types.SpaceView3D.draw_handler_add(
-#            self.draw_callback_2d, args, "WINDOW", "POST_PIXEL")
-
-#        self.draw_event = context.window_manager.event_timer_add(0.1, window=context.window)
-        
-#        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-        
-#        if simnode.suns != '0':
-#            scene.timedisp = 0
-            
-#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw, (self, context, node), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         scene.vi_display = 1
         return {'RUNNING_MODAL'}

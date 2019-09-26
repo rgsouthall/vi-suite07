@@ -119,7 +119,7 @@ class ViLoc(Node, ViNodes):
     dedoy: IntProperty(name="", description="", min=1, max=365, default=365)
 
     def init(self, context):
-#        self['nodeid'] = nodeid(self)    
+        self['nodeid'] = nodeid(self)    
 #        self.id_data.use_fake_user = True
 #        bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         
