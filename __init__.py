@@ -37,14 +37,14 @@ if "bpy" in locals():
     imp.reload(vi_func)
 #    imp.reload(envi_mat)
 else:
-    from .vi_node import vinode_categories, ViNetwork, ViLoc, ViLocSock, ViSPNode
+    from .vi_node import vinode_categories, ViNetwork, ViLoc, ViLocSock, ViSPNode, ViWRNode
 #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
 #    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
 #    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
 #    from .vi_display import setcols
-    from .vi_operators import NODE_OT_SunPath
+    from .vi_operators import NODE_OT_SunPath, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, VIEW3D_OT_WRDisplay2
 #    from .vi_operators import *
     from .vi_ui import VI_PT_3D
 #    from .vi_ui import *
@@ -141,7 +141,7 @@ class VI_Params(bpy.types.PropertyGroup):
     display_rp_fs: iprop("", "Point result font size", 4, 24, 24)
     display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     display_rp_sh: bprop("", "Toggle for font shadow display",  False)
-    
+    vi_display: bprop("", "Toggle result display",  False)
 #    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 24, 24)
 #    Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 #    Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
@@ -162,12 +162,12 @@ def update_dir(dummy):
                
 @persistent
 def display_off(dummy):
-    if bpy.context.scene.vi_params.get('viparams') and bpy.context.scene['viparams'].get('vidisp'):
+    if bpy.context.scene.vi_params.get('viparams') and bpy.context.scene.vi_params['viparams'].get('vidisp'):
         
         ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en', 'bsdf_panel': 'bsdf'}
         if bpy.context.scene.vi_params['viparams']['vidisp'] in ifdict:
             bpy.context.scene.vi_params['viparams']['vidisp'] = ifdict[bpy.context.scene.vi_params['viparams']['vidisp']]
-        bpy.context.scene.vi_display = 0
+        bpy.context.scene.vi_params.vi_display = 0
         
 @persistent
 def mesh_index(dummy):
@@ -378,7 +378,8 @@ def flovi_levels(self, context):
        self.flovi_slmin -= 1 
 
 
-classes = (VIPreferences, ViNetwork, ViLoc, ViLocSock, ViSPNode, NODE_OT_SunPath, VI_PT_3D, VI_Params)
+classes = (VIPreferences, ViNetwork, ViLoc, ViLocSock, ViSPNode, NODE_OT_SunPath, 
+           VI_PT_3D, VI_Params, ViWRNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, VIEW3D_OT_WRDisplay2)
 
 
 #def register():
@@ -504,8 +505,8 @@ def register():
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
     Scene.vi_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = eupdate)
     Scene.ss_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-    (Scene.lic_disp_panel, Scene.vi_display, Scene.sp_disp_panel, Scene.wr_disp_panel, Scene.ss_leg_display, Scene.en_disp_panel, Scene.li_compliance, Scene.vi_display_rp, Scene.vi_leg_display, 
-     Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 11
+    (Scene.lic_disp_panel, Scene.sp_disp_panel, Scene.wr_disp_panel, Scene.ss_leg_display, Scene.en_disp_panel, Scene.li_compliance, Scene.vi_display_rp, Scene.vi_leg_display, 
+     Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 10
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
     Scene.vi_scatter_max = bpy.props.FloatProperty(name = "", description = "Scatter maximum", min = 0, max = 1000000, default = 1000, update=legupdate)

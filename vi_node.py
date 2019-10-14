@@ -97,7 +97,7 @@ class ViLoc(Node, ViNodes):
                 self.outputs['Location out']['epwtext'] = ''
                 self.outputs['Location out']['valid'] = ['Location']
 
-        socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
+        socklink(self.outputs['Location out'], self.id_data.name)
         self['reslists'] = reslists
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (scene.latitude, scene.longitude)
 
@@ -171,6 +171,9 @@ class ViSPNode(Node, ViNodes):
             newrow(layout, 'Suns:', self, 'suns')
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path")#.nodeid = self['nodeid']
+        else:
+            row = layout.row()
+            row.label(text="Connect location node")
 
     def export(self):
         nodecolour(self, 0)
@@ -179,6 +182,49 @@ class ViSPNode(Node, ViNodes):
     def update(self):
         pass
 
+class ViWRNode(bpy.types.Node, ViNodes):
+    '''Node describing a VI-Suite wind rose generator'''
+    bl_idname = 'ViWRNode'
+    bl_label = 'VI Wind Rose'
+    bl_icon = 'FORCE_WIND'
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.sdoy, self.edoy)])
+
+    wrtype: EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0', update = nodeupdate)
+    sdoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
+    edoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
+    max_freq: EnumProperty(items = [("0", "Data", "Max frequency taken from data"), ("1", "Specified", "User entered value")], name = "", default = '0', update = nodeupdate)
+    max_freq_val: FloatProperty(name = "", description = "Max frequency", min = 1, max = 100, default = 20, update = nodeupdate)
+
+    def init(self, context):
+        self.inputs.new('ViLoc', 'Location in')
+        self['exportstate'] = ''
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
+            (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
+            newrow(layout, 'Type:', self, "wrtype")
+            newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+            newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
+            newrow(layout, 'Colour:', context.scene, 'vi_leg_col')
+            newrow(layout, 'Max frequency:', self, 'max_freq')
+            if self.max_freq == '1':
+               newrow(layout, 'Frequency:', self, 'max_freq_val') 
+            row = layout.row()
+            row.operator("node.windrose", text="Create Wind Rose")
+        else:
+            row = layout.row()
+            row.label(text = 'Location node error')
+
+    def export(self):
+        nodecolour(self, 0)
+        self['exportstate'] = [str(x) for x in (self.wrtype, self.sdoy, self.edoy, self.max_freq, self.max_freq_val)]
+        
+    def update(self):
+        pass
+    
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -202,7 +248,7 @@ class ViLocSock(NodeSocket):
 viexnodecat = []
                 
 vifilenodecat = []
-vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path")]
+vinodecat = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose")]
 
 vigennodecat = []
 
@@ -211,7 +257,14 @@ vioutnodecat = []
 viimnodecat = []
 viinnodecat = [NodeItem("ViLoc", label="VI Location")]
 
-vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vioutnodecat), ViNodeCategory("Edit", "Edit Nodes", items=vifilenodecat), ViNodeCategory("Image", "Image Nodes", items=viimnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Process", "Process Nodes", items=viexnodecat), ViNodeCategory("Input", "Input Nodes", items=viinnodecat)]
+vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vioutnodecat), 
+                     ViNodeCategory("Edit", "Edit Nodes", items=vifilenodecat), 
+                     ViNodeCategory("Image", "Image Nodes", items=viimnodecat), 
+                     ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), 
+                     ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), 
+                     ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), 
+                     ViNodeCategory("Process", "Process Nodes", items=viexnodecat), 
+                     ViNodeCategory("Input", "Input Nodes", items=viinnodecat)]
 
 
 

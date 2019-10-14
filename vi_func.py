@@ -1957,15 +1957,24 @@ def vsarea(obj, vs):
             area += 0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5
             i += 1
         return(area)
-
-def wind_rose(maxws, wrsvg, wrtype, colors):
-    zp, scene = 0, bpy.context.scene    
+        
+def create_coll(c, name):
+    try:
+        coll = bpy.data.collections[name]
+    except:
+        coll = bpy.data.collections.new(name)
+        c.scene.collection.children.link(coll)
+        
+    for lcc in c.view_layer.layer_collection.children:
+        if lcc.name == name:
+            c.view_layer.active_layer_collection = lcc
+    return coll
+                
+def wind_rose(wro, maxws, wrsvg, wrtype, colors):
+    zp = 0 
     bm = bmesh.new()
-    wrme = bpy.data.meshes.new("Wind_rose")   
-    wro = bpy.data.objects.new('Wind_rose', wrme)     
-    scene.objects.link(wro)
-    scene.objects.active = wro
-    wro.select, wro.location = True, (0, 0 ,0)    
+#    wro.select_set(True)
+    wro.location = (0, 0 ,0)    
     svg = minidom.parse(wrsvg)
     pos_strings = [path.getAttribute('d') for path in svg.getElementsByTagName('path')]
     style_strings = [path.getAttribute('style').split(';') for path in svg.getElementsByTagName('path')]     
@@ -1975,14 +1984,14 @@ def wind_rose(maxws, wrsvg, wrtype, colors):
     sposnew = [[(eval(ss.split()[ss.index('M') + 1]) - dimen/2) * 0.1, (eval(ss.split()[ss.index('M') + 2]) - dimen/2) * -0.1, 0.05] for ss in pos_strings]
     lposnew = [[[(eval(ss.split()[li + 1]) - dimen/2) * 0.1, (eval(ss.split()[li + 2]) - dimen/2) * -0.1, 0.05] for li in [si for si, s in enumerate(ss.split()) if s == 'L']] for ss in pos_strings]
 
-    for stsi, sts in enumerate(style_strings):        
+    for stsi, sts in enumerate(style_strings):     
         if 'fill:#' in sts[0] and sts[0][-6:] != 'ffffff':
             hexcol, col = sts[0][-7:], sts[0][-6:]
             fillrgb = colors.hex2color(hexcol)
 
             if 'wr-{}'.format(col) not in [mat.name for mat in bpy.data.materials]:
                 bpy.data.materials.new('wr-{}'.format(col))
-            bpy.data.materials['wr-{}'.format(col)].diffuse_color = fillrgb
+            bpy.data.materials['wr-{}'.format(col)].diffuse_color = [c for c in fillrgb] + [1]
 
             if 'wr-{}'.format(col) not in [mat.name for mat in wro.data.materials]:
                 bpy.ops.object.material_slot_add()
@@ -2001,7 +2010,7 @@ def wind_rose(maxws, wrsvg, wrtype, colors):
                         
     if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
         bpy.data.materials.new('wr-000000')
-        bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
+        bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0, 1)
                                 
     if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
         bpy.ops.object.material_slot_add()
@@ -2024,16 +2033,16 @@ def wind_rose(maxws, wrsvg, wrtype, colors):
     bm.to_mesh(wro.data)
     bm.free()
 
-    bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, -0.01))
+    bpy.ops.mesh.primitive_circle_add(vertices = 132, radius=scale*1.2, fill_type='NGON', align='WORLD', enter_editmode=False, location=(0, 0, -0.01))
     wrbo = bpy.context.active_object
     
     if 'wr-base'not in [mat.name for mat in bpy.data.materials]:
         bpy.data.materials.new('wr-base')
-        bpy.data.materials['wr-base'].diffuse_color = (1,1,1)
+        bpy.data.materials['wr-base'].diffuse_color = (1,1,1,1)
     bpy.ops.object.material_slot_add()
     wrbo.material_slots[-1].material = bpy.data.materials['wr-base']
 
-    return (joinobj((wrbo, wro)), scale)
+    return ((wrbo, wro), scale)
     
 def compass(loc, scale, wro, platmat, basemat):
     txts = []
@@ -2186,15 +2195,76 @@ def windnum(maxws, loc, scale, wr):
     matrot = Matrix.Rotation(-pi*0.05, 4, 'Z')
     direc = Vector((0, 1, 0))
     for i in range(2, 6):
-        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=((i**2)/25)*scale*(matrot*direc))
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=((i**2)/25)*scale*(matrot@direc))
         txt = bpy.context.active_object
         txt.data.body, txt.scale, txt.location[2] = '{:.1f}'.format((i**2)*maxws/25), (scale*0.05, scale*0.05, scale*0.05), scale*0.01
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = bpy.data.materials['wr-000000']
         txts.append(txt)
-    joinobj(txts + [wr]).name = 'Wind Rose'
+    joinobj(bpy.context.view_layer, txts + [wr]).name = 'Wind Rose'
+    bpy.context.active_object.cycles_visibility.shadow = False
+    bpy.context.active_object.display.show_shadows = False
     bpy.context.active_object['rpe']  = 'Wind_Plane'
+
+def wind_compass(loc, scale, wro, mat):
+    txts = []
+    come = bpy.data.meshes.new("Compass")   
+    coo = bpy.data.objects.new('Compass', come)
+    coo.location = loc
+    bpy.context.scene.collection.objects.link(coo)
+    bpy.context.view_layer.objects.active = coo
+    bpy.ops.object.material_slot_add()
+    coo.material_slots[-1].material = mat
+    bm = bmesh.new()
+    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+    
+    for i in range(1, 11):
+        bmesh.ops.create_circle(bm, cap_ends=False, radius=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+    for edge in bm.edges:
+        edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
+    
+    bmesh.ops.delete(bm, geom = [edge for edge in bm.edges if edge.select], context = 'FACES_ONLY')
+    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+    
+    for v, vert in enumerate(newgeo['geom'][:1320]):
+        vert.co = vert.co - (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
+        vert.co[2] = 0
+  
+    bmesh.ops.create_circle(bm, cap_ends=True, radius=scale *0.0025, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+    degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
+    tmatrot = Matrix.Rotation(0, 4, 'Z')
+    direc = Vector((0, 1, 0))
+
+    for i, edge in enumerate(bm.edges[-8:]):
+        verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
+        for vert in verts:
+            vert.co += 1.0*scale*(tmatrot@direc)
+            vert.co[2] = 0
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot@direc), rotation=tmatrot.to_euler())
+        txt = bpy.context.active_object
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
+        bpy.ops.object.convert(target='MESH')
+        bpy.ops.object.material_slot_add()
+        txt.material_slots[-1].material = mat
+        txts.append(txt)
+        tmatrot = tmatrot@matrot
+
+    tmatrot = Matrix.Rotation(0, 4, 'Z')
+    for d in range(16):
+        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
+        txt = bpy.context.active_object
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
+        bpy.ops.object.convert(target='MESH')
+        bpy.ops.object.material_slot_add()
+        txt.material_slots[-1].material = mat
+        txts.append(txt)
+        tmatrot = tmatrot@degmatrot
+    
+    bm.to_mesh(come)
+    bm.free()
+    return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
     
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
@@ -2602,6 +2672,7 @@ def sunpath(scene):
     elif scene.vi_params['spparams']['suns'] == '2':
         all_alts = [solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)[0] for h in range(24)]
         valid_suns = len([aa for aa in all_alts if aa > 0])
+
         for h in range(24):
             alt, azi, beta, phi = solarPosition(scene.vi_params.sp_sd, h, scene.vi_params.latitude, scene.vi_params.longitude)
             if alt < 0:
@@ -2609,6 +2680,7 @@ def sunpath(scene):
                 if suns[h].children:
                     suns[h].children[0].hide_viewport = True
             else:
+                sun_strength = 1.5 * scene.vi_params.sp_sun_strength/(max(sin(beta), 0.2) * valid_suns)
                 suns[h].hide_viewport = False
                 
                 if suns[h].children:
@@ -2623,12 +2695,12 @@ def sunpath(scene):
 #            if suns[h].children:
 #                suns[h].children[0].hide_viewport = True if alt <= 0 else False
 #            if alt > 0:    
-                suns[h].data.energy = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
+                suns[h].data.energy = sun_strength
                 
                 if scene.render.engine == 'CYCLES':
                     if suns[h].data.node_tree:
                         for emnode in [node for node in suns[h].data.node_tree.nodes if node.bl_label == 'Emission']:
-                            emnode.inputs[1].default_value = 1.5 * scene.vi_params.sp_sun_strength/(sin(beta) * valid_suns)
+                            emnode.inputs[1].default_value = sun_strength
     
                 suns[h].data.angle = math.pi * scene.vi_params.sp_sun_angle/180
                 
@@ -2725,7 +2797,6 @@ def selobj(vl, geo):
     for ob in vl.objects:
         bpy.context.view_layer.objects.active
         ob.select_set(1) if ob == geo else ob.select_set(0)
-#        ob.select = True if ob == geo else False
     vl.objects.active = geo
 
 def delobj(vl, delgeo):

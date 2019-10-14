@@ -36,12 +36,12 @@ class VI_PT_3D(bpy.types.Panel):
             if scene.vi_params['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
-                
-            elif scene.vi_params['viparams']['vidisp'] == 'wrpanel' and scene.vi_display:
+                row.operator('view3d.wrdisplay2', text = 'Wind Metrics2')
+            elif scene.vi_params['viparams']['vidisp'] == 'wrpanel' and scene.vi_params.vi_display:
                 newrow(layout, 'Wind metric:', scene, 'wind_type')
                 newrow(layout, 'Colour:', scene, 'vi_leg_col')
                 
-            elif scene.vi_params['viparams']['vidisp'] == 'sp' and scene.vi_display:
+            elif scene.vi_params['viparams']['vidisp'] == 'sp' and scene.vi_params.vi_display:
                 newrow(layout, "Latitude:", scene.vi_params, 'latitude')
                 newrow(layout, "Longitude:", scene.vi_params, 'longitude')
 
@@ -88,7 +88,7 @@ class VI_PT_3D(bpy.types.Panel):
                 else:
                     row.operator("view3d.livibasicdisplay", text="Radiance Display")
 
-            elif scene.vi_params['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
+            elif scene.vi_params['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_params.vi_display:
                 row = layout.row()
                 row.prop(context.space_data, "show_only_render")
 
@@ -242,8 +242,8 @@ class VI_PT_3D(bpy.types.Panel):
                     row.prop(scene, 'bar_min')
                     row.prop(scene, 'bar_max')
                                             
-            if scene.vi_display:            
-                newrow(layout, 'Display active', scene, 'vi_display')
+            if scene.vi_params.vi_display:            
+                newrow(layout, 'Display active', scene.vi_params, 'vi_display')
         
             
 class VIMatPanel(bpy.types.Panel):
