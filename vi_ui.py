@@ -37,7 +37,7 @@ class VI_PT_3D(bpy.types.Panel):
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
                 row.operator('view3d.wrdisplay2', text = 'Wind Metrics2')
-            elif scene.vi_params['viparams']['vidisp'] == 'wrpanel' and scene.vi_params.vi_display:
+            elif scene.vi_params['viparams']['vidisp'] == 'wr' and scene.vi_params.vi_display:
                 newrow(layout, 'Wind metric:', scene, 'wind_type')
                 newrow(layout, 'Colour:', scene, 'vi_leg_col')
                 

@@ -116,8 +116,6 @@ def draw_legend(self, scene, unit):
     blf.size(font_id, 12, int(300/fontscale))
 
     if not self.resize:
-#        pass
-        print(self.spos)
         self.lspos = [self.spos[0], self.spos[1] - ydiff]
         self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            
     else:
@@ -142,10 +140,11 @@ def draw_legend(self, scene, unit):
     self.legl_batch = batch_for_shader(self.legl_shader, 'LINE_LOOP', {"pos": vl_coords})
     self.legf_batch = batch_for_shader(self.legf_shader, 'TRIS', {"pos": v_coords}, indices = f_indices)
     self.legfc_batch = batch_for_shader(self.legfc_shader, 'TRIS', {"pos": vl_coords[4:], "color": colours}, indices = fl_indices)
-    
+    bgl.glEnable(bgl.GL_BLEND)
     self.legf_shader.bind()
     self.legf_shader.uniform_float("color", (self.hl))
     self.legf_batch.draw(self.legf_shader)
+    bgl.glDisable(bgl.GL_BLEND)
     
     self.legfc_shader.bind()
     self.legfc_batch.draw(self.legfc_shader)
@@ -168,7 +167,7 @@ def draw_legend(self, scene, unit):
     blf.size(font_id, 12, int(250/fontscale))
     bgl.glDisable(bgl.GL_BLEND)
     
-    self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+#    self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
    
     for i in range(levels):
         num = self.resvals[i]

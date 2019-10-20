@@ -97,7 +97,7 @@ class ViLoc(Node, ViNodes):
                 self.outputs['Location out']['epwtext'] = ''
                 self.outputs['Location out']['valid'] = ['Location']
 
-        socklink(self.outputs['Location out'], self.id_data.name)
+        socklink2(self.outputs['Location out'], self.id_data)
         self['reslists'] = reslists
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (scene.latitude, scene.longitude)
 
@@ -129,7 +129,7 @@ class ViLoc(Node, ViNodes):
         NodeTree.get_from_context(context).use_fake_user = True
 
     def update(self):
-        socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
+        socklink2(self.outputs['Location out'], self.id_data)
         nodecolour(self, self.ready())
         
     def draw_buttons(self, context, layout):
@@ -208,7 +208,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
             newrow(layout, 'Type:', self, "wrtype")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
-            newrow(layout, 'Colour:', context.scene, 'vi_leg_col')
+            newrow(layout, 'Colour:', context.scene.vi_params, 'vi_leg_col')
             newrow(layout, 'Max frequency:', self, 'max_freq')
             if self.max_freq == '1':
                newrow(layout, 'Frequency:', self, 'max_freq_val') 
@@ -224,7 +224,59 @@ class ViWRNode(bpy.types.Node, ViNodes):
         
     def update(self):
         pass
+
+class ViSVFNode(Node, ViNodes):
+    '''Node for sky view factor analysis'''
+    bl_idname = 'ViSVFNode'
+    bl_label = 'VI SVF'
+    bl_icon = 'COLOR'
     
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)])
+    
+    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
+    animmenu: EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
+    startframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
+    endframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
+    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+            name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update = nodeupdate)
+    signore: BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
+    skytype = [('0', "Tregenza", "145 Tregenza sky patches"), ('1', "Reinhart 577", "577 Reinhart sky patches"), ('2', 'Reinhart 2305', '2305 Reinhart sky patches')]
+    skypatches: EnumProperty(name="", description="Animation type", items=skytype, default = '0', update = nodeupdate)
+    
+    def init(self, context):
+#        self['nodeid'] = nodeid(self)
+        self['goptions'] = {}
+        self.outputs.new('ViR', 'Results out')
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Ignore sensor:', self, "signore")
+        newrow(layout, 'Animation:', self, "animmenu")
+        if self.animmenu != 'Static': 
+            row = layout.row(align=True)
+            row.alignment = 'EXPAND'
+            row.label('Frames:')
+            row.prop(self, 'startframe')
+            row.prop(self, 'endframe')
+        newrow(layout, 'Sky patches:', self, "skypatches")
+        newrow(layout, 'Result point:', self, "cpoint")
+        newrow(layout, 'Offset:', self, 'offset')
+        row = layout.row()
+        row.operator("node.svf", text="Sky View Factor")#.nodeid = self['nodeid']
+     
+    def preexport(self):
+        self['goptions']['offset'] = self.offset
+        
+    def postexport(self, scene):
+        nodecolour(self, 0)
+        self.outputs['Results out'].hide = False if self.get('reslists') else True            
+        self['exportstate'] = [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)]
+
+    def update(self):
+        socklink2(self.outputs['Results out'], self.id_data)
+        
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -241,14 +293,33 @@ class ViLocSock(NodeSocket):
 
     def draw_color(self, context, node):
         return (0.45, 1.0, 0.45, 1.0)
-        
+    
+    def ret_valid(self, node):
+        return ['Location']
+    
+class ViR(NodeSocket):
+    '''Vi results socket'''
+    bl_idname = 'ViR'
+    bl_label = 'VI results'
+
+    valid = ['Vi Results']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text = text)
+
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 0.0, 0.75)
+    
+    def ret_valid(self, node):
+        return ['Vi Results']
         
 ####################### Vi Nodes Categories ##############################
 
 viexnodecat = []
                 
 vifilenodecat = []
-vinodecat = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose")]
+vinodecat = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose"), NodeItem("ViSVFNode", label="Sky View")]
 
 vigennodecat = []
 

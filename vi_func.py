@@ -542,7 +542,7 @@ def setscenelivivals(scene):
             udict = {'0': 'DF (%)', '1': 'Sky View'}
             scene['liparams']['unit'] = udict[scene.li_disp_sv]
             
-    olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] in ('Shadow', 'SVF') else [scene.objects[on] for on in scene['liparams']['livic']]
+    olist = [scene.objects[on] for on in scene.vi_params['liparams']['shadc']] if scene.vi_params['viparams']['visimcontext'] in ('Shadow', 'SVF') else [scene.objects[on] for on in scene['liparams']['livic']]
 
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
@@ -1679,34 +1679,34 @@ def viparams(op, scene):
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
     if not scene.get('viparams'):
         scene['viparams'] = {}
-    scene['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
-    scene['viparams']['nproc'] = str(multiprocessing.cpu_count())
-    scene['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
-    scene['viparams']['filepath'] = bpy.data.filepath
-    scene['viparams']['filename'] = fn
-    scene['viparams']['filedir'] = fd
-    scene['viparams']['newdir'] = nd 
-    scene['viparams']['filebase'] = fb
-    if not scene.get('spparams'):
-        scene['spparams'] = {}
-    if not scene.get('liparams'):
-        scene['liparams'] = {}
-    scene['liparams']['objfilebase'] = ofb
-    scene['liparams']['lightfilebase'] = lfb
-    scene['liparams']['texfilebase'] = tfb
-    scene['liparams']['disp_count'] = 0
-    if not scene.get('enparams'):
-        scene['enparams'] = {}
-    scene['enparams']['idf_file'] = idf
-    scene['enparams']['epversion'] = '9.0'
-    if not scene.get('flparams'):
-        scene['flparams'] = {}
-    scene['flparams']['offilebase'] = offb
-    scene['flparams']['ofsfilebase'] = offs
-    scene['flparams']['ofcfilebase'] = offc
-    scene['flparams']['ofcpfilebase'] = offcp
-    scene['flparams']['of0filebase'] = offzero
-    scene['flparams']['ofctsfilebase'] = offcts
+    scene.vi_params['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
+    scene.vi_params['viparams']['nproc'] = str(multiprocessing.cpu_count())
+    scene.vi_params['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
+    scene.vi_params['viparams']['filepath'] = bpy.data.filepath
+    scene.vi_params['viparams']['filename'] = fn
+    scene.vi_params['viparams']['filedir'] = fd
+    scene.vi_params['viparams']['newdir'] = nd 
+    scene.vi_params['viparams']['filebase'] = fb
+    if not scene.vi_params.get('spparams'):
+        scene.vi_params['spparams'] = {}
+    if not scene.vi_params.get('liparams'):
+        scene.vi_params['liparams'] = {}
+    scene.vi_params['liparams']['objfilebase'] = ofb
+    scene.vi_params['liparams']['lightfilebase'] = lfb
+    scene.vi_params['liparams']['texfilebase'] = tfb
+    scene.vi_params['liparams']['disp_count'] = 0
+    if not scene.vi_params.get('enparams'):
+        scene.vi_params['enparams'] = {}
+    scene.vi_params['enparams']['idf_file'] = idf
+    scene.vi_params['enparams']['epversion'] = '9.0'
+    if not scene.vi_params.get('flparams'):
+        scene.vi_params['flparams'] = {}
+    scene.vi_params['flparams']['offilebase'] = offb
+    scene.vi_params['flparams']['ofsfilebase'] = offs
+    scene.vi_params['flparams']['ofcfilebase'] = offc
+    scene.vi_params['flparams']['ofcpfilebase'] = offcp
+    scene.vi_params['flparams']['of0filebase'] = offzero
+    scene.vi_params['flparams']['ofctsfilebase'] = offcts
         
 def nodestate(self, opstate):
     if self['exportstate'] !=  opstate:
@@ -2457,24 +2457,24 @@ def frameindex(scene, anim):
 
 def retobjs(otypes):
     scene = bpy.context.scene
-    validobs = [o for o in scene.objects if o.is_visible(scene)]
+    validobs = [o for o in scene.objects if not o.hide_viewport]
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and o.vi_type not in ('4', '5') \
-        and o.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
+        and o.vi_params.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
     elif otypes == 'livigengeosel':
-        return([o for o in validobs if o.type == 'MESH' and o.select == True and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
+        return([o for o in validobs if o.type == 'MESH' and o.select == True and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
     elif otypes == 'livil':
-        return([o for o in validobs if o.type == 'LAMP' or o.vi_type == '4'])
+        return([o for o in validobs if o.type == 'LAMP' or o.vi_params.vi_type == '4'])
     elif otypes == 'livic':
-        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0])
+        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.lires == 0])
     elif otypes == 'livir':
-        return([o for o in validobs if o.type == 'MESH' and True in [m.livi_sense for m in o.data.materials] and o.licalc])
+        return([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials] and o.vi_params.licalc])
     elif otypes == 'envig':
         return([o for o in scene.objects if o.type == 'MESH' and o.hide == False and not o.layers[1]])
     elif otypes == 'ssc':        
-        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.data.materials and any([o.data.materials[poly.material_index].mattype == '1' for poly in o.data.polygons])]
+        return [o for o in validobs if o.type == 'MESH' and o.vi_params.lires == 0 and o.data.materials and any([o.data.materials[poly.material_index].vi_params.mattype == '1' for poly in o.data.polygons])]
 
 def radmesh(scene, obs, export_op):
     for o in obs:

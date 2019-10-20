@@ -37,14 +37,14 @@ if "bpy" in locals():
     imp.reload(vi_func)
 #    imp.reload(envi_mat)
 else:
-    from .vi_node import vinode_categories, ViNetwork, ViLoc, ViLocSock, ViSPNode, ViWRNode
+    from .vi_node import vinode_categories, ViNetwork, ViLoc, ViLocSock, ViSPNode, ViWRNode, ViSVFNode, ViR
 #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
 #    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
 #    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
 #    from .vi_display import setcols
-    from .vi_operators import NODE_OT_SunPath, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, VIEW3D_OT_WRDisplay2
+    from .vi_operators import NODE_OT_SunPath, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, VIEW3D_OT_WRDisplay2, NODE_OT_SVF
 #    from .vi_operators import *
     from .vi_ui import VI_PT_3D
 #    from .vi_ui import *
@@ -69,6 +69,9 @@ if sys.platform in ('darwin', 'win32'):
 def return_preferences():
     return bpy.context.preferences.addons[__name__].preferences
 
+def colupdate(self, context):
+    cmap(self)
+    
 def abspath(self, context):
     if self.radbin != bpy.path.abspath(self.radbin):
         self.radbin = bpy.path.abspath(self.radbin)
@@ -105,7 +108,7 @@ class VIPreferences(AddonPreferences):
             row.label(text=entry)   
             row.prop(self, self.ui_dict[entry])
 
-class VI_Params(bpy.types.PropertyGroup): 
+class VI_Params_Scene(bpy.types.PropertyGroup): 
     sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1) 
     sp_hour_main: fvprop(4, "",'Dash colour of the hour lines', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
     sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
@@ -142,10 +145,64 @@ class VI_Params(bpy.types.PropertyGroup):
     display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     display_rp_sh: bprop("", "Toggle for font shadow display",  False)
     vi_display: bprop("", "Toggle result display",  False)
+    vi_leg_col: EnumProperty(items = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
+                                             ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), 
+                                             ('hsv', 'HSV', 'HSV colour scale'), ('viridis', 'Viridis', 'Viridis colour scale')], 
+                                            name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
 #    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 24, 24)
 #    Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 #    Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
 #    Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    
+class VI_Params_Object(bpy.types.PropertyGroup): 
+    # VI-Suite object definitions
+    vi_type: eprop([("0", "None", "Not a VI-Suite zone"), 
+                    ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), 
+                    ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), 
+                    ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
+                    ("4", "Light Array", "Specifies a LiVi lighting array"), 
+                    ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation")], 
+                    "", "Specify the type of VI-Suite zone", "0")
+
+    # LiVi object properties
+    livi_merr: bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
+    ies_name: bpy.props.StringProperty(name="", description="Name of the IES file", default="", subtype="FILE_PATH")
+    ies_strength: fprop("", "Strength of IES lamp", 0, 1, 1)
+    ies_unit: eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
+    ies_colmenu: eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
+    ies_rgb: fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    ies_ct: iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
+    licalc: bprop("", "", False)
+    lires: bprop("", "", False)
+    limerr: bprop("", "", False)
+    manip: bprop("", "", False) 
+    bsdf_proxy: bprop("", "", False)
+    compcalcapply: compcalcapply    
+    basiccalcapply: basiccalcapply 
+    rtpoints: rtpoints
+    udidacalcapply: udidacalcapply
+    lividisplay: lividisplay
+    lhcalcapply: lhcalcapply
+    li_bsdf_direc: EnumProperty(items = [('+b -f', 'Backwards', 'Backwards BSDF'), 
+                                         ('+f -b', 'Forwards', 'Forwards BSDF'), 
+                                         ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b -f')
+    li_bsdf_proxy: bprop("", "Include proxy geometry in the BSDF", False)
+    li_bsdf_tensor: EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), 
+                                          ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), 
+                                          ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
+    li_bsdf_res: EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), 
+                                       ('2', '4x4', '4x4 sampling resolution'), 
+                                       ('3', '8x8', '8x8 sampling resolution'), 
+                                       ('4', '16x16', '16x16 sampling resolution'), 
+                                       ('5', '32x32', '32x32 sampling resolution'), 
+                                       ('6', '64x64', '64x64 sampling resolution'), 
+                                       ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+    li_bsdf_tsamp: IntProperty(name = '', description = 'Tensor samples', min = 1, max = 20, default = 4)
+    li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 200)
+    li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
+    radbsdf: radbsdf
+    retsv: retsv
+    
 @persistent
 def update_chart_node(dummy):
     try:
@@ -249,8 +306,7 @@ def path_update():
         os.environ["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"] + "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
         os.environ["WM_PROJECT_DIR"] = ofedir
         
-def colupdate(self, context):
-    cmap(self)
+
 
 def eupdate(self, context):
     scene = context.scene
@@ -379,7 +435,8 @@ def flovi_levels(self, context):
 
 
 classes = (VIPreferences, ViNetwork, ViLoc, ViLocSock, ViSPNode, NODE_OT_SunPath, 
-           VI_PT_3D, VI_Params, ViWRNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, VIEW3D_OT_WRDisplay2)
+           VI_PT_3D, VI_Params_Scene, VI_Params_Object, ViWRNode, ViSVFNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
+           VIEW3D_OT_WRDisplay2, NODE_OT_SVF, ViR)
 
 
 #def register():
@@ -399,40 +456,40 @@ def register():
         bpy.utils.register_class(cl)
   
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
-    bpy.types.Scene.vi_params = bpy.props.PointerProperty(type = VI_Params)
-    
+    Scene.vi_params = bpy.props.PointerProperty(type = VI_Params_Scene)
+    Object.vi_params = bpy.props.PointerProperty(type = VI_Params_Object)
     
 
 
 # VI-Suite object definitions
-    Object.vi_type = eprop([("0", "None", "Not a VI-Suite zone"), ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), 
-                            ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
-                            ("4", "Light Array", "Specifies a LiVi lighting array"), ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation")], "", "Specify the type of VI-Suite zone", "0")
-
-# LiVi object properties
-    Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
-    Object.ies_name = bpy.props.StringProperty(name="", description="Name of the IES file", default="", subtype="FILE_PATH")
-    Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
-    Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
-    Object.ies_colmenu = eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
-    Object.ies_rgb = fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
-    Object.ies_ct = iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
-    (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.bsdf_proxy) = [bprop("", "", False)] * 5
-    Object.compcalcapply = compcalcapply    
-    Object.basiccalcapply = basiccalcapply 
-    Object.rtpoints = rtpoints
-    Object.udidacalcapply = udidacalcapply
-    Object.lividisplay = lividisplay
-    Object.lhcalcapply = lhcalcapply
-    Object.li_bsdf_direc = EnumProperty(items = [('+b -f', 'Backwards', 'Backwards BSDF'), ('+f -b', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b -f')
-    Object.li_bsdf_proxy = bprop("", "Include proxy geometry in the BSDF", False)
-    Object.li_bsdf_tensor = EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
-    Object.li_bsdf_res = EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
-    Object.li_bsdf_tsamp = IntProperty(name = '', description = 'Tensor samples', min = 1, max = 20, default = 4)
-    Object.li_bsdf_ksamp = IntProperty(name = '', description = 'Klem samples', min = 1, default = 200)
-    Object.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
-    Object.radbsdf = radbsdf
-    Object.retsv = retsv
+#    Object.vi_type = eprop([("0", "None", "Not a VI-Suite zone"), ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), 
+#                            ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
+#                            ("4", "Light Array", "Specifies a LiVi lighting array"), ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation")], "", "Specify the type of VI-Suite zone", "0")
+#
+## LiVi object properties
+#    Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
+#    Object.ies_name = bpy.props.StringProperty(name="", description="Name of the IES file", default="", subtype="FILE_PATH")
+#    Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
+#    Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
+#    Object.ies_colmenu = eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
+#    Object.ies_rgb = fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+#    Object.ies_ct = iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
+#    (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.bsdf_proxy) = [bprop("", "", False)] * 5
+#    Object.compcalcapply = compcalcapply    
+#    Object.basiccalcapply = basiccalcapply 
+#    Object.rtpoints = rtpoints
+#    Object.udidacalcapply = udidacalcapply
+#    Object.lividisplay = lividisplay
+#    Object.lhcalcapply = lhcalcapply
+#    Object.li_bsdf_direc = EnumProperty(items = [('+b -f', 'Backwards', 'Backwards BSDF'), ('+f -b', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b -f')
+#    Object.li_bsdf_proxy = bprop("", "Include proxy geometry in the BSDF", False)
+#    Object.li_bsdf_tensor = EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
+#    Object.li_bsdf_res = EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+#    Object.li_bsdf_tsamp = IntProperty(name = '', description = 'Tensor samples', min = 1, max = 20, default = 4)
+#    Object.li_bsdf_ksamp = IntProperty(name = '', description = 'Klem samples', min = 1, default = 200)
+#    Object.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
+#    Object.radbsdf = radbsdf
+#    Object.retsv = retsv
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney Object")], "EnVi object type", "Specify the EnVi object type", "0")
