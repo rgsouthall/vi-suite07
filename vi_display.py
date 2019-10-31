@@ -397,10 +397,11 @@ class wr_legend(Base_Display):
         scene = context.scene
         simnode = bpy.data.node_groups[scene.vi_params['viparams']['restree']].nodes[scene.vi_params['viparams']['resnode']]        
         self.cao = context.active_object
+        covp = self.cao.vi_params
 
-        if self.cao and self.cao.get('VIType') and self.cao['VIType'] == 'Wind_Plane':            
-            levels = self.cao['nbins']
-            maxres = self.cao['maxres']
+        if self.cao and covp.get('VIType') and covp['VIType'] == 'Wind_Plane':            
+            levels = covp['nbins']
+            maxres = covp['maxres']
         else:
             levels = simnode['nbins']
             maxres = simnode['maxres']
@@ -423,12 +424,13 @@ class wr_scatter(Base_Display):
         
     def update(self, context):
         self.cao = context.active_object
-        if self.cao and self.cao.get('ws'):
+        covp = self.cao.vi_params
+        if self.cao and covp.get('ws'):
             self.unit = context.scene.wind_type 
-            zdata = array(self.cao['ws']) if context.scene.wind_type == '0' else array(self.cao['wd'])
+            zdata = array(covp['ws']) if context.scene.wind_type == '0' else array(covp['wd'])
             (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if context.scene.wind_type == '0' else ('Wind Direction', u'Direction (\u00B0)')
             self.plt = plt
-            draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], zdata, title, 'Days', 'Hours', cbtitle, nmin(zdata), nmax(zdata))  
+            draw_dhscatter(self, context.scene, covp['days'], covp['hours'], zdata, title, 'Days', 'Hours', cbtitle, nmin(zdata), nmax(zdata))  
             save_plot(self, context.scene, 'scatter.png')
         
     def drawopen(self, context):
@@ -444,8 +446,9 @@ class wr_table(Base_Display):
         
     def update(self, context):
         self.cao = context.active_object
-        if self.cao and self.cao.get('ws'):
-            self.rcarray = array(self.cao['table'])  
+        covp = self.cao.vi_params
+        if self.cao and covp.get('ws'):
+            self.rcarray = array(covp['table'])  
         
     def drawopen(self, context):
         draw_table(self)
@@ -459,3 +462,5 @@ def wr_disp(self, context, simnode):
             self.table.draw(context, width, height)
     except:
         pass
+    
+

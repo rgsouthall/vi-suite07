@@ -28,20 +28,26 @@ from time import sleep
 from mathutils import Euler, Vector
 from gpu_extras.batch import batch_for_shader
 from bpy_extras import view3d_utils
+
 #from multiprocessing import Pool
-#from .livi_export import radgexport, spfc, createoconv, createradfile
-#from .livi_calc  import li_calc
-#from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
+from .livi_export import radgexport, spfc, createoconv, createradfile
+from .livi_calc  import li_calc
 #from .envi_export import enpolymatexport, pregeo
 #from .envi_mat import envi_materials, envi_constructions
-from .vi_func import selobj, joinobj, solarPosition, viparams, compass, wind_compass, spfc, solarRiseSet
+
+from .vi_func import selobj, joinobj, solarPosition, viparams, compass, wind_compass, spfc, solarRiseSet, livisimacc, retpmap
+
 #from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
-from .vi_func import ret_plt, blf_props, draw_index, viewdesc, ret_vp_loc, draw_time, logentry, rettree
-from .vi_func import sunpath, windnum, wind_rose, create_coll, retobjs, progressfile, progressbar, chunks, clearlayers, clearscene
-from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
+from .vi_func import ret_plt, blf_props, draw_index, viewdesc, ret_vp_loc, draw_time, logentry, rettree, cmap
+
+from .vi_func import sunpath, windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode
+#from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 #from .vi_chart import chart_disp
-from .vi_misc import wr_legend2, results_bar
+
+from .vi_misc import wr_legend, results_bar, wr_table, wr_scatter, svf_legend
+from .vi_misc import li_display, linumdisplay, ss_legend, ss_scatter, livi_legend#, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
 
 try:    
     import matplotlib
@@ -459,7 +465,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if scene.vi_params.vi_display == 0 or scene.vi_params['viparams']['vidisp'] != 'sp':
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
-            [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
+            [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.vi_params.get('VIType') and o.vi_params['VIType'] in ('SunMesh', 'SkyMesh')]
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
     
@@ -718,6 +724,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wrme = bpy.data.meshes.new("Wind_rose")   
         wro = bpy.data.objects.new('Wind_rose', wrme) 
         
+        
 #        context.view_layer.objects.active = wro
         
         if wro.name not in wrcoll.objects:
@@ -727,19 +734,22 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 
         selobj(context.view_layer, wro)       
         (wro, scale) = wind_rose(wro, simnode['maxres'], scene.vi_params['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
-        wro = joinobj(context.view_layer, wro)        
-        wro['maxres'], wro['minres'], wro['avres'], wro['nbins'], wro['VIType'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals), 'Wind_Plane'
+        wro = joinobj(context.view_layer, wro)  
+        ovp = wro.vi_params
+        ovp['maxres'], ovp['minres'], ovp['avres'], ovp['nbins'], ovp['VIType'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals), 'Wind_Plane'
         simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)
         simnode['maxfreq'] = 100*numpy.max(adfreq)/len(vawd) if simnode.max_freq == '0' else simnode.max_freq_val
 
         windnum(simnode['maxfreq'], (0,0,0), scale, wind_compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         plt.close()
-        wro['table'] = array([["", 'Minimum', 'Average', 'Maximum'], ['Speed (m/s)', wro['minres'], '{:.1f}'.format(wro['avres']), wro['maxres']], ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
-        wro['ws'] = aws.reshape(len(doys), 24).T.tolist()
-        wro['wd'] = awd.reshape(len(doys), 24).T.tolist()
-        wro['days'] = array(doys, dtype = float)
-        wro['hours'] = arange(1, 25, dtype = float)        
-        wro['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
+        ovp['table'] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                             ['Speed (m/s)', ovp['minres'], '{:.1f}'.format(ovp['avres']), ovp['maxres']], 
+                             ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
+        ovp['ws'] = aws.reshape(len(doys), 24).T.tolist()
+        ovp['wd'] = awd.reshape(len(doys), 24).T.tolist()
+        ovp['days'] = array(doys, dtype = float)
+        ovp['hours'] = arange(1, 25, dtype = float)        
+        ovp['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
         simnode['nbins'] = len(sbinvals)  
         simnode['ws'] = array(cws).reshape(365, 24).T.tolist()
         simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()        
@@ -748,204 +758,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         return {'FINISHED'}
     
 class VIEW3D_OT_WRDisplay(bpy.types.Operator):
-    '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.wrdisplay"
-    bl_label = "Wind rose display"
-    bl_description = "Display wind metrics"
-    bl_register = True
-    bl_undo = False
-
-    def modal(self, context, event): 
-        if context.scene.vi_params.vi_display == 0 or context.scene.vi_params['viparams']['vidisp'] != 'wrpanel' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-            context.area.tag_redraw()
-            return {'CANCELLED'}           
-
-        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
-            mx, my = event.mouse_region_x, event.mouse_region_y 
-            
-            # Legend routine 
-            
-            if self.legend.spos[0] < mx < self.legend.epos[0] and self.legend.spos[1] < my < self.legend.epos[1]:
-                self.legend.hl = (0.5, 0.5, 0.5, 0.5)  
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.legend.press = 1
-                        self.legend.move = 0
-                        return {'RUNNING_MODAL'}
-                    elif event.value == 'RELEASE':
-                        if not self.legend.move:
-                            self.legend.expand = 0 if self.legend.expand else 1
-                        self.legend.press = 0
-                        self.legend.move = 0
-                        context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
-                
-                elif event.type == 'ESC':
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-                    context.area.tag_redraw()
-                    return {'CANCELLED'}
-                    
-                elif self.legend.press and event.type == 'MOUSEMOVE':
-                     self.legend.move = 1
-                     self.legend.press = 0
-            
-            elif abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
-                self.legend.hl = (0.5, 0.5, 0.5, 0.5) 
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.legend.resize = 1
-                    if self.legend.resize and event.value == 'RELEASE':
-                        self.legend.resize = 0
-                    return {'RUNNING_MODAL'}
-                    
-            else:
-                self.legend.hl = (1, 1, 1, 1)
-                
-            # Scatter routine
-                
-            if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
-                self.dhscatter.hl = (0, 1, 1, 1)  
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.dhscatter.press = 1
-                        self.dhscatter.move = 0
-                        return {'RUNNING_MODAL'}
-                    elif event.value == 'RELEASE':
-                        if not self.dhscatter.move:
-                            self.dhscatter.expand = 0 if self.dhscatter.expand else 1
-                        self.dhscatter.press = 0
-                        self.dhscatter.move = 0
-                        context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
-                
-                elif event.type == 'ESC':
-                    bpy.data.images.remove(self.dhscatter.gimage)
-                    self.dhscatter.plt.close()
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-                    context.area.tag_redraw()
-                    return {'CANCELLED'}
-                    
-                elif self.dhscatter.press and event.type == 'MOUSEMOVE':
-                     self.dhscatter.move = 1
-                     self.dhscatter.press = 0
-        
-            elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
-                if self.dhscatter.expand: 
-                    self.dhscatter.hl = (1, 1, 1, 1)
-                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
-                        self.dhscatter.show_plot()
-                    context.area.tag_redraw()
-                    return {'RUNNING_MODAL'}
-                   
-            else:
-                self.dhscatter.hl = (1, 1, 1, 1)
-                                    
-            # Table routine
-                     
-            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
-                self.table.hl = (0, 1, 1, 1)  
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.table.press = 1
-                        self.table.move = 0
-                        return {'RUNNING_MODAL'}
-                    elif event.value == 'RELEASE':
-                        if not self.table.move:
-                            self.table.expand = 0 if self.table.expand else 1
-                        self.table.press = 0
-                        self.table.move = 0
-                        context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
-                
-                elif event.type == 'ESC':
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-                    context.area.tag_redraw()
-                    return {'CANCELLED'}
-                    
-                elif self.table.press and event.type == 'MOUSEMOVE':
-                     self.table.move = 1
-                     self.table.press = 0
-                     
-            else:
-                self.table.hl = (1, 1, 1, 1)
-                     
-            # Resize routines
-            
-            if abs(self.legend.lepos[0] - mx) < 20 and abs(self.legend.lspos[1] - my) < 20:
-                self.legend.hl = (0, 1, 1, 1) 
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.legend.resize = 1
-                    if self.legend.resize and event.value == 'RELEASE':
-                        self.legend.resize = 0
-                    return {'RUNNING_MODAL'}
-                    
-            elif abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
-                self.dhscatter.hl = (0, 1, 1, 1) 
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.dhscatter.resize = 1
-                    if self.dhscatter.resize and event.value == 'RELEASE':
-                        self.dhscatter.resize = 0
-                    return {'RUNNING_MODAL'}
-                    
-            elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20:
-                self.table.hl = (0, 1, 1, 1) 
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.table.resize = 1
-                    if self.table.resize and event.value == 'RELEASE':
-                        self.table.resize = 0
-                    return {'RUNNING_MODAL'}
-            
-            # Move routines
-                     
-            if event.type == 'MOUSEMOVE':                
-                if self.legend.move:
-                    self.legend.pos = [mx, my]
-                if self.legend.resize:
-                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
-                if self.dhscatter.move:
-                    self.dhscatter.pos = [mx, my]
-                if self.dhscatter.resize:
-                    self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
-                if self.table.move:
-                    self.table.pos = [mx, my]
-                if self.table.resize:
-                    self.table.lepos[0], self.table.lspos[1] = mx, my
-                                                
-        # Object update routines 
-        
-            if self.legend.cao != context.active_object:
-                self.legend.update(context)
-            
-            if self.dhscatter.cao != context.active_object or self.dhscatter.unit != context.scene.wind_type or context.scene.vi_leg_col != self.dhscatter.col:
-                self.dhscatter.update(context)
-                
-            if self.table.cao != context.active_object:
-                self.table.update(context)
-            
-            context.area.tag_redraw()
-        return {'PASS_THROUGH'}
-
-    def invoke(self, context, event):
-        context.scene.vi_params.vi_display = 1
-        context.scene.vi_params['viparams']['vidisp'] = 'wrpanel'
-        simnode = bpy.data.node_groups[context.scene.vi_params['viparams']['restree']].nodes[context.scene.vi_params['viparams']['resnode']]
-        self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 350)
-        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
-        self.table = wr_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)       
-        self.legend.update(context)
-        self.dhscatter.update(context)
-        self.table.update(context)
-        self._handle_wr_disp = bpy.types.SpaceView3D.draw_handler_add(wr_disp, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
-    
-    
-class VIEW3D_OT_WRDisplay2(bpy.types.Operator):
-    bl_idname = "view3d.wrdisplay2"
     bl_label = "Wind rose number display"
     bl_description = "Project the windrose numbers on to the viewport"
     bl_register = True
@@ -953,34 +766,35 @@ class VIEW3D_OT_WRDisplay2(bpy.types.Operator):
     
     def invoke(self, context, event):   
         area = context.area
-        context.scene.vi_params.vi_display = 1
-        context.scene.vi_params['viparams']['vidisp'] = 'wr'
+        svp = context.scene.vi_params
+        svp.vi_display = 1
+        svp['viparams']['vidisp'] = 'wr'
         self.results_bar = results_bar(('legend.png', 'table_new.png', 'scatter_new.png'), 300, area)
-#        self.leg_image = bpy.data.images['legend.png']
-        self.legend = wr_legend2(context, 'Speed (m/s)', [305, area.height - 80], area.width, area.height, 'legend.png', 125, 300)
-#        self.table = wr_table([240, area.height - 40], area.width, area.height, 'table_new.png', 600, 150)
-#        self.dhscatter = wr_scatter([160, area.height - 40], area.width, area.height, 'scatter_new.png', 600, 400)
-        self.legend.update(context)
+        self.legend = wr_legend(context, 'Speed (m/s)', [305, area.height - 80], area.width, area.height, 125, 300)
+        self.table = wr_table(context, [355, area.height - 80], area.width, area.height, 400, 60) 
+        self.dhscatter = wr_scatter(context, [405, area.height - 80], area.width, area.height, 600, 200)
         self.height = area.height
-#        self.create_batch(context.area)
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
-        self.leg_show = 1
+        self.cao = context.active_object
         area.tag_redraw()
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
     
     def modal(self, context, event):
         scene = context.scene
+        svp = scene.vi_params
         ah, aw = context.area.height, context.area.width
         redraw = 0
            
-        if scene.vi_params.vi_display == 0 or scene.vi_params['viparams']['vidisp'] != 'wr':
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or event.type == 'ESC':
+            svp.vi_display = 0
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
+            context.area.tag_redraw()
             return {'CANCELLED'}
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             mx, my = event.mouse_region_x, event.mouse_region_y 
-            
+                        
             # Legend routine 
             if self.legend.ispos[0] < mx < self.legend.iepos[0] and self.legend.ah - 80 < my < self.legend.ah - 40:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
@@ -989,7 +803,27 @@ class VIEW3D_OT_WRDisplay2(bpy.types.Operator):
                     if event.value == 'RELEASE':
                         self.legend.expand = 0 if self.legend.expand else 1
             
-            elif abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
+            elif self.table.ispos[0] < mx < self.table.iepos[0] and self.table.ah - 80 < my < self.table.ah - 40:
+                self.table.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.table.expand = 0 if self.table.expand else 1
+                        
+            elif self.dhscatter.ispos[0] < mx < self.dhscatter.iepos[0] and self.dhscatter.ah - 80 < my < self.dhscatter.ah - 40:
+                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.dhscatter.expand = 0 if self.dhscatter.expand else 1
+                        
+            elif self.dhscatter.expand and self.dhscatter.lspos[0] + 0.1 * self.dhscatter.xdiff < mx < self.dhscatter.lepos[0] - 0.1 * self.dhscatter.xdiff and self.dhscatter.lspos[1] + 0.1 * self.dhscatter.ydiff  < my < self.dhscatter.lepos[1] - 0.1 * self.dhscatter.ydiff:
+                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
+                    self.dhscatter.show_plot(context)
+                        
+            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
                 redraw = 1   
                 if event.type == 'LEFTMOUSE':
@@ -997,17 +831,38 @@ class VIEW3D_OT_WRDisplay2(bpy.types.Operator):
                         self.legend.move = 1
                         self.legend.draw(ah, aw)
                         context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
+#                        return {'RUNNING_MODAL'}
                     elif self.legend.move and event.value == 'RELEASE':
                         self.legend.move = 0                        
-                        return {'RUNNING_MODAL'}
-                
-                elif event.type == 'ESC':
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-                    redraw = 1
-                    return {'CANCELLED'}
-                                
-            elif abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                    return {'RUNNING_MODAL'}
+            
+            elif self.table.expand and abs(self.table.lspos[0] - mx) < 10 and abs(self.table.lepos[1] - my) < 10:
+                self.table.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1   
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.table.move = 1
+                        self.table.draw(ah, aw)
+                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+                    elif self.table.move and event.value == 'RELEASE':
+                        self.table.move = 0                        
+                    return {'RUNNING_MODAL'}
+            
+            elif self.dhscatter.expand and abs(self.dhscatter.lspos[0] - mx) < 10 and abs(self.dhscatter.lepos[1] - my) < 10:
+                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1   
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.move = 1
+                        self.dhscatter.draw(ah, aw)
+                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+                    elif self.dhscatter.move and event.value == 'RELEASE':
+                        self.dhscatter.move = 0                        
+                    return {'RUNNING_MODAL'}
+                    
+            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
                 context.area.tag_redraw()
                 if event.type == 'LEFTMOUSE':
@@ -1018,11 +873,42 @@ class VIEW3D_OT_WRDisplay2(bpy.types.Operator):
                     elif self.legend.resize and event.value == 'RELEASE':
                         self.legend.resize = 0
                     return {'RUNNING_MODAL'}
-                    
+            
+            elif self.table.expand and abs(self.table.lepos[0] - mx) < 10 and abs(self.table.lspos[1] - my) < 10:
+                self.table.hl = (0.8, 0.8, 0.8, 0.8) 
+                context.area.tag_redraw()
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.table.resize = 1
+                        self.table.draw(ah, aw)
+                        context.area.tag_redraw()
+                    elif self.table.resize and event.value == 'RELEASE':
+                        self.table.resize = 0
+                    return {'RUNNING_MODAL'}
+                
+            elif self.dhscatter.expand and abs(self.dhscatter.lepos[0] - mx) < 10 and abs(self.dhscatter.lspos[1] - my) < 10:
+                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
+                context.area.tag_redraw()
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.resize = 1
+                        self.dhscatter.draw(ah, aw)
+                        context.area.tag_redraw()
+                    elif self.dhscatter.resize and event.value == 'RELEASE':
+                        self.dhscatter.resize = 0
+                    return {'RUNNING_MODAL'}
+                
             elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
                 self.legend.hl = (1, 1, 1, 1)
                 redraw = 1
-                                
+            
+            elif self.table.hl == (0.8, 0.8, 0.8, 0.8):                 
+                self.table.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            elif self.dhscatter.hl == (0.8, 0.8, 0.8, 0.8):                 
+                self.dhscatter.hl = (1, 1, 1, 1)
+                redraw = 1                    
             # Move routines
                      
             if event.type == 'MOUSEMOVE':                
@@ -1034,78 +920,51 @@ class VIEW3D_OT_WRDisplay2(bpy.types.Operator):
                     self.legend.lepos[0], self.legend.lspos[1] = mx, my
                     self.legend.draw(ah, aw)
                     context.area.tag_redraw() 
+                elif self.table.move:
+                    self.table.lspos[0], self.table.lepos[1] = mx, my
+                    self.table.draw(ah, aw)
+                    context.area.tag_redraw() 
+                elif self.table.resize:
+                    self.table.lepos[0], self.table.lspos[1] = mx, my
+                    self.table.draw(ah, aw)
+                    context.area.tag_redraw()
+                elif self.dhscatter.resize:
+                    self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
+                    self.dhscatter.draw(ah, aw)
+                    context.area.tag_redraw() 
+                elif self.dhscatter.move:
+                    self.dhscatter.lspos[0], self.dhscatter.lepos[1] = mx, my
+                    self.dhscatter.draw(ah, aw)
+                    context.area.tag_redraw() 
+        
+            if self.cao != context.active_object:
+                self.legend.update(context)
+                self.legend.draw(ah, aw)
+                self.table.update(context)
+                self.table.draw(ah, aw)
+                self.dhscatter.update(context)
+                self.dhscatter.draw(ah, aw)
+                context.area.tag_redraw() 
+                self.cao = context.active_object
                 
+            if svp.vi_wr_refresh:
+                self.dhscatter.update(context)
+                self.dhscatter.draw(ah, aw)
+                svp.vi_wr_refresh = 0
+                context.area.tag_redraw()
+            
             if redraw:
                 context.area.tag_redraw()        
         return {'PASS_THROUGH'}
     
-    def ret_bar_geometry(self, area): 
-#        bm = bmesh.new()
-#        xi = (0, 1, 1, 0)
-#        yi = (0, 0, 1, 1)
-#        
-#        for i in range(4):
-#            pos = (150 + xi[i] * 100, 25 + yi[i] * 50)
-#            bm.verts.new((pos[0], pos[1], 0))
-#            
-#        bm.faces.new(bm.verts)
-#        bmesh.ops.bevel(bm, geom = bm.verts[:] + bm.faces[:], offset = 15, offset_type = 'OFFSET', segments = 10, profile = 0.5, vertex_only = True)
-#        
-#        bm.verts.ensure_lookup_table()
-#        bm.faces.ensure_lookup_table()
-#        bar_v_coords = [[v.co[:2] for v in edge.verts] for edge in bm.edges]
-        
-#        bar_v_coords = [item for sublist in bar_v_coords for item in sublist]
-#        barl_v_coords = [bm.faces[0].loops[i].vert.co[:2] for i in range(len(bm.verts))]
-#        e = bm.edges[0]
-#        bar_v_coords = [e.verts[0].co[:2]]
-#        for edge in bm.edges[1:]:
-#            if e.verts[1] in edge.verts:
-#                bar_v_coords.append()
-#                edge = e
-                
-            
-        bar_v_coords = ((300, area.height - 85), (450, area.height - 85),
-                         (450, area.height - 35), (300, area.height - 35))
-#        bmesh.ops.triangulate(bm, faces = bm.faces, quad_method = 'BEAUTY', ngon_method= 'BEAUTY')
-#        bar_v_coords = [[v.co[:2] for v in face.verts] for face in bm.faces]
-#        barf_v_coords = [item for sublist in bar_v_coords for item in sublist]
-#        bar_f_indices = [[v.index for v in face.verts] for face in bm.faces]
-#        bm.free()
-        return (bar_v_coords, ((0, 1, 2), (2, 3, 0)))
-        
-    def create_batch(self, area):
-        self.wrbl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-        self.wrbf_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-        self.leg_shader = gpu.shader.from_builtin('2D_IMAGE')
-        self.tab_shader = gpu.shader.from_builtin('2D_IMAGE')
-        self.hm_shader = gpu.shader.from_builtin('2D_IMAGE')
-        (v_coords, f_indices) = self.ret_bar_geometry(area)
-        self.wrbl_batch = batch_for_shader(self.wrbl_shader, 'LINE_LOOP', {"pos": v_coords})
-        self.wrbf_batch = batch_for_shader(self.wrbf_shader, 'TRIS', {"pos": v_coords}, indices = f_indices)
-        leg_pos = ((305, area.height - 80), (345, area.height - 80),(345, area.height - 40), (305, area.height - 40))
-        self.leg_batch = batch_for_shader(self.leg_shader, 'TRI_FAN', {"pos": leg_pos, "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),},)
-        tab_pos = ((355, area.height - 80), (395, area.height - 80),(395, area.height - 40), (355, area.height - 40))
-        self.tab_batch = batch_for_shader(self.tab_shader, 'TRI_FAN', {"pos": tab_pos, "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),},)
-        hm_pos = ((405, area.height - 80), (445, area.height - 80),(445, area.height - 40), (405, area.height - 40))
-        self.hm_batch = batch_for_shader(self.hm_shader, 'TRI_FAN', {"pos": hm_pos, "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),},)
-        
     def draw_wrnum(self, context):
         area = context.area
-        ah = area.height
-                
+        ah = area.height                
         self.results_bar.draw(ah, 3)
         self.legend.draw(ah, area.width)
-        
-        
-#        if self.leg_show:
-#            self.legend.drawopen(context) 
-
-#        width, height = area.width, context.region.height
-#        self.legend.draw(context, width, height)
-#        self.dhscatter.draw(context, width, height)
-#        self.table.draw(context, width, height)
-
+        self.table.draw(ah, area.width)
+        self.dhscatter.draw(ah, area.width)
+                
 class NODE_OT_SVF(bpy.types.Operator):
     bl_idname = "node.svf"
     bl_label = "Sky View Factor"
@@ -1115,8 +974,9 @@ class NODE_OT_SVF(bpy.types.Operator):
 #    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene  
-        scene.vi_params.vi_display = 0
+        scene = context.scene 
+        svp = scene.vi_params
+        svp.vi_display = 0
         
         if viparams(self, scene):            
             return {'CANCELLED'}
@@ -1126,25 +986,25 @@ class NODE_OT_SVF(bpy.types.Operator):
             self.report({'ERROR'},"No shading objects have a material attached.")
             return {'CANCELLED'}
             
-        scene.vi_params['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
-        if not scene.vi_params['liparams']['shadc']:
+        svp['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
+        if not svp['liparams']['shadc']:
             self.report({'ERROR'},"No objects have a light sensor material attached.")
             return {'CANCELLED'}
-
-        scene['viparams']['restree'] = self.nodeid.split('@')[1]
-        clearscene(scene, self)
         simnode = context.node
-        scene.vi_params['viparams']['visimcontext'] = 'SVF'
+        svp['viparams']['restree'] = simnode.id_data.name
+        clearscene(scene, self)
+        
+        svp['viparams']['visimcontext'] = 'SVF'
 
-        if not scene.vi_params.get('liparams'):
-           scene['liparams'] = {}
+        if not svp.get('liparams'):
+           svp['liparams'] = {}
            
-        scene.vi_params['liparams']['cp'], scene.vi_params['liparams']['unit'], scene.vi_params['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
+        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
         simnode.preexport()
-        (scene['liparams']['fs'], scene['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)      
-        scene['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
-        (scmaxres, scminres, scavres) = [[x] * (scene['liparams']['fe'] - scene['liparams']['fs'] + 1) for x in (0, 1, 0)]        
-        frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+        (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)      
+        svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
+        (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 1, 0)]        
+        frange = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         x, y, z = [], [], []
         
         if simnode.skypatches == '0':
@@ -1167,20 +1027,21 @@ class NODE_OT_SVF(bpy.types.Operator):
                     
         valdirecs = [v for v in zip(x, y, z)]
         lvaldirecs = len(valdirecs)
-        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '1']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
+        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects[on] for on in svp['liparams']['shadc']])
         curres, reslists = 0, []
-        pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), calcsteps)
-        kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Sky View')
+        pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
+        kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Sky View')
         
-        for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
-            for k in o.keys():
-                del o[k]
+        for oi, o in enumerate([scene.objects[on] for on in svp['liparams']['shadc']]):
+            ovp = o.vi_params
+            for k in ovp.keys():
+                del ovp[k]
                 
             if any([s < 0 for s in o.scale]):
                 logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
                 self.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
 
-            o['omin'], o['omax'], o['oave'] = {}, {}, {}
+            ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
             bm = bmesh.new()
             bm.from_mesh(o.data)
             clearlayers(bm, 'a')
@@ -1192,9 +1053,9 @@ class NODE_OT_SVF(bpy.types.Operator):
             avres, minres, maxres, g = [], [], [], 0
             
             if simnode.cpoint == '0':
-                gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '1']
+                gpoints = [f for f in geom if o.data.materials[f.material_index].vi_params.mattype == '1']
             elif simnode.cpoint == '1':
-                gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '1' for f in v.link_faces])]
+                gpoints = [v for v in geom if any([o.data.materials[f.material_index].vi_params.mattype == '1' for f in v.link_faces])]
 
             for g, gp in enumerate(gpoints):
                 gp[cindex] = g + 1
@@ -1207,15 +1068,10 @@ class NODE_OT_SVF(bpy.types.Operator):
                                     
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
-                    allpoints = numpy.zeros((len(gpoints), lvaldirecs), dtype=int8)
-                    
+                 
                     for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
                         for gp in chunk:
-#                           Attempt to multi-process but Pool does not work with class instances
-#                            p = Pool(4) 
-#                            pointres = array(p.starmap(shadtree.ray_cast, [(posis[g], direc) for direc in direcs]), dtype = int8)
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
-                            numpy.place(allpoints[g], pointres == 1, pointres)
                             gp[shadres] = ((numpy.sum(pointres)/lvaldirecs)).astype(float16)
                             g += 1
 
@@ -1224,14 +1080,14 @@ class NODE_OT_SVF(bpy.types.Operator):
                             return {'CANCELLED'}
               
                     shadres = [gp[shadres] for gp in gpoints]
-                    o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
+                    ovp['omin']['res{}'.format(frame)], ovp['omax']['res{}'.format(frame)], ovp['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
-                    avres.append(o['oave']['res{}'.format(frame)])
-                    minres.append(o['omin']['res{}'.format(frame)])
-                    maxres.append(o['omax']['res{}'.format(frame)])
+                    avres.append(ovp['oave']['res{}'.format(frame)])
+                    minres.append(ovp['omin']['res{}'.format(frame)])
+                    maxres.append(ovp['omax']['res{}'.format(frame)])
 
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
             reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
@@ -1241,14 +1097,1220 @@ class NODE_OT_SVF(bpy.types.Operator):
             bm.to_mesh(o.data)
             bm.free()
 
-        scene.vi_leg_max, scene.vi_leg_min = 1, 0
+        svp.vi_leg_max, svp.vi_leg_min = 1, 0
 
         if kivyrun.poll() is None:
             kivyrun.kill()
         
-        scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
-        scene['viparams']['vidisp'] = 'svf'
+        scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
+        svp['viparams']['vidisp'] = 'svf'
         simnode['reslists'] = reslists
         simnode['frames'] = [f for f in frange]
         simnode.postexport(scene)
-        return {'FINISHED'}    
+        return {'FINISHED'} 
+  
+class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
+    '''Display results legend and stats in the 3D View'''
+    bl_idname = "view3d.svfdisplay"
+    bl_label = "Shadow study metric display"
+    bl_description = "Display shadow study metrics"
+    bl_register = True
+    bl_undo = False
+    
+    def invoke(self, context, event):
+        area = context.area
+        svp = context.scene.vi_params
+        svp.vi_display = 1
+        svp['viparams']['vidisp'] = 'svf'
+        self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
+        li_display(self, self.simnode)
+        self.results_bar = results_bar(('legend.png',), 300, area)
+        self.legend = svf_legend(context, 'Sky View (%)', [305, area.height - 80], area.width, area.height, 125, 400)
+        self.legend_num = linumdisplay(self, context)
+        self.height = area.height
+        self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
+        self.cao = context.active_object
+        area.tag_redraw()
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+    
+    def draw_svfnum(self, context):
+        area = context.area
+        ah = area.height                
+        self.results_bar.draw(ah)
+        self.legend.draw(context)
+        self.legend_num.draw(context)
+        
+    def modal(self, context, event):    
+        scene = context.scene
+        svp = scene.vi_params
+        redraw = 0
+           
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or event.type == 'ESC':
+            svp.vi_display = 0
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssvfnum, 'WINDOW')
+            context.area.tag_redraw()
+            return {'CANCELLED'}
+
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
+            mx, my = event.mouse_region_x, event.mouse_region_y 
+
+#           for ui_element in (self.ui_elements):
+                
+            # Legend routine 
+            if self.legend.ispos[0] < mx < self.legend.iepos[0] and self.legend.ah - 80 < my < self.legend.ah - 40:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.legend.expand = 0 if self.legend.expand else 1
+                        
+            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1   
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.move = 1
+                        self.legend.draw(context)
+                        context.area.tag_redraw()
+                    elif self.legend.move and event.value == 'RELEASE':
+                        self.legend.move = 0                        
+                    return {'RUNNING_MODAL'}
+              
+            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                context.area.tag_redraw()
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.resize = 1
+                        self.legend.draw(context)
+                        context.area.tag_redraw()
+                    elif self.legend.resize and event.value == 'RELEASE':
+                        self.legend.resize = 0
+                    return {'RUNNING_MODAL'}  
+                
+            elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
+                self.legend.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            if event.type == 'MOUSEMOVE':                
+                if self.legend.move:
+                    self.legend.lspos[0], self.legend.lepos[1] = mx, my
+                    self.legend.draw(context)
+                    context.area.tag_redraw() 
+                elif self.legend.resize:
+                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                    self.legend.draw(context)
+                    context.area.tag_redraw()
+    
+        if redraw:
+            context.area.tag_redraw()
+        return {'PASS_THROUGH'}
+    
+class NODE_OT_Shadow(bpy.types.Operator):
+    bl_idname = "node.shad"
+    bl_label = "Shadow Map"
+    bl_description = "Undertake a shadow mapping"
+    bl_register = True
+    bl_undo = False
+
+    def invoke(self, context, event):
+        scene = context.scene 
+        svp = scene.vi_params
+        svp.vi_display = 0
+        
+        if viparams(self, scene):            
+            return {'CANCELLED'}
+
+        shadobs = retobjs('livig')
+        if not shadobs:
+            self.report({'ERROR'},"No shading objects have a material attached.")
+            return {'CANCELLED'}
+            
+        scene['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
+        if not svp['liparams']['shadc']:
+            self.report({'ERROR'},"No objects have a VI Shadow material attached.")
+            return {'CANCELLED'}
+        simnode = context.node
+        svp['viparams']['restree'] = simnode.id_data.name
+        
+        clearscene(scene, self)
+        
+        svp['viparams']['visimcontext'] = 'Shadow'
+        if not scene.get('liparams'):
+           scene['liparams'] = {}
+        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
+        simnode.preexport()
+        (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
+        cmap(svp)
+
+        if simnode.starthour > simnode.endhour:
+            self.report({'ERROR'},"End hour is before start hour.")
+            return{'CANCELLED'}
+        
+        svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
+        (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 100, 0)]
+        
+        frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+        time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
+        y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
+        endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
+        interval = datetime.timedelta(hours = 1/simnode.interval)
+        
+        times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour - 1 <= (time + interval*t).hour <= simnode.endhour  - 1]
+        sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, svp.latitude, svp.longitude)[2:] for t in times]
+        valmask = array([sp[0] > 0 for sp in sps], dtype = int8)
+        direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps]  
+        valdirecs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]  
+        lvaldirecs = len(valdirecs)
+        ilvaldirecs = 1/lvaldirecs
+        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects[on] for on in svp['liparams']['shadc']])
+        curres, reslists = 0, []
+        pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
+        kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Shadow Map')
+        logentry(f'Conducting shadow map calculation with {simnode.interval} samples per hour for {int(len(direcs)/simnode.interval)} total hours and {lvaldirecs} available sun hours')
+        
+        for oi, o in enumerate([scene.objects[on] for on in svp['liparams']['shadc']]):
+            ovp = o.vi_params
+            for k in ovp.keys():
+                del ovp[k]
+                
+            if any([s < 0 for s in o.scale]):
+                logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
+                self.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
+
+            ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
+            
+            if simnode.sdoy <= simnode.edoy:
+                ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+            else:
+                ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+                
+            ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
+            bm = bmesh.new()
+            bm.from_mesh(o.data)
+            clearlayers(bm, 'a')
+            bm.transform(o.matrix_world)
+            geom = bm.faces if simnode.cpoint == '0' else bm.verts
+            geom.layers.int.new('cindex')
+            cindex = geom.layers.int['cindex']
+            [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
+            [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
+            avres, minres, maxres, g = [], [], [], 0
+            
+            if simnode.cpoint == '0':
+                gpoints = [f for f in geom if o.data.materials[f.material_index].vi_params.mattype == '1']
+            elif simnode.cpoint == '1':
+                gpoints = [v for v in geom if any([o.data.materials[f.material_index].vi_params.mattype == '1' for f in v.link_faces])]
+
+            for g, gp in enumerate(gpoints):
+                gp[cindex] = g + 1
+            
+            for frame in frange: 
+                g, oshadres = 0, array([])                
+                scene.frame_set(frame)
+                shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
+                shadres = geom.layers.float['res{}'.format(frame)]
+                                  
+                if gpoints:
+                    posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
+                    allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
+                    
+                    for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
+                        for gp in chunk:
+
+                            pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
+                            numpy.place(allpoints[g], valmask == 1, pointres)
+                            gp[shadres] = (100 * (numpy.sum(pointres) * ilvaldirecs)).astype(float16)
+                            g += 1
+
+                        curres += len(chunk)
+                        if pfile.check(curres) == 'CANCELLED':
+                            return {'CANCELLED'}
+                    
+                    ap = numpy.average(allpoints, axis=0)                
+                    shadres = [gp[shadres] for gp in gpoints]
+                    ovp['dhres{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
+                    ovp['omin']['res{}'.format(frame)], ovp['omax']['res{}'.format(frame)], ovp['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
+                    reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
+                    avres.append(ovp['oave']['res{}'.format(frame)])
+                    minres.append(ovp['omin']['res{}'.format(frame)])
+                    maxres.append(ovp['omax']['res{}'.format(frame)])
+            
+            reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
+            reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
+            reslists.append(['All', 'Zone', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
+            reslists.append(['All', 'Zone', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
+            
+            bm.transform(o.matrix_world.inverted())
+            bm.to_mesh(o.data)
+            bm.free()
+
+        svp.vi_leg_max, svp.vi_leg_min = 100, 0
+
+        if kivyrun.poll() is None:
+            kivyrun.kill()
+
+        scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
+        simnode['reslists'] = reslists
+        simnode['frames'] = [f for f in frange]
+        simnode['year'] = 2015
+        simnode.postexport(scene)
+        svp['viparams']['vidisp'] = 'ss'
+        return {'FINISHED'}
+
+class VIEW3D_OT_SSDisplay(bpy.types.Operator):
+    '''Display results legend and stats in the 3D View'''
+    bl_idname = "view3d.ssdisplay"
+    bl_label = "Shadow study metric display"
+    bl_description = "Display shadow study metrics"
+    bl_register = True
+    bl_undo = False
+
+    def modal(self, context, event): 
+        scene = context.scene
+        svp = scene.vi_params
+        redraw = 0 
+        
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o.vi_params.get('lires') for o in bpy.data.objects]:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
+            context.area.tag_redraw()
+            return {'CANCELLED'}        
+        
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
+            mx, my = event.mouse_region_x, event.mouse_region_y 
+            
+#            if any((svp.vi_leg_levels != self.legend.levels, svp.vi_leg_col != self.legend.col, svp.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
+#                self.legend.update(context)                
+#                redraw = 1
+                 
+            # Legend routine 
+            
+            if self.legend.ispos[0] < mx < self.legend.iepos[0] and self.legend.ah - 80 < my < self.legend.ah - 40:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.legend.expand = 0 if self.legend.expand else 1
+                        
+            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1   
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.move = 1
+                        self.legend.draw(context)
+                        context.area.tag_redraw()
+                    elif self.legend.move and event.value == 'RELEASE':
+                        self.legend.move = 0                        
+                    return {'RUNNING_MODAL'}
+              
+            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                context.area.tag_redraw()
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.resize = 1
+                        self.legend.draw(context)
+                        context.area.tag_redraw()
+                    elif self.legend.resize and event.value == 'RELEASE':
+                        self.legend.resize = 0
+                    return {'RUNNING_MODAL'}  
+                
+            elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
+                self.legend.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            if event.type == 'MOUSEMOVE':                
+                if self.legend.move:
+                    self.legend.lspos[0], self.legend.lepos[1] = mx, my
+                    self.legend.draw(context)
+                    context.area.tag_redraw() 
+                elif self.legend.resize:
+                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                    self.legend.draw(context)
+                    context.area.tag_redraw()
+            
+            if redraw:
+                context.area.tag_redraw()
+
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+        self.scene = context.scene
+        area = context.area
+        svp = context.scene.vi_params
+        svp.vi_display = 1
+        svp['viparams']['vidisp'] = 'ss' 
+        
+        try:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
+        except:
+            pass
+        
+        clearscene(self.scene, self)
+        self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
+        li_display(self, self.simnode)
+        self.results_bar = results_bar(('legend.png', 'scatter.png'), 300, area)
+        self.legend = ss_legend(context, 'Sunlit (%)', [305, area.height - 80], area.width, area.height, 125, 400)
+        self.num_display = linumdisplay(self, context)
+        self.dhscatter = ss_scatter(context, [355, area.height - 80], area.width, area.height, 600, 200)
+        svp.vi_disp_wire = 1
+        self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')        
+#        self.legend.update(context)
+#        self.dhscatter.update(context)
+#        self._handle_ss_disp = bpy.types.SpaceView3D.draw_handler_add(ss_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def draw_ssnum(self, context):
+        area = context.area
+        ah = area.height                
+        self.results_bar.draw(ah)
+        self.legend.draw(context)
+        self.dhscatter.draw(context, area.width)
+        self.num_display.draw(context)
+        
+class NODE_OT_Li_Geo(bpy.types.Operator):
+    bl_idname = "node.ligexport"
+    bl_label = "LiVi geometry export"
+#    nodeid = bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        scene['viparams']['vidisp'] = ''
+        scene['viparams']['viexpcontext'] = 'LiVi Geometry'
+        objmode()
+        clearfiles(svp['liparams']['objfilebase'])
+        clearfiles(svp['liparams']['lightfilebase'])
+        node = context.node
+        node.preexport(scene)
+        radgexport(self, node)
+        node.postexport(scene)
+        return {'FINISHED'}
+    
+class NODE_OT_Li_Con(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.liexport"
+    bl_label = "LiVi context export"
+    bl_description = "Export the scene to the Radiance file format"
+    bl_register = True
+    bl_undo = False
+
+    def invoke(self, context, event):
+        scene = context.scene
+        self.svp = scene.vi_params
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        node = context.node
+        self.svp['viparams']['vidisp'] = ''
+        self.svp['viparams']['viexpcontext'] = 'LiVi {}'.format(node.contextmenu)
+        self.svp['viparams']['connode'] = '{}@{}'.format(node.name, node.id_data.name)
+        objmode()
+        node.preexport()
+        if not node.export(scene, self):
+            node.postexport()
+        return {'FINISHED'}
+    
+#    def modal(self, context, event):
+#        if self.svp['visimcontext'] != 'LiVi' or not [o for o in context.scene.objects if o.get('VIType') and o['VIType'] == 'Sun']:
+#            return {'FINISHED'}
+#        else:
+#            # This could be used to se light direction
+#            fc = scene.frame_start if scene.frame_current > scene.frame_end else scene.frame_current
+#            scene.display.light_direction = (-sin(solposs[fc][3]) * cos(solposs[fc][2]), sin(solposs[fc][2]),  cos(solposs[fc][3]) * cos(solposs[fc][2])) 
+
+
+class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.radpreview"
+    bl_label = "LiVi preview"
+    bl_description = "Prevew the scene with Radiance"
+    bl_register = True
+    bl_undo = False
+#    nodeid = bpy.props.StringProperty()
+    
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if self.rvurun.poll() is not None: # If finished
+                for line in self.rvurun.stderr:
+                    logentry(line)
+                    for rvuerr in rvuerrdict:
+                        if rvuerr in line.decode():
+                            self.report({'ERROR'}, rvuerrdict[rvuerr])
+                            return {'CANCELLED'}
+
+                self.simnode.run = 0
+                return {'FINISHED'}
+            else:           
+                return {'PASS_THROUGH'}
+        else:
+            return {'PASS_THROUGH'}
+        
+
+    def invoke(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        
+        objmode()
+        self.simnode = context.node
+        frame = scene.frame_current
+        self.simnode.presim()
+        svp['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+        svp['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+
+        if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+            self.report({'ERROR'}, "Current frame is not within the exported frame range")
+            return {'CANCELLED'}
+            
+        cam = scene.camera
+        
+        if cam:
+            curres = 0.1
+            createradfile(scene, frame, self, self.simnode)
+            createoconv(scene, frame, self, self.simnode)
+            cang = '180 -vth ' if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle_x*180/pi
+            vv = 180 if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle_y*180/pi
+            vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
+            
+            if self.simnode.pmap:
+                self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
+                self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Photon Map')
+                amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
+                open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
+                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
+                logentry('Photon map command: {}'.format(pmcmd))
+                pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+
+                while pmrun.poll() is None:   
+                    sleep(10)
+                    with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as vip:
+                        for line in vip.readlines()[::-1]:
+                            if '%' in line:
+                                curres = float(line.split()[6][:-2])
+                                break
+                                
+                    if self.pfile.check(curres) == 'CANCELLED': 
+                        pmrun.kill()                                   
+                        return {'CANCELLED'}
+                
+                if self.kivyrun.poll() is None:
+                    self.kivyrun.kill()
+                        
+                with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as pmapfile:
+                    for line in pmapfile.readlines():
+                        if line in pmerrdict:
+                            logentry(line)
+                            self.report({'ERROR'}, pmerrdict[line])
+                            return {'CANCELLED'}
+                                        
+                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], 
+                                 vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                
+            else:
+                rvucmd = "rvu -w {9} -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], 
+                                 vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+
+            logentry('Rvu command: {}'.format(rvucmd))
+            self.rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
+            self.simnode.run = 1
+            wm = context.window_manager
+            self._timer = wm.event_timer_add(5, window = context.window)
+            wm.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+
+        else:
+            self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
+            return {'CANCELLED'}
+
+class NODE_OT_Li_Sim(bpy.types.Operator):
+    bl_idname = "node.livicalc"
+    bl_label = "LiVi simulation"
+    bl_register = True
+    bl_undo = False
+
+    def invoke(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+        svp.vi_display = 0
+        if viparams(self, scene):
+            return {'CANCELLED'}
+                    
+        objmode()
+        clearscene(scene, self)
+        simnode = context.node
+        simnode.presim()
+        contextdict = {'Basic': 'LiVi Basic', 'Compliance': 'LiVi Compliance', 'CBDM': 'LiVi CBDM'}        
+        
+        # Set scene parameters
+        svp['viparams']['visimcontext'] = contextdict[simnode['coptions']['Context']]
+        svp['liparams']['fs'] = min((simnode['coptions']['fs'], simnode['goptions']['fs'])) 
+        svp['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
+        svp['liparams']['cp'] = simnode['goptions']['cp']
+        svp['liparams']['unit'] = simnode['coptions']['unit']
+        svp['liparams']['type'] = simnode['coptions']['Type']
+        svp['viparams']['vidisp'] = ''
+        scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
+        
+        simnode.sim(scene)
+
+        for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+            if createradfile(scene, frame, self, simnode) == 'CANCELLED' or createoconv(scene, frame, self, simnode) == 'CANCELLED':
+                return {'CANCELLED'}
+        
+        calcout = li_calc(self, simnode, livisimacc(simnode))
+
+        if calcout == 'CANCELLED':
+            return {'CANCELLED'}
+        else:
+            simnode['reslists'] = calcout
+#        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '1':
+#            svp.vi_display = 1
+
+        svp['viparams']['vidisp'] = 'li'
+        svp['viparams']['resnode'] = simnode.name
+        svp['viparams']['restree'] = simnode.id_data.name
+        simnode.postsim()
+        self.report({'INFO'},"Simulation is finished")
+        return {'FINISHED'}
+    
+class NODE_OT_Li_Im(bpy.types.Operator):
+    bl_idname = "node.radimage"
+    bl_label = "LiVi Image"
+    bl_description = "Generate an image with Rpict"
+    bl_register = True
+    bl_undo = False
+
+    def modal(self, context, event):
+        if self.pfile.check(self.percent) == 'CANCELLED':                                    
+            return {self.terminate()}
+        
+        while sum([pm.poll() is None for pm in self.pmruns]) < self.processors and self.p < self.frames:
+            if self.pmaps[self.p]:
+                self.pmruns.append(Popen(self.pmcmds[self.p].split(), stderr = PIPE))
+            self.p += 1
+
+        if all([pm.poll() is not None for pm in self.pmruns]) and sum(self.pmaps) == self.p and not self.rpruns:  
+            self.pmfin = 1
+            
+            if len(self.pmruns):
+                self.kivyrun.kill()
+
+        if self.pmfin:   
+            if len(self.rpruns) == 0:
+                self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
+                if len(self.pmruns):
+                    self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), 'Radiance Image')
+            
+            if self.mp:
+                while self.xindex < self.processes and sum([rp.poll() is None for rp in self.rpruns]) < self.processors and self.frame <= self.fe:
+                    echo = Popen(['echo', '{}'.format(self.xindex), '0'], stdout = PIPE)
+                    self.rpruns.append(Popen(self.rpiececmds[self.frame - self.fs].split(), stdin = echo.stdout, stderr = PIPE))
+                    if self.xindex == 0:
+                        if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame)):
+                            os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame))
+                        logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
+                    self.xindex += 1
+                
+                if self.xindex == self.processes:   
+                    self.frame += 1                
+                    self.xindex = 0
+                    self.percent = (self.frame - self.fs) * 100
+                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frameold)))
+                    self.frameold = self.frame
+            else:
+                while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
+                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
+                        self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stdout=imfile, stderr = PIPE))
+                if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
+                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
+                    self.frame += 1
+                                        
+        if event.type == 'TIMER':            
+            f = self.frame if self.frame <= self.fe else self.fe
+            if self.pmfin and not self.rpruns:
+                for line in self.pmruns[0].stderr:
+                    logentry('Photon mapping error: {}'.format(line.decode()))
+                    
+                    for pmerr in pmerrdict:
+                        if pmerr in line.decode():
+                            self.report({'ERROR'}, pmerrdict[pmerr])
+                            self.kivyrun.kill()
+                            self.simnode.run = 0
+                            return {'CANCELLED'}
+                                
+            elif os.path.isfile(self.pmfile) and not self.rpruns:
+                if sum(self.pmaps):
+                    self.percent = 0
+                    for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
+                        for line in vip.readlines()[::-1]:
+                            if '% after' in line:
+                                self.percent += [float(ls[:-2]) for ls in line.split() if '%' in ls][0]/sum(self.pmaps)
+                                break
+                            elif line in pmerrdict:
+                                logentry(line)
+                                self.report({'ERROR'}, pmerrdict[line])
+                                return {'CANCELLED'}
+
+            if self.pmfin and self.rpruns and all([rp.poll() is not None for rp in self.rpruns]):
+                for line in self.rpruns[0].stderr:
+                    logentry('Rpict error: {}'.format(line.decode()))
+                    
+                    for rvuerr in rvuerrdict:
+                        if rvuerr in line.decode():
+                            self.report({'ERROR'}, rvuerrdict[rvuerr])
+                            self.kivyrun.kill()
+                            self.simnode.run = 0
+                            return {'CANCELLED'}
+                        
+                self.imupdate(f)
+                return {self.terminate()}
+
+            elif self.pmfin and self.mp:
+                if self.percent != 100 * sum([r.poll() is not None for r in self.rpruns])/(self.processes * self.frames):
+                    self.percent = 100 * sum([r.poll() is not None for r in self.rpruns])/(self.processes * self.frames)
+                    self.imupdate(self.fs + int(sum([rp.poll() is not None for rp in self.rpruns])/self.processes))
+            
+            elif self.pmfin and os.path.isfile(self.rpictfile):
+                lines = [line for line in open(self.rpictfile, 'r') if '% after' in line][::-1]                
+                if lines:
+                    for lineentry in lines[0].split():
+                        if '%' in lineentry and self.percent != (float(lineentry.strip('%')) + (f - self.fs) * 100)/self.frames:
+                            self.percent = (float(lineentry.strip('%')) + (f - self.fs) * 100)/self.frames
+                            self.imupdate(f)
+                
+            return {'PASS_THROUGH'}
+        else:
+            return {'PASS_THROUGH'}
+    
+    def imupdate(self, f):
+        if 'liviimage' not in bpy.data.images:
+            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
+            im.name = 'liviimage'
+        bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
+        bpy.data.images['liviimage'].reload()
+
+        for area in bpy.context.screen.areas:
+            if area.type =='IMAGE_EDITOR':
+                area.tag_redraw()
+        
+    def terminate(self):
+        self.kivyrun.kill() 
+
+        for pm in self.pmruns:
+            if pm.poll() is None:
+                pm.kill()
+        for rp in self.rpruns:
+            if rp.poll() is None:                         
+                rp.kill()
+
+        self.simnode.postsim(self.images)
+        if os.path.isfile(self.rpictfile):
+            os.remove(self.rpictfile)
+        return 'FINISHED'
+
+    def execute(self, context):        
+        scene = context.scene
+        svp = scene.vi_params
+        self.xindex, self.p = 0, 0
+        self.cam = scene.camera
+        simnode = context.node
+        self.fs, self.fe = simnode.retframes()
+        self.simnode = simnode
+        
+        if simnode.camera and bpy.data.cameras.get(simnode.camera):
+            self.percent = 0
+            self.reslists, self.images = [], []
+            self.res = []
+            self.rpictfile = os.path.join(scene['viparams']['newdir'], 'rpictprogress')
+            self.pmfile = os.path.join(scene['viparams']['newdir'], 'pmprogress')
+            simnode.presim()
+            svp['liparams']['fs'], svp['liparams']['fe'] =  simnode.retframes()
+            self.frames = self.fe - self.fs + 1
+            self.frame = self.fs
+            self.frameold = self.frame
+            self.rpruns, self.pmruns = [], []   
+            self.processors = simnode['Processors']
+            self.processes = simnode.processes
+            self.radparams = simnode['radparams']
+            self.viewparams = simnode['viewparams']
+            self.pmparams = simnode['pmparams']
+            self.pmaps = simnode['pmaps']
+            self.pmapgnos = simnode['pmapgnos']
+            self.pmapcnos = simnode['pmapcnos']
+            self.folder = scene['viparams']['newdir']
+            self.fb = scene['viparams']['filebase']
+            self.mp = 0 if sys.platform == 'win32' else simnode.mp 
+            self.basename = simnode['basename']
+            
+            for frame in range(self.fs, self.fe + 1):
+                createradfile(scene, frame, self, simnode)
+                createoconv(scene, frame, self, simnode)
+                with open('{}-{}'.format(self.pmfile, frame), 'w'):
+                    pass
+                
+            scene.frame_set(svp['liparams']['fs'])
+            self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], scene['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], '{}-{}'.format(self.pmfile, frame)) for frame in range(self.fs, self.fe + 1)]                   
+            self.rppmcmds = [('', ' -ap {} {}'.format('{}-{}.gpm'.format(scene['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.starttime = datetime.datetime.now()
+            self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
+            (self.pmfin, flag) = (0, 'Photon Maps') if sum(self.pmaps) else (1, 'Radiance Images')
+            self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), flag)
+
+            if os.path.isfile("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.basename), self.frame)):
+               os.remove("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.basename), self.frame))
+                
+            wm = context.window_manager
+            self._timer = wm.event_timer_add(2, window = context.window)
+            wm.modal_handler_add(self)                
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'}, "There is no camera in the scene or selected in the node. Create one for rpict image creation")
+            return {'FINISHED'}
+
+class VIEW3D_OT_Li_BD(bpy.types.Operator):
+    '''Display results legend and stats in the 3D View'''
+    bl_idname = "view3d.libd"
+    bl_label = "LiVi basic metric display"
+    bl_description = "Display basic lighting metrics"
+    bl_register = True
+    bl_undo = False
+    
+    def modal(self, context, event): 
+        scene = context.scene
+        svp = scene.vi_params
+        redraw = 0 
+        
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'li' or not [o.vi_params.get('lires') for o in bpy.data.objects]:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
+            context.area.tag_redraw()
+            return {'CANCELLED'}        
+        
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
+            mx, my = event.mouse_region_x, event.mouse_region_y 
+            
+#            if any((svp.vi_leg_levels != self.legend.levels, svp.vi_leg_col != self.legend.col, svp.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
+#                self.legend.update(context)                
+#                redraw = 1
+                 
+            # Legend routine 
+            
+            if self.legend.ispos[0] < mx < self.legend.iepos[0] and self.legend.ah - 80 < my < self.legend.ah - 40:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.legend.expand = 0 if self.legend.expand else 1
+                        
+            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1   
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.move = 1
+                        self.legend.draw(context)
+                        context.area.tag_redraw()
+                    elif self.legend.move and event.value == 'RELEASE':
+                        self.legend.move = 0                        
+                    return {'RUNNING_MODAL'}
+              
+            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                context.area.tag_redraw()
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.resize = 1
+                        self.legend.draw(context)
+                        context.area.tag_redraw()
+                    elif self.legend.resize and event.value == 'RELEASE':
+                        self.legend.resize = 0
+                    return {'RUNNING_MODAL'}  
+                
+            elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
+                self.legend.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            if event.type == 'MOUSEMOVE':                
+                if self.legend.move:
+                    self.legend.lspos[0], self.legend.lepos[1] = mx, my
+                    self.legend.draw(context)
+                    context.area.tag_redraw() 
+                elif self.legend.resize:
+                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                    self.legend.draw(context)
+                    context.area.tag_redraw()
+            
+            if redraw:
+                context.area.tag_redraw()
+
+        return {'PASS_THROUGH'}
+    
+#    def modal(self, context, event): 
+#        redraw = 0 
+#        
+#        if self.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not any([o.lires for o in bpy.data.objects]):
+#            self.scene.vi_display = 0
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#            self.scene['viparams']['vidisp'] = 'li'
+#            context.area.tag_redraw()
+#            return {'CANCELLED'}
+#
+#        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
+#            mx, my = event.mouse_region_x, event.mouse_region_y 
+#            
+#            if any((self.scene.vi_leg_levels != self.legend.levels, self.scene.vi_leg_col != self.legend.col, self.scene.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
+#                self.legend.update(context)
+#                redraw = 1
+#            
+#            # Legend routine 
+#            
+#            if self.legend.spos[0] < mx < self.legend.epos[0] and self.legend.spos[1] < my < self.legend.epos[1]:
+#                if self.legend.hl != (0, 1, 1, 1):
+#                    self.legend.hl = (0, 1, 1, 1)
+#                    redraw = 1  
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.legend.press = 1
+#                        self.legend.move = 0
+#                        return {'RUNNING_MODAL'}
+#                    elif event.value == 'RELEASE':
+#                        if not self.legend.move:
+#                            self.legend.expand = 0 if self.legend.expand else 1
+#                        self.legend.press = 0
+#                        self.legend.move = 0
+#                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+#                
+#                elif event.type == 'ESC':
+#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#                    self.scene['viparams']['vidisp'] = 'li'
+#                    context.area.tag_redraw()
+#                    return {'CANCELLED'}
+#                    
+#                elif self.legend.press and event.type == 'MOUSEMOVE':
+#                     self.legend.move = 1
+#                     self.legend.press = 0
+#            
+#            elif abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+#                if self.legend.hl != (0, 1, 1, 1):
+#                    self.legend.hl = (0, 1, 1, 1)
+#                    redraw = 1
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.legend.resize = 1
+#                    if self.legend.resize and event.value == 'RELEASE':
+#                        self.legend.resize = 0
+#                    return {'RUNNING_MODAL'}
+#                    
+#            elif self.legend.hl != (1, 1, 1, 1):
+#                self.legend.hl = (1, 1, 1, 1)
+#                redraw = 1
+
+            # Table routine
+            
+#            if self.frame != context.scene.frame_current or self.table.unit != context.scene['liparams']['unit'] or self.table.cao != context.active_object:
+#                self.table.update(context)                
+#                redraw = 1
+#            
+#            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
+#                if self.table.hl != (0, 1, 1, 1):
+#                    self.table.hl = (0, 1, 1, 1)
+#                    redraw = 1  
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.table.press = 1
+#                        self.table.move = 0
+#                        return {'RUNNING_MODAL'}
+#                    elif event.value == 'RELEASE':
+#                        if not self.table.move:
+#                            self.table.expand = 0 if self.table.expand else 1
+#                        self.table.press = 0
+#                        self.table.move = 0
+#                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+                
+#                elif event.type == 'ESC':
+#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#                    context.scene['viparams']['vidisp'] = 'li'
+#                    context.area.tag_redraw()
+#                    return {'CANCELLED'}
+#                    
+#                elif self.table.press and event.type == 'MOUSEMOVE':
+#                     self.table.move = 1
+#                     self.table.press = 0                     
+#            elif self.table.hl != (1, 1, 1, 1):
+#                self.table.hl = (1, 1, 1, 1)
+#                redraw = 1
+#                
+#            if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#                if self.frame != context.scene.frame_current:
+#                    self.tablecomp.update(context)
+#                    redraw = 1
+#                if self.tablecomp.unit != context.scene['liparams']['unit']:
+#                    self.tablecomp.update(context)
+#                    self.tablecomp.unit = context.scene['liparams']['unit']
+#                    redraw = 1
+#                if self.tablecomp.cao != context.active_object:
+#                    self.tablecomp.update(context)
+#                    redraw = 1
+#                
+#                if self.tablecomp.spos[0] < mx < self.tablecomp.epos[0] and self.tablecomp.spos[1] < my < self.tablecomp.epos[1]:
+#                    if self.tablecomp.hl != (0, 1, 1, 1):
+#                        self.tablecomp.hl = (0, 1, 1, 1)
+#                        redraw = 1  
+#                    if event.type == 'LEFTMOUSE':
+#                        if event.value == 'PRESS':
+#                            self.tablecomp.press = 1
+#                            self.tablecomp.move = 0
+#                            return {'RUNNING_MODAL'}
+#                        elif event.value == 'RELEASE':
+#                            if not self.tablecomp.move:
+#                                self.tablecomp.expand = 0 if self.tablecomp.expand else 1
+#                            self.tablecomp.press = 0
+#                            self.tablecomp.move = 0
+#                            context.area.tag_redraw()
+#                            return {'RUNNING_MODAL'}
+#                    
+#                    elif event.type == 'ESC':
+#                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+#                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#                        context.scene['viparams']['vidisp'] = 'li'
+#                        context.area.tag_redraw()
+#                        return {'CANCELLED'}
+#                        
+#                    elif self.tablecomp.press and event.type == 'MOUSEMOVE':
+#                         self.tablecomp.move = 1
+#                         self.tablecomp.press = 0                     
+#                elif self.tablecomp.hl != (1, 1, 1, 1):
+#                    self.tablecomp.hl = (1, 1, 1, 1)
+#                    redraw = 1
+                
+#            if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-e (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Avg lux', 'kWh', 'kWh/m2'):
+#                if self.dhscatter.frame != context.scene.frame_current:
+#                    self.dhscatter.update(context)
+#                    redraw = 1
+#                if self.dhscatter.unit != context.scene['liparams']['unit']:
+#                    self.dhscatter.update(context)
+#                    redraw = 1
+#                if self.dhscatter.cao != context.active_object:
+#                    self.dhscatter.update(context)
+#                    redraw = 1
+#                if self.dhscatter.col != context.scene.vi_leg_col:
+#                    self.dhscatter.update(context)
+#                    redraw = 1
+#                if context.scene['liparams']['unit'] in ('Max lux', 'Min lux', 'Avg lux', 'kWh', 'kWh/m2'):
+#                    if (self.dhscatter.vmin, self.dhscatter.vmax) != (context.scene.vi_scatter_min, context.scene.vi_scatter_max):
+#                       self.dhscatter.update(context) 
+#                       redraw = 1
+#                                        
+#                if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
+#                    if self.dhscatter.hl != (0, 1, 1, 1):
+#                        self.dhscatter.hl = (0, 1, 1, 1)
+#                        redraw = 1 
+#                    if event.type == 'LEFTMOUSE':
+#                        if event.value == 'PRESS':
+#                            self.dhscatter.press = 1
+#                            self.dhscatter.move = 0
+#                            return {'RUNNING_MODAL'}
+#                        elif event.value == 'RELEASE':
+#                            if not self.dhscatter.move:
+#                                self.dhscatter.expand = 0 if self.dhscatter.expand else 1
+#                            self.dhscatter.press = 0
+#                            self.dhscatter.move = 0
+#                            context.area.tag_redraw()
+#                            return {'RUNNING_MODAL'}
+                    
+#                    elif event.type == 'ESC':
+#                        bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
+##                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#                        context.scene['viparams']['vidisp'] = 'li'
+#                        context.area.tag_redraw()
+#                        return {'CANCELLED'}
+#                        
+#                    elif self.dhscatter.press and event.type == 'MOUSEMOVE':
+#                         self.dhscatter.move = 1
+#                         self.dhscatter.press = 0   
+#                                            
+#                else:
+#                    if self.dhscatter.hl != (1, 1, 1, 1):
+#                        self.dhscatter.hl = (1, 1, 1, 1)
+#                        redraw = 1
+#                    if self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
+#                        if self.dhscatter.expand: 
+#                            self.dhscatter.hl = (1, 1, 1, 1)
+#                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
+#                                self.dhscatter.show_plot()
+#                                                         
+#            # Resize routines
+#            
+#            if abs(self.legend.lepos[0] - mx) < 20 and abs(self.legend.lspos[1] - my) < 20:
+#                self.legend.hl = (0, 1, 1, 1) 
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.legend.resize = 1
+#                    if self.legend.resize and event.value == 'RELEASE':
+#                        self.legend.resize = 0
+#                    return {'RUNNING_MODAL'}
+                    
+#            elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20:
+#                self.table.hl = (0, 1, 1, 1) 
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.table.resize = 1
+#                    if self.table.resize and event.value == 'RELEASE':
+#                        self.table.resize = 0
+#                    return {'RUNNING_MODAL'}
+#            
+#            elif context.scene['viparams']['visimcontext'] == 'LiVi Compliance' and abs(self.tablecomp.lepos[0] - mx) < 20 and abs(self.tablecomp.lspos[1] - my) < 20:
+#                self.tablecomp.hl = (0, 1, 1, 1) 
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.tablecomp.resize = 1
+#                    if self.tablecomp.resize and event.value == 'RELEASE':
+#                        self.tablecomp.resize = 0
+#                    return {'RUNNING_MODAL'}
+#
+#            elif context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-s (%)', 'UDI-e (%)', 'UDI-f (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Avg lux', 'kWh', 'kWh/m2') and abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
+#                self.dhscatter.hl = (0, 1, 1, 1) 
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.dhscatter.resize = 1
+#                    if self.dhscatter.resize and event.value == 'RELEASE':
+#                        self.dhscatter.resize = 0
+#                    return {'RUNNING_MODAL'}
+            # Move routines
+                     
+#            if event.type == 'MOUSEMOVE':                
+#                if self.legend.move:
+#                    self.legend.pos = [mx, my]
+#                    redraw = 1
+#                if self.legend.resize:
+#                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
+#                    redraw = 1
+#                if self.table.move:
+#                    self.table.pos = [mx, my]
+#                    redraw = 1
+#                if self.table.resize:
+#                    self.table.lepos[0], self.table.lspos[1] = mx, my
+#                    redraw = 1
+#                if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#                    if self.tablecomp.move:
+#                        self.tablecomp.pos = [mx, my]
+#                        redraw = 1
+#                    if self.tablecomp.resize:
+#                        self.tablecomp.lepos[0], self.tablecomp.lspos[1] = mx, my
+#                        redraw = 1
+#                try:
+#                    if self.dhscatter.move:
+#                        self.dhscatter.pos = [mx, my]
+#                        redraw = 1
+#                    if self.dhscatter.resize:
+#                        self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
+#                        redraw = 1
+#                except:
+#                    pass
+#                                
+#            if redraw:
+#                context.area.tag_redraw()
+#                self.frame = context.scene.frame_current
+#                
+#        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+        area = context.area
+        self.scene = context.scene
+        svp = context.scene.vi_params
+        svp.vi_display, svp.vi_disp_wire = 1, 1
+        svp['viparams']['vidisp'] = 'li' 
+        clearscene(self.scene, self)
+        self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
+        
+        self.images = ['legend.png']#, 'table_new.png']
+#        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self.images.append('compliance.png')
+#            if self.simnode['coptions']['canalysis'] == '3':
+#                self.images.append('scatter.png')
+#        elif svp['viparams']['visimcontext'] == 'LiVi CBDM':
+#            self.images.append('scatter.png')
+        self.results_bar = results_bar(self.images, 300, area)
+        
+#        self.scene['viparams']['vidisp'] = 'lipanel'
+        self.frame = self.scene.frame_current
+        
+        if li_display(self, self.simnode) == 'CANCELLED':
+            return {'CANCELLED'}
+
+        lnd = linumdisplay(self, context)
+   #     self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
+        self.legend = livi_legend(context, svp['liparams']['unit'], [305, area.height - 80], area.width, area.height, 125, 400)
+
+#        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+
+#        if svp['viparams']['visimcontext'] == 'LiVi Basic':
+#            self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)  
+#
+#        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self.table_comp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
+#
+#            if self.simnode['coptions']['canalysis'] == '3':
+#                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
+#                self.dhscatter.update(context)        
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+
+#        self.dhscatter.update(context)
+        
+#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+#        elif self.scene['viparams']['visimcontext'] == 'LiVi Basic':
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        if self.scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        elif self.scene['viparams']['visimcontext'] == 'LiVi CBDM':
+#            if self.simnode['coptions']['cbanalysis'] != '0':
+#                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
+#                self.dhscatter.update(context)
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+        self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')        
+#     
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def draw_linum(self, context):
+        area = context.area
+        ah = area.height                
+        self.results_bar.draw(ah)
+        self.legend.draw(context)
+#        self.dhscatter.draw(context, area.width)
+#        self.num_display.draw(context)
+        
+class MAT_EnVi_Node(bpy.types.Operator):
+    bl_idname = "material.envi_node"
+    bl_label = "EnVi Material export"
+    nodeid: bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        cm = context.material
+        mvp = cm.vi_params
+        if not mvp.envi_nodes:
+            bpy.ops.node.new_node_tree(type='EnViMatN', name = cm.name) 
+            mvp.envi_nodes = bpy.data.node_groups[cm.name]
+            mvp.envi_nodes.nodes.new('EnViCon')
+            mvp.envi_nodes['envi_con_type'] = 'None'
+            mvp.envi_nodes.nodes[0].active = True
+            mvp.envi_nodes['enmatparams'] = {'airflow': 0, 'boundary': 0, 'tm': 0}
+
+        elif cm.name != mvp.envi_nodes.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]:
+            mvp.envi_nodes = mvp.envi_nodes.copy()
+            mvp.envi_nodes.name = cm.name
+        return {'FINISHED'}

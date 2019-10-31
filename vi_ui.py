@@ -15,12 +15,15 @@ class VI_PT_3D(bpy.types.Panel):
     
     def draw(self, context):
         scene = context.scene
+        svp = scene.vi_params
         cao = context.active_object
+        if cao:
+            covp = cao.vi_params
         layout = self.layout
 
         try:
-            if cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ' and cao.vi_type == '5' and scene.vi_params['viparams'].get('vidisp'):                
-                if scene.vi_params['viparams']['vidisp'] != 'bsdf_panel':
+            if cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ' and covp.vi_type == '5' and svp['viparams'].get('vidisp'):                
+                if svp['viparams']['vidisp'] != 'bsdf_panel':
                     row = layout.row()
                     row.operator("view3d.bsdf_display", text="BSDF Display") 
                 else:
@@ -32,127 +35,143 @@ class VI_PT_3D(bpy.types.Panel):
         except Exception as e:
             logentry("Problem with BSDF panel display: {}".format(e))
 
-        if scene.vi_params.get('viparams') and scene.vi_params['viparams'].get('vidisp'): 
-            if scene.vi_params['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
+        if svp.get('viparams') and svp['viparams'].get('vidisp'): 
+            if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
                 row.operator('view3d.wrdisplay2', text = 'Wind Metrics2')
-            elif scene.vi_params['viparams']['vidisp'] == 'wr' and scene.vi_params.vi_display:
-                newrow(layout, 'Wind metric:', scene, 'wind_type')
-                newrow(layout, 'Colour:', scene, 'vi_leg_col')
+            elif svp['viparams']['vidisp'] == 'wr' and svp.vi_display:
+                row = layout.row()
+                row.label(text = 'Scatter properties:')
+                newrow(layout, 'Wind metric:', svp, 'wind_type')
+                newrow(layout, 'Colour:', svp, 'vi_scatt_col')
+                newrow(layout, 'Max:', svp, 'vi_scatt_max')
+                if svp.vi_scatt_max == '1':
+                    newrow(layout, 'Max value:', svp, 'vi_scatt_max_val')
+
+                newrow(layout, 'Min:', svp, 'vi_scatt_min')                
+                if svp.vi_scatt_min == '1':
+                    newrow(layout, 'Min value:', svp, 'vi_scatt_min_val')
+                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh') 
                 
-            elif scene.vi_params['viparams']['vidisp'] == 'sp' and scene.vi_params.vi_display:
-                newrow(layout, "Latitude:", scene.vi_params, 'latitude')
-                newrow(layout, "Longitude:", scene.vi_params, 'longitude')
+            elif svp['viparams']['vidisp'] == 'sp' and svp.vi_display:
+                newrow(layout, "Latitude:", svp, 'latitude')
+                newrow(layout, "Longitude:", svp, 'longitude')
 
                 (sdate, edate) = retdates(scene.solday, 365, 2015)
                     
                 time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh")), [("Time of day:", "sp_sh")], [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
                 
-                for i in time_disps[int(scene.vi_params['spparams']['suns'])]:
-                    newrow(layout, i[0], scene.vi_params, i[1])
+                for i in time_disps[int(svp['spparams']['suns'])]:
+                    newrow(layout, i[0], svp, i[1])
                 
                 for i in (("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
-                        newrow(layout, i[0], scene.vi_params, i[1])
+                        newrow(layout, i[0], svp, i[1])
                 
-                newrow(layout, "Line width:", scene.vi_params, 'sp_line_width')
-                newrow(layout, "Solstice colour:", scene.vi_params, 'sp_season_main') 
-                newrow(layout, "Hour main colour:", scene.vi_params, 'sp_hour_main')            
-                newrow(layout, "Hour dash colour:", scene.vi_params, 'sp_hour_dash')  
-                newrow(layout, "Hour dash ratio:", scene.vi_params, 'sp_hour_dash_ratio')
-                newrow(layout, "Hour dash density:", scene.vi_params, 'sp_hour_dash_density')
-                newrow(layout, "Sun size:", scene.vi_params, 'sp_sun_size')
-                newrow(layout, "Sun colour:", scene.vi_params, 'sp_sun_colour')
-                newrow(layout, "Globe colour:", scene.vi_params, 'sp_globe_colour')
+                newrow(layout, "Line width:", svp, 'sp_line_width')
+                newrow(layout, "Solstice colour:", svp, 'sp_season_main') 
+                newrow(layout, "Hour main colour:", svp, 'sp_hour_main')            
+                newrow(layout, "Hour dash colour:", svp, 'sp_hour_dash')  
+                newrow(layout, "Hour dash ratio:", svp, 'sp_hour_dash_ratio')
+                newrow(layout, "Hour dash density:", svp, 'sp_hour_dash_density')
+                newrow(layout, "Sun size:", svp, 'sp_sun_size')
+                newrow(layout, "Sun colour:", svp, 'sp_sun_colour')
+                newrow(layout, "Globe colour:", svp, 'sp_globe_colour')
                 
                 time_disps = ((("Display time:", "sp_td"), ("Display hours:", "sp_hd")), [("Display hours:", "sp_hd")], [("Display hours:", "sp_hd")])
                 
-                for i in time_disps[int(scene.vi_params['spparams']['suns'])]:
-                    newrow(layout, i[0], scene.vi_params, i[1])
+                for i in time_disps[int(svp['spparams']['suns'])]:
+                    newrow(layout, i[0], svp, i[1])
                 
-                if (scene.vi_params['spparams']['suns'] == '0' and (scene.vi_params.sp_td or scene.vi_params.sp_hd)) or scene.vi_params.sp_hd:
+                if (svp['spparams']['suns'] == '0' and (svp.sp_td or svp.sp_hd)) or svp.sp_hd:
                     for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh")):
-                        newrow(layout, i[0], scene.vi_params, i[1])
-                    if scene.vi_params.display_rp_sh:
-                        newrow(layout, "Shadow colour:", scene.vi_params, "display_rp_fsh")
+                        newrow(layout, i[0], svp, i[1])
+                    if svp.display_rp_sh:
+                        newrow(layout, "Shadow colour:", svp, "display_rp_fsh")
                 
-            elif scene.vi_params['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
-                row = layout.row()
-                row.prop(scene, "vi_disp_3d")                 
-                row = layout.row()
+            elif svp['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
+                if not svp.vi_display:
+                    row = layout.row()
+                    row.prop(svp, "vi_disp_3d")                 
+                    row = layout.row()
                 
-                if scene.vi_params['viparams']['vidisp'] == 'svf':
-                    row.operator("view3d.svfdisplay", text="Sky View Display")
-                elif scene.vi_params['viparams']['vidisp'] == 'ss':
-                    row.operator("view3d.ssdisplay", text="Shadow Display")
-                else:
-                    row.operator("view3d.livibasicdisplay", text="Radiance Display")
-
-            elif scene.vi_params['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_params.vi_display:
-                row = layout.row()
-                row.prop(context.space_data, "show_only_render")
-
-                if not scene.ss_disp_panel:
-                    if scene.vi_params['viparams']['visimcontext'] == 'LiVi CBDM':
-                        if scene.vi_params['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Avg lux'):
-                            newrow(layout, 'Result type:', scene, "li_disp_da")
-                        elif scene.vi_params['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
-                            newrow(layout, 'Result type:', scene, "li_disp_exp")
-                        elif scene.vi_params['liparams']['unit'] in ('kWh', 'kWh/m2'):
-                            newrow(layout, 'Result type:', scene, "li_disp_irrad")
-
-                    elif scene.vi_params['viparams']['visimcontext'] == 'LiVi Compliance': 
-                        if scene.vi_params['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
-                            newrow(layout, 'Metric:', scene, 'li_disp_sda')
-                        else:
-                            newrow(layout, 'Metric:', scene, 'li_disp_sv')
-                            
-                    elif scene.vi_params['viparams']['visimcontext'] == 'LiVi Basic':
-                        newrow(layout, 'Metric:', scene, 'li_disp_basic')
+                    if svp['viparams']['vidisp'] == 'svf':
+                        row.operator("view3d.svfdisplay", text="Sky View Display")
+                    elif svp['viparams']['vidisp'] == 'ss':
+                        row.operator("view3d.ssdisplay", text="Shadow Display")
+                    elif svp['viparams']['vidisp'] == 'li':
+                        row.operator("view3d.libd", text="Radiance Display")
+                
+                elif [o for o in bpy.data.objects if o.name in svp['liparams']['livir']]:
                     
-                    newrow(layout, 'Legend unit:', scene, "vi_leg_unit")
-                    newrow(layout, 'Processing:', scene, "vi_res_process") 
+#            elif svp['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and svp.vi_display:
+#                    row = layout.row()
+#                    row.prop(context.space_data, "show_only_render")
 
-                    if scene.vi_res_process == '1':                    
-                        newrow(layout, 'Modifier:', scene, "vi_res_mod")
-                    elif scene.vi_res_process == '2':
-                        layout.prop_search(scene, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
-                       
-                    newrow(layout, 'Legend max:', scene, "vi_leg_max")
-                    newrow(layout, 'Legend min:', scene, "vi_leg_min")
-                    newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
-                    newrow(layout, 'Legend colour:', scene, "vi_leg_col")
-                    newrow(layout, 'Legend levels:', scene, "vi_leg_levels")
-                    newrow(layout, 'Emitter materials:', scene, "vi_disp_mat")
-                    
-                    if scene.vi_disp_mat:
-                        newrow(layout, 'Emitter strength:', scene, "vi_disp_ems")
-                    
-                    if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
-                        newrow(layout, 'Scatter max:', scene, "vi_scatter_max")
-                        newrow(layout, 'Scatter min:', scene, "vi_scatter_min")
+                    if not svp.ss_disp_panel:
+                        if svp['viparams']['visimcontext'] == 'LiVi CBDM':
+                            if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Avg lux'):
+                                newrow(layout, 'Result type:', svp, "li_disp_da")
+                            elif svp['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
+                                newrow(layout, 'Result type:', svp, "li_disp_exp")
+                            elif svp['liparams']['unit'] in ('kWh', 'kWh/m2'):
+                                newrow(layout, 'Result type:', svp, "li_disp_irrad")
+    
+                        elif svp['viparams']['visimcontext'] == 'LiVi Compliance': 
+                            if svp['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
+                                newrow(layout, 'Metric:', svp, 'li_disp_sda')
+                            else:
+                                newrow(layout, 'Metric:', svp, 'li_disp_sv')
+                                
+                        elif svp['viparams']['visimcontext'] == 'LiVi Basic':
+                            newrow(layout, 'Metric:', svp, 'li_disp_basic')
                         
-                if cao and cao.type == 'MESH':
-                    newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
-                
-                if int(context.scene.vi_disp_3d) == 1:
-                    newrow(layout, "3D Level", scene, "vi_disp_3dlevel")                        
-                
-                newrow(layout, "Transparency", scene, "vi_disp_trans")
+                        newrow(layout, 'Legend unit:', svp, "vi_leg_unit")
+                        newrow(layout, 'Processing:', svp, "vi_res_process") 
 
-                if context.mode != "EDIT":
-                    row = layout.row()
-                    row.label(text="{:-<48}".format("Point visualisation "))
-                    propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
-                    for prop in propdict.items():
-                        newrow(layout, prop[0], scene, prop[1])
-                    row = layout.row()
-                    row.label(text="{:-<60}".format(""))
- 
-            elif scene.vi_params['viparams']['vidisp'] in ('en', 'enpanel'):
+                    if svp.vi_res_process == '1':                    
+                        newrow(layout, 'Modifier:', svp, "vi_res_mod")
+                    elif svp.vi_res_process == '2':
+                        layout.prop_search(svp, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
+                       
+                    newrow(layout, 'Legend max:', svp, "vi_leg_max")
+                    newrow(layout, 'Legend min:', svp, "vi_leg_min")
+                    newrow(layout, 'Legend scale:', svp, "vi_leg_scale")
+                    newrow(layout, 'Legend colour:', svp, "vi_leg_col")
+                    newrow(layout, 'Legend levels:', svp, "vi_leg_levels")
+                    newrow(layout, 'Emitter materials:', svp, "vi_disp_mat")
+                    
+                    if svp.vi_disp_mat:
+                        newrow(layout, 'Emitter strength:', svp, "vi_disp_ems")
+                    
+                    if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
+                        newrow(layout, 'Scatter max:', svp, "vi_scatter_max")
+                        newrow(layout, 'Scatter min:', svp, "vi_scatter_min")
+                        
+                    if cao and cao.type == 'MESH':
+                        newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')                    
+                    
+                    if int(svp.vi_disp_3d) == 1:
+                        newrow(layout, "3D Level", svp, "vi_disp_3dlevel")                        
+                    
+                    newrow(layout, "Transparency", svp, "vi_disp_trans")
+    
+                    if context.mode != "EDIT":
+                        row = layout.row()
+                        row.label(text="{:-<48}".format("Point visualisation "))
+                        newrow(layout, 'Enable:', svp, 'vi_display_rp')
+                        if svp.vi_display_rp:
+                            propdict = OrderedDict([("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
+                            for prop in propdict.items():
+                                newrow(layout, prop[0], svp, prop[1])
+                        row = layout.row()
+                        row.label(text="{:-<60}".format(""))
+                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
+
+            elif svp['viparams']['vidisp'] in ('en', 'enpanel'):
                 fs, fe = scene['enparams']['fs'], scene['enparams']['fe']
                 sedt = scene.en_disp_type
-                resnode = bpy.data.node_groups[scene.vi_params['viparams']['resnode'].split('@')[1]].nodes[scene.vi_params['viparams']['resnode'].split('@')[0]]
+                resnode = bpy.data.node_groups[svp['viparams']['resnode'].split('@')[1]].nodes[svp['viparams']['resnode'].split('@')[0]]
 
                 if sedt == '1':
                     zresdict = {}
@@ -165,7 +184,7 @@ class VI_PT_3D(bpy.types.Panel):
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
 
-                if scene.vi_params['viparams']['vidisp'] == 'en': 
+                if svp['viparams']['vidisp'] == 'en': 
                     newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
                     if sedt == '1':
                         row = layout.row()               
@@ -212,7 +231,7 @@ class VI_PT_3D(bpy.types.Panel):
                     elif sedt == '1':
                         row.operator("view3d.enpdisplay", text="EnVi Display")
                         
-            if scene.vi_params['viparams']['vidisp'] == 'enpanel':                                
+            if svp['viparams']['vidisp'] == 'enpanel':                                
                 if sedt == '0':
                     newrow(layout, 'Display unit:', scene, 'en_disp_unit')  
                     newrow(layout, 'Bar colour:', scene, "vi_leg_col")
@@ -242,11 +261,11 @@ class VI_PT_3D(bpy.types.Panel):
                     row.prop(scene, 'bar_min')
                     row.prop(scene, 'bar_max')
                                             
-            if scene.vi_params.vi_display:            
-                newrow(layout, 'Display active', scene.vi_params, 'vi_display')
+            if svp.vi_display:            
+                newrow(layout, 'Display active', svp, 'vi_display')
         
             
-class VIMatPanel(bpy.types.Panel):
+class VI_PT_Mat(bpy.types.Panel):
     bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
@@ -258,42 +277,44 @@ class VIMatPanel(bpy.types.Panel):
 
     def draw(self, context):
         cm, scene = context.material, context.scene
+        svp = scene.vi_params
+        mvp = cm.vi_params
         layout = self.layout
-        newrow(layout, 'Material type', cm, "mattype")
-        if cm.mattype == '0':
+        newrow(layout, 'Material type', mvp, "mattype")
+        if mvp.mattype == '0':
             rmmenu(layout, cm)
-            if not cm.envi_nodes or (cm.envi_nodes.name != cm.name and cm.envi_nodes.name in [m.name for m in bpy.data.materials]):# in bpy.data.node_groups:
+            if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):# in bpy.data.node_groups:
                 row = layout.row()
                 row.operator("material.envi_node", text = "Create EnVi Nodes")
         
-        elif cm.mattype == '1':  
-            if scene.get('viparams') and scene.vi_params['viparams'].get('viexpcontext') and scene.vi_params['viparams']['viexpcontext'] == 'LiVi Compliance':
-                connode = bpy.data.node_groups[scene.vi_params['viparams']['connode'].split('@')[1]].nodes[scene.vi_params['viparams']['connode'].split('@')[0]]
+        elif mvp.mattype == '1':  
+            if svp.get('viparams') and svp['viparams'].get('viexpcontext') and svp['viparams']['viexpcontext'] == 'LiVi Compliance':
+                connode = bpy.data.node_groups[svp['viparams']['connode'].split('@')[1]].nodes[svp['viparams']['connode'].split('@')[0]]
                 coptions = connode['Options']
 
                 if coptions['canalysis'] == '0':
                     if coptions['bambuild'] == '2':
-                        newrow(layout, "Space type:", cm, 'hspacemenu')
+                        newrow(layout, "Space type:", mvp, 'hspacemenu')
                     elif coptions['bambuild'] == '3':
-                        newrow(layout, "Space type:", cm, 'brspacemenu')
+                        newrow(layout, "Space type:", mvp, 'brspacemenu')
                         if cm.brspacemenu == '2':
                             row = layout.row()
                             row.prop(cm, 'gl_roof')
                     elif coptions['bambuild'] == '4':
-                        newrow(layout, "Space type:", cm, 'respacemenu')
+                        newrow(layout, "Space type:", mvp, 'respacemenu')
                 elif coptions['canalysis'] == '1':
-                    newrow(layout, "Space type:", cm, 'crspacemenu')
+                    newrow(layout, "Space type:", mvp, 'crspacemenu')
                 elif coptions['canalysis'] == '2':
                     if coptions['bambuild'] == '2':
-                        newrow(layout, "Space type:", cm, 'hspacemenu')
+                        newrow(layout, "Space type:", mvp, 'hspacemenu')
                     if coptions['bambuild'] == '3':
-                        newrow(layout, "Space type:", cm, 'brspacemenu')
+                        newrow(layout, "Space type:", mvp, 'brspacemenu')
 #                    elif coptions['canalysis'] == '3':
 #                        newrow(layout, "Space type:", cm, 'lespacemenu')                   
             rmmenu(layout, cm)
         
-        elif cm.mattype == '2':
-            fvsimnode = bpy.data.node_groups[scene.vi_params['viparams']['fvsimnode'].split('@')[1]].nodes[scene.vi_params['viparams']['fvsimnode'].split('@')[0]] if scene.get('viparams') and 'fvsimnode' in scene.vi_params['viparams'] else 0
+        elif mvp.mattype == '2':
+            fvsimnode = bpy.data.node_groups[svp['viparams']['fvsimnode'].split('@')[1]].nodes[svp['viparams']['fvsimnode'].split('@')[0]] if scene.get('viparams') and 'fvsimnode' in svp['viparams'] else 0
             newrow(layout, "Type:", cm, "flovi_bmb_type")
             if fvsimnode:
                 context.scene['flparams']['solver'] = fvsimnode.solver
@@ -447,14 +468,15 @@ class VIObPanel(bpy.types.Panel):
 
     def draw(self, context):
         obj = context.active_object
+        ovp = obj.vi_params
         layout = self.layout
 
         if obj.type == 'MESH':
             row = layout.row()
-            row.prop(obj, "vi_type")
-            if obj.vi_type == '1':
+            row.prop(ovp, "vi_type")
+            if ovp.vi_type == '1':
                 row = layout.row()
-                row.prop(obj, "envi_type")
+                row.prop(ovp, "envi_type")
                 if obj.envi_type == '0':
                     newrow(layout, 'Inside convection:', obj, "envi_ica")
                     newrow(layout, 'Outside convection:', obj, "envi_oca")
@@ -491,40 +513,41 @@ class VIObPanel(bpy.types.Panel):
                 row.operator("object.gen_bsdf", text="Generate BSDF")
 
 def rmmenu(layout, cm):
+    mvp = cm.vi_params
     row = layout.row()
-    row.label('LiVi Radiance type:')
-    row.prop(cm, 'radmatmenu')
+    row.label(text = 'LiVi Radiance type:')
+    row.prop(mvp, 'radmatmenu')
     row = layout.row()
 
-    for prop in cm.radmatdict[cm.radmatmenu]:
+    for prop in mvp.radmatdict[mvp.radmatmenu]:
         if prop:
-             row.prop(cm, prop)
+             row.prop(mvp, prop)
         else:
             row = layout.row()
             
-    if cm.radmatmenu == '8':
-        newrow(layout, 'Proxy depth:', cm, 'li_bsdf_proxy_depth')
+    if mvp.radmatmenu == '8':
+        newrow(layout, 'Proxy depth:', mvp, 'li_bsdf_proxy_depth')
         row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
-    elif cm.radmatmenu == '9':
+    elif mvp.radmatmenu == '9':
         layout.prop_search(cm, 'radfile', bpy.data, 'texts', text='File', icon='TEXT')
-    if cm.get('bsdf'):
+    if mvp.get('bsdf'):
         row.operator("material.del_bsdf", text="Delete BSDF")
         row = layout.row()
         row.operator("material.save_bsdf", text="Save BSDF")
-    if cm.radmatmenu in ('1', '2', '3', '7'):
-        newrow(layout, 'Photon port:', cm, 'pport')
-    if cm.radmatmenu in ('0', '1', '2', '3', '6'):
-        newrow(layout, 'Textured:', cm, 'radtex')
-        if cm.radtex:
-            newrow(layout, 'Normal map:', cm, 'radnorm')
-            if cm.radnorm:
-                newrow(layout, 'Strength:', cm, 'ns')
-                newrow(layout, 'Image green vector:', cm, 'nu')
-                newrow(layout, 'Image red vector:', cm, 'nside')
+    if mvp.radmatmenu in ('1', '2', '3', '7'):
+        newrow(layout, 'Photon port:', mvp, 'pport')
+    if mvp.radmatmenu in ('0', '1', '2', '3', '6'):
+        newrow(layout, 'Textured:', mvp, 'radtex')
+        if mvp.radtex:
+            newrow(layout, 'Normal map:', mvp, 'radnorm')
+            if mvp.radnorm:
+                newrow(layout, 'Strength:', mvp, 'ns')
+                newrow(layout, 'Image green vector:', mvp, 'nu')
+                newrow(layout, 'Image red vector:', mvp, 'nside')
 
     row = layout.row()
-    row.label("-----------------------------------------")
+    row.label(text = "-----------------------------------------")
     
 class MESH_Gridify_Panel(bpy.types.Panel):
     bl_label = "VI Gridify"
@@ -541,3 +564,4 @@ class MESH_Gridify_Panel(bpy.types.Panel):
 #        newrow(layout, 'Size 2:', scene, 'vi_gridify_as')
         row = layout.row()
         row.operator("object.vi_gridify2", text="Grid the object")
+        
