@@ -72,12 +72,32 @@ def ret_mcm():
         return 0   
     
 dtdf = datetime.date.fromordinal
-unitdict = {'Lux': 'illu', u'W/m\u00b2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
+unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
             'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (f)': 'firradm2', u'kWh/m\u00b2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
             'Avg lux': 'illu', 'Min lux': 'illu', 'kWh': 'firrad', 'kWh/m2': 'kW/m2'}
 
 coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
 
+def create_coll(c, name):
+    try:
+        coll = bpy.data.collections[name]
+    except:
+        coll = bpy.data.collections.new(name)
+        c.scene.collection.children.link(coll)
+        
+    for lcc in c.view_layer.layer_collection.children:
+        if lcc.name == name:
+            c.view_layer.active_layer_collection = lcc
+    return coll
+
+def move_to_coll(context, coll, o):
+    collection = create_coll(context, coll)
+    if o.name not in collection.objects:
+            collection.objects.link(o)
+            for c in bpy.data.collections:
+                if c.name != coll and o.name in c.objects:
+                    c.objects.unlink(o)
+                
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03, 
 2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02, 
 4.351000e-02, 7.763000e-02, 1.343800e-01, 2.147700e-01, 2.839000e-01, 
@@ -408,6 +428,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
     ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
     mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
+#    for mm in mmats:
+#        if not mm.get()
     otext = 'o {}\n'.format(o.name)
     vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
     
@@ -417,7 +439,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     if not o.data.uv_layers:            
         if mfaces:
             for mat in mmats:
-                matname = mat['radname']
+                matname = mat.vi_params['radname']
                 ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
     else:            
         uv_layer = bm.loops.layers.uv.values()[0]
@@ -497,7 +519,7 @@ def radmat(self, scene):
                     ydat = -1 + 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])# if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header = header, comments='')
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')
-                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.ns, self.nu, self.nside)
+                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname, os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.ns, self.nu, self.nside)
                     mod = '{}_norm'.format(radname)
                     
             except Exception as e:
@@ -518,7 +540,7 @@ def radmat(self, scene):
             '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
 
     if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
-        bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
+        bsdfxml = os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
         
         
         with open(bsdfxml, 'w') as bsdffile:
@@ -719,40 +741,46 @@ def retvpvloc(context):
 def setscenelivivals(scene):
     svp = scene.vi_params
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
+    udict = {'Lux': 'illu', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'DF (%)': 'df'}
     cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux' , 'Avg lux', 'Min lux')
     expunits = ('Mlxh', "kWh (f)", "kWh (v)",  u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', )
     irradunits = ('kWh', 'kWh/m2')
+ 
+    if svp.li_disp_basic:        
+        unit = svp.li_disp_basic
+#        for key, val in udict.items():
+#            if val == svp.li_disp_basic:
+#                svp['liparams']['unit'] = key
+    else:
+        unit = udict[svp['liparams']['unit']]
 
-    if svp['viparams']['visimcontext'] == 'LiVi Basic':
-        udict = {'0': 'Lux', '1': u'W/m\u00b2 (v)', '2': u'W/m\u00b2 (f)', '3': 'DF (%)'}
-        svp['liparams']['unit'] = udict[svp.li_disp_basic]
-
-    if svp['viparams']['visimcontext'] == 'LiVi CBDM':        
-        if svp['liparams']['unit'] in cbdmunits:
-            udict = {str(ui): u for ui, u in enumerate(cbdmunits)}
-            svp['liparams']['unit'] = udict[svp.li_disp_da]
-        if svp['liparams']['unit'] in expunits:
-            udict = {str(ui): u for ui, u in enumerate(expunits)}
-            svp['liparams']['unit'] = udict[svp.li_disp_exp]
-        if svp['liparams']['unit'] in irradunits:
-            udict = {str(ui): u for ui, u in enumerate(irradunits)}
-            svp['liparams']['unit'] = udict[svp.li_disp_irrad]         
-
-    if svp['viparams']['visimcontext'] == 'LiVi Compliance':
-        if svp['liparams']['unit'] in cbdmunits:
-            udict = {'0': 'sDA (%)', '1': 'ASE (hrs)'}
-            svp['liparams']['unit'] = udict[svp.li_disp_sda]
-        else:
-            udict = {'0': 'DF (%)', '1': 'Sky View'}
-            svp['liparams']['unit'] = udict[svp.li_disp_sv]
+#    if svp['viparams']['visimcontext'] == 'LiVi CBDM':        
+#        if svp['liparams']['unit'] in cbdmunits:
+#            udict = {str(ui): u for ui, u in enumerate(cbdmunits)}
+#            svp['liparams']['unit'] = udict[svp.li_disp_da]
+#        if svp['liparams']['unit'] in expunits:
+#            udict = {str(ui): u for ui, u in enumerate(expunits)}
+#            svp['liparams']['unit'] = udict[svp.li_disp_exp]
+#        if svp['liparams']['unit'] in irradunits:
+#            udict = {str(ui): u for ui, u in enumerate(irradunits)}
+#            svp['liparams']['unit'] = udict[svp.li_disp_irrad]         
+#
+#    if svp['viparams']['visimcontext'] == 'LiVi Compliance':
+#        if svp['liparams']['unit'] in cbdmunits:
+#            udict = {'0': 'sDA (%)', '1': 'ASE (hrs)'}
+#            svp['liparams']['unit'] = udict[svp.li_disp_sda]
+#        else:
+#            udict = {'0': 'DF (%)', '1': 'Sky View'}
+#            svp['liparams']['unit'] = udict[svp.li_disp_sv]
             
 #    olist = [retobjs('ssc') if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else retobjs('livic')]
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
  
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-        svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(unitdict[svp['liparams']['unit']], frame)] for o in olist])
-        svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(unitdict[svp['liparams']['unit']], frame)] for o in olist])
-        svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(unitdict[svp['liparams']['unit']], frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(unitdict[svp['liparams']['unit']], frame)] for o in olist])
+        
+        svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(unit, frame)] for o in olist])
+        svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(unit, frame)] for o in olist])
+        svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])
     svp.vi_leg_max = max(svp['liparams']['maxres'].values())
     svp.vi_leg_min = min(svp['liparams']['minres'].values())
     
@@ -961,15 +989,19 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     
     for f, frame in enumerate(frames):
         self['res{}'.format(frame)] = {}
-        geom.layers.float.new('firrad{}'.format(frame))
-        geom.layers.float.new('virrad{}'.format(frame))
-        geom.layers.float.new('illu{}'.format(frame))
-        geom.layers.float.new('df{}'.format(frame))
+        if svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+            geom.layers.float.new('virrad{}'.format(frame))
+            geom.layers.float.new('illu{}'.format(frame))
+            virradres = geom.layers.float['virrad{}'.format(frame)]
+            illures = geom.layers.float['illu{}'.format(frame)]
+        if svp['liparams']['unit'] == 'DF (%)':
+            geom.layers.float.new('df{}'.format(frame))
+            dfres = geom.layers.float['df{}'.format(frame)]
+        elif svp['liparams']['unit'] == 'W/m2 (f)':
+            geom.layers.float.new('firrad{}'.format(frame))
+            firradres = geom.layers.float['firrad{}'.format(frame)]
+
         geom.layers.float.new('res{}'.format(frame))
-        firradres = geom.layers.float['firrad{}'.format(frame)]
-        virradres = geom.layers.float['virrad{}'.format(frame)]
-        illures = geom.layers.float['illu{}'.format(frame)]
-        dfres = geom.layers.float['df{}'.format(frame)]
         res =  geom.layers.float['res{}'.format(frame)]
         
         if geom.layers.string.get('rt{}'.format(frame)):
@@ -983,53 +1015,68 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
-            virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
-            firrad = virrad * 1.64
-            illu = virrad * 179
-            df = illu * 0.01
+            if svp['liparams']['unit'] == 'W/m2 (f)':
+                firrad = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)
+            elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+                virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
+                illu = virrad * 179
+#            firrad = virrad * 1.64
+                if svp['liparams']['unit'] == 'DF (%)':
+                    df = illu * 0.01
             
-            for gi, gp in enumerate(chunk):
-                gp[virradres] = virrad[gi].astype(float32)
-                gp[firradres] = firrad[gi].astype(float32)
-                gp[illures] = illu[gi].astype(float32)
-                gp[dfres] = df[gi].astype(float16)
-                gp[res] = illu[gi].astype(float32)
+            for gi, gp in enumerate(chunk):                
+                if svp['liparams']['unit'] == 'W/m2 (f)':
+                    gp[firradres] = firrad[gi].astype(float32)
+                    gp[res] = firrad[gi].astype(float32)
+                elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):   
+                    gp[virradres] = virrad[gi].astype(float32)
+                    gp[illures] = illu[gi].astype(float32)                    
+                    if svp['liparams']['unit'] == 'DF':
+                        gp[dfres] = df[gi].astype(float16)
+                    gp[res] = illu[gi].astype(float32)
                 
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
 
-        ovirrad = array([g[virradres] for g in geom]).astype(float64)
-        maxovirrad, minovirrad, aveovirrad = nmax(ovirrad), nmin(ovirrad), nmean(ovirrad)
-        self['livires'][str(frame)] = (maxovirrad, minovirrad, aveovirrad)
-        self['omax']['virrad{}'.format(frame)] = maxovirrad
-        self['omax']['illu{}'.format(frame)] =  maxovirrad * 179.0
-        self['omax']['df{}'.format(frame)] =  maxovirrad * 1.79
-        self['omax']['firrad{}'.format(frame)] =  maxovirrad * 1.64
-        self['omin']['virrad{}'.format(frame)] = minovirrad
-        self['omin']['illu{}'.format(frame)] = minovirrad * 179
-        self['omin']['df{}'.format(frame)] = minovirrad * 1.79
-        self['omin']['firrad{}'.format(frame)] = minovirrad * 1.64
-        self['oave']['virrad{}'.format(frame)] = aveovirrad
-        self['oave']['illu{}'.format(frame)] = aveovirrad * 179
-        self['oave']['df{}'.format(frame)] = aveovirrad * 1.79
-        self['oave']['firrad{}'.format(frame)] = aveovirrad
+        oirrad = array([g[virradres] for g in geom]).astype(float64) if svp['liparams']['unit'] in ('DF (%)', 'Lux') else array([g[firradres] for g in geom]).astype(float64)
+        maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
+        self['livires'][str(frame)] = (maxoirrad, minoirrad, aveoirrad)
+        if svp['liparams']['unit'] == 'W/m2 (f)':
+            self['omax']['firrad{}'.format(frame)] =  maxoirrad
+            self['oave']['firrad{}'.format(frame)] = aveoirrad            
+            self['omin']['firrad{}'.format(frame)] = minoirrad
+            if self['omax']['firrad{}'.format(frame)] > self['omin']['firrad{}'.format(frame)]:
+                vals = [(gp[res] - self['omin']['firrad{}'.format(frame)])/(self['omax']['firrad{}'.format(frame)] - self['omin']['firrad{}'.format(frame)]) for gp in geom]
+            else:
+                vals = [1 for gp in geom]
+        elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+            self['omax']['virrad{}'.format(frame)] = maxoirrad
+            self['omax']['illu{}'.format(frame)] =  maxoirrad * 179
+            self['omin']['virrad{}'.format(frame)] = minoirrad
+            self['oave']['illu{}'.format(frame)] = aveoirrad * 179
+            self['oave']['virrad{}'.format(frame)] = aveoirrad
+            self['omin']['illu{}'.format(frame)] = minoirrad * 179
+            
+            if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
+                vals = [(gp[res] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]
+            else:
+                vals = [1 for gp in geom]
+                
+            if svp['liparams']['unit'] == 'DF':        
+                self['omax']['df{}'.format(frame)] =  maxoirrad * 1.79
+                self['oave']['df{}'.format(frame)] = aveoirrad * 1.79       
+                self['omin']['df{}'.format(frame)] = minoirrad * 1.79
+        
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
-        self['tableillu{}'.format(frame)] = array(tableheaders + [['Illuminance (lux)', 
-            '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), 
-            '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
-        self['tabledf{}'.format(frame)] = array(tableheaders + [['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
-        self['tablevi{}'.format(frame)] = array(tableheaders + [['Visual Irradiance (W/m2)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])]])
-        self['tablefi{}'.format(frame)] = array(tableheaders + [['Full Irradiance (W/m2)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
-        illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
+#        illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
         bins = array([increment * i for i in range(1, ll)])
         
-        if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
-            vals = [(gp[illures] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
-        else:
-            vals = [1 for gp in geom]
+#        if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
+#            vals = [(gp[res] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
+        
             
         ais = digitize(vals, bins)
         rgeom = [g for g in geom if g[cindex] > 0]
@@ -1040,28 +1087,53 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai])
                 
         self['livires']['areabins'] = sareas
-        self['livires']['valbins'] = illubinvals
+        
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Full Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
+        
+        if svp['liparams']['unit'] == 'W/m2 (f)':
+            firradbinvals = [self['omin']['firrad{}'.format(frame)] + (self['omax']['firrad{}'.format(frame)] - self['omin']['firrad{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
+            self['livires']['valbins'] = firradbinvals
+            self['tablefi{}'.format(frame)] = array(tableheaders + [['Full Irradiance (W/m2)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
+
+        elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+            illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
+            self['livires']['valbins'] = illubinvals
+            self['tableillu{}'.format(frame)] = array(tableheaders + [['Illuminance (lux)', 
+            '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), 
+            '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
+            self['tablevi{}'.format(frame)] = array(tableheaders + [['Visual Irradiance (W/m2)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])]])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
+
+            if svp['liparams']['unit'] == 'DF': 
+                dfbinvals = [self['omin']['df{}'.format(frame)] + (self['omax']['df{}'.format(frame)] - self['omin']['df{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
+                self['livires']['valbins'] = dfbinvals
+                self['tabledf{}'.format(frame)] = array(tableheaders + [['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
+                reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
 
     if len(frames) > 1:
         reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Illuminance ratio', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]/self['oave']['illu{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Average DF (lux)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Maximum DF (lux)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.id_data.name, 'Minimum DF (lux)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
-
-    
-    
+        if svp['liparams']['unit'] == 'W/m2 (f)':
+            reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['firrad{}'.format(frame)]) for frame in frames])])
+        elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):            
+            reslists.append(['All', 'Zone', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['virrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['virrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['virrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Illuminance ratio', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]/self['oave']['illu{}'.format(frame)]) for frame in frames])])
+            if svp['liparams']['unit'] == 'DF': 
+                reslists.append(['All', 'Zone', self.id_data.name, 'Average DF (lux)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone', self.id_data.name, 'Maximum DF (lux)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone', self.id_data.name, 'Minimum DF (lux)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
+   
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)
     bm.free()
@@ -1849,6 +1921,7 @@ def radpoints(o, faces, sks):
     return ''.join(fentries)
                        
 def viparams(op, scene):
+    svp = scene.vi_params
     bdfp = bpy.data.filepath
     if not bdfp:
         op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
@@ -1890,37 +1963,41 @@ def viparams(op, scene):
     nd = os.path.join(fd, fn)
     fb, ofb, lfb, tfb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'lights'), os.path.join(nd, 'textures'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
-    if not scene.get('viparams'):
-        scene['viparams'] = {}
-    scene.vi_params['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
-    scene.vi_params['viparams']['nproc'] = str(multiprocessing.cpu_count())
-    scene.vi_params['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
-    scene.vi_params['viparams']['filepath'] = bpy.data.filepath
-    scene.vi_params['viparams']['filename'] = fn
-    scene.vi_params['viparams']['filedir'] = fd
-    scene.vi_params['viparams']['newdir'] = nd 
-    scene.vi_params['viparams']['filebase'] = fb
-    if not scene.vi_params.get('spparams'):
-        scene.vi_params['spparams'] = {}
-    if not scene.vi_params.get('liparams'):
-        scene.vi_params['liparams'] = {}
-    scene.vi_params['liparams']['objfilebase'] = ofb
-    scene.vi_params['liparams']['lightfilebase'] = lfb
-    scene.vi_params['liparams']['texfilebase'] = tfb
-    scene.vi_params['liparams']['disp_count'] = 0
-#    scene.vi_params['liparams']['livir'] = []
-    if not scene.vi_params.get('enparams'):
-        scene.vi_params['enparams'] = {}
-    scene.vi_params['enparams']['idf_file'] = idf
-    scene.vi_params['enparams']['epversion'] = '9.0'
-    if not scene.vi_params.get('flparams'):
-        scene.vi_params['flparams'] = {}
-    scene.vi_params['flparams']['offilebase'] = offb
-    scene.vi_params['flparams']['ofsfilebase'] = offs
-    scene.vi_params['flparams']['ofcfilebase'] = offc
-    scene.vi_params['flparams']['ofcpfilebase'] = offcp
-    scene.vi_params['flparams']['of0filebase'] = offzero
-    scene.vi_params['flparams']['ofctsfilebase'] = offcts
+    if not svp.get('viparams'):
+        svp['viparams'] = {}
+    svp['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
+    svp['viparams']['nproc'] = str(multiprocessing.cpu_count())
+    svp['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
+    svp['viparams']['filepath'] = bpy.data.filepath
+    svp['viparams']['filename'] = fn
+    svp['viparams']['filedir'] = fd
+    svp['viparams']['newdir'] = nd 
+    svp['viparams']['filebase'] = fb
+    if not svp.get('spparams'):
+        svp['spparams'] = {}
+    if not svp.get('liparams'):
+        svp['liparams'] = {}
+        svp['liparams']['objfilebase'] = ofb
+        svp['liparams']['lightfilebase'] = lfb
+        svp['liparams']['texfilebase'] = tfb
+        svp['liparams']['disp_count'] = 0
+        svp['liparams']['livig'] = []
+        svp['liparams']['livic'] = []
+        svp['liparams']['livir'] = []
+
+    if not svp.get('enparams'):
+        svp['enparams'] = {}
+    svp['enparams']['idf_file'] = idf
+    svp['enparams']['epversion'] = '9.0'
+    
+    if not svp.get('flparams'):
+        svp['flparams'] = {}
+    svp['flparams']['offilebase'] = offb
+    svp['flparams']['ofsfilebase'] = offs
+    svp['flparams']['ofcfilebase'] = offc
+    svp['flparams']['ofcpfilebase'] = offcp
+    svp['flparams']['of0filebase'] = offzero
+    svp['flparams']['ofctsfilebase'] = offcts
         
 def nodestate(self, opstate):
     if self['exportstate'] !=  opstate:
@@ -2037,6 +2114,7 @@ def clearfiles(filebase):
 def clearscene(scene, op):
     svp = scene.vi_params
     svp['viparams']['vidisp'] = ''
+    
     for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
         if ob.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -2072,7 +2150,7 @@ def clearscene(scene, op):
 
     for lamp in bpy.data.lights:
         if lamp.users == 0:
-            bpy.data.lamps.remove(lamp)
+            bpy.data.lights.remove(lamp)
 
     for oldgeo in bpy.data.objects:
         if oldgeo.users == 0:
@@ -2175,19 +2253,7 @@ def vsarea(obj, vs):
             area += 0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5
             i += 1
         return(area)
-        
-def create_coll(c, name):
-    try:
-        coll = bpy.data.collections[name]
-    except:
-        coll = bpy.data.collections.new(name)
-        c.scene.collection.children.link(coll)
-        
-    for lcc in c.view_layer.layer_collection.children:
-        if lcc.name == name:
-            c.view_layer.active_layer_collection = lcc
-    return coll
-                
+                        
 def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     zp = 0 
     bm = bmesh.new()

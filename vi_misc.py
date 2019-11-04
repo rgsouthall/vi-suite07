@@ -1,7 +1,7 @@
 import bpy, os, inspect, gpu, bgl, blf, bmesh, mathutils
 from gpu_extras.batch import batch_for_shader
 from bpy_extras import view3d_utils
-from .vi_func import retcols, logentry, setscenelivivals, selobj, cmap, skframe, retvpvloc, viewdesc, objmode, ret_res_vals, draw_index_distance, blf_props, leg_min_max, retdp
+from .vi_func import retcols, logentry, setscenelivivals, selobj, cmap, skframe, retvpvloc, viewdesc, objmode, ret_res_vals, draw_index_distance, blf_props, leg_min_max, retdp, move_to_coll
 from .vi_dicts import unit_dict
 from . import livi_export
 from numpy import array
@@ -445,6 +445,11 @@ class ss_legend(Base_Display):
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         (self.minres, self.maxres) = leg_min_max(svp)
         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
+
+        for key, val in unit_dict.items():
+            if val == svp.li_disp_basic:
+                self.base_unit =  key
+
         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         resdiff = self.maxres - self.minres
@@ -504,7 +509,7 @@ class ss_legend(Base_Display):
                 (vl_coords, fl_indices) = self.ret_coords()
                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-                               
+                
             self.col_shader.bind()
             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.col_shader.uniform_float("spos", self.lspos)  
@@ -618,6 +623,11 @@ class livi_legend(Base_Display):
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         (self.minres, self.maxres) = leg_min_max(svp)
         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
+
+        for key, val in unit_dict.items():
+            if val == svp.li_disp_basic:
+                self.base_unit =  key
+                
         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         resdiff = self.maxres - self.minres
@@ -1291,6 +1301,7 @@ def li_display(disp_op, simnode):
             
         ores = bpy.context.active_object
         ores.name, ores.show_wire, ores.display_type, orvp = o.name+"res", 1, 'SOLID', ores.vi_params
+        move_to_coll(bpy.context, 'Livi Results', ores)
         
         while ores.material_slots:
             bpy.ops.object.material_slot_remove()

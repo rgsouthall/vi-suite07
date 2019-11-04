@@ -32,7 +32,7 @@ from bpy_extras import view3d_utils
 #from multiprocessing import Pool
 from .livi_export import radgexport, spfc, createoconv, createradfile
 from .livi_calc  import li_calc
-#from .envi_export import enpolymatexport, pregeo
+from .envi_export import enpolymatexport, pregeo
 #from .envi_mat import envi_materials, envi_constructions
 
 from .vi_func import selobj, joinobj, solarPosition, viparams, compass, wind_compass, spfc, solarRiseSet, livisimacc, retpmap
@@ -1611,12 +1611,12 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
                             self.report({'ERROR'}, pmerrdict[line])
                             return {'CANCELLED'}
                                         
-                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], 
-                                 vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
+                                 vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
                 
             else:
-                rvucmd = "rvu -w {9} -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], 
-                                 vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                rvucmd = "rvu -w {9} -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
+                                 vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
 
             logentry('Rvu command: {}'.format(rvucmd))
             self.rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
@@ -1655,8 +1655,8 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         svp['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
         svp['liparams']['cp'] = simnode['goptions']['cp']
         svp['liparams']['unit'] = simnode['coptions']['unit']
+#        svp['liparams']['metric'] = simnode['coptions']['metric']
         svp['liparams']['type'] = simnode['coptions']['Type']
-        svp['viparams']['vidisp'] = ''
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         
         simnode.sim(scene)
@@ -1877,6 +1877,118 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.report({'ERROR'}, "There is no camera in the scene or selected in the node. Create one for rpict image creation")
             return {'FINISHED'}
 
+class NODE_OT_Li_Gl(bpy.types.Operator):            
+    bl_idname = "node.liviglare"
+    bl_label = "LiVi Glare Node"
+    bl_description = "Glare analysis node"
+    bl_register = True
+    bl_undo = False
+    
+    def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
+        res = []
+        reslists = []
+        glnode = context.node
+        imnode = glnode.inputs[0].links[0].from_node
+        glnode.presim()
+        
+        for i, im in enumerate(imnode['images']):
+            glfile = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + svp['liparams']['fs']))
+            egcmd = 'evalglare {} -c {}'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
+
+            with open(im, 'r') as hdrfile:
+                egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE)
+
+            time = datetime.datetime(2014, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
+                datetime.datetime(2014, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
+                                  seconds = int(60*(imnode['coptions']['interval']*i - int(imnode['coptions']['interval']*i))))
+            
+            with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "w") as glaretf:
+                for line in egrun.stdout:
+                    if line.decode().split(",")[0] == 'dgp':                            
+                        glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
+                        res = [float(x) for x in glaretext[6:12]]
+                        glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.2f}\ndgi: {5:.2f}\nugr: {6:.2f}\nvcp: {7:.2f}\ncgi: {8:.2f}\nLv: {9:.0f}\n".format(time.day, time.month, time.hour, time.minute, *res))
+                        res.append(res)
+                        reslists += [[str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'DGP', '{0[0]}'.format(res)], 
+                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'DGI', '{0[1]}'.format(res)], 
+                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera' 'UGR', '{0[2]}'.format(res)], 
+                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'VCP', '{0[3]}'.format(res)], 
+                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'CGI', '{[4]}'.format(res)], 
+                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'LV', '{[5]}'.format(res)]]
+            
+            pcondcmd = "pcond -h+ -u 300 {}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs']))))
+
+            with open('{}.temphdr'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare')), 'w') as temphdr:
+                Popen(pcondcmd.split(), stdout = temphdr).communicate()
+
+            catcmd = "{0} {1}.glare".format(svp['viparams']['cat'], os.path.join(svp['viparams']['newdir'], 'images', 'temp'))
+            catrun = Popen(catcmd, stdout = PIPE, shell = True)
+            psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imnode.y))
+            psignrun = Popen(psigncmd.split(), stdin = catrun.stdout, stdout = PIPE)
+            pcompcmd = "pcompos {0}.temphdr 0 0 - {1} {2}".format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
+
+            with open("{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs'])))), 'w') as ghdr:
+                Popen(pcompcmd.split(), stdin = psignrun.stdout, stdout = ghdr).communicate()
+
+            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'.format(i + svp['liparams']['fs'])))                               
+        return {'FINISHED'}
+
+class NODE_OT_Li_Fc(bpy.types.Operator):            
+    bl_idname = "node.livifc"
+    bl_label = "LiVi False Colour Image"
+    bl_description = "False colour an image with falsecolor"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        fcnode = context.node
+        fcnode.presim()
+        imnode = fcnode.inputs['Image'].links[0].from_node 
+        lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
+        scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades) 
+        mult = '-m {}'.format(fcnode.unitmult[fcnode.unit]) 
+        legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unitdict[fcnode.unit], fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
+        bands = '-cb' if fcnode.bands else ''
+        contour = '-cl {}'.format(bands) if fcnode.contour else ''
+        divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
+        
+        for i, im in enumerate(imnode['images']): 
+            fcim = os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs']))
+            ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
+                        
+            with open(fcim, 'w') as fcfile:
+                if sys.platform == 'win32':
+                    temp_file = os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')
+                    
+                    with open(temp_file, 'w') as tfile:
+                        Popen('pcond -e {} {}'.format(fcnode.disp, os.path.abspath(im)).split(), stdout = tfile)
+                    
+                    poverlay = '-p {}'.format(os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
+                    fccmd = 'falsecolor -i {} {} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fcrun = Popen(fccmd.split(), stdout=fcfile, stderr = PIPE) 
+                    os.remove(temp_file)
+                else:
+                    poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
+                    fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE)
+
+                logentry(fccmd)
+               
+                for line in fcrun.stderr:
+                    logentry('Falsecolour error: {}'.format(line))
+                    
+            if fcim not in [i.filepath for i in bpy.data.images]:
+                bpy.data.images.load(fcim)
+            else:
+                for i in bpy.data.images:
+                    if bpy.path.abspath(i.filepath) == fcim:
+                        i.reload()
+                        [area.tag_redraw() for area in bpy.context.screen.areas if area and area.type == "IMAGE_EDITOR" and area.spaces[0].image == i]               
+        fcnode.postsim()                              
+        return {'FINISHED'}
+    
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.libd"
@@ -1890,7 +2002,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         svp = scene.vi_params
         redraw = 0 
         
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'li' or not [o.vi_params.get('lires') for o in bpy.data.objects]:
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}        
@@ -2232,9 +2344,9 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         area = context.area
         self.scene = context.scene
         svp = context.scene.vi_params
-        svp.vi_display, svp.vi_disp_wire = 1, 1
-        svp['viparams']['vidisp'] = 'li' 
+        svp.vi_display, svp.vi_disp_wire = 1, 1        
         clearscene(self.scene, self)
+        svp['viparams']['vidisp'] = 'li' 
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         
         self.images = ['legend.png']#, 'table_new.png']
@@ -2293,6 +2405,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         self.legend.draw(context)
 #        self.dhscatter.draw(context, area.width)
 #        self.num_display.draw(context)
+
         
 class MAT_EnVi_Node(bpy.types.Operator):
     bl_idname = "material.envi_node"
@@ -2305,7 +2418,7 @@ class MAT_EnVi_Node(bpy.types.Operator):
         if not mvp.envi_nodes:
             bpy.ops.node.new_node_tree(type='EnViMatN', name = cm.name) 
             mvp.envi_nodes = bpy.data.node_groups[cm.name]
-            mvp.envi_nodes.nodes.new('EnViCon')
+            mvp.envi_nodes.nodes.new('No_En_Mat_Con')
             mvp.envi_nodes['envi_con_type'] = 'None'
             mvp.envi_nodes.nodes[0].active = True
             mvp.envi_nodes['enmatparams'] = {'airflow': 0, 'boundary': 0, 'tm': 0}
@@ -2313,4 +2426,23 @@ class MAT_EnVi_Node(bpy.types.Operator):
         elif cm.name != mvp.envi_nodes.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]:
             mvp.envi_nodes = mvp.envi_nodes.copy()
             mvp.envi_nodes.name = cm.name
+        return {'FINISHED'}
+
+class NODE_OT_En_Geo(bpy.types.Operator):
+    bl_idname = "node.engexport"
+    bl_label = "VI-Suite export"
+    bl_context = "scene"
+
+    def invoke(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+        
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        
+        svp['viparams']['vidisp'] = ''
+        node = context.node
+        node.preexport(scene)
+        pregeo(context, self)
+        node.postexport()
         return {'FINISHED'}

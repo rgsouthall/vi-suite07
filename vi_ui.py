@@ -455,15 +455,15 @@ class VI_PT_Mat(bpy.types.Panel):
 #                        newrow(layout, "k type:", cm, "flovi_bmok_type")
 #                        newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
                 
-class VIObPanel(bpy.types.Panel):
+class VI_PT_Ob(bpy.types.Panel):
     bl_label = "VI-Suite Object Definition"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
-    bl_context = "data"
+    bl_context = "object"
 
     @classmethod
     def poll(cls, context):
-        if context.object and context.object.type in ('LAMP', 'MESH'):
+        if context.object and context.object.type in ('LIGHT', 'MESH'):
             return True
 
     def draw(self, context):
@@ -477,36 +477,36 @@ class VIObPanel(bpy.types.Panel):
             if ovp.vi_type == '1':
                 row = layout.row()
                 row.prop(ovp, "envi_type")
-                if obj.envi_type == '0':
-                    newrow(layout, 'Inside convection:', obj, "envi_ica")
-                    newrow(layout, 'Outside convection:', obj, "envi_oca")
+                if ovp.envi_type == '0':
+                    newrow(layout, 'Inside convection:', ovp, "envi_ica")
+                    newrow(layout, 'Outside convection:', ovp, "envi_oca")
                     
-            if obj.vi_type == '3':
-                newrow(layout, 'Feature level:', obj, "flovi_fl")
-                newrow(layout, 'Surface max level:', obj, "flovi_slmax")
-                newrow(layout, 'Surface min level:', obj, "flovi_slmin")
-                newrow(layout, 'Surface layers:', obj, "flovi_slmin")
+            if ovp.vi_type == '3':
+                newrow(layout, 'Feature level:', ovp, "flovi_fl")
+                newrow(layout, 'Surface max level:', ovp, "flovi_slmax")
+                newrow(layout, 'Surface min level:', ovp, "flovi_slmin")
+                newrow(layout, 'Surface layers:', ovp, "flovi_slmin")
                 
-        if (obj.type == 'LAMP' and obj.data.type != 'SUN') or obj.vi_type == '4':
-            newrow(layout, 'IES file:', obj, "ies_name")
-            newrow(layout, 'IES Dimension:', obj, "ies_unit")
-            newrow(layout, 'IES Strength:', obj, "ies_strength")
-            newrow(layout, 'IES Colour:', obj, "ies_colmenu")
-            if obj.ies_colmenu == '0':
-                newrow(layout, 'IES RGB:', obj, "ies_rgb")
+        if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
+            newrow(layout, 'IES file:', ovp, "ies_name")
+            newrow(layout, 'IES Dimension:', ovp, "ies_unit")
+            newrow(layout, 'IES Strength:', ovp, "ies_strength")
+            newrow(layout, 'IES Colour:', ovp, "ies_colmenu")
+            if ovp.ies_colmenu == '0':
+                newrow(layout, 'IES RGB:', ovp, "ies_rgb")
             else:
-                newrow(layout, 'IES Temperature:', obj, "ies_ct")
+                newrow(layout, 'IES Temperature:', ovp, "ies_ct")
 
-        elif obj.vi_type == '5':                
-            newrow(layout, 'Direction:', obj, 'li_bsdf_direc')
-            newrow(layout, 'Proxy:', obj, 'li_bsdf_proxy')
-            newrow(layout, 'Klems/Tensor:', obj, 'li_bsdf_tensor')
-            if obj.li_bsdf_tensor != ' ':
-                newrow(layout, 'resolution:', obj, 'li_bsdf_res')
-                newrow(layout, 'Samples:', obj, 'li_bsdf_tsamp')
+        elif ovp.vi_type == '5':                
+            newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
+            newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
+            newrow(layout, 'Klems/Tensor:', ovp, 'li_bsdf_tensor')
+            if ovp.li_bsdf_tensor != ' ':
+                newrow(layout, 'resolution:', ovp, 'li_bsdf_res')
+                newrow(layout, 'Samples:', ovp, 'li_bsdf_tsamp')
             else:
-                newrow(layout, 'Samples:', obj, 'li_bsdf_ksamp')
-            newrow(layout, 'RC params:', obj, 'li_bsdf_rcparam')
+                newrow(layout, 'Samples:', ovp, 'li_bsdf_ksamp')
+            newrow(layout, 'RC params:', ovp, 'li_bsdf_rcparam')
             
             if any([obj.data.materials[i].radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
                 row = layout.row()
