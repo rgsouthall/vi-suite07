@@ -741,18 +741,20 @@ def retvpvloc(context):
 def setscenelivivals(scene):
     svp = scene.vi_params
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
-    udict = {'Lux': 'illu', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'DF (%)': 'df'}
+    udict = {'Lux': 'illu', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'DF (%)': 'df', '% Sunlit': 'res'}
     cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux' , 'Avg lux', 'Min lux')
     expunits = ('Mlxh', "kWh (f)", "kWh (v)",  u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', )
     irradunits = ('kWh', 'kWh/m2')
  
-    if svp.li_disp_basic:        
+#    if svp.li_disp_basic: 
+    if svp['viparams']['visimcontext'] == 'livibasic':
         unit = svp.li_disp_basic
 #        for key, val in udict.items():
 #            if val == svp.li_disp_basic:
 #                svp['liparams']['unit'] = key
     else:
         unit = udict[svp['liparams']['unit']]
+        print(unit)
 
 #    if svp['viparams']['visimcontext'] == 'LiVi CBDM':        
 #        if svp['liparams']['unit'] in cbdmunits:
@@ -774,10 +776,10 @@ def setscenelivivals(scene):
 #            svp['liparams']['unit'] = udict[svp.li_disp_sv]
             
 #    olist = [retobjs('ssc') if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else retobjs('livic')]
-    olist = [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
- 
+    olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+    print(olist, svp['liparams']['shadc'])
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-        
+        print(frame, unit)
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(unit, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(unit, frame)] for o in olist])
         svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])
@@ -1984,6 +1986,7 @@ def viparams(op, scene):
         svp['liparams']['livig'] = []
         svp['liparams']['livic'] = []
         svp['liparams']['livir'] = []
+        svp['liparams']['shadc'] = []
 
     if not svp.get('enparams'):
         svp['enparams'] = {}

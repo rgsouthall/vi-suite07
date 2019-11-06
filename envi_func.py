@@ -13,7 +13,6 @@ def get_mat(node, ee):
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
         ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
-        print(mvp.id_data.name, ecnodes)
         ecanodes = [n for n in ecnodes if n.active]
         
         if not ecanodes:

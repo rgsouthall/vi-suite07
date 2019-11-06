@@ -403,6 +403,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
     def draw_spnum(self, op, context):
         scene = context.scene
+        svp = scene.vi_params
     
         if bpy.data.objects.get('SPathMesh'):
             spob = bpy.data.objects['SPathMesh'] 
@@ -411,13 +412,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
             vl = ret_vp_loc(context)
             blf_props(scene, width, height)
             
-            if scene.vi_params.sp_hd:
+            if svp.sp_hd:
                 coords, scene, sd = {}, context.scene, 100
                 dists, hs, pos = [], [], []
                 
                 for doy in (172, 355):
                     for hour in range(24):
-                        ([solalt, solazi]) = solarPosition(doy, hour, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
+                        ([solalt, solazi]) = solarPosition(doy, hour, svp.latitude, svp.longitude)[2:]
                         if solalt > 0:
                             coords['{}-{}'.format(str(doy), str(hour))] = (Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), 
                                                                                    -(sd-(sd-(sd*cos(solalt))))*cos(solazi), 
@@ -431,24 +432,24 @@ class NODE_OT_SunPath(bpy.types.Operator):
                                                                      ob_mat@coords[co]))
                 
                 if pos:
-                    draw_index(pos, hs, dists, scene.vi_params.display_rp_fs, scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
+                    draw_index(pos, hs, dists, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                     
-            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and scene.vi_params['spparams']['suns'] == '0':
+            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and svp['spparams']['suns'] == '0':
                 sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
                 
-                if sobs and scene.vi_params.sp_td:
+                if sobs and svp.sp_td:
                     sunloc = ob_mat@sobs[0].location
                     solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
                     
                     try:
                         if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
-                            soltime = datetime.datetime.fromordinal(scene.vi_params.sp_sd)
-                            soltime += datetime.timedelta(hours = scene.vi_params.sp_sh)
+                            soltime = datetime.datetime.fromordinal(svp.sp_sd)
+                            soltime += datetime.timedelta(hours = svp.sp_sh)
                             sre = sobs[0].rotation_euler
                             blf_props(scene, width, height)
                             sol_text = soltime.strftime('     %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi)
-                            draw_time(solpos, sol_text, scene.vi_params.display_rp_fs, 
-                                      scene.vi_params.display_rp_fc, scene.vi_params.display_rp_fsh)
+                            draw_time(solpos, sol_text, svp.vi_display_rp_fs, 
+                                      svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                             
                     except Exception as e:
                         print(e)
@@ -1120,6 +1121,11 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     def invoke(self, context, event):
         area = context.area
         svp = context.scene.vi_params
+        try:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_svfnum, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
+        except:
+            pass
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'svf'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
@@ -1219,6 +1225,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         svp = scene.vi_params
         svp.vi_display = 0
         
+       
+        
         if viparams(self, scene):            
             return {'CANCELLED'}
 
@@ -1227,7 +1235,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             self.report({'ERROR'},"No shading objects have a material attached.")
             return {'CANCELLED'}
             
-        scene['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
+        svp['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
         if not svp['liparams']['shadc']:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
             return {'CANCELLED'}
@@ -1237,8 +1245,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         clearscene(scene, self)
         
         svp['viparams']['visimcontext'] = 'Shadow'
-        if not scene.get('liparams'):
-           scene['liparams'] = {}
+        if not svp.get('liparams'):
+           svp['liparams'] = {}
         svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
         simnode.preexport()
         (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
@@ -1251,7 +1259,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
         (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 100, 0)]
         
-        frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+        frange = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
         y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
         endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
@@ -1267,7 +1275,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects[on] for on in svp['liparams']['shadc']])
         curres, reslists = 0, []
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
-        kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Shadow Map')
+        kivyrun = progressbar(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'), 'Shadow Map')
         logentry(f'Conducting shadow map calculation with {simnode.interval} samples per hour for {int(len(direcs)/simnode.interval)} total hours and {lvaldirecs} available sun hours')
         
         for oi, o in enumerate([scene.objects[on] for on in svp['liparams']['shadc']]):
@@ -1374,8 +1382,8 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0 
-        
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o.vi_params.get('lires') for o in bpy.data.objects]:
+
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']]:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}        
@@ -1444,7 +1452,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         area = context.area
         svp = context.scene.vi_params
         svp.vi_display = 1
-        svp['viparams']['vidisp'] = 'ss' 
+        
         
         try:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
@@ -1453,6 +1461,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
             pass
         
         clearscene(self.scene, self)
+        svp['viparams']['vidisp'] = 'ss' 
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(self, self.simnode)
         self.results_bar = results_bar(('legend.png', 'scatter.png'), 300, area)
@@ -2445,4 +2454,56 @@ class NODE_OT_En_Geo(bpy.types.Operator):
         node.preexport(scene)
         pregeo(context, self)
         node.postexport()
+        return {'FINISHED'}
+    
+class OBJECT_OT_VIGridify2(bpy.types.Operator):
+    ''''''
+    bl_idname = "object.vi_gridify2"
+    bl_label = "VI Gridify"
+    bl_options = {"REGISTER", 'UNDO'}
+    
+    rotate =  bpy.props.FloatProperty(name = 'Rotation', default = 0, min = 0, max = 360) 
+    us =  bpy.props.FloatProperty(default = 0.6, min = 0.01) 
+    acs =  bpy.props.FloatProperty(default = 0.6, min = 0.01) 
+    
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return (obj and obj.type == 'MESH')
+    
+    def execute(self, context):
+        self.o = bpy.context.active_object
+        mesh = bmesh.from_edit_mesh(self.o.data)
+        mesh.faces.ensure_lookup_table()
+        mesh.verts.ensure_lookup_table()
+        self.upv = mesh.faces[0].calc_tangent_edge_pair().copy().normalized()
+        self.norm = mesh.faces[0].normal.copy()
+        self.acv = self.upv.copy()
+        eul = Euler(radians(-90) * self.norm, 'XYZ')
+        self.acv.rotate(eul)
+        rotation = Euler(radians(self.rotate) * self.norm, 'XYZ')
+        self.upv.rotate(rotation)
+        self.acv.rotate(rotation)
+        vertdots = [Vector.dot(self.upv, vert.co) for vert in mesh.verts]
+        vertdots2 = [Vector.dot(self.acv, vert.co) for vert in mesh.verts]
+        svpos = mesh.verts[vertdots.index(min(vertdots))].co
+        svpos2 = mesh.verts[vertdots2.index(min(vertdots2))].co
+        res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
+        vs = mesh.verts[:]
+        es = mesh.edges[:]
+        fs = [f for f in mesh.faces[:] if f.select]
+        gs = vs + es + fs
+          
+        while res1:
+            res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos + ngs1 * self.upv, plane_no = self.upv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
+            res1 = res['geom_cut']
+            gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
+            ngs1 += gs1
+    
+        while res2:
+            res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos2 + ngs2 * self.acv, plane_no = self.acv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
+            res2 = res['geom_cut']
+            gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
+            ngs2 += gs2
+        bmesh.update_edit_mesh(self.o.data)
         return {'FINISHED'}

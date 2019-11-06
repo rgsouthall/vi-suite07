@@ -54,11 +54,11 @@ else:
     from .vi_operators import NODE_OT_WindRose, VIEW3D_OT_WRDisplay, NODE_OT_SVF
     from .vi_operators import VIEW3D_OT_SVFDisplay, NODE_OT_SunPath, MAT_EnVi_Node, NODE_OT_Shadow
     from .vi_operators import NODE_OT_Li_Geo, VIEW3D_OT_SSDisplay, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD
-    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo
+    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2
     
     #    from .vi_operators import *
 
-    from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob
+    from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify
     from .vi_dicts import colours
     #    from .vi_ui import *
 
@@ -580,7 +580,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_Li_Geo, No_Li_Con, So_Li_Geo, NODE_OT_Li_Geo, So_Li_Con, NODE_OT_Li_Con, No_Text, So_Text,
            No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
-           EnViMatNetwork, No_En_Mat_Con)
+           EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2)
 
 
 #def register():

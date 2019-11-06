@@ -84,10 +84,10 @@ class VI_PT_3D(bpy.types.Panel):
                     newrow(layout, i[0], svp, i[1])
                 
                 if (svp['spparams']['suns'] == '0' and (svp.sp_td or svp.sp_hd)) or svp.sp_hd:
-                    for i in (("Font size:", "display_rp_fs"), ("Font colour:", "display_rp_fc"), ("Font shadow:", "display_rp_sh")):
+                    for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh")):
                         newrow(layout, i[0], svp, i[1])
-                    if svp.display_rp_sh:
-                        newrow(layout, "Shadow colour:", svp, "display_rp_fsh")
+                    if svp.vi_display_rp_sh:
+                        newrow(layout, "Shadow colour:", svp, "vi_display_rp_fsh")
                 
             elif svp['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 if not svp.vi_display:
@@ -549,7 +549,7 @@ def rmmenu(layout, cm):
     row = layout.row()
     row.label(text = "-----------------------------------------")
     
-class MESH_Gridify_Panel(bpy.types.Panel):
+class VI_PT_Gridify(bpy.types.Panel):
     bl_label = "VI Gridify"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"

@@ -1378,6 +1378,7 @@ class linumdisplay():
         self.fontmult = 2 #if context.space_data.region_3d.is_perspective else 500
         
         if not svp.get('viparams') or svp['viparams']['vidisp'] not in ('svf', 'lipanel', 'ss', 'lcpanel'):
+            print('stop', svp['viparams']['vidisp'])
             svp.vi_display = 0
             return
         if scene.frame_current not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
