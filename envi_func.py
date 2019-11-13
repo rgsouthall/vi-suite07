@@ -481,16 +481,17 @@ def checkenvierrors(file, sim_op):
         
 def processf(pro_op, node):
     scene = bpy.context.scene
+    svp = scene.vi_params
     reslists, areslists = [], []
-    frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current] 
+    frames = range(svp['enparams']['fs'], svp['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current] 
     
     for frame in frames:
         node['envires{}'.format(frame)] = {}
-        resfileloc = os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)) if node.bl_label == 'EnVi Simulation' else node.resfilename
+        resfileloc = os.path.join(svp['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)) if node.bl_label == 'EnVi Simulation' else node.resfilename
 
         with open(resfileloc, 'r') as resfile:
             lines = resfile.readlines()
-            hdict, lstart = processh(lines, [o.name.upper() for o in scene.objects if o.layers[1]])  
+            hdict, lstart = processh(lines, [coll.name.upper() for coll in bpy.data.collections['EnVi Geometry'].children])  
             splitlines = [l.strip('\n').split(',') for l in lines[lstart:-2]]
             bdict = {li: ' '.join([sl[1] for sl in splitlines if sl[0] == li]) for li in hdict}
   
@@ -505,8 +506,8 @@ def processf(pro_op, node):
         
     rls = reslists
     zrls = list(zip(*rls))
-    scene['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
-    scene['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone' and zrls[0][zri] == str(node["AStart"])]))
+    svp['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
+    svp['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone' and zrls[0][zri] == str(node["AStart"])]))
 
     for frame in frames:
         zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone' and zonerl[0] == str(frame)]
@@ -521,7 +522,7 @@ def processf(pro_op, node):
         except:
             pro_op.report({'ERROR'}, "There are no results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
         
-        for o in bpy.context.scene.objects:
+        for o in scene.objects:
             if 'EN_' + o.name.upper() in zrls[2]:
                 envires = {}
                 oress = [[zrls[3][z], zrls[4][z]]  for z, zr in enumerate(zrls[0]) if zr == str(frame) and zrls[2][z] == 'EN_' + o.name.upper()]
@@ -612,7 +613,7 @@ def processf(pro_op, node):
                 except:
                     pass   
                 
-        for o in bpy.context.scene.objects:
+        for o in scene.objects:
             o['envires'] = {}
             for arl in areslists:
                 if arl[1] == 'Zone' and 'EN_' + o.name.upper() == arl[2]:

@@ -2720,7 +2720,8 @@ def frameindex(scene, anim):
 def retobjs(otypes):
     scene = bpy.context.scene
     svp = scene.vi_params
-    validobs = [o for o in scene.objects if not o.hide_viewport]
+    validobs = [o for o in scene.objects if not o.hide_get()]
+    print(validobs)
     if otypes == 'livig':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
         and o.name not in svp['liparams']['livir'] and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])

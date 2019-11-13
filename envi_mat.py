@@ -217,8 +217,8 @@ class envi_constructions(object):
 #    else:
 #        return matdict
     
-def retmatdict(envi_con_type, t, l):  
-    if envi_con_type in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):
+def retmatdict(ect, t, l): 
+    if ect in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):
         typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
                    ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
                    ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
@@ -226,7 +226,7 @@ def retmatdict(envi_con_type, t, l):
         matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(), '3': envi_materials().metal_dat.keys(), '4': envi_materials().stone_dat.keys(),
                    '5': envi_materials().wood_dat.keys(), '6': envi_materials().gas_dat.keys(), '7': envi_materials().insulation_dat.keys(), '8': envi_materials().pcm_dat.keys(), '9': envi_materials().pv_dat.keys()}
 
-    elif envi_con_type == 'Window':
+    elif ect == 'Window':
         if not l % 2:
             typelist = [("0", "Glass", "Choose a material from the glass database")]
             matdict = {'0': envi_materials().glass_dat.keys()}  
@@ -234,8 +234,8 @@ def retmatdict(envi_con_type, t, l):
             typelist = [("0", "Gas", "Choose a material from the gas database")]
             matdict = {'0': envi_materials().wgas_dat.keys()}
     else:
-        typelist = [('', '', '')]
-        matdict = {} 
+        typelist = [('0', 'None', 'None')]
+        matdict = {'0': ['None']} 
     if t:
         return typelist
     else:

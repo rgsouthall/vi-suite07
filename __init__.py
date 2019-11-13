@@ -38,29 +38,29 @@ if "bpy" in locals():
     imp.reload(vi_func)
 #    imp.reload(envi_mat)
 else:
-    from .vi_node import vinode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, ViR, ViSSNode
+    from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
     from .vi_node import No_Li_Sim
-    from .vi_node import No_En_Geo, EnViNetwork, No_En_Net_Zone, EnViMatNetwork, No_En_Mat_Con
+    from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac
+    from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
+    from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op
+    from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU
     #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
     from .vi_func import legupdate
-    #    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
+    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     #    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
     #    from .vi_display import setcols
 
-    from .vi_operators import NODE_OT_WindRose, VIEW3D_OT_WRDisplay, NODE_OT_SVF
+    from .vi_operators import NODE_OT_WindRose, VIEW3D_OT_WRDisplay, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim
     from .vi_operators import VIEW3D_OT_SVFDisplay, NODE_OT_SunPath, MAT_EnVi_Node, NODE_OT_Shadow
     from .vi_operators import NODE_OT_Li_Geo, VIEW3D_OT_SSDisplay, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD
-    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2
-    
-    #    from .vi_operators import *
-
+    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
+    from .vi_operators import NODE_OT_Chart
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify
     from .vi_dicts import colours
-    #    from .vi_ui import *
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, math, mathutils
 from bpy.app.handlers import persistent
@@ -289,7 +289,28 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_display_sel_only: bprop("", "", False)
     vi_display_vis_only: bprop("", "", False)
     vi_disp_3dlevel: FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = eupdate)
- 
+    en_disp_type: EnumProperty(items = enparametric, name = "", description = "Type of EnVi display") 
+    resas_disp: bprop("", "", False) 
+    reszt_disp: bprop("", "", False) 
+    reszh_disp: bprop("", "", False) 
+    resaa_disp: bprop("", "", False) 
+    
+    (resaa_disp, resaws_disp, resawd_disp, resah_disp, resas_disp, reszt_disp, reszh_disp, reszhw_disp, reszcw_disp, reszsg_disp, reszppd_disp, 
+     reszpmv_disp, resvls_disp, resvmh_disp, resim_disp, resiach_disp, reszco_disp, resihl_disp, reszlf_disp, reszof_disp, resmrt_disp,
+     resocc_disp, resh_disp, resfhb_disp, reszahw_disp, reszacw_disp, reshrhw_disp, restcvf_disp, restcmf_disp, restcot_disp, restchl_disp, 
+     restchg_disp, restcv_disp, restcm_disp, resldp_disp, resoeg_disp, respve_disp, respvw_disp, respveff_disp, respvt_disp)  = resnameunits() 
+     
+    (resazmaxt_disp, resazmint_disp, resazavet_disp, 
+     resazmaxhw_disp, resazminhw_disp, resazavehw_disp, 
+     resazth_disp, resazthm_disp, 
+     resazmaxcw_disp, resazmincw_disp, resazavecw_disp, 
+     resaztc_disp, resaztcm_disp, 
+     resazmaxco_disp, resazaveco_disp, resazminco_disp, 
+     resazlmaxf_disp, resazlminf_disp, resazlavef_disp,
+     resazmaxshg_disp, resazminshg_disp, resazaveshg_disp,
+     resaztshg_disp, resaztshgm_disp)  = aresnameunits() 
+    envi_flink = bprop("", "Associate flow results with the nearest object", False)
+    
 class VI_Params_Object(bpy.types.PropertyGroup): 
     # VI-Suite object definitions
     vi_type: eprop([("0", "None", "Not a VI-Suite zone"), 
@@ -576,11 +597,14 @@ def flovi_levels(self, context):
 #classes = (VIPreferences,VI_Params_Scene, VI_Params_Object, VI_Params_Material, ViNetwork, NODE_OT_WindRose)
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPath, 
            VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, ViWRNode, ViSVFNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
-           NODE_OT_SVF, ViR, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, ViSSNode, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
+           NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, ViSSNode, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
            No_Li_Geo, No_Li_Con, So_Li_Geo, NODE_OT_Li_Geo, So_Li_Con, NODE_OT_Li_Con, No_Text, So_Text,
            No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
-           EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2)
+           EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
+           NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
+           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, No_En_Con, So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim,
+           No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart)
 
 
 #def register():
@@ -700,7 +724,8 @@ def register():
     Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
-
+    nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
+    nodeitems_utils.register_node_categories("EnVi Material Nodes", envimatnode_categories)
     
     if update_chart_node not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_chart_node)
@@ -723,8 +748,8 @@ def unregister():
         bpy.utils.unregister_class(cl)
         
     nodeitems_utils.unregister_node_categories("Vi Nodes")
-#    nodeitems_utils.unregister_node_categories("EnVi Nodes")
-#    nodeitems_utils.unregister_node_categories("EnVi Mat Nodes")
+    nodeitems_utils.unregister_node_categories("EnVi Nodes")
+    nodeitems_utils.unregister_node_categories("EnVi Mat Nodes")
         
 #def unregister():
 #    bpy.utils.unregister_module(__name__)

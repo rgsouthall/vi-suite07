@@ -170,7 +170,7 @@ class VI_PT_3D(bpy.types.Panel):
 
             elif svp['viparams']['vidisp'] in ('en', 'enpanel'):
                 fs, fe = scene['enparams']['fs'], scene['enparams']['fe']
-                sedt = scene.en_disp_type
+                sedt = svp.en_disp_type
                 resnode = bpy.data.node_groups[svp['viparams']['resnode'].split('@')[1]].nodes[svp['viparams']['resnode'].split('@')[0]]
 
                 if sedt == '1':
@@ -178,14 +178,14 @@ class VI_PT_3D(bpy.types.Panel):
                     lmetrics = []
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Avg Flow in": "resazlavef_disp"} 
                 else: 
-                    lmetrics, zmetrics = scene['enparams']['lmetrics'], scene['enparams']['zmetrics']
+                    lmetrics, zmetrics = svp['enparams']['lmetrics'], svp['enparams']['zmetrics']
                     zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
                                 'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
 
                 if svp['viparams']['vidisp'] == 'en': 
-                    newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
+                    newrow(layout, 'Static/Parametric', svp, 'en_disp_type')
                     if sedt == '1':
                         row = layout.row()               
                         row.prop(resnode, '["AStart"]')
@@ -201,8 +201,8 @@ class VI_PT_3D(bpy.types.Panel):
                         row = layout.row() 
                         row.label(text = 'Ambient')
                         row = layout.row() 
-                        row.prop(scene, 'resaa_disp')
-                        row.prop(scene, 'resas_disp')
+                        row.prop(svp, 'resaa_disp')
+                        row.prop(svp, 'resas_disp')
                         
                         for ri, rzname in enumerate(zmetrics):
                             if ri == 0:                    
@@ -211,7 +211,7 @@ class VI_PT_3D(bpy.types.Panel):
                             if not ri%2:
                                 row = layout.row()  
                             if rzname in zresdict:
-                                row.prop(scene, zresdict[rzname])
+                                row.prop(svp, zresdict[rzname])
                         
                         for ri, rname in enumerate(lmetrics):
                             if ri == 0:                    
@@ -220,9 +220,9 @@ class VI_PT_3D(bpy.types.Panel):
                             if not ri%2:
                                 row = layout.row()                            
                             if rname in vresdict:
-                                row.prop(scene, vresdict[rname])  
+                                row.prop(svp, vresdict[rname])  
                         if lmetrics:    
-                            newrow(layout, 'Link to object', scene, 'envi_flink')  
+                            newrow(layout, 'Link to object', svp, 'envi_flink')  
                         
                         row = layout.row() 
    
@@ -233,8 +233,8 @@ class VI_PT_3D(bpy.types.Panel):
                         
             if svp['viparams']['vidisp'] == 'enpanel':                                
                 if sedt == '0':
-                    newrow(layout, 'Display unit:', scene, 'en_disp_unit')  
-                    newrow(layout, 'Bar colour:', scene, "vi_leg_col")
+                    newrow(layout, 'Display unit:', svp, 'en_disp_unit')  
+                    newrow(layout, 'Bar colour:', svp, "vi_leg_col")
 
                     if fe > fs:
                         newrow(layout, 'Parametric frame:', resnode, '["AStart"]')
@@ -254,8 +254,8 @@ class VI_PT_3D(bpy.types.Panel):
                             row.prop(scene, envimenudict[envirt][1])
                 
                 elif sedt == '1':
-                    newrow(layout, 'Display unit:', scene, 'en_disp_punit')  
-                    newrow(layout, 'Legend colour:', scene, "vi_leg_col")
+                    newrow(layout, 'Display unit:', svp, 'en_disp_punit')  
+                    newrow(layout, 'Legend colour:', svp, "vi_leg_col")
                     row = layout.row()
                     row.label('Bar chart range:')
                     row.prop(scene, 'bar_min')

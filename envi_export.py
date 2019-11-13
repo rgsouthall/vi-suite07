@@ -26,14 +26,15 @@ caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "Ada
 caodict = {"0": "", "1": "SimpleCombined", "2": "TARP", "3": "DOE-2", "4": "MoWiTT", "5": "AdaptiveConvectionAlgorithm"}
 
 def enpolymatexport(exp_op, node, locnode, em, ec):
-    scene = bpy.context.scene   
-    
-    for frame in range(scene['enparams']['fs'], scene['enparams']['fe'] + 1):
+    scene = bpy.context.scene 
+    svp = scene.vi_params
+    svp['viparams']['hvactemplate'] = 0
+    for frame in range(svp['enparams']['fs'], svp['enparams']['fe'] + 1):
         pvs = []
         gen = 0
-        scene.update()
+#        scene.update()
         scene.frame_set(frame)
-        en_idf = open(os.path.join(scene['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
+        en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
         badnodes = [node for node in enng.nodes if node.use_custom_color]
         
@@ -42,7 +43,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
             return
         
-        en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), scene['enparams']['epversion']))    
+        en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), svp['enparams']['epversion']))    
         params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
                   'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
         paramvs = (node.loc, '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)], '0.004', '0.4', 'FullInteriorAndExteriorWithReflections', '15')
@@ -65,10 +66,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
 
         gen = 0
-        for mat in bpy.data.materials:            
-            if mat.envi_nodes and mat.envi_nodes.nodes and mat.envi_export == True:                
-                for emnode in mat.envi_nodes.nodes:
-                    if emnode.bl_idname == 'EnViCon' and emnode.active:
+        for mat in bpy.data.materials:  
+            mvp = mat.vi_params
+            if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export == True:                
+                for emnode in mvp.envi_nodes.nodes:
+                    if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                         if emnode.envi_con_type == 'Window':    
 #                            if emnode.envi_simple_glazing:
 #                                em.sg_write(en_idf, mat.name+'_sg', emnode.envi_sg_uv, emnode.envi_sg_shgc, emnode.envi_sg_vt)
@@ -85,82 +87,93 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         em.thickdict = {}
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
+        geo_colls = bpy.data.collections['EnVi Geometry'].children
         
-        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
-            if obj.type == 'MESH':
-                params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
-                          'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
-                paramvs = (obj.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(obj['volume']), 'autocalculate', caidict[obj.envi_ica], caodict[obj.envi_oca], 'Yes')
-                en_idf.write(epentry('Zone', params, paramvs))
+        for coll in geo_colls:
+#        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
+#            if obj.type == 'MESH':
+            params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
+                      'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
+            paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[coll.objects[0].vi_params.envi_ica], caodict[coll.objects[0].vi_params.envi_oca], 'Yes')
+            en_idf.write(epentry('Zone', params, paramvs))
         
         params = ('Starting Vertex Position', 'Vertex Entry Direction', 'Coordinate System')
         paramvs = ('UpperRightCorner', 'Counterclockwise', 'World')
         en_idf.write(epentry('GlobalGeometryRules', params, paramvs))
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: SURFACE DEFINITIONS ===========\n\n")
-    
+        
         wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
-        zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '0']
-        tcnames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '2']
-        bpy.context.scene['viparams']['hvactemplate'] = 0
+        zonenames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
+        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
         zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
         for zn in zonenodes:
             zn.update()
         tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
         gens = []
-        
-        for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.vi_type == '1']:
-            me = obj.to_mesh(scene, True, 'PREVIEW')
-            bm = bmesh.new()
-            bm.from_mesh(me)
-            bm.transform(obj.matrix_world)
-            bpy.data.meshes.remove(me)
-
-            for face in [f for f in bm.faces if obj.data.materials[f.material_index].envi_nodes]:
-                mat = obj.data.materials[face.material_index]
-                for emnode in mat.envi_nodes.nodes:
-                    if emnode.bl_idname == 'EnViCon' and emnode.active:
-                        vcos = [v.co for v in face.verts]
-                        (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
-                        
-                        if obc:
-                            if emnode.envi_con_type in ('Wall', "Floor", "Roof"):
-                                if emnode.envi_con_makeup != "2":
-                                    params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]                     
-                                    paramvs = ['{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
-                                    en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
-                                
-                                if emnode.pv:
-                                    en_idf.write(emnode.pv_ep_write('{}_{}'.format(obj.name, face.index)))
-                                    gens.append('{}_{}-pv'.format(obj.name, face.index))
+        for coll in geo_colls:
+#            zonenames = [o.name for o in coll.objects if o.vi_params.envi_type == '0']
+#            tcnames = [o.name for o in coll.objects if o.vi_params.envi_type == '2']
+#            zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
+#            for zn in zonenodes:
+#                zn.update()
+#            tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
+#            gens = []
+            for obj in coll.objects:
+#                obj = scene.objects[zn]
+#            for obj in [obj for obj in coll.objects if obj.type == 'MESH' and obj.vi_type == '1']:
+                me = obj.to_mesh()
+                bm = bmesh.new()
+                bm.from_mesh(me)
+                bm.transform(obj.matrix_world)
+                obj.to_mesh_clear()
+    
+                for face in [f for f in bm.faces if obj.data.materials[f.material_index].vi_params.envi_nodes]:
+                    mat = obj.data.materials[face.material_index]
+                    for emnode in mat.vi_params.envi_nodes.nodes:
+                        if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
+                            vcos = [v.co for v in face.verts]
+                            print(vcos)
+                            (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
+                            
+                            if obc:
+                                if emnode.envi_con_type in ('Wall', "Floor", "Roof"):
+                                    if emnode.envi_con_makeup != "2":
+                                        params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]                     
+                                        paramvs = ['{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, coll.name, obc, obco, se, we, 'autocalculate', len(face.verts)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
+                                        en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
                                     
-                            elif emnode.envi_con_type in ('Door', 'Window')  and emnode.envi_con_makeup != "2":
-                                if len(face.verts) > 4:
-                                    exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
+                                    if emnode.pv:
+                                        en_idf.write(emnode.pv_ep_write('{}_{}'.format(obj.name, face.index)))
+                                        gens.append('{}_{}-pv'.format(obj.name, face.index))
+                                        
+                                elif emnode.envi_con_type in ('Door', 'Window')  and emnode.envi_con_makeup != "2":
+                                    if len(face.verts) > 4:
+                                        exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
+                                        
+                                    xav, yav, zav = mathutils.Vector(face.calc_center_median())
+                                    params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
+                                    paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', '{}-frame'.format(mat.name), coll.name, obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
+                                    en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    
+                                    obound = ('win-', 'door-')[emnode.envi_con_type == 'Door']+obco if obco else obco
+                                    params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + \
+                                    ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
                                     
-                                xav, yav, zav = mathutils.Vector(face.calc_center_median())
-                                params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
-                                paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', '{}-frame'.format(mat.name), obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
-                                en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    
-                                obound = ('win-', 'door-')[emnode.envi_con_type == 'Door']+obco if obco else obco
-                                params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + \
-                                ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
-                                
-                                if emnode.fclass in ('0', '2'):
-                                    paramvs = [('win-', 'door-')[emnode.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '1', len(face.verts)] + \
-                                    ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*(1 - emnode.farea * 0.01), yav+(vco[1]-yav)*(1 - emnode.farea * 0.01), zav+(vco[2]-zav)*(1 - emnode.farea * 0.01))) for vco in vcos]
-                                else:
-                                    paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '{}-fad'.format(mat.name), '1', len(face.verts)] + \
-                                    ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((vco[0] + (1, -1)[vco[0] - xav > 0]*(0.001+emnode.fw, 0)[abs(vco[0] - xav) < 0.0001], vco[1] + (1, -1)[vco[1] - yav > 0]*(0.001+emnode.fw, 0)[abs(vco[1] - yav) < 0.0001], vco[2] + (1, -1)[vco[2] - zav > 0]*(0.001+emnode.fw, 0)[abs(vco[2] - zav) < 0.0001])) for vco in vcos]
-                                
-                                en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
-                
-                            elif emnode.envi_con_type == 'Shading' or obj.envi_type == '1':
-                                params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
-                                paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
-                                en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
-                       
-            bm.free()
+                                    if emnode.fclass in ('0', '2'):
+                                        paramvs = [('win-', 'door-')[emnode.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '1', len(face.verts)] + \
+                                        ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*(1 - emnode.farea * 0.01), yav+(vco[1]-yav)*(1 - emnode.farea * 0.01), zav+(vco[2]-zav)*(1 - emnode.farea * 0.01))) for vco in vcos]
+                                    else:
+                                        paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '{}-fad'.format(mat.name), '1', len(face.verts)] + \
+                                        ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((vco[0] + (1, -1)[vco[0] - xav > 0]*(0.001+emnode.fw, 0)[abs(vco[0] - xav) < 0.0001], vco[1] + (1, -1)[vco[1] - yav > 0]*(0.001+emnode.fw, 0)[abs(vco[1] - yav) < 0.0001], vco[2] + (1, -1)[vco[2] - zav > 0]*(0.001+emnode.fw, 0)[abs(vco[2] - zav) < 0.0001])) for vco in vcos]
+                                    
+                                    en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
+                    
+                                elif emnode.envi_con_type == 'Shading' or obj.envi_type == '1':
+                                    params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
+                                    paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
+                                    en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
+                           
+                bm.free()
     
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: SCHEDULES ===========\n\n")
         params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type', 'Unit Type')
@@ -367,16 +380,16 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         AllSummary;              !- Report 1 Name")
         en_idf.close()
         
-        if scene['enparams'].get('hvactemplate'):
-            os.chdir(scene['viparams']['newdir'])
-            ehtempcmd = "ExpandObjects {}".format(os.path.join(scene['viparams']['newdir'], 'in.idf'))
+        if svp['enparams'].get('hvactemplate'):
+            os.chdir(svp['viparams']['newdir'])
+            ehtempcmd = "ExpandObjects {}".format(os.path.join(svp['viparams']['newdir'], 'in.idf'))
             subprocess.call(ehtempcmd.split())
-            shutil.copyfile(os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')) 
+            shutil.copyfile(os.path.join(svp['viparams']['newdir'], 'expanded.idf'), os.path.join(svp['viparams']['newdir'], 'in.idf')) 
         
         if 'in{}.idf'.format(frame) not in [im.name for im in bpy.data.texts]:
-            bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], 'in{}.idf'.format(frame)))
+            bpy.data.texts.load(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)))
         else:
-            bpy.data.texts['in{}.idf'.format(frame)].filepath = os.path.join(scene['viparams']['newdir'], 'in{}.idf'.format(frame))
+            bpy.data.texts['in{}.idf'.format(frame)].filepath = os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame))
 
 def pregeo(context, op):
     scene = context.scene
@@ -447,6 +460,7 @@ def pregeo(context, op):
 #    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.bl_idname == 'EnViTC' and scene.objects[node.zone[3:]].envi_type != '2']            
 #
     for col in envicols.children:
+#        bm = bmesh.new()
         for obj in col.objects:
             ovp = obj.vi_params
             

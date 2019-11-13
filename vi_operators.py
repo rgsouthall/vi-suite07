@@ -33,7 +33,7 @@ from bpy_extras import view3d_utils
 from .livi_export import radgexport, spfc, createoconv, createradfile
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
-#from .envi_mat import envi_materials, envi_constructions
+from .envi_mat import envi_materials, envi_constructions
 
 from .vi_func import selobj, joinobj, solarPosition, viparams, compass, wind_compass, spfc, solarRiseSet, livisimacc, retpmap
 
@@ -44,7 +44,7 @@ from .vi_func import sunpath, windnum, wind_rose, create_coll, retobjs, progress
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode
 #from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
-#from .vi_chart import chart_disp
+from .vi_chart import chart_disp
 
 from .vi_misc import wr_legend, results_bar, wr_table, wr_scatter, svf_legend
 from .vi_misc import li_display, linumdisplay, ss_legend, ss_scatter, livi_legend#, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
@@ -2455,6 +2455,178 @@ class NODE_OT_En_Geo(bpy.types.Operator):
         pregeo(context, self)
         node.postexport()
         return {'FINISHED'}
+
+class NODE_OT_En_UV(bpy.types.Operator):
+    bl_idname = "node.envi_uv"
+    bl_label = "EnVi Material U-Value Calculation"
+
+    def execute(self, context):
+        resists = []
+        node = context.node
+        lsock = node.inputs['Outer layer']
+                
+        while lsock.links:
+            resists.append(lsock.links[0].from_node.ret_resist())
+            lsock = lsock.links[0].from_node.inputs['Layer']
+
+        node.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+        return {'FINISHED'}
+    
+class NODE_OT_En_Con(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.encon"
+    bl_label = "Export"
+    bl_description = "Export the scene to the EnergyPlus file format"
+    bl_register = True
+    bl_undo = False
+
+    def invoke(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+        
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        
+        svp['viparams']['vidisp'] = ''
+        node = context.node
+        (svp['enparams']['fs'], svp['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
+        locnode = node.inputs['Location in'].links[0].from_node
+        
+        if not os.path.isfile(locnode.weather):
+            self.report({'ERROR'}, 'Location node weather file is not valid')
+            node.use_custom_color = 1
+            return {'CANCELLED'}
+        
+        node.preexport(scene)
+        
+        for frame in range(node.fs, node.fe + 1):
+            scene.frame_set(frame)
+            shutil.copyfile(locnode.weather, os.path.join(svp['viparams']['newdir'], "in{}.epw".format(frame)))
+        scene.frame_set(node.fs)
+
+        if context.active_object and not context.active_object.visible_get():
+            if context.active_object.type == 'MESH':
+                bpy.ops.object.mode_set(mode = 'OBJECT')
+
+        enpolymatexport(self, node, locnode, envi_materials(), envi_constructions())
+        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
+        node.exported, node.outputs['Context out'].hide = True, False
+        node.postexport()
+        return {'FINISHED'}
+
+class NODE_OT_En_Sim(bpy.types.Operator):
+    bl_idname = "node.ensim"
+    bl_label = "Simulate"
+    bl_description = "Run EnergyPlus"
+    bl_register = True
+    bl_undo = False
+
+    def modal(self, context, event):
+        if self.pfile.check(self.percent) == 'CANCELLED':                                    
+            return {self.terminate('CANCELLED', context)}
+        
+        while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
+            self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr = PIPE))
+            self.e += 1
+    
+        if event.type == 'TIMER':
+            if len(self.esimruns) > 1:
+                self.percent = 100 * sum([esim.poll() is not None for esim in self.esimruns])/self.lenframes 
+            else:
+                try:
+                    with open(os.path.join(self.nd, '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
+                        for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
+                            self.percent = 100 * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy)
+                            break
+                except:
+                    pass
+#                    logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
+#                    return {self.terminate('CANCELLED', context)}
+                
+            if all([esim.poll() is not None for esim in self.esimruns]) and self.e == self.lenframes:
+                for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
+                    os.remove(os.path.join(self.nd, fname))
+
+                for f in range(self.frame, self.frame + self.e):
+                    nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, f)]
+                    
+                    for fname in nfns:
+                        os.rename(os.path.join(self.nd, fname), os.path.join(self.nd,fname.replace("eplusout", self.simnode.resname)))
+                      
+                    efilename = "{}{}out.err".format(self.resname, f)
+                    
+                    if efilename not in [im.name for im in bpy.data.texts]:
+                        bpy.data.texts.load(os.path.join(self.nd, efilename))
+                    else:
+                        bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
+                    
+                    if '** Severe  **' in bpy.data.texts[efilename]:
+                        self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
+                        return {self.terminate('CANCELLED', context)}
+        
+                    if 'EnergyPlus Terminated--Error(s) Detected' in self.esimruns[f - self.frame].stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
+                        errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
+                        self.report({'ERROR'}, errtext)
+                        return {self.terminate('CANCELLED', context)}
+                                
+                self.report({'INFO'}, "Calculation is finished.") 
+                return {self.terminate('FINISHED', context)}
+            else:
+                return {'PASS_THROUGH'} 
+        else:
+            return {'PASS_THROUGH'}   
+        
+    def invoke(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+         
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        
+        if shutil.which('energyplus') is None:
+            self.report({'ERROR'}, "Energyplus binary is not executable")
+            return {'CANCELLED'}
+        
+        self.frame = svp['enparams']['fs']
+        self.frames = range(svp['enparams']['fs'], svp['enparams']['fe'] + 1)
+        self.lenframes = len(self.frames)             
+        svp['viparams']['visimcontext'] = 'EnVi'
+        self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+        self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'EnergyPlus Results')
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(1, window = context.window)
+        wm.modal_handler_add(self)
+        self.simnode = context.node
+        self.connode = self.simnode.inputs[0].links[0].from_node.name
+        self.simnode.presim(context)        
+        self.expand = "-x" if svp['viparams'].get('hvactemplate') else ""
+        self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
+        os.chdir(svp['viparams']['newdir'])
+        self.esimcmds = ["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames] 
+        self.esimruns = []
+        self.simnode.run = 1
+        self.processors = self.simnode.processors if self.simnode.mp else 1
+        self.percent = 0
+        self.e = 0
+        self.nd = svp['viparams']['newdir']
+        return {'RUNNING_MODAL'}
+    
+    def terminate(self, condition, context):
+        scene = context.scene
+        svp = scene.vi_params
+        self.simnode.postsim(self, condition)
+        
+        if condition == 'FINISHED':
+            svp['viparams']['resnode'] = '{}@{}'.format(self.simnode.name, self.simnode.id_data.name)
+            svp['viparams']['connode'] = '{}@{}'.format(self.connode, self.simnode.id_data.name)
+            svp['viparams']['vidisp'] = 'en'
+
+        self.kivyrun.kill() 
+             
+        for es in self.esimruns:
+            if es.poll() is None:
+                es.kill()
+                
+        return condition
     
 class OBJECT_OT_VIGridify2(bpy.types.Operator):
     ''''''
@@ -2462,9 +2634,9 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
     bl_label = "VI Gridify"
     bl_options = {"REGISTER", 'UNDO'}
     
-    rotate =  bpy.props.FloatProperty(name = 'Rotation', default = 0, min = 0, max = 360) 
-    us =  bpy.props.FloatProperty(default = 0.6, min = 0.01) 
-    acs =  bpy.props.FloatProperty(default = 0.6, min = 0.01) 
+    rotate: bpy.props.FloatProperty(name = 'Rotation', default = 0, min = 0, max = 360) 
+    us: bpy.props.FloatProperty(default = 0.6, min = 0.01) 
+    acs: bpy.props.FloatProperty(default = 0.6, min = 0.01) 
     
     @classmethod
     def poll(cls, context):
@@ -2507,3 +2679,471 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
             ngs2 += gs2
         bmesh.update_edit_mesh(self.o.data)
         return {'FINISHED'}
+    
+class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.chart"
+    bl_label = "Chart"
+    bl_description = "Create a 2D graph from the results file"
+    bl_register = True
+    bl_undo = True
+
+    def invoke(self, context, event):
+        node = context.node
+        innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
+        rl = innodes[0]['reslists']
+        zrl = list(zip(*rl))
+        year = innodes[0]['year']
+        
+        if node.inputs['X-axis'].framemenu not in zrl[0]:
+            self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")
+            return {'CANCELLED'}
+        
+        if not mp:
+            self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
+            return {'CANCELLED'}
+        plt.clf()
+        Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)# + datetime.timedelta(hours = node.dsh - 1)
+        Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)# + datetime.timedelta(hours = node.deh - 1)
+        chart_disp(self, plt, node, innodes, Sdate, Edate)
+        return {'FINISHED'}
+    
+class VIEW3D_OT_EnDisplay(bpy.types.Operator):
+    bl_idname = "view3d.endisplay"
+    bl_label = "EnVi display"
+    bl_description = "Display the EnVi results"
+    bl_options = {'REGISTER'}
+#    bl_undo = True
+    _handle = None
+    disp =  bpy.props.IntProperty(default = 1)
+    
+    @classmethod
+    def poll(cls, context):
+        return context.area.type   == 'VIEW_3D' and \
+               context.region.type == 'WINDOW'
+
+    def modal(self, context, event):
+        scene = context.scene
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
+            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'enpanel':
+                context.scene['viparams']['vidisp'] = 'en'
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
+                
+                try:
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
+                except:
+                    pass
+                
+                for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_shg', 'envi_ppd', 'envi_pmv', 'envi_aheat', 'envi_acool', 'envi_hrheat')]:
+                    for oc in o.children:                        
+                        [scene.objects.unlink(oc) for oc in o.children]
+                        bpy.data.objects.remove(oc)                    
+                    scene.objects.unlink(o)
+                    bpy.data.objects.remove(o)
+
+                context.area.tag_redraw()
+                return {'CANCELLED'}
+
+            mx, my, redraw = event.mouse_region_x, event.mouse_region_y, 0
+            
+            if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
+                if self.dhscatter.hl != (0, 1, 1, 1):  
+                    self.dhscatter.hl = (0, 1, 1, 1)
+                    redraw = 1  
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.press = 1
+                        self.dhscatter.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.dhscatter.move:
+                            self.dhscatter.expand = 0 if self.dhscatter.expand else 1
+                        self.dhscatter.press = 0
+                        self.dhscatter.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(bpy.data.images[self.dhscatter.gimage])
+                    self.dhscatter.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.dhscatter.press and event.type == 'MOUSEMOVE':
+                     self.dhscatter.move = 1
+                     self.dhscatter.press = 0
+        
+            elif self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20: 
+                self.dhscatter.hl = (1, 1, 1, 1)
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
+                    self.dhscatter.show_plot()
+                    context.area.tag_redraw()
+                    return {'RUNNING_MODAL'}    
+                    
+            elif self.dhscatter.hl != (1, 1, 1, 1):
+                self.dhscatter.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]: 
+                if self.table.hl != (0, 1, 1, 1):  
+                    self.table.hl = (0, 1, 1, 1)
+                    redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.table.press = 1
+                        self.table.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.table.move:
+                            self.table.expand = 0 if self.table.expand else 1
+                        self.table.press = 0
+                        self.table.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.table.gimage)
+                    self.table.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.table.press and event.type == 'MOUSEMOVE':
+                     self.table.move = 1
+                     self.table.press = 0
+            
+            elif self.table.hl != (1, 1, 1, 1):
+                self.table.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            if abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20 and self.dhscatter.expand:
+                self.dhscatter.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.resize = 1
+                    if self.dhscatter.resize and event.value == 'RELEASE':
+                        self.dhscatter.resize = 0
+                    return {'RUNNING_MODAL'}
+
+            if abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
+                self.table.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.table.resize = 1
+                    if self.table.resize and event.value == 'RELEASE':
+                        self.table.resize = 0
+                    return {'RUNNING_MODAL'}
+    
+            if event.type == 'MOUSEMOVE':                
+                if self.dhscatter.move:
+                    self.dhscatter.pos = [mx, my]
+                    redraw = 1
+                if self.dhscatter.resize:
+                    self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
+                    redraw = 1
+                if self.table.move:
+                    self.table.pos = [mx, my]
+                    redraw = 1
+                if self.table.resize:
+                    self.table.lepos[0], self.table.lspos[1] = mx, my
+                    redraw = 1
+    
+            if self.dhscatter.unit != scene.en_disp_unit or self.dhscatter.cao != context.active_object or \
+                self.dhscatter.col != scene.vi_leg_col or self.dhscatter.resstring != retenvires(scene) or \
+                self.dhscatter.minmax != envals(scene.en_disp_unit, scene, [0, 100]):
+                print(self.dhscatter.unit, scene.en_disp_unit, self.dhscatter.cao, context.active_object, self.dhscatter.col, scene.vi_leg_col, self.dhscatter.resstring, retenvires(scene), self.dhscatter.minmax, envals(scene.en_disp_unit, scene, [0, 100]))
+                self.dhscatter.update(context)
+                self.table.update(context)
+
+            if redraw:
+                context.area.tag_redraw()
+                
+            return {'PASS_THROUGH'}
+        else:
+            return {'PASS_THROUGH'}
+
+    def execute(self, context):
+        self.i = 0
+        scene = context.scene
+        scene.en_frame = scene.frame_current
+#        (resnode, restree) = scene['viparams']['resnode'].split('@')
+        resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+        zrl = list(zip(*resnode['reslists']))
+        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
+        resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
+        scene.frame_start, scene.frame_end = 0, len(zrl[4][0].split()) - 1
+        
+        if scene.resas_disp:
+            suns = [o for o in bpy.data.objects if o.type == 'LAMP' and o.data.type == 'SUN']
+            if not suns:
+                bpy.ops.object.lamp_add(type='SUN')
+                sun = bpy.context.object
+            else:
+                sun = suns[0]
+            
+            for mi, metric in enumerate(zrl[3]):
+                if metric == 'Direct Solar (W/m^2)':
+                    dirsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Diffuse Solar (W/m^2)':
+                    difsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Month':
+                    mdata = [int(m) for m in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Day':
+                    ddata = [int(d) for d in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Hour':
+                    hdata = [int(h) for h in zrl[4][mi].split()[resstart:resend]]
+
+            sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata)
+
+        if scene.resaa_disp:
+            for mi, metric in enumerate(zrl[3]):
+                if metric == 'Temperature (degC)' and zrl[1][mi] == 'Climate':
+                    temp = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+                elif metric == 'Wind Speed (m/s)' and zrl[1][mi] == 'Climate':
+                    ws = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+                elif metric == 'Wind Direction (deg)' and zrl[1][mi] == 'Climate':
+                    wd = [float(m) for m in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+                elif metric == 'Humidity (%)' and zrl[1][mi] == 'Climate':
+                    hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+            
+            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')        
+        zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'  and zrl[0][zri] != 'All'])
+        
+        if scene.reszt_disp and 'Temperature (degC)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'Temp')
+        if scene.reszsg_disp and  'Solar gain (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'SHG')
+        if scene.reszh_disp and 'Humidity (%)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'Hum')
+        if scene.reszco_disp and 'CO2 (ppm)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'CO2')
+        if scene.reszhw_disp and 'Heating (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'Heat')
+        if scene.reszhw_disp and 'Cooling (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'Cool')
+        if scene.reszpmv_disp and 'PMV' in zmetrics:
+            envizres(scene, eresobs, resnode, 'PMV')
+        if scene.reszppd_disp and 'PPD (%)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'PPD')
+        if scene.reshrhw_disp and 'HR heating (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'HRheat')
+        if scene.reszof_disp:
+            envilres(scene, resnode)
+        if scene.reszlf_disp:
+            envilres(scene, resnode)
+
+        scene.frame_set(scene.frame_start)
+        bpy.app.handlers.frame_change_pre.clear()
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
+        self.dhscatter = en_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
+        self.dhscatter.update(context)
+        self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
+        self.table.update(context)           
+        self._handle_en_disp = bpy.types.SpaceView3D.draw_handler_add(en_disp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
+        scene['viparams']['vidisp'] = 'enpanel'
+        scene.vi_display = True
+        context.window_manager.modal_handler_add(self)
+#        scene.update()
+        return {'RUNNING_MODAL'}
+
+class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
+    bl_idname = "view3d.enpdisplay"
+    bl_label = "EnVi parametric display"
+    bl_description = "Display the parametric EnVi results"
+    bl_options = {'REGISTER'}
+#    bl_undo = False
+    _handle = None
+    disp =  bpy.props.IntProperty(default = 1)
+    
+    @classmethod
+    def poll(cls, context):
+        return context.area.type  == 'VIEW_3D' and \
+               context.region.type == 'WINDOW'
+    
+    def modal(self, context, event):
+        redraw = 0
+        scene = context.scene
+
+        if event.type != 'INBETWEEN_MOUSEMOVE':   
+            if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'enpanel':
+                scene['viparams']['vidisp'] = 'en'
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_pdisp, 'WINDOW')
+                for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_maxtemp', 'envi_maxhum', 'envi_maxheat', 'envi_maxcool', 'envi_maxco2', 'envi_maxshg', 'envi_maxppd', 'envi_maxpmv')]:
+                    for oc in o.children:                        
+                        [scene.objects.unlink(oc) for oc in o.children]
+                        bpy.data.objects.remove(oc)                    
+                    scene.objects.unlink(o)
+                    bpy.data.objects.remove(o)    
+                context.area.tag_redraw()
+                return {'CANCELLED'}
+
+            mx, my = event.mouse_region_x, event.mouse_region_y 
+            
+            if self.barchart.spos[0] < mx < self.barchart.epos[0] and self.barchart.spos[1] < my < self.barchart.epos[1]:
+                if self.barchart.hl != (0, 1, 1, 1):
+                    self.barchart.hl = (0, 1, 1, 1) 
+                    redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.barchart.press = 1
+                        self.barchart.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.barchart.move:
+                            self.barchart.expand = 0 if self.barchart.expand else 1
+                        self.barchart.press = 0
+                        self.barchart.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.barchart.gimage)
+                    self.barchart.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.barchart.press and event.type == 'MOUSEMOVE':
+                     self.barchart.move = 1
+                     self.barchart.press = 0
+        
+            elif self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lepos[1] and abs(self.barchart.lepos[0] - mx) > 20 and abs(self.barchart.lspos[1] - my) > 20:
+                if self.barchart.expand: 
+                    if self.barchart.hl != (0, 1, 1, 1):
+                        self.barchart.hl = (0, 1, 1, 1)
+                        redraw = 1
+                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.barchart.expand and self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lspos[1] + 0.9 * self.barchart.ydiff:
+                        self.barchart.show_plot()
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                        
+            elif abs(self.barchart.lepos[0] - mx) < 20 and abs(self.barchart.lspos[1] - my) < 20 and self.barchart.expand:
+                if self.barchart.hl != (0, 1, 1, 1):
+                    self.barchart.hl = (0, 1, 1, 1) 
+                    redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.barchart.resize = 1
+                    if self.barchart.resize and event.value == 'RELEASE':
+                        self.barchart.resize = 0
+                    return {'RUNNING_MODAL'}
+                                       
+            else:
+                if self.barchart.hl != (1, 1, 1, 1):
+                    self.barchart.hl = (1, 1, 1, 1)
+                    redraw = 1
+                
+            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
+                if self.table.hl != (0, 1, 1, 1):
+                    self.table.hl = (0, 1, 1, 1)  
+                    redraw = 1
+                    
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.table.press = 1
+                        self.table.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.table.move:
+                            self.table.expand = 0 if self.table.expand else 1
+                        self.table.press = 0
+                        self.table.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.table.gimage)
+                    self.table.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.table.press and event.type == 'MOUSEMOVE':
+                     self.table.move = 1
+                     self.table.press = 0
+
+            elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
+                if self.table.hl != (0, 1, 1, 1):
+                    self.table.hl = (0, 1, 1, 1)
+                    redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.table.resize = 1
+                        return {'RUNNING_MODAL'}
+                    if self.table.resize and event.value == 'RELEASE':
+                        self.table.resize = 0
+                        return {'RUNNING_MODAL'}
+                                    
+            else:
+                if self.table.hl != (1, 1, 1, 1):
+                    self.table.hl = (1, 1, 1, 1)
+                    redraw = 1
+                    
+            if event.type == 'MOUSEMOVE':                
+                if self.barchart.move:
+                    self.barchart.pos = [mx, my]
+                    redraw = 1
+                           
+                if self.barchart.resize:
+                    self.barchart.lepos[0], self.barchart.lspos[1] = mx, my
+                    redraw = 1
+               
+                if self.table.move:
+                    self.table.pos = [mx, my]
+                    redraw = 1
+               
+                if self.table.resize:
+                    self.table.lepos[0], self.table.lspos[1] = mx, my
+                    redraw = 1
+            
+            if self.barchart.unit != scene.en_disp_punit or self.barchart.cao != context.active_object or \
+                self.barchart.resstring != retenvires(scene) or self.barchart.col != scene.vi_leg_col or self.barchart.minmax != (scene.bar_min, scene.bar_max):
+                self.barchart.update(context)
+                self.table.update(context)
+                redraw = 1
+
+            if redraw:
+                context.area.tag_redraw()
+                
+            return {'PASS_THROUGH'}
+        else:
+            return {'PASS_THROUGH'}
+                
+    def execute(self, context):
+        scene = context.scene
+        scene.en_frame = scene.frame_current
+        resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+        zrl = list(zip(*resnode['reslists']))
+        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
+        scene.frame_start, scene.frame_end = scene['enparams']['fs'], scene['enparams']['fe']                
+        zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
+
+        if scene.resazmaxt_disp and 'Max temp (C)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'MaxTemp')
+        if scene.resazavet_disp and 'Avg temp (C)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'AveTemp')
+        if scene.resazmint_disp and 'Min temp (C)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'MinTemp')
+        if scene.resazmaxhw_disp and 'Max heating (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'MaxHeat')
+        if scene.resazavehw_disp and 'Avg heating (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'AveHeat')
+        if scene.resazminhw_disp and 'Min heating (W)' in zmetrics:
+            envizres(scene, eresobs, resnode, 'MinHeat')
+        if scene.reszof_disp:
+            envilres(scene, resnode)
+        if scene.reszlf_disp:
+            envilres(scene, resnode)
+
+        scene.frame_set(scene.frame_start)
+        bpy.app.handlers.frame_change_pre.clear()
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
+        scene['viparams']['vidisp'] = 'enpanel'
+        scene.vi_display = True
+        context.window_manager.modal_handler_add(self)
+        self.barchart = en_barchart([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+        self.barchart.update(context)
+        self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
+        self.table.update(context)
+        self._handle_en_pdisp = bpy.types.SpaceView3D.draw_handler_add(en_pdisp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
+        return {'RUNNING_MODAL'}
