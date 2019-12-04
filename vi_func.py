@@ -1991,7 +1991,7 @@ def viparams(op, scene):
     if not svp.get('enparams'):
         svp['enparams'] = {}
     svp['enparams']['idf_file'] = idf
-    svp['enparams']['epversion'] = '9.0'
+    svp['enparams']['epversion'] = '9.2'
     
     if not svp.get('flparams'):
         svp['flparams'] = {}
@@ -2242,7 +2242,7 @@ def vertarea(mesh, vert):
 
 def facearea(obj, face):
     omw = obj.matrix_world
-    vs = [omw*mathutils.Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co]
+    vs = [omw@mathutils.Vector(face.center)] + [omw@obj.data.vertices[v].co for v in face.vertices] + [omw@obj.data.vertices[face.vertices[0]].co]
     return(vsarea(obj, vs))
 
 def vsarea(obj, vs):
@@ -3067,6 +3067,14 @@ def selobj(vl, geo):
         bpy.context.view_layer.objects.active
         ob.select_set(1) if ob == geo else ob.select_set(0)
     vl.objects.active = geo
+    
+def selobs(vl, geos):
+    
+    if vl.objects.active and vl.objects.active.hide_viewport == 'False':
+        bpy.ops.object.mode_set(mode = 'OBJECT') 
+    for ob in vl.objects:
+        ob.select_set(1) if ob.name in geos else ob.select_set(0)
+    vl.objects.active = vl.objects[geos[0]]
 
 def delobj(vl, delgeo):
     selobj(vl, delgeo)
@@ -3099,9 +3107,9 @@ def nodecolour(node, prob):
         node.hide = False
     return not prob
 
-def remlink(node, links):
+def remlink(ng, links):
     for link in links:
-        bpy.data.node_groups[node['nodeid'].split('@')[1]].links.remove(link)
+        ng.links.remove(link)
 
 def sockhide(node, lsocknames):
     try:
@@ -3145,6 +3153,16 @@ def uvsocklink(sock, ng):
             uv2 = link.to_socket.uvalue 
             if uv1 != uv2:
                 bpy.data.node_groups[ng].links.remove(link)
+    except:
+        pass
+    
+def uvsocklink2(sock, ng):
+    try:
+        uv1 = sock.uvalue
+        for link in sock.links:
+            uv2 = link.to_socket.uvalue 
+            if uv1 != uv2:
+                ng.links.remove(link)
     except:
         pass
     

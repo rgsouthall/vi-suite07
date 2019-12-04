@@ -59,6 +59,7 @@ def radgexport(export_op, node, **kwargs):
         mradfile =  "".join([m.vi_params.radmat(scene) for m in mats if m])
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = svp['viparams']['filebase']+".tempmat"
+        
         with open(tempmatfilename, "w") as tempmatfile:
             tempmatfile.write(mradfile)
 

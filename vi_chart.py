@@ -141,7 +141,11 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     rzly1 = list(zip(*rly1))
     framey1 = retframe('Y-axis 1', dnode, rzly1[0])
     menusy1 = retmenu(dnode, 'Y-axis 1', dnode.inputs['Y-axis 1'].rtypemenu)
-    y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].rtypemenu and ry1[2] == menusy1[0] and ry1[3] == menusy1[1]][0]
+    try:
+        y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].rtypemenu and ry1[2] == menusy1[0] and ry1[3] == menusy1[1]][0]
+    except Exception as e:
+        chart_op.report({'ERROR'}, 'Invalid data on the y1 axis: {}'.format(e))
+        return
     y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
     ylabel = label(dnode, menusy1[1], 'Y-axis 1', variant)
     drange = checkdata(chart_op, xdata, y1data)        
@@ -153,7 +157,11 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         rzly2 = list(zip(*rly2))
         framey2 = retframe('Y-axis 2', dnode, rzly2[0])
         menusy2 = retmenu(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu)
-        y2d = [ry2[4].split()[si:ei + 1] for ry2 in rly2 if ry2[0] == framey2 and ry2[1] == dnode.inputs['Y-axis 2'].rtypemenu and ry2[2] == menusy2[0] and ry2[3] == menusy2[1]][0]
+        try:
+            y2d = [ry2[4].split()[si:ei + 1] for ry2 in rly2 if ry2[0] == framey2 and ry2[1] == dnode.inputs['Y-axis 2'].rtypemenu and ry2[2] == menusy2[0] and ry2[3] == menusy2[1]][0]
+        except Exception as e:
+            chart_op.report({'ERROR'}, 'Invalid data on the y2 axis: {}'.format(e))
+            return
         y2data = timedata([dnode.inputs['Y-axis 2'].multfactor * float(y) for y in y2d], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
         drange = checkdata(chart_op, xdata, y2data) 
         line, = ax.plot(xdata[:drange], y2data[:drange], color=colors[1], ls = linestyles[1], linewidth = 1, label = llabel(dnode, menusy2[1], 'Y-axis 2', variant))    
@@ -164,7 +172,11 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         rzly3 = list(zip(*rly3))
         framey3 = retframe('Y-axis 3', dnode, rzly3[0])
         menusy3 = retmenu(dnode, 'Y-axis 3', dnode.inputs['Y-axis 3'].rtypemenu)
-        y3d = [ry3[4].split()[si:ei + 1] for ry3 in rly3 if ry3[0] == framey3 and ry3[1] == dnode.inputs['Y-axis 3'].rtypemenu and ry3[2] == menusy3[0] and ry3[3] == menusy3[1]][0]
+        try:
+            y3d = [ry3[4].split()[si:ei + 1] for ry3 in rly3 if ry3[0] == framey3 and ry3[1] == dnode.inputs['Y-axis 3'].rtypemenu and ry3[2] == menusy3[0] and ry3[3] == menusy3[1]][0]
+        except Exception as e:
+            chart_op.report({'ERROR'}, 'Invalid data on the y3 axis: {}'.format(e))
+            return
         y3data = timedata([dnode.inputs['Y-axis 3'].multfactor * float(y) for y in y3d], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
         drange = checkdata(chart_op, xdata, y3data) 
         line, = ax.plot(xdata[:drange], y3data[:drange], color=colors[2], ls = linestyles[2], linewidth = 1, label=llabel(dnode, menusy3[1], 'Y-axis 3', variant))    

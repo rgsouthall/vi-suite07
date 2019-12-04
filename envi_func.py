@@ -12,6 +12,24 @@ def get_mat(node, ee):
 
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
+#        print('names', mvp.envi_nodes.name, print(mvp.id_data.name))
+        ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
+        ecanodes = [n for n in ecnodes if n.active]
+        
+        if not ecanodes:
+            if not ecnodes[0].active:
+                ecnodes[0].active = True
+            return ecnodes[0]
+        else:
+            return ecanodes[0]
+    else:
+        return None
+
+def get_con_node2(mat):
+    mvp = mat.vi_params
+    print('mat', mat.name)
+    if mvp.get('envi_nodes'):
+        print('names100', print(mat), mvp.envi_nodes.name, 'hello')
         ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
         
@@ -25,7 +43,7 @@ def get_con_node(mvp):
         return None
     
 def boundpoly(obj, emnode, poly, enng):
-    mat = obj.data.materials[poly.material_index]
+    mat = obj.material_slots[poly.material_index].material
     
     if emnode.envi_con_con == 'Zone':
         nodes = [node for node in enng.nodes if hasattr(node, 'zone') and node.zone == obj.name]
@@ -39,7 +57,7 @@ def boundpoly(obj, emnode, poly, enng):
                 bpoly = bobj.data.polygons[int(insock.links[0].from_socket.name.split('_')[-2])]
                 bmat = bobj.data.materials[bpoly.material_index]
                 
-                if emnode.resist != get_con_node(bmat).resist:
+                if emnode.resist != get_con_node(bmat.vi_params).resist:
                     logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {1} construction takes precedence'.format(mat.name+'_'+str(poly.index), insock.links[0].to_node.zone+'_'+str(bpoly.index)))
                     return(('', '', '', ''))
                 else:
@@ -50,7 +68,7 @@ def boundpoly(obj, emnode, poly, enng):
                 bpoly = bobj.data.polygons[int(outsock.links[0].to_socket.name.split('_')[-2])]
                 bmat = bobj.data.materials[bpoly.material_index]
                 
-                if emnode.resist != get_con_node(bmat).resist: 
+                if emnode.resist != get_con_node(bmat.vi_params).resist: 
                     logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {0} construction takes precedence'.format(mat.name+'_'+str(poly.index), outsock.links[0].to_node.zone+'_'+str(bpoly.index)))
                     return(("Zone", bobj, "NoSun", "NoWind"))
                 else:
@@ -340,6 +358,8 @@ def enparametric(self, context):
     except:
         return [("0", "Static", "Static results")]
 
+#def powres():
+#    pass
 def retrmenus(innode, node, axis): 
     rl = innode['reslists']
     zrl = list(zip(*rl))
@@ -462,6 +482,7 @@ def processh(lines, znlist):
                 hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
             elif linesplit[3] in presdict:  
                 hdict[linesplit[0]] = ['Power',  linesplit[2],  presdict[linesplit[3]]]
+            print(hdict)
         if line == 'End of Data Dictionary\n':
             break
     return hdict,  l + 1
@@ -493,7 +514,7 @@ def processf(pro_op, node):
             lines = resfile.readlines()
             hdict, lstart = processh(lines, [coll.name.upper() for coll in bpy.data.collections['EnVi Geometry'].children])  
             splitlines = [l.strip('\n').split(',') for l in lines[lstart:-2]]
-            bdict = {li: ' '.join([sl[1] for sl in splitlines if sl[0] == li]) for li in hdict}
+            bdict = {li: ' '.join(['{:.3f}'.format(float(sl[1])) for sl in splitlines if sl[0] == li]) for li in hdict}
   
             for k in sorted(hdict.keys(), key=int):
                 if hdict[k] == ['Time']:

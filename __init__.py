@@ -38,14 +38,33 @@ if "bpy" in locals():
     imp.reload(vi_func)
 #    imp.reload(envi_mat)
 else:
+    import sys, os, inspect
+    evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
+    platpath = {'linux': ':', 'darwin': ':', 'win32': ';'}
+    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    if sys.platform in ('darwin', 'win32'):
+        if 'PYTHONPATH' not in os.environ:
+            os.environ['PYTHONPATH'] =  os.path.join(addonpath, 'Python')
+        elif os.path.join(addonpath, 'Python') not in os.environ['PYTHONPATH']:
+            os.environ['PYTHONPATH'] =  os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python')
+    elif sys.platform == 'linux':
+        sys.path.append(os.path.join(addonpath, 'Python', 'linux'))
+        if os.environ.get('PYTHONPATH'):
+            os.environ['PYTHONPATH'] = os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', 'linux')
+        else:
+           os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', 'linux')
+           
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
     from .vi_node import No_Li_Sim
-    from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac
+    from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
     from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op
-    from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU
+    from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
+    from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
+    from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_G, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
+    from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense
     #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
@@ -58,26 +77,19 @@ else:
     from .vi_operators import VIEW3D_OT_SVFDisplay, NODE_OT_SunPath, MAT_EnVi_Node, NODE_OT_Shadow
     from .vi_operators import NODE_OT_Li_Geo, VIEW3D_OT_SSDisplay, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
-    from .vi_operators import NODE_OT_Chart
+    from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify
     from .vi_dicts import colours
 
-import sys, os, inspect, bpy, nodeitems_utils, bmesh, math, mathutils
+import bpy, nodeitems_utils, bmesh, math, mathutils
 from bpy.app.handlers import persistent
 from numpy import array, digitize, logspace, multiply
 from numpy import log10 as nlog10
 from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import AddonPreferences
 
-evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
-platpath = {'linux': ':', 'darwin': ':', 'win32': ';'}
-addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-if sys.platform in ('darwin', 'win32'):
-    if 'PYTHONPATH' not in os.environ:
-        os.environ['PYTHONPATH'] =  os.path.join(addonpath, 'Python')
-    elif os.path.join(addonpath, 'Python') not in os.environ['PYTHONPATH']:
-        os.environ['PYTHONPATH'] =  os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python')
+
 
 def return_preferences():
     return bpy.context.preferences.addons[__name__].preferences
@@ -467,14 +479,14 @@ def select_nodetree(dummy):
             
     for space in getEnViMaterialSpaces():
         try:
-            if space.node_tree != bpy.context.active_object.active_material.envi_nodes:
-                envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.envi_nodes]
+            if space.node_tree != bpy.context.active_object.active_material.vi_params.envi_nodes:
+                envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
                 if envings:
                     space.node_tree = envings[0]
         except Exception as e:
-            pass
+            print(e)
         
-#bpy.app.handlers.scene_update_post.append(select_nodetree)
+bpy.app.handlers.depsgraph_update_post.append(select_nodetree)
         
 def getViEditorSpaces():
     if bpy.context.screen:
@@ -489,6 +501,7 @@ def getEnViEditorSpaces():
         return []
 
 def getEnViMaterialSpaces():
+    print('mat')
     if bpy.context.screen:        
         return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViMatN"]
     else:
@@ -603,8 +616,11 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
            NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
-           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, No_En_Con, So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim,
-           No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart)
+           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_G, No_En_Con, So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim,
+           No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Sched, No_En_Net_Inf,
+           No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV,
+           So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
+           No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense)
 
 
 #def register():

@@ -56,7 +56,8 @@ try:
     import matplotlib.colors as mcolors
     mp = 1    
 except Exception as e:
-#    logentry('Matplotlib error: {}'.format(e))    
+#    logentry('Matplotlib error: {}'.format(e))   
+    print(e)
     mp = 0
 
 if mp:
@@ -2419,10 +2420,13 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 class MAT_EnVi_Node(bpy.types.Operator):
     bl_idname = "material.envi_node"
     bl_label = "EnVi Material export"
-    nodeid: bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        cm = context.material
+        if context.material:            
+            cm = context.material
+        else:
+            cm = bpy.context.active_object.active_material
+
         mvp = cm.vi_params
         if not mvp.envi_nodes:
             bpy.ops.node.new_node_tree(type='EnViMatN', name = cm.name) 
@@ -2513,6 +2517,43 @@ class NODE_OT_En_Con(bpy.types.Operator, io_utils.ExportHelper):
         node.postexport()
         return {'FINISHED'}
 
+class NODE_OT_En_PVA(bpy.types.Operator):
+    bl_idname = "node.pv_area"
+    bl_label = "EnVi Material PV area calculation"
+
+    def execute(self, context):
+        node = context.node
+        node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['area']
+        return {'FINISHED'}
+    
+class NODE_OT_En_PVS(bpy.types.Operator):
+    bl_idname = "node.pv_save"
+    bl_label = "EnVi Material PV save"
+
+    def execute(self, context):
+        node = context.node
+        node.save_e1ddict()
+#        node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['area']
+        return {'FINISHED'}
+    
+class NODE_OT_En_LayS(bpy.types.Operator):
+    bl_idname = "node.lay_save"
+    bl_label = "EnVi material save"
+
+    def execute(self, context):
+        node = context.node        
+        node.save_laydict()
+        return {'FINISHED'}
+    
+class NODE_OT_En_ConS(bpy.types.Operator):
+    bl_idname = "node.con_save"
+    bl_label = "EnVi construction save"
+
+    def execute(self, context):
+        node = context.node        
+        node.save_condict()
+        return {'FINISHED'}
+    
 class NODE_OT_En_Sim(bpy.types.Operator):
     bl_idname = "node.ensim"
     bl_label = "Simulate"
@@ -2851,7 +2892,6 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             if self.dhscatter.unit != scene.en_disp_unit or self.dhscatter.cao != context.active_object or \
                 self.dhscatter.col != scene.vi_leg_col or self.dhscatter.resstring != retenvires(scene) or \
                 self.dhscatter.minmax != envals(scene.en_disp_unit, scene, [0, 100]):
-                print(self.dhscatter.unit, scene.en_disp_unit, self.dhscatter.cao, context.active_object, self.dhscatter.col, scene.vi_leg_col, self.dhscatter.resstring, retenvires(scene), self.dhscatter.minmax, envals(scene.en_disp_unit, scene, [0, 100]))
                 self.dhscatter.update(context)
                 self.table.update(context)
 
