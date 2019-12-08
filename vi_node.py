@@ -1571,6 +1571,7 @@ class No_Vi_Metrics(Node, ViNodes):
             return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
         else:
             return [('None', 'None', 'None')]
+        
     metric_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
                 name="", description="Results metric", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
@@ -1604,7 +1605,13 @@ class No_Vi_Metrics(Node, ViNodes):
                 row = layout.row()
                 ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                 row.label(text = "Heating (kWh/m2): {}".format(ca))
-                
+                if self.zone_menu == 'All':
+                    row = layout.row()
+                    ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A' 
+                    row.label(text = "ECF: {}".format(ecf))
+                    row = layout.row()
+                    epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
+                    row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
     def update(self):
         if self.inputs[0].links:
             rl = self.inputs[0].links[0].from_node['reslists']
@@ -1622,6 +1629,16 @@ class No_Vi_Metrics(Node, ViNodes):
                         self['res']['hkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                     elif r[3] == 'Cooling (W)':
                         self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                    self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ckwh']+ self['res']['pvkwh']
+                    self['res']['ECF'] = 0.42*(54 + self['res']['totkwh'] * 0.1319)/(self['res']['fa'] + 45) 
+                    self['res']['EPC'] = 100 - 13.95 * self['res']['ECF'] if self['res']['ECF'] < 3.5 else 117 - 121 * math.log10(self['res']['ECF'])
+                    epcletts = ('A', 'B', 'C', 'D', 'E', 'F','G')
+                    epcnum = (92, 81, 69, 55, 39, 21, 1)
+                    for ei, en in enumerate(epcnum):
+                        if self['res']['EPC'] > en:
+                            self['res']['EPCL'] = epcletts[ei]
+                            break
+                    
                 else:
                     self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
                     if r[2] == self.zone_menu:
@@ -1636,6 +1653,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['hkwh'] = 'N/A'
             self['res']['ckwh'] = 'N/A'
             self['res']['fa'] = 'N/A'
+            self['res']['ECF'] = 'N/A'
 #    def ret_metrics(self):
 #        if self.inputs['Results in'].links:
 #            if self.metric_menu == '0':
@@ -2945,7 +2963,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                     if (othersock.name[0:-2]+'b' in [s.name for s in othernode.outputs] and othernode.outputs[othersock.name[0:-2]+'b'].links) or othersock.name[0:-2]+'b' not in [s.name for s in othernode.outputs]:
                         zn = othernode.zone
                         sn = othersock.sn
-                        snames.append(('win-', 'door-')[get_con_node(bpy.data.materials[othersock.name[:-len(sn)-4]]).envi_con_type == 'Door']+zn+'_'+sn)
+                        snames.append(('win-', 'door-')[get_con_node(bpy.data.materials[othersock.name[:-len(sn)-4]].vi_params).envi_con_type == 'Door']+zn+'_'+sn)
                         params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor')
                         paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, self.wdof1)
                         if self.linkmenu in ('SO', 'DO'):

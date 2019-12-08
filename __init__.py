@@ -77,8 +77,8 @@ else:
     from .vi_operators import VIEW3D_OT_SVFDisplay, NODE_OT_SunPath, MAT_EnVi_Node, NODE_OT_Shadow
     from .vi_operators import NODE_OT_Li_Geo, VIEW3D_OT_SSDisplay, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
-    from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS
-    from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify
+    from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
+    from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
     from .vi_dicts import colours
 
 import bpy, nodeitems_utils, bmesh, math, mathutils
@@ -620,7 +620,8 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Sched, No_En_Net_Inf,
            No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV,
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
-           No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense)
+           No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
+           TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group)
 
 
 #def register():

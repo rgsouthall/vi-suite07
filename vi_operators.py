@@ -3187,3 +3187,65 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
         self.table.update(context)
         self._handle_en_pdisp = bpy.types.SpaceView3D.draw_handler_add(en_pdisp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
         return {'RUNNING_MODAL'}
+
+# Node utilities from Matalogue    
+class TREE_OT_goto_mat(bpy.types.Operator):
+    'Show the EnVi nodes for this material'
+    bl_idname = 'tree.goto_mat'
+    bl_label = 'Go To EnVi Material Group'
+
+    mat: bpy.props.StringProperty(default="")
+
+    def execute(self, context):
+        context.space_data.tree_type = 'EnViMatN'
+#        context.space_data.node_tree = self.mat.vi_params.envi_nodes
+#        context.space_data.shader_type = 'OBJECT'
+        mat = bpy.data.materials[self.mat]
+        context.space_data.node_tree = mat.vi_params.envi_nodes
+        context.space_data.node_tree.name = mat.name
+        objs_with_mat = 0
+        active_set = False
+        
+        for obj in context.view_layer.objects:
+            obj_materials = [slot.material for slot in obj.material_slots]
+            if mat in obj_materials:
+                objs_with_mat += 1
+                obj.select_set(True)
+                if not active_set:  # set first object as active
+                    active_set = True
+                    context.view_layer.objects.active = obj
+                    if mat != obj.active_material:
+                        for i, x in enumerate(obj.material_slots):
+                            if x.material == mat:
+                                obj.active_material_index = i
+                                break
+            else:
+                obj.select_set(False)
+
+        if objs_with_mat == 0:
+            self.report({'WARNING'}, "No objects in this scene use '" + mat.name + "' material")
+#            slot = dummy.material_slots[0]
+            slot.material = mat
+
+        return {'FINISHED'}
+    
+class TREE_OT_goto_group(bpy.types.Operator):
+    'Show the nodes inside this group'
+    bl_idname = 'tree.goto_group'
+    bl_label = 'Go To Group'
+
+    tree_type: bpy.props.StringProperty(default="")
+    tree: bpy.props.StringProperty(default="")
+
+    def execute(self, context):
+#        print(self.tree)
+        try:  # Go up one group as many times as possible - error will occur when the top level is reached
+            while True:
+                bpy.ops.node.tree_path_parent()
+        except:
+            pass
+        context.space_data.tree_type = self.tree_type
+        context.space_data.path.append(bpy.data.node_groups[self.tree])
+        context.space_data.node_tree = bpy.data.node_groups[self.tree]
+#        print(dir(context.space_data))
+        return {'FINISHED'}

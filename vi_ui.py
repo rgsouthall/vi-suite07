@@ -1,6 +1,6 @@
 import bpy
 from collections import OrderedDict
-from .vi_func import newrow, retdates, logentry
+from .vi_func import newrow, retdates, logentry, get_materials
 #from .envi_mat import envi_materials, envi_constructions
 
 #envi_mats = envi_materials()
@@ -565,3 +565,132 @@ class VI_PT_Gridify(bpy.types.Panel):
         row = layout.row()
         row.operator("object.vi_gridify2", text="Grid the object")
         
+class TREE_PT_vi(bpy.types.Panel):
+    bl_label = "VI-Suite"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "VI-Suite"
+
+    def draw(self, context):
+        layout = self.layout
+
+        col = layout.column(align=True)
+        visuite_groups = [g for g in bpy.data.node_groups if g.bl_idname == 'ViN']
+#        comp_groups = []
+#        for g in bpy.data.node_groups:
+#            if g.bl_idname == 'ViN':
+#                visuite_groups.append(g)
+#            elif g.type == 'COMPOSITING':
+#                comp_groups.append(g)
+
+        # col.label(text="Shader Groups")
+        for g in visuite_groups:
+            emboss = False
+            if len(context.space_data.path) > 0:
+                emboss = context.space_data.path[-1].node_tree.name == g.name
+            op = col.operator('tree.goto_group', text=g.name, emboss=emboss, icon='NODETREE')
+            op.tree_type = "ViN"
+            op.tree = g.name
+
+        col.separator()
+        col.separator()
+        col.separator()
+
+        # col.label(text="Compositing Groups")
+#        for g in comp_groups:
+#            emboss = False
+#            if len(context.space_data.path) > 0:
+#                emboss = context.space_data.path[-1].node_tree.name == g.name
+#            op = col.operator('matalogue.goto_group', text=g.name, emboss=emboss, icon='NODETREE')
+#            op.tree_type = "CompositorNodeTree"
+#            op.tree = g.name
+
+
+class TREE_PT_envim(bpy.types.Panel):
+    bl_label = "EnVi Materials"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "VI-Suite"
+
+    def draw(self, context):
+#        settings = context.window_manager.matalogue_settings
+        layout = self.layout
+        materials = get_materials()
+        col = layout.column(align=True)
+
+        for mat in materials:
+            name = mat.name
+#            mat.vi_params.envi_nodes.name = mat.name
+            try:
+                icon_val = layout.icon(mat)
+            except:
+                icon_val = 1
+                print("WARNING [Mat Panel]: Could not get icon value for %s" % name)
+            if mat.users:
+                op = col.operator('tree.goto_mat',
+                                  text=name,
+                                  emboss=(mat == context.space_data.id),
+                                  icon_value=icon_val)
+                op.mat = name
+            else:
+                row = col.row(align=True)
+                op = row.operator('tree.goto_mat',
+                                  text=name,
+                                  emboss=(mat == context.space_data.id),
+                                  icon_value=icon_val)
+                op.mat = name
+                op = row.operator('tree.goto_mat',
+                                  text="",
+                                  emboss=(mat == context.space_data.id),
+                                  icon='ORPHAN_DATA')
+                op.mat = name
+
+        if not materials:
+            col.label(text="Nothing to show!")
+
+#        col = layout.column(align=True)
+#
+#        box = col.box()
+#        scol = box.column(align=True)
+#        scol.prop(settings, 'expand_mat_options',
+#                  toggle=True,
+#                  icon='TRIA_DOWN' if settings.expand_mat_options else 'TRIA_RIGHT')
+#        if settings.expand_mat_options:
+#            scol.prop(settings, "selected_only")
+#            r = scol.row()
+#            r.enabled = not settings.selected_only
+#            r.prop(settings, "vis_collections_only")
+#            r = scol.row()
+#            r.enabled = not settings.selected_only
+#            r.prop(settings, "all_scenes")
+#            r = scol.row()
+#            r.enabled = (settings.all_scenes and not settings.selected_only)
+#            r.prop(settings, "show_zero_users")
+
+
+class TREE_PT_envin(bpy.types.Panel):
+
+    bl_label = "EnVi Networks"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "VI-Suite"
+
+    def draw(self, context):
+#        scene = context.scene
+        layout = self.layout
+#        lights = [obj for obj in context.view_layer.objects if obj.type == 'LIGHT']
+
+        col = layout.column(align=True)
+        envin_groups = [g for g in bpy.data.node_groups if g.bl_idname == 'EnViN']
+        
+        for g in envin_groups:
+            emboss = False
+            if len(context.space_data.path) > 0:
+                emboss = context.space_data.path[-1].node_tree.name == g.name
+            op = col.operator('tree.goto_group', text=g.name, emboss=emboss, icon='NODETREE')
+            op.tree_type = "EnViN"
+            op.tree = g.name
+
+        col.separator()
+        col.separator()
+        col.separator()
