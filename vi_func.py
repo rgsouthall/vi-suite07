@@ -38,14 +38,14 @@ from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, 
 checked_groups_names_list = []
 materials_from_group = set()
 
-def py_path():
-    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+#def py_path():
+#    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
      
-    if sys.platform in ('darwin', 'win32'):
-        if os.path.join(addonpath, 'Python') not in sys.path:
-            return os.path.join(addonpath, 'Python')         
-        else:
-            return ''
+    # if sys.platform in ('darwin', 'win32'):
+    #     if os.path.join(addonpath, 'Python') not in sys.path:
+    #         return os.path.join(addonpath, 'Python')         
+    #     else:
+    #         return ''
         
 #    elif sys.platform == 'win32':
 #        if os.path.join(addonpath, 'Python', 'Win') not in sys.path:
@@ -53,7 +53,7 @@ def py_path():
 #        else:
 #            return ''
 
-sys.path.append(py_path())
+#sys.path.append(py_path())
     
 def ret_plt():
     try:
