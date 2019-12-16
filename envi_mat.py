@@ -24,102 +24,20 @@ class envi_materials(object):
         self.insulation_datd = mat_dict['Insulation']
         self.pcm_datd = mat_dict['PCM']
         self.pcmd_datd = mat_dict['PCMD']
-        
-#        self.metal_datd = {'Copper': ('Smooth', '200', '8900.0', '418.00', '0.72', '0.65', '0.65', '5'),
-#                        'Steel': ('Smooth', '50', '7800.0', '502.0', '0.12', '0.2', '0.2', '5'),
-#                        'Aluminium': ('Smooth', '210', '2700', '880.00', '0.22', '0.2', '0.2', '5'),
-#                        'Lead': ('Smooth', '35.3', '11340', '128.00', '0.05', '0.05', '0.05', '5')}
+        self.plastic_datd = mat_dict['Plastic']
         self.metal_dat = OrderedDict(sorted(self.metal_datd.items()))
-
-#        self.brick_datd = {'Standard Brick': ('Rough', '0.8', '1800', '900.00', '0.900000', '0.600000', '0.600000', '100'),
-#                        'Inner brick': ('Rough', '0.62', '1800', '840.00', '0.93', '0.700000', '0.700000', '100'),
-#                        'Outer brick': ('Rough', '0.96', '2000', '650.00', '0.90', '0.930000', '0.930000', '100'),
-#                        'Vermiculite insulating brick': ('Rough', '0.27', '700', '840.00', '0.90', '0.650000', '0.650000', '100'),
-#                        'Honeycomb brick': ('Rough', '0.27', '1700', '1000.00', '0.90', '0.7', '0.7', '102'),
-#                        'Hollow terracota': ('Rough', '0.6', '845', '800', '0.90', '0.7', '0.7', '102')}
         self.brick_dat = OrderedDict(sorted(self.brick_datd.items()))
-
-#        self.cladding_datd = {'Stucco': ('Smooth', '0.692', '1858', '836.00', '0.900000', '0.9200000', '0.920000', '25'),
-#                              'Plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.400000', '0.400000', '0.40000', '20'),
-#                              'Plaster': ('Smooth', '1.5', '1900', '840.00', '0.300000', '0.300000', '0.3000', '5'),
-#                              'Roof tiles': ('Smooth', '0.84', '1900', '840.00', '0.800000', '0.800000', '0.80000', '20')}
         self.cladding_dat = OrderedDict(sorted(self.cladding_datd.items()))
-
-#        self.concrete_datd = {'Light mix concrete': ('MediumRough', '0.38', '1200.0', '653', '0.9', '0.65', '0.65', '100'),
-#                        'Aerated concrete block': ('Rough', '0.24', '750.0', '1000', '0.9', '0.65', '0.65', '100'),
-#                        'Inner concrete block': ('Rough', '0.51', '1400.0', '1000', '0.9', '0.65', '0.65', '100'),
-#                        'Heavy mix concrete': ('Rough', '1.4', '2100.0', '840.0', '0.90', '0.65', '0.65', '100'),
-#                        'Concrete Floor slab': ('MediumRough', '1.73', '2242.6', '836.0', '0.90', '0.65', '0.65', '100'),
-#                        'Hemcrete': ('Rough', '0.09', '330.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-#                        'Screed': ('MediumRough', '0.41', '1200.0', '2100', '0.900000', '0.600000', '0.600000', '50')}
         self.concrete_dat = OrderedDict(sorted(self.concrete_datd.items()))
-
-#        self.wood_datd = {'Wood flooring': ('MediumSmooth', '0.14', '600.0', '1210.0', '0.91', '0.65', '0.65', '25'),
-#                        'Parquet flooring': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
-#                        'Medium hardboard': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
-#                        'Plywood': ('MediumSmooth', '0.15', '700.0', '1420.0', '0.90', '0.65', '0.65', '25'),
-#                        'Chipboard': ('MediumSmooth', '0.15', '800.0', '2093.0', '0.91', '0.65', '0.65', '25'),
-#                        'OSB': ('MediumSmooth', '0.13', '640.0', '800.0', '0.91', '0.65', '0.65', '15'),
-#                        'Hardwood': ('MediumSmooth', '0.16', '720.8', '1255.2', '0.90', '0.78', '0.78', '50')}
-        self.wood_dat = OrderedDict(sorted(self.wood_datd.items()))
-
-#        self.stone_datd = {'Sandstone': ('MediumSmooth', '1.83', '2200.0', '712.0', '0.90', '0.6', '0.6', '200'),
-#                          'Limestone': ('MediumSmooth', '1.3', '2180.0', '720.0', '0.90', '0.6', '0.6', '200'),
-#                          'Clay tile': ('MediumSmooth', '0.85', '1900.0', '837.0', '0.90', '0.6', '0.6', '6'),
-#                          'Common earth': ('Rough', '1.28', '1460.0', '879.0', '0.90', '0.85', '0.85', '200'),
-#                          'Gravel': ('Rough', '1.28', '1460.0', '879.0', '0.90', '0.85', '0.85', '200'),
-#                          'Tuff': ('MediumRough', '0.4', '1400.0', '800.0', '0.90', '0.65', '0.65', '200'),
-#                          'Rammed earth': ('Rough', '1.25', '1540.0', '1260.0', '0.90', '0.65', '0.65', '250'),
-#                          'Sand': ('Rough', '0.2', '1500.0', '700.0', '0.90', '0.65', '0.65', '250')}
-                          
+        self.wood_dat = OrderedDict(sorted(self.wood_datd.items()))                          
         self.stone_dat = OrderedDict(sorted(self.stone_datd.items()))
-
-#        self.gas_datd = {'Air 20-50mm': ('Gas', 'Air', '0.17'),
-#                        'Horizontal Air 20-50mm Heat Down': ('Gas', 'Air', '0.21'),
-#                        'Horizontal Air 20-50mm Heat Up': ('Gas', 'Air', '0.17')}
         self.gas_dat = OrderedDict(sorted(self.gas_datd.items()))
-
-#        self.wgas_datd = {'Argon': ('Gas', 'Argon', '', '0.2', '0.016'),
-#                        'Krypton':('Gas', 'Krypton', '', '0.22', '0.00943'),
-#                        'Xenon':('Gas', 'Xenon', '', '0.25', '0.00565'),
-#                        'Air': ('Gas', 'Air', '', '0.17', '0.024')}
         self.wgas_dat = OrderedDict(sorted(self.wgas_datd.items()))
-
-#        self.glass_datd = {'Clear 6mm': ('Glazing', 'SpectralAverage', '', '0.006', '0.775', '0.071', '0.071', '0.881', '0.080', '0.080', '0.0', '0.84', '0.84', '0.9', 0),
-#                          'Clear 4mm': ('Glazing', 'SpectralAverage', '', '0.004', '0.837', '0.075', '0.075', '0.898', '0.081', '0.081', '0.0', '0.84', '0.84', '0.9', 0),
-#                          'Clear 3mm': ('Glazing', 'SpectralAverage', '', '0.003', '0.837', '0.075', '0.075', '0.898', '0.081', '0.081', '0.0', '0.84', '0.84', '0.9', 0),
-#                          'Clear 6mm Soft LoE': ('Glazing', 'SpectralAverage', '', '0.006', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.05', '0.84', '0.9', 0),
-#                          'Clear 4mm Soft LoE': ('Glazing', 'SpectralAverage', '', '0.004', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.05', '0.84', '0.9', 0),
-#                          'Clear 3mm Soft LoE': ('Glazing', 'SpectralAverage', '', '0.003', '0.630', '0.190', '0.220', '0.850', '0.056', '0.079', '0.0', '0.05', '0.84', '0.9', 0),
-#                          'Clear 6mm Hard LoE': ('Glazing', 'SpectralAverage', '', '0.006', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.15', '0.84', '0.9', 0),
-#                          'Clear 4mm Hard LoE': ('Glazing', 'SpectralAverage', '', '0.004', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.15', '0.84', '0.9', 0),
-#                          'Clear 3mm Hard LoE': ('Glazing', 'SpectralAverage', '', '0.003', '0.630', '0.190', '0.220', '0.850', '0.056', '0.079', '0.0', '0.15', '0.84', '0.9', 0)}
-        self.glass_dat = OrderedDict(sorted(self.glass_datd.items()))
-
-#        self.insulation_datd = {'Glass fibre quilt': ('Rough', '0.04', '12.0', '840.0', '0.9', '0.65', '0.65', '100'),
-#                        'EPS': ('MediumSmooth', '0.035', '15', '1000.0', '0.90', '0.7', '0.7', '100'),
-#                        'Cavity wall insul': ('Rough', '0.037', '300.0', '1000.0', '0.90', '0.6', '0.6', '100'),
-#                        'Roofing felt': ('Rough', '0.19', '960.0', '837.0', '0.90', '0.9', '0.9', '6'),
-#                        'Wilton wool carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5'),
-#                        'Thermawall TW50': ('MediumSmooth', '0.022', '32.000', '1500', '0.900000', '0.600000', '0.600000', '200'),
-#                        'Stramit': ('Rough', '0.1', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-#                        'Straw bale': ('Rough', '0.07', '110.0', '2000', '0.900000', '0.600000', '0.600000', '50'),
-#                        'Foamglass': ('MediumSmooth', '0.04', '120.0', '840', '0.900000', '0.600000', '0.600000', '50'),
-#                        'Calsitherm': ('Rough', '0.059', '220.0', '1500', '0.900000', '0.600000', '0.600000', '50'),
-#                        'Cellulose (attic)': ('Rough', '0.04', '25.0', '1600', '0.900000', '0.600000', '0.600000', '200'),
-#                        'Thermafloor TF70': ('Smooth', '0.022', '32.0', '1500', '0.100000', '0.100000', '0.100000', '250'),
-#                        'Aerogel insulation': ('Smooth', '0.015', '2.0', '840', '0.100000', '0.100000', '0.100000', '60')}
-   
+        self.glass_dat = OrderedDict(sorted(self.glass_datd.items()))   
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
-        
-#        self.pcm_datd = {'PCM plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.90', '0.92', '0.92', '20'),
-#                         'DuPont Energain': ('Smooth', '0.16', '850', '2500', '0.90', '0.92', '0.92', '5')}
         self.pcm_dat = OrderedDict(sorted(self.pcm_datd.items()))
-        
-#        self.pcmd_datd = {'PCM plaster board': ('0.0', '-20.0:0.1 22:18260 22.1:32000 60:71000'),
-#                        'DuPont Energain': ('0.0', '-9.0:0.001 15.0:93760 26.0:191185 80.0:332460')}
-        self.pcmd_dat = OrderedDict(sorted(self.pcmd_datd.items()))
-        
+        self.pcmd_dat = OrderedDict(sorted(self.pcmd_datd.items()))   
+        self.plastic_dat = OrderedDict(sorted(self.plastic_datd.items())) 
         self.pv_datd = {'Default PV': ('Rough', '0.035', '29', '1213', '0.90', '0.5', '0.5', '50')}
         self.pv_dat = OrderedDict(sorted(self.pv_datd.items()))
         
@@ -129,7 +47,7 @@ class envi_materials(object):
         self.matdat = OrderedDict()
         
         for dat in (self.brick_dat, self.cladding_dat, self.concrete_dat, self.gas_dat, self.insulation_dat, self.metal_dat, 
-                    self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat, self.pcm_dat, self.pv_dat):
+                    self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat, self.pcm_dat, self.pv_dat, self.plastic_dat):
             self.matdat.update(dat)
 #        matdict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
 #                   'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
@@ -142,13 +60,13 @@ class envi_materials(object):
     def get_dat(self, mat_type):
         mat_dict = {'Glass': self.glass_datd, '3': self.metal_datd, '0': self.brick_datd, '1': self.cladding_datd,
                    '2': self.concrete_datd, '5': self.wood_datd, '4': self.stone_datd, '6': self.gas_datd,
-                   'WGas': self.wgas_datd, '7': self.insulation_datd, '8': self.pcm_datd, '9': self.pcmd_datd} 
+                   'WGas': self.wgas_datd, '7': self.insulation_datd, '8': self.pcm_datd, '9': self.pcmd_datd, '10': self.plastic_datd} 
         return mat_dict[mat_type]
     
     def lay_save(self):
         mat_dict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
                    'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
-                   'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd}    
+                   'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}    
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'w') as mat_jfile:
             mat_jfile.write(json.dumps(mat_dict))
         
@@ -267,9 +185,12 @@ def retmatdict(ect, t, l):
                     ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
                    ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
                    ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
-                    ("8", "PCM", "Choose a material from the phase change database"), ("9", "PV", "Choose a material from the photovoltaic database")]
-        matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(), '3': envi_materials().metal_dat.keys(), '4': envi_materials().stone_dat.keys(),
-                   '5': envi_materials().wood_dat.keys(), '6': envi_materials().gas_dat.keys(), '7': envi_materials().insulation_dat.keys(), '8': envi_materials().pcm_dat.keys(), '9': envi_materials().pv_dat.keys()}
+                    ("8", "PCM", "Choose a material from the phase change database"), ("9", "PV", "Choose a material from the photovoltaic database"),
+                    ("10", "Plastic", "Choose a material from the plastic database")]
+        matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(), 
+                   '3': envi_materials().metal_dat.keys(), '4': envi_materials().stone_dat.keys(), '5': envi_materials().wood_dat.keys(), 
+                   '6': envi_materials().gas_dat.keys(), '7': envi_materials().insulation_dat.keys(), '8': envi_materials().pcm_dat.keys(), 
+                   '9': envi_materials().pv_dat.keys(), '10': envi_materials().plastic_dat.keys()}
 
     elif ect == 'Window':
         if not l % 2:
@@ -286,35 +207,35 @@ def retmatdict(ect, t, l):
     else:
         return matdict
             
-def envi_layerotype(self, context):   
-    return retmatdict(self, 1, 0) 
-    
-def envi_layer1type(self, context):   
-    return retmatdict(self, 1, 1) 
-    
-def envi_layer2type(self, context):   
-    return retmatdict(self, 1, 2) 
-    
-def envi_layer3type(self, context):   
-    return retmatdict(self, 1, 3) 
-    
-def envi_layer4type(self, context):   
-    return retmatdict(self, 1, 4) 
-                    
-def envi_layero(self, context):   
-    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 0)[self.envi_type_lo])]
-
-def envi_layer1(self, context):
-    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 1)[self.envi_type_l1])]
-
-def envi_layer2(self, context):
-    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 2)[self.envi_type_l2])]
-
-def envi_layer3(self, context):
-    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 3)[self.envi_type_l3])]
-
-def envi_layer4(self, context):
-    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 4)[self.envi_type_l4])]
+#def envi_layerotype(self, context):   
+#    return retmatdict(self, 1, 0) 
+#    
+#def envi_layer1type(self, context):   
+#    return retmatdict(self, 1, 1) 
+#    
+#def envi_layer2type(self, context):   
+#    return retmatdict(self, 1, 2) 
+#    
+#def envi_layer3type(self, context):   
+#    return retmatdict(self, 1, 3) 
+#    
+#def envi_layer4type(self, context):   
+#    return retmatdict(self, 1, 4) 
+#                    
+#def envi_layero(self, context):   
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 0)[self.envi_type_lo])]
+#
+#def envi_layer1(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 1)[self.envi_type_l1])]
+#
+#def envi_layer2(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 2)[self.envi_type_l2])]
+#
+#def envi_layer3(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 3)[self.envi_type_l3])]
+#
+#def envi_layer4(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 4)[self.envi_type_l4])]
     
 def envi_con_list(self, context):
     ec = envi_constructions()    

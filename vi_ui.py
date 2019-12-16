@@ -22,7 +22,8 @@ class VI_PT_3D(bpy.types.Panel):
         layout = self.layout
 
         try:
-            if cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ' and covp.vi_type == '5' and svp['viparams'].get('vidisp'):                
+            print(cao, cao.active_material, cao.active_material.vi_params.get('bsdf'), cao.active_material.vi_params['bsdf']['type'] == ' ', covp.vi_type == '5', svp['viparams'].get('vidisp'))
+            if cao and cao.active_material and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['type'] == ' ' and covp.vi_type == '5' and svp['viparams'].get('vidisp'):                
                 if svp['viparams']['vidisp'] != 'bsdf_panel':
                     row = layout.row()
                     row.operator("view3d.bsdf_display", text="BSDF Display") 
@@ -467,7 +468,7 @@ class VI_PT_Ob(bpy.types.Panel):
             return True
 
     def draw(self, context):
-        obj = context.active_object
+        obj = context.object
         ovp = obj.vi_params
         layout = self.layout
 
@@ -508,9 +509,10 @@ class VI_PT_Ob(bpy.types.Panel):
                 newrow(layout, 'Samples:', ovp, 'li_bsdf_ksamp')
             newrow(layout, 'RC params:', ovp, 'li_bsdf_rcparam')
             
-            if any([obj.data.materials[i].radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
-                row = layout.row()
-                row.operator("object.gen_bsdf", text="Generate BSDF")
+            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
+                if not ovp.bsdf_running:
+                    row = layout.row()
+                    row.operator("object.gen_bsdf", text="Generate BSDF")
 
 def rmmenu(layout, cm):
     mvp = cm.vi_params

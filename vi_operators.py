@@ -35,13 +35,14 @@ from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 
-from .vi_func import selobj, joinobj, solarPosition, viparams, compass, wind_compass, spfc, solarRiseSet, livisimacc, retpmap
+from .vi_func import selobj, joinobj, solarPosition, viparams, compass, wind_compass, spfc, solarRiseSet, livisimacc
 
 #from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
 from .vi_func import ret_plt, blf_props, draw_index, viewdesc, ret_vp_loc, draw_time, logentry, rettree, cmap
 
 from .vi_func import sunpath, windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
-from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, xy2radial
+from .livi_func import retpmap, radpoints
 #from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
@@ -3188,6 +3189,319 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
         self._handle_en_pdisp = bpy.types.SpaceView3D.draw_handler_add(en_pdisp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
         return {'RUNNING_MODAL'}
 
+# BSDF Operators
+class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
+    bl_idname = "object.gen_bsdf"
+    bl_label = "Gen BSDF"
+    bl_description = "Generate a BSDF for the current selected object"
+    bl_register = True
+    bl_undo = False
+    
+    def modal(self, context, event):
+        if self.bsdfrun.poll() is None:
+            if self.pfile.check(0) == 'CANCELLED':                   
+                self.bsdfrun.kill()   
+                
+                if psu:
+                    for proc in psutil.process_iter():
+                        if 'rcontrib' in proc.name():
+                            proc.kill()  
+                else:
+                    self.report({'ERROR'}, 'psutil not found. Kill rcontrib processes manually')
+                self.o.vi_params.bsdf_running = 0        
+                return {'CANCELLED'}
+            else:
+                return{'PASS_THROUGH'}
+        else:
+            self.o.vi_params.bsdf_running = 0
+            if self.kivyrun.poll() is None:
+                self.kivyrun.kill() 
+            
+            if self.o.vi_params.li_bsdf_proxy:
+                self.pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)))), stdin = PIPE, stdout = PIPE)
+                self.mat.vi_params['radentry'] = ''.join([line.decode() for line in self.pkgbsdfrun.stdout])
+                print(self.mat['radentry'])
+                
+            with open(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:               
+                self.mat.vi_params['bsdf']['xml'] = bsdffile.read()
+
+            context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
+            self.mat.vi_params['bsdf']['type'] = self.o.vi_params.li_bsdf_tensor           
+            return {'FINISHED'}
+    
+    def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        vl = context.view_layer
+        self.o = context.object
+        ovp = self.o.vi_params
+        ovp.bsdf_running = 1
+        vl.objects.active = None
+        
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        bsdfmats = [mat for mat in self.o.data.materials if mat.vi_params.radmatmenu == '8']
+        
+        if bsdfmats:
+            self.mat = bsdfmats[0]
+            mvp = self.mat.vi_params
+            mvp['bsdf'] = {} 
+        else:
+            self.report({'ERROR'}, '{} does not have a BSDF material attached'.format(self.o.name))
+        
+        tm = self.o.evaluated_get(depsgraph).to_mesh()
+        bm = bmesh.new()    
+        bm.from_mesh(tm) 
+        self.o.evaluated_get(depsgraph).to_mesh_clear()
+        bm.transform(self.o.matrix_world)
+        bm.normal_update()
+        bsdffaces = [face for face in bm.faces if self.o.material_slots[face.material_index].material.vi_params.radmatmenu == '8']    
+        
+        if bsdffaces:
+            fvec = bsdffaces[0].normal
+            mvp['bsdf']['normal'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
+        else:
+            self.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(self.o.name))
+            return
+        
+        self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+        self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'BSDF')
+        zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
+        svec = mathutils.Vector.cross(fvec, zvec)
+        bm.faces.ensure_lookup_table()
+        bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
+        bm.transform(bsdfrotz)
+        bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
+        bm.transform(bsdfrotx)
+        vposis = list(zip(*[v.co[:] for v in bm.verts]))
+        (maxx, maxy, maxz) = [max(p) for p in vposis]
+        (minx, miny, minz) = [min(p) for p in vposis]
+        bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
+        bm.transform(bsdftrans)
+        mradfile = ''.join([m.vi_params.radmat(scene) for m in self.o.data.materials if m.vi_params.radmatmenu != '8'])                  
+        gradfile = radpoints(self.o, [face for face in bm.faces if self.o.material_slots and face.material_index < len(self.o.material_slots) and self.o.material_slots[face.material_index].material.vi_params.radmatmenu != '8'], 0)
+        bm.free()  
+        bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp) 
+        gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
+
+        with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'w') as mgfile:
+            mgfile.write(mradfile+gradfile)
+
+        with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'r') as mgfile: 
+            with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'w') as bsdffile:
+                self.bsdfrun = Popen(shlex.split(gbcmd), stdin = mgfile, stdout = bsdffile)
+                
+        vl.objects.active = self.o
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(1, window = context.window)
+        wm.modal_handler_add(self)        
+        return {'RUNNING_MODAL'}
+        
+class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "material.load_bsdf"
+    bl_label = "Select BSDF file"
+    filename_ext = ".XML;.xml;"
+    filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
+    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import BSDF XML file with the file browser", icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        context.material['bsdf'] = {}
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
+            return {'CANCELLED'}
+        else:
+            with open(self.filepath, 'r') as bsdffile:
+                context.material['bsdf']['xml'] = bsdffile.read()
+            return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
+class MATERIAL_OT_Li_DBSDF(bpy.types.Operator):
+    bl_idname = "material.del_bsdf"
+    bl_label = "Del BSDF"
+    bl_description = "Delete a BSDF for the current selected object"
+    bl_register = True
+    bl_undo = False
+    
+    def execute(self, context):
+        del context.material['bsdf']
+        return {'FINISHED'}
+        
+class MATERIAL_OT_Li_SBSDF(bpy.types.Operator):
+    bl_idname = "material.save_bsdf"
+    bl_label = "Save BSDF"
+    bl_description = "Save a BSDF for the current selected object"
+    bl_register = True
+
+    filename_ext = ".XML;.xml;"
+    filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
+    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Save BSDF XML file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        with open(self.filepath, 'w') as bsdfsave:
+            bsdfsave.write(context.material['bsdf']['xml'])
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+        
+class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
+    bl_idname = "view3d.bsdf_display"
+    bl_label = "BSDF display"
+    bl_description = "Display BSDF"
+    bl_register = True
+    bl_undo = False
+        
+    def modal(self, context, event):
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
+            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
+                self.remove(context)
+                context.scene['viparams']['vidisp'] = self.olddisp
+                return {'CANCELLED'}
+
+            mx, my = event.mouse_region_x, event.mouse_region_y
+            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
+                self.bsdf.hl = (0, 1, 1, 1)  
+                
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.bsdfpress = 1
+                        self.bsdfmove = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.bsdfmove:
+                            self.bsdf.expand = 0 if self.bsdf.expand else 1
+                        self.bsdfpress = 0
+                        self.bsdfmove = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                        
+                elif event.type == 'ESC':
+                    self.remove(context)
+                    context.scene['viparams']['vidisp'] = self.olddisp
+                    return {'CANCELLED'}                   
+                elif self.bsdfpress and event.type == 'MOUSEMOVE':
+                     self.bsdfmove = 1
+                     self.bsdfpress = 0
+                            
+            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
+                self.bsdf.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.bsdf.resize = 1
+                    if self.bsdf.resize and event.value == 'RELEASE':
+                        self.bsdf.resize = 0
+                    return {'RUNNING_MODAL'}  
+            
+            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                    self.bsdf.plt.show()
+            
+            else:
+                for butrange in self.bsdf.buttons:
+                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
+                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
+                            if butrange in ('Front', 'Back'):
+                                self.bsdf.dir_select = butrange
+                            elif butrange in ('Visible', 'Solar', 'Discrete'):
+                                self.bsdf.rad_select = butrange
+                            elif butrange in ('Transmission', 'Reflection'):
+                                self.bsdf.type_select = butrange
+                            self.bsdf.plot(context)
+
+                self.bsdf.hl = (1, 1, 1, 1)
+                                
+            if event.type == 'MOUSEMOVE':                
+                if self.bsdfmove:
+                    self.bsdf.pos = [mx, my]
+                    context.area.tag_redraw()
+                    return {'RUNNING_MODAL'}
+                if self.bsdf.resize:
+                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
+            
+            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
+                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
+                phi = math.atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + math.pi
+
+                if theta < self.bsdf.radii[-1]:
+                    for ri, r in enumerate(self.bsdf.radii):
+                        if theta < r:
+                            break
+
+                    upperangles = [p * 2 * math.pi/self.bsdf.phis[ri] + math.pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
+                    uai = 0
+
+                    if ri > 0:
+                        for uai, ua in enumerate(upperangles): 
+                            if phi > upperangles[-1]:
+                                uai = 0
+                                break
+                            if phi < ua:
+                                break
+
+                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
+                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
+                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
+                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
+                        self.bsdf.plot(context)
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                        
+                else:
+                    self.bsdf.patch_hl = None
+                    
+            if self.bsdf.expand and any((self.bsdf.leg_max != context.scene.vi_bsdfleg_max, self.bsdf.leg_min != context.scene.vi_bsdfleg_min, self.bsdf.col != context.scene.vi_leg_col, self.bsdf.scale_select != context.scene.vi_bsdfleg_scale)):
+                self.bsdf.col = context.scene.vi_leg_col
+                self.bsdf.leg_max = context.scene.vi_bsdfleg_max
+                self.bsdf.leg_min = context.scene.vi_bsdfleg_min
+                self.bsdf.scale_select = context.scene.vi_bsdfleg_scale
+                self.bsdf.plot(context)
+            
+            context.area.tag_redraw()
+        
+        return {'PASS_THROUGH'}
+                
+    def invoke(self, context, event):
+        cao = context.active_object
+        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml'] and cao.active_material['bsdf']['type'] == ' ':
+            width, height = context.region.width, context.region.height
+            self.images = ['bsdf.png']
+            self.results_bar = results_bar(self.images, 300, area)
+            self.bsdf.update(context)
+            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
+            self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
+            self.olddisp = context.scene['viparams']['vidisp']
+            context.window_manager.modal_handler_add(self)
+            context.scene['viparams']['vidisp'] = 'bsdf_panel'
+            context.area.tag_redraw()            
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'},"Selected material contains no BSDF information or contains the wrong BSDF type (only Klems is supported)")
+            return {'CANCELLED'}
+            
+    def remove(self, context):
+        self.bsdf.plt.close()
+        bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdf_disp, 'WINDOW')
+        context.scene['viparams']['vidisp'] = 'bsdf'
+        bpy.data.images.remove(self.bsdf.gimage)
+        context.area.tag_redraw()
+        
+        
 # Node utilities from Matalogue    
 class TREE_OT_goto_mat(bpy.types.Operator):
     'Show the EnVi nodes for this material'
@@ -3249,3 +3563,48 @@ class TREE_OT_goto_group(bpy.types.Operator):
         context.space_data.node_tree = bpy.data.node_groups[self.tree]
 #        print(dir(context.space_data))
         return {'FINISHED'}
+    
+class NODE_OT_CSV(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.csvexport"
+    bl_label = "Export a CSV file"
+    bl_description = "Select the CSV file to export"
+    filename = "results"
+    filename_ext = ".csv"
+    filter_glob: bpy.props.StringProperty(default="*.csv", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Specify the CSV export file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        node = context.node
+        resstring = ''
+        resnode = node.inputs['Results in'].links[0].from_node
+        rl = resnode['reslists']
+        zrl = list(zip(*rl))
+
+        if len(set(zrl[0])) > 1 and node.animated:
+            resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
+            metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
+
+        else:
+            resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
+            metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All']))
+
+        for ml in metriclist:
+            resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
+
+        resstring += '\n'
+
+        with open(self.filepath, 'w') as csvfile:
+            csvfile.write(resstring)
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
+            self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')            
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}    

@@ -19,7 +19,8 @@
 import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex
 from math import sin, cos, pi
 from subprocess import PIPE, Popen, TimeoutExpired
-from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh, viparams, ct2RGB, logentry
+from .vi_func import clearscene, solarPosition, retobjs, clearlayers, viparams, ct2RGB, logentry
+from .livi_func import radpoints, bmesh2mesh
 
 def radgexport(export_op, node, **kwargs):
     depsgraph = bpy.context.evaluated_depsgraph_get()

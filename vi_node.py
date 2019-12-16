@@ -22,9 +22,10 @@ from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, St
 from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
-from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
-from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams, retpmap
+from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
+from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates
 from .vi_func import delobj, logentry
+from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_layer, envi_layertype, envi_con_list
@@ -1659,7 +1660,31 @@ class No_Vi_Metrics(Node, ViNodes):
 #            if self.metric_menu == '0':
 #                resdict = self.inputs['Results in'].links[0].from_node['resdict']
 #                print(resdict.keys())
-          
+
+class No_CSV(Node, ViNodes):
+    '''CSV Export Node'''
+    bl_idname = 'No_CSV'
+    bl_label = 'VI CSV Export'
+    
+    animated: BoolProperty(name = '', description = 'Animated results', default = 0)
+
+    def init(self, context):
+        self.inputs.new('So_Vi_Res', 'Results in')
+
+    def draw_buttons(self, context, layout):
+        try:
+            rl = self.inputs['Results in'].links[0].from_node['reslists']
+            zrl = list(zip(*rl))
+            if len(set(zrl[0])) > 1:
+                newrow(layout, 'Animated:', self, 'animated')
+            row = layout.row()
+            row.operator('node.csvexport', text = 'Export CSV file')
+        except:
+            pass
+        
+    def update(self):
+        pass    
+      
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -1836,18 +1861,18 @@ vi_analysis = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", labe
              NodeItem("ViSVFNode", label="Sky View"), NodeItem("ViSSNode", label="Shadow map"),
              NodeItem("No_Li_Sim", label="LiVi Simulation"), NodeItem("No_En_Sim", label="EnVi Simulation")]
 
-vigennodecat = []
+vi_gen = []
 
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_Metrics", label="Metrics")]
-vioutnodecat = []
+vi_out = [NodeItem("No_CSV", label="CSV")]
 vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location")]
 
-vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vioutnodecat), 
+vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out), 
                      ViNodeCategory("Edit", "Edit Nodes", items=vi_edit), 
                      ViNodeCategory("Image", "Image Nodes", items=vi_image), 
                      ViNodeCategory("Display", "Display Nodes", items=vi_display), 
-                     ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), 
+                     ViNodeCategory("Generative", "Generative Nodes", items=vi_gen), 
                      ViNodeCategory("Analysis", "Analysis Nodes", items=vi_analysis), 
                      ViNodeCategory("Process", "Process Nodes", items=vi_process), 
                      ViNodeCategory("Input", "Input Nodes", items=vi_input)]
@@ -2047,7 +2072,10 @@ class So_En_Net_Act(NodeSocket):
 
     def draw_color(self, context, node):
         return (0.2, 0.9, 0.9, 0.75)
-
+    
+    def ret_valid(self, node):
+        return ['Actuator']
+    
 class So_En_Net_Sense(NodeSocket):
     '''An EnVi sensor socket'''
     bl_idname = 'So_En_Net_Sense'
@@ -2061,6 +2089,9 @@ class So_En_Net_Sense(NodeSocket):
 
     def draw_color(self, context, node):
         return (0.9, 0.9, 0.2, 0.75)
+    
+    def ret_valid(self, node):
+        return ['Sensor']
     
 #class So_En_Net_SFlow(NodeSocket):
 #    '''A surface flow socket'''
@@ -2099,9 +2130,11 @@ class No_En_Net_Zone(Node, EnViNodes):
     def zupdate(self, context):
         self.afs = 0
         col = bpy.data.collections[self.zone]
-        
+
         for obj in col.objects:
-            odm = [m.material for m in obj.material_slots if m]
+            odm = [m.material for m in obj.material_slots]
+            olinks = [(o.name, o.links[0].to_node.name, o.links[0].to_socket.name) for o in self.outputs if o.links and o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
+            ilinks = [(i.name, i.links[0].from_node.name, i.links[0].from_socket.name) for i in self.inputs if i.links and i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
             bfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con == 'Zone'], key=lambda face: -face.center[2])
     #        buvals = [retuval(odm[face.material_index]) for face in bfacelist]
             
@@ -2110,9 +2143,9 @@ class No_En_Net_Zone(Node, EnViNodes):
             ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in sfacelist]
             ssfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type in ('Window', 'Door')], key=lambda face: -face.center[2])
             sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in ssfacelist]
-    
-            [self.outputs.remove(oname) for oname in self.outputs if oname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
-            [self.inputs.remove(iname) for iname in self.inputs if iname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
+            print(sssocklist)
+            [self.outputs.remove(oname) for oname in self.outputs if oname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and oname not in bsocklist + ssocklist + sssocklist]
+            [self.inputs.remove(iname) for iname in self.inputs if iname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and iname not in bsocklist + ssocklist + sssocklist]
     
             for sock in bsocklist:
                 self.outputs.new('So_En_Net_Bound', sock)
@@ -2129,6 +2162,18 @@ class No_En_Net_Zone(Node, EnViNodes):
     #        for s, sock in enumerate(bsocklist):
     #            self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
     #            self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
+            for olink in olinks:
+                print(olink)
+                try:
+                    self.id_data.links.new(self.outputs[olink[0]], self.id_data.nodes[olink[1]].inputs[olink[2]])
+                except:
+                    pass
+            for ilink in ilinks:
+                print(ilink)
+                try:
+                    self.id_data.links.new(self.id_data.nodes[ilink[1]].outputs[ilink[2]], self.inputs[ilink[0]])
+                except:
+                    pass
         self.vol_update(context)
         
     def vol_update(self, context):
@@ -2818,14 +2863,14 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     mvof: FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
     lvof: FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
     uvof: FloatProperty(default = 1, min = 1, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
-    amfcc: FloatProperty(default = 0.001, min = 0.00001, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
+    amfcc: FloatProperty(default = 0.001, min = 0.00001, max = 1, precision = 5, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
     amfec: FloatProperty(default = 0.65, min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
     lvo: EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], name = '', default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     noof: IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
     spa: IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
     dcof: FloatProperty(default = 1, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
-    ddtw: FloatProperty(default = 0.0001, min = 0, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
+    ddtw: FloatProperty(default = 0.001, min = 0, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
     amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "")
     amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "")
     dlen: FloatProperty(default = 2, name = "")
@@ -2927,23 +2972,23 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                         'Width Factor for Opening Factor 3 (dimensionless)', 'Height Factor for Opening Factor 3 (dimensionless)', 'Start Height Factor for Opening Factor 3 (dimensionless)',
                         'Opening Factor 4 (dimensionless)', 'Discharge Coefficient for Opening Factor 4 (dimensionless)', 'Width Factor for Opening Factor 4 (dimensionless)',
                         'Height Factor for Opening Factor 4 (dimensionless)', 'Start Height Factor for Opening Factor 4 (dimensionless)')
-            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), self.amfcc, self.amfec, self.lvo, self.ecl, self.noof, '{:3f}'.format(self.of1), self.dcof1,self.wfof1, self.hfof1, self.sfof1,
+            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), self.amfcc, self.amfec, self.lvo, self.ecl, self.noof, '{:.3f}'.format(self.of1), self.dcof1,self.wfof1, self.hfof1, self.sfof1,
                          self.of2, self.dcof2,self.wfof2, self.hfof2, self.sfof2, self.of3, self.dcof3,self.wfof3, self.hfof3, self.sfof3, self.of4, self.dcof4,self.wfof4, self.hfof4, self.sfof4)
 
         elif self.linkmenu == 'SO':
             cfparams = ('Name', 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)', 'Air Mass Flow Exponent When Opening is Closed (dimensionless)', 'Minimum Density Difference for Two-Way Flow (kg/m3)', 'Discharge Coefficient (dimensionless)')
-            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), self.amfcc, self.amfec, self.ddtw, self.dcof)
+            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self.amfcc), '{:.3f}'.format(self.amfec), '{:.3f}'.format(self.ddtw), '{:.3f}'.format(self.dcof))
 
         elif self.linkmenu == 'HO':
             if not (self.inputs['Node 1'].is_linked or self.inputs['Node 2'].is_linked and self.outputs['Node 1'].is_linked or self.outputs['Node 2'].is_linked):
                 exp_op.report({'ERROR'}, 'All horizontal opening surfaces must sit on the boundary between two thermal zones')
 
             cfparams = ('Name', 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)', 'Air Mass Flow Exponent When Opening is Closed (dimensionless)', 'Sloping Plane Angle (deg)', 'Discharge Coefficient (dimensionless)')
-            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), self.amfcc, self.amfec, self.spa, self.dcof)
+            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self.amfcc), '{:.2f}'.format(self.amfec), '{:.2f}'.format(self.spa), '{:.2f}'.format(self.dcof))
 
         elif self.linkmenu == 'ELA':
             cfparams = ('Name', 'Effective Leakage Area (m2)', 'Discharge Coefficient (dimensionless)', 'Reference Pressure Difference (Pa)', 'Air Mass Flow Exponent (dimensionless)')
-            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), '{:5f}'.format(self['ela']), '{:2f}'.format(self.dcof), '{:1f}'.format(self.rpd), '{:3f}'.format(self.amfe))
+            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self['ela']), '{:.2f}'.format(self.dcof), '{:.1f}'.format(self.rpd), '{:.3f}'.format(self.amfe))
 
         elif self.linkmenu == 'Crack':
             crname = 'ReferenceCrackConditions' if enng['enviparams']['crref'] == 1 else ''
@@ -3393,10 +3438,10 @@ class No_En_Net_Prog(Node, EnViNodes):
                 snode = slink.to_node
                 sparams = ('Name', 'Output:Variable or Output:Meter Index Key Name', 'EnergyManagementSystem:Sensor')
                 
-                if snode.bl_idname == 'EnViEMSZone':
+                if snode.bl_idname == 'No_En_Net_EMSZone':
                     sparamvs = ('{}_{}'.format(snode.emszone, snode.sensordict[snode.sensortype][0]), '{}'.format(snode.emszone), snode.sensordict[snode.sensortype][1])
     
-                elif snode.bl_label == 'EnViOcc':
+                elif snode.bl_label == 'No_En_Net_Occ':
                     for zlink in snode.outputs['Occupancy'].links:
                         znode = zlink.to_node
                         sparamvs = ('{}_{}'.format(znode.zone, snode.sensordict[snode.sensortype][0]), '{}'.format(znode.zone), snode.sensordict[snode.sensortype][1])
@@ -3446,7 +3491,7 @@ class No_En_Net_EMSZone(Node, EnViNodes):
             self.inputs[0].hide = True
             nodecolour(self, 1)
 
-        for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'EnViActSocket']:
+        for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'So_En_Net_Act']:
             try: self.inputs.remove(iname)
             except: pass
 
@@ -3920,9 +3965,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                                 row.label(text = '{} ({})'.format(layername, "{}mm".format(envi_mats.matdat[layername][7])))
                                 row.prop(self, "lt{}".format(l))
                    
-            if self.envi_con_type == 'Window':
+            if self.envi_con_type in ('Window', 'Door'):
                 newrow(layout, 'Frame:', self, "fclass")
-                if self.fclass == '0':
+                if self.fclass == '0' or self.envi_con_type == 'Door':
                     newrow(layout, 'Material:', self, "fmat")
                     newrow(layout, '% frame area:', self, "farea")
                     
@@ -3996,6 +4041,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     def save_condict(self):
         lks = self.inputs['Outer layer'].links
         lay_names = [lks[0].from_node.lay_name] if lks[0].from_node.layer == '1' else [lks[0].from_node.material]
+        
         while lks:
             lks = lks[0].from_node.inputs[0].links
             if lks:
@@ -4043,15 +4089,16 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             ep_text += epentry('PhotovoltaicPerformance:EquivalentOne-Diode', params, paramvs)        
         return ep_text
      
-    def ep_write(self):
+    def ep_write(self, mn):
         self['matname'] = get_mat(self, 1).name
+        print('1', self['matname'], mn)
         con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
         envi_mats = envi_materials()
         
         if self.envi_con_makeup == '0':
             if self.envi_con_type == 'Window' and self.envi_simple_glazing:
                 params = ['Name', 'Outside layer']
-                paramvs = [self['matname'], self['matname'] + '_sg']
+                paramvs = [mn, mn + '_sg']
                 ep_text = epentry('Construction', params, paramvs)
                 params = ('Name', 'U-Factor', 'Solar Heat Gain Coefficient', 'Visible Transmittance')
                 paramvs = [self['matname'] + '_sg'] + ['{:.3f}'.format(p) for p in (self.envi_sg_uv, self.envi_sg_shgc, self.envi_sg_vt)]                
@@ -4060,12 +4107,12 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 self.thicklist = [self.lt0, self.lt1, self.lt2, self.lt3, self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9]
                 mats = envi_cons.propdict[con_type][self.envi_con_list]
                 params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(mats) - 1)]        
-                paramvs = [self['matname']] + ['{}-layer-{}'.format(self['matname'], mi) for mi, m in enumerate(mats)]
+                paramvs = [mn] + ['{}-layer-{}'.format(mn, mi) for mi, m in enumerate(mats)]
                 ep_text = epentry('Construction', params, paramvs)
                 
                 for pm, presetmat in enumerate(mats):  
                     matlist = list(envi_mats.matdat[presetmat])
-                    layer_name = '{}-layer-{}'.format(self['matname'], pm)
+                    layer_name = '{}-layer-{}'.format(mn, pm)
                     
                     if envi_mats.namedict.get(presetmat) == None:
                         envi_mats.namedict[presetmat] = 0
@@ -4077,7 +4124,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     if self.envi_con_type in ('Wall', 'Floor', 'Roof', 'Ceiling', 'Door') and presetmat not in envi_mats.gas_dat:
                         self.resist += self.thicklist[pm]/1000/float(matlist[1])
                         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')                    
-                        paramvs = ['{}-layer-{}'.format(self['matname'], pm), matlist[0], str(self.thicklist[pm]/1000)] + matlist[1:8]                    
+                        paramvs = ['{}-layer-{}'.format(mn, pm), matlist[0], str(self.thicklist[pm]/1000)] + matlist[1:8]                    
                         ep_text += epentry("Material", params, paramvs)
     
                         if presetmat in envi_mats.pcmd_datd:
@@ -4091,12 +4138,12 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                                 
                             ep_text += epentry("MaterialProperty:PhaseChange", params, paramvs)
                             pcmparams = ('Name', 'Algorithm', 'Construction Name')
-                            pcmparamsv = ('{} CondFD override'.format(self.id_data.name), 'ConductionFiniteDifference', self.id_data.name)
+                            pcmparamsv = ('{} CondFD override'.format(mn), 'ConductionFiniteDifference', mn)
                             ep_text += epentry('SurfaceProperty:HeatTransferAlgorithm:Construction', pcmparams, pcmparamsv)
     
                     elif presetmat in envi_mats.gas_dat:
                         params = ('Name', 'Resistance')
-                        paramvs = ('{}-layer-{}'.format(self['matname'], pm), matlist[2])
+                        paramvs = ('{}-layer-{}'.format(mn, pm), matlist[2])
                         ep_text += epentry("Material:AirGap", params, paramvs)
                     
                     elif self.envi_con_type =='Window':
@@ -4105,7 +4152,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                           'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
                           'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)',
                           'Dirt Correction Factor for Solar and Visible Transmittance', 'Solar Diffusing')
-                            paramvs = ['{}-layer-{}'.format(self['matname'], pm)] + matlist[1:3] + [self.thicklist[pm]] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
+                            paramvs = ['{}-layer-{}'.format(mn, pm)] + matlist[1:3] + [self.thicklist[pm]] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
                             ep_text += epentry("WindowMaterial:{}".format(matlist[0]), params, paramvs)
                     
                         elif envi_mats.matdat[presetmat][0] == 'Gas':
@@ -4117,7 +4164,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             in_sock = self.inputs['Outer layer']# if self.envi_con_type == "Window" else self.inputs[0]
             n = 0
             params = ['Name']
-            paramvs = [self['matname']]
+            paramvs = [mn]
             ep_text = ''
             self.resist = 0
             get_mat(self, 1).vi_params.envi_shading = 0
@@ -4126,9 +4173,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 node = in_sock.links[0].from_node
 
                 if node.bl_idname not in ('envi_sl_node', 'envi_bl_node', 'envi_screen_node', 'envi_sgl_node'):                    
-                    paramvs.append('{}-layer-{}'.format(self['matname'], n)) 
+                    paramvs.append('{}-layer-{}'.format(mn, n)) 
                     params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-                    ep_text += node.ep_write(n)  
+                    ep_text += node.ep_write(n, mn)  
                     self.resist += node.resist
                 else:
                     get_mat(self, 1).vi_params.envi_shading = 1
@@ -4142,27 +4189,27 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 in_sock = self.inputs['Outer layer']
                 n = 0
                 params = ['Name'] 
-                paramvs = ['{}-shading'.format(self['matname'])]
+                paramvs = ['{}-shading'.format(mn)]
                 
                 while in_sock.links:
                     node = in_sock.links[0].from_node
                     
                     if node.outputs['Layer'].links[0].to_node.bl_idname != 'envi_sgl_node':
-                        paramvs.append('{}-layer-{}'.format(self['matname'], n)) 
+                        paramvs.append('{}-layer-{}'.format(mn, n)) 
                         params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
                     
                     in_sock = node.inputs['Layer']
 
                     if node.bl_idname in ('envi_sl_node', 'envi_bl_node', 'envi_screen_node', 'envi_sgl_node'):
-                        ep_text += node.ep_write(n)
+                        ep_text += node.ep_write(n, mn)
                     
                     n += 1
                 ep_text += epentry('Construction', params, paramvs)
                 
-        if self.envi_con_type =='Window': 
-            if self.fclass == '0':
+        if self.envi_con_type in ('Window', 'Door'): 
+            if self.fclass == '0' or self.envi_con_type == 'Door':
                 params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance', 'Name', 'Outside Layer')
-                paramvs = ('{}-frame-layer{}'.format(self['matname'], 0), 'Rough', '0.12', '0.1', '1400.00', '1000', '0.9', '0.6', '0.6', '{}-frame'.format(self['matname']), '{}-frame-layer{}'.format(self['matname'], 0))
+                paramvs = ('{}-frame-layer{}'.format(mn, 0), 'Smooth', '0.12', '0.1', '1400.00', '1000', '0.9', '0.6', '0.6', '{}-frame'.format(mn), '{}-frame-layer{}'.format(mn, 0))
                 ep_text += epentry('Material', params[:-2], paramvs[:-2])
                 ep_text += epentry('Construction', params[-2:], paramvs[-2:])
             
@@ -4179,7 +4226,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 ep_text += epentry('WindowProperty:FrameAndDivider', fparams, fparamvs)
                 
             elif self.fclass == '2':
-                ep_text += self.layer_write(self.inputs['Outer frame layer'], self['matname'])
+                ep_text += self.layer_write(self.inputs['Outer frame layer'], mn)
         
         return ep_text
     
@@ -4234,10 +4281,10 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                   default = "Rough")
     
     rho: FloatProperty(name = "kg/m^3", description = "Density", min = 0.001, max = 10000, default = 800)
-    shc: FloatProperty(name = "J/kg", description = "Thickness (mm)", min = 0.001, max = 10000, default = 800)
-    tab: FloatProperty(name = "", description = "Thickness (mm)", min = 0, max = 1, default = 0.7)
-    sab: FloatProperty(name = "", description = "Thickness (mm)", min = 0, max = 1, default = 0.7)
-    vab: FloatProperty(name = "", description = "Thickness (mm)", min = 0, max = 1, default = 0.7)
+    shc: FloatProperty(name = "J/kg", description = "Thickness (mm)", min = 0.01, max = 10000, default = 800)
+    tab: FloatProperty(name = "", description = "Thermal absorptance", min = 0, max = 1, precision = 2, default = 0.7)
+    sab: FloatProperty(name = "", description = "Solar absorptance", min = 0, max = 1, precision = 2, default = 0.7)
+    vab: FloatProperty(name = "", description = "Visual absorptance", min = 0, max = 1, precision = 2, default = 0.7)
     pcm: BoolProperty(name = "", description = "Phase Change Material", default = 0)
     tctc: FloatProperty(name = "", description = "Temp. coeff. for thermal conductivity (W/m-K2)", min = 0, max = 50, default = 0)
     tempemps: StringProperty(name = "", description = "Temperature/empalthy pairs (e.g. T1:E1 T2:E2)", default = "")
@@ -4288,7 +4335,10 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     def save_laydict(self):
         '''Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance, 
             Solar Absorbtance, Visible Absorbtance, Default thickness'''
-        envi_mats.get_dat(self.materialtype)[self.lay_name] = [self.rough, self.tc, self.rho, self.shc, self.tab, self.sab, self.vab, self.thi]       
+        envi_mats.get_dat(self.materialtype)[self.lay_name] = [self.rough, '{:.4f}'.format(self.tc), 
+                                                             '{:.2f}'.format(self.rho), '{:.2f}'.format(self.shc), 
+                                                             '{:.2f}'.format(self.tab), '{:.2f}'.format(self.sab), 
+                                                             '{:.2f}'.format(self.vab), self.thi]       
         if self.materialtype == '8':
             envi_mats.get_dat('9')[self.lay_name] = [self.tctc, self.tempemps]
             
@@ -4319,18 +4369,18 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         for i, te in enumerate(mtempemps.split()):
             params += ('Temperature {} (C)'.format(i), 'Enthalpy {} (J/kg)'.format(i))
             paramvs +=(te.split(':')[0], te.split(':')[1])
-        
+
         pcmparams = ('Name', 'Algorithm', 'Construction Name')
-        pcmparamsv = ('{} CondFD override'.format(self.id_data.name), 'ConductionFiniteDifference', self.id_data.name)
+        pcmparamsv = ('{} CondFD override'.format(self['matname']), 'ConductionFiniteDifference', self['matname'])
     
         return epentry("MaterialProperty:PhaseChange", params, paramvs) + epentry('SurfaceProperty:HeatTransferAlgorithm:Construction', pcmparams, pcmparamsv)
         
-    def ep_write(self, ln):
+    def ep_write(self, ln, mn):
         for material in bpy.data.materials:
             if self.id_data == material.vi_params.envi_nodes:
                 break
         self['matname'] = get_mat(self, 1).name
-        self['layer_name'] = '{}-layer-{}'.format(self['matname'], ln) if self.envi_con_type != 'Frame' else '{}-frame-layer-{}'.format(self['matname'], ln)
+        self['layer_name'] = '{}-layer-{}'.format(mn, ln) if self.envi_con_type != 'Frame' else '{}-frame-layer-{}'.format(mn, ln)
         
         if self.materialtype != '6':
             params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
@@ -4348,7 +4398,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                 paramvs = [self['layer_name'], matlist[2]]
             
         else:
-            paramvs = ['{}-layer-{}'.format(material.name, ln), self.rough, '{:.3f}'.format(self.thi * 0.001), '{:.3f}'.format(self.tc), '{:.3f}'.format(self.rho), '{:.3f}'.format(self.shc), '{:.3f}'.format(self.tab), 
+            paramvs = ['{}-layer-{}'.format(mn, ln), self.rough, '{:.3f}'.format(self.thi * 0.001), '{:.3f}'.format(self.tc), '{:.3f}'.format(self.rho), '{:.3f}'.format(self.shc), '{:.3f}'.format(self.tab), 
                        '{:.3f}'.format(self.sab), '{:.3f}'.format(self.vab)]
             
         ep_text = epentry(header, params, paramvs)
@@ -4436,12 +4486,12 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                          '{:.4f}'.format(self.fvrn), '{:.4f}'.format(self.bvrn), '{:.4f}'.format(self.itn), '{:.4f}'.format(self.fie), '{:.4f}'.format(self.bie), '{:.4f}'.format(self.diff)]       
         envi_mats.lay_save()
         
-    def ep_write(self, ln):
+    def ep_write(self, ln, mn):
         for material in bpy.data.materials:
             if self.id_data == material.vi_params.envi_nodes:
                 break
 
-        layer_name = '{}-layer-{}'.format(material.name, ln)
+        layer_name = '{}-layer-{}'.format(mn, ln)
         params = ('Name', 'Optical Data Type', 'Window Glass Spectral Data Set Name', 'Thickness (m)', 'Solar Transmittance at Normal Incidence', 'Front Side Solar Reflectance at Normal Incidence',
                   'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
                   'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)',
@@ -4452,7 +4502,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
             paramvs = [layer_name] + matlist[1:3] + [self.thi] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
             
         else:
-            paramvs = ['{}-layer-{}'.format(material.name, ln), 'SpectralAverage', '', self.thi/1000, '{:.3f}'.format(self.stn), '{:.3f}'.format(self.fsn), '{:.3f}'.format(self.bsn), 
+            paramvs = ['{}-layer-{}'.format(mn, ln), 'SpectralAverage', '', self.thi/1000, '{:.3f}'.format(self.stn), '{:.3f}'.format(self.fsn), '{:.3f}'.format(self.bsn), 
                        '{:.3f}'.format(self.vtn), '{:.3f}'.format(self.fvrn), '{:.3f}'.format(self.bvrn), '{:.3f}'.format(self.itn),
                        '{:.3f}'.format(self.fie), '{:.3f}'.format(self.bie), '{:.3f}'.format(self.tc), 1, ('No', 'Yes')[self.diff]]
 
@@ -4519,19 +4569,19 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
         else:
             nodecolour(self, 0)
 
-    def ep_write(self, ln):
+    def ep_write(self, ln, mn):
         for material in bpy.data.materials:
             if self.id_data == material.envi_nodes:
                 break
         if self.layer == '0':
             params = ('Name', 'Gas Type', 'Thickness')
-            paramvs = ['{}-layer-{}'.format(material.name, ln), self.material, self.thi]
+            paramvs = ['{}-layer-{}'.format(mn, ln), self.material, self.thi]
             
         else:
             params = ('gap name', 'type', 'thickness', 'Conductivity Coefficient A', 'Conductivity Coefficient B', 'Conductivity Coefficient C', 
                       'Conductivity Viscosity A', 'Conductivity Viscosity B', 'Conductivity Viscosity C', 'Specific Heat Coefficient A',
                       'Specific Heat Coefficient B', 'Specific Heat Coefficient C', 'Molecular Weight', 'Specific Heat Ratio')
-            paramvs = ['{}-layer-{}'.format(material.name, ln), 'Custom', '{:.3f}'.format(self.thi), '{:.3f}'.format(self.ccA), '{:.3f}'.format(self.ccB), 
+            paramvs = ['{}-layer-{}'.format(mn, ln), 'Custom', '{:.3f}'.format(self.thi), '{:.3f}'.format(self.ccA), '{:.3f}'.format(self.ccB), 
                        '{:.3f}'.format(self.ccC), '{:.3f}'.format(self.vcA), '{:.3f}'.format(self.vcB), '{:.3f}'.format(self.vcC), '{:.3f}'.format(self.shcA),
                        '{:.3f}'.format(self.shcB), '{:.3f}'.format(self.shcC), '{:.3f}'.format(self.mw), '{:.3f}'.format(self.shr)]
    
@@ -4590,14 +4640,14 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
         socklink2(self.outputs['Layer'], self.id_data)
         self.valid()
         
-    def ep_write(self, ln):
-        for material in bpy.data.materials:
-            if self.id_data == material.envi_nodes:
-                break
+    def ep_write(self, ln, mn):
+#        for material in bpy.data.materials:
+#            if self.id_data == material.envi_nodes:
+#                break
         params = ('Name', 'Solar transmittance', 'Solar Reflectance', 'Visible reflectance', 'Infrared Hemispherical Emissivity', 'Infrared Transmittance', 'Thickness {m}',
                   'Conductivity {W/m-K}', 'Shade to glass distance {m}', 'Top opening multiplier', 'Top opening multiplier', 'Bottom opening multiplier', 'Left-side opening multiplier',
                   'Right-side opening multiplier', 'Air flow permeability')
-        paramvs = ['{}-layer-{}'.format(material.name, ln)] + ['{:.3f}'.format(p) for p in (self.st, self.sr, self.vt, self.vr, self.ihe, self.it, 0.001 * self.thi, self.tc, 0.001 * self.sgd,
+        paramvs = ['{}-layer-{}'.format(mn, ln)] + ['{:.3f}'.format(p) for p in (self.st, self.sr, self.vt, self.vr, self.ihe, self.it, 0.001 * self.thi, self.tc, 0.001 * self.sgd,
                    self.tom, self.bom, self.lom, self.rom, self.afp)]
   
         return epentry('WindowMaterial:Shade', params, paramvs) + self.inputs['Control'].links[0].from_node.ep_write(ln)

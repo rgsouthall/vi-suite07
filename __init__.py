@@ -55,7 +55,7 @@ else:
            os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', 'linux')
            
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
-    from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text
+    from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
     from .vi_node import No_Li_Sim
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
@@ -66,18 +66,20 @@ else:
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_G, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense
     #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
-    from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, cmap
+    from .vi_func import lividisplay, setscenelivivals
+    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, radbsdf, retsv
     from .vi_func import legupdate
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     #    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
     #    from .vi_display import setcols
 
     from .vi_operators import NODE_OT_WindRose, VIEW3D_OT_WRDisplay, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim
-    from .vi_operators import VIEW3D_OT_SVFDisplay, NODE_OT_SunPath, MAT_EnVi_Node, NODE_OT_Shadow
+    from .vi_operators import VIEW3D_OT_SVFDisplay, NODE_OT_SunPath, MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV
     from .vi_operators import NODE_OT_Li_Geo, VIEW3D_OT_SSDisplay, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
     from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
+    from .vi_operators import OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
     from .vi_dicts import colours
 
@@ -310,7 +312,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     (resaa_disp, resaws_disp, resawd_disp, resah_disp, resas_disp, reszt_disp, reszh_disp, reszhw_disp, reszcw_disp, reszsg_disp, reszppd_disp, 
      reszpmv_disp, resvls_disp, resvmh_disp, resim_disp, resiach_disp, reszco_disp, resihl_disp, reszlf_disp, reszof_disp, resmrt_disp,
      resocc_disp, resh_disp, resfhb_disp, reszahw_disp, reszacw_disp, reshrhw_disp, restcvf_disp, restcmf_disp, restcot_disp, restchl_disp, 
-     restchg_disp, restcv_disp, restcm_disp, resldp_disp, resoeg_disp, respve_disp, respvw_disp, respveff_disp, respvt_disp)  = resnameunits() 
+     restchg_disp, restcv_disp, restcm_disp, resldp_disp, resoeg_disp, respve_disp, respvw_disp, respveff_disp, respvt_disp) = resnameunits() 
      
     (resazmaxt_disp, resazmint_disp, resazavet_disp, 
      resazmaxhw_disp, resazminhw_disp, resazavehw_disp, 
@@ -321,7 +323,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
      resazlmaxf_disp, resazlminf_disp, resazlavef_disp,
      resazmaxshg_disp, resazminshg_disp, resazaveshg_disp,
      resaztshg_disp, resaztshgm_disp)  = aresnameunits() 
-    envi_flink = bprop("", "Associate flow results with the nearest object", False)
+    envi_flink: bprop("", "Associate flow results with the nearest object", False)
     
 class VI_Params_Object(bpy.types.PropertyGroup): 
     # VI-Suite object definitions
@@ -369,6 +371,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     li_bsdf_tsamp: IntProperty(name = '', description = 'Tensor samples', min = 1, max = 20, default = 4)
     li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 200)
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
+    bsdf_running: bprop("", "Running BSDF calculation", False)
     radbsdf = radbsdf
     retsv = retsv
     envi_type: eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney Object")], "EnVi object type", "Specify the EnVi object type", "0")
@@ -424,7 +427,14 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], 
     '5': ['radcolmenu', 0, 'radcolour', 0, 'radct',  0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': [], '8': [], '9': []}
     radmat = radmat
-
+    li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)
+#    li_bsdf_direc: EnumProperty(items = [('+b', 'Backwards', 'Backwards BSDF'), ('+f', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b')
+#    li_bsdf_tensor: EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
+#    li_bsdf_res: EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+#    li_bsdf_tsamp: IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
+#    li_bsdf_ksamp: IntProperty(name = '', description = 'BSDF resolution', min = 1, default = 2000)
+#    li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
+    
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
@@ -621,7 +631,8 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV,
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
-           TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group)
+           TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
+           OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV)
 
 
 #def register():

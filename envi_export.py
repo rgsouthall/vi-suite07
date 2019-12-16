@@ -36,6 +36,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         gen = 0
 #        scene.update()
         scene.frame_set(frame)
+        geo_colls = bpy.data.collections['EnVi Geometry'].children
         en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
         badnodes = [node for node in enng.nodes if node.use_custom_color]
@@ -64,13 +65,15 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         paramvs = ((node.loc, 'Default')[not node.loc], node.sdate.month, node.sdate.day, '', node.edate.month, node.edate.day, '', "", "Yes", "Yes", "No", "Yes", "Yes")
         en_idf.write(epentry('RunPeriod', params, paramvs))    
 
-
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
 
-        gen = 0
-        for mat in bpy.data.materials:             
+        gen = 0        
+
+        for mat in bpy.data.materials:   
+            
             mvp = mat.vi_params            
             if  mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export == True:  
+                print(mat.name)
                 for emnode in mvp.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                         if emnode.envi_con_type == 'Window':    
@@ -78,10 +81,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 #                                em.sg_write(en_idf, mat.name+'_sg', emnode.envi_sg_uv, emnode.envi_sg_shgc, emnode.envi_sg_vt)
 #                                ec.con_write(en_idf, emnode.envi_con_type, mat.name, mat.name+'_sg', mat.name, [mat.name+'_sg'])
 #                            else:                            
-                            en_idf.write(emnode.ep_write())                        
+                            en_idf.write(emnode.ep_write(mat.name))                        
                         else:                            
                             if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
-                                en_idf.write(emnode.ep_write())
+                                en_idf.write(emnode.ep_write(mat.name))
                         if emnode.inputs['PV'].links:
                             gen = 1
                             pvs.append(emnode)    
@@ -89,7 +92,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         em.thickdict = {}
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
-        geo_colls = bpy.data.collections['EnVi Geometry'].children
+        
         
         for coll in geo_colls:
 #        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
@@ -124,6 +127,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 #            tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
 #            gens = []
             for obj in coll.objects:
+                mats = [ms.material for ms in obj.material_slots]
 #                obj = scene.objects[zn]
 #            for obj in [obj for obj in coll.objects if obj.type == 'MESH' and obj.vi_type == '1']:
                 me = obj.to_mesh()
@@ -132,12 +136,13 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 bm.transform(obj.matrix_world)
                 obj.to_mesh_clear()
     
-                for face in [f for f in bm.faces if obj.data.materials[f.material_index].vi_params.envi_nodes]:
-                    mat = obj.material_slots[face.material_index].material
+                for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_nodes]:
+                    mat = mats[face.material_index]
                     for emnode in mat.vi_params.envi_nodes.nodes:
                         if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                             vcos = [v.co for v in face.verts]
                             (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
+                            print(obco)
                             
                             if obc:
                                 if emnode.envi_con_type in ('Wall', "Floor", "Roof"):
@@ -353,7 +358,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             writeafn(exp_op, en_idf, enng)
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: EMS ===========\n\n")   
-        emsprognodes = [pn for pn in enng.nodes if pn.bl_idname == 'EnViProg' and not pn.use_custom_color]
+        emsprognodes = [pn for pn in enng.nodes if pn.bl_idname == 'No_En_Net_Prog' and not pn.use_custom_color and pn.text_file]
         for prognode in emsprognodes:
             en_idf.write(prognode.epwrite())
         
@@ -480,6 +485,7 @@ def pregeo(context, op):
         new_ob.name = '{}'.format(chil.name)
         bm = bmesh.new()
         bm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
+        bm.transform(new_ob.matrix_world)
         new_ob['auto_volume'] = bm.calc_volume()
         bm.free()
         
@@ -599,7 +605,14 @@ def pregeo(context, op):
                     done_mats.append(sm.material)
                     mat = sm.material
                     mvp = mat.vi_params
+                    if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
+                        mvp.envi_nodes = mvp.envi_nodes.copy()
+                        mvp.envi_nodes.name = mat.name
                     emnode = get_con_node(mvp)
+                    
+                    if mvp.envi_nodes and mvp.envi_nodes.users > 1:
+                       mvp.envi_nodes.user_clear() 
+                       mvp.envi_nodes = bpy.data.node_groups[mat.name]
                     
                     if not emnode:
                         op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
@@ -687,14 +700,16 @@ def pregeo(context, op):
                 for node in enng.nodes:
                     if hasattr(node, 'zone') and node.zone == coll.name:
                         node.zupdate(bpy.context)
-                                
-        for node in enng.nodes:
-            if hasattr(node, 'emszone') and node.emszone == coll.name:
-                node.zupdate(bpy.context)
-                
-        for node in enng.nodes:
-            if hasattr(node, 'zone') and node.zone == coll.name:
-                node.uvsockupdate()
+                    if hasattr(node, 'emszone') and node.emszone == coll.name:
+                        node.zupdate(bpy.context) 
+                    if hasattr(node, 'zone') and node.zone == coll.name:
+                        node.uvsockupdate()    
+#        for node in enng.nodes:
+#            
+#                
+#        for node in enng.nodes:
+#            if hasattr(node, 'zone') and node.zone == coll.name:
+#                node.uvsockupdate()
     #    eg['enparams']['pva'] = sum([mat.vi_params['enparams']['area'] for mat in bpy.data.materials if get_con_node(mat).links])
     #                
     ##            print(enomats, [get_con_node(mat).name for mat in enomats])    

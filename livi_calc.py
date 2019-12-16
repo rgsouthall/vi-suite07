@@ -20,7 +20,8 @@ import bpy, os, datetime
 from subprocess import Popen, PIPE
 from time import sleep
 from . import livi_export
-from .vi_func import retpmap, selobj, progressbar, progressfile
+from .vi_func import selobj, progressbar, progressfile
+from .livi_func import retpmap
 
 def radfexport(scene, export_op, connode, geonode, frames):
     for frame in frames:
