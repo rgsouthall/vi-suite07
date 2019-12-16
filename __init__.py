@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 6, 0),
-    "blender": (2, 80, 0),
+    "blender": (2, 81, 'a'),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -42,17 +42,18 @@ else:
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     platpath = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    if sys.platform in ('darwin', 'win32'):
+    if sys.platform in ('darwin'):
         if 'PYTHONPATH' not in os.environ:
             os.environ['PYTHONPATH'] =  os.path.join(addonpath, 'Python')
         elif os.path.join(addonpath, 'Python') not in os.environ['PYTHONPATH']:
             os.environ['PYTHONPATH'] =  os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python')
-    elif sys.platform == 'linux':
-        sys.path.append(os.path.join(addonpath, 'Python', 'linux'))
+    elif sys.platform in ('linux', 'win32'):
+        print(os.path.join(addonpath, 'Python', sys.platform))
+        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
         if os.environ.get('PYTHONPATH'):
-            os.environ['PYTHONPATH'] = os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', 'linux')
+            os.environ['PYTHONPATH'] = os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', sys.platform)
         else:
-           os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', 'linux')
+           os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
            
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
