@@ -272,10 +272,6 @@ class VI_PT_Mat(bpy.types.Panel):
     bl_region_type = "WINDOW"
     bl_context = "material"
 
-    @classmethod
-    def poll(cls, context):
-        return context.material
-
     def draw(self, context):
         cm, scene = context.material, context.scene
         svp = scene.vi_params
@@ -572,6 +568,10 @@ class TREE_PT_vi(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
+    
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type in ('ViN', 'EnViN', 'EnViMatN')
 
     def draw(self, context):
         layout = self.layout
@@ -613,7 +613,11 @@ class TREE_PT_envim(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
-
+    
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type in ('ViN', 'EnViN', 'EnViMatN')
+    
     def draw(self, context):
 #        settings = context.window_manager.matalogue_settings
         layout = self.layout
@@ -676,6 +680,10 @@ class TREE_PT_envin(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
+    
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type in ('ViN', 'EnViN', 'EnViMatN')
 
     def draw(self, context):
 #        scene = context.scene

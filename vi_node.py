@@ -1007,7 +1007,7 @@ class ViWRNode(Node, ViNodes):
     max_freq_val: FloatProperty(name = "", description = "Max frequency", min = 1, max = 100, default = 20, update = nodeupdate)
 
     def init(self, context):
-        self.inputs.new('ViLoc', 'Location in')
+        self.inputs.new('So_Vi_Loc', 'Location in')
         self['exportstate'] = ''
         nodecolour(self, 1)
 
@@ -1056,7 +1056,7 @@ class ViSVFNode(Node, ViNodes):
     
     def init(self, context):
         self['goptions'] = {}
-        self.outputs.new('ViR', 'Results out')
+        self.outputs.new('So_Vi_Res', 'Results out')
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
