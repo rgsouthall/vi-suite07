@@ -1,4 +1,4 @@
-import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh
+import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh, random
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
@@ -9,24 +9,28 @@ from .vi_func import solarPosition, solarRiseSet, create_coll, compass, joinobj,
 from .livi_export import spfc
 from .vi_dicts import unit_dict
 from . import livi_export
-from math import pi, log10, atan2, sin, cos
-from numpy import array
+from math import pi, log10, atan2, sin, cos, atan2
+from numpy import array, repeat
 from numpy import min as nmin
 from numpy import max as nmax
 from numpy import sum as nsum
 from numpy import append as nappend
+from xml.dom.minidom import parse, parseString
 
 try:
     import matplotlib
     matplotlib.use('qt5agg', warn = False, force = True)
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm  
-#    import matplotlib.colors as mcolors
-#    from matplotlib.patches import Rectangle
-#    from matplotlib.collections import PatchCollection
+    import matplotlib.colors as mcolors
+    from matplotlib.patches import Rectangle
+    from matplotlib.collections import PatchCollection
     mp = 1
 except:
     mp = 0
+
+kfsa = array([0.02391, 0.02377, 0.02341, 0.02738, 0.02933, 0.03496, 0.04787, 0.05180, 0.13552])
+kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0.1294])
 
 def rendview(i):
     for scrn in bpy.data.screens:
@@ -188,7 +192,6 @@ class linumdisplay():
         self.fontmult = 2 #if context.space_data.region_3d.is_perspective else 500
         
         if not svp.get('viparams') or svp['viparams']['vidisp'] not in ('svf', 'lipanel', 'ss', 'lcpanel'):
-            print('stop', svp['viparams']['vidisp'])
             svp.vi_display = 0
             return
         if scene.frame_current not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -453,14 +456,327 @@ def spnumdisplay(disp_op, context):
 class bsdf_disp(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
+        self.plt = plt
+        self.pw, self.ph = 0.175 * xdiff, 0.35 * ydiff
+        self.radii = array([0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125])
+#        self.patch_select = 0
+        self.type_select = 0
+        self.patch_hl = 0
+        self.scale_select = 'Log'
+        self.buttons = {}
+        self.num_disp = 0
+        self.leg_max, self.leg_min = 100, 0
         self.base_unit = unit
         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
         self.dpi = 157      
         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
         self.f_indices = [(0, 1, 2), (2, 3, 0)]
-        self.update(context)
-        self.create_batch()
+        self.segments = (1, 8, 16, 20, 24, 24, 24, 16, 12)            
+        self.radii = (10, 30, 50, 70, 90, 110, 130, 150, 170)
+        self.f_colours = [(1, 1, 1, 1)] * (721 + 8 * 720)
+        self.imspos = (self.lepos[0] - self.ydiff - 75, self.lspos[1])
+        self.image = 'bsdfplot.png'
+        self.vi_coords = [(0.02, 0.02), (0.02, 0.98), (0.98, 0.98), (0.98, 0.02)] 
+        self.tex_coords = ((0, 0), (0, 1), (1, 1), (1, 0))
+        self.sr = 0
+        self.cr = 0
+        self.sseg = 1
+        self.cseg = 0
+        self.srs = 1
+        self.crs = 0
+#        self.update(context)
+        self.create_batch('all')
+        self.get_data(context)
+#        self.bsdf = context.active_object.active_material['bsdf']['xml']
+    
+    def get_data(self, context):
+        self.mat = context.active_object.active_material
+        bsdf = parseString(self.mat.vi_params['bsdf']['xml'])
+#        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
+#        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
+        self.radtype = [path.firstChild.data for path in bsdf.getElementsByTagName('Wavelength')]
+        self.rad_select = self.radtype[0]
+        self.dattype = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+        self.direc = self.dattype[0]
+        self.type_select = self.dattype[0].split()[0]
+        self.dir_select = self.dattype[0].split()[1]
+#        lthetas = [path.firstChild.data for path in bsdf.getElementsByTagName('LowerTheta')]
+        self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
+        self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
+        self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+        self.plot(context)
+    
+    def plot(self, context):
+        scene = context.scene 
+        svp = scene.vi_params
+        leg_min = svp.vi_bsdfleg_min if svp.vi_bsdfleg_scale == '0' or svp.vi_bsdfleg_min > 0 else svp.vi_bsdfleg_min + 0.01
+        self.col = svp.vi_leg_col
+        self.centre = (self.lspos[0] + 0.225 * self.xdiff, self.lspos[1] + 0.425 * self.ydiff)
+        self.plt.clf()
+        self.plt.close()
+        self.fig = self.plt.figure(figsize=(7.5, 7.5), dpi = 100)
+        ax = self.plt.subplot(111, projection = 'polar')
+        ax.bar(0, 0)
+        self.plt.title('{} {}'.format(self.rad_select, svp.vi_bsdf_direc), size = 19, y = 1.025)
+        ax.axis([0, 2 * pi, 0, 1])
+        ax.spines['polar'].set_visible(False)
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
         
+        for dti, dt in enumerate(self.dattype):
+            if dt == svp.vi_bsdf_direc:
+                self.scat_select = dti
+                break 
+            
+#        for rdi, raddat in enumerate(['{0[0]} {0[1]}'.format(z) for z in zip(self.radtype, self.dattype)]):
+#            if raddat == '{} {} {}'.format(self.rad_select, self.type_select, self.dir_select):
+#                self.scat_select = rdi
+#                break 
+
+        selectdat = self.scatdat[self.scat_select].reshape(145, 145)# if self.scale_select == 'Linear' else nlog10((self.scatdat[self.scat_select] + 1).reshape(145, 145)) 
+        widths = [0] + [self.uthetas[w]/90 for w in range(9)]
+        patches, p = [], 0
+        sa = repeat(kfsa, self.phis)
+        act = repeat(kfact, self.phis)
+        patchdat = selectdat[self.sseg - 1] * act * sa * 100
+        bg = self.plt.Rectangle((0, 0), 2 * pi, 1, color=mcm.get_cmap(svp.vi_leg_col)((0, 0.01)[svp.vi_bsdfleg_scale == '1']), zorder = 0)      
+
+        for ring in range(1, 10):
+            angdiv = pi/self.phis[ring - 1]
+            anglerange = range(self.phis[ring - 1], 0, -1)# if self.type_select == 'Transmission' else range(self.phis[ring - 1])
+            ri = widths[ring] - widths[ring-1]
+
+            for wedge in anglerange:
+                phi1, phi2 = wedge * 2 * angdiv - angdiv, (wedge + 1) * 2 * angdiv - angdiv
+                patches.append(Rectangle((phi1, widths[ring - 1]), phi2 - phi1, ri)) 
+                if self.num_disp:
+                    y = 0 if ring == 1 else 0.5 * (widths[ring] + widths[ring-1])
+                    self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center", va = 'center', family='sans-serif', size=10)
+                p += 1
+                
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax = svp.vi_bsdfleg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))        
+#        pc.set_linewidth(repeat(array([0, 0.5]), array([1, 144])))
+        pc.set_array(patchdat)
+        
+        ax.add_collection(pc)
+        ax.add_artist(bg)
+        self.plt.colorbar(pc, fraction=0.04, pad=0.02, format = '%3g').set_label(label='Percentage of incoming flux (%)', size=18)
+        pc.set_clim(vmin=leg_min + 0.01, vmax= svp.vi_bsdfleg_max)
+        self.plt.tight_layout()
+        self.save(scene)
+                        
+    def save(self, scene):
+        self.plt.savefig(os.path.join(scene.vi_params['viparams']['newdir'], 'images', 'bsdfplot.png'), bbox_inches='tight')
+
+        if 'bsdfplot.png' not in [i.name for i in bpy.data.images]:
+            self.gimage = bpy.data.images.load(os.path.join(scene.vi_params['viparams']['newdir'], 'images', 'bsdfplot.png'))
+        else:
+            bpy.data.images['bsdfplot.png'].filepath = os.path.join(scene.vi_params['viparams']['newdir'], 'images', 'bsdfplot.png')
+            bpy.data.images['bsdfplot.png'].reload()
+            self.gimage = bpy.data.images['bsdfplot.png']
+            
+    def ret_coords(self): 
+        if True:#self.type == 'Klems':
+            vl_coords, f_indices = [], []
+            v_coords = [(0, 0)]
+            steps = 720/self.segments[self.sr]
+            
+            if self.sseg == 1:
+                va_coords = [(0, 0)]
+                va_coords += [(self.radii[self.sr] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180), 
+                              self.radii[self.sr] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(720)]
+                fa_indices = [(0, x + (1, -719)[x > 0 and not x%720], x) for x in range(1, 720 + 1)]
+            else:
+#                va_coords = [(self.radii[cr - 1] * cos((x*0.5 - 360/(2 * self.segments[cr]))*pi/180), 
+#                              self.radii[cr - 1] * sin((x*0.5 - 360/(2 * self.segments[cr]))*pi/180)) for x in range(int(rs/2 * self.segments[cr]*720), int((rs)/2 * self.segments[cr]*720) + 1)]
+                va_coords = [(-self.radii[self.sr - 1] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180), 
+                              self.radii[self.sr - 1] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(int((self.srs - 1) * 720/self.segments[self.sr]), int((self.srs) * 720/self.segments[self.sr]) + 1)]
+                va_coords += [(-self.radii[self.sr] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180), 
+                              self.radii[self.sr] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(int((self.srs - 1) * 720/self.segments[self.sr]), int((self.srs)*720/self.segments[self.sr]) + 1)]
+
+                fa_indices = [(x, x+1, x+720/self.segments[self.sr] + 1) for x in range(int(720/self.segments[self.sr]))] + [(x-1, x, x-720/self.segments[self.sr] - 1) for x in range(int(720/self.segments[self.sr] + 2), int(1440/self.segments[self.sr]) + 2)]
+
+            fa_colours = [(0.5, 0.5, 0.5, 1) for _ in range(len(va_coords))]
+         
+            for ri, radius in enumerate(self.radii):                                          
+                if ri < 8:
+                    for si, s in enumerate(range(self.segments[ri + 1])):
+#                        f_colours += [(1, 1, 1, 1)] * int(720/segments[ri + 1])
+                        vl_coords += [(radius * cos((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180), 
+                                      radius * sin((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180)), 
+                                      (self.radii[ri +1] * cos((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180), 
+                                       self.radii[ri+1] * sin((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180))]
+
+                vl_coords1 = [[radius * cos((x*0.5 - 360/(2 * self.segments[ri]))*pi/180), radius * sin((x*0.5 - 360/(2 * self.segments[ri]))*pi/180)] for x in range(720)]
+                vl_coords2 = [[radius * cos(((x*0.5 + 0.5) - 360/(2 * self.segments[ri]))*pi/180), radius * sin(((x*0.5 + 0.5) - 360/(2 * self.segments[ri]))*pi/180)] for x in range(720)]
+                vl_coordstot = list(zip(vl_coords1, vl_coords2))
+                vl_coords += [item for sublist in vl_coordstot for item in sublist]
+                v_coords += vl_coords1
+                        
+            f_indices = [(0, x + (1, -719)[x > 0 and not x%720], x) for x in range(1, 720*9 + 1)][::-1] 
+            return (vl_coords, v_coords, f_indices, va_coords, fa_colours, fa_indices)
+        
+    def create_batch(self, sel):
+        line_vertex_shader = '''
+            uniform mat4 ModelViewProjectionMatrix;
+            uniform vec2 spos;
+            uniform vec2 size;
+            in vec2 position;
+            
+            void main()
+                {
+                   float xpos = spos[0] + position[0] * size[0];
+                   float ypos = spos[1] + position[1] * size[1]; 
+                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+                }
+            '''
+            
+        line_fragment_shader = '''
+            uniform vec4 colour;
+            out vec4 FragColour;
+            
+            void main()
+                {
+                    FragColour = colour;
+                }
+           
+            '''  
+        arc_vertex_shader = '''
+            uniform mat4 ModelViewProjectionMatrix;
+            uniform vec2 spos;
+            uniform vec2 size;
+            in vec2 position;
+            in vec4 colour;
+            flat out vec4 a_colour;
+            
+            void main()
+                {
+                   float xpos = spos[0] + position[0] * size[0];
+                   float ypos = spos[1] + position[1] * size[1]; 
+                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+                   a_colour = colour;
+                }
+            '''
+            
+        arc_fragment_shader = '''
+            flat in vec4 a_colour;
+            out vec4 FragColour;
+            
+            void main()
+                {
+                    FragColour = a_colour;
+                }
+           
+            '''
+            
+        image_vertex_shader = '''
+            uniform mat4 ModelViewProjectionMatrix;
+            uniform vec2 spos;
+            uniform vec2 size;
+            in vec2 texCoord;
+            in vec2 position;
+            out vec2 texCoord_interp;
+            
+            void main()
+            {
+              float xpos = spos[0] + position[0] * size[0];
+              float ypos = spos[1] + position[1] * size[1]; 
+              gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+//              gl_Position.z = 1.0;
+              texCoord_interp = texCoord;
+            }
+        '''
+        
+        image_fragment_shader = '''
+            in vec2 texCoord_interp;
+            out vec4 fragColor;
+            
+            uniform sampler2D image;
+            
+            void main()
+            {
+              fragColor = texture(image, texCoord_interp);
+            }
+
+        '''
+        (vl_coords, v_coords, f_indices, va_coords, fa_colours, fa_indices) = self.ret_coords()
+        
+        if sel == 'all':
+            b_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lepos[1]), (self.lepos[0], self.lepos[1]), (self.lepos[0], self.lspos[1])]
+            b_indices = [(0, 1, 3), (1, 2, 3)]
+            b_colours = [(1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1)]
+            self.back_shader =  gpu.types.GPUShader(arc_vertex_shader, arc_fragment_shader) 
+            self.arcline_shader = gpu.types.GPUShader(line_vertex_shader, line_fragment_shader) 
+            self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
+            self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
+#        f_colours = [(random.random(), 0, 0, 1) for x in range(len(v_coords))]
+#        f_colours = [item for item in f_colours for i in range(3)]
+            
+            self.back_batch = batch_for_shader(self.back_shader, 'TRIS', {"position": b_coords, "colour": b_colours}, indices = b_indices)
+            self.back_shader.bind()
+            self.back_shader.uniform_float("size", (1, 1))
+            self.back_shader.uniform_float("spos", (0, 0))
+            self.arcline_batch = batch_for_shader(self.arcline_shader, 'LINES', {"position": vl_coords})
+            self.arcline_shader.bind()
+            self.arcline_shader.uniform_float("size", (1, 1))
+            self.arcline_shader.uniform_float("spos", (self.lspos[0] + 175, self.ah - 300))
+            self.arcline_shader.uniform_float("colour", (0.6, 0.6, 0.6, 1))
+        self.arc_shader = gpu.types.GPUShader(arc_vertex_shader, arc_fragment_shader)
+        self.arc_batch = batch_for_shader(self.arc_shader, 'TRIS', {"position": va_coords, "colour": fa_colours}, indices = fa_indices)
+#        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+    
+    def draw(self, context):
+        if self.expand:
+            self.ah = context.region.height
+            self.aw = context.region.width
+            self.back_batch.draw(self.back_shader)
+    #        bgl.glEnable(bgl.GL_FLAT)
+            self.arc_shader.bind()
+            self.arc_shader.uniform_float("size", (1,1))
+            self.arc_shader.uniform_float("spos", (self.lspos[0] + 175, self.ah - 300))
+    #        self.arc_shader.uniform_float("colour", (1, 1, 1, 1)) 
+            self.arc_batch.draw(self.arc_shader)
+    #        bgl.glDisable(bgl.GL_FLAT)
+             
+    ##        bgl.glShadeModel(bgl.GL_SMOOTH);
+            bgl.glEnable(bgl.GL_DEPTH_TEST)
+            bgl.glDepthFunc(bgl.GL_LESS)
+            bgl.glDepthMask(bgl.GL_FALSE)
+            bgl.glEnable(bgl.GL_BLEND)
+            bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    #        bgl.glEnable(bgl.GL_BLEND)
+    #        bgl.glDepthMask(False)
+    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA);
+    #        bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_DONT_CARE);
+            bgl.glLineWidth(1)
+    #        bgl.glEnable(bgl.GL_BLEND)
+    #        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    #        bgl.glEnable(bgl.GL_MULTISAMPLE)
+    #        bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+            self.arcline_batch.draw(self.arcline_shader)
+            bgl.glDepthMask(bgl.GL_TRUE)
+    
+            bgl.glDisable(bgl.GL_LINE_SMOOTH)
+            bgl.glDisable(bgl.GL_BLEND)
+            self.image_shader.bind()
+            self.image_shader.uniform_float("size", (self.xdiff - self.ydiff, self.ydiff))
+            self.image_shader.uniform_float("spos", self.imspos) 
+            im = bpy.data.images[self.image]
+            if im.gl_load():
+                raise Exception()
+            bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+            self.image_shader.uniform_int("image", 0)
+            self.image_batch.draw(self.image_shader)
+            blf.enable(0, 4)
+            blf.enable(0, 8)
+            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
+            blf.size(self.font_id, 12, 144)
+            blf.position(self.font_id, self.lspos[0] + 175 - blf.dimensions(self.font_id, 'Incoming')[0]*0.5, self.lepos[1] - 0.5 * (self.ydiff) - blf.dimensions(self.font_id, 'Incoming')[1] * 0.3, 0) 
+            blf.color(self.font_id, 0, 0, 0, 1)      
+            blf.draw(self.font_id, 'Incoming')
+            blf.disable(0, 8)  
+            blf.disable(0, 4)
         
 class svf_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
@@ -474,38 +790,7 @@ class svf_legend(Base_Display):
         self.update(context)
         self.create_batch()
         
-    def create_batch(self):
-        arc_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            uniform int segments;
-            in vec2 position;
-            in vec4 colour;
-            flat out vec4 f_colour;
-            
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1]; 
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                   f_colour = colour;
-                }
-            '''
-            
-        arc_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            flat in vec4 f_colour;
-            
-            void main()
-                {
-                    FragColour = f_colour;
-                }
-           
-            '''  
-        
-                                
+                        
     def update(self, context):        
         scene = context.scene
         svp = scene.vi_params
@@ -2779,7 +3064,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     bl_undo = False
     
     def invoke(self, context, event):
-        area = context.area
+        region = context.region
         svp = context.scene.vi_params
         try:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_svfnum, 'WINDOW')
@@ -2790,20 +3075,18 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'svf'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(self, self.simnode)
-        self.results_bar = results_bar(('legend.png',), 300, area)
-        self.legend = svf_legend(context, 'Sky View (%)', [305, area.height - 80], area.width, area.height, 125, 400)
+        self.results_bar = results_bar(('legend.png',), 300, region)
+        self.legend = svf_legend(context, 'Sky View (%)', [305, region.height - 80], region.width, region.height, 125, 400)
         self.legend_num = linumdisplay(self, context)
-        self.height = area.height
+        self.height = region.height
         self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
         self.cao = context.active_object
-        area.tag_redraw()
+        region.tag_redraw()
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
     
-    def draw_svfnum(self, context):
-        area = context.area
-        ah = area.height                
-        self.results_bar.draw(ah)
+    def draw_svfnum(self, context):            
+        self.results_bar.draw(context.region.height)
         self.legend.draw(context)
         self.legend_num.draw(context)
         
@@ -2814,7 +3097,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
            
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or event.type == 'ESC':
             svp.vi_display = 0
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssvfnum, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_svfnum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}
 
@@ -2955,7 +3238,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         area = context.area
         svp = context.scene.vi_params
         svp.vi_display = 1
-        
+    
         
         try:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
@@ -2995,138 +3278,239 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     bl_undo = False
         
     def modal(self, context, event):
-        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
-            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
-                self.remove(context)
-                context.scene['viparams']['vidisp'] = self.olddisp
-                return {'CANCELLED'}
+        scene = context.scene
+        svp = scene.vi_params
+        ah, aw = context.region.height, context.region.width
+        redraw = 0
+#        self.bsdf.f_colours = [(1, 1, 1, 1)] * (721 + 8 * 720)   
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or event.type == 'ESC':
+            svp['viparams']['vidisp'] = 'bsdf'
+            svp.vi_display = 0
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
+            context.area.tag_redraw()
+            return {'CANCELLED'}
 
-            mx, my = event.mouse_region_x, event.mouse_region_y
-            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
-                self.bsdf.hl = (0, 1, 1, 1)  
+        if self.bsdf.expand and any((self.bsdf.leg_max != svp.vi_bsdfleg_max, 
+                                     self.bsdf.leg_min != svp.vi_bsdfleg_min, 
+                                     self.bsdf.col != svp.vi_leg_col, 
+                                     self.bsdf.scale_select != svp.vi_bsdfleg_scale,
+                                     self.bsdf.direc != svp.vi_bsdf_direc)):
+            self.bsdf.col = svp.vi_leg_col
+            self.bsdf.leg_max = svp.vi_bsdfleg_max
+            self.bsdf.leg_min = svp.vi_bsdfleg_min
+            self.bsdf.scale_select = svp.vi_bsdfleg_scale
+            self.bsdf.direc = svp.vi_bsdf_direc
+            self.bsdf.plot(context)
+            context.region.tag_redraw()
+            print('passing', (self.bsdf.leg_max != svp.vi_bsdfleg_max, self.bsdf.leg_min != svp.vi_bsdfleg_min, self.bsdf.col != svp.vi_leg_col, self.bsdf.scale_select != svp.vi_bsdfleg_scale))
+            return {'PASS_THROUGH'}
+        
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
+            mx, my = event.mouse_region_x, event.mouse_region_y            
+            # Legend routine 
+            if self.bsdf.ispos[0] < mx < self.bsdf.iepos[0] and self.bsdf.ispos[1] < my < self.bsdf.iepos[1]:
+                self.bsdf.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.bsdf.expand = 0 if self.bsdf.expand else 1
+
+                context.region.tag_redraw()
+                
+            elif self.bsdf.expand and ((mx - self.bsdf.lspos[0] - 175)**2 + (my - ah + 300)**2)**0.5 <= 170:
+                dist = ((mx - self.bsdf.lspos[0] - 175)**2 + (my - ah + 300)**2)**0.5
+                for radius in self.bsdf.radii:
+                    if dist <= radius:
+                        redraw = 1
+                        mring = self.bsdf.radii.index(radius)
+#                        angles = [0] + [si*2*pi/self.bsdf.segments[ring] for si in range(1, self.bsdf.segments[mring])]
+                        mangle = atan2((-my + ah - 300), (mx - self.bsdf.lspos[0] - 175)) + pi + pi/self.bsdf.segments[mring]
+#                        phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
+#                        for a in angles:
+#                            if abs(a - angle) < 2*pi/self.bsdf.segments[ring]:
+                        if mring == 0:
+                            ms = 1
+#                            self.bsdf.f_colours[:721] = [(0.5, 0.5, 0.5, 1)] * 721
+                        else:
+                            ms = int(mangle*self.bsdf.segments[mring]/(2*pi)) + 1 if int(mangle*self.bsdf.segments[mring]/(2*pi)) < self.bsdf.segments[mring] else 1 
+#                            self.bsdf.f_colours[int(720*mring + ms*720/self.bsdf.segments[mring] + 1) + 1: int(720*mring + (ms+1)*2*pi/self.bsdf.segments[mring]) + 2] = [(0.5, 0.5, 0.5, 1)] * ((int(720*mring + (ms+1)*2*pi/self.bsdf.segments[mring]) + 2) - (int(720*mring + ms*2*pi/self.bsdf.segments[mring] + 1) + 1))
+                        msegment = sum([self.bsdf.segments[ri] for ri in range(mring)]) + ms
+                        break
+                self.bsdf.cr, self.bsdf.crs, self.bsdf.cseg = mring, ms, msegment
+                self.bsdf.create_batch('sel')
                 
                 if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.bsdfpress = 1
-                        self.bsdfmove = 0
-                        return {'RUNNING_MODAL'}
-                    elif event.value == 'RELEASE':
-                        if not self.bsdfmove:
-                            self.bsdf.expand = 0 if self.bsdf.expand else 1
-                        self.bsdfpress = 0
-                        self.bsdfmove = 0
-                        context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
-                        
-                elif event.type == 'ESC':
-                    self.remove(context)
-                    context.scene['viparams']['vidisp'] = self.olddisp
-                    return {'CANCELLED'}                   
-                elif self.bsdfpress and event.type == 'MOUSEMOVE':
-                     self.bsdfmove = 1
-                     self.bsdfpress = 0
-                            
-            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
-                self.bsdf.hl = (0, 1, 1, 1) 
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.bsdf.resize = 1
-                    if self.bsdf.resize and event.value == 'RELEASE':
-                        self.bsdf.resize = 0
-                    return {'RUNNING_MODAL'}  
-            
-            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
-                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-                    self.bsdf.plt.show()
-            
-            else:
-                for butrange in self.bsdf.buttons:
-                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
-                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
-                            if butrange in ('Front', 'Back'):
-                                self.bsdf.dir_select = butrange
-                            elif butrange in ('Visible', 'Solar', 'Discrete'):
-                                self.bsdf.rad_select = butrange
-                            elif butrange in ('Transmission', 'Reflection'):
-                                self.bsdf.type_select = butrange
-                            self.bsdf.plot(context)
-
-                self.bsdf.hl = (1, 1, 1, 1)
-                                
-            if event.type == 'MOUSEMOVE':                
-                if self.bsdfmove:
-                    self.bsdf.pos = [mx, my]
-                    context.area.tag_redraw()
-                    return {'RUNNING_MODAL'}
-                if self.bsdf.resize:
-                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
-            
-            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
-                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
-                phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
-
-                if theta < self.bsdf.radii[-1]:
-                    for ri, r in enumerate(self.bsdf.radii):
-                        if theta < r:
-                            break
-
-                    upperangles = [p * 2 * pi/self.bsdf.phis[ri] + pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
-                    uai = 0
-
-                    if ri > 0:
-                        for uai, ua in enumerate(upperangles): 
-                            if phi > upperangles[-1]:
-                                uai = 0
-                                break
-                            if phi < ua:
-                                break
-
-                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
-                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
-                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
-                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
-                        self.bsdf.plot(context)
-                        context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
-                        
-                else:
-                    self.bsdf.patch_hl = None
                     
-            if self.bsdf.expand and any((self.bsdf.leg_max != context.scene.vi_bsdfleg_max, self.bsdf.leg_min != context.scene.vi_bsdfleg_min, self.bsdf.col != context.scene.vi_leg_col, self.bsdf.scale_select != context.scene.vi_bsdfleg_scale)):
-                self.bsdf.col = context.scene.vi_leg_col
-                self.bsdf.leg_max = context.scene.vi_bsdfleg_max
-                self.bsdf.leg_min = context.scene.vi_bsdfleg_min
-                self.bsdf.scale_select = context.scene.vi_bsdfleg_scale
-                self.bsdf.plot(context)
+#                    self.bsdf.f_colours[int(720*mring + s*720/self.bsdf.segments[mring] + 1) + 1: int(720*mring + (s+1)*720/self.bsdf.segments[mring]) + 2] = [(0.5, 0.5, 0.5, 1)] * ((int(720*mring + (s+1)*2*pi/self.bsdf.segments[mring]) + 2) - (int(720*mring + s*2*pi/self.bsdf.segments[mring] + 1) + 1))
+
+#                    if self.bsdf.expand:
+                    redraw = 1
+                    self.bsdf.create_batch('arc')
+                    if self.bsdf.cseg != self.bsdf.sseg:
+                        self.bsdf.sr, self.bsdf.srs, self.bsdf.sseg = mring, ms, msegment
+                        self.bsdf.plot(context)
+
+                
+                if redraw:
+                    context.region.tag_redraw()
+                return {'RUNNING_MODAL'} 
+        return {'PASS_THROUGH'}                    
+#                self.bsdf.draw(context)
+
+#        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
+#            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
+#                self.remove(context)
+#                context.scene['viparams']['vidisp'] = self.olddisp
+#                return {'CANCELLED'}
+#
+#            mx, my = event.mouse_region_x, event.mouse_region_y
+#            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
+#                self.bsdf.hl = (0, 1, 1, 1)  
+#                
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.bsdfpress = 1
+#                        self.bsdfmove = 0
+#                        return {'RUNNING_MODAL'}
+#                    elif event.value == 'RELEASE':
+#                        if not self.bsdfmove:
+#                            self.bsdf.expand = 0 if self.bsdf.expand else 1
+#                        self.bsdfpress = 0
+#                        self.bsdfmove = 0
+#                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+#                        
+#                elif event.type == 'ESC':
+#                    self.remove(context)
+#                    context.scene['viparams']['vidisp'] = self.olddisp
+#                    return {'CANCELLED'}                   
+#                elif self.bsdfpress and event.type == 'MOUSEMOVE':
+#                     self.bsdfmove = 1
+#                     self.bsdfpress = 0
+#                            
+#            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
+#                self.bsdf.hl = (0, 1, 1, 1) 
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.bsdf.resize = 1
+#                    if self.bsdf.resize and event.value == 'RELEASE':
+#                        self.bsdf.resize = 0
+#                    return {'RUNNING_MODAL'}  
+#            
+#            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
+#                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+#                    self.bsdf.plt.show()
+#            
+#            else:
+#                for butrange in self.bsdf.buttons:
+#                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
+#                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
+#                            if butrange in ('Front', 'Back'):
+#                                self.bsdf.dir_select = butrange
+#                            elif butrange in ('Visible', 'Solar', 'Discrete'):
+#                                self.bsdf.rad_select = butrange
+#                            elif butrange in ('Transmission', 'Reflection'):
+#                                self.bsdf.type_select = butrange
+#                            self.bsdf.plot(context)
+#
+#                self.bsdf.hl = (1, 1, 1, 1)
+#                                
+#            if event.type == 'MOUSEMOVE':                
+#                if self.bsdfmove:
+#                    self.bsdf.pos = [mx, my]
+#                    context.area.tag_redraw()
+#                    return {'RUNNING_MODAL'}
+#                if self.bsdf.resize:
+#                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
+#            
+#            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
+#                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
+#                phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
+#
+#                if theta < self.bsdf.radii[-1]:
+#                    for ri, r in enumerate(self.bsdf.radii):
+#                        if theta < r:
+#                            break
+#
+#                    upperangles = [p * 2 * pi/self.bsdf.phis[ri] + pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
+#                    uai = 0
+#
+#                    if ri > 0:
+#                        for uai, ua in enumerate(upperangles): 
+#                            if phi > upperangles[-1]:
+#                                uai = 0
+#                                break
+#                            if phi < ua:
+#                                break
+#
+#                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
+#                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
+#                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
+#                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
+#                        self.bsdf.plot(context)
+#                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+#                        
+#                else:
+#                    self.bsdf.patch_hl = None
+#                    
             
-            context.area.tag_redraw()
-        
-        return {'PASS_THROUGH'}
+
                 
     def invoke(self, context, event):
         cao = context.active_object
-        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml'] and cao.active_material['bsdf']['type'] == ' ':
-            width, height = context.region.width, context.region.height
+        region = context.region
+        scene = context.scene
+        svp = scene.vi_params
+#        width, height = area.width, area.height
+        if cao and cao.active_material.get('bsdf') and cao.active_material.vi_params['bsdf']['xml'] and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full':
+            bsdf = parseString(cao.active_material.vi_params['bsdf']['xml'])
+#        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
+#        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
+
+            svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+#            svp.vi_bsdf_direc = bpy.props.EnumProperty(items = direcs, name = "", description = "BSDf display direction")
+#            width, height = context.region.width, context.region.height
             self.images = ['bsdf.png']
-            self.results_bar = results_bar(self.images, 300, area)
-            self.bsdf.update(context)
-            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
-            self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
-            self.olddisp = context.scene['viparams']['vidisp']
+            self.results_bar = results_bar(self.images, 300, region)
+            self.bsdf = bsdf_disp(context, '', [305, region.height - 80], region.width, region.height, 800, 375)
+#            context.scene.bsdf = bsdf_disp(context, '', [305, region.height - 80], region.width, region.height, 800, 375)
+#            self.bsdf.update(context)
+#            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
+            svp.vi_display = 1
+            self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
+#            self.olddisp = context.scene['viparams']['vidisp']
             context.window_manager.modal_handler_add(self)
-            context.scene['viparams']['vidisp'] = 'bsdf_panel'
-            context.area.tag_redraw()            
+#            if not context.scene.get('viparams'):
+#                context.scene['viparams'] = {}
+            svp['viparams']['vidisp'] = 'bsdf_panel'
+            context.area.tag_redraw()  
+#            self.results_bar = results_bar(('legend.png',), 300, area)
+#            self.legend = svf_legend(context, 'Sky View (%)', [305, area.height - 80], area.width, area.height, 125, 400)
+#            self.legend_num = linumdisplay(self, context)
+#            self.height = area.height
+#            self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
+#            self.cao = context.active_object
+#            area.tag_redraw()
+#            context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
+            #return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'},"Selected material contains no BSDF information or contains the wrong BSDF type (only Klems is supported)")
             return {'CANCELLED'}
             
     def remove(self, context):
         self.bsdf.plt.close()
-        bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdf_disp, 'WINDOW')
+        bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
         context.scene['viparams']['vidisp'] = 'bsdf'
         bpy.data.images.remove(self.bsdf.gimage)
         context.area.tag_redraw()
+    
+    def draw_bsdfnum(self, context):              
+        self.results_bar.draw(context.region.height)
+        self.bsdf.draw(context)
+#        context.scene.bsdf.draw(context)
+#        self.legend_num.draw(context)    
         
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''

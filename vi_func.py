@@ -1537,7 +1537,7 @@ def retobjs(otypes):
     scene = bpy.context.scene
     svp = scene.vi_params
     validobs = [o for o in scene.objects if not o.hide_get()]
-    print(validobs)
+    
     if otypes == 'livig':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
         and o.name not in svp['liparams']['livir'] and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
@@ -1625,7 +1625,6 @@ def retdp(mres, dp):
 
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if distances.size:
-        print('hello')
         try:
             dp = 0 if max(res) > 100 else 1
             dpi = bpy.context.preferences.system.dpi
@@ -1646,7 +1645,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
 
 def draw_index(posis, res, dists, fontsize, fontcol, shadcol): 
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]   
-#    print(posis, nres, dists)
+
     for ri, nr in enumerate(nres):
         blf.size(0, int(0.25 * fontsize + 0.25 * fontsize * (max(dists) - dists[ri])/(max(dists) - min(dists))), 150)
         blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.0)        

@@ -205,6 +205,12 @@ def unititems(self, context):
     except:
         return [('None', 'None','None' )]   
     
+def bsdf_direcs(self, context):
+    try:
+        return [tuple(i) for i in context.scene.vi_params['liparams']['bsdf_direcs']]
+    except:
+        return [('None', 'None', 'None')]
+    
 class VIPreferences(AddonPreferences):
     bl_idname = __name__    
     radbin: StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH', update=abspath)
@@ -305,6 +311,10 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_display_sel_only: bprop("", "", False)
     vi_display_vis_only: bprop("", "", False)
     vi_disp_3dlevel: FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = eupdate)
+    vi_bsdf_direc: EnumProperty(items = bsdf_direcs, name = "", description = "BSDf display direction") 
+    vi_bsdfleg_max: bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
+    vi_bsdfleg_min: bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
+    vi_bsdfleg_scale: EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0')    
     en_disp_type: EnumProperty(items = enparametric, name = "", description = "Type of EnVi display") 
     resas_disp: bprop("", "", False) 
     reszt_disp: bprop("", "", False) 
@@ -370,8 +380,8 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                                        ('5', '32x32', '32x32 sampling resolution'), 
                                        ('6', '64x64', '64x64 sampling resolution'), 
                                        ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
-    li_bsdf_tsamp: IntProperty(name = '', description = 'Tensor samples', min = 1, max = 20, default = 4)
-    li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 200)
+    li_bsdf_tsamp: IntProperty(name = '', description = 'Tensor samples per region', min = 1, max = 10000, default = 4)
+    li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 2000)
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
     bsdf_running: bprop("", "Running BSDF calculation", False)
     radbsdf = radbsdf
@@ -731,9 +741,6 @@ def register():
     Scene.script_file = bpy.props.StringProperty(description="Text file to show", update = script_update)
     
 #    Scene.vi_leg_levels = IntProperty(name = "", description = "Day of year", min = 2, max = 100, default = 20, update=legupdate)
-    Scene.vi_bsdfleg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
-    Scene.vi_bsdfleg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
-    Scene.vi_bsdfleg_scale = EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0')    
     Scene.vi_gridify_rot = fprop("deg", "Rotation around face normal", 0.0, 360, 0.0)
     Scene.vi_gridify_us = fprop("m", "Up direction size", 0.01, 10, 0.6)
     Scene.vi_gridify_as = fprop("m", "Side direction size", 0.01, 10, 0.6)

@@ -26,6 +26,7 @@ from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, radians
 from time import sleep
 from mathutils import Euler, Vector
+from xml.dom.minidom import parse, parseString
 #from gpu_extras.batch import batch_for_shader
 #from bpy_extras import view3d_utils
 
@@ -573,13 +574,17 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
             if self.o.vi_params.li_bsdf_proxy:
                 self.pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)))), stdin = PIPE, stdout = PIPE)
                 self.mat.vi_params['radentry'] = ''.join([line.decode() for line in self.pkgbsdfrun.stdout])
-                print(self.mat['radentry'])
+                print(self.mat.vi_params['radentry'])
                 
             with open(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:               
                 self.mat.vi_params['bsdf']['xml'] = bsdffile.read()
-
+                bsdf = parseString(self.mat.vi_params['bsdf']['xml'])
+                self.mat.vi_params['bsdf']['direcs'] = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+                self.mat.vi_params['bsdf']['type'] = [path.firstChild.data for path in bsdf.getElementsByTagName('AngleBasisName')][0]
+            
             context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
-            self.mat.vi_params['bsdf']['type'] = self.o.vi_params.li_bsdf_tensor           
+#            self.mat.vi_params['bsdf']['type'] = self.o.vi_params.li_bsdf_tensor   
+
             return {'FINISHED'}
     
     def execute(self, context):
@@ -635,7 +640,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         mradfile = ''.join([m.vi_params.radmat(scene) for m in self.o.data.materials if m.vi_params.radmatmenu != '8'])                  
         gradfile = radpoints(self.o, [face for face in bm.faces if self.o.material_slots and face.material_index < len(self.o.material_slots) and self.o.material_slots[face.material_index].material.vi_params.radmatmenu != '8'], 0)
         bm.free()  
-        bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp) 
+        bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp)         
         gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
 
         with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'w') as mgfile:
