@@ -904,7 +904,7 @@ class No_Li_Sim(Node, ViNodes):
         self['simdict'] = {'Basic': 'simacc', 'Compliance':'csimacc', 'CBDM':'csimacc'}
         self.inputs.new('So_Li_Geo', 'Geometry in')
         self.inputs.new('So_Li_Con', 'Context in')
-        self.outputs.new('ViR', 'Results out')
+        self.outputs.new('So_Vi_Res', 'Results out')
         nodecolour(self, 1)
         self['maxres'], self['minres'], self['avres'], self['exportstate'], self['year'] = {}, {}, {}, '', 2015
         
@@ -1595,7 +1595,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 row = layout.row()
                 row.label(text = "PV (kWh/m2): {}".format(pva))
                 row = layout.row()
-                hkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'])
+                hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'])
                 row.label(text = "Heating (kWh): {}".format(hkwh))
                 row = layout.row()
                 ha = "{:.2f}".format(self['res']['hkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
@@ -1605,36 +1605,52 @@ class No_Vi_Metrics(Node, ViNodes):
                 row.label(text = "Cooling (kWh): {}".format(ckwh))
                 row = layout.row()
                 ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
-                row.label(text = "Heating (kWh/m2): {}".format(ca))
+                row.label(text = "Cooling (kWh/m2): {}".format(ca))
+                
                 if self.zone_menu == 'All':
+                    row = layout.row()
+                    wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
+                    row.label(text = "Hot water (kWh): {}".format(wkwh))
                     row = layout.row()
                     ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A' 
                     row.label(text = "ECF: {}".format(ecf))
                     row = layout.row()
                     epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
                     row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
+                    
     def update(self):
         if self.inputs[0].links:
             rl = self.inputs[0].links[0].from_node['reslists']
             self['res']['pvkwh'] = 0
             self['res']['hkwh'] = 0
             self['res']['ckwh'] = 0
-            self['res']['fa'] = 0
+            self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children])
+            if self['res']['fa'] > 13.9:
+                occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa']-13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)
+            else:
+                occ = 1
+            Vda = 25 * occ + 36
+            md = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+            ff = (1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00)
+            dtm = (41.2, 41.4, 40.1, 37.6, 36.4, 33.9, 30.4, 33.4, 33.5, 36.3, 39.4, 39.9, 37.0)
+            self['res']['wkwh'] = 1.15 * sum([4.18/3600 * Vda * z[0] * z[1] * z[2] for z in zip(md, ff, dtm)])
             
             for r in rl:
                 if self.zone_menu == 'All':
-                    self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) 
+#                    self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) 
                     if r[3] == 'PV Power (W)':
                         self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                     elif r[3] == 'Heating (W)':
                         self['res']['hkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                     elif r[3] == 'Cooling (W)':
                         self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                    self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ckwh']+ self['res']['pvkwh']
+                     
+                    self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ckwh'] + self['res']['wkwh'] - self['res']['pvkwh']
                     self['res']['ECF'] = 0.42*(54 + self['res']['totkwh'] * 0.1319)/(self['res']['fa'] + 45) 
                     self['res']['EPC'] = 100 - 13.95 * self['res']['ECF'] if self['res']['ECF'] < 3.5 else 117 - 121 * math.log10(self['res']['ECF'])
                     epcletts = ('A', 'B', 'C', 'D', 'E', 'F','G')
                     epcnum = (92, 81, 69, 55, 39, 21, 1)
+                    
                     for ei, en in enumerate(epcnum):
                         if self['res']['EPC'] > en:
                             self['res']['EPCL'] = epcletts[ei]
@@ -1643,12 +1659,12 @@ class No_Vi_Metrics(Node, ViNodes):
                 else:
                     self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
                     if r[2] == self.zone_menu:
-                        if r[3] == 'PV Power (W)':
-                            self['res']['pvkwh'] = sum(float(p) for p in r[4].split()) * 0.001
-                        elif r[3] == 'Heating (W)':
+                        if r[3] == 'Heating (W)':
                             self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
                         elif r[3] == 'Cooling (W)':        
                             self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
+                    elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
+                            self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
         else:
             self['res']['pvkwh'] = 'N/A'
             self['res']['hkwh'] = 'N/A'
@@ -1905,6 +1921,9 @@ class So_En_Net_Bound(NodeSocket):
     def draw_color(self, context, node):
         return (0.5, 0.2, 0.0, 0.75)
 
+    def ret_valid(self, node):
+        return ['Boundary']
+    
 class So_En_Sched(NodeSocket):
     '''Fraction schedule socket'''
     bl_idname = 'So_En_Sched'
@@ -1949,6 +1968,9 @@ class So_En_Net_SSFlow(NodeSocket):
     def draw_color(self, context, node):
         return (0.1, 1.0, 0.2, 0.75)
 
+    def ret_valid(self, node):
+        return ['Sub-surface']
+    
 class So_En_Net_SFlow(NodeSocket):
     '''A surface flow socket'''
     bl_idname = 'So_En_Net_SFlow'
@@ -1963,6 +1985,9 @@ class So_En_Net_SFlow(NodeSocket):
     def draw_color(self, context, node):
         return (1.0, 0.2, 0.2, 0.75)
 
+    def ret_valid(self, node):
+        return ['Surface']
+    
 class So_En_Net_SSSFlow(NodeSocket):
     '''A surface or sub-surface flow socket'''
     bl_idname = 'So_En_Net_SSSFlow'
@@ -1976,6 +2001,9 @@ class So_En_Net_SSSFlow(NodeSocket):
 
     def draw_color(self, context, node):
         return (1.0, 1.0, 0.2, 0.75)
+    
+    def ret_valid(self, node):
+        return ['(Sub)Surface']
 
 class So_En_Net_CRef(NodeSocket):
     '''A plain zone airflow component socket'''
@@ -2143,7 +2171,6 @@ class No_En_Net_Zone(Node, EnViNodes):
             ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in sfacelist]
             ssfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type in ('Window', 'Door')], key=lambda face: -face.center[2])
             sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in ssfacelist]
-            print(sssocklist)
             [self.outputs.remove(oname) for oname in self.outputs if oname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and oname not in bsocklist + ssocklist + sssocklist]
             [self.inputs.remove(iname) for iname in self.inputs if iname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and iname not in bsocklist + ssocklist + sssocklist]
     
@@ -2163,13 +2190,11 @@ class No_En_Net_Zone(Node, EnViNodes):
     #            self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
     #            self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
             for olink in olinks:
-                print(olink)
                 try:
                     self.id_data.links.new(self.outputs[olink[0]], self.id_data.nodes[olink[1]].inputs[olink[2]])
                 except:
                     pass
             for ilink in ilinks:
-                print(ilink)
                 try:
                     self.id_data.links.new(self.id_data.nodes[ilink[1]].outputs[ilink[2]], self.inputs[ilink[0]])
                 except:
@@ -2245,6 +2270,9 @@ class No_En_Net_Zone(Node, EnViNodes):
 
         except Exception as e:
             logentry("Don't panic. This error message is not critical: {}".format(e))
+        
+        for sock in self.outputs:
+            socklink2(sock, self.id_data)
             
         self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
         nodecolour(self, self.errorcode())
@@ -2869,7 +2897,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     noof: IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
     spa: IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
-    dcof: FloatProperty(default = 1, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
+    dcof: FloatProperty(default = 0.7, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
     ddtw: FloatProperty(default = 0.001, min = 0, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
     amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "")
     amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "")
@@ -2884,11 +2912,11 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     rpd: FloatProperty(default = 4, min = 0.1, max = 50, name = "")
     of1:FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor {} (dimensionless)')
     (of2, of3, of4) =  [FloatProperty(default = 1.0, min = 0.01, max = 1, name = '', description = 'Opening Factor {} (dimensionless)'.format(i)) for i in range(3)]
-    (dcof1, dcof2, dcof3, dcof4) = [FloatProperty(default = 0.0, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
+    (dcof1, dcof2, dcof3, dcof4) = [FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
     (wfof1, wfof2, wfof3, wfof4) = [FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
     (hfof1, hfof2, hfof3, hfof4) = [FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
     (sfof1, sfof2, sfof3, sfof4) = [FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
-    dcof: FloatProperty(default = 0.2, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
+    dcof: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
     extnode:  BoolProperty(default = 0)
     actlist = [("0", "Opening factor", "Actuate the opening factor")]
     acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
@@ -3086,7 +3114,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
     linkmenu: EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA')
     of: FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
-    dcof: FloatProperty(default = 1, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
+    dcof: FloatProperty(default = 0.7, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
     amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "")
     amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "")
     dlen: FloatProperty(default = 2, name = "")
@@ -3226,7 +3254,7 @@ class No_En_Net_ACon(Node, EnViNodes):
     rsala = FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis', name = "")
 
     def init(self, context):
-        self.inputs.new('So_EN_Net_WPC', 'WPC Array')
+        self.inputs.new('So_En_Net_WPC', 'WPC Array')
 
     def draw_buttons(self, context, layout):
         yesno = (1, 1, 1, self.wpctype == 'Input', self.wpctype != 'Input' and self.wpctype == 'SurfaceAverageCalculation', 1, 1, 1, 1, 1, self.wpctype == 'SurfaceAverageCalculation', self.wpctype == 'SurfaceAverageCalculation')
@@ -3539,6 +3567,7 @@ envi_sched = [NodeItem("No_En_Sched", label="Schedule")]
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
                 NodeItem("No_En_Net_Ext", label="External Air")]
 envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program")]
+
 envinode_categories = [EnViNodeCategory("Zone", "Zone Nodes", items=envi_zone), 
                        EnViNodeCategory("Schedule", "Schedule Nodes", items=envi_sched),
                        EnViNodeCategory("Airflow", "Airflow Nodes", items=envi_airflow),
@@ -3637,9 +3666,9 @@ class So_En_Mat_Fr(NodeSocket):
     def ret_valid(self, node):
         return ['OLayer']
     
-class So_En_Mat_G(NodeSocket):
+class So_En_Mat_Gas(NodeSocket):
     '''EnVi gas layer socket'''
-    bl_idname = 'So_En_Mat_G'
+    bl_idname = 'So_En_Mat_Gas'
     bl_label = 'Gas layer socket'
     valid = ['GLayer']
 
@@ -4038,6 +4067,28 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         else:
             nodecolour(self, 0)
     
+    def ret_uv(self):
+        if self.envi_con_makeup == '1':
+            resists = []
+            lsock = self.inputs['Outer layer']
+            
+            while lsock.links:
+                resists.append(lsock.links[0].from_node.ret_resist())
+                lsock = lsock.links[0].from_node.inputs['Layer']   
+
+            self.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+        return self.uv
+    
+    def ret_nodes(self):
+        nodes = [self]
+        lsock = self.inputs['Outer layer']
+            
+        while lsock.links:
+            nodes.append(lsock.links[0].from_node)
+            lsock = lsock.links[0].from_node.inputs['Layer']
+        
+        return nodes
+    
     def save_condict(self):
         lks = self.inputs['Outer layer'].links
         lay_names = [lks[0].from_node.lay_name] if lks[0].from_node.layer == '1' else [lks[0].from_node.material]
@@ -4268,7 +4319,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
     materialtype: EnumProperty(items = envi_layertype, name = "", description = "Layer material type", update = lay_update)
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
-    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100)
+    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
     tc: FloatProperty(name = "W/m.K", description = "Thickness (mm)", min = 0.001, max = 10, default = 0.5)
     rough: EnumProperty(items = [("VeryRough", "VeryRough", "Roughness"), 
                                   ("Rough", "Rough", "Roughness"), 
@@ -4296,26 +4347,26 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         self.inputs.new('So_En_Mat_Op', 'Layer')
         
     def draw_buttons(self, context, layout):
+        newrow(layout, "Type:", self, "materialtype")
         newrow(layout, "Class:", self, "layer")
         if self.layer == '0':
-            newrow(layout, "Type:", self, "materialtype")
             newrow(layout, "Material:", self, "material")
             newrow(layout, "Thickness:", self, "thi") 
         else:
             newrow(layout, "Name:", self, "lay_name")
-            newrow(layout, "Type:", self, "materialtype")
             newrow(layout, "Conductivity:", self, "tc")
             newrow(layout, "Thickness:", self, "thi")
             newrow(layout, "Roughness:", self, "rough")
             newrow(layout, "Density:", self, "rho")
-            newrow(layout, "SHC:", self, "shc")
+            newrow(layout, "SHC:", self, "shc")            
             newrow(layout, "Therm absorb:", self, "tab")
             newrow(layout, "Solar absorb:", self, "sab")
             newrow(layout, "Vis absorb:", self, "vab")
-
+            
             if self.materialtype == '8':
-                newrow(layout, "TCTC:", self, "tctc")
                 newrow(layout, "Temps:Emps", self, "tempemps")
+                newrow(layout, "TCTC:", self, "tctc")
+            
             row = layout.row()
             row.operator('node.lay_save', text = "Layer Save")
     
@@ -4436,7 +4487,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     
     def init(self, context):
         self.outputs.new('So_En_Mat_Tr', 'Layer')
-        self.inputs.new('So_En_Mat_G', 'Layer')
+        self.inputs.new('So_En_Mat_Gas', 'Layer')
         
     def draw_buttons(self, context, layout):        
         newrow(layout, "Class:", self, "layer")
@@ -4485,6 +4536,15 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         envi_mats.get_dat('Glass')[self.lay_name] = ['Glazing', 'SpectralAverage', '', '{:.4f}'.format(self.thi * 0.001), '{:.4f}'.format(self.stn), '{:.4f}'.format(self.fsn), '{:.4f}'.format(self.bsn), '{:.4f}'.format(self.vtn), 
                          '{:.4f}'.format(self.fvrn), '{:.4f}'.format(self.bvrn), '{:.4f}'.format(self.itn), '{:.4f}'.format(self.fie), '{:.4f}'.format(self.bie), '{:.4f}'.format(self.diff)]       
         envi_mats.lay_save()
+
+    def ret_resist(self):
+        if self.layer == '0':
+            matlist = list(envi_mats.matdat[self.material])            
+            self.resist = float(matlist[13])            
+        else:
+            self.resist = self.thi * 0.001/self.tc
+            
+        return self.resist
         
     def ep_write(self, ln, mn):
         for material in bpy.data.materials:
@@ -4529,13 +4589,14 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
     shcA: FloatProperty(name = "J/kg.K", description = "Specific heat coefficient A", min = 0, max = 1, default = 0.7)
     shcB: FloatProperty(name = "J/kg.K^2", description = "Specific heat coefficient A", min = 0, max = 1, default = 0.7)
     shcC: FloatProperty(name = "J/kg.K^3", description = "Specific heat coefficient A", min = 0, max = 1, default = 0.7)
-    mw: FloatProperty(name = "kg/kmol", description = "Molecular weight", min = 0, max = 1, default = 0.7)
-    shr: FloatProperty(name = "", description = "Specific heat ratio", min = 0, max = 1, default = 0.7)
+    mw: FloatProperty(name = "kg/kmol", description = "Molecular weight", min = 20, max = 100, default = 20)
+    shr: FloatProperty(name = "", description = "Specific heat ratio", min = 1, max = 10, default = 2)
+    resist: FloatProperty(name = "", description = "", min = 0, default = 0)
     envi_con_type: StringProperty(name = "", description = "Name")
     
     def init(self, context):
-        self.outputs.new('envi_gl_sock', 'Layer')
-        self.inputs.new('envi_tl_sock', 'Layer')
+        self.outputs.new('So_En_Mat_Gas', 'Layer')
+        self.inputs.new('So_En_Mat_Tr', 'Layer')
         
     def draw_buttons(self, context, layout):
         if self.outputs['Layer'].links:
@@ -4569,9 +4630,19 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
         else:
             nodecolour(self, 0)
 
+    def ret_resist(self):
+        if self.layer == '0':
+            matlist = list(envi_mats.matdat[self.material])
+            self.resist = self.thi * 0.001/float(matlist[4])          
+        else:
+            self.tc = self.ccA + self.ccB * 293.14
+            self.resist = self.thi * 0.001/self.tc
+            
+        return self.resist
+    
     def ep_write(self, ln, mn):
         for material in bpy.data.materials:
-            if self.id_data == material.envi_nodes:
+            if self.id_data == material.vi_params.envi_nodes:
                 break
         if self.layer == '0':
             params = ('Name', 'Gas Type', 'Thickness')
@@ -5239,7 +5310,7 @@ envimatnode_categories = [
         EnViMatNodeCategory("Type", "Type Node", items=[NodeItem("No_En_Mat_Con", label="Construction Node")]),
         EnViMatNodeCategory("Layer", "Layer Node", items=[NodeItem("No_En_Mat_Op", label="Opaque layer"),
                                                        NodeItem("No_En_Mat_Tr", label="Transparency layer"),
-                                                       NodeItem("No_En_Mat_G", label="Gas layer")]), 
+                                                       NodeItem("No_En_Mat_Gas", label="Gas layer")]), 
         EnViMatNodeCategory("Shading", "Shading Node", items=[NodeItem("No_En_Mat_Sh", label="Shading layer"),
                                                        NodeItem("No_En_Mat_Bl", label="Blind layer"),
                                                        NodeItem("No_En_Mat_Sc", label="Screen layer"),

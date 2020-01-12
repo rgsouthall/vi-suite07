@@ -1228,15 +1228,16 @@ class NODE_OT_En_UV(bpy.types.Operator):
     bl_label = "EnVi Material U-Value Calculation"
 
     def execute(self, context):
-        resists = []
+#        resists = []
         node = context.node
-        lsock = node.inputs['Outer layer']
-                
-        while lsock.links:
-            resists.append(lsock.links[0].from_node.ret_resist())
-            lsock = lsock.links[0].from_node.inputs['Layer']
-
-        node.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+        node.ret_uv()
+#        lsock = node.inputs['Outer layer']
+#                
+#        while lsock.links:
+#            resists.append(lsock.links[0].from_node.ret_resist())
+#            lsock = lsock.links[0].from_node.inputs['Layer']
+#
+#        node.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
         return {'FINISHED'}
     
 class NODE_OT_En_Con(bpy.types.Operator, io_utils.ExportHelper):
@@ -2010,6 +2011,7 @@ class TREE_OT_goto_group(bpy.types.Operator):
         context.space_data.tree_type = self.tree_type
         context.space_data.path.append(bpy.data.node_groups[self.tree])
         context.space_data.node_tree = bpy.data.node_groups[self.tree]
+        context.space_data.node_tree.use_fake_user = 1
 #        print(dir(context.space_data))
         return {'FINISHED'}
     

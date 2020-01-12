@@ -271,11 +271,11 @@ def retuval(mat):
         return 1.0
 
 def envi_layertype(self, context):   
-    return retmatdict(self.envi_con_type, 1, self.bl_idname == 'envi_gl_node')   
+    return retmatdict(self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')   
           
 def envi_layer(self, context):  
     if self.materialtype:
-        return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self.envi_con_type, 0, self.bl_idname == 'envi_gl_node')[self.materialtype])]  
+        return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self.envi_con_type, 0, self.bl_idname == 'No_En_Mat_Gas')[self.materialtype])]  
     else:
         return [('', '', '')]    
 

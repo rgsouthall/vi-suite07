@@ -61,10 +61,10 @@ else:
     from .vi_node import No_Li_Sim
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
-    from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op
+    from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op
     from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
-    from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_G, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
+    from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense
     #    from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, cmap
@@ -91,9 +91,6 @@ from numpy import array, digitize, logspace, multiply
 from numpy import log10 as nlog10
 from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import AddonPreferences
-
-
-
 
 def return_preferences():
     return bpy.context.preferences.addons[__name__].preferences
@@ -493,6 +490,7 @@ def select_nodetree(dummy):
         vings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'ViN']
         if vings:
             space.node_tree = vings[0]
+            space.node_tree.use_fake_user = 1
 
     for space in getEnViEditorSpaces():
         envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViN']
@@ -523,7 +521,6 @@ def getEnViEditorSpaces():
         return []
 
 def getEnViMaterialSpaces():
-    print('mat')
     if bpy.context.screen:        
         return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViMatN"]
     else:
@@ -620,7 +617,7 @@ def liviresupdate(self, context):
     eupdate(self, context)
 
 def script_update(self, context):
-    if context.scene.vi_res_process == '2':
+    if context.scene.vi_params.vi_res_process == '2':
         script = bpy.data.texts[context.scene.script_file]
         exec(script.as_string())
         
@@ -628,8 +625,6 @@ def flovi_levels(self, context):
     if self.flovi_slmin > self.flovi_slmax:
        self.flovi_slmin -= 1 
 
-
-#classes = (VIPreferences,VI_Params_Scene, VI_Params_Object, VI_Params_Material, ViNetwork, NODE_OT_WindRose)
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPath, NODE_OT_TextUpdate, 
            VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, ViWRNode, ViSVFNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
            NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, ViSSNode, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
@@ -638,27 +633,15 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
            NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
-           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_G, No_En_Con, So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim,
+           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con, 
+           So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
            No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Sched, No_En_Net_Inf,
            No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV,
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV)
-
-
-#def register():
-#    for cl in classes:
-#        bpy.utils.register_class(cl)
-#
-#    bpy.types.Scene.slicer_settings = bpy.props.PointerProperty(type=Slicer_Settings)
-#
-#def unregister():
-#    bpy.types.Scene.slicer_settings
-#    
-#    for cl in classes:
-#        bpy.utils.unregister_class(cl)                      
-
+                     
 def register():
     for cl in classes:
         bpy.utils.register_class(cl)
@@ -669,97 +652,45 @@ def register():
     Material.vi_params = bpy.props.PointerProperty(type = VI_Params_Material)
     Collection.vi_params = bpy.props.PointerProperty(type = VI_Params_Collection)
 
-# VI-Suite object definitions
-#    Object.vi_type = eprop([("0", "None", "Not a VI-Suite zone"), ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), 
-#                            ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
-#                            ("4", "Light Array", "Specifies a LiVi lighting array"), ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation")], "", "Specify the type of VI-Suite zone", "0")
-#
-## LiVi object properties
-#    Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
-#    Object.ies_name = bpy.props.StringProperty(name="", description="Name of the IES file", default="", subtype="FILE_PATH")
-#    Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
-#    Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
-#    Object.ies_colmenu = eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
-#    Object.ies_rgb = fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
-#    Object.ies_ct = iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
-#    (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.bsdf_proxy) = [bprop("", "", False)] * 5
-#    Object.compcalcapply = compcalcapply    
-#    Object.basiccalcapply = basiccalcapply 
-#    Object.rtpoints = rtpoints
-#    Object.udidacalcapply = udidacalcapply
-#    Object.lividisplay = lividisplay
-#    Object.lhcalcapply = lhcalcapply
-#    Object.li_bsdf_direc = EnumProperty(items = [('+b -f', 'Backwards', 'Backwards BSDF'), ('+f -b', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b -f')
-#    Object.li_bsdf_proxy = bprop("", "Include proxy geometry in the BSDF", False)
-#    Object.li_bsdf_tensor = EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
-#    Object.li_bsdf_res = EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
-#    Object.li_bsdf_tsamp = IntProperty(name = '', description = 'Tensor samples', min = 1, max = 20, default = 4)
-#    Object.li_bsdf_ksamp = IntProperty(name = '', description = 'Klem samples', min = 1, default = 200)
-#    Object.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
-#    Object.radbsdf = radbsdf
-#    Object.retsv = retsv
-
-# EnVi zone definitions
-
-# FloVi object definitions
- 
-# Vi_suite material definitions
-#    Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
-                                 
-# LiVi material definitions                              
 
 
 
     
 # Scene parameters
-#    Scene.latitude = bpy.props.FloatProperty(name = "Latitude", description = "Site decimal latitude (N is positive)", min = -89.99, max = 89.99, default = 52.0)
-#    Scene.longitude = bpy.props.FloatProperty(name = "Longitude", description = "Site decimal longitude (E is positive)", min = -180, max = 180, default = 0.0)
-#    Scene.wind_type = eprop([("0", "Speed", "Wind Speed (m/s)"), ("1", "Direction", "Wind Direction (deg. from North)")], "", "Wind metric", "0")
-    Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)        
-    Scene.suns = EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
-    Scene.sunsstrength = bpy.props.FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
-    Scene.sunssize = bpy.props.FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
-    Scene.solday = IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
-    Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
-    (Scene.hourdisp, Scene.spupdate, Scene.timedisp) = [bprop("", "",0)] * 3
-    Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-    Scene.li_disp_count = iprop("", "", 0, 1000, 0)
-
-       
-    (Scene.lic_disp_panel, Scene.sp_disp_panel, Scene.wr_disp_panel, Scene.ss_leg_display, Scene.en_disp_panel, Scene.li_compliance, Scene.vi_display_rp, Scene.vi_leg_display, 
-     Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 10
-
-    Scene.vi_scatter_max = bpy.props.FloatProperty(name = "", description = "Scatter maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
-    Scene.vi_scatter_min = bpy.props.FloatProperty(name = "", description = "Scatter minimum", min = 0, max = 1000000, default = 0, update=legupdate)
-    Scene.vi_leg_col = EnumProperty(items = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
-                                             ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), 
-                                             ('hsv', 'HSV', 'HSV colour scale'), ('viridis', 'Viridis', 'Viridis colour scale')], 
-                                            name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
+#    Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)        
+#    Scene.suns = EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
+#    Scene.sunsstrength = bpy.props.FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
+#    Scene.sunssize = bpy.props.FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
+#    Scene.solday = IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
+#    Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
+#    (Scene.hourdisp, Scene.spupdate, Scene.timedisp) = [bprop("", "",0)] * 3
+#    Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
+#    Scene.li_disp_count = iprop("", "", 0, 1000, 0)
+#
+#       
+#    (Scene.lic_disp_panel, Scene.sp_disp_panel, Scene.wr_disp_panel, Scene.ss_leg_display, Scene.en_disp_panel, Scene.li_compliance, Scene.vi_display_rp, Scene.vi_leg_display, 
+#     Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 10
+#
+#    Scene.vi_scatter_max = bpy.props.FloatProperty(name = "", description = "Scatter maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
+#    Scene.vi_scatter_min = bpy.props.FloatProperty(name = "", description = "Scatter minimum", min = 0, max = 1000000, default = 0, update=legupdate)
+#    Scene.vi_leg_col = EnumProperty(items = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
+#                                             ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), 
+#                                             ('hsv', 'HSV', 'HSV colour scale'), ('viridis', 'Viridis', 'Viridis colour scale')], 
+#                                            name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
+#    
+#    Scene.script_file = bpy.props.StringProperty(description="Text file to show", update = script_update)
+#    Scene.vi_gridify_rot = fprop("deg", "Rotation around face normal", 0.0, 360, 0.0)
+#    Scene.vi_gridify_us = fprop("m", "Up direction size", 0.01, 10, 0.6)
+#    Scene.vi_gridify_as = fprop("m", "Side direction size", 0.01, 10, 0.6)
+#    Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 5, 0.001)
+#    
+#    Scene.li_disp_sv = EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
+#    Scene.li_disp_sda = EnumProperty(items = [("0", "sDA (%)", "Display spatial Daylight Autonomy"), ("1", "ASE (hrs)", "Display the Annual Solar Exposure")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
+#    Scene.li_disp_wr = EnumProperty(items = [("0", "Wind Speed", "Wind speed (m/s)"),("1", "Wind Direction", "Wind direction (deg from North)")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
+#             
+#    Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
     
-#    Scene.vi_res_py = bprop("", "Boolean for Python function modification of results",  False)
-    Scene.vi_res_process = EnumProperty(items = [("0", "None", ""), ("1", "Modifier", ""), ("2", "Script", "")], name = "", description = "Specify the type of data processing", default = "0", update = script_update)
-    Scene.script_file = bpy.props.StringProperty(description="Text file to show", update = script_update)
     
-#    Scene.vi_leg_levels = IntProperty(name = "", description = "Day of year", min = 2, max = 100, default = 20, update=legupdate)
-    Scene.vi_gridify_rot = fprop("deg", "Rotation around face normal", 0.0, 360, 0.0)
-    Scene.vi_gridify_us = fprop("m", "Up direction size", 0.01, 10, 0.6)
-    Scene.vi_gridify_as = fprop("m", "Side direction size", 0.01, 10, 0.6)
-
-
-    
-    Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 5, 0.001)
-    
-    Scene.li_disp_sv = EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
-    Scene.li_disp_sda = EnumProperty(items = [("0", "sDA (%)", "Display spatial Daylight Autonomy"), ("1", "ASE (hrs)", "Display the Annual Solar Exposure")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
-    Scene.li_disp_wr = EnumProperty(items = [("0", "Wind Speed", "Wind speed (m/s)"),("1", "Wind Direction", "Wind direction (deg from North)")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
- #   Scene.li_disp_lh = EnumProperty(items = [("0", "Mluxhours", "Display mega luxhours"), ("1", "Visible Irradiance", "Display visible irradiance"), ("1", "Full Irradiance", "Display full irradiance")], name = "", description = "Exposure data type", default = "0", update = liviresupdate)
-#    Scene.li_projname = sprop("", "Name of the building project", 1024, '')
-#    Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
-#    Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
-#    Scene.li_jobno = sprop("", "Project job number", 1024, '')
-             
-    Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
-
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
     nodeitems_utils.register_node_categories("EnVi Material Nodes", envimatnode_categories)
@@ -779,31 +710,26 @@ def register():
     path_update()
 
 def unregister():
-#    bpy.types.Scene.slicer_settings
-    
+  
     for cl in classes:
         bpy.utils.unregister_class(cl)
         
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
-    nodeitems_utils.unregister_node_categories("EnVi Mat Nodes")
+    nodeitems_utils.unregister_node_categories("EnVi Material Nodes")
+
+    if update_chart_node in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(update_chart_node)
+
+    if display_off in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(display_off)
+
+    if mesh_index in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(mesh_index)
         
-#def unregister():
-#    bpy.utils.unregister_module(__name__)
-#    nodeitems_utils.unregister_node_categories("Vi Nodes")
-#    nodeitems_utils.unregister_node_categories("EnVi Nodes")
-#    nodeitems_utils.unregister_node_categories("EnVi Mat Nodes")
-#
-#    if update_chart_node in bpy.app.handlers.load_post:
-#        bpy.app.handlers.load_post.remove(update_chart_node)
-#
-#    if display_off in bpy.app.handlers.load_post:
-#        bpy.app.handlers.load_post.remove(display_off)
-#
-#    if mesh_index in bpy.app.handlers.load_post:
-#        bpy.app.handlers.load_post.remove(mesh_index)
-#        
-#    if update_dir in bpy.app.handlers.load_post:
-#        bpy.app.handlers.load_post.remove(update_dir)
+    if update_dir in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(update_dir)
+        
+        
 #if __name__ == "__main__":
 #    register()

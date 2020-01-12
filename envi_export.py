@@ -45,7 +45,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
             return
-        
+#        if any([node.bl_idname in 'No_En_Net_SSFlow'])
+        enng['enviparams']['afn'] = 1
         en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), svp['enparams']['epversion']))    
         params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
                   'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
@@ -142,7 +143,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                         if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                             vcos = [v.co for v in face.verts]
                             (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
-                            print(obco)
                             
                             if obc:
                                 if emnode.envi_con_type in ('Wall', "Floor", "Roof"):
@@ -387,21 +387,22 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         for ep in epentrydict:
             if epentrydict[ep]:
                 en_idf.write(ep)
-    
-        if node.resl12ms:
-            for cnode in [cnode for cnode in enng.nodes if cnode.bl_idname == 'No_En_Net_SFlow']:
-                for sno in cnode['sname']:
-                    en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\nOutput:Variable,{0},AFN Linkage Node 2 to Node 1 Volume Flow Rate,hourly;\n".format(sno))
-                    en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Pressure Difference,hourly;\n".format(sno))
-            for snode in [snode for snode in enng.nodes if snode.bl_idname == 'No_En_Net_SSFlow']:
-                for sno in snode['sname']:
-                    en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\nOutput:Variable,{0},AFN Linkage Node 2 to Node 1 Volume Flow Rate,hourly;\n".format(sno))
-                    en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Pressure Difference,hourly;\n".format(sno))
-        if node.reslof == True:
-            for snode in [snode for snode in enng.nodes if snode.bl_idname == 'No_En_Net_SSFlow']:
-                if snode.linkmenu in ('SO', 'DO', 'HO'):
+        
+        if enng['enviparams']['afn']:
+            if node.resl12ms:
+                for cnode in [cnode for cnode in enng.nodes if cnode.bl_idname == 'No_En_Net_SFlow']:
+                    for sno in cnode['sname']:
+                        en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\nOutput:Variable,{0},AFN Linkage Node 2 to Node 1 Volume Flow Rate,hourly;\n".format(sno))
+                        en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Pressure Difference,hourly;\n".format(sno))
+                for snode in [snode for snode in enng.nodes if snode.bl_idname == 'No_En_Net_SSFlow']:
                     for sno in snode['sname']:
-                        en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno))
+                        en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\nOutput:Variable,{0},AFN Linkage Node 2 to Node 1 Volume Flow Rate,hourly;\n".format(sno))
+                        en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Pressure Difference,hourly;\n".format(sno))
+            if node.reslof == True:
+                for snode in [snode for snode in enng.nodes if snode.bl_idname == 'No_En_Net_SSFlow']:
+                    if snode.linkmenu in ('SO', 'DO', 'HO'):
+                        for sno in snode['sname']:
+                            en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno))
     
         en_idf.write("Output:Table:SummaryReports,\
         AllSummary;              !- Report 1 Name")
@@ -449,7 +450,7 @@ def pregeo(context, op):
         if c.vi_params.envi_zone:
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c.name.upper())))
             for o in c.objects:
-                if o.type == 'MESH' and o.vi_params.envi_type == '0':
+                if o.type == 'MESH' and o.vi_params.envi_type in ('0', '1'):
                     if any([f for f in o.data.polygons if o.material_slots[f.material_index].material and o.material_slots[f.material_index].material.vi_params.envi_nodes]):
                         selobj(context.view_layer, o)
                         bpy.ops.object.duplicate(linked=False)
@@ -467,10 +468,11 @@ def pregeo(context, op):
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)                
             bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces], context = 'VERTS')
             bmesh.ops.delete(bm, geom = [f for f in bm.faces if f.calc_area() < 0.001], context = 'FACES') 
+            bmesh.ops.delete(bm, geom = [f for f in bm.faces if o.material_slots[f.material_index].material == None], context = 'FACES') 
+            bmesh.ops.delete(bm, geom = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context = 'FACES')
+            bmesh.ops.delete(bm, geom = [f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context = 'FACES')
             
             if o.vi_params.envi_type != '1':
-                bmesh.ops.delete(bm, geom = [f for f in bm.faces if o.material_slots[f.material_index].material == None], context = 'FACES') 
-                bmesh.ops.delete(bm, geom = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context = 'FACES')
                 bm.faces.layers.string.new('oname')
                 fo = bm.faces.layers.string['oname']
             
@@ -605,10 +607,13 @@ def pregeo(context, op):
                     done_mats.append(sm.material)
                     mat = sm.material
                     mvp = mat.vi_params
+                    
                     if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
                         mvp.envi_nodes = mvp.envi_nodes.copy()
                         mvp.envi_nodes.name = mat.name
+                        
                     emnode = get_con_node(mvp)
+                    emnode.ret_uv()
                     
                     if mvp.envi_nodes and mvp.envi_nodes.users > 1:
                        mvp.envi_nodes.user_clear() 
@@ -616,7 +621,7 @@ def pregeo(context, op):
                     
                     if not emnode:
                         op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
-                    elif any([n.use_custom_color for n in mvp.envi_nodes.nodes]):
+                    elif any([n.use_custom_color for n in emnode.ret_nodes()]):
                         op.report({'WARNING'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
                     else:
                         mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
@@ -707,19 +712,19 @@ def pregeo(context, op):
 #        for node in enng.nodes:
 #            
 #                
-#        for node in enng.nodes:
+        for node in enng.nodes:
 #            if hasattr(node, 'zone') and node.zone == coll.name:
 #                node.uvsockupdate()
     #    eg['enparams']['pva'] = sum([mat.vi_params['enparams']['area'] for mat in bpy.data.materials if get_con_node(mat).links])
     #                
     ##            print(enomats, [get_con_node(mat).name for mat in enomats])    
     #                if node.envi_afsurface:
-                if [sock.bl_idname == 'So_En_Net_SFlow' for sock in node.inputs]:
-                    enng['enviparams']['afn'] = 1
-    #                
-                if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
-                    enng.nodes.new(type = 'No_En_Net_ACon')         
-                    enng.use_fake_user = 1
+            if [sock.bl_idname in ('So_En_Net_SFlow', 'So_En_Net_SFlow') for sock in node.inputs]:
+                enng['enviparams']['afn'] = 1
+#                
+            if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
+                enng.nodes.new(type = 'No_En_Net_ACon')         
+                enng.use_fake_user = 1
 #                
 ##            scene.layers[0], scene.layers[1] = True, False
 #            selobj(context.view_layer, obj)

@@ -771,8 +771,8 @@ class bsdf_disp(Base_Display):
             blf.enable(0, 4)
             blf.enable(0, 8)
             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, 12, 144)
-            blf.position(self.font_id, self.lspos[0] + 175 - blf.dimensions(self.font_id, 'Incoming')[0]*0.5, self.lepos[1] - 0.5 * (self.ydiff) - blf.dimensions(self.font_id, 'Incoming')[1] * 0.3, 0) 
+            blf.size(self.font_id, 10, 144)
+            blf.position(self.font_id, self.lspos[0] + 175 - blf.dimensions(self.font_id, 'Incoming')[0]*0.5, self.lepos[1] - blf.dimensions(self.font_id, 'Incoming')[1], 0) 
             blf.color(self.font_id, 0, 0, 0, 1)      
             blf.draw(self.font_id, 'Incoming')
             blf.disable(0, 8)  
@@ -3502,16 +3502,14 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     def remove(self, context):
         self.bsdf.plt.close()
         bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
-        context.scene['viparams']['vidisp'] = 'bsdf'
+        context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
         bpy.data.images.remove(self.bsdf.gimage)
         context.area.tag_redraw()
     
-    def draw_bsdfnum(self, context):              
+    def draw_bsdfnum(self, context):
         self.results_bar.draw(context.region.height)
         self.bsdf.draw(context)
-#        context.scene.bsdf.draw(context)
-#        self.legend_num.draw(context)    
-        
+
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.libd"
