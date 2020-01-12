@@ -5291,7 +5291,7 @@ class No_En_Mat_PVG(Node, EnViMatNodes):
     it: EnumProperty(items = [('0', 'Simple', 'Simple Inverter')], name = "", description = "Inverter type")
     ie: FloatProperty(name = "%", description = "Inverter efficiency (%)", min = 0.0, max = 100, default = 90)
     rf: FloatProperty(name = "", description = "Fraction", min = 0, max = 1, default = 0.1)
-    maxload: IntProperty(name = "", description = "Max Power (W)", min = 0, max = 1, default = 0.1)
+    maxload: IntProperty(name = "", description = "Max Power (W)", max = 10, default = 1000)
     
 #    def elc_write()
 
