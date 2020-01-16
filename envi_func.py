@@ -540,7 +540,7 @@ def processf(pro_op, node):
             node['hours'] = arange(1, 25, dtype = float)
             node['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float) 
         except:
-            pro_op.report({'ERROR'}, "There are no results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
+            pro_op.report({'ERROR'}, "There are no zone results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
         
         for o in scene.objects:
             if 'EN_' + o.name.upper() in zrls[2]:

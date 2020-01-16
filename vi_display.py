@@ -441,7 +441,7 @@ def spnumdisplay(disp_op, context):
                 try:
                     if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
                         soltime = datetime.datetime.fromordinal(scene.solday)
-                        soltime += datetime.timedelta(hours = scene.solhour)
+                        soltime += datetime.timedelta(hours = scene.sp_sh)
                         sre = sobs[0].rotation_euler
                         blf_props(scene, width, height)
                         draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi), 
@@ -2482,13 +2482,19 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
     def modal(self, context, event):
         scene = context.scene
+        svp = scene.vi_params
        
         if context.area:
             context.area.tag_redraw()
             
-        if scene.vi_params.vi_display == 0 or scene.vi_params['viparams']['vidisp'] != 'sp':
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp':
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
+            svp['viparams']['vidisp'] = ''
+            
+            for h in bpy.app.handlers.frame_change_post:
+                bpy.app.handlers.frame_change_post.remove(h)
+                
             [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.vi_params.get('VIType') and o.vi_params['VIType'] in ('SunMesh', 'SkyMesh')]
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
@@ -2579,17 +2585,18 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
     def invoke(self, context, event):        
         scene = context.scene
-        scene.vi_params['viparams'] = {}
-        scene.vi_params['spparams'] = {}
+        svp = scene.vi_params
+        svp['viparams'] = {}
+        svp['spparams'] = {}
         spcoll = create_coll(context, 'SunPath')            
         sd = 100
         node = context.node
         # Set the node colour
         node.export()
         
-        scene.vi_params['viparams']['resnode'], scene.vi_params['viparams']['restree'] = node.name, node.id_data.name
+        svp['viparams']['resnode'], svp['viparams']['restree'] = node.name, node.id_data.name
         scene.cursor.location = (0.0, 0.0, 0.0)
-        suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
+        suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
         requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
         matdict = {'SPBase': (0, 0, 0, 1), 'SPPlat': (1, 1, 1, 1)}
         
@@ -2619,7 +2626,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             for sun in suns[requiredsuns:]: 
                 bpy.data.objects.remove(sun, do_unlink=True, do_id_user=True, do_ui_user=True)
 
-            suns = [ob for ob in context.scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]            
+            suns = [ob for ob in context.scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]            
             [sun.animation_data_clear() for sun in suns]
 
         if not suns or len(suns) < requiredsuns: 
@@ -2659,30 +2666,30 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 
             sun.data.shadow_soft_size = 0.01            
             sun['VIType'] = 'Sun'
-            sun['solhour'], sun['solday'] = scene.solhour, scene.solday
+            sun['solhour'], sun['solday'] = svp.sp_sh, svp.sp_sd
             sun.name = sun.data.name ='Sun{}'.format(s)
             sun.parent = spathob
 
         if spfc not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(spfc)
 
-        scene.vi_params['viparams']['vidisp'] = 'sp'
-        scene.vi_params['spparams']['suns'] = node.suns
-        scene.vi_params['viparams']['visimcontext'] = 'SunPath'
+        svp['viparams']['vidisp'] = 'sp'
+        svp['spparams']['suns'] = node.suns
+        svp['viparams']['visimcontext'] = 'SunPath'
         sunpath(scene)
         node = context.node
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
-        self.latitude = scene.vi_params.latitude
-        self.longitude = scene.vi_params.longitude
-        self.sd = scene.vi_params.sp_sd
-        self.sh = scene.vi_params.sp_sh
-        self.ss = scene.vi_params.sp_sun_size
+        self.latitude = svp.latitude
+        self.longitude = svp.longitude
+        self.sd = svp.sp_sd
+        self.sh = svp.sp_sh
+        self.ss = svp.sp_sun_size
         self.create_batch(scene, node)
         self.draw_handle_sp = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
         self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_spnum, (self, context), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
-        scene.vi_params.vi_display = 1
+        svp.vi_display = 1
         return {'RUNNING_MODAL'}
         
 class wr_scatter(Base_Display):

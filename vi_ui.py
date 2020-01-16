@@ -59,9 +59,10 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Latitude:", svp, 'latitude')
                 newrow(layout, "Longitude:", svp, 'longitude')
 
-                (sdate, edate) = retdates(scene.solday, 365, 2015)
+                (sdate, edate) = retdates(svp.sp_sd, 365, 2015)
                     
-                time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day:", "sp_sh")), [("Time of day:", "sp_sh")], [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
+                time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60) % 60)), "sp_sh")), 
+                              [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60)) % 60), "sp_sh")], [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
                 
                 for i in time_disps[int(svp['spparams']['suns'])]:
                     newrow(layout, i[0], svp, i[1])

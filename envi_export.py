@@ -29,7 +29,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     scene = bpy.context.scene 
     svp = scene.vi_params
     svp['viparams']['hvactemplate'] = 0
-    
+    depsgraph = bpy.context.evaluated_depsgraph_get()
     
     for frame in range(svp['enparams']['fs'], svp['enparams']['fe'] + 1):
         pvs = []
@@ -131,7 +131,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 mats = [ms.material for ms in obj.material_slots]
 #                obj = scene.objects[zn]
 #            for obj in [obj for obj in coll.objects if obj.type == 'MESH' and obj.vi_type == '1']:
-                me = obj.to_mesh()
+#                me = obj.to_mesh()
+                me = obj.evaluated_get(depsgraph).to_mesh()
                 bm = bmesh.new()
                 bm.from_mesh(me)
                 bm.transform(obj.matrix_world)
@@ -178,14 +179,14 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                     
                                     en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
                     
-                                elif emnode.envi_con_type == 'Shading':
+                                elif emnode.envi_con_type == 'Shading' and obj.vi_params.envi_type != '1':
                                     params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
                                     paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
                                     en_idf.write(epentry('Shading:{}:Detailed'.format('Building'), params, paramvs))
                                     
                                     if emnode.inputs['PV'].links:
                                         pvnode = emnode.inputs['PV'].links[0].from_node
-                                        en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index)))
+                                        en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
                         #                en_idf.write(emnode.pv_ep_write('{}_{}'.format(obj.name, face.index)))
                                         gens.append('{}_{}-pv'.format(obj.name, face.index))
                                         
@@ -197,7 +198,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                 
                                 if emnode.inputs['PV'].links:
                                     pvnode = emnode.inputs['PV'].links[0].from_node
-                                    en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index)))
+                                    en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
                     #                en_idf.write(emnode.pv_ep_write('{}_{}'.format(obj.name, face.index)))
                                     gens.append('{}_{}-pv'.format(obj.name, face.index))
                 bm.free()
@@ -451,7 +452,7 @@ def pregeo(context, op):
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c.name.upper())))
             for o in c.objects:
                 if o.type == 'MESH' and o.vi_params.envi_type in ('0', '1'):
-                    if any([f for f in o.data.polygons if o.material_slots[f.material_index].material and o.material_slots[f.material_index].material.vi_params.envi_nodes]):
+                    if [f for f in o.data.polygons if o.material_slots and o.material_slots[f.material_index].material and o.material_slots[f.material_index].material.vi_params.envi_nodes]:
                         selobj(context.view_layer, o)
                         bpy.ops.object.duplicate(linked=False)
                         no = context.active_object.copy()  
@@ -517,16 +518,16 @@ def pregeo(context, op):
 #            new_ob.material_slots[0].material.diffuse_color = (1, 0, 0)
         
         if new_ob.vi_params.envi_type == '1':
-            if 'en_shading' not in [m.name for m in bpy.data.materials]:
-                bpy.data.materials.new('en_shading')
             if not new_ob.material_slots:
-                bpy.ops.object.material_slot_add()
-                bpy.ops.material.new()
-            elif len(new_ob.material_slots) > 1:
-                while len(new_ob.material_slots) > 1:
-                    bpy.ops.object.material_slot_remove()
-            new_ob.material_slots[0].material = bpy.data.materials['en_shading']
-            new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
+                if 'en_shading' not in [m.name for m in bpy.data.materials]:
+                    bpy.data.materials.new('en_shading')
+                    bpy.ops.object.material_slot_add()
+                    bpy.ops.material.new()
+#                    elif len(new_ob.material_slots) > 1:
+#                        while len(new_ob.material_slots) > 1:
+#                            bpy.ops.object.material_slot_remove()
+                    new_ob.material_slots[0].material = bpy.data.materials['en_shading']
+                    new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
             
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
@@ -563,8 +564,7 @@ def pregeo(context, op):
                 op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))
             elif None in omats:
                 op.report({'WARNING'}, 'Object {} has an empty material slot'.format(obj.name))
-            elif ovp.envi_type in ('0', '2'):                        
-                ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}            
+            else:
                 try:
                     ofa = 0
                     for face in obj.data.polygons:
@@ -582,6 +582,10 @@ def pregeo(context, op):
                 except Exception as e:
                     logentry('There is a problem with the area calculation for object {}: {}'.format(obj.name, e))
                     ovp['enparams']["floorarea"] = 1
+                    
+                if ovp.envi_type in ('0', '2'):                        
+                    ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}            
+                
         
         
 #                for mats in omats:
@@ -611,19 +615,19 @@ def pregeo(context, op):
                     if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
                         mvp.envi_nodes = mvp.envi_nodes.copy()
                         mvp.envi_nodes.name = mat.name
-                        
-                    emnode = get_con_node(mvp)
-                    emnode.ret_uv()
                     
                     if mvp.envi_nodes and mvp.envi_nodes.users > 1:
                        mvp.envi_nodes.user_clear() 
                        mvp.envi_nodes = bpy.data.node_groups[mat.name]
+                       
+                    emnode = get_con_node(mvp)
                     
                     if not emnode:
                         op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
                     elif any([n.use_custom_color for n in emnode.ret_nodes()]):
                         op.report({'WARNING'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
-                    else:
+                    else:                       
+                        emnode.ret_uv()
                         mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
     ##                    mat.envi_nodes['enmatparams']['boundary'] = emnode.envi_boundary
     ##                    mat.envi_nodes['enmatparams']['airflow'] = emnode.af_surface

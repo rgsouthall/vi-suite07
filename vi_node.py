@@ -5101,7 +5101,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
             
         e1ddict[self.pv_name] = [self.scc, self.ocv, self.mv, self.mc, self.tcscc, self.tcocv, self.mis, self.ctnoct, self.mod_area]
         self.e1ddict = e1ddict
-        self.e1dmenu = self.pv_name
+#        self.e1dmenu = self.pv_name
         
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('PV_database.json')), 'w') as e1d_jfile:
             e1d_jfile.write(json.dumps(e1ddict))  
@@ -5135,8 +5135,8 @@ class No_En_Mat_PV(Node, EnViMatNodes):
     pvsa: FloatProperty(name = "%", description = "Fraction of Surface Area with Active Solar Cells", min = 50, max = 100, default = 90)
     aa: FloatProperty(name = "m2", description = "Active area", min = 0.1, max = 10000, default = 5)
     eff: FloatProperty(name = "%", description = "Visible reflectance", min = 0.0, max = 100, default = 20)
-    ssp: IntProperty(name = "", description = "Number of series strings in parallel", min = 1, max = 100, default = 5)
-    mis: IntProperty(name = "", description = "Number of modules in series", min = 1, max = 100, default = 5)
+    ssp: IntProperty(name = "", description = "Number of series strings in parallel", min = 1, max = 100, default = 1)
+    mis: IntProperty(name = "", description = "Number of modules in series", min = 1, max = 100, default = 1)
     cis: IntProperty(name = "", description = "Number of cells in series", min = 1, max = 100, default = 36) 
     tap: FloatProperty(name = "", description = "Transmittance absorptance product", min = -1, max = 1, default = 0.9)
     sbg: FloatProperty(name = "eV", description = "Semiconductor band-gap", min = 0.1, max = 5, default = 1.12)
@@ -5148,8 +5148,8 @@ class No_En_Mat_PV(Node, EnViMatNodes):
     ri: FloatProperty(name = "W/m2", description = "Reference insolation", min = 100, max = 2000, default = 1000)
     mc: FloatProperty(name = "Amps", description = "Module current at maximum power", min = 1, max = 10, default = 5.6)
     mv: FloatProperty(name = "V", description = "Module voltage at maximum power", min = 0.0, max = 75, default = 17)
-    tcscc: FloatProperty(name = "", description = "Temperature Coefficient of Short Circuit Current", min = 0.00001, max = 0.01, default = 0.002)
-    tcocv: FloatProperty(name = "", description = "Temperature Coefficient of Open Circuit Voltage", min = -0.5, max = 0, default = -0.1)
+    tcscc: FloatProperty(name = "A/K", description = "Temperature Coefficient of Short Circuit Current", precision = 5, min = 0.00001, max = 0.01, default = 0.002)
+    tcocv: FloatProperty(name = "V/K", description = "Temperature Coefficient of Open Circuit Voltage", precision = 5, min = -0.5, max = 0, default = -0.1)
     atnoct: FloatProperty(name = "C", description = "Reference ambient temperature", min = 0, max = 40, default = 20)
     ctnoct: FloatProperty(name = "C", description = "Nominal Operating Cell Temperature Test Cell Temperature", min = 0, max = 60, default = 45)
     inoct: FloatProperty(name = "W/m2", description = "Nominal Operating Cell Temperature Test Insolation", min = 100, max = 2000, default = 800)
@@ -5192,14 +5192,14 @@ class No_En_Mat_PV(Node, EnViMatNodes):
                 newrow(layout, "Name:", self, "pv_name")
                 newrow(layout, "Module area:", self, "mod_area")
                 newrow(layout, "Cell type:", self, "ct")
-                newrow(layout, "Silicon:", self, "mis")                   
-                newrow(layout, "Short:", self, "scc") 
-                newrow(layout, "Open:", self, "ocv")                
+                newrow(layout, "Cells:", self, "cis")                   
+                newrow(layout, "SCC:", self, "scc") 
+                newrow(layout, "OCV:", self, "ocv")                
                 newrow(layout, "Max power I:", self, "mc")
                 newrow(layout, "Max power V:", self, "mv")
-                newrow(layout, "Short max I:", self, "tcscc")
-                newrow(layout, "Open max V:", self, "tcocv")                
-                newrow(layout, "Cell temp.:", self, "ctnoct")
+                newrow(layout, "TCSCC:", self, "tcscc")
+                newrow(layout, "TCOCV:", self, "tcocv")                
+                newrow(layout, "Nominal temp.:", self, "ctnoct")
                 if self.pv_name:
                     row=layout.row()
                     row.operator('node.pv_save', text = "PV Save")
@@ -5212,38 +5212,32 @@ class No_En_Mat_PV(Node, EnViMatNodes):
             newrow(layout, "Test Insolation:", self, "inoct")
             newrow(layout, "Heat loss coeff.:", self, "hlc")
             newrow(layout, "Heat capacity:", self, "thc")
-                 
-                
-#            else:
-#                newrow(layout, "Trans*absorp:", self, "tap")
-#                newrow(layout, "Band gap:", self, "sbg")
-#                newrow(layout, "Shunt:", self, "sr")    
-#                newrow(layout, "Ref. temp.:", self, "rt")
-#                newrow(layout, "Ref. insol.:", self, "ri")
-#                newrow(layout, "Test ambient:", self, "atnoct")
-#                newrow(layout, "Test Insolation:", self, "inoct")
-#                newrow(layout, "Heat loss coeff.:", self, "hlc")
-#                newrow(layout, "Heat capacity:", self, "thc")
-            
+                             
         if self.pp == '2':
             newrow(layout, 'Model:', self, 'smenu')
     
     def update(self):
-        if self.outputs['PV'].links and not self.inputs['PV Generator'].links:
-            nodecolour(self, 1)         
-        else:
-            nodecolour(self, 0)                     
+        if len(self.outputs) + len(self.inputs) == 3:
+            if self.outputs['PV'].links and not self.inputs['PV Generator'].links:
+                nodecolour(self, 1)         
+            else:
+                nodecolour(self, 0)                     
     
-    def ep_write(self, sn):
+    def ep_write(self, sn, area):
         self['matname'] = get_mat(self, 1).name
+        marea = (area, (self.mod_area, self.e1ddict[self.e1dmenu][8])[self.e1dmenu != 'Custom'], self.sandiadict[self.smenu][0])[int(self.pp)]
         
+        if marea /area > 1.01:
+            logentry("No PV data exported as the face {} area is smaller than the module area".format(sn))
+            return '! No PV data exported as the face {} area is smaller than the module area\n\n'.format(sn)
+            
         params = ('Name', 'Surface Name', 'Photovoltaic Performance Object Type', 
                   'Module Performance Name', 'Heat Transfer Integration Mode', 
                   'Number of Series Strings in Parallel', 'Number of Modules in Series')
                 
         paramvs = ['{}-pv'.format(sn), sn, 
                    ('PhotovoltaicPerformance:Simple', 'PhotovoltaicPerformance:EquivalentOne-Diode', 'PhotovoltaicPerformance:Sandia')[int(self.pp)], '{}-pv-performance'.format(sn),
-                   self.hti, self.ssp, self.mis]
+                   self.hti, self.ssp, area/marea]
 
         ep_text = epentry('Generator:Photovoltaic', params, paramvs)
         
@@ -5279,7 +5273,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
                       'B1 (Unitless)', 'B2 (Unitless)', 'B3 (Unitless)', 'B4 (Unitless)', 'B5 (Unitless)', 'dT0 (degC)',
                       'fd (Unitless)','a (Unitless)','b (Unitless)','C4 (Unitless)','C5 (Unitless)','Ix0 (Amps)','Ixx0 (Amps)',
                       'C6 (Unitless)','C7 (Unitless)')
-            paramvs = ['{}-pv-performance'.format(sn)] + self.sandia_dict[self.smenu]
+            paramvs = ['{}-pv-performance'.format(sn)] + self.sandiadict[self.smenu]
             ep_text += epentry('PhotovoltaicPerformance:Sandia', params, paramvs)
         return ep_text                    
     

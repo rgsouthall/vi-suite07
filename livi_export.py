@@ -247,6 +247,7 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
 def spfc(self):
     scene = bpy.context.scene
     svp = scene.vi_params
+
     if not svp['viparams'].get('newframe'):
         svp['viparams']['newframe'] = 1
     else:
@@ -255,7 +256,7 @@ def spfc(self):
         
     if svp['viparams']['resnode'] == 'VI Sun Path':
         spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
-        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+        beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)[2:]
 
         if scene.world.use_nodes == False:
             scene.world.use_nodes = True
@@ -277,10 +278,10 @@ def spfc(self):
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)
 
-            elif ob.get('VIType') == 'SkyMesh':
-                ont = ob.data.materials['SkyMesh'].node_tree
-                if ont and ont.nodes.get('Sky Texture'):
-                    ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
+#            elif ob.get('VIType') == 'SkyMesh':
+#                ont = ob.data.materials['SkyMesh'].node_tree
+#                if ont and ont.nodes.get('Sky Texture'):
+#                    ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
 
             elif ob.get('VIType') == 'SunMesh':
                 ob.location = (0, 0, 0)

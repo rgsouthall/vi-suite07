@@ -229,6 +229,8 @@ class VIPreferences(AddonPreferences):
             row.prop(self, self.ui_dict[entry])
 
 class VI_Params_Scene(bpy.types.PropertyGroup): 
+    solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
+    solhour: bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
     sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1) 
     sp_hour_main: fvprop(4, "",'Dash colour of the hour lines', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
     sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
@@ -253,9 +255,9 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
                                     name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
     sp_sst: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
     sp_ssi: FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
-    sp_sd: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
+    sp_sd: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, options={'ANIMATABLE'}, update=sunpath1)
     sp_sh: FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', 
-                         min = 0, max = 24, default = 12, update=sunpath1)
+                         min = 0, max = 24, default = 12, options={'ANIMATABLE'}, update=sunpath1)
     sp_hd: bprop("", "",0)
     sp_up: bprop("", "",0)
     sp_td: bprop("", "",0)
@@ -661,8 +663,6 @@ def register():
 #    Scene.suns = EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
 #    Scene.sunsstrength = bpy.props.FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
 #    Scene.sunssize = bpy.props.FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
-#    Scene.solday = IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
-#    Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
 #    (Scene.hourdisp, Scene.spupdate, Scene.timedisp) = [bprop("", "",0)] * 3
 #    Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
 #    Scene.li_disp_count = iprop("", "", 0, 1000, 0)
