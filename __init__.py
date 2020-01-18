@@ -38,18 +38,24 @@ if "bpy" in locals():
     imp.reload(vi_func)
 #    imp.reload(envi_mat)
 else:
-    import sys, os, inspect
+    import sys, os, inspect, shutil
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     platpath = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+
     if sys.platform in ('darwin'):
         if 'PYTHONPATH' not in os.environ:
             os.environ['PYTHONPATH'] =  os.path.join(addonpath, 'Python')
         elif os.path.join(addonpath, 'Python') not in os.environ['PYTHONPATH']:
             os.environ['PYTHONPATH'] =  os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python')
+
     elif sys.platform in ('linux', 'win32'):
-        print(os.path.join(addonpath, 'Python', sys.platform))
+        if sys.platform =='win32':
+            if not os.path.isfile(os.path.join(os.path.split(sys.executable)[0], 'python3.dll')):
+               shutil.copy(os.path.join(addonpath, 'Python', sys.platform, 'python3.dll'), os.path.split(sys.executable)[0]) 
+
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
+        
         if os.environ.get('PYTHONPATH'):
             os.environ['PYTHONPATH'] = os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', sys.platform)
         else:
@@ -146,8 +152,8 @@ def eupdate(self, context):
                         faces = [f for f in bm.faces if f[extrude]]
                         fnorms = array([f.normal.normalized() for f in faces]).T
                         fres = array([f[res] for f in faces])
-                        extrudes = (0.1 * scene.vi_disp_3dlevel * (nlog10(maxo * (fres + 1 - mino)/odiff)) * fnorms).T if scene.vi_leg_scale == '1' else \
-                            multiply(fnorms, scene.vi_disp_3dlevel * ((fres - mino)/odiff)).T
+                        extrudes = (0.1 * svp.vi_disp_3dlevel * (nlog10(maxo * (fres + 1 - mino)/odiff)) * fnorms).T if svp.vi_leg_scale == '1' else \
+                            multiply(fnorms, svp.vi_disp_3dlevel * ((fres - mino)/odiff)).T
 
                         for f, face in enumerate(faces):
                             for v in face.verts:
@@ -157,8 +163,8 @@ def eupdate(self, context):
                         res = bm.verts.layers.float['res{}'.format(frame)]
                         vnorms = array([v.normal.normalized() for v in bm.verts]).T
                         vres = array([v[res] for v in bm.verts])
-                        extrudes = multiply(vnorms, scene.vi_disp_3dlevel * ((vres-mino)/odiff)).T if scene.vi_leg_scale == '0' else \
-                            [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]  
+                        extrudes = multiply(vnorms, svp.vi_disp_3dlevel * ((vres-mino)/odiff)).T if svp.vi_leg_scale == '0' else \
+                            [0.1 * svp.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]  
                         for v, vert in enumerate(bm.verts):
                             vert[skf] = vert[skb] + mathutils.Vector(extrudes[v])
 

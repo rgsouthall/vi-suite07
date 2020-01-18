@@ -105,6 +105,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
+        svp = scene.vi_params
         simnode = context.node
         wrcoll = create_coll(context, 'WindRoses')
         plt = ret_plt()
@@ -117,9 +118,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
         simnode.export()
         locnode = simnode.inputs['Location in'].links[0].from_node
-        scene.vi_params['viparams']['resnode'], scene.vi_params['viparams']['restree'] = simnode.name, simnode.id_data.name
-        scene.vi_params['viparams']['vidisp'], scene.vi_params.vi_display = 'wr', 0
-        context.scene.vi_params['viparams']['visimcontext'] = 'Wind'
+        svp['viparams']['resnode'], svp['viparams']['restree'] = simnode.name, simnode.id_data.name
+        svp['viparams']['vidisp'], svp.vi_display = 'wr', 0
+        svp['viparams']['visimcontext'] = 'Wind'
         rl = locnode['reslists']
         cdoys = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
         cwd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
@@ -144,16 +145,16 @@ class NODE_OT_WindRose(bpy.types.Operator):
         dfreq = dfreq[:-1]
         
         if simnode.wrtype == '0':
-            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(scene.vi_leg_col))
+            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(svp.vi_leg_col))
         elif simnode.wrtype == '1':
-            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(scene.vi_leg_col))
+            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(svp.vi_leg_col))
         elif simnode.wrtype in ('2', '3', '4'):
-            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(scene.vi_leg_col))
+            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(svp.vi_leg_col))
         
         if simnode.max_freq == '1':
             ax.set_rmax(simnode.max_freq_val)
             
-        plt.savefig(scene.vi_params['viparams']['newdir']+'/disp_wind.svg')
+        plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg')
 #        (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
         wrme = bpy.data.meshes.new("Wind_rose")   
         wro = bpy.data.objects.new('Wind_rose', wrme) 
@@ -167,7 +168,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 scene.collection.objects.unlink(wro)
                 
         selobj(context.view_layer, wro)       
-        (wro, scale) = wind_rose(wro, simnode['maxres'], scene.vi_params['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
+        (wro, scale) = wind_rose(wro, simnode['maxres'], svp['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
         wro = joinobj(context.view_layer, wro)  
         ovp = wro.vi_params
         ovp['maxres'], ovp['minres'], ovp['avres'], ovp['nbins'], ovp['VIType'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals), 'Wind_Plane'
