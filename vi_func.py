@@ -1157,17 +1157,18 @@ def compass(loc, scale, wro, platmat, basemat):
     bpy.ops.object.material_slot_add()
     coo.material_slots[-1].material = platmat
     bm = bmesh.new()
-    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+#    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     bmesh.ops.create_circle(bm, cap_ends=True, radius=100, segments=132,  matrix=Matrix.Rotation(0, 4, 'Z')@Matrix.Translation((0, 0, 0)))
 
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
     
     for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
         face.material_index = 1
-    
+    newverts0 = []
     for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
         vert.co[2] = 0
+        newverts0.append(vert)
               
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05], use_select_history=False)
     
@@ -1179,68 +1180,40 @@ def compass(loc, scale, wro, platmat, basemat):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.05
         vert.co[2] = 0
         newverts.append(vert)
-    
-#    for edge in [e for e in newgeo['geom'] if isinstance(v, bmesh.types.BMEdge) and e.calc_length < 0.05]:
-    bmesh.ops.dissolve_edges(bm, edges = [e for e in newgeo['geom'] if isinstance(v, bmesh.types.BMEdge) and e.calc_length > 0.05], use_verts = True, use_face_split = False)
-        
+            
     for v in newverts:
         if abs(v.co[1]) < 0.01:
             v.co[0] += v.co[0] * 0.025
         elif abs(v.co[0]) < 0.01:
             v.co[1] += v.co[1] * 0.025
-#        elif v.co
 
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts], use_select_history=False)
     
     for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
         face.material_index = 1
-    newverts = []
     
     for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
         vert.co[2] = 0
-        newverts.append(vert)
-    # diameter becomes radius post 2.79       
-#    bmesh.ops.create_circle(bm, cap_ends=False, radius=110, segments=132, matrix=Matrix.Rotation(pi/61, 4, 'Z')@Matrix.Translation((0, 0, 0)))
-#    bmesh.ops.create_circle(bm, cap_ends=False, radius=100, segments=132,  matrix=Matrix.Rotation(pi/61, 4, 'Z')@Matrix.Translation((0, 0, 0)))    
-    
-    
-#    for edge in bm.edges:
-#        edge.select_set(False) if edge.index < 792 else edge.select_set(True)
+        
+    bmesh.ops.dissolve_edges(bm, edges = [e for e in bm.edges if e.verts[0] in (newverts0 + newverts) and e.verts[1] in (newverts0 + newverts) and len(e.link_faces) == 2 and abs(e.link_faces[0].calc_area() - e.link_faces[1].calc_area()) < 1.0], 
+                                          use_verts = True, use_face_split = False)
 
-#    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
-    
-#    for v, vert in enumerate(newgeo['geom'][:133]):
-#        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
-#        vert.co[2] = 0
-    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+#    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
-
-#    for i, edge in enumerate(bm.edges[-8:]):
-#        verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
-#        for vert in verts:
-#            vert.co += 1.0*scale*(tmatrot@direc)
-#            vert.co[2] = 0
-#        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot@direc), rotation=tmatrot.to_euler())
-#        txt = bpy.context.active_object
-#        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
-#        bpy.ops.object.convert(target='MESH')
-#        bpy.ops.object.material_slot_add()
-#        txt.material_slots[-1].material = mat
-#        txts.append(txt)
-#        tmatrot = tmatrot@matrot
-
     tmatrot = Matrix.Rotation(0, 4, 'Z')
-    f_sizes = (0.06, 0.04, 0.05, 0.04, 0.06, 0.04, 0.05, 0.04, 0.06, 0.04, 0.05, 0.04, 0.06, 0.04, 0.05, 0.04)
+    f_sizes = (0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06)
     f_texts = ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')
     f_texts = ('N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE', 'E', 'ENE', 'NE', 'NNE')
+    f_texts = ('N', u'337.5\u00B0', 'NW', u'292.5\u00B0', 'W', u'247.5\u00B0', 'SW', u'202.5\u00B0', 'S', u'157.5\u00B0', 'SE', u'112.5\u00B0', 'E', u'67.5\u00B0', 'NE', u'22.5\u00B0')
 
     for d in range(16):
         bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.0005*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), f_texts[d], 'CENTER', 'BOTTOM', 0.1
+        txt.data.font = bpy.data.fonts.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Light.ttf'))
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), f_texts[d], 'CENTER', 'BOTTOM', 0.05
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = basemat
@@ -1692,15 +1665,15 @@ def sunpath(scene):
     if svp['spparams']['suns'] == '0':        
         skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
 
-        if suns and 0 in (suns[0]['solhour'] == svp.sp_sh, suns[0]['solday'] == svp.sp_sd):              
+        if suns:# and 0 in (suns[0]['solhour'] == svp.sp_sh, suns[0]['solday'] == svp.sp_sd):              
             spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
             alt, azi, beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)
 
-            if spathobs:
-                suns[0].location.z = 100 * sin(beta)
-                suns[0].location.x = -(100**2 - (suns[0].location.z)**2)**0.5 * sin(phi)
-                suns[0].location.y = -(100**2 - (suns[0].location.z)**2)**0.5 * cos(phi)
-                
+#            if spathobs:
+            suns[0].location.z = 100 * sin(beta)
+            suns[0].location.x = -(100**2 - (suns[0].location.z)**2)**0.5 * sin(phi)
+            suns[0].location.y = -(100**2 - (suns[0].location.z)**2)**0.5 * cos(phi)
+            suns[0].data.energy = svp.sp_sun_strength
             suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
             bpy.context.scene.display.light_direction = (-sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta)) 
 

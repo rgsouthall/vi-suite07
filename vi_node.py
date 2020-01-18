@@ -3064,9 +3064,9 @@ class No_En_Net_Ext(Node, EnViNodes):
     bl_label = 'Envi External Node'
     bl_icon = 'SOUND'
 
-    height = FloatProperty(default = 1.0)
+    height: FloatProperty(default = 1.0)
     (wpc1, wpc2, wpc3, wpc4, wpc5, wpc6, wpc7, wpc8, wpc9, wpc10, wpc11, wpc12) = [FloatProperty(name = '', default = 0, min = -1, max = 1) for x in range(12)]
-    enname = StringProperty()
+    enname: StringProperty()
 
     def init(self, context):
         self.inputs.new('So_En_Net_SSFlow', 'Sub surface')
@@ -3229,29 +3229,29 @@ class No_En_Net_ACon(Node, EnViNodes):
             self.inputs['WPC Array'].hide = False
         self.legal()
 
-    afnname = StringProperty(name = '')
-    afntype = EnumProperty(items = [('MultizoneWithDistribution', 'MultizoneWithDistribution', 'Include a forced airflow system in the model'),
+    afnname: StringProperty(name = '')
+    afntype: EnumProperty(items = [('MultizoneWithDistribution', 'MultizoneWithDistribution', 'Include a forced airflow system in the model'),
                                               ('MultizoneWithoutDistribution', 'MultizoneWithoutDistribution', 'Exclude a forced airflow system in the model'),
                                               ('MultizoneWithDistributionOnlyDuringFanOperation', 'MultizoneWithDistributionOnlyDuringFanOperation', 'Apply forced air system only when in operation'),
                                               ('NoMultizoneOrDistribution', 'NoMultizoneOrDistribution', 'Only zone infiltration controls are modelled')], name = "", default = 'MultizoneWithoutDistribution')
 
-    wpctype = EnumProperty(items = [('SurfaceAverageCalculation', 'SurfaceAverageCalculation', 'Calculate wind pressure coefficients based on oblong building assumption'),
+    wpctype: EnumProperty(items = [('SurfaceAverageCalculation', 'SurfaceAverageCalculation', 'Calculate wind pressure coefficients based on oblong building assumption'),
                                               ('Input', 'Input', 'Input wind pressure coefficients from an external source')], name = "", default = 'SurfaceAverageCalculation', update = wpcupdate)
-    wpcaname = StringProperty()
-    wpchs = EnumProperty(items = [('OpeningHeight', 'OpeningHeight', 'Calculate wind pressure coefficients based on opening height'),
+    wpcaname: StringProperty()
+    wpchs: EnumProperty(items = [('OpeningHeight', 'OpeningHeight', 'Calculate wind pressure coefficients based on opening height'),
                                               ('ExternalNode', 'ExternalNode', 'Calculate wind pressure coefficients based on external node height')], name = "", default = 'OpeningHeight')
-    buildtype = EnumProperty(items = [('LowRise', 'Low Rise', 'Height is less than 3x the longest wall'),
+    buildtype: EnumProperty(items = [('LowRise', 'Low Rise', 'Height is less than 3x the longest wall'),
                                               ('HighRise', 'High Rise', 'Height is more than 3x the longest wall')], name = "", default = 'LowRise')
 
     maxiter = IntProperty(default = 500, description = 'Maximum Number of Iterations', name = "")
 
-    initmet = EnumProperty(items = [('ZeroNodePressures', 'ZeroNodePressures', 'Initilisation type'),
+    initmet: EnumProperty(items = [('ZeroNodePressures', 'ZeroNodePressures', 'Initilisation type'),
                                               ('LinearInitializationMethod', 'LinearInitializationMethod', 'Initilisation type')], name = "", default = 'ZeroNodePressures')
-    rcontol = FloatProperty(default = 0.0001, description = 'Relative Airflow Convergence Tolerance', name = "")
-    acontol = FloatProperty(min = 0.000001, max = 0.1, default = 0.000001, description = 'Absolute Airflow Convergence Tolerance', name = "")
-    conal = FloatProperty(default = -0.1, max = 1, min = -1, description = 'Convergence Acceleration Limit', name = "")
-    aalax = IntProperty(default = 0, max = 180, min = 0, description = 'Azimuth Angle of Long Axis of Building', name = "")
-    rsala = FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis', name = "")
+    rcontol: FloatProperty(default = 0.0001, description = 'Relative Airflow Convergence Tolerance', name = "")
+    acontol: FloatProperty(min = 0.000001, max = 0.1, default = 0.000001, description = 'Absolute Airflow Convergence Tolerance', name = "")
+    conal: FloatProperty(default = -0.1, max = 1, min = -1, description = 'Convergence Acceleration Limit', name = "")
+    aalax: IntProperty(default = 0, max = 180, min = 0, description = 'Azimuth Angle of Long Axis of Building', name = "")
+    rsala: FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis', name = "")
 
     def init(self, context):
         self.inputs.new('So_En_Net_WPC', 'WPC Array')

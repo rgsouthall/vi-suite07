@@ -56,6 +56,8 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, 'Refresh:', svp, 'vi_disp_refresh') 
                 
             elif svp['viparams']['vidisp'] == 'sp' and svp.vi_display:
+                row = layout.row()
+                row.prop(context.space_data.shading, "light")
                 newrow(layout, "Latitude:", svp, 'latitude')
                 newrow(layout, "Longitude:", svp, 'longitude')
 

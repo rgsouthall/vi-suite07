@@ -2585,12 +2585,16 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
     def invoke(self, context, event):        
         scene = context.scene
+        node = context.node
+        scene.display.shadow_focus = 1
+#        context.space_data.shading.light = 'FLAT'
         svp = scene.vi_params
         svp['viparams'] = {}
         svp['spparams'] = {}
+        svp['spparams']['suns'] = node.suns
         spcoll = create_coll(context, 'SunPath')            
         sd = 100
-        node = context.node
+        
         # Set the node colour
         node.export()
         
@@ -2674,10 +2678,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.app.handlers.frame_change_post.append(spfc)
 
         svp['viparams']['vidisp'] = 'sp'
-        svp['spparams']['suns'] = node.suns
         svp['viparams']['visimcontext'] = 'SunPath'
         sunpath(scene)
-        node = context.node
+#        node = context.node
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
         self.latitude = svp.latitude
