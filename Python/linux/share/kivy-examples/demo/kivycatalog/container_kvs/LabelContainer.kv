@@ -1,0 +1,62 @@
+#:kivy 1.4
+
+GridLayout:
+    cols: 1
+    Label:
+        text: "Label crowded by size hint"
+        size_hint_y: .2
+    Label:
+        text: 'Label with\nmultiple\nlines'
+        size_hint_y: .4
+    Label:
+        font_size: '48sp'
+        text: "Label [color=ff3333][sub]with[/sub][/color] [color=3333ff][b]mark[sup]up[/sup][/b][/color]"
+        markup: True
+    Button:
+        text: 'Labels in buttons'
+    GridLayout:
+        cols: 2
+        size_hint_y: 3
+        Button:
+            text: 'Left aligned at middle'
+            padding: 10, 10
+            halign: 'left'
+            valign: 'middle'
+            text_size: self.size
+        Button:
+            text: 'right aligned at top'
+            padding: 10, 10
+            halign: 'right'
+            valign: 'top'
+            text_size: self.size
+        Button:
+            text: 'Left aligned with no padding'
+            halign: 'left'
+            valign: 'middle'
+            text_size: self.size
+        Button:
+            text:  'Multiple\nbold italic centered\nlines'
+            halign: 'center'
+            valign: 'middle'
+            bold: True
+            italic: True
+            text_size: self.size
+        Button:
+            text: 'multiple\nspaced lines\ncentered'
+            padding: 10, 10
+            halign: 'center'
+            valign: 'middle'
+            line_height: 1.5
+            text_size: self.size
+        Button:
+            text: 'button without\npadding\nor align'
+    Label:
+        text: "Label with [ref=reference]reference[/ref]"
+        markup: True
+        on_ref_press: self.text = "ref clicked"
+    Label:
+        text: "different font"
+        bold: True
+        font_name: "data/fonts/RobotoMono-Regular.ttf"
+        font_size: 32
+        valign: 'bottom'

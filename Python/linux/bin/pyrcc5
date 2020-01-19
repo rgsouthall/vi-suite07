@@ -1,0 +1,8 @@
+#!/home/ryan/Store/Software/blender-2.81-linux-glibc217-x86_64/2.81/python/bin/python3.7m
+# -*- coding: utf-8 -*-
+import re
+import sys
+from PyQt5.pyrcc_main import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())
