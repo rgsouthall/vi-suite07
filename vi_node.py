@@ -615,7 +615,7 @@ class No_Li_Im(Node, ViNodes):
     bl_label = 'LiVi Im'
     
     def nodeupdate(self, context):
-        self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene['viparams']['nproc']), "name": ""}}
+        self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene.vi_params['viparams']['nproc']), "name": ""}}
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
                    self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
                    self.x, self.y)])
@@ -691,10 +691,10 @@ class No_Li_Im(Node, ViNodes):
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview') 
             newrow(layout, 'X resolution*:', self, 'x')
-            newrow(layout, 'Y resolution*:', self, 'y')
-            newrow(layout, 'Multi-thread:', self, 'mp')
+            newrow(layout, 'Y resolution*:', self, 'y')            
             
             if self.mp and sys.platform != 'win32':
+                newrow(layout, 'Multi-thread:', self, 'mp')
                 row = layout.row()
                 row.prop(self, '["Processors"]')
                 newrow(layout, 'Processes:', self, 'processes')

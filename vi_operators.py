@@ -447,7 +447,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                     allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
                     
-                    for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
+                    for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
 
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
@@ -773,17 +773,17 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             
             if self.simnode.pmap:
-                self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
-                self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Photon Map')
+                self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+                self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
-                open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
+                open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
                 pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
                 logentry('Photon map command: {}'.format(pmcmd))
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
 
                 while pmrun.poll() is None:   
                     sleep(10)
-                    with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as vip:
+                    with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '%' in line:
                                 curres = float(line.split()[6][:-2])
@@ -796,7 +796,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
                 if self.kivyrun.poll() is None:
                     self.kivyrun.kill()
                         
-                with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as pmapfile:
+                with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as pmapfile:
                     for line in pmapfile.readlines():
                         if line in pmerrdict:
                             logentry(line)
@@ -804,7 +804,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
                             return {'CANCELLED'}
                                         
                 rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
-                                 vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                                 vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
                 
             else:
                 rvucmd = "rvu -w {9} -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
@@ -1021,8 +1021,8 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.percent = 0
             self.reslists, self.images = [], []
             self.res = []
-            self.rpictfile = os.path.join(scene['viparams']['newdir'], 'rpictprogress')
-            self.pmfile = os.path.join(scene['viparams']['newdir'], 'pmprogress')
+            self.rpictfile = os.path.join(svp['viparams']['newdir'], 'rpictprogress')
+            self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
             simnode.presim()
             svp['liparams']['fs'], svp['liparams']['fe'] =  simnode.retframes()
             self.frames = self.fe - self.fs + 1
@@ -1037,8 +1037,8 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.pmaps = simnode['pmaps']
             self.pmapgnos = simnode['pmapgnos']
             self.pmapcnos = simnode['pmapcnos']
-            self.folder = scene['viparams']['newdir']
-            self.fb = scene['viparams']['filebase']
+            self.folder = svp['viparams']['newdir']
+            self.fb = svp['viparams']['filebase']
             self.mp = 0 if sys.platform == 'win32' else simnode.mp 
             self.basename = simnode['basename']
             
@@ -1049,17 +1049,17 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     pass
                 
             scene.frame_set(svp['liparams']['fs'])
-            self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], scene['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], '{}-{}'.format(self.pmfile, frame)) for frame in range(self.fs, self.fe + 1)]                   
-            self.rppmcmds = [('', ' -ap {} {}'.format('{}-{}.gpm'.format(scene['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
-            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], svp['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], '{}-{}'.format(self.pmfile, frame)) for frame in range(self.fs, self.fe + 1)]                   
+            self.rppmcmds = [('', ' -ap {} {}'.format('{}-{}.gpm'.format(svp['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(svp['viparams']['filebase'], frame, os.path.join(svp['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(svp['viparams']['filebase'], frame, os.path.join(svp['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
             (self.pmfin, flag) = (0, 'Photon Maps') if sum(self.pmaps) else (1, 'Radiance Images')
             self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), flag)
 
-            if os.path.isfile("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.basename), self.frame)):
-               os.remove("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.basename), self.frame))
+            if os.path.isfile("{}-{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', self.basename), self.frame)):
+               os.remove("{}-{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', self.basename), self.frame))
                 
             wm = context.window_manager
             self._timer = wm.event_timer_add(2, window = context.window)
@@ -1135,6 +1135,8 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
         fcnode = context.node
         fcnode.presim()
         imnode = fcnode.inputs['Image'].links[0].from_node 
@@ -1147,7 +1149,7 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
         divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
         
         for i, im in enumerate(imnode['images']): 
-            fcim = os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs']))
+            fcim = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.svp['liparams']['fs']))
             ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
                         
             with open(fcim, 'w') as fcfile:
