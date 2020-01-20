@@ -2080,7 +2080,7 @@ def sunapply(scene, sun, values, solposs, frames):
 
     for f, frame in enumerate(frames):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]
-        sunpos = [x*20 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
+        sunpos = [x*100 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
         sunrot = [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
         
         if scene.render.engine == 'CYCLES' and scene.world.node_tree:

@@ -1992,7 +1992,7 @@ class TREE_OT_goto_mat(bpy.types.Operator):
         if objs_with_mat == 0:
             self.report({'WARNING'}, "No objects in this scene use '" + mat.name + "' material")
 #            slot = dummy.material_slots[0]
-            slot.material = mat
+#            slot.material = mat
 
         return {'FINISHED'}
     

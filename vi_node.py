@@ -707,6 +707,8 @@ class No_Li_Im(Node, ViNodes):
         
     def presim(self):
         scene = bpy.context.scene
+        if sys.platform == 'win32':
+            self.mp = 0
         pmaps = []
         sf, ef, = self.retframes()
         self['frames'] = range(sf, ef + 1)

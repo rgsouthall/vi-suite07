@@ -40,7 +40,7 @@ class VI_PT_3D(bpy.types.Panel):
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
-                row.operator('view3d.wrdisplay2', text = 'Wind Metrics2')
+#                row.operator('view3d.wrdisplay2', text = 'Wind Metrics2')
             elif svp['viparams']['vidisp'] == 'wr' and svp.vi_display:
                 row = layout.row()
                 row.label(text = 'Scatter properties:')

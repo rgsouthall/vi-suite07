@@ -957,6 +957,7 @@ class wr_legend(Base_Display):
         self.unit = unit
         self.font_id = 0
         self.dpi = 300
+        print('init')
         self.update(context)
         self.create_batch()
         self.line_shader.bind()
@@ -983,6 +984,7 @@ class wr_legend(Base_Display):
         self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
         self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"
         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]
+        print(self.colours)
         blf.size(self.font_id, 12, self.dpi)        
         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]

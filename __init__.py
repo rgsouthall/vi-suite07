@@ -121,10 +121,10 @@ def abspath(self, context):
         self.ofetc = bpy.path.abspath(self.ofetc)
         
 def tupdate(self, context):
-    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide_viewport == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
+    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide_viewport == False and o.get('lires')]:
         o.show_transparent = 1
     for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_leg_levels + 1)]:
-        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
+        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_params.vi_disp_trans
     cmap(self)
 
 def eupdate(self, context):
@@ -199,7 +199,6 @@ def unititems(self, context):
         if svp['liparams']['unit'] == 'W/m2 (f)':
             return [('firrad', 'Full irradiance', 'Full spectrum irradiance')]
         elif svp['liparams']['unit'] == 'Lux':
-            print('lux')
             return [('illu', 'Illuminance', 'Illuminance'), ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'DF (%)':
             return [('df', 'Daylight factor', 'daylight factor'), ('illu', 'Illuminance', 'Illuminance'), ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
@@ -537,7 +536,7 @@ def getEnViMaterialSpaces():
 #bpy.app.handlers.scene_update_post.append(select_nodetree)
 #bpy.app.handlers.scene_update_post.append(mesh_index)
             
-epversion = "8-9-0"
+#epversion = "8-9-0"
 #envi_mats, envi_cons, conlayers = envi_materials(), envi_constructions(), 5
 
 def path_update():
