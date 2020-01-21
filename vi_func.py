@@ -1599,13 +1599,13 @@ def retdp(mres, dp):
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if distances.size:
         try:
-            dp = 0 if max(res) > 100 else 1
+            dp = 0 if max(res) > 100 else 2 - int(log10(max(res)))
             dpi = bpy.context.preferences.system.dpi
             nres = char.mod('%.{}f'.format(dp), res)
             fsdist = (fontsize/distances).astype(int8)
             xposis = posis[0::2]
             yposis = posis[1::2]
-            alldata = zip(nres, fsdist, xposis, yposis, distances)
+            alldata = zip(nres, fsdist, xposis, yposis)
             ysize = int(0.5 * blf.dimensions(0, nres[0])[1])
 
             for ad in alldata:                
@@ -1857,8 +1857,7 @@ def selobj(vl, geo):
         ob.select_set(1) if ob == geo else ob.select_set(0)
     vl.objects.active = geo
     
-def selobs(vl, geos):
-    
+def selobs(vl, geos):    
     if vl.objects.active and vl.objects.active.hide_viewport == 'False':
         bpy.ops.object.mode_set(mode = 'OBJECT') 
     for ob in vl.objects:

@@ -299,7 +299,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                     for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
-                            gp[shadres] = ((numpy.sum(pointres)/lvaldirecs)).astype(float16)
+                            gp[shadres] = (100*(numpy.sum(pointres)/lvaldirecs)).astype(int8)
                             g += 1
 
                         curres += len(chunk)
@@ -324,7 +324,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             bm.to_mesh(o.data)
             bm.free()
 
-        svp.vi_leg_max, svp.vi_leg_min = 1, 0
+        svp.vi_leg_max, svp.vi_leg_min = 100, 0
 
         if kivyrun.poll() is None:
             kivyrun.kill()

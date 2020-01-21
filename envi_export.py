@@ -461,36 +461,45 @@ def pregeo(context, op):
                         no.name = 'en_{}'.format(c.name) 
                         bpy.data.collections['EN_{}'.format(c.name.upper())].objects.link(no)
             
-    for chil in  bpy.data.collections['EnVi Geometry'].children:  
-        for o in chil.objects:
-            bm = bmesh.new()
-            bm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
-            o.to_mesh_clear()
-            bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)                
-            bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces], context = 'VERTS')
-            bmesh.ops.delete(bm, geom = [f for f in bm.faces if f.calc_area() < 0.001], context = 'FACES') 
-            bmesh.ops.delete(bm, geom = [f for f in bm.faces if o.material_slots[f.material_index].material == None], context = 'FACES') 
-            bmesh.ops.delete(bm, geom = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context = 'FACES')
-            bmesh.ops.delete(bm, geom = [f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context = 'FACES')
-            
-            if o.vi_params.envi_type != '1':
-                bm.faces.layers.string.new('oname')
-                fo = bm.faces.layers.string['oname']
-            
-                for face in bm.faces:
-                    face[fo] = o.name.encode()
+    for chil in  bpy.data.collections['EnVi Geometry'].children: 
+        if chil.objects:
+            print(chil.name, [o.name for o in chil.objects])
+            for o in chil.objects:
+                bm = bmesh.new()
+                bm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
+                o.to_mesh_clear()
+                bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)   
+                bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = {'MATERIAL'})
+                bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces], context = 'VERTS')
+                bmesh.ops.delete(bm, geom = [f for f in bm.faces if f.calc_area() < 0.001], context = 'FACES') 
+                bmesh.ops.delete(bm, geom = [f for f in bm.faces if o.material_slots[f.material_index].material == None], context = 'FACES') 
+                bmesh.ops.delete(bm, geom = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context = 'FACES')
+                bmesh.ops.delete(bm, geom = [f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context = 'FACES')
                 
-            bm.to_mesh(o.data)
-        
-        selobs(context.view_layer, [o.name for o in chil.objects])
-        bpy.ops.object.join()
-        new_ob = bpy.context.active_object
-        new_ob.name = '{}'.format(chil.name)
-        bm = bmesh.new()
-        bm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
-        bm.transform(new_ob.matrix_world)
-        new_ob['auto_volume'] = bm.calc_volume()
-        bm.free()
+                if not len(bm.faces):
+                    print('no_faces', o.name)
+                    bpy.data.objects.remove(o, do_unlink = True, do_id_user=True, do_ui_user=True)
+                else:
+                    if o.vi_params.envi_type != '1':
+                        bm.faces.layers.string.new('oname')
+                        fo = bm.faces.layers.string['oname']
+                    
+                        for face in bm.faces:
+                            face[fo] = o.name.encode()
+                        
+                    bm.to_mesh(o.data)
+                    bm.free()
+                
+            print([o.name for o in chil.objects])
+            selobs(context.view_layer, [o.name for o in chil.objects])
+            bpy.ops.object.join()
+            new_ob = bpy.context.active_object
+            new_ob.name = '{}'.format(chil.name)
+            bm = bmesh.new()
+            bm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
+            bm.transform(new_ob.matrix_world)
+            new_ob['auto_volume'] = bm.calc_volume()
+            bm.free()
         
 #        if new_ob.vi_params.envi_type == '1':
 #            if 'en_shading' not in [m.name for m in bpy.data.materials]:
@@ -517,17 +526,17 @@ def pregeo(context, op):
 #            new_ob.material_slots[0].material = shadmat
 #            new_ob.material_slots[0].material.diffuse_color = (1, 0, 0)
         
-        if new_ob.vi_params.envi_type == '1':
-            if not new_ob.material_slots:
-                if 'en_shading' not in [m.name for m in bpy.data.materials]:
-                    bpy.data.materials.new('en_shading')
-                    bpy.ops.object.material_slot_add()
-                    bpy.ops.material.new()
-#                    elif len(new_ob.material_slots) > 1:
-#                        while len(new_ob.material_slots) > 1:
-#                            bpy.ops.object.material_slot_remove()
-                    new_ob.material_slots[0].material = bpy.data.materials['en_shading']
-                    new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
+            if new_ob.vi_params.envi_type == '1':
+                if not new_ob.material_slots:
+                    if 'en_shading' not in [m.name for m in bpy.data.materials]:
+                        bpy.data.materials.new('en_shading')
+                        bpy.ops.object.material_slot_add()
+                        bpy.ops.material.new()
+    #                    elif len(new_ob.material_slots) > 1:
+    #                        while len(new_ob.material_slots) > 1:
+    #                            bpy.ops.object.material_slot_remove()
+                        new_ob.material_slots[0].material = bpy.data.materials['en_shading']
+                        new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
             
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
@@ -544,6 +553,7 @@ def pregeo(context, op):
 #    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.bl_idname == 'No_En_Net_TC' and bpy.data.collections[node.zone].vi_params.envi_zone == 1]            
 #
     dcdict = {'Wall':(1, 1, 1, 1), 'Partition':(1, 1, 0, 1), 'Window':(0, 1, 1, 1), 'Roof':(0, 1, 0, 1), 'Ceiling':(1, 1, 0, 1), 'Floor':(0.44,0.185,0.07, 1), 'Shading':(1, 0, 0, 1)}
+    ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'} 
     pva = 0
     linklist = []
     for coll in eg.children:
@@ -551,192 +561,194 @@ def pregeo(context, op):
         cvp['enparams'] = {}
         cvp['enparams']['floorarea'] = 0.0
         
-        for oi, obj in enumerate(coll.objects):
-            ovp = obj.vi_params
+        if coll.objects:
+            for oi, obj in enumerate(coll.objects):
+                ovp = obj.vi_params
+                
+                for k in ovp.keys():
+                    if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica'):
+                        del ovp[k]
+                ovp['enparams'] = {}
+                omats = [ms.material for ms in obj.material_slots]
+        
+                if ovp.envi_type in ('0', '2') and not omats:
+                    op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))
+                elif None in omats:
+                    op.report({'WARNING'}, 'Object {} has an empty material slot'.format(obj.name))
+                else:
+                    try:
+                        ofa = 0
+                        for face in obj.data.polygons:
+                            for node in omats[face.material_index].vi_params.envi_nodes.nodes:
+                                if node.bl_idname == 'No_En_Mat_Con' and node.active:
+                                    if node.envi_con_type =='Floor':
+                                        ofa += facearea(obj, face)
+                            omats[face.material_index].vi_params['enparams']['area'] += facearea(obj, face)
+    #                            elif node.inputs['PV'].links:
+    #                                if node.inputs['PV'].links[0].from_node.inputs['PV Generator'].links:
+    #                                    
+                                    
+                        ovp['enparams']["floorarea"] = ofa
+                        cvp['enparams']["floorarea"] += ofa
+                    except Exception as e:
+                        logentry('There is a problem with the area calculation for object {}: {}'.format(obj.name, e))
+                        ovp['enparams']["floorarea"] = 1
+   
+                      
+                                   
+                    
             
-            for k in ovp.keys():
-                if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica'):
-                    del ovp[k]
-            ovp['enparams'] = {}
-            omats = [ms.material for ms in obj.material_slots]
+            
+    #                for mats in omats:
+    #                    if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
+    #                        mats.copy().name = 'en_'+mats.name
+    ##                if '8' in (mats.envi_type_lo, mats.envi_type_l1, mats.envi_type_l2, mats.envi_type_l3, mats.envi_type_l4):
+    ##                    enng['enviparams']['pcm'] = 1
+    #    
+    #            selobj(context.view_layer, obj)
+    #            en_obj = context.view_layer.objects.active
+    ##            bpy.ops.object.duplicate()    
+    ##            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    ##            en_obj = context.view_layer.objects.active
+    ##            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+    #            selmesh('desel')
+    #            enomats = [enom for enom in en_obj.data.materials if enom and enom.vi_params.envi_nodes and enom.vi_params.envi_nodes.nodes and not any([n.use_custom_color for n in enom.vi_params.envi_nodes.nodes])]
+    ##            print('e', [enom for enom in en_obj.data.materials if enom and enom.envi_nodes and enom.envi_nodes.nodes])
+    #            en_obj.name, en_obj.data.name = 'en_'+obj.name, en_obj.data.name
+    #            mis = [f.material_index for f in no.data.polygons]
+                done_mats = []
+                for s, sm in enumerate(obj.material_slots): 
+                    if sm.material and sm.material not in done_mats:
+                        done_mats.append(sm.material)
+                        mat = sm.material
+                        mvp = mat.vi_params
+                        
+                        if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
+                            mvp.envi_nodes = mvp.envi_nodes.copy()
+                            mvp.envi_nodes.name = mat.name
+                        
+                        if mvp.envi_nodes and mvp.envi_nodes.users > 1:
+                           mvp.envi_nodes.user_clear() 
+                           mvp.envi_nodes = bpy.data.node_groups[mat.name]
+                           
+                        emnode = get_con_node(mvp)
+                        
+                        if not emnode:
+                            op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
+                        elif any([n.use_custom_color for n in emnode.ret_nodes()]):
+                            op.report({'WARNING'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
+                        else:                       
+                            emnode.ret_uv()
+                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
+        ##                    mat.envi_nodes['enmatparams']['boundary'] = emnode.envi_boundary
+        ##                    mat.envi_nodes['enmatparams']['airflow'] = emnode.af_surface
+        ##                    mat.envi_nodes['enmatparams']['tm'] = emnode.envi_thermalmass
+        #                    
+        #                    if s in mis:
+                            mvp.envi_export = True    
     
-            if ovp.envi_type in ('0', '2') and not omats:
-                op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))
-            elif None in omats:
-                op.report({'WARNING'}, 'Object {} has an empty material slot'.format(obj.name))
-            else:
-                try:
-                    ofa = 0
-                    for face in obj.data.polygons:
-                        for node in omats[face.material_index].vi_params.envi_nodes.nodes:
-                            if node.bl_idname == 'No_En_Mat_Con' and node.active:
-                                if node.envi_con_type =='Floor':
-                                    ofa += facearea(obj, face)
-                        omats[face.material_index].vi_params['enparams']['area'] += facearea(obj, face)
-#                            elif node.inputs['PV'].links:
-#                                if node.inputs['PV'].links[0].from_node.inputs['PV Generator'].links:
-#                                    
-                                
-                    ovp['enparams']["floorarea"] = ofa
-                    cvp['enparams']["floorarea"] += ofa
-                except Exception as e:
-                    logentry('There is a problem with the area calculation for object {}: {}'.format(obj.name, e))
-                    ovp['enparams']["floorarea"] = 1
-                    
-                if ovp.envi_type in ('0', '2'):                        
-                    ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}            
-                
-        
-        
-#                for mats in omats:
-#                    if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
-#                        mats.copy().name = 'en_'+mats.name
-##                if '8' in (mats.envi_type_lo, mats.envi_type_l1, mats.envi_type_l2, mats.envi_type_l3, mats.envi_type_l4):
-##                    enng['enviparams']['pcm'] = 1
-#    
-#            selobj(context.view_layer, obj)
-#            en_obj = context.view_layer.objects.active
-##            bpy.ops.object.duplicate()    
-##            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-##            en_obj = context.view_layer.objects.active
-##            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
-#            selmesh('desel')
-#            enomats = [enom for enom in en_obj.data.materials if enom and enom.vi_params.envi_nodes and enom.vi_params.envi_nodes.nodes and not any([n.use_custom_color for n in enom.vi_params.envi_nodes.nodes])]
-##            print('e', [enom for enom in en_obj.data.materials if enom and enom.envi_nodes and enom.envi_nodes.nodes])
-#            en_obj.name, en_obj.data.name = 'en_'+obj.name, en_obj.data.name
-#            mis = [f.material_index for f in no.data.polygons]
-            done_mats = []
-            for s, sm in enumerate(obj.material_slots): 
-                if sm.material and sm.material not in done_mats:
-                    done_mats.append(sm.material)
-                    mat = sm.material
-                    mvp = mat.vi_params
-                    
-                    if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
-                        mvp.envi_nodes = mvp.envi_nodes.copy()
-                        mvp.envi_nodes.name = mat.name
-                    
-                    if mvp.envi_nodes and mvp.envi_nodes.users > 1:
-                       mvp.envi_nodes.user_clear() 
-                       mvp.envi_nodes = bpy.data.node_groups[mat.name]
-                       
-                    emnode = get_con_node(mvp)
-                    
-                    if not emnode:
-                        op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
-                    elif any([n.use_custom_color for n in emnode.ret_nodes()]):
-                        op.report({'WARNING'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
-                    else:                       
-                        emnode.ret_uv()
-                        mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
-    ##                    mat.envi_nodes['enmatparams']['boundary'] = emnode.envi_boundary
-    ##                    mat.envi_nodes['enmatparams']['airflow'] = emnode.af_surface
-    ##                    mat.envi_nodes['enmatparams']['tm'] = emnode.envi_thermalmass
-    #                    
-    #                    if s in mis:
-                        mvp.envi_export = True    
-
-                        if emnode.envi_con_type in dcdict:
-                            mat.diffuse_color = dcdict[mct] 
-                        if emnode.inputs['PV'].links:
-                            mat.diffuse_color = (1, 1, 0, 1)
-                 
-##                if mct not in ('None', 'Shading', 'Aperture', 'Window'):
-##                    print('mct', mct)
-##                retuval(mat)
-#                
-#            for poly in no.data.polygons:
-#                poly.select = False
-#                mat = no.data.materials[poly.material_index]
-#                emnode = get_con_node(mat.vi_params)
-#                
-#                try:
-#                    if poly.area < 0.001:
-#                        poly.select = True 
-#                    if not mat.vi_params.envi_nodes:                        
-#                        poly.select = True
-#                    elif emnode.envi_con_type == 'None':
-#                        poly.select = True
-#                    elif any([n.use_custom_color for n in mat.vi_params.envi_nodes.nodes]):
-#                        poly.select = True 
-#                except Exception as e:
-#                    print(e)
-##                    logentry("Problem with EnVi export of {}".format(en_obj.name))
-#                    poly.select = True
-
-#            selmesh('delf')  
-#            for edge in no.data.edges:
-#                if edge.is_loose:
-#                    edge.select = True
-#                    for vi in edge.vertices:
-#                        no.data.vertices[vi].select = True          
-#            selmesh('delv')
-##            selmesh('dele')        
-#            if not oi:
-#                bm_total = bmesh.new()
-#                bm_total.faces.layers.string.new('oname')
-#                fo = bm_total.faces.layers.string['oname']
-#                om = obj.matrix_world
-#            tmesh = en_obj.evaluated_get(depsgraph).to_mesh()
-##            tmesh = en_obj.data.copy()
-#            tmesh.transform(en_obj.matrix_world)
-#            bm_total.from_mesh(tmesh)
-#            en_obj.to_mesh_clear()
-#            
-#            for face in bm_total.faces[-len(tmesh.polygons):]:
-#                face[fo] = obj.name.encode()
-            
-            
-                
-#            bm = bmesh.new()
-#            bm.from_mesh(en_obj.data)
-#            bm.transform(en_obj.matrix_world)
-        
-#        en_obj['auto_volume'] = bm_total.calc_volume()
-#            print(bm.calc_volume())
-        
-#
-#            obj['children'] = en_obj.name
-
-        for link in enng.links:
-            if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):
-                linklist.append([link.from_socket.node.name, link.from_socket.name, link.to_socket.node.name, link.to_socket.name])
-                enng.links.remove(link)
-        if context.view_layer.objects[coll.name].vi_params.envi_type != '1':
-            if coll.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
-                enng.nodes.new(type = ezdict[context.view_layer.objects[coll.name].vi_params.envi_type]).zone = coll.name
-            else:
-                for node in enng.nodes:
-                    if hasattr(node, 'zone') and node.zone == coll.name:
-                        node.zupdate(bpy.context)
-                    if hasattr(node, 'emszone') and node.emszone == coll.name:
-                        node.zupdate(bpy.context) 
-                    if hasattr(node, 'zone') and node.zone == coll.name:
-                        node.uvsockupdate()    
-#        for node in enng.nodes:
-#            
-#                
-        for node in enng.nodes:
-#            if hasattr(node, 'zone') and node.zone == coll.name:
-#                node.uvsockupdate()
-    #    eg['enparams']['pva'] = sum([mat.vi_params['enparams']['area'] for mat in bpy.data.materials if get_con_node(mat).links])
+                            if emnode.envi_con_type in dcdict:
+                                mat.diffuse_color = dcdict[mct] 
+                            if emnode.inputs['PV'].links:
+                                mat.diffuse_color = (1, 1, 0, 1)
+                     
+    ##                if mct not in ('None', 'Shading', 'Aperture', 'Window'):
+    ##                    print('mct', mct)
+    ##                retuval(mat)
     #                
-    ##            print(enomats, [get_con_node(mat).name for mat in enomats])    
-    #                if node.envi_afsurface:
-            if [sock.bl_idname in ('So_En_Net_SFlow', 'So_En_Net_SFlow') for sock in node.inputs]:
-                enng['enviparams']['afn'] = 1
-#                
-            if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
-                enng.nodes.new(type = 'No_En_Net_ACon')         
-                enng.use_fake_user = 1
-#                
-##            scene.layers[0], scene.layers[1] = True, False
-#            selobj(context.view_layer, obj)
-##            scene.objects.active = obj
-#        
-        
-#            en_obj.layers[1], en_obj.layers[0] = True, False
-          
+    #            for poly in no.data.polygons:
+    #                poly.select = False
+    #                mat = no.data.materials[poly.material_index]
+    #                emnode = get_con_node(mat.vi_params)
+    #                
+    #                try:
+    #                    if poly.area < 0.001:
+    #                        poly.select = True 
+    #                    if not mat.vi_params.envi_nodes:                        
+    #                        poly.select = True
+    #                    elif emnode.envi_con_type == 'None':
+    #                        poly.select = True
+    #                    elif any([n.use_custom_color for n in mat.vi_params.envi_nodes.nodes]):
+    #                        poly.select = True 
+    #                except Exception as e:
+    #                    print(e)
+    ##                    logentry("Problem with EnVi export of {}".format(en_obj.name))
+    #                    poly.select = True
+    
+    #            selmesh('delf')  
+    #            for edge in no.data.edges:
+    #                if edge.is_loose:
+    #                    edge.select = True
+    #                    for vi in edge.vertices:
+    #                        no.data.vertices[vi].select = True          
+    #            selmesh('delv')
+    ##            selmesh('dele')        
+    #            if not oi:
+    #                bm_total = bmesh.new()
+    #                bm_total.faces.layers.string.new('oname')
+    #                fo = bm_total.faces.layers.string['oname']
+    #                om = obj.matrix_world
+    #            tmesh = en_obj.evaluated_get(depsgraph).to_mesh()
+    ##            tmesh = en_obj.data.copy()
+    #            tmesh.transform(en_obj.matrix_world)
+    #            bm_total.from_mesh(tmesh)
+    #            en_obj.to_mesh_clear()
+    #            
+    #            for face in bm_total.faces[-len(tmesh.polygons):]:
+    #                face[fo] = obj.name.encode()
+                
+                
+                    
+    #            bm = bmesh.new()
+    #            bm.from_mesh(en_obj.data)
+    #            bm.transform(en_obj.matrix_world)
+            
+    #        en_obj['auto_volume'] = bm_total.calc_volume()
+    #            print(bm.calc_volume())
+            
+    #
+    #            obj['children'] = en_obj.name
+    
+            for link in enng.links:
+                if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):
+                    linklist.append([link.from_socket.node.name, link.from_socket.name, link.to_socket.node.name, link.to_socket.name])
+                    enng.links.remove(link)
+                    
+            if context.view_layer.objects[coll.name].vi_params.envi_type != '1':
+                if coll.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+                    enng.nodes.new(type = ezdict[context.view_layer.objects[coll.name].vi_params.envi_type]).zone = coll.name
+                else:
+                    for node in enng.nodes:
+                        if hasattr(node, 'zone') and node.zone == coll.name:
+                            node.zupdate(bpy.context)
+                        if hasattr(node, 'emszone') and node.emszone == coll.name:
+                            node.zupdate(bpy.context) 
+                        if hasattr(node, 'zone') and node.zone == coll.name:
+                            node.uvsockupdate()    
+    #        for node in enng.nodes:
+    #            
+    #                
+            for node in enng.nodes:
+    #            if hasattr(node, 'zone') and node.zone == coll.name:
+    #                node.uvsockupdate()
+        #    eg['enparams']['pva'] = sum([mat.vi_params['enparams']['area'] for mat in bpy.data.materials if get_con_node(mat).links])
+        #                
+        ##            print(enomats, [get_con_node(mat).name for mat in enomats])    
+        #                if node.envi_afsurface:
+                if [sock.bl_idname in ('So_En_Net_SFlow', 'So_En_Net_SFlow') for sock in node.inputs]:
+                    enng['enviparams']['afn'] = 1
+    #                
+                if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
+                    enng.nodes.new(type = 'No_En_Net_ACon')         
+                    enng.use_fake_user = 1
+    #                
+    ##            scene.layers[0], scene.layers[1] = True, False
+    #            selobj(context.view_layer, obj)
+    ##            scene.objects.active = obj
+    #        
+            
+    #            en_obj.layers[1], en_obj.layers[0] = True, False
+              
     for ll in linklist:
         try:
             enng.links.new(enng.nodes[ll[0]].outputs[ll[1]], enng.nodes[ll[2]].inputs[ll[3]])

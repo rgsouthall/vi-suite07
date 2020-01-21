@@ -2205,9 +2205,10 @@ class No_En_Net_Zone(Node, EnViNodes):
         
     def vol_update(self, context):
         coll = bpy.data.collections[self.zone] 
+        
         for obj in coll.objects:
-            obj['volume'] = obj['auto_volume'] if self.volcalc == '0' else self.zonevolume
-            self['volume'] = obj['auto_volume']
+            obj['volume'] = obj['auto_volume'] if obj.get('auto_volume') and self.volcalc == '0' else self.zonevolume
+            self['volume'] = obj['auto_volume'] if obj.get('auto_volume') else 0
             
     def tspsupdate(self, context):
         if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
@@ -3245,7 +3246,7 @@ class No_En_Net_ACon(Node, EnViNodes):
     buildtype: EnumProperty(items = [('LowRise', 'Low Rise', 'Height is less than 3x the longest wall'),
                                               ('HighRise', 'High Rise', 'Height is more than 3x the longest wall')], name = "", default = 'LowRise')
 
-    maxiter = IntProperty(default = 500, description = 'Maximum Number of Iterations', name = "")
+    maxiter: IntProperty(default = 500, description = 'Maximum Number of Iterations', name = "")
 
     initmet: EnumProperty(items = [('ZeroNodePressures', 'ZeroNodePressures', 'Initilisation type'),
                                               ('LinearInitializationMethod', 'LinearInitializationMethod', 'Initilisation type')], name = "", default = 'ZeroNodePressures')
