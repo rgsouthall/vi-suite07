@@ -1,0 +1,20 @@
+{
+Normal map conversion
+}
+
+mod = if(Rdot,1,-1);
+ddx(dx, dy) = mod*A1*(A5*dx+A2*dy);
+ddy(dx, dy) = mod*A1*(A6*dx+A3*dy);
+ddz(dx, dy) = mod*A1*(A7*dx+A4*dy);
+
+{newDx = if(Dx, -1, 1);
+newDy = if(Dy, -1, 1);
+newDz = if(Dz, -1, 1);}
+{A(i): select(i, A2, A3, A4);}
+{Sx = cross(1, N, A);
+Sy = cross(2, N, A);
+Sz = cross(3, N, A);
+Sx = -0.707;
+Sy = -0.707;
+Sz = 0;
+ddz(dx, dy) = mod;}
