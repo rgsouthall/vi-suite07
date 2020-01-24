@@ -43,32 +43,33 @@ else:
     platpath = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-    if sys.platform in ('darwin'):
-        if 'PYTHONPATH' not in os.environ:
-            os.environ['PYTHONPATH'] =  os.path.join(addonpath, 'Python')
-        elif os.path.join(addonpath, 'Python') not in os.environ['PYTHONPATH']:
-            os.environ['PYTHONPATH'] =  os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', 'dar')
-
-    elif sys.platform in ('linux', 'win32'):
+    if sys.platform in ('darwin', 'linux', 'win32'):      
+        if os.environ.get('PYTHONPATH'):
+            if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
+#                os.environ['PYTHONPATH'] = os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', sys.platform)
+                os.environ['PYTHONPATH'] += os.path.join(addonpath, 'Python', sys.platform)
+        else:
+            os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
+        
+        
         if sys.platform =='win32':
             if not os.path.isfile(os.path.join(os.path.split(sys.executable)[0], 'python3.dll')):
                shutil.copy(os.path.join(addonpath, 'Python', sys.platform, 'python3.dll'), os.path.split(sys.executable)[0]) 
-
-        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
+               
+        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))   
         
-        if os.environ.get('PYTHONPATH'):
-            os.environ['PYTHONPATH'] = os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', sys.platform)
-        else:
-           os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-           
+        #        if 'PYTHONPATH' not in os.environ:
+#            os.environ['PYTHONPATH'] =  os.path.join(addonpath, 'Python', sys.platform)
+#        elif os.path.join(addonpath, 'Python') not in os.environ['PYTHONPATH']:
+#            os.environ['PYTHONPATH'] =  os.environ['PYTHONPATH'] + evsep[str(sys.platform)] + os.path.join(addonpath, 'Python', sys.platform)  
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
     from .vi_node import No_Li_Sim
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
-    from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op
-    from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
+    from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op, No_En_Mat_Sched
+    from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Net_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense
@@ -339,12 +340,12 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
      resazlmaxf_disp, resazlminf_disp, resazlavef_disp,
      resazmaxshg_disp, resazminshg_disp, resazaveshg_disp,
      resaztshg_disp, resaztshgm_disp)  = aresnameunits() 
-    envi_flink: bprop("", "Associate flow results with the nearest object", False)
+#    envi_flink: bprop("", "Associate flow results with the nearest object", False)
     
 class VI_Params_Object(bpy.types.PropertyGroup): 
     # VI-Suite object definitions
     vi_type: eprop([("0", "None", "Not a VI-Suite zone"), 
-                    ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), 
+                    ("1", "EnVi Surface", "Designates an EnVi surface"), 
                     ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), 
                     ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
                     ("4", "Light Array", "Specifies a LiVi lighting array"), 
@@ -390,7 +391,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     bsdf_running: bprop("", "Running BSDF calculation", False)
     radbsdf = radbsdf
     retsv = retsv
-    envi_type: eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney Object")], "EnVi object type", "Specify the EnVi object type", "0")
+    envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney")], "EnVi surface type", "Specify the EnVi surface type", "0")
     envi_oca: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "TARP", "Use the detailed convection algorithm"), ("3", "DOE-2", "Use the Trombe wall convection algorithm"), ("4", "MoWitt", "Use the adaptive convection algorithm"), ("5", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone outside convection algorithm", "0")
     envi_ica: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "Detailed", "Use the detailed convection algorithm"), ("3", "Trombe", "Use the Trombe wall convection algorithm"), ("4", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone inside convection algorithm", "0")
     flovi_fl: IntProperty(name = '', description = 'SnappyHexMesh object features levels', min = 1, max = 20, default = 4) 
@@ -454,7 +455,9 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
-    
+    envi_oca: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "TARP", "Use the detailed convection algorithm"), ("3", "DOE-2", "Use the Trombe wall convection algorithm"), ("4", "MoWitt", "Use the adaptive convection algorithm"), ("5", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone outside convection algorithm", "0")
+    envi_ica: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "Detailed", "Use the detailed convection algorithm"), ("3", "Trombe", "Use the Trombe wall convection algorithm"), ("4", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone inside convection algorithm", "0")
+
 @persistent
 def update_chart_node(dummy):
     try:
@@ -645,8 +648,8 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
            No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con, 
            So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
-           No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Sched, No_En_Net_Inf,
-           No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV,
+           No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Sched, No_En_Net_Inf,
+           No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV, No_En_Mat_Sched,
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
@@ -718,13 +721,13 @@ def register():
     path_update()
 
 def unregister():
-  
-    for cl in classes:
-        bpy.utils.unregister_class(cl)
-        
+    nodeitems_utils.unregister_node_categories("EnVi Material Nodes")
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
-    nodeitems_utils.unregister_node_categories("EnVi Material Nodes")
+    
+    
+    for cl in classes:
+        bpy.utils.unregister_class(cl)
 
     if update_chart_node in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_chart_node)

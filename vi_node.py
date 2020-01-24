@@ -2301,6 +2301,10 @@ class No_En_Net_Zone(Node, EnViNodes):
             row = layout.row()
             row.label(text = 'Error - {}'.format(self.errorcode()))
         newrow(layout, 'Zone:', self, 'zone')
+        if bpy.data.collections.get(self.zone):
+            cvp = bpy.data.collections[self.zone].vi_params
+            newrow(layout, 'Inside convection:', cvp, "envi_ica")
+            newrow(layout, 'Outside convection:', cvp, "envi_oca")
         yesno = (1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
         vals = (("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         newrow(layout, 'Volume calc:', self, 'volcalc')
@@ -3303,9 +3307,9 @@ class No_En_Net_ACon(Node, EnViNodes):
         except:
             pass
         
-class No_En_Sched(Node, EnViNodes):
+class No_En_Net_Sched(Node, EnViNodes):
     '''Node describing a schedule'''
-    bl_idname = 'No_En_Sched'
+    bl_idname = 'No_En_Net_Sched'
     bl_label = 'Schedule'
     bl_icon = 'SOUND'
 
@@ -3566,7 +3570,7 @@ class EnViNodeCategory(NodeCategory):
 envi_zone = [NodeItem("No_En_Net_Zone", label="Zone"), NodeItem("No_En_Net_Occ", label="Occupancy"),
              NodeItem("No_En_Net_Hvac", label="HVAC"), NodeItem("No_En_Net_Eq", label="Equipment"),
              NodeItem("No_En_Net_Inf", label="Infiltration"), NodeItem("No_En_Net_TC", label="Thermal Chimney")]
-envi_sched = [NodeItem("No_En_Sched", label="Schedule")]
+envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule")]
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
                 NodeItem("No_En_Net_Ext", label="External Air")]
 envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program")]
@@ -5301,21 +5305,164 @@ class No_En_Mat_PVG(Node, EnViMatNodes):
         newrow(layout, "Inverter type:", self, "it")
         newrow(layout, "Inverter efficiency:", self, "ie")
         newrow(layout, 'Radiative fraction:', self, 'rf')
+        
+class No_En_Mat_Sched(Node, EnViNodes):
+    '''Node describing a schedule'''
+    bl_idname = 'No_En_Mat_Sched'
+    bl_label = 'Schedule'
+    bl_icon = 'SOUND'
 
+    def tupdate(self, context):
+        try:
+            err = 0
+            if self.t2 <= self.t1 and self.t1 < 365:
+                self.t2 = self.t1 + 1
+                if self.t3 <= self.t2 and self.t2 < 365:
+                    self.t3 = self.t2 + 1
+                    if self.t4 != 365:
+                        self.t4 = 365
+
+            tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
+            if max((self.t1, self.t2, self.t3, self.t4)[:tn]) != 365:
+                err = 1
+            if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
+                err = 1
+            if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
+                err = 1
+
+            for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
+                for fd in f.split(' '):
+                    if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKENDS", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
+                        err = 1
+
+            for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
+                for uf in u.split(';'):
+                    for ud in uf.split(','):
+                        if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
+                            err = 1
+            nodecolour(self, err)
+
+        except:
+            nodecolour(self, 1)
+
+    file: EnumProperty(name = '', items = [("0", "None", "No file"), ("1", "Select", "Select file"), ("2", "Generate", "Generate file")], default = '0')
+    select_file: StringProperty(name="", description="Name of the variable file", default="", subtype="FILE_PATH")
+    cn: IntProperty(name = "", default = 1, min = 1)
+    rtsat: IntProperty(name = "", default = 0, min = 0)
+    hours: IntProperty(name = "", default = 8760, min = 1, max = 8760)
+    delim: EnumProperty(name = '', items = [("Comma", "Comma", "Comma delimiter"), ("Space", "Space", "space delimiter")], default = 'Comma')
+    generate_file: StringProperty(default = "", name = "")
+    (u1, u2, u3, u4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)] * 4
+    (f1, f2, f3, f4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)] * 4
+    (t1, t2, t3, t4) = [IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
+
+    def init(self, context):
+        self.outputs.new('So_En_Sched', 'Schedule')
+        self['scheddict'] = {'TSPSchedule': 'Any Number', 'VASchedule': 'Fraction', 'Fan Schedule': 'Fraction', 'HSchedule': 'Temperature', 'CSchedule': 'Temperature'}
+        self.tupdate(context)
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        uvals, u = (1, self.u1, self.u2, self.u3, self.u4), 0
+        tvals = (0, self.t1, self.t2, self.t3, self.t4)
+        newrow(layout, 'From file', self, 'file')
+        
+        if self.file == "1":
+            newrow(layout, 'Select', self, 'select_file')
+            newrow(layout, 'Columns', self, 'cn')
+            newrow(layout, 'Skip rows', self, 'rtsat')
+            newrow(layout, 'Delimiter', self, 'delim')
+        elif self.file == "2":
+            newrow(layout, 'Generate', self, 'generate_file')
+
+        if self.file != "1":        
+            while uvals[u] and tvals[u] < 365:
+                [newrow(layout, v[0], self, v[1]) for v in (('End day {}:'.format(u+1), 't'+str(u+1)), ('Fors:', 'f'+str(u+1)), ('Untils:', 'u'+str(u+1)))]
+                u += 1
+
+    def update(self):
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+        self.id_data.interface_update(bpy.context)
+
+    def epwrite(self, name, stype):
+        schedtext, ths = '', []
+        for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
+            if not schedtext:
+                for t in (self.t1, self.t2, self.t3, self.t4):
+                    ths.append(t)
+                    if t == 365:
+                        break
+#                ths = [self.t1, self.t2, self.t3, self.t4]
+                fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
+                uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
+                ts, fs, us = rettimes(ths, fos, uns)
+                
+#                if self.file == '0':
+                schedtext = epschedwrite(name, stype, ts, fs, us)
+        return schedtext
+            
+    def epwrite_sel_file(self, name):               
+        params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
+        paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
+        schedtext = epentry('Schedule:File', params, paramvs)
+        '''    Schedule:File,
+        elecTDVfromCZ01res, !- Name
+        Any Number, !- ScheduleType
+        TDV_kBtu_CTZ01.csv, !- Name of File
+        2, !- Column Number
+        4, !- Rows to Skip at Top
+        8760, !- Number of Hours of Data
+        Comma; !- Column Separator'''
+        return schedtext
     
+    def epwrite_gen_file(self, name, data, newdir):
+        schedtext, ths = '', []
+        for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
+            if not schedtext:
+                for t in (self.t1, self.t2, self.t3, self.t4):
+                    ths.append(t)
+                    if t == 365:
+                        break
+#                ths = [self.t1, self.t2, self.t3, self.t4]
+                fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
+                uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
+                ts, fs, us = rettimes(ths, fos, uns)
+        for t in ts:
+            for f in fs:
+                for u in us:
+                    for hi, h in enumerate((datetime.datetime(2015, 1, 1, 0, 00) - datetime.datetime(2014, 1, 1, 0, 00)).hours):
+                        if h.day <= self.ts:
+#                            if f == 'Weekday'
+                            data[hi] = 1
+        with open(os.path.join(newdir, name), 'w') as sched_file:
+            sched_file.write(',\n'.join([d for d in data]))
+        params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
+        paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
+        schedtext = epentry('Schedule:File', params, paramvs)    
+        return schedtext
+   
+envi_mat_con = [NodeItem("No_En_Mat_Con", label="Construction Node")]
+envi_mat_lay = [NodeItem("No_En_Mat_Op", label="Opaque layer"),
+                NodeItem("No_En_Mat_Tr", label="Transparency layer"),
+                NodeItem("No_En_Mat_Gas", label="Gas layer")]
+envi_mat_sha = [NodeItem("No_En_Mat_Sh", label="Shading layer"),
+                NodeItem("No_En_Mat_Bl", label="Blind layer"),
+                NodeItem("No_En_Mat_Sc", label="Screen layer"),
+                NodeItem("No_En_Mat_SG", label="Switchable layer"),
+                NodeItem("No_En_Mat_ShC", label="Shading Control Node")]
+envi_mat_sch = [NodeItem("No_En_Mat_Sched", label="Schedule")]
+envi_mat_pv = [NodeItem("No_En_Mat_PV", label="PV"),
+               NodeItem("No_En_Mat_PVG", label="PV Generator")] 
+
 envimatnode_categories = [
-        EnViMatNodeCategory("Type", "Type Node", items=[NodeItem("No_En_Mat_Con", label="Construction Node")]),
-        EnViMatNodeCategory("Layer", "Layer Node", items=[NodeItem("No_En_Mat_Op", label="Opaque layer"),
-                                                       NodeItem("No_En_Mat_Tr", label="Transparency layer"),
-                                                       NodeItem("No_En_Mat_Gas", label="Gas layer")]), 
-        EnViMatNodeCategory("Shading", "Shading Node", items=[NodeItem("No_En_Mat_Sh", label="Shading layer"),
-                                                       NodeItem("No_En_Mat_Bl", label="Blind layer"),
-                                                       NodeItem("No_En_Mat_Sc", label="Screen layer"),
-                                                       NodeItem("No_En_Mat_SG", label="Switchable layer"),
-                                                       NodeItem("No_En_Mat_ShC", label="Shading Control Node")]),
-        EnViMatNodeCategory("Schedule", "Schedule Node", items=[NodeItem("No_En_Sched", label="Schedule")]),
-        EnViMatNodeCategory("Power", "PV Node", items=[NodeItem("No_En_Mat_PV", label="PV"),
-                                                       NodeItem("No_En_Mat_PVG", label="PV Generator")])]
+        EnViMatNodeCategory("Type", "Type Node", items=envi_mat_con),
+        EnViMatNodeCategory("Layer", "Layer Node", items=envi_mat_lay), 
+        EnViMatNodeCategory("Shading", "Shading Node", items=envi_mat_sha),
+        EnViMatNodeCategory("Schedule", "Schedule Node", items=envi_mat_sch),
+        EnViMatNodeCategory("Power", "PV Node", items=envi_mat_pv)]
+            
+            
 
 #    eff: FloatProperty(name = "%", description = "Efficiency (%)", min = 0.0, max = 100, default = 20)
 #    ssp: IntProperty(name = "", description = "Number of series strings in parallel", min = 1, max = 100, default = 5)
