@@ -693,11 +693,12 @@ class No_Li_Im(Node, ViNodes):
             newrow(layout, 'X resolution*:', self, 'x')
             newrow(layout, 'Y resolution*:', self, 'y')            
             
-            if self.mp and sys.platform != 'win32':
+            if sys.platform != 'win32':
                 newrow(layout, 'Multi-thread:', self, 'mp')
-                row = layout.row()
-                row.prop(self, '["Processors"]')
-                newrow(layout, 'Processes:', self, 'processes')
+                if self.mp:
+                    row = layout.row()
+                    row.prop(self, '["Processors"]')
+                    newrow(layout, 'Processes:', self, 'processes')
             if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image')
@@ -1626,7 +1627,8 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['pvkwh'] = 0
             self['res']['hkwh'] = 0
             self['res']['ckwh'] = 0
-            self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children])
+            self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
+
             if self['res']['fa'] > 13.9:
                 occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa']-13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)
             else:
@@ -2226,6 +2228,9 @@ class No_En_Net_Zone(Node, EnViNodes):
     upperlim: FloatProperty(default = 50, name = "", min = 0, max = 100)
     afs: IntProperty(default = 0, name = "")
     alllinked: BoolProperty(default = 0, name = "")
+    envi_oca: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "TARP", "Use the detailed convection algorithm"), ("3", "DOE-2", "Use the Trombe wall convection algorithm"), ("4", "MoWitt", "Use the adaptive convection algorithm"), ("5", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone outside convection algorithm", "0")
+    envi_ica: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "Detailed", "Use the detailed convection algorithm"), ("3", "Trombe", "Use the Trombe wall convection algorithm"), ("4", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone inside convection algorithm", "0")
+    envi_hab: BoolProperty(default = 0, name = "")
 #    zone = StringProperty(name = '', default = "en_Chimney")
 #    tcsched = EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
 #    waw = FloatProperty(name = '', min = 0.001, default = 1)
@@ -2302,9 +2307,10 @@ class No_En_Net_Zone(Node, EnViNodes):
             row.label(text = 'Error - {}'.format(self.errorcode()))
         newrow(layout, 'Zone:', self, 'zone')
         if bpy.data.collections.get(self.zone):
-            cvp = bpy.data.collections[self.zone].vi_params
-            newrow(layout, 'Inside convection:', cvp, "envi_ica")
-            newrow(layout, 'Outside convection:', cvp, "envi_oca")
+#            cvp = bpy.data.collections[self.zone].vi_params
+            newrow(layout, "Habitable:", self, 'envi_hab')
+            newrow(layout, "Inside convection:", self, 'envi_ica')
+            newrow(layout, "Outside convection:", self, 'envi_oca')
         yesno = (1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
         vals = (("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         newrow(layout, 'Volume calc:', self, 'volcalc')
@@ -3163,6 +3169,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
         layout.prop(self, 'linkmenu')
         layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe'), ('Factor', 'of')), 'ELA':(('ELA (m^2)', '["ela"]'), ('DC', 'dcof'), ('PA diff (Pa)', 'rpd'), ('FE', 'amfe')),
         'EF':(('Off FC', 'amfc'), ('Off FE', 'amfe'), ('Efficiency', 'fe'), ('PA rise (Pa)', 'pr'), ('Max flow', 'mf'))}
+
         for vals in layoutdict[self.linkmenu]:
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])
 
@@ -3187,8 +3194,10 @@ class No_En_Net_SFlow(Node, EnViNodes):
             cfparams = ('Name', 'Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)', 'Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)')
             cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), self.amfc, self.amfe)
             schedname = self.inputs['Fan Schedule'].links[0].from_node.name if self.inputs['Fan Schedule'].is_linked else ''
+
             for sock in [inp for inp in self.inputs if 'Node' in inp.name and inp.is_linked] + [outp for outp in self.outputs if 'Node' in outp.name and outp.is_linked]:
                 zname = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output].zone
+
             fparams = ('Name', 'Availability Schedule Name', 'Fan Efficiency', 'Pressure Rise (Pa)', 'Maximum Flow Rate (m3/s)', 'Air Inlet Node Name', 'Air Outlet Node Name', 'End-Use Subcategory')
             fparamvs = ('{}_{}'.format(self.name,  self.linkmenu), schedname, self.fe, self.pr, self.mf, '{} Exhaust Node'.format(zname), '{} Exhaust Fan Outlet Node'.format(zname), '{} Exhaust'.format(zname))
             fentry = epentry('Fan:ZoneExhaust', fparams, fparamvs)
@@ -3202,7 +3211,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
                 othernode = (link.from_node, link.to_node)[sock.is_output]
                 if sock.bl_idname == 'So_En_Net_SFlow' and othernode.bl_idname == 'No_En_Net_Zone':
                     # The conditional below checks if the airflow surface is also on a boundary. If so only the surface belonging to the outputting zone node is written.
-                    if (othersock.name[0:-1]+'b' in [s.name for s in othernode.outputs] and othernode.outputs[othersock.name[0:-1]+'b'].links) or othersock.name[0:-1]+'b' not in [s.name for s in othernode.outputs]:
+                    if (othersock.name[0:-1]+'b' in [s.name for s in othernode.outputs[:]] and othernode.outputs[othersock.name[0:-1]+'b'].links) or othersock.name[0:-1]+'b' not in [s.name for s in othernode.outputs]:                        
                         sn = othersock.sn
                         zn = othernode.zone
                         snames.append(zn+'_'+sn)

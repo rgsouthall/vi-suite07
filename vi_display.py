@@ -2865,25 +2865,25 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     bl_undo = False
     
     def invoke(self, context, event):   
-        area = context.area
+        region = context.region
         svp = context.scene.vi_params
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'wr'
-        self.results_bar = results_bar(('legend.png', 'table.png', 'scatter.png'), 300, area)
-        self.legend = wr_legend(context, 'Speed (m/s)', [305, area.height - 80], area.width, area.height, 125, 300)
-        self.table = wr_table(context, [355, area.height - 80], area.width, area.height, 400, 60) 
-        self.dhscatter = wr_scatter(context, [405, area.height - 80], area.width, area.height, 600, 200)
-        self.height = area.height
+        self.results_bar = results_bar(('legend.png', 'table.png', 'scatter.png'), 300, region)
+        self.legend = wr_legend(context, 'Speed (m/s)', [305, region.height - 80], region.width, region.height, 125, 300)
+        self.table = wr_table(context, [355, region.height - 80], region.width, region.height, 400, 60) 
+        self.dhscatter = wr_scatter(context, [405, region.height - 80], region.width, region.height, 600, 200)
+        self.height = region.height
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
         self.cao = context.active_object
-        area.tag_redraw()
+        context.area.tag_redraw()
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
     
     def modal(self, context, event):
         scene = context.scene
         svp = scene.vi_params
-        ah, aw = context.area.height, context.area.width
+        ah, aw = context.region.height, context.region.width
         redraw = 0
            
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or event.type == 'ESC':

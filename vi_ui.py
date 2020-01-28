@@ -478,6 +478,8 @@ class VI_PT_Ob(bpy.types.Panel):
             if ovp.vi_type == '1':
                 row = layout.row()
                 row.prop(ovp, "envi_type")
+                if ovp.envi_type == '0':
+                    newrow(layout, "Habitable:", ovp, 'envi_hab')
 #                if ovp.envi_type == '0':
 #                    newrow(layout, 'Inside convection:', ovp, "envi_ica")
 #                    newrow(layout, 'Outside convection:', ovp, "envi_oca")

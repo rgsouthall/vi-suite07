@@ -41,6 +41,11 @@ def get_con_node2(mat):
     else:
         return None
     
+def get_zone_node(coll, enng):
+    for node in enng.nodes:
+        if node.bl_idname == 'No_En_Net_Zone' and node.zone == coll.name:
+            return node
+    
 def boundpoly(obj, emnode, poly, enng):
     mat = obj.material_slots[poly.material_index].material
     
@@ -56,8 +61,9 @@ def boundpoly(obj, emnode, poly, enng):
                 bpoly = bobj.data.polygons[int(insock.links[0].from_socket.name.split('_')[-2])]
                 bmat = bobj.material_slots[bpoly.material_index].material
                 
-                if emnode.ret_uv != get_con_node(bmat.vi_params).ret_uv:
+                if emnode.ret_uv() != get_con_node(bmat.vi_params).ret_uv():
                     logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {1} construction takes precedence'.format(mat.name+'_'+str(poly.index), insock.links[0].to_node.zone+'_'+str(bpoly.index)))
+                    print('uv', emnode.ret_uv(), get_con_node(bmat.vi_params).ret_uv())
                     return(('', '', '', ''))
                 else:
                     return(("Surface", insock.links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
@@ -67,7 +73,7 @@ def boundpoly(obj, emnode, poly, enng):
                 bpoly = bobj.data.polygons[int(outsock.links[0].to_socket.name.split('_')[-2])]
                 bmat = bobj.data.materials[bpoly.material_index]
                 
-                if emnode.ret_uv != get_con_node(bmat.vi_params).ret_uv: 
+                if emnode.ret_uv() != get_con_node(bmat.vi_params).ret_uv(): 
                     logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {0} construction takes precedence'.format(mat.name+'_'+str(poly.index), outsock.links[0].to_node.zone+'_'+str(bpoly.index)))
                     return(("Zone", bobj.name, "NoSun", "NoWind"))
                 else:
