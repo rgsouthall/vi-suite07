@@ -1633,6 +1633,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa']-13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)
             else:
                 occ = 1
+
             Vda = 25 * occ + 36
             md = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
             ff = (1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00)
@@ -2256,7 +2257,8 @@ class No_En_Net_Zone(Node, EnViNodes):
                 self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
     
             for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-                self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+                if self.inputs.get(outp.name):
+                    self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
     
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
                 if inp.bl_idname == 'So_En_Bound' and not inp.hide and not inp.links:
@@ -2277,7 +2279,7 @@ class No_En_Net_Zone(Node, EnViNodes):
                             remlink(self, [outp.links[0]])
 
         except Exception as e:
-            logentry("Don't panic. This error message is not critical: {}".format(e))
+            logentry("There was a problem an EnVi Zone {} node socket change: {}".format(self.zone, e))
         
         for sock in self.outputs:
             socklink2(sock, self.id_data)
