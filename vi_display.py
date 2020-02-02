@@ -2356,8 +2356,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
 #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
         bgl.glLineWidth(context.scene.vi_params.sp_line_width)
         bgl.glPointSize(context.scene.vi_params.sp_sun_size)
-        
-        self.sp_shader.bind()
+        try:
+            self.sp_shader.bind()
+        except:
+            self.create_batch(context.scene, node)
         matrix = bpy.context.region_data.perspective_matrix
         sp_matrix = context.scene.objects['SPathMesh'].matrix_world
         sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
@@ -2600,7 +2602,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
         svp['viparams']['resnode'], svp['viparams']['restree'] = node.name, node.id_data.name
         scene.cursor.location = (0.0, 0.0, 0.0)
-        suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
+        suns = [ob for ob in spcoll.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']
+        print(spcoll.name, suns)
         requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
         matdict = {'SPBase': (0, 0, 0, 1), 'SPPlat': (1, 1, 1, 1)}
         

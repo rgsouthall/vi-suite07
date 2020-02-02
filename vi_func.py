@@ -76,9 +76,9 @@ unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF
 coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
 
 def create_coll(c, name):
-    try:
+    if bpy.data.collections.get(name):
         coll = bpy.data.collections[name]
-    except:
+    else:
         coll = bpy.data.collections.new(name)
         c.scene.collection.children.link(coll)
         
@@ -1661,19 +1661,18 @@ def sunpath2(scene):
 def sunpath(scene):
     svp = scene.vi_params
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
+#    spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
 
     if svp['spparams']['suns'] == '0':        
         skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
 
-        if suns:# and 0 in (suns[0]['solhour'] == svp.sp_sh, suns[0]['solday'] == svp.sp_sd):              
-            spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
+        if suns:# and 0 in (suns[0]['solhour'] == svp.sp_sh, suns[0]['solday'] == svp.sp_sd):                          
             alt, azi, beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)
-
-#            if spathobs:
             suns[0].location.z = 100 * sin(beta)
             suns[0].location.x = -(100**2 - (suns[0].location.z)**2)**0.5 * sin(phi)
             suns[0].location.y = -(100**2 - (suns[0].location.z)**2)**0.5 * cos(phi)
             suns[0].data.energy = svp.sp_sun_strength
+            suns[0].data.angle = svp.sp_sun_angle
             suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
             bpy.context.scene.display.light_direction = (-sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta)) 
 
