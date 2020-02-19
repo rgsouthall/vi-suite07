@@ -329,7 +329,7 @@ def retpmap(node, frame, scene):
     return amentry, pportentry, cpentry, cpfileentry   
 
 def retsv(self, scene, frame, rtframe, chunk, rt):
-    svcmd = "rcontrib -w -I -n {} {} -m sky_glow {}-{}.oct ".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002 ', scene['viparams']['filebase'], frame)    
+    svcmd = "rcontrib -w -I -n {} {} -m sky_glow {}-{}.oct ".format(scene.vi_params['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002 ', scene.vi_params['viparams']['filebase'], frame)    
     rtrun = Popen(svcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))                
     reslines = nsum(array([[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].splitlines()[10:]]), axis = 1)
     reslines[reslines > 0] = 1
@@ -603,15 +603,16 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     return reslists
                     
 def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):  
+    svp = scene.vi_params
     pfs, epfs = [[] for f in frames], [[] for f in frames]
-    self['compmat'] = [material.name for material in self.data.materials if material.mattype == '1'][0]
+    self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     self['crit'], self['ecrit'], spacetype = retcrits(simnode, self['compmat'])    
     comps, ecomps =  {str(f): [] for f in frames}, {str(f): [] for f in frames}
     crits, dfpass, edfpass = [], {str(f): 0 for f in frames}, {str(f): 0 for f in frames} 
-    selobj(scene, self)
+    selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
-    bm.from_mesh(self.data)
+    bm.from_mesh(self.id_data.data)
     clearlayers(bm, 'f')
     geom = bm.verts if simnode['goptions']['cp'] == '1' else bm.faces
     reslen = len(geom)
@@ -635,7 +636,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         
         rt = geom.layers.string['rt{}'.format(rtframe)]
         
-        for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 50):
+        for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 50):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
@@ -824,16 +825,16 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                     ['Space type: {}'.format(spacetype), '', '', ''], ['', '', '', ''], ['Standard requirements:', 'Target', 'Result', 'Pass/Fail']] + metric
         self['tablecomp{}'.format(frame)] = smetric if not self['ecrit'] else smetric + emetric
 
-    bm.to_mesh(self.data)
+    bm.to_mesh(self.id_data.data)
     bm.free()
     return (pfs, epfs, reslists)
     
 def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     self['livires'] = {}
-    self['compmat'] = [material.name for material in self.data.materials if material.mattype == '1'][0]
+    self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
     selobj(scene, self)
     bm = bmesh.new()
-    bm.from_mesh(self.data)
+    bm.from_mesh(self.id_data.data)
     bm.transform(self.matrix_world)
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
@@ -1109,7 +1110,7 @@ def retcrits(simnode, matname):
     mat = bpy.data.materials[matname]
     if simnode['coptions']['canalysis'] == '0':
         if simnode['coptions']['buildtype'] in ('0', '5'):
-            if not mat.gl_roof:
+            if not mat.vi_params.gl_roof:
                 crit = [['Percent', 80, 'DF', 2, '1'], ['Ratio', 100, 'Uni', 0.4, '0.5'], ['Min', 100, 'PDF', 0.8, '0.5'], ['Percent', 80, 'Skyview', 1, '0.75']]
                 ecrit = [['Percent', 80, 'DF', 4, '1'], ['Min', 100, 'PDF', 1.6, '0.75']] if simnode['coptions']['storey'] == '0' else [['Percent', 80, 'DF', 3, '1'], ['Min', 100, 'PDF', 1.2, '0.75']] 
             else:
@@ -1117,7 +1118,7 @@ def retcrits(simnode, matname):
                 ecrit = [['Percent', 80, 'DF', 4, '1'], ['Min', 100, 'PDF', 2.8, '0.75']] if simnode['coptions']['storey'] == '0' else [['Percent', 80, 'DF', 3, '1'], ['Min', 100, 'PDF', 2.1, '0.75']]
             spacetype = 'School' if simnode['coptions']['buildtype'] == '0' else 'Office & Other'
         elif simnode['coptions']['buildtype'] == '1':
-            if not mat.gl_roof:
+            if not mat.vi_params.gl_roof:
                 crit = [['Percent', 80, 'DF', 2, '1'], ['Ratio', 100, 'Uni', 0.4, '0.5'], ['Min', 100, 'PDF', 0.8, '0.5'], ['Percent', 80, 'Skyview', 1, '0.75']]
                 ecrit = [['Percent', 80, 'DF', 4, '1'], ['Min', 100, 'PDF', 1.6, '0.75']] if simnode['coptions']['storey'] == '0' else [['Percent', 80, 'DF', 3, '1'], ['Min', 100, 'PDF', 1.2, '0.75']]
             else:

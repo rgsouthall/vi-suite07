@@ -105,7 +105,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             
             cvp = coll.vi_params
             cvp['enparams']['floorarea'] = sum(o.vi_params['enparams']['floorarea'] for o in coll.objects) if znode.envi_hab else 0
-            print(coll.name, cvp['enparams']['floorarea'], znode.envi_hab)
+
 #        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
             if coll.objects[0].vi_params.envi_type in ('0', '2'):
                 params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
@@ -267,7 +267,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
                     
-        ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
+        ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SSFlow']
 
         for zn in ssafnodes:
             for schedtype in ('VASchedule', 'TSPSchedule'):
@@ -589,7 +589,8 @@ def pregeo(context, op):
                         if not emnode:
                             op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
                         elif any([n.use_custom_color for n in emnode.ret_nodes()]):
-                            op.report({'WARNING'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
+                            op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
+                            return
                         else:                       
                             emnode.ret_uv()
                             mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
@@ -624,7 +625,8 @@ def pregeo(context, op):
                 if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
                     enng.nodes.new(type = 'No_En_Net_ACon')         
                     enng.use_fake_user = 1
-              
+        else:
+            bpy.data.collections.remove(coll)
     for ll in linklist:
         try:
             enng.links.new(enng.nodes[ll[0]].outputs[ll[1]], enng.nodes[ll[2]].inputs[ll[3]])

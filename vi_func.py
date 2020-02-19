@@ -474,9 +474,8 @@ def setscenelivivals(scene):
             
 #    olist = [retobjs('ssc') if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else retobjs('livic')]
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
-    print(olist, svp['liparams']['shadc'])
+
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-        print(frame, unit)
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(unit, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(unit, frame)] for o in olist])
         svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])

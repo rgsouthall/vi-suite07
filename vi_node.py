@@ -502,7 +502,7 @@ class No_Li_Con(Node, ViNodes):
             
             if self.skyprog in ('0', '1'):
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {} -O {}".format(self.epsilon, self.delta, int(self.spectrummenu))
-                print(self['skytypeparams'])
+
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):                  
                     skytext = livi_sun(scene, self, f) + livi_sky(self['skynum']) + livi_ground(*self.gcol, self.gref)
                     
@@ -567,7 +567,8 @@ class No_Li_Con(Node, ViNodes):
         elif self.contextmenu == "Compliance":
             if self.canalysismenu in ('0', '1', '2'):            
                 self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
-                skyentry = livi_sun(scene, self, 0, 0) + livi_sky(3)
+                skyentry = livi_sun(scene, self, 0) + livi_sky(3)
+                
                 if self.canalysismenu in ('0', '1'):
                     self.starttime = datetime.datetime(2015, 1, 1, 12)
                     self['preview'] = 1
@@ -1580,6 +1581,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 name="", description="Results metric", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Results metric", update=zupdate)
+    mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
     
     def init(self, context):
         self['res'] = {}
@@ -1591,6 +1593,7 @@ class No_Vi_Metrics(Node, ViNodes):
         
         if self.metric_menu == '0':
             if self['res']:
+                newrow(layout, 'Modifier', self, 'mod')
                 row = layout.row()
                 pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
                 row.label(text = "PV (kWh): {}".format(pvkwh))
@@ -1598,10 +1601,11 @@ class No_Vi_Metrics(Node, ViNodes):
                 row = layout.row()
                 row.label(text = "PV (kWh/m2): {}".format(pva))
                 row = layout.row()
-                hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'])
+                hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
                 row.label(text = "Heating (kWh): {}".format(hkwh))
+                
                 row = layout.row()
-                ha = "{:.2f}".format(self['res']['hkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                 row.label(text = "Heating (kWh/m2): {}".format(ha))
                 row = layout.row()
                 ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
@@ -1626,6 +1630,7 @@ class No_Vi_Metrics(Node, ViNodes):
             rl = self.inputs[0].links[0].from_node['reslists']
             self['res']['pvkwh'] = 0
             self['res']['hkwh'] = 0
+            self['res']['ahkwh'] = 0
             self['res']['ckwh'] = 0
             self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
 
@@ -1647,10 +1652,12 @@ class No_Vi_Metrics(Node, ViNodes):
                         self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                     elif r[3] == 'Heating (W)':
                         self['res']['hkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                    elif r[3] == 'Air heating (W)':
+                        self['res']['ahkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                     elif r[3] == 'Cooling (W)':
                         self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
                      
-                    self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ckwh'] + self['res']['wkwh'] - self['res']['pvkwh']
+                    self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self.mod + self['res']['wkwh'] - self['res']['pvkwh']
                     self['res']['ECF'] = 0.42*(54 + self['res']['totkwh'] * 0.1319)/(self['res']['fa'] + 45) 
                     self['res']['EPC'] = 100 - 13.95 * self['res']['ECF'] if self['res']['ECF'] < 3.5 else 117 - 121 * math.log10(self['res']['ECF'])
                     epcletts = ('A', 'B', 'C', 'D', 'E', 'F','G')
@@ -2999,6 +3006,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
         surfentry, en, snames = '', '', []
         tspsname = '{}_tspsched'.format(self.name) if self.inputs['TSPSchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else ''
         vasname = '{}_vasched'.format(self.name) if self.inputs['VASchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') else ''
+        
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
                 othernode = (link.from_node, link.to_node)[sock.is_output]
@@ -3130,8 +3138,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
     of: FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     dcof: FloatProperty(default = 0.7, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
-    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "")
-    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "")
+    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "", description = 'Flow coefficient')
+    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "", description = 'Flow exponent')
     dlen: FloatProperty(default = 2, name = "")
     dhyd: FloatProperty(default = 0.1, name = "")
     dcs: FloatProperty(default = 0.1, name = "")
@@ -3527,6 +3535,7 @@ class No_En_Net_EMSZone(Node, EnViNodes):
             
             for face in obj.data.polygons:
                 mat = odm[face.material_index]
+                
                 for emnode in mat.vi_params.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active and emnode.envi_afsurface and emnode.envi_con_type in ('Window', 'Door'):
                         sssocklist.append('{}_{}_{}_{}'.format(adict[emnode.envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]))         
@@ -3544,8 +3553,7 @@ class No_En_Net_EMSZone(Node, EnViNodes):
         for sock in sorted(set(sssocklist)):
             if not self.inputs.get(sock):
                 try: 
-                    self.inputs.new('So_En_Net_Act', sock).sn = '{0[0]}-{0[1]}_{0[2]}_{0[3]}'.format(sock.split('_'))
-#                    print(sock.split('_'))
+                    self.inputs.new('So_En_Net_Act', sock).sn = sock.split('_')[0] + '-' + '_'.join(sock.split('_')[1:-1])
                 except Exception as e: print('3190', e)
 
     emszone: StringProperty(name = '', update = zupdate)

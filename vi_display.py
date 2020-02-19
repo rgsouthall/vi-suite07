@@ -138,6 +138,7 @@ def li_display(disp_op, simnode):
         if svp.vi_disp_3d == 1 and svp['liparams']['cp'] == '0':
             bm.faces.layers.int.new('extrude')
             extrude = bm.faces.layers.int['extrude']
+            
             for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                 face.select = True
                 face[extrude] = 1
@@ -191,16 +192,16 @@ class linumdisplay():
         svp = scene.vi_params
         self.fontmult = 2 #if context.space_data.region_3d.is_perspective else 500
         
-        if not svp.get('viparams') or svp['viparams']['vidisp'] not in ('svf', 'lipanel', 'ss', 'lcpanel'):
+        if not svp.get('viparams') or svp['viparams']['vidisp'] not in ('svf', 'li', 'ss', 'lcpanel'):
             svp.vi_display = 0
             return
         if scene.frame_current not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
             self.disp_op.report({'INFO'},"Outside result frame range")
             return
         if svp.vi_display_rp != True \
-             or (bpy.context.active_object not in self.obreslist and svp.vi_display_sel_only == True)  \
-             or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
-             return
+            or (bpy.context.active_object not in self.obreslist and svp.vi_display_sel_only == True)  \
+            or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+            return
         
         if (self.width, self.height) != viewdesc(context)[2:]:
             mid_x, mid_y, self.width, self.height = viewdesc(context)
@@ -228,7 +229,7 @@ class linumdisplay():
             self.u = 1
 
         blf_props(scene, self.width, self.height)
-        
+
         if self.u:            
             self.update(context)
         else:    
@@ -242,11 +243,11 @@ class linumdisplay():
         scene = context.scene
         svp = scene.vi_params
         self.allpcs, self.alldepths, self.allres = array([]), array([]), array([])
-#        try:
+
         for ob in self.obd:
             if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
                 ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(self.fn))
-#                try:
+
             omw = ob.matrix_world
             bm = bmesh.new()
             tempmesh = ob.to_mesh()
@@ -298,43 +299,6 @@ class linumdisplay():
 
         self.alldepths = self.alldepths/nmin(self.alldepths)        
         draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)    
-
-#class Base_Display():
-#    def __init__(self, pos, width, height, iname, xdiff, ydiff):
-#        self.pos = pos
-#        self.ispos = pos
-#        self.iepos = [pos[0] + 40, pos[1] + 40]
-#        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.0125 * height)]
-#        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.0125 * height)]  
-#        self.lspos = [self.spos[0], self.spos[1] - ydiff]
-#        self.lepos = [self.spos[0] + xdiff, self.spos[1]]
-#        self.lpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
-#        self.resize = 0
-#        self.press = 0
-#        self.move = 0
-#        self.expand = 0
-#        if iname not in bpy.data.images:
-#            bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Images', iname))
-#        self.image = iname
-#        self.hl = [1, 1, 1, 1]
-#        self.cao = None
-#        self.xdiff, self.ydiff = xdiff, ydiff
-#        
-#    def draw(self, context, width, height):
-#        self.width, self.height = context.region.width, context.region.height
-#        if self.pos[1] > height:
-#            self.pos[1] = height
-##        self.spos = (int(self.pos[0] - 25), int(self.pos[1] - 15))
-##        self.epos = (int(self.pos[0] + 25), int(self.pos[1] + 15))
-#        
-#        if self.expand == 0:
-#            self.drawclosed()
-#            
-#        if self.expand == 1:
-#            self.drawopen(context)
-#    
-#    def drawclosed(self):
-#        draw_icon_new(self) 
         
 class Base_Display():
     def __init__(self, ipos, width, height, xdiff, ydiff):
@@ -801,8 +765,7 @@ class svf_legend(Base_Display):
         resvals = [format(self.minres + i*(resdiff)/self.levels, '.0f') for i in range(self.levels + 1)] if self.scale == '0' else \
                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.0f') for i in range(1, self.levels + 2)[::-1]]
         self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
-        self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]  
-        print(self.colours)              
+        self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]             
         blf.size(self.font_id, 12, self.dpi)        
         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
@@ -2603,7 +2566,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp['viparams']['resnode'], svp['viparams']['restree'] = node.name, node.id_data.name
         scene.cursor.location = (0.0, 0.0, 0.0)
         suns = [ob for ob in spcoll.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']
-        print(spcoll.name, suns)
         requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
         matdict = {'SPBase': (0, 0, 0, 1), 'SPPlat': (1, 1, 1, 1)}
         
@@ -3322,7 +3284,6 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             self.bsdf.direc = svp.vi_bsdf_direc
             self.bsdf.plot(context)
             context.region.tag_redraw()
-            print('passing', (self.bsdf.leg_max != svp.vi_bsdfleg_max, self.bsdf.leg_min != svp.vi_bsdfleg_min, self.bsdf.col != svp.vi_leg_col, self.bsdf.scale_select != svp.vi_bsdfleg_scale))
             return {'PASS_THROUGH'}
         
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
@@ -3909,7 +3870,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 #        lnd = linumdisplay(self, context)
    #     self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = livi_legend(context, svp['liparams']['unit'], [305, region.height - 80], region.width, region.height, 125, 400)
-
+        self.legend_num = linumdisplay(self, context)
 #        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
 
 #        if svp['viparams']['visimcontext'] == 'LiVi Basic':
@@ -3945,6 +3906,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         ah = area.height                
         self.results_bar.draw(ah)
         self.legend.draw(context)
+        self.legend_num.draw(context)
 #        self.dhscatter.draw(context, area.width)
 #        self.num_display.draw(context)
 

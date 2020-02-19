@@ -170,6 +170,7 @@ def livi_sun(scene, node, frame):
 
 def hdrexport(scene, f, frame, node, skytext):
     svp = scene.vi_params
+    
     with open('{}-{}sky.oct'.format(svp['viparams']['filebase'], frame), 'w') as skyoct:
         Popen('oconv -w -'.split(), stdin = PIPE, stdout = skyoct).communicate(input = skytext.encode('utf-8'))
 
@@ -178,7 +179,7 @@ def hdrexport(scene, f, frame, node, skytext):
         Popen(rpictcmd.split(), stdout = hdrfile).communicate()
 
     cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
-    rcalccmd = 'rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal'))
+    rcalccmd = 'rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
     rcalcrun = Popen(rcalccmd.split(), stdin = cntrun.stdout, stdout = PIPE)
     rtracecmd = 'rtrace -n {} -x 1500 -y 750 -fac {}-{}sky.oct'.format(svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
 

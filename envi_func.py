@@ -479,6 +479,7 @@ def processh(lines, znlist):
             elif linesplit[3] in envdict:
                 hdict[linesplit[0]] = ['Climate',  '', envdict[linesplit[3]]]  
             elif linesplit[3] in zresdict and retzonename(linesplit[2]) in znlist:
+                print(linesplit[3], znlist)
                 hdict[linesplit[0]] = ['Zone',  retzonename(linesplit[2]),  zresdict[linesplit[3]]]
             elif linesplit[3] in enresdict and 'ExtNode' in linesplit[2]:
                 hdict[linesplit[0]] = ['External',  linesplit[2],  enresdict[linesplit[3]]]
@@ -486,16 +487,16 @@ def processh(lines, znlist):
                 hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
             elif linesplit[3] in presdict:  
                 hdict[linesplit[0]] = ['Power',  linesplit[2],  presdict[linesplit[3]]]
-            print(hdict)
+#            print(hdict)
         if line == 'End of Data Dictionary\n':
             break
     return hdict,  l + 1
     
 def retzonename(zn):
     if  zn[-10:] == '_OCCUPANCY':
-        return zn.strip('_OCCUPANCY')
+        return zn[:-10]
     elif zn[-4:] == '_AIR':
-        return zn.strip('_AIR')
+        return zn[:-4]
     else:
         return zn
 

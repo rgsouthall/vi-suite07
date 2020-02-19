@@ -235,6 +235,7 @@ class VIPreferences(AddonPreferences):
             row.prop(self, self.ui_dict[entry])
 
 class VI_Params_Scene(bpy.types.PropertyGroup): 
+    vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath) 
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     solhour: bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
     sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1) 
