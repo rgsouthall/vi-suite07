@@ -164,10 +164,13 @@ class VI_PT_3D(bpy.types.Panel):
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
                         newrow(layout, 'Enable:', svp, 'vi_display_rp')
+                        
                         if svp.vi_display_rp:
                             propdict = OrderedDict([("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
+
                             for prop in propdict.items():
                                 newrow(layout, prop[0], svp, prop[1])
+                                
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
                 newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
@@ -500,21 +503,25 @@ class VI_PT_Ob(bpy.types.Panel):
             else:
                 newrow(layout, 'IES Temperature:', ovp, "ies_ct")
 
-        elif ovp.vi_type == '5':                
-            newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
-            newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
-            newrow(layout, 'Klems/Tensor:', ovp, 'li_bsdf_tensor')
-            if ovp.li_bsdf_tensor != ' ':
-                newrow(layout, 'resolution:', ovp, 'li_bsdf_res')
-                newrow(layout, 'Samples:', ovp, 'li_bsdf_tsamp')
-            else:
-                newrow(layout, 'Samples:', ovp, 'li_bsdf_ksamp')
-            newrow(layout, 'RC params:', ovp, 'li_bsdf_rcparam')
-            
-            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
+        elif ovp.vi_type == '5':  
+            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):              
+                newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
+                newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
+                newrow(layout, 'Klems/Tensor:', ovp, 'li_bsdf_tensor')
+                
+                if ovp.li_bsdf_tensor != ' ':
+                    newrow(layout, 'resolution:', ovp, 'li_bsdf_res')
+                    newrow(layout, 'Samples:', ovp, 'li_bsdf_tsamp')
+                else:
+                    newrow(layout, 'Samples:', ovp, 'li_bsdf_ksamp')
+                newrow(layout, 'RC params:', ovp, 'li_bsdf_rcparam')
+          
                 if not ovp.bsdf_running:
                     row = layout.row()
                     row.operator("object.gen_bsdf", text="Generate BSDF")
+            else:
+                row = layout.row()
+                row.label(text = 'No BSDF material applied')
 
 def rmmenu(layout, cm):
     mvp = cm.vi_params

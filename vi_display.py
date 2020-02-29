@@ -2422,12 +2422,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 if pos:
                     draw_index(pos, hs, dists, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                     
-            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and svp['spparams']['suns'] == '0':
-                sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
+            if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects if ob.parent == spob] and svp['spparams']['suns'] == '0':
+                sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun' and ob.parent == spob]
                 
-                if sobs and svp.sp_td:
-                    sunloc = ob_mat@sobs[0].location
+                if sobs and svp.sp_td:                    
+                    sunloc = ob_mat@sobs[0].location                  
                     solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
+                    print(solpos, width, height)
                     
                     try:
                         if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
@@ -2829,7 +2830,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = False
     
-    def invoke(self, context, event):   
+    def execute(self, context):   
         region = context.region
         svp = context.scene.vi_params
         svp.vi_display = 1
@@ -2852,7 +2853,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         redraw = 0
            
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or event.type == 'ESC':
-            svp.vi_display = 0
+#            svp.vi_display = 0
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}
@@ -3026,10 +3027,13 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         region = context.region
         rh = region.height  
         rw = region.width
-        self.results_bar.draw(rh)
-        self.legend.draw(rh, rw)
-        self.table.draw(rh, rw)
-        self.dhscatter.draw(rh, rw)
+        try:
+            self.results_bar.draw(rh)
+            self.legend.draw(rh, rw)
+            self.table.draw(rh, rw)
+            self.dhscatter.draw(rh, rw)
+        except:
+            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
         
 class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
@@ -3444,7 +3448,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
 #        width, height = area.width, area.height
-        if cao and cao.active_material.get('bsdf') and cao.active_material.vi_params['bsdf']['xml'] and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full':
+        if cao and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['xml'] and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full':
             bsdf = parseString(cao.active_material.vi_params['bsdf']['xml'])
 #        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
 #        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]

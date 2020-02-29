@@ -830,12 +830,13 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     return (pfs, epfs, reslists)
     
 def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
+    svp = scene.vi_params
     self['livires'] = {}
     self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
-    selobj(scene, self)
+    selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
     bm.from_mesh(self.id_data.data)
-    bm.transform(self.matrix_world)
+    bm.transform(self.id_data.matrix_world)
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     reslen = len(geom)
@@ -848,10 +849,10 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     fwattarray = vwattarray * 1.64
     times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]                          
     vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), simnode, times)
-    cbdm_days = [d for d in range(simnode['coptions']['sdoy'], simnode['coptions']['edoy'] + 1)] if scene['viparams']['visimcontext'] == 'LiVi CBDM' else [d for d in range(1, 366)]
+    cbdm_days = [d for d in range(simnode['coptions']['sdoy'], simnode['coptions']['edoy'] + 1)] if svp['viparams']['visimcontext'] == 'LiVi CBDM' else [d for d in range(1, 366)]
     cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'] + 1)]
     dno, hno = len(cbdm_days), len(cbdm_hours)    
-    (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax']) if scene['viparams']['visimcontext'] != 'LiVi Compliance' else (300, 1000)
+    (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax']) if svp['viparams']['visimcontext'] != 'LiVi Compliance' else (300, 1000)
     vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     hours = vecvals.shape[0]
     restypes = ('da', 'sda', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'kW', 'kW/m2', 'illu')
@@ -881,7 +882,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         rt = geom.layers.string['rt{}'.format(rtframe)]
         totarea = sum([g.calc_area() for g in geom if g[rt]]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt]])
                 
-        for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 40)):
+        for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
             sensrun = Popen(rccmds[f].split(), stdin=PIPE, stdout=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
 #            resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3).astype(float32)
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), 146, 3).astype(float32)
@@ -890,7 +891,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             wsensearray  = nsum(resarray*fwattarray, axis = 2).astype(float32)
             finalillu = inner(sensarray, vecvals).astype(float64)
             
-            if scene['viparams']['visimcontext'] != 'LiVi Compliance':            
+            if svp['viparams']['visimcontext'] != 'LiVi Compliance':            
                 finalwattm2 = inner(wsensearray, vecvals).astype(float32)
                 wsensearraym2 = (wsensearray.T * chareas).T.astype(float32)
                 finalwatt = inner(wsensearraym2, vecvals).astype(float32)  
@@ -912,7 +913,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 kwh = 0.001 * nsum(finalwatt, axis = 1)
                 kwhm2 = 0.001 * nsum(finalwattm2, axis = 1)
             
-            if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
+            if svp['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
                 svres = self.retsv(scene, frame, rtframe, chunk, rt)
                 sdaareas = where([sv > 0 for sv in svres], chareas, 0)
             else:
@@ -925,7 +926,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             aseres = asebool.sum(axis = 1)*1.0
                                     
             for gi, gp in enumerate(chunk):
-                if scene['viparams']['visimcontext'] != 'LiVi Compliance':
+                if svp['viparams']['visimcontext'] != 'LiVi Compliance':
                     gp[resda] = dares[gi]                
                     gp[res] = dares[gi]
                     gp[resudilow] = udilow[gi]
@@ -942,7 +943,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 gp[resase] = aseres[gi]
 
             if not ch:
-                if scene['viparams']['visimcontext'] != 'LiVi Compliance':
+                if svp['viparams']['visimcontext'] != 'LiVi Compliance':
                     totfinalillu = finalillu
                     totdaarea = nsum(100 * daareares/totarea, axis = 0)
                     totudiaarea = nsum(100 * udiaareares/totarea, axis = 0)
@@ -957,14 +958,14 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     totsdaarea = nsum(sdaareares, axis = 0)
                     totasearea = nsum(aseareares, axis = 0)
             else:
-                if scene['viparams']['visimcontext'] != 'LiVi Compliance':
+                if svp['viparams']['visimcontext'] != 'LiVi Compliance':
                     nappend(totfinalillu, finalillu)
                     totdaarea += nsum(100 * daareares/totarea, axis = 0)
                     totudiaarea += nsum(100 * udiaareares/totarea, axis = 0)
                     totudilarea += nsum(100 * udilareares/totarea, axis = 0)
                     totudisarea += nsum(100 * udisareares/totarea, axis = 0)
                     totudiharea += nsum(100 * udihareares/totarea, axis = 0)
-                if scene['viparams']['visimcontext'] == 'LiVi CBDM'  and simnode['coptions']['cbanalysis'] == '1':
+                if svp['viparams']['visimcontext'] == 'LiVi CBDM'  and simnode['coptions']['cbanalysis'] == '1':
                     totfinalwatt += nsum(finalwatt, axis = 0)#nsum(inner(sensarray, vecvals), axis = 0)
                     totfinalwattm2 += average(finalwattm2, axis = 0)
                 else:
@@ -976,7 +977,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 bm.free()
                 return {'CANCELLED'}
 
-        if scene['viparams']['visimcontext'] != 'LiVi Compliance':
+        if svp['viparams']['visimcontext'] != 'LiVi Compliance':
             dares = [gp[resda] for gp in geom] 
             udilow = [gp[resudilow] for gp in geom] 
             udisup = [gp[resudisup] for gp in geom]
@@ -1030,7 +1031,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone', self.name, 'UDI-l Area (%)', ' '.join([str(p) for p in totudilarea])])
             reslists.append([str(frame), 'Zone', self.name, 'UDI-h Area (%)', ' '.join([str(p) for p in totudiharea])])
         
-        if scene['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1': 
+        if svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1': 
             self['omax']['kW{}'.format(frame)] = max(kwh)
             self['omin']['kW{}'.format(frame)] = min(kwh)
             self['oave']['kW{}'.format(frame)] = sum(kwh)/reslen
@@ -1048,7 +1049,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         else:
             sdares = [gp[ressda] for gp in geom]
             aseres = [gp[resase] for gp in geom]
-            if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
+            if svp['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
                 overallsdaarea = sum([g.calc_area() for g in geom if g[rt] and g[ressv]]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[ressv]]) 
             else:
                 overallsdaarea = totarea
@@ -1069,7 +1070,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             
         metric, scores, pf = [], [], ('Fail', 'Pass')
 
-        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
             self['crit'], self['ecrit'], spacetype = retcrits(simnode, self['compmat'])
             sdapassarea, asepassarea, comps = 0, 0, {str(f): [] for f in frames}
             oareas = self['lisenseareas'][str(frame)]

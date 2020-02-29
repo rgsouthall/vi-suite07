@@ -491,7 +491,8 @@ class No_Li_Con(Node, ViNodes):
         self['Text'], self['Options'] = {}, {}
         self['watts'] = 0#1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '2') else 0
         
-    def export(self, scene, export_op):         
+    def export(self, scene, export_op):   
+        svp = scene.vi_params
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.animated else scene.frame_current
         self['mtxfile'] = ''
@@ -531,7 +532,8 @@ class No_Li_Con(Node, ViNodes):
             
             elif self.skyprog == '3':
                 if self.skyname and os.path.isfile(self.skyname):
-                    shutil.copyfile(self.skyname, "{}-0.sky".format(scene['viparams']['filebase']))
+                    shutil.copyfile(self.skyname, "{}-0.sky".format(svp['viparams']['filebase']))
+                    
                     with open(self.skyname, 'r') as radfiler:
                         self['Text'][str(scene.frame_current)] = radfiler.read()
                         if self.hdr:
@@ -556,7 +558,7 @@ class No_Li_Con(Node, ViNodes):
                 self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
 
                 if self.sourcemenu2 == '0':
-                    with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
+                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 else:
                     with open(self.mtxname, 'r') as mtxfile:
@@ -586,7 +588,7 @@ class No_Li_Con(Node, ViNodes):
                 self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
 
                 if self.sourcemenu2 == '0':
-                    with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
+                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 else:
                     with open(self.mtxname, 'r') as mtxfile:
@@ -1576,11 +1578,16 @@ class No_Vi_Metrics(Node, ViNodes):
             return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
         else:
             return [('None', 'None', 'None')]
-        
-    metric_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
+    
+    metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results")],
+                name="", description="Results type", default="0", update=zupdate)   
+    energy_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
+                name="", description="Results metric", default="0", update=zupdate)
+    light_menu: EnumProperty(items=[("0", "BREEAM", "BREEAM HEA1 results"),
+                                    ("1", "LEED", "LEED v4 results")],
                 name="", description="Results metric", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
-                name="", description="Results metric", update=zupdate)
+                name="", description="Zone results", update=zupdate)
     mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
     
     def init(self, context):
@@ -1588,42 +1595,47 @@ class No_Vi_Metrics(Node, ViNodes):
         self.inputs.new('So_Vi_Res', 'Results in') 
         
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Metric:', self, "metric_menu")
+        newrow(layout, 'Type:', self, "metric")
+        if self.metric == '0':
+            newrow(layout, 'Metric:', self, "energy_menu")
+        else:
+            newrow(layout, 'Metric:', self, "light_menu")
         newrow(layout, 'Zone', self, "zone_menu")
         
-        if self.metric_menu == '0':
-            if self['res']:
-                newrow(layout, 'Modifier', self, 'mod')
-                row = layout.row()
-                pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
-                row.label(text = "PV (kWh): {}".format(pvkwh))
-                pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
-                row = layout.row()
-                row.label(text = "PV (kWh/m2): {}".format(pva))
-                row = layout.row()
-                hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
-                row.label(text = "Heating (kWh): {}".format(hkwh))
-                
-                row = layout.row()
-                ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
-                row.label(text = "Heating (kWh/m2): {}".format(ha))
-                row = layout.row()
-                ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
-                row.label(text = "Cooling (kWh): {}".format(ckwh))
-                row = layout.row()
-                ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
-                row.label(text = "Cooling (kWh/m2): {}".format(ca))
-                
-                if self.zone_menu == 'All':
+        if self.metric == '0':
+            if self.energy_menu == '0':
+                if self['res']:
+                    newrow(layout, 'Modifier', self, 'mod')
                     row = layout.row()
-                    wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
-                    row.label(text = "Hot water (kWh): {}".format(wkwh))
+                    pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
+                    row.label(text = "PV (kWh): {}".format(pvkwh))
+                    pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                     row = layout.row()
-                    ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A' 
-                    row.label(text = "ECF: {}".format(ecf))
+                    row.label(text = "PV (kWh/m2): {}".format(pva))
                     row = layout.row()
-                    epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
-                    row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
+                    hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
+                    row.label(text = "Heating (kWh): {}".format(hkwh))
+                    
+                    row = layout.row()
+                    ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                    row.label(text = "Heating (kWh/m2): {}".format(ha))
+                    row = layout.row()
+                    ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
+                    row.label(text = "Cooling (kWh): {}".format(ckwh))
+                    row = layout.row()
+                    ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                    row.label(text = "Cooling (kWh/m2): {}".format(ca))
+                    
+                    if self.zone_menu == 'All':
+                        row = layout.row()
+                        wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
+                        row.label(text = "Hot water (kWh): {}".format(wkwh))
+                        row = layout.row()
+                        ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A' 
+                        row.label(text = "ECF: {}".format(ecf))
+                        row = layout.row()
+                        epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
+                        row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
                     
     def update(self):
         if self.inputs[0].links:
@@ -2921,8 +2933,8 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     spa: IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
     dcof: FloatProperty(default = 0.7, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
     ddtw: FloatProperty(default = 0.001, min = 0, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
-    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "")
-    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "")
+    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, precision = 5, name = "")
+    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, precision = 3, name = "")
     dlen: FloatProperty(default = 2, name = "")
     dhyd: FloatProperty(default = 0.1, name = "")
     dcs: FloatProperty(default = 0.1, name = "")
@@ -3138,8 +3150,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
     of: FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     dcof: FloatProperty(default = 0.7, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
-    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "", description = 'Flow coefficient')
-    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "", description = 'Flow exponent')
+    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "", precision = 5, description = 'Flow coefficient')
+    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "", precision = 3, description = 'Flow exponent')
     dlen: FloatProperty(default = 2, name = "")
     dhyd: FloatProperty(default = 0.1, name = "")
     dcs: FloatProperty(default = 0.1, name = "")

@@ -345,7 +345,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     
 class VI_Params_Object(bpy.types.PropertyGroup): 
     # VI-Suite object definitions
-    vi_type: eprop([("0", "None", "Not a VI-Suite zone"), 
+    vi_type: eprop([("0", "None", "Not a VI-Suite specific object"), 
                     ("1", "EnVi Surface", "Designates an EnVi surface"), 
                     ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), 
                     ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
