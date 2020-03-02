@@ -1,21 +1,22 @@
-import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh, random
+import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
-from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, drawloop, drawpoly, leg_min_max, retdp, xy2radial
+from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, drawloop, drawpoly, retdp
 from .vi_func import ret_res_vals, draw_index_distance, setscenelivivals, selobj
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, compass, joinobj, sunpath
 from .livi_export import spfc
 from .vi_dicts import unit_dict
 from . import livi_export
-from math import pi, log10, atan2, sin, cos, atan2
-from numpy import array, repeat
+from math import pi, log10, atan2, sin, cos
+from numpy import array, repeat, logspace, multiply, digitize
 from numpy import min as nmin
 from numpy import max as nmax
 from numpy import sum as nsum
+from numpy import log10 as nlog10
 from numpy import append as nappend
-from xml.dom.minidom import parse, parseString
+from xml.dom.minidom import parseString
 
 try:
     import matplotlib
@@ -32,6 +33,145 @@ except:
 kfsa = array([0.02391, 0.02377, 0.02341, 0.02738, 0.02933, 0.03496, 0.04787, 0.05180, 0.13552])
 kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0.1294])
 
+def script_update(self, context):
+    if context.scene.vi_res_process == '2':
+        script = bpy.data.texts[context.scene.script_file]
+        exec(script.as_string())
+
+def col_update(self, context):
+    cmap(context.scene.vi_params)
+
+def leg_update(self, context):
+    scene = context.scene
+    svp = scene.vi_params
+    frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
+    obs = [o for o in scene.objects if o.name in svp['liparams']['livir']]
+    increment = 1/svp.vi_leg_levels
+    
+    if svp.vi_leg_scale == '0':
+        bins = array([increment * i for i in range(1, svp.vi_leg_levels)])
+        
+    elif svp.vi_leg_scale == '1':
+        slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
+        bins = array([(slices[i] - increment * (svp.vi_leg_levels - i))/100 for i in range(svp.vi_leg_levels + 1)])
+        bins = array([1 - log10(i)/log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
+        bins = bins[1:-1]
+    
+    for o in obs:
+        selobj(context.view_layer, o)
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        cmap(self)
+        
+        if len(o.material_slots) != svp.vi_leg_levels + 1:
+            for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels + 1)]:
+                if bpy.data.materials[matname] not in o.data.materials[:]:
+                    bpy.ops.object.material_slot_add()
+                    o.material_slots[-1].material = bpy.data.materials[matname]
+            while len(o.material_slots) > svp.vi_leg_levels + 1:
+                    bpy.ops.object.material_slot_remove()
+                    
+        for f, frame in enumerate(frames):
+            if bm.faces.layers.float.get('res{}'.format(frame)):
+                livires = bm.faces.layers.float['res{}'.format(frame)] 
+                ovals = array([f[livires] for f in bm.faces])
+            elif bm.verts.layers.float.get('res{}'.format(frame)):
+                livires = bm.verts.layers.float['res{}'.format(frame)] 
+                ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
+            
+            if svp.vi_leg_max > svp.vi_leg_min:
+                vals = ovals - svp.vi_leg_min
+                vals = vals/(svp.vi_leg_max - svp.vi_leg_min)
+            else:
+                vals = array([svp.vi_leg_max for f in bm.faces])
+                        
+            nmatis = digitize(vals, bins) + 1
+
+            if len(frames) == 1:                
+                o.data.polygons.foreach_set('material_index', nmatis)
+                o.data.update()
+
+            elif len(frames) > 1:
+                for fi, fc in enumerate(o.data.animation_data.action.fcurves):
+                    fc.keyframe_points[f].co = frame, nmatis[fi]
+        bm.free()
+    scene.frame_set(scene.frame_current)
+       
+def leg_min_max(svp):
+    try:
+        if svp.vi_res_process == '2' and bpy.app.driver_namespace.get('resmod'):
+            return bpy.app.driver_namespace['resmod']([svp.vi_leg_min, svp.vi_leg_max])
+        elif svp.vi_res_mod:
+            return (eval('{}{}'.format(svp.vi_leg_min, svp.vi_res_mod)), eval('{}{}'.format(svp.vi_leg_max, svp.vi_res_mod)))
+        else:
+            return (svp.vi_leg_min, svp.vi_leg_max)
+    except Exception as e:
+        print(e)
+        return (svp.vi_leg_min, svp.vi_leg_max)
+
+def e_update(self, context):
+    scene = context.scene
+    svp = scene.vi_params
+    maxo, mino = svp.vi_leg_max, svp.vi_leg_min
+    odiff = svp.vi_leg_max - svp.vi_leg_min
+
+    if context.active_object.mode == 'EDIT':
+        return
+    if odiff:      
+        for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+            for o in [obj for obj in bpy.data.objects if obj.name in svp['liparams']['livir'] and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
+                ovp = o.vi_params
+                bm = bmesh.new()
+                bm.from_mesh(o.data)  
+                bm.transform(o.matrix_world)            
+                skb = bm.verts.layers.shape['Basis']
+                skf = bm.verts.layers.shape[str(frame)]
+                
+                if str(frame) in ovp['omax']:
+                    if bm.faces.layers.float.get('res{}'.format(frame)):
+                        extrude = bm.faces.layers.int['extrude']
+                        res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
+                        faces = [f for f in bm.faces if f[extrude]]
+                        fnorms = array([f.normal.normalized() for f in faces]).T
+                        fres = array([f[res] for f in faces])
+                        extrudes = (0.1 * svp.vi_disp_3dlevel * (nlog10(maxo * (fres + 1 - mino)/odiff)) * fnorms).T if svp.vi_leg_scale == '1' else \
+                            multiply(fnorms, svp.vi_disp_3dlevel * ((fres - mino)/odiff)).T
+
+                        for f, face in enumerate(faces):
+                            for v in face.verts:
+                                v[skf] = v[skb] + mathutils.Vector(extrudes[f])
+                    
+                    elif bm.verts.layers.float.get('res{}'.format(frame)):
+                        res = bm.verts.layers.float['res{}'.format(frame)]
+                        vnorms = array([v.normal.normalized() for v in bm.verts]).T
+                        vres = array([v[res] for v in bm.verts])
+                        extrudes = multiply(vnorms, svp.vi_disp_3dlevel * ((vres-mino)/odiff)).T if svp.vi_leg_scale == '0' else \
+                            [0.1 * svp.vi_disp_3dlevel * (log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]  
+                        for v, vert in enumerate(bm.verts):
+                            vert[skf] = vert[skb] + mathutils.Vector(extrudes[v])
+
+                bm.transform(o.matrix_world.inverted())
+                bm.to_mesh(o.data)
+                bm.free()
+
+def t_update(self, context):
+    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide_viewport == False and o.get('lires')]:
+        o.show_transparent = 1
+    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_leg_levels + 1)]:
+        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_params.vi_disp_trans
+    cmap(self)
+                
+def w_update(self, context):
+    o = context.active_object
+    if o and o.type == 'MESH':
+        (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_params.vi_disp_wire else (0, 0)
+
+def livires_update(self, context):
+    setscenelivivals(context.scene)
+    for o in [o for o in bpy.data.objects if o.name in context.scene.vi_params['liparams']['livir']]:
+        o.vi_params.lividisplay(context.scene)  
+    e_update(self, context)
+                
 def rendview(i):
     for scrn in bpy.data.screens:
         if scrn.name == 'Default':
@@ -79,10 +219,7 @@ def li_display(disp_op, simnode):
         bm.from_mesh(tempmesh)
         o.to_mesh_clear() 
         ovp = o.vi_params
-#        bm.normal_update()
-#        bm.transform(o.matrix_world)
-#        
-                 
+                      
         if svp['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
             for f in [f for f in bm.faces if f[cindex] < 1]:

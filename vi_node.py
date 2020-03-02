@@ -1604,7 +1604,7 @@ class No_Vi_Metrics(Node, ViNodes):
         
         if self.metric == '0':
             if self.energy_menu == '0':
-                if self['res']:
+                if self['res'] and self['res'].get('hkwh'):
                     newrow(layout, 'Modifier', self, 'mod')
                     row = layout.row()
                     pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
@@ -1639,62 +1639,64 @@ class No_Vi_Metrics(Node, ViNodes):
                     
     def update(self):
         if self.inputs[0].links:
-            rl = self.inputs[0].links[0].from_node['reslists']
-            self['res']['pvkwh'] = 0
-            self['res']['hkwh'] = 0
-            self['res']['ahkwh'] = 0
-            self['res']['ckwh'] = 0
-            self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
+            if self.metric == '0' and bpy.data.collections.get('EnVi Geometry'):
+                rl = self.inputs[0].links[0].from_node['reslists']
+                self['res']['pvkwh'] = 0
+                self['res']['hkwh'] = 0
+                self['res']['ahkwh'] = 0
+                self['res']['ckwh'] = 0            
+                self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
 
-            if self['res']['fa'] > 13.9:
-                occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa']-13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)
-            else:
-                occ = 1
-
-            Vda = 25 * occ + 36
-            md = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-            ff = (1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00)
-            dtm = (41.2, 41.4, 40.1, 37.6, 36.4, 33.9, 30.4, 33.4, 33.5, 36.3, 39.4, 39.9, 37.0)
-            self['res']['wkwh'] = 1.15 * sum([4.18/3600 * Vda * z[0] * z[1] * z[2] for z in zip(md, ff, dtm)])
+                if self.energy_menu == '0':
+                    if self['res']['fa'] > 13.9:
+                        occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa']-13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)
+                    else:
+                        occ = 1
+        
+                    Vda = 25 * occ + 36
+                    md = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+                    ff = (1.10, 1.06, 1.02, 0.98, 0.94, 0.90, 0.90, 0.94, 0.98, 1.02, 1.06, 1.10, 1.00)
+                    dtm = (41.2, 41.4, 40.1, 37.6, 36.4, 33.9, 30.4, 33.4, 33.5, 36.3, 39.4, 39.9, 37.0)
+                    self['res']['wkwh'] = 1.15 * sum([4.18/3600 * Vda * z[0] * z[1] * z[2] for z in zip(md, ff, dtm)])
             
-            for r in rl:
-                if self.zone_menu == 'All':
-#                    self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) 
-                    if r[3] == 'PV Power (W)':
-                        self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                    elif r[3] == 'Heating (W)':
-                        self['res']['hkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                    elif r[3] == 'Air heating (W)':
-                        self['res']['ahkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                    elif r[3] == 'Cooling (W)':
-                        self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                     
-                    self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self.mod + self['res']['wkwh'] - self['res']['pvkwh']
-                    self['res']['ECF'] = 0.42*(54 + self['res']['totkwh'] * 0.1319)/(self['res']['fa'] + 45) 
-                    self['res']['EPC'] = 100 - 13.95 * self['res']['ECF'] if self['res']['ECF'] < 3.5 else 117 - 121 * math.log10(self['res']['ECF'])
-                    epcletts = ('A', 'B', 'C', 'D', 'E', 'F','G')
-                    epcnum = (92, 81, 69, 55, 39, 21, 1)
-                    
-                    for ei, en in enumerate(epcnum):
-                        if self['res']['EPC'] > en:
-                            self['res']['EPCL'] = epcletts[ei]
-                            break
-                    
-                else:
-                    self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
-                    if r[2] == self.zone_menu:
-                        if r[3] == 'Heating (W)':
-                            self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
-                        elif r[3] == 'Cooling (W)':        
-                            self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
-                    elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
-                            self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-        else:
-            self['res']['pvkwh'] = 'N/A'
-            self['res']['hkwh'] = 'N/A'
-            self['res']['ckwh'] = 'N/A'
-            self['res']['fa'] = 'N/A'
-            self['res']['ECF'] = 'N/A'
+                    for r in rl:
+                        if self.zone_menu == 'All':
+        #                    self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) 
+                            if r[3] == 'PV Power (W)':
+                                self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[3] == 'Heating (W)':
+                                self['res']['hkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[3] == 'Air heating (W)':
+                                self['res']['ahkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[3] == 'Cooling (W)':
+                                self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                             
+                            self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self.mod + self['res']['wkwh'] - self['res']['pvkwh']
+                            self['res']['ECF'] = 0.42*(54 + self['res']['totkwh'] * 0.1319)/(self['res']['fa'] + 45) 
+                            self['res']['EPC'] = 100 - 13.95 * self['res']['ECF'] if self['res']['ECF'] < 3.5 else 117 - 121 * math.log10(self['res']['ECF'])
+                            epcletts = ('A', 'B', 'C', 'D', 'E', 'F','G')
+                            epcnum = (92, 81, 69, 55, 39, 21, 1)
+                            
+                            for ei, en in enumerate(epcnum):
+                                if self['res']['EPC'] > en:
+                                    self['res']['EPCL'] = epcletts[ei]
+                                    break
+                        
+                        else:
+                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
+                            if r[2] == self.zone_menu:
+                                if r[3] == 'Heating (W)':
+                                    self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
+                                elif r[3] == 'Cooling (W)':        
+                                    self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
+                                    self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+            elif self.metric == '1':
+                self['res']['pvkwh'] = 'N/A'
+                self['res']['hkwh'] = 'N/A'
+                self['res']['ckwh'] = 'N/A'
+                self['res']['fa'] = 'N/A'
+                self['res']['ECF'] = 'N/A'
 #    def ret_metrics(self):
 #        if self.inputs['Results in'].links:
 #            if self.metric_menu == '0':

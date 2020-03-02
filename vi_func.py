@@ -21,7 +21,6 @@ import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, color
 from subprocess import Popen
 from numpy import array, digitize, amax, amin, average, clip, char, int8
 #set_printoptions(threshold=nan)
-from numpy import logspace
 from math import sin, cos, asin, acos, pi, tan, ceil, log10
 from math import e as expo
 from mathutils import Vector, Matrix
@@ -244,170 +243,7 @@ def cmap(svp):
         
         links = bpy.data.materials[matname].node_tree.links
         links.new(node_material.outputs[0], node_output.inputs[0])
-        
-#def cmap(scene):
-#    cols = [(0.0, 0.0, 0.0, 1.0)] + retcols(ret_mcm().get_cmap(scene.vi_leg_col), scene.vi_leg_levels)
-#    
-#    for i in range(scene.vi_leg_levels + 1):   
-#        matname = '{}#{}'.format('vi-suite', i)
-#        
-#        if not bpy.data.materials.get(matname):
-#            bpy.data.materials.new(matname)
-#            bpy.data.materials[matname].specular_intensity = 0
-#            bpy.data.materials[matname].specular_color = (0, 0, 0)
-#            bpy.data.materials[matname].use_shadeless = 0
-#        
-#        bpy.data.materials[matname].diffuse_color = cols[i][0:3]
-#        bpy.data.materials[matname].use_nodes = True
-#        nodes = bpy.data.materials[matname].node_tree.nodes
-#
-#        for node in nodes:
-#            nodes.remove(node)
-#        
-#        if scene.vi_disp_trans < 1:
-#            # create transparency node
-#            node_material = nodes.new(type='ShaderNodeBsdfTransparent')            
-#        elif scene.vi_disp_mat:
-#            # create emission node
-#            node_material = nodes.new(type='ShaderNodeEmission') 
-#            node_material.inputs[1].default_value = scene.vi_disp_ems
-#        else:
-#            # create diffuse node
-#            node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
-#            node_material.inputs[1].default_value = 0.5
-#
-#        node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
-#        node_material.location = 0,0
-#                
-#        # create output node
-#        node_output = nodes.new(type='ShaderNodeOutputMaterial')   
-#        node_output.location = 400,0
-#        
-#        links = bpy.data.materials[matname].node_tree.links
-#        links.new(node_material.outputs[0], node_output.inputs[0])
-def legupdate(self, context):
-    scene = context.scene
-    svp = scene.vi_params
-    frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
-    obs = [o for o in scene.objects if o.name in svp['liparams']['livir']]
-    increment = 1/svp.vi_leg_levels
-    
-    if svp.vi_leg_scale == '0':
-        bins = array([increment * i for i in range(1, svp.vi_leg_levels)])
-        
-    elif svp.vi_leg_scale == '1':
-        slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
-        bins = array([(slices[i] - increment * (svp.vi_leg_levels - i))/100 for i in range(svp.vi_leg_levels + 1)])
-        bins = array([1 - math.log10(i)/math.log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
-        bins = bins[1:-1]
-    
-    for o in obs:
-        selobj(context.view_layer, o)
-        bm = bmesh.new()
-        bm.from_mesh(o.data)
-        cmap(self)
-        
-        if len(o.material_slots) != svp.vi_leg_levels + 1:
-            for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels + 1)]:
-                if bpy.data.materials[matname] not in o.data.materials[:]:
-                    bpy.ops.object.material_slot_add()
-                    o.material_slots[-1].material = bpy.data.materials[matname]
-            while len(o.material_slots) > svp.vi_leg_levels + 1:
-                    bpy.ops.object.material_slot_remove()
-                    
-        for f, frame in enumerate(frames):
-            if bm.faces.layers.float.get('res{}'.format(frame)):
-                livires = bm.faces.layers.float['res{}'.format(frame)] 
-                ovals = array([f[livires] for f in bm.faces])
-            elif bm.verts.layers.float.get('res{}'.format(frame)):
-                livires = bm.verts.layers.float['res{}'.format(frame)] 
-                ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
-            
-            if svp.vi_leg_max > svp.vi_leg_min:
-                vals = ovals - svp.vi_leg_min
-                vals = vals/(svp.vi_leg_max - svp.vi_leg_min)
-            else:
-                vals = array([svp.vi_leg_max for f in bm.faces])
-                        
-            nmatis = digitize(vals, bins) + 1
-
-            if len(frames) == 1:                
-                o.data.polygons.foreach_set('material_index', nmatis)
-                o.data.update()
-
-            elif len(frames) > 1:
-                for fi, fc in enumerate(o.data.animation_data.action.fcurves):
-                    fc.keyframe_points[f].co = frame, nmatis[fi]
-        bm.free()
-    scene.frame_set(scene.frame_current)
-    
-#def legupdate(self, context):
-#    scene = context.scene
-#    svp = scene.vi_params
-#    frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
-#    obs = [o for o in scene.objects if o.get('lires')]
-#    increment = 1/svp.vi_leg_levels
-#    
-#    if svp.vi_leg_scale == '0':
-#        bins = array([increment * i for i in range(1, svp.vi_leg_levels)])
-#        
-#    elif svp.vi_leg_scale == '1':
-#        slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
-#        bins = array([(slices[i] - increment * (svp.vi_leg_levels - i))/100 for i in range(svp.vi_leg_levels + 1)])
-#        bins = array([1 - math.log10(i)/math.log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
-#        bins = bins[1:-1]
-#    
-#    for o in obs:
-#        bm = bmesh.new()
-#        bm.from_mesh(o.data)
-#        cmap(self)
-#        selobj(o)
-#        if len(o.material_slots) != svp.vi_leg_levels + 1:
-#            for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels + 1)]:
-#                if bpy.data.materials[matname] not in o.data.materials[:]:
-#                    bpy.ops.object.material_slot_add()
-#                    o.material_slots[-1].material = bpy.data.materials[matname]
-#            while len(o.material_slots) > svp.vi_leg_levels + 1:
-#                    bpy.ops.object.material_slot_remove()
-#                    
-#        for f, frame in enumerate(frames):
-#            if bm.faces.layers.float.get('res{}'.format(frame)):
-#                livires = bm.faces.layers.float['res{}'.format(frame)] 
-#                ovals = array([f[livires] for f in bm.faces])
-#            elif bm.verts.layers.float.get('res{}'.format(frame)):
-#                livires = bm.verts.layers.float['res{}'.format(frame)] 
-#                ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
-#            
-#            if svp.vi_leg_max > svp.vi_leg_min:
-#                vals = ovals - svp.vi_leg_min
-#                vals = vals/(svp.vi_leg_max - svp.vi_leg_min)
-#            else:
-#                vals = array([svp.vi_leg_max for f in bm.faces])
-#                        
-#            nmatis = digitize(vals, bins) + 1
-#
-#            if len(frames) == 1:                
-#                o.data.polygons.foreach_set('material_index', nmatis)
-#                o.data.update()
-#
-#            elif len(frames) > 1:
-#                for fi, fc in enumerate(o.data.animation_data.action.fcurves):
-#                    fc.keyframe_points[f].co = frame, nmatis[fi]
-#        bm.free()
-#    scene.frame_set(scene.frame_current)
-        
-def leg_min_max(svp):
-    try:
-        if svp.vi_res_process == '2' and bpy.app.driver_namespace.get('resmod'):
-            return bpy.app.driver_namespace['resmod']([svp.vi_leg_min, svp.vi_leg_max])
-        elif svp.vi_res_mod:
-            return (eval('{}{}'.format(svp.vi_leg_min, svp.vi_res_mod)), eval('{}{}'.format(svp.vi_leg_max, svp.vi_res_mod)))
-        else:
-            return (svp.vi_leg_min, svp.vi_leg_max)
-    except Exception as e:
-        print(e)
-        return (svp.vi_leg_min, svp.vi_leg_max)
-                                     
+                                             
 def regresults(scene, frames, simnode, res):    
     for i, f in enumerate(frames):
         simnode['maxres'][str(f)] = amax(res[i])
@@ -438,41 +274,18 @@ def retvpvloc(context):
 def setscenelivivals(scene):
     svp = scene.vi_params
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
-    udict = {'Lux': 'illu', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'DF (%)': 'df', '% Sunlit': 'res'}
+    udict = {'Lux': 'illu', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'DF (%)': 'df', '% Sunlit': 'res', 'Mlxh': 'illu'}
     cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux' , 'Avg lux', 'Min lux')
     expunits = ('Mlxh', "kWh (f)", "kWh (v)",  u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', )
     irradunits = ('kWh', 'kWh/m2')
  
-#    if svp.li_disp_basic: 
     if svp['viparams']['visimcontext'] == 'livibasic':
         unit = svp.li_disp_basic
-#        for key, val in udict.items():
-#            if val == svp.li_disp_basic:
-#                svp['liparams']['unit'] = key
+    elif svp['viparams']['visimcontext'] == 'LiVi CBDM':
+        unit = svp.li_disp_cbdm
     else:
         unit = udict[svp['liparams']['unit']]
-        print(unit)
 
-#    if svp['viparams']['visimcontext'] == 'LiVi CBDM':        
-#        if svp['liparams']['unit'] in cbdmunits:
-#            udict = {str(ui): u for ui, u in enumerate(cbdmunits)}
-#            svp['liparams']['unit'] = udict[svp.li_disp_da]
-#        if svp['liparams']['unit'] in expunits:
-#            udict = {str(ui): u for ui, u in enumerate(expunits)}
-#            svp['liparams']['unit'] = udict[svp.li_disp_exp]
-#        if svp['liparams']['unit'] in irradunits:
-#            udict = {str(ui): u for ui, u in enumerate(irradunits)}
-#            svp['liparams']['unit'] = udict[svp.li_disp_irrad]         
-#
-#    if svp['viparams']['visimcontext'] == 'LiVi Compliance':
-#        if svp['liparams']['unit'] in cbdmunits:
-#            udict = {'0': 'sDA (%)', '1': 'ASE (hrs)'}
-#            svp['liparams']['unit'] = udict[svp.li_disp_sda]
-#        else:
-#            udict = {'0': 'DF (%)', '1': 'Sky View'}
-#            svp['liparams']['unit'] = udict[svp.li_disp_sv]
-            
-#    olist = [retobjs('ssc') if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else retobjs('livic')]
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
 
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -490,7 +303,6 @@ def rettree(scene, obs, ignore):
         tempmesh = so.to_mesh()
         bmtemp.from_mesh(tempmesh)
         so.to_mesh_clear()
-#        bpy.data.meshes.remove(tempmesh)
         bmtemp.transform(so.matrix_world)
         delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].vi_params.mattype == ignore]
         bmesh.ops.delete(bmtemp, geom = delfaces, context = 'FACES')
