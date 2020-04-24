@@ -122,10 +122,6 @@ class No_Loc(Node, ViNodes):
     dedoy: IntProperty(name="", description="", min=1, max=365, default=365)
 
     def init(self, context):
-#        self['nodeid'] = nodeid(self)    
-#        self.id_data.use_fake_user = True
-#        bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
-        
         self.outputs.new('So_Vi_Loc', 'Location out')
         self['year'] = 2015
         self['entries'] = [('None', 'None', 'None')] 
@@ -170,7 +166,6 @@ class No_Li_Geo(Node, ViNodes):
     
     def init(self, context):
         self['exportstate'] = ''
-#        self['nodeid'] = nodeid(self)
         self.outputs.new('So_Li_Geo', 'Geometry out')
         nodecolour(self, 1)
 
@@ -232,11 +227,6 @@ class No_Li_Con(Node, ViNodes):
                 sun = suns[0]
                 sun['VIType'] = 'Sun'
                 [delobj(bpy.context.view_layer, sun) for sun in suns[1:]]
-#                bpy.ops.object.delete(use_global=False)
-#                bpy.data.objects.remove(sun, do_unlink=True, do_id_user=True, do_ui_user=True)
-#                scene.collection.objects.unlink(sun)
-                
-#                [scene.objects.unlink(o) for o in suns[1:]]
             else:
                 bpy.ops.object.light_add(type='SUN')
                 sun = bpy.context.object
@@ -249,8 +239,7 @@ class No_Li_Con(Node, ViNodes):
                 selobj(context.view_layer, so)
                 bpy.ops.object.delete()
                 
-    spectrumtype =  [('0', "Visible", "Visible radiation spectrum calculation"), ('1', "Full", "Full radiation spectrum calculation")]                           
-#    banalysistype = [('0', "Illu/Irrad/DF", "Illumninance/Irradiance/Daylight Factor Calculation"), ('1', "Glare", "Glare Calculation")]
+    spectrumtype =  [('0', "Visible", "Visible radiation spectrum calculation"), ('1', "Full", "Full radiation spectrum calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
                ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description")]
 
@@ -311,7 +300,6 @@ class No_Li_Con(Node, ViNodes):
 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
-#        self['nodeid'] = nodeid(self)
         self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
         self.outputs.new('So_Li_Con', 'Context out')
         self.inputs.new('So_Vi_Loc', 'Location in')
@@ -598,9 +586,8 @@ class No_Li_Con(Node, ViNodes):
                 
     def postexport(self):  
         typedict = {'Basic': '0', 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 'CBDM': (('Mlxh', 'kWh')[int(self.spectrummenu)], 'kWh', 'DA (%)')[int(self.cbanalysismenu)]}
+        unitdict = {'Basic': ("Lux", 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 'CBDM': (('Mlxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
         btypedict = {'0': self.bambuildmenu, '1': '', '2': self.bambuildmenu, '3': self.lebuildmenu}
-#        ('Luuminance, Irradiance, )
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
@@ -876,9 +863,7 @@ class No_Li_Fc(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
         nodecolour(self, 0)
-        
-
-        
+            
 class No_Li_Sim(Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'No_Li_Sim'
@@ -886,6 +871,7 @@ class No_Li_Sim(Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)])
+        
         if self.simacc == '3':
             self.validparams = validradparams(self.cusacc)
         
@@ -1638,6 +1624,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
                     
     def update(self):
+        self.ret_metrics()
         if self.inputs[0].links:
             if self.metric == '0' and bpy.data.collections.get('EnVi Geometry'):
                 rl = self.inputs[0].links[0].from_node['reslists']
@@ -1661,7 +1648,6 @@ class No_Vi_Metrics(Node, ViNodes):
             
                     for r in rl:
                         if self.zone_menu == 'All':
-        #                    self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) 
                             if r[3] == 'PV Power (W)':
                                 self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                             elif r[3] == 'Heating (W)':
@@ -1680,8 +1666,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             for ei, en in enumerate(epcnum):
                                 if self['res']['EPC'] > en:
                                     self['res']['EPCL'] = epcletts[ei]
-                                    break
-                        
+                                    break                        
                         else:
                             self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
                             if r[2] == self.zone_menu:
@@ -1697,11 +1682,11 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['ckwh'] = 'N/A'
                 self['res']['fa'] = 'N/A'
                 self['res']['ECF'] = 'N/A'
-#    def ret_metrics(self):
-#        if self.inputs['Results in'].links:
-#            if self.metric_menu == '0':
-#                resdict = self.inputs['Results in'].links[0].from_node['resdict']
-#                print(resdict.keys())
+
+    def ret_metrics(self):
+        if self.inputs['Results in'].links:
+            reslist = self.inputs['Results in'].links[0].from_node['reslists']
+            print([r[3] for r in reslist])
 
 class No_CSV(Node, ViNodes):
     '''CSV Export Node'''

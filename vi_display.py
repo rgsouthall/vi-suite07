@@ -3,9 +3,10 @@ from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
 from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, drawloop, drawpoly, retdp
-from .vi_func import ret_res_vals, draw_index_distance, setscenelivivals, selobj
+from .vi_func import ret_res_vals, draw_index_distance, selobj
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, compass, joinobj, sunpath
+from .livi_func import setscenelivivals
 from .livi_export import spfc
 from .vi_dicts import unit_dict
 from . import livi_export
@@ -20,7 +21,7 @@ from xml.dom.minidom import parseString
 
 try:
     import matplotlib
-    matplotlib.use('qt5agg', warn = False, force = True)
+    matplotlib.use('qt5agg', force = True)
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm  
     import matplotlib.colors as mcolors

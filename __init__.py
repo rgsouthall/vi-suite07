@@ -29,7 +29,6 @@ bl_info = {
     "tracker_url": "",
     "category": "Import-Export"}
 
-
 if "bpy" in locals():
     import imp
     imp.reload(vi_operators)
@@ -118,14 +117,31 @@ def unititems(self, context):
     try:
         scene = context.scene
         svp = scene.vi_params
+        
         if svp['liparams']['unit'] == 'W/m2 (f)':
             return [('firrad', 'Full irradiance', 'Full spectrum irradiance')]
         elif svp['liparams']['unit'] == 'Lux':
-            return [('illu', 'Illuminance', 'Illuminance'), ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
+            return [('illu', 'Illuminance', 'Illuminance'), 
+                    ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'DF (%)':
-            return [('df', 'Daylight factor', 'daylight factor'), ('illu', 'Illuminance', 'Illuminance'), ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
+            return [('df', 'Daylight factor', 'daylight factor'), 
+                    ('illu', 'Illuminance', 'Illuminance'), 
+                    ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'Mlxh':
             return [('lxh', 'Mega lux-hours', 'Mega lux-hours')]
+        elif svp['liparams']['unit'] == 'kWh (f)':
+            return [('kWh (f)', 'kWh (f)', 'kilo-Watt hours'), ('kWh/m2 (f)', 'kWh/m2 (f)', 'kilo-Watt hours per square metre')]
+        elif svp['liparams']['unit'] == 'DA':
+            return[("DA", "Daylight Autonomy", "Daylight Autonomy"), 
+                   ("sDA", "Spatial Daylight Autonomy", "Spatial Daylight Autonomy"), 
+                   ("UDILow", "Useful daylight illuminance (low)", "Useful daylight illuminance (low)"), 
+                   ("UDISup", "Useful daylight illuminance (supp)", "Useful daylight illuminance (supp)"), 
+                   ("UDIAuto", "Useful daylight illuminance (auto)", "Useful daylight illuminance (auto)"), 
+                   ("UDIHigh", "Useful daylight illuminance (high)", "Useful daylight illuminance (high)"), 
+                   ("ASE", "Annual sunlight exposure", "Annual sunlight exposure"), 
+                   ("Max lux", "Maximum lux level", "Maximum lux level"), 
+                   ("Avg Lux", "Average lux level", "Average lux level"), 
+                   ("Min lux", "Minimum lux level", "Minimum lux level")]
         else:
             return [('None', 'None','None' )]
     except:
@@ -191,8 +207,9 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     sp_up: bprop("", "",0)
     sp_td: bprop("", "",0)
     li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
+    li_disp_menu: EnumProperty(items = unititems, name = "", description = "BLiVi metric selection", update = livires_update)  
     li_disp_basic: EnumProperty(items = unititems, name = "", description = "Basic metric selection", update = livires_update)    
-    li_disp_da: EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), 
+    li_disp_cbdm: EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), 
                                       ("3", "UDISup", "Spatial Daylight Autonomy"), 
                                       ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), 
                                       ("6", "ASE", "Annual sunlight exposure"), ("7", "Max lux", "Maximum lux level"), 
@@ -539,7 +556,7 @@ def unregister():
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
     
     
-    for cl in classes:
+    for cl in reversed(classes):
         bpy.utils.unregister_class(cl)
 
     if update_chart_node in bpy.app.handlers.load_post:

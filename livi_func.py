@@ -22,7 +22,7 @@ def radpoints(o, faces, sks):
         mname = mns[fmi]
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
         if sks:
-            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
             ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format(v.co) for v in face.verts])
         fentries[f] = ''.join((fentry, ventries+'\n'))        
@@ -62,9 +62,40 @@ def rtpoints(self, bm, offset, frame):
         gp[cindex] = g + 1
         
     self['rtpnum'] = g + 1
+
+def setscenelivivals(scene):
+    svp = scene.vi_params
+    svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
+    udict = {'Lux': 'illu', 'W/m2 (v)': 'virrad', 'W/m2 (f)': 'firrad', 
+             'DF (%)': 'df', '% Sunlit': 'res', 'Mlxh': 'illu', 'kWh (f)': 'firrad',
+             'kWh (v)': 'virrad', 'kWh/m2 (f)': 'firradm2', 'kWh/m2 (v)': 'virradm2'}
+    cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux' , 'Avg lux', 'Min lux')
+    expunits = ('Mlxh', "kWh (f)", "kWh (v)",  'kWh/m2 (f)', 'kWh/m2 (v)', )
+    irradunits = ('kWh', 'kWh/m2')
+ 
+#    if svp['viparams']['visimcontext'] == 'LiVi Basic':
+    if svp.li_disp_menu != 'None':
+        unit = udict[svp.li_disp_menu]
+        svp['liparams']['unit'] = svp.li_disp_menu
+    else:
+        unit = udict[svp['liparams']['unit']]
+#    elif svp['viparams']['visimcontext'] == 'LiVi CBDM':
+#        unit = svp.li_disp_cbdm
+#    else:
+#        unit = udict[svp['liparams']['unit']]
+
+    olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+
+    for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+        svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(unit, frame)] for o in olist])
+        svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(unit, frame)] for o in olist])
+        svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])
+    svp.vi_leg_max = max(svp['liparams']['maxres'].values())
+    svp.vi_leg_min = min(svp['liparams']['minres'].values())
     
 def validradparams(params):
-    valids = ('-ps', '-pt', '-pj', '-pj', '-dj', '-ds', '-dt', '-dc', '-dr', '-dp',	'-ss',	'-st',	'-st', '-ab',	'-av',	'-aa',	'-ar',	'-ad',	'-as',	'-lr',	'-lw')
+    valids = ('-ps', '-pt', '-pj', '-pj', '-dj', '-ds', '-dt', '-dc', '-dr', '-dp',	'-ss', '-st', '-st', '-ab', 
+              '-av', '-aa',	'-ar', '-ad', '-as', '-lr', '-lw')
     for p, param in enumerate(params.split()):
         if not p%2 and param not in valids:
             return 0
@@ -76,8 +107,6 @@ def validradparams(params):
 def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
-
-#    try:
     bm = obmesh.copy()
     bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.0001)
     bmesh.ops.dissolve_limit(bm, angle_limit = 0.0001, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = {'NORMAL'})
@@ -90,8 +119,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
     ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
     mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
-#    for mm in mmats:
-#        if not mm.get()
     otext = 'o {}\n'.format(o.name)
     vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
     
@@ -142,20 +169,13 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
         with open(ofile, 'w') as objfile:
             objfile.write(otext + vtext + ftext)
 
-    bm.free()
-        
+    bm.free()        
     return gradfile
-    
-#    except Exception as e:
-#        logentry('LiVi mesh export error for {}: {}'.format(o.name, e))
-#        return gradfile
-    
+        
 def radmat(self, scene):
-#    mvp = self.vi_params
     svp = scene.vi_params
     radname = self.id_data.name.replace(" ", "_")
     radname = radname.replace(",", "")
-    print(self.id_data.name)
     self['radname'] = radname
     radtex = ''
     mod = 'void' 
@@ -203,8 +223,7 @@ def radmat(self, scene):
 
     if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
         bsdfxml = os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
-        
-        
+                
         with open(bsdfxml, 'w') as bsdffile:
             bsdffile.write(self['bsdf']['xml'])
         radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self.li_bsdf_proxy_depth, bsdfxml)
@@ -512,18 +531,20 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     cindex = geom.layers.int['cindex']
     
     for f, frame in enumerate(frames): 
-        geom.layers.float.new('firradm2{}'.format(frame))
-        geom.layers.float.new('virradm2{}'.format(frame))
-        geom.layers.float.new('firrad{}'.format(frame))
-        geom.layers.float.new('virrad{}'.format(frame))
-        geom.layers.float.new('illu{}'.format(frame))
         geom.layers.float.new('res{}'.format(frame))
-        firradm2res = geom.layers.float['firradm2{}'.format(frame)]
-        virradm2res = geom.layers.float['virradm2{}'.format(frame)]
-        firradres = geom.layers.float['firrad{}'.format(frame)]
-        virradres = geom.layers.float['virrad{}'.format(frame)]
-        illures = geom.layers.float['illu{}'.format(frame)]
-         
+        if simnode['coptions']['unit'] == 'lxh':
+            geom.layers.float.new('virradm2{}'.format(frame))        
+            geom.layers.float.new('virrad{}'.format(frame))
+            geom.layers.float.new('illu{}'.format(frame))
+            virradm2res = geom.layers.float['virradm2{}'.format(frame)]
+            virradres = geom.layers.float['virrad{}'.format(frame)]
+            illures = geom.layers.float['illu{}'.format(frame)]
+        elif simnode['coptions']['unit'] == 'kWh (f)':
+            geom.layers.float.new('firradm2{}'.format(frame))
+            geom.layers.float.new('firrad{}'.format(frame))        
+            firradm2res = geom.layers.float['firradm2{}'.format(frame)]
+            firradres = geom.layers.float['firrad{}'.format(frame)]
+                 
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
         else:
@@ -538,66 +559,86 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             careas = array([c.calc_area() if self['cpoint'] == '0' else vertarea(bm, c) for c in chunk])
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
-            virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 1e-3
-            virrad = virradm2 * careas
-            firradm2 = virradm2 * 1.64
-            firrad = firradm2 * careas
-            illu = virradm2 * 179e-3
-
-            for gi, gp in enumerate(chunk):
-                gp[firradm2res] = firradm2[gi].astype(float32)
-                gp[virradm2res] = virradm2[gi].astype(float32)
-                gp[firradres] = firrad[gi].astype(float32)
-                gp[virradres] = virrad[gi].astype(float32)
-                gp[illures] = illu[gi].astype(float32)
             
+            if simnode['coptions']['unit'] == 'lxh':
+                virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 1e-3
+                virrad = virradm2 * careas
+                illu = virradm2 * 179e-3
+            elif simnode['coptions']['unit'] == 'kWh (f)':
+                firradm2 = nsum(xyzirrad, axis = 1)
+                firrad = firradm2 * careas
+            
+            for gi, gp in enumerate(chunk):
+                if simnode['coptions']['unit'] == 'lxh':
+                    gp[virradm2res] = virradm2[gi].astype(float32)
+                    gp[virradres] = virrad[gi].astype(float32)
+                    gp[illures] = illu[gi].astype(float32)
+                elif simnode['coptions']['unit'] == 'kWh (f)':
+                    gp[firradm2res] = firradm2[gi].astype(float32)
+                    gp[firradres] = firrad[gi].astype(float32)
+                           
             curres += len(chunk)
+            
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
-                
-        ovirradm2 = array([g[virradm2res] for g in gps])
-        ovirrad = array([g[virradres] for g in gps])
-        maxovirradm2 = nmax(ovirradm2)
-        maxovirrad = nmax(ovirrad)
-        minovirradm2 = nmin(ovirradm2)
-        minovirrad = nmin(ovirrad)
-        aveovirradm2 = nmean(ovirradm2)
-        aveovirrad = nmean(ovirrad)
-        self['omax']['firrad{}'.format(frame)] = maxovirrad * 1.64
-        self['omin']['firrad{}'.format(frame)] = minovirrad * 1.64
-        self['oave']['firrad{}'.format(frame)] = aveovirrad * 1.64
-        self['omax']['firradm2{}'.format(frame)] = maxovirradm2  * 1.64
-        self['omin']['firradm2{}'.format(frame)] = minovirradm2  * 1.64
-        self['oave']['firradm2{}'.format(frame)] = aveovirradm2  * 1.64
-        self['omax']['virrad{}'.format(frame)] = maxovirrad
-        self['omin']['virrad{}'.format(frame)] = minovirrad
-        self['oave']['virrad{}'.format(frame)] = aveovirrad
-        self['omax']['virradm2{}'.format(frame)] = maxovirradm2
-        self['omin']['virradm2{}'.format(frame)] = minovirradm2
-        self['oave']['virradm2{}'.format(frame)] = aveovirradm2
-        self['omax']['illu{}'.format(frame)] = maxovirradm2 * 178e-3
-        self['omin']['illu{}'.format(frame)] = minovirradm2 * 178e-3
-        self['oave']['illu{}'.format(frame)] = aveovirradm2 * 178e-3
-        self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
-        self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradm2{}'.format(frame)])]])
-        self['tablevim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradm2{}'.format(frame)])]])
-        self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
-        self['tablevi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])]])
+            
+        if simnode['coptions']['unit'] == 'lxh':        
+            ovirradm2 = array([g[virradm2res] for g in gps])
+            ovirrad = array([g[virradres] for g in gps])
+            maxovirradm2 = nmax(ovirradm2)
+            maxovirrad = nmax(ovirrad)
+            minovirradm2 = nmin(ovirradm2)
+            minovirrad = nmin(ovirrad)
+            aveovirradm2 = nmean(ovirradm2)
+            aveovirrad = nmean(ovirrad)
+            self['omax']['virrad{}'.format(frame)] = maxovirrad
+            self['omin']['virrad{}'.format(frame)] = minovirrad
+            self['oave']['virrad{}'.format(frame)] = aveovirrad
+            self['omax']['virradm2{}'.format(frame)] = maxovirradm2
+            self['omin']['virradm2{}'.format(frame)] = minovirradm2
+            self['oave']['virradm2{}'.format(frame)] = aveovirradm2
+            self['omax']['illu{}'.format(frame)] = maxovirradm2 * 178e-3
+            self['omin']['illu{}'.format(frame)] = minovirradm2 * 178e-3
+            self['oave']['illu{}'.format(frame)] = aveovirradm2 * 178e-3
+            self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                 ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
+            self['tablevim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                 ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradm2{}'.format(frame)])]])
+            self['tablevi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                 ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])]])
 
+        elif simnode['coptions']['unit'] == 'kWh (f)':
+            ofirradm2 = array([g[firradm2res] for g in gps])
+            ofirrad = array([g[firradres] for g in gps])
+            maxofirradm2 = nmax(ofirradm2)
+            maxofirrad = nmax(ofirrad)
+            minofirradm2 = nmin(ofirradm2)
+            minofirrad = nmin(ofirrad)
+            aveofirradm2 = nmean(ofirradm2)
+            aveofirrad = nmean(ofirrad)
+            self['omax']['firrad{}'.format(frame)] = maxofirrad
+            self['omin']['firrad{}'.format(frame)] = minofirrad
+            self['oave']['firrad{}'.format(frame)] = aveofirrad
+            self['omax']['firradm2{}'.format(frame)] = maxofirradm2
+            self['omin']['firradm2{}'.format(frame)] = minofirradm2
+            self['oave']['firradm2{}'.format(frame)] = aveofirradm2
+            self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                 ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradm2{}'.format(frame)])]])
+            self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                 ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
+            
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Y', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Z', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Area', ' '.join([str(a) for a in areas])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (Mlxh)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
+        
+        if simnode['coptions']['unit'] == 'lxh':
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (Mlxh)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
+        elif simnode['coptions']['unit'] == 'kWh (f)':    
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
     bm.to_mesh(self.id_data.data)
     bm.free()
     return reslists

@@ -113,22 +113,23 @@ class VI_PT_3D(bpy.types.Panel):
 #                    row.prop(context.space_data, "show_only_render")
 
                     if not svp.ss_disp_panel:
-                        if svp['viparams']['visimcontext'] == 'LiVi CBDM':
-                            if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Avg lux'):
-                                newrow(layout, 'Result type:', svp, "li_disp_da")
-                            elif svp['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
-                                newrow(layout, 'Result type:', svp, "li_disp_exp")
-                            elif svp['liparams']['unit'] in ('kWh', 'kWh/m2'):
-                                newrow(layout, 'Result type:', svp, "li_disp_irrad")
-    
-                        elif svp['viparams']['visimcontext'] == 'LiVi Compliance': 
-                            if svp['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
-                                newrow(layout, 'Metric:', svp, 'li_disp_sda')
-                            else:
-                                newrow(layout, 'Metric:', svp, 'li_disp_sv')
-                                
-                        elif svp['viparams']['visimcontext'] == 'LiVi Basic':
-                            newrow(layout, 'Metric:', svp, 'li_disp_basic')
+                        newrow(layout, 'Result type:', svp, "li_disp_menu")
+#                        if svp['viparams']['visimcontext'] == 'LiVi CBDM':
+#                            if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Avg lux'):
+#                                newrow(layout, 'Result type:', svp, "li_disp_menu")
+#                            elif svp['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
+#                                newrow(layout, 'Result type:', svp, "li_disp_menu")
+#                            elif svp['liparams']['unit'] in ('kWh', 'kWh/m2'):
+#                                newrow(layout, 'Result type:', svp, "li_disp_menu")
+#    
+#                        elif svp['viparams']['visimcontext'] == 'LiVi Compliance': 
+#                            if svp['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
+#                                newrow(layout, 'Metric:', svp, 'li_disp_menu')
+#                            else:
+#                                newrow(layout, 'Metric:', svp, 'li_disp_sv')
+#                                
+#                        elif svp['viparams']['visimcontext'] == 'LiVi Basic':
+#                            newrow(layout, 'Metric:', svp, 'li_disp_basic')
                         
                         newrow(layout, 'Legend unit:', svp, "vi_leg_unit")
                         newrow(layout, 'Processing:', svp, "vi_res_process") 
@@ -149,8 +150,8 @@ class VI_PT_3D(bpy.types.Panel):
                         newrow(layout, 'Emitter strength:', svp, "vi_disp_ems")
                     
                     if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
-                        newrow(layout, 'Scatter max:', svp, "vi_scatter_max")
-                        newrow(layout, 'Scatter min:', svp, "vi_scatter_min")
+                        newrow(layout, 'Scatter max:', svp, "vi_scatt_max_val")
+                        newrow(layout, 'Scatter min:', svp, "vi_scatt_min_val")
                         
                     if cao and cao.type == 'MESH':
                         newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')                    

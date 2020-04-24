@@ -53,7 +53,7 @@ from .vi_chart import chart_disp
 
 try:    
     import matplotlib
-    matplotlib.use('qt5agg', warn = False, force = True)
+    matplotlib.use('qt5agg', force = True)
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     mp = 1    
@@ -66,7 +66,6 @@ if mp:
     plt = ret_plt()
     if plt:
         from .windrose import WindroseAxes
-
 
 try:
     import psutil
@@ -101,7 +100,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
     bl_description = "Create a Wind Rose"
     bl_register = True
     bl_undo = True
-#    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
         scene = context.scene
@@ -136,7 +134,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
         rect = [0.1, 0.1, 0.8, 0.8]
         ax = WindroseAxes(fig, rect, facecolor='w')
         fig.add_axes(ax)
-#        (fig, ax) = wr_axes(plt)
         sbinvals = arange(0,int(ceil(max(cws))),2)
         dbinvals = arange(-11.25,372.25,22.5)
         dfreq = histogram(awd, bins=dbinvals)[0]
@@ -155,12 +152,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.set_rmax(simnode.max_freq_val)
             
         plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg')
-#        (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
         wrme = bpy.data.meshes.new("Wind_rose")   
         wro = bpy.data.objects.new('Wind_rose', wrme) 
-        
-        
-#        context.view_layer.objects.active = wro
         
         if wro.name not in wrcoll.objects:
             wrcoll.objects.link(wro)
@@ -198,7 +191,6 @@ class NODE_OT_SVF(bpy.types.Operator):
     bl_description = "Undertake a sky view factor study"
     bl_register = True
     bl_undo = False
-#    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
         scene = context.scene 
@@ -347,9 +339,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene = context.scene 
         svp = scene.vi_params
         svp.vi_display = 0
-        
-       
-        
+
         if viparams(self, scene):            
             return {'CANCELLED'}
 
@@ -496,7 +486,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
 class NODE_OT_Li_Geo(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "LiVi geometry export"
-#    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
         scene = context.scene
@@ -536,14 +525,6 @@ class NODE_OT_Li_Con(bpy.types.Operator, io_utils.ExportHelper):
             node.postexport()
         return {'FINISHED'}
     
-#    def modal(self, context, event):
-#        if self.svp['visimcontext'] != 'LiVi' or not [o for o in context.scene.objects if o.get('VIType') and o['VIType'] == 'Sun']:
-#            return {'FINISHED'}
-#        else:
-#            # This could be used to se light direction
-#            fc = scene.frame_start if scene.frame_current > scene.frame_end else scene.frame_current
-#            scene.display.light_direction = (-sin(solposs[fc][3]) * cos(solposs[fc][2]), sin(solposs[fc][2]),  cos(solposs[fc][3]) * cos(solposs[fc][2])) 
-
 # BSDF Operators
 class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
     bl_idname = "object.gen_bsdf"
@@ -584,8 +565,6 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
                 self.mat.vi_params['bsdf']['type'] = [path.firstChild.data for path in bsdf.getElementsByTagName('AngleBasisName')][0]
             
             context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
-#            self.mat.vi_params['bsdf']['type'] = self.o.vi_params.li_bsdf_tensor   
-
             return {'FINISHED'}
     
     def execute(self, context):
@@ -725,7 +704,6 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Prevew the scene with Radiance"
     bl_register = True
     bl_undo = False
-#    nodeid = bpy.props.StringProperty()
     
     def modal(self, context, event):
         if event.type == 'TIMER':
@@ -847,7 +825,6 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         svp['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
         svp['liparams']['cp'] = simnode['goptions']['cp']
         svp['liparams']['unit'] = simnode['coptions']['unit']
-#        svp['liparams']['metric'] = simnode['coptions']['metric']
         svp['liparams']['type'] = simnode['coptions']['Type']
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         
@@ -863,8 +840,6 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             return {'CANCELLED'}
         else:
             simnode['reslists'] = calcout
-#        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '1':
-#            svp.vi_display = 1
 
         svp['viparams']['vidisp'] = 'li'
         svp['viparams']['resnode'] = simnode.name

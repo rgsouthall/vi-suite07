@@ -51,7 +51,7 @@ materials_from_group = set()
 def ret_plt():
     try:
         import matplotlib
-        matplotlib.use('qt5agg', warn = False, force = True)
+        matplotlib.use('qt5agg', force = True)
         from matplotlib import pyplot as plt
         plt.figure()
         return plt
@@ -68,9 +68,9 @@ def ret_mcm():
         return 0   
     
 dtdf = datetime.date.fromordinal
-unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
-            'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (f)': 'firradm2', u'kWh/m\u00b2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
-            'Avg lux': 'illu', 'Min lux': 'illu', 'kWh': 'firrad', 'kWh/m2': 'kW/m2'}
+unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', 'W/m2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
+            'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', 'kWh/m2 (f)': 'firradm2', 'kWh/m2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
+            'Avg lux': 'illu', 'Min lux': 'illu'}
 
 coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
 
@@ -270,30 +270,6 @@ def clearlayers(bm, ltype):
 
 def retvpvloc(context):
     return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
-
-def setscenelivivals(scene):
-    svp = scene.vi_params
-    svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
-    udict = {'Lux': 'illu', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'DF (%)': 'df', '% Sunlit': 'res', 'Mlxh': 'illu'}
-    cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux' , 'Avg lux', 'Min lux')
-    expunits = ('Mlxh', "kWh (f)", "kWh (v)",  u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', )
-    irradunits = ('kWh', 'kWh/m2')
- 
-    if svp['viparams']['visimcontext'] == 'livibasic':
-        unit = svp.li_disp_basic
-    elif svp['viparams']['visimcontext'] == 'LiVi CBDM':
-        unit = svp.li_disp_cbdm
-    else:
-        unit = udict[svp['liparams']['unit']]
-
-    olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
-
-    for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-        svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(unit, frame)] for o in olist])
-        svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(unit, frame)] for o in olist])
-        svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(unit, frame)] for o in olist])
-    svp.vi_leg_max = max(svp['liparams']['maxres'].values())
-    svp.vi_leg_min = min(svp['liparams']['minres'].values())
     
 def rettree(scene, obs, ignore):
     bmob = bmesh.new()
@@ -671,6 +647,7 @@ def retelaarea(node):
     outlinks = [sock.links[:] for sock in node.outputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
     inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone') and link.from_socket.node.zone in [o.name for o in bpy.data.objects]]
     outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone') and link.to_socket.node.zone in [o.name for o in bpy.data.objects]]
+
     if outosocks or inosocks:
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
         node["_RNA_UI"] = {"ela": {"max":elaarea, "min": 0.0001}}
