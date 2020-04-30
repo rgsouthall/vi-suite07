@@ -39,7 +39,6 @@ if "bpy" in locals():
 else:
     import sys, os, inspect, shutil
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
-#    platpath = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     if sys.platform in ('darwin', 'linux', 'win32'):      
@@ -48,11 +47,6 @@ else:
                 os.environ['PYTHONPATH'] += os.path.join(addonpath, 'Python', sys.platform)
         else:
             os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-
-# Due to missing dll on windows which BF may have fixed        
-#        if sys.platform =='win32':
-#            if not os.path.isfile(os.path.join(os.path.split(sys.executable)[0], 'python3.dll')):
-#               shutil.copy(os.path.join(addonpath, 'Python', sys.platform, 'python3.dll'), os.path.split(sys.executable)[0]) 
                
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform))   
          
@@ -459,7 +453,7 @@ def getEnViMaterialSpaces():
 def path_update():
     vi_prefs = bpy.context.preferences.addons[__name__].preferences
     epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', str(sys.platform))
-    radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'lib')
+    radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin') 
     ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', 'bin') 
     ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', 'lib')

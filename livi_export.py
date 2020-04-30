@@ -29,9 +29,6 @@ def radgexport(export_op, node, **kwargs):
     clearscene(scene, export_op)
     frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     svp['liparams']['cp'] = node.cpoint
-    
-#    if bpy.context.active_object and not bpy.context.active_object.layers[scene.active_layer]:
-#        export_op.report({'INFO'}, "Active geometry is not on the active layer. You may need to lock layers.")
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
     
     for o in caloblist:

@@ -1,11 +1,12 @@
 import mathutils, bpy, bmesh, os, datetime, shlex, sys, math
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin
+from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, zeros
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
 from numpy import mean as nmean
 from numpy import append as nappend
+
 #from numpy import delete as ndelete
 from .vi_func import vertarea, logentry, ct2RGB, clearlayers, chunks, selobj
 
@@ -182,11 +183,11 @@ def radmat(self, scene):
     
     if self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
         try:
-            teximage = self.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Color'].links[0].from_node.image
+            teximage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Base Color'].links[0].from_node.image
             teximageloc = os.path.join(svp['liparams']['texfilebase'],'{}.hdr'.format(radname))
             off = scene.render.image_settings.file_format 
             scene.render.image_settings.file_format = 'HDR'
-            teximage.save_render(teximageloc, scene)
+            teximage.save_render(teximageloc)
             scene.render.image_settings.file_format = off
             (w, h) = teximage.size
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
@@ -194,14 +195,18 @@ def radmat(self, scene):
             mod = '{}_tex'.format(radname)
             
             try:
-                if self.radnorm:             
-                    normimage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node.inputs['Color'].links[0].from_node.image
+                if self.radnorm: 
+                    normmapnode = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node
+                    normimage = normmapnode.inputs['Color'].links[0].from_node.image
+                    normpixels = zeros(normimage.size[0] * normimage.size[1] * 4, dtype='float32')
+                    normimage.pixels.foreach_get(normpixels)
                     header = '2\n0 1 {}\n0 1 {}\n'.format(normimage.size[1], normimage.size[0])
-                    xdat = -1 + 2 * array(normimage.pixels[:][0::4]).reshape(normimage.size[0], normimage.size[1])
-                    ydat = -1 + 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])# if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
+                    xdat = -1 + 2 * array(normpixels[:][0::4]).reshape(normimage.size[0], normimage.size[1])
+                    ydat = -1 + 2 * array(normpixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])# if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header = header, comments='')
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')
-                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname, os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.ns, self.nu, self.nside)
+                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname, 
+                               os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], normmapnode.inputs[0].default_value, self.nu, self.nside)
                     mod = '{}_norm'.format(radname)
                     
             except Exception as e:
