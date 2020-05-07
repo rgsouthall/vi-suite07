@@ -1124,7 +1124,7 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
         divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
         
         for i, im in enumerate(imnode['images']): 
-            fcim = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.svp['liparams']['fs']))
+            fcim = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + svp['liparams']['fs']))
             ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
                         
             with open(fcim, 'w') as fcfile:

@@ -829,7 +829,7 @@ class No_Li_Fc(Node, ViNodes):
     
     def init(self, context):
         self['exportstate'] = ''
-        self.inputs.new('ViLiI', 'Image')
+        self.inputs.new('So_Li_Im', 'Image')
                 
     def draw_buttons(self, context, layout):
         if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
