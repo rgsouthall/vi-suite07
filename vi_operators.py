@@ -992,7 +992,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
         self.fs, self.fe = simnode.retframes()
         self.simnode = simnode
         
-        if simnode.camera and bpy.data.cameras.get(simnode.camera):
+        if simnode.camera and bpy.data.cameras.get(simnode.camera.lstrip()):
             self.percent = 0
             self.reslists, self.images = [], []
             self.res = []

@@ -27,7 +27,7 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
-
+from .vi_dicts import unit2res
 checked_groups_names_list = []
 materials_from_group = set()
 
@@ -68,11 +68,11 @@ def ret_mcm():
         return 0   
     
 dtdf = datetime.date.fromordinal
-unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', 'W/m2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
-            'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', 'kWh/m2 (f)': 'firradm2', 'kWh/m2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
-            'Avg lux': 'illu', 'Min lux': 'illu'}
+#unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', 'W/m2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
+#            'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', 'kWh/m2 (f)': 'firradm2', 'kWh/m2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
+#            'Avg lux': 'illu', 'Min lux': 'illu'}
 
-coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
+
 
 def create_coll(c, name):
     if bpy.data.collections.get(name):
@@ -332,7 +332,10 @@ class fvprogressfile():
                 pfile.write('0 Initialising')
         
 def progressbar(file, calctype):
+    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+import os, sys\n\
+sys.path.append(os.path.join(r'"+addonpath+"', 'Python', sys.platform))\n\
 from kivy.app import App \n\
 from kivy.clock import Clock \n\
 from kivy.uix.progressbar import ProgressBar\n\
@@ -489,7 +492,7 @@ def lividisplay(self, scene):
         bm = bmesh.new()
         bm.from_mesh(self.id_data.data)
         geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces  
-        livires = geom.layers.float['{}{}'.format(unitdict[svp['liparams']['unit']], frame)]
+        livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
         res = geom.layers.float['res{}'.format(frame)]
         oreslist = [g[livires] for g in geom]
         self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
@@ -1300,7 +1303,7 @@ def retobjs(otypes):
     validobs = [o for o in scene.objects if not o.hide_get()]
     
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.vi_params.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
         and o.name not in svp['liparams']['livir'] and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])

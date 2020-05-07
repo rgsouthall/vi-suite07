@@ -1,10 +1,14 @@
-unit_dict = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'Sky View': 'sv', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
-             'Mlxh': 'mlxh','kWh (f)': 'fi', u'kWh/m\u00b2 (f)': 'fim2', 'kWh (v)': 'vi', u'kWh/m\u00b2 (v)': 'vim2', 'DA (%)': 'da', 'UDI-f (%)': 'udil', 'UDI-s (%)': 'udis', 
-             'UDI-a (%)': 'udia', 'UDI-e (%)': 'udie', 'kWh': 'kwh', 'kWh/m2': 'kwhm2'}
+unit2res = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'Sky View': 'sv', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
+             'lxh': 'illu','kWh (f)': 'firrad', 'kWh/m2 (f)': 'firradm2', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (v)': 'virradm2', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 
+             'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh', 'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux'}
+
+res2unit = {unit2res[u]: u for u in unit2res}
 
 colours = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
            ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), 
            ('hsv', 'HSV', 'HSV colour scale'), ('viridis', 'Viridis', 'Viridis colour scale')]
+
+coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
 
 e1ddict = {'BPsolar 275': (4.75,  21.4, 17, 4.45, 0.00065, -0.08, 36, 320, 0.63),
                'BPsolar 3160': (4.8, 44.2, 35.1, 4.55, 0.00065, -0.16, 72, 320, 1.26),

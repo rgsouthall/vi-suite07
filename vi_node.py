@@ -243,7 +243,7 @@ class No_Li_Con(Node, ViNodes):
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
                ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description")]
 
-    contexttype = [('Basic', "Basic", "Basic analysis"), ('Compliance', "Compliance", "Compliance analysis"), ('CBDM', "CBDM", "Climate based daylight modelling")]
+    contexttype = [('Basic', "Basic", "Basic analysis"), ('CBDM', "CBDM", "Climate based daylight modelling")]
     contextmenu: EnumProperty(name="", description="Contexttype type", items=contexttype, default = 'Basic', update = nodeupdate)
     animated: BoolProperty(name="", description="Animated sky", default=False, update = nodeupdate)
     offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
@@ -288,6 +288,7 @@ class No_Li_Con(Node, ViNodes):
     weekdays: BoolProperty(name = '', default = False, update = nodeupdate)
     cbdm_start_hour:  IntProperty(name = '', default = 8, min = 1, max = 24, update = nodeupdate)
     cbdm_end_hour:  IntProperty(name = '', default = 20, min = 1, max = 24, update = nodeupdate)
+    cbdm_res: IntProperty(name = '', default = 1, min = 1, max = 3, update = nodeupdate)
     dalux:  IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate)
     damin: IntProperty(name = '', default = 100, min = 1, max = 2000, update = nodeupdate)
     dasupp: IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate)
@@ -370,30 +371,31 @@ class No_Li_Con(Node, ViNodes):
             if self.skyprog in ("0", "1"):
                 newrow(layout, 'HDR:', self, 'hdr')
 
-        elif self.contextmenu == 'Compliance':
-            newrow(layout, "Standard:", self, 'canalysismenu')
-            if self.canalysismenu == '0':
-                newrow(layout, "Building type:", self, 'bambuildmenu')
-                newrow(layout, "Storeys:", self, 'buildstorey')
-            if self.canalysismenu == '2':
-                newrow(layout, "Building type:", self, 'bambuildmenu')
-            if self.canalysismenu == '3':
-                newrow(layout, "Building type:", self, 'lebuildmenu')
-                newrow(layout, 'Weekdays only:', self, 'weekdays')
-                newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
-                newrow(layout, 'End hour:', self, 'cbdm_end_hour')
-                newrow(layout, 'Source file:', self, 'sourcemenu2') 
-                if self.sourcemenu2 == '1':
-                    row = layout.row()
-                    row.operator('node.mtxselect', text = 'Select MTX')
-                    row = layout.row()
-                    row.prop(self, 'mtxname')
-            newrow(layout, 'HDR:', self, 'hdr')
+#        elif self.contextmenu == 'Compliance':
+#            newrow(layout, "Standard:", self, 'canalysismenu')
+#            if self.canalysismenu == '0':
+#                newrow(layout, "Building type:", self, 'bambuildmenu')
+#                newrow(layout, "Storeys:", self, 'buildstorey')
+#            if self.canalysismenu == '2':
+#                newrow(layout, "Building type:", self, 'bambuildmenu')
+#            if self.canalysismenu == '3':
+#                newrow(layout, "Building type:", self, 'lebuildmenu')
+#                newrow(layout, 'Weekdays only:', self, 'weekdays')
+#                newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
+#                newrow(layout, 'End hour:', self, 'cbdm_end_hour')
+#                newrow(layout, 'Source file:', self, 'sourcemenu2') 
+#                if self.sourcemenu2 == '1':
+#                    row = layout.row()
+#                    row.operator('node.mtxselect', text = 'Select MTX')
+#                    row = layout.row()
+#                    row.prop(self, 'mtxname')
+#            newrow(layout, 'HDR:', self, 'hdr')
                 
         elif self.contextmenu == 'CBDM':
             newrow(layout, 'Type:', self, 'cbanalysismenu')
             if self.cbanalysismenu == '0':
                 newrow(layout, "Spectrum:", self, 'spectrummenu')
+                
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Weekdays only:', self, 'weekdays')
@@ -425,6 +427,7 @@ class No_Li_Con(Node, ViNodes):
             if self.sourcemenu == '1' and self.cbanalysismenu == '0':
                 newrow(layout, "HDR file:", self, 'hdrname')
             else:
+                newrow(layout, 'Resolution:', self, 'cbdm_res')
                 newrow(layout, 'HDR:', self, 'hdr')
         
         if self.contextmenu == 'Basic':
@@ -477,7 +480,7 @@ class No_Li_Con(Node, ViNodes):
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather)) if self.inputs['Location in'].links else ''
         self['Text'], self['Options'] = {}, {}
-        self['watts'] = 0#1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '2') else 0
+        self['watts'] = 1 if self.contextmenu == "CBDM" and ((self.cbanalysismenu == '0' and self.spectrummenu == '1') or self.cbanalysismenu == '1') else 0
         
     def export(self, scene, export_op):   
         svp = scene.vi_params
@@ -554,39 +557,41 @@ class No_Li_Con(Node, ViNodes):
                 if self.hdr:
                     self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
 
-        elif self.contextmenu == "Compliance":
-            if self.canalysismenu in ('0', '1', '2'):            
-                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
-                skyentry = livi_sun(scene, self, 0) + livi_sky(3)
-                
-                if self.canalysismenu in ('0', '1'):
-                    self.starttime = datetime.datetime(2015, 1, 1, 12)
-                    self['preview'] = 1
-                    if self.hdr:
-                        hdrexport(scene, 0, scene.frame_current, self, skyentry)
-                else:
-                    self.starttime = datetime.datetime(2015, 9, 11, 9)
-                self['Text'][str(scene.frame_current)] = skyentry
-            else:
-                if self.sourcemenu2 == '0':
-                    self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
-                elif self.sourcemenu2 == '1':
-                    self['mtxfile'] = self.mtxname
-                
-                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-
-                if self.sourcemenu2 == '0':
-                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
-                        self['Options']['MTX'] = mtxfile.read()
-                else:
-                    with open(self.mtxname, 'r') as mtxfile:
-                        self['Options']['MTX'] = mtxfile.read()
-                if self.hdr:
-                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
+#        elif self.contextmenu == "Compliance":
+#            if self.canalysismenu in ('0', '1', '2'):            
+#                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
+#                skyentry = livi_sun(scene, self, 0) + livi_sky(3)
+#                
+#                if self.canalysismenu in ('0', '1'):
+#                    self.starttime = datetime.datetime(2015, 1, 1, 12)
+#                    self['preview'] = 1
+#                    if self.hdr:
+#                        hdrexport(scene, 0, scene.frame_current, self, skyentry)
+#                else:
+#                    self.starttime = datetime.datetime(2015, 9, 11, 9)
+#                self['Text'][str(scene.frame_current)] = skyentry
+#            else:
+#                if self.sourcemenu2 == '0':
+#                    self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
+#                elif self.sourcemenu2 == '1':
+#                    self['mtxfile'] = self.mtxname
+#                
+#                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+#
+#                if self.sourcemenu2 == '0':
+#                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
+#                        self['Options']['MTX'] = mtxfile.read()
+#                else:
+#                    with open(self.mtxname, 'r') as mtxfile:
+#                        self['Options']['MTX'] = mtxfile.read()
+#                if self.hdr:
+#                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
                 
     def postexport(self):  
         typedict = {'Basic': '0', 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 'CBDM': (('Mlxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
+        unitdict = {'Basic': ("Lux", 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'], 
+                    'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 
+                    'CBDM': (('lxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
         btypedict = {'0': self.bambuildmenu, '1': '', '2': self.bambuildmenu, '3': self.lebuildmenu}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
@@ -697,6 +702,7 @@ class No_Li_Im(Node, ViNodes):
         self.run = 0
         
     def presim(self):
+        self.time = datetime.datetime.now()
         scene = bpy.context.scene
         if sys.platform == 'win32':
             self.mp = 0
@@ -714,8 +720,8 @@ class No_Li_Im(Node, ViNodes):
         
         for frame in self['frames']:
             scene.frame_set(frame)
-            scene.camera = bpy.data.objects[self.camera]
-            cam = bpy.data.objects[self.camera]
+            scene.camera = bpy.data.objects[self.camera.lstrip()]
+            cam = bpy.data.objects[self.camera.lstrip()]
             cang = cam.data.angle*180/math.pi if not self.fisheye else self.fov
             vh = cang if self.x >= self.y else cang * self.x/self.y 
             vv = cang if self.x < self.y else cang * self.y/self.x 
@@ -748,6 +754,7 @@ class No_Li_Im(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
             self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
             self.x, self.y)]
+        logentry('Time to render: {}'.format(datetime.datetime.now() - self.time))
         nodecolour(self, 0)  
 
 class No_Li_Gl(Node, ViNodes):
@@ -1196,7 +1203,7 @@ class No_En_Geo(Node, ViNodes):
     bl_idname = 'No_En_Geo'
     bl_label = 'EnVi Geometry'
     
-    geo_offset = FloatVectorProperty(name="", description="", default=(0.0, 0.0, 0.0), min=sys.float_info.min, max=sys.float_info.max, soft_min=sys.float_info.min, soft_max=sys.float_info.max, step=3, precision=1, subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
+    geo_offset: FloatVectorProperty(name="", description="", default=(0.0, 0.0, 0.0), min=sys.float_info.min, max=sys.float_info.max, soft_min=sys.float_info.min, soft_max=sys.float_info.max, step=3, precision=1, subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
 #    def nodeupdate(self, context):
 #        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu)])
     

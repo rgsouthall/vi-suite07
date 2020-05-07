@@ -121,21 +121,22 @@ def unititems(self, context):
             return [('df', 'Daylight factor', 'daylight factor'), 
                     ('illu', 'Illuminance', 'Illuminance'), 
                     ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
-        elif svp['liparams']['unit'] == 'Mlxh':
-            return [('lxh', 'Mega lux-hours', 'Mega lux-hours')]
+        elif svp['liparams']['unit'] == 'lxh':
+            return [('illu', 'Lux-hours', 'Lux-hours'), ('virrad', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
         elif svp['liparams']['unit'] == 'kWh (f)':
-            return [('kWh (f)', 'kWh (f)', 'kilo-Watt hours'), ('kWh/m2 (f)', 'kWh/m2 (f)', 'kilo-Watt hours per square metre')]
-        elif svp['liparams']['unit'] == 'DA':
-            return[("DA", "Daylight Autonomy", "Daylight Autonomy"), 
-                   ("sDA", "Spatial Daylight Autonomy", "Spatial Daylight Autonomy"), 
-                   ("UDILow", "Useful daylight illuminance (low)", "Useful daylight illuminance (low)"), 
-                   ("UDISup", "Useful daylight illuminance (supp)", "Useful daylight illuminance (supp)"), 
-                   ("UDIAuto", "Useful daylight illuminance (auto)", "Useful daylight illuminance (auto)"), 
-                   ("UDIHigh", "Useful daylight illuminance (high)", "Useful daylight illuminance (high)"), 
-                   ("ASE", "Annual sunlight exposure", "Annual sunlight exposure"), 
-                   ("Max lux", "Maximum lux level", "Maximum lux level"), 
-                   ("Avg Lux", "Average lux level", "Average lux level"), 
-                   ("Min lux", "Minimum lux level", "Minimum lux level")]
+            return [('firrad', 'kWh (f)', 'kilo-Watt hours (solar spectrum)'), 
+                    ('firradm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
+        elif svp['liparams']['unit'] == 'DA (%)':
+            return[("da", "DA", "Daylight Autonomy"), 
+                   ("sda", "SDA", "Spatial Daylight Autonomy"), 
+                   ("udilow", "UDI (low)", "Useful daylight illuminance (low)"), 
+                   ("udisup", "UDI (supp)", "Useful daylight illuminance (supplemented)"), 
+                   ("udiauto", "UDI (auto)", "Useful daylight illuminance (autonomous)"), 
+                   ("udihi", "UDI (high)", "Useful daylight illuminance (high)"), 
+                   ("ase", "ASE", "Annual Sunlight Exposure"), 
+                   ("maxlux", "Lux level (max)", "Maximum lux level"), 
+                   ("avelux", "Lux level (ave)", "Average lux level"), 
+                   ("minlux", "Lux level (min)", "Minimum lux level")]
         else:
             return [('None', 'None','None' )]
     except:
@@ -202,20 +203,21 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     sp_td: bprop("", "",0)
     li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     li_disp_menu: EnumProperty(items = unititems, name = "", description = "BLiVi metric selection", update = livires_update)  
-    li_disp_basic: EnumProperty(items = unititems, name = "", description = "Basic metric selection", update = livires_update)    
-    li_disp_cbdm: EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), 
-                                      ("3", "UDISup", "Spatial Daylight Autonomy"), 
-                                      ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), 
-                                      ("6", "ASE", "Annual sunlight exposure"), ("7", "Max lux", "Maximum lux level"), 
-                                      ("8", "Avg Lux", "Average lux level"), ("9", "Min lux", "Minimum lux level")], name = "", description = "Result selection", default = "0", update = livires_update)
-    li_disp_exp: EnumProperty(items = [("0", "LuxHours", "Display LuhHours values"), 
-                                       ("1", "Full Irradiance", "Display full spectrum radiation exposure values"), 
-                                       ("2", "Visible Irradiance", "Display visible spectrum radiation exposure values"),
-                                       ("3", "Full Irradiance Density", "Display full spectrum radiation exposure values"), 
-                                       ("4", "Visible Irradiance Density", "Display visible spectrum radiation exposure values")], 
-                                        name = "", description = "Result selection", default = "0", update = livires_update)
-    li_disp_irrad: EnumProperty(items = [("0", "kWh", "Display kWh values"), ("1", "kWh/m2", "Display kWh/m2 values")], 
-                                         name = "", description = "Result selection", default = "0", update = livires_update)
+#    li_disp_menu: EnumProperty(items = [('None', 'None', 'None')], name = "", description = "LiVi metric selection")
+#    li_disp_basic: EnumProperty(items = unititems, name = "", description = "Basic metric selection", update = livires_update)    
+#    li_disp_cbdm: EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), 
+#                                      ("3", "UDISup", "Spatial Daylight Autonomy"), 
+#                                      ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), 
+#                                      ("6", "ASE", "Annual sunlight exposure"), ("7", "Max lux", "Maximum lux level"), 
+#                                      ("8", "Avg Lux", "Average lux level"), ("9", "Min lux", "Minimum lux level")], name = "", description = "Result selection", default = "0", update = livires_update)
+#    li_disp_exp: EnumProperty(items = [("0", "LuxHours", "Display LuhHours values"), 
+#                                       ("1", "Full Irradiance", "Display full spectrum radiation exposure values"), 
+#                                       ("2", "Visible Irradiance", "Display visible spectrum radiation exposure values"),
+#                                       ("3", "Full Irradiance Density", "Display full spectrum radiation exposure values"), 
+#                                       ("4", "Visible Irradiance Density", "Display visible spectrum radiation exposure values")], 
+#                                        name = "", description = "Result selection", default = "0", update = livires_update)
+#    li_disp_irrad: EnumProperty(items = [("0", "kWh", "Display kWh values"), ("1", "kWh/m2", "Display kWh/m2 values")], 
+#                                         name = "", description = "Result selection", default = "0", update = livires_update)
 
     vi_display_rp_fsh: fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_fs: iprop("", "Point result font size", 4, 24, 24)

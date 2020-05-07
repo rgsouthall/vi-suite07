@@ -122,13 +122,9 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 reslists += lhout
         
         elif (context == 'CBDM' and subcontext in ('1', '2')) or (context == 'Compliance' and subcontext == '3'):
-            udiout = ovp.udidacalcapply(scene, frames, rccmds, simnode, curres, pfile)
-            if udiout == 'CANCELLED':
+            reslists = ovp.udidacalcapply(scene, frames, rccmds, simnode, curres, pfile)
+            if reslists == 'CANCELLED':
                 return 'CANCELLED'
-            else:
-                reslists += udiout[2]
-                pfs.append(udiout[0])
-                epfs.append(udiout[1])
 
         elif context == 'Compliance':
             compout = ovp.compcalcapply(scene, frames, rtcmds, simnode, curres, pfile)  

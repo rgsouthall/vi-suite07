@@ -8,7 +8,7 @@ from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, 
 from .vi_func import solarPosition, solarRiseSet, create_coll, compass, joinobj, sunpath
 from .livi_func import setscenelivivals
 from .livi_export import spfc
-from .vi_dicts import unit_dict
+from .vi_dicts import res2unit
 from . import livi_export
 from math import pi, log10, atan2, sin, cos
 from numpy import array, repeat, logspace, multiply, digitize
@@ -35,7 +35,8 @@ kfsa = array([0.02391, 0.02377, 0.02341, 0.02738, 0.02933, 0.03496, 0.04787, 0.0
 kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0.1294])
 
 def script_update(self, context):
-    if context.scene.vi_res_process == '2':
+    svp = context.scene.vi_params
+    if svp.vi_res_process == '2':
         script = bpy.data.texts[context.scene.script_file]
         exec(script.as_string())
 
@@ -102,7 +103,7 @@ def leg_min_max(svp):
     try:
         if svp.vi_res_process == '2' and bpy.app.driver_namespace.get('resmod'):
             return bpy.app.driver_namespace['resmod']([svp.vi_leg_min, svp.vi_leg_max])
-        elif svp.vi_res_mod:
+        elif svp.vi_res_process == '1'  and svp.vi_res_mod:
             return (eval('{}{}'.format(svp.vi_leg_min, svp.vi_res_mod)), eval('{}{}'.format(svp.vi_leg_max, svp.vi_res_mod)))
         else:
             return (svp.vi_leg_min, svp.vi_leg_max)
@@ -410,6 +411,7 @@ class linumdisplay():
                 if svp.vi_display_vis_only:
                     fcos = [f.calc_center_median_weighted() + svp.vi_display_rp_off * f.normal.normalized() for f in faces]
                     direcs = [self.view_location - f for f in fcos]
+                    
                     (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(context.view_layer, fcos[i], direcs[i], distance=distances[i])[0]]))
 
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
@@ -424,6 +426,7 @@ class linumdisplay():
                 if svp.vi_display_vis_only:
                     vcos = [v.co + svp.vi_display_rp_off * v.normal.normalized() for v in verts]
                     direcs = [self.view_location - v for v in vcos]
+                    # Something wrong here
                     (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
                     
                 vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
@@ -1510,10 +1513,10 @@ class ss_legend(Base_Display):
         (self.minres, self.maxres) = leg_min_max(svp)
         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
 
-        for key, val in unit_dict.items():
-            if val == svp.li_disp_basic:
-                self.base_unit =  key
-
+#        for key, val in unit_dict.items():
+#            if val == svp.li_disp_basic:
+#                self.base_unit =  key
+        self.base_unit =  res2unit[svp.li_disp_basic]
         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         resdiff = self.maxres - self.minres
@@ -1688,10 +1691,10 @@ class livi_legend(Base_Display):
         (self.minres, self.maxres) = leg_min_max(svp)
         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
 
-        for key, val in unit_dict.items():
-            if val == svp.li_disp_basic:
-                self.base_unit =  key
-                
+#        for key, val in unit_dict.items():
+#            if val == svp.li_disp_basic:
+#                self.base_unit =  key
+        self.base_unit =  res2unit[svp.li_disp_menu]        
         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         resdiff = self.maxres - self.minres
@@ -1724,7 +1727,7 @@ class livi_legend(Base_Display):
     def draw(self, context):
         self.ah = context.region.height
         self.aw = context.region.width
-#        print(self.ah, self.aw)
+        print([r.width for r in context.area.regions])
         svp = context.scene.vi_params
         
         if self.expand:
@@ -3636,8 +3639,8 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.libd"
-    bl_label = "LiVi basic metric display"
-    bl_description = "Display basic lighting metrics"
+    bl_label = "LiVi metric display"
+    bl_description = "Display lighting metrics"
     bl_register = True
     bl_undo = False
     
@@ -3986,7 +3989,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
     def invoke(self, context, event):
         area = context.area
-        region = context.region
+#        region = context.region
         self.scene = context.scene
         svp = context.scene.vi_params
         svp.vi_display, svp.vi_disp_wire = 1, 1        
@@ -4001,7 +4004,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 #                self.images.append('scatter.png')
 #        elif svp['viparams']['visimcontext'] == 'LiVi CBDM':
 #            self.images.append('scatter.png')
-        self.results_bar = results_bar(self.images, 300, area)
+        self.results_bar = results_bar(self.images, area.width * 0.45, area)
         
 #        self.scene['viparams']['vidisp'] = 'lipanel'
         self.frame = self.scene.frame_current
@@ -4011,7 +4014,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
 #        lnd = linumdisplay(self, context)
    #     self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
-        self.legend = livi_legend(context, svp['liparams']['unit'], [305, region.height - 80], region.width, region.height, 125, 400)
+        self.legend = livi_legend(context, svp['liparams']['unit'], [area.width * 0.45 + 5, area.height - 80], area.width, area.height, 125, 400)
         self.legend_num = linumdisplay(self, context)
 #        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
 
@@ -4044,7 +4047,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def draw_linum(self, context):
-        area = context.area
+        area = context.region
         ah = area.height                
         self.results_bar.draw(ah)
         self.legend.draw(context)
