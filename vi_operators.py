@@ -1129,7 +1129,7 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
                         
             with open(fcim, 'w') as fcfile:
                 if sys.platform == 'win32':
-                    temp_file = os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')
+                    temp_file = os.path.join(svp['viparams']['newdir'], 'images', 'temp.hdr')
                     
                     with open(temp_file, 'w') as tfile:
                         Popen('pcond -e {} {}'.format(fcnode.disp, os.path.abspath(im)).split(), stdout = tfile)
