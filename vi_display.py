@@ -1,4 +1,4 @@
-import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh
+import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh, time
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
@@ -74,11 +74,11 @@ def leg_update(self, context):
                     bpy.ops.object.material_slot_remove()
                     
         for f, frame in enumerate(frames):
-            if bm.faces.layers.float.get('res{}'.format(frame)):
-                livires = bm.faces.layers.float['res{}'.format(frame)] 
+            if bm.faces.layers.float.get('{}{}'.format(svp.vi_disp_menu, frame)):
+                livires = bm.faces.layers.float['{}{}'.format(svp.vi_disp_menu, frame)] 
                 ovals = array([f[livires] for f in bm.faces])
-            elif bm.verts.layers.float.get('res{}'.format(frame)):
-                livires = bm.verts.layers.float['res{}'.format(frame)] 
+            elif bm.verts.layers.float.get('{}{}'.format(svp.vi_disp_menu, frame)):
+                livires = bm.verts.layers.float['{}{}'.format(svp.vi_disp_menu, frame)] 
                 ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
             
             if svp.vi_leg_max > svp.vi_leg_min:
@@ -395,11 +395,12 @@ class linumdisplay():
 #                    bpy.data.meshes.remove(tempmesh)
             bm.transform(omw)
             bm.normal_update()
-            geom = bm.faces if bm.faces.layers.float.get('res{}'.format(scene.frame_current)) else bm.verts
+            var = svp.li_disp_menu
+            geom = bm.faces if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) else bm.verts
             geom.ensure_lookup_table()
-            livires = geom.layers.float['res{}'.format(scene.frame_current)]
+            livires = geom.layers.float['{}{}'.format(var, scene.frame_current)]
     
-            if bm.faces.layers.float.get('res{}'.format(scene.frame_current)):
+            if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
                 if svp.vi_disp_3d:
                     extrude = geom.layers.int['extrude']                                
                     faces = [f for f in geom if f.select and f[extrude]]
@@ -419,7 +420,7 @@ class linumdisplay():
                 res = [f[livires] for f in faces] 
                 res = ret_res_vals(svp, res)
                 
-            elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):                        
+            elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):                        
                 verts = [v for v in geom if not v.hide and v.select and (context.space_data.region_3d.view_location - self.view_location).dot(v.co + svp.vi_display_rp_off * v.normal.normalized() - self.view_location)/((context.space_data.region_3d.view_location-self.view_location).length * (v.co + svp.vi_display_rp_off * v.normal.normalized() - self.view_location).length) > 0]
                 distances = [(self.view_location - v.co + svp.vi_display_rp_off * v.normal.normalized()).length for v in verts]
 
@@ -445,8 +446,8 @@ class Base_Display():
     def __init__(self, ipos, width, height, xdiff, ydiff):
         self.ispos = ipos
         self.iepos = [ipos[0] + 40, ipos[1] + 40]
-        self.lspos = [self.ispos[0], self.ispos[1] - ydiff - 20]
-        self.lepos = [self.ispos[0] + xdiff, self.ispos[1] - 20]
+        self.lspos = [ipos[0], ipos[1] - ydiff - 100]
+        self.lepos = [ipos[0] + xdiff, ipos[1] - 100]
         self.resize, self.move, self.expand, self.xdiff, self.ydiff = 0, 0, 0, xdiff, ydiff
         self.hl = [1, 1, 1, 1]
         self.cao = None
@@ -458,32 +459,48 @@ class results_bar():
     def __init__(self, images, pos, region):
         self.images = images
         self.pos = pos
-        self.rh = 0
+        self.rh = region.height - 1
         self.rw = region.width
         self.shaders = [gpu.shader.from_builtin('2D_UNIFORM_COLOR'), gpu.shader.from_builtin('2D_UNIFORM_COLOR')]
 #        self.height = 0
         self.f_indices = ((0, 1, 2), (2, 3, 0))
         self.tex_coords = ((0, 0), (1, 0), (1, 1), (0, 1))
         self.no = len(images)
+        self.yoffset = 10        
+        self.size = 50
+        self.isize = self.size - 10
+        self.iyoffset = self.yoffset + (self.size - self.isize)/2
+        self.ixoffset = self.isize + 5
+        self.xoffset = 10
+        self.iyoffsetb = self.iyoffset + self.isize
         
         for im in images:
             if im not in bpy.data.images:
                 bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Images', im))
             self.shaders.append(gpu.shader.from_builtin('2D_IMAGE'))
+    
+    def ret_coords(self, no):
+        return ((self.pos + 5 + no * self.size, self.rh - self.iyoffsetb), 
+                (self.pos + self.ixoffset + no * self.size, self.rh - self.iyoffsetb),
+                (self.pos + self.ixoffset + no * self.size, self.rh - self.iyoffset), 
+                (self.pos + 5 + no * self.size, self.rh - self.iyoffset))
+    
+    def draw(self, r):
+        if self.rh != r.height or self.pos != r.width + self.xoffset:
+            self.pos = r.width + self.xoffset
+            self.rh = r.height
+            
+            v_coords = ((self.pos, self.rh - self.yoffset - self.size), (self.pos + self.no * self.size, self.rh - self.yoffset - self.size),
+                    (self.pos + self.no * self.size, self.rh - self.yoffset), (self.pos, self.rh - self.yoffset))
         
-    def draw(self, rh):
-        v_coords = ((self.pos, rh - 85), (self.pos + self.no * 50, rh - 85),
-                    (self.pos + self.no * 50, rh - 35), (self.pos, rh - 35))
         
         
-        if self.rh != rh:
             self.batches = [batch_for_shader(self.shaders[1], 'TRIS', {"pos": v_coords}, indices = self.f_indices),
                             batch_for_shader(self.shaders[0], 'LINE_LOOP', {"pos": v_coords})]
 
             for i in range(self.no):
-                pos = ((self.pos + 5 + i * 50, rh - 80), (self.pos + 45 + i * 50, rh - 80),(self.pos + 45 + i * 50, rh - 40), (self.pos + 5 + i * 50, rh - 40))
+                pos = self.ret_coords(i)
                 self.batches.append(batch_for_shader(self.shaders[i + 2], 'TRI_FAN', {"pos": pos, "texCoord": self.tex_coords}))
-                self.rh = rh
                 
         for si, s in enumerate(self.shaders):  
             s.bind()
@@ -1491,191 +1508,15 @@ class ss_scatter(Base_Display):
     def show_plot(self, context):
         show_plot(self, context)
             
-class ss_legend(Base_Display):
-    def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
-        Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
-        self.base_unit = unit
-        self.font_id = 0
-        self.dpi = 300
-        self.levels = 20        
-        self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
-        self.f_indices = [(0, 1, 2), (2, 3, 0)]
-        self.update(context)
-        self.create_batch()
-                                
-    def update(self, context):        
-        scene = context.scene
-        svp = scene.vi_params
-        self.levels = svp.vi_leg_levels
-        self.lh = 1/(self.levels + 1.25)
-        self.cao = context.active_object        
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-        (self.minres, self.maxres) = leg_min_max(svp)
-        self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
 
-#        for key, val in unit_dict.items():
-#            if val == svp.li_disp_basic:
-#                self.base_unit =  key
-        self.base_unit =  res2unit[svp.li_disp_basic]
-        self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-        resdiff = self.maxres - self.minres
         
-        if not svp.get('liparams'):
-            svp.vi_display = 0
-            return
-        dplaces = retdp(self.maxres, 1)
-        resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
-                        [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
-
-        self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
-        self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
-        blf.size(self.font_id, 12, self.dpi)        
-        self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
-        self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
-        self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
-
-    def ret_coords(self):      
-        lh = 1/(self.levels + 1.25) 
-        vl_coords = self.v_coords[:]
-        fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
-        fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
-        fl_indices = list(fl1_indices) + list(fl2_indices)
-        
-        for i in range(0, self.levels):
-            vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
-        return (vl_coords, fl_indices)
-    
-    def draw(self, context):
-        self.ah = context.area.height
-        self.aw = context.area.width
-        svp = context.scene.vi_params
-        
-        if self.expand:
-            if self.resize:
-                self.xdiff = self.lepos[0] - self.lspos[0]
-                self.ydiff = self.lepos[1] - self.lspos[1]
-            elif self.move:
-                self.lspos[1] = self.lepos[1] - self.ydiff
-                self.lepos[0] = self.lspos[0] + self.xdiff
-            if self.lepos[1] > self.ah:
-                self.lspos[1] = self.ah - self.ydiff 
-                self.lepos[1] = self.ah
-            if self.lepos[0] > self.aw:
-                self.lspos[0] = self.aw - self.xdiff   
-                self.lepos[0] = self.aw
-                
-            self.base_shader.bind()
-            self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.base_shader.uniform_float("spos", self.lspos)
-            self.base_shader.uniform_float("colour", self.hl)      
-            self.base_batch.draw(self.base_shader)  
-
-            if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
-                self.update(context)
-                (vl_coords, fl_indices) = self.ret_coords()
-                self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-                self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-                
-            self.col_shader.bind()
-            self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.col_shader.uniform_float("spos", self.lspos)  
-            self.col_batch.draw(self.col_shader)            
-            self.line_shader.bind()
-            self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.line_shader.uniform_float("spos", self.lspos)
-            self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
-            self.line_batch.draw(self.line_shader)
-            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
-            blf.enable(0, 4)
-            blf.enable(0, 8)
-            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, 12, int(self.dpi/fontscale))
-            blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
-            blf.color(self.font_id, 0, 0, 0, 1)   
-            blf.draw(self.font_id, self.unit)
-            blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
-            blf.size(self.font_id, 12, int((self.dpi - 50)/fontscale))
-            
-            for i in range(self.levels):
-                num = self.resvals[i]            
-                ndimen = blf.dimensions(self.font_id, "{}".format(num))
-                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.025 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
-                blf.draw(self.font_id, "{}".format(self.resvals[i]))
-                
-            blf.disable(0, 8)  
-            blf.disable(0, 4)
-           
-    def create_batch(self):
-        base_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-            
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1]; 
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                }
-            '''
-            
-        base_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            
-            void main()
-                {
-                    FragColour = colour;
-                }
-           
-            '''
-            
-        col_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-            in vec4 colour;
-            flat out vec4 f_colour;
-            
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1]; 
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                   f_colour = colour;
-                }
-            '''
-            
-        col_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            flat in vec4 f_colour;
-            
-            void main()
-                {
-                    FragColour = f_colour;
-                }
-           
-            '''  
-            
-        self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-        self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-        self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
-        (vl_coords, fl_indices) = self.ret_coords()
-        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
-        self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-
-class livi_legend(Base_Display):
-    def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
+class draw_legend(Base_Display):
+    def __init__(self, context, unit, pos, width, height, xdiff, ydiff, levels):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
         self.base_unit = unit
         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
         self.dpi = 157
-        self.levels = 20        
+        self.levels = levels        
         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
         self.f_indices = [(0, 1, 2), (2, 3, 0)]
         self.update(context)
@@ -1690,10 +1531,6 @@ class livi_legend(Base_Display):
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         (self.minres, self.maxres) = leg_min_max(svp)
         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
-
-#        for key, val in unit_dict.items():
-#            if val == svp.li_disp_basic:
-#                self.base_unit =  key
         self.base_unit =  res2unit[svp.li_disp_menu]        
         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
@@ -1702,6 +1539,7 @@ class livi_legend(Base_Display):
         if not svp.get('liparams'):
             svp.vi_display = 0
             return
+        
         dplaces = retdp(self.maxres, 1)
         resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
@@ -1727,7 +1565,6 @@ class livi_legend(Base_Display):
     def draw(self, context):
         self.ah = context.region.height
         self.aw = context.region.width
-        print([r.width for r in context.area.regions])
         svp = context.scene.vi_params
         
         if self.expand:
@@ -1850,89 +1687,6 @@ class livi_legend(Base_Display):
         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
         
-def draw_legend(self, scene, unit):
-    font_id = 0
-    blf.enable(0, 4)
-    blf.enable(0, 8)
-    blf.shadow(font_id, 5, 0.7, 0.7, 0.7, 1)    
-    levels = len(self.resvals)
-    xdiff = self.lepos[0] - self.lspos[0]
-    ydiff = self.lepos[1] - self.lspos[1]
-    lh = ydiff/(levels + 1.25)   
-    blf.size(font_id, 12, 300)
-    titxdimen = blf.dimensions(font_id, unit)[0]
-    resxdimen = blf.dimensions(font_id, self.resvals[-1])[0]
-    mydimen = blf.dimensions(font_id, unit)[1]
-    fontscale = max(titxdimen/(xdiff * 0.9), resxdimen/(xdiff * 0.6), mydimen * 1.25/lh)
-    blf.size(font_id, 12, int(300/fontscale))
-
-    if not self.resize:
-        self.lspos = [self.spos[0], self.spos[1] - ydiff]
-        self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            
-    else:
-        self.lspos = [self.spos[0], self.lspos[1]]
-        self.lepos = [self.lepos[0], self.spos[1]]
-    
-    bgl.glLineWidth(1)
-    self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-    self.legf_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-    self.legfc_shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
-    colours = [item for item in [self.cols[i] for i in range(levels)] for i in range(4)]
-    v_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lepos[1]), (self.lepos[0], self.lepos[1]), (self.lepos[0], self.lspos[1])]
-    vl_coords = v_coords
-    f_indices = [(0, 1, 2), (2, 3, 0)]
-    fl1_indices = [tuple(array((0, 1, 2)) +4 * i) for i in range(levels)]
-    fl2_indices = [tuple(array((2, 3, 0)) +4 * i) for i in range(levels)]
-    fl_indices = list(fl1_indices) + list(fl2_indices)
-
-    for i in range(0, levels):
-        vl_coords += [(self.lspos[0], int(self.lspos[1] + i * lh)), (int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + i * lh)), (int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh)), (self.lspos[0], int(self.lspos[1] + (i + 1) * lh))]
-
-    self.legl_batch = batch_for_shader(self.legl_shader, 'LINE_LOOP', {"pos": vl_coords})
-    self.legf_batch = batch_for_shader(self.legf_shader, 'TRIS', {"pos": v_coords}, indices = f_indices)
-    self.legfc_batch = batch_for_shader(self.legfc_shader, 'TRIS', {"pos": vl_coords[4:], "color": colours}, indices = fl_indices)
-    bgl.glEnable(bgl.GL_BLEND)
-    self.legf_shader.bind()
-    self.legf_shader.uniform_float("color", (self.hl))
-    self.legf_batch.draw(self.legf_shader)
-    bgl.glDisable(bgl.GL_BLEND)
-    
-    self.legfc_shader.bind()
-    self.legfc_batch.draw(self.legfc_shader)
-    
-    self.legl_shader.bind()
-    self.legl_shader.uniform_float("color", (0, 0, 0, 1))
-    self.legl_batch.draw(self.legl_shader)
-
-    blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.45, self.spos[1] - 0.5 * lh - blf.dimensions(font_id, unit)[1] * 0.3, 0) 
-    blf.color(font_id, 0, 0, 0, 1)      
-    blf.draw(font_id, unit)
-#    blf.enable(0, blf.SHADOW)
-#    blf.enable(0, blf.KERNING_DEFAULT)
-#    blf.shadow(0, 5, 0, 0, 0, 0.7)
-    
-#    bgl.glColor4f(*scene.vi_display_rp_fc)
-
-    blf.shadow(font_id, 5, 0.8, 0.8, 0.8, 1)
-    
-    blf.size(font_id, 12, int(250/fontscale))
-    bgl.glDisable(bgl.GL_BLEND)
-    
-#    self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-   
-    for i in range(levels):
-        num = self.resvals[i]
-#        rgba = self.cols[i]
-        bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-        ndimen = blf.dimensions(font_id, "{}".format(num))
-        blf.position(font_id, int(self.lepos[0] - xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
-#        bgl.glColor4f(0, 0, 0, 1)
-        blf.draw(font_id, "{}".format(self.resvals[i]))
-    
-    bgl.glLineWidth(1)
-#    bgl.glColor4f(0, 0, 0, 1)
-    blf.disable(0, 8)  
-    blf.disable(0, 4)
     
 def draw_icon_new(self):    
 #    IMAGE_NAME = "Untitled"
@@ -3200,8 +2954,8 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'svf'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(self, self.simnode)
-        self.results_bar = results_bar(('legend.png',), 300, region)
-        self.legend = svf_legend(context, 'Sky View (%)', [305, region.height - 80], region.width, region.height, 100, 400)
+        self.results_bar = results_bar(('legend.png',), context.area.regions[2].width + 10, region)
+        self.legend = draw_legend(context, 'Sky View (%)', self.results_bar.ret_coords(0)[0], region.width, region.height, 100, 400, 20)
         self.legend_num = linumdisplay(self, context)
         self.height = region.height
         self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
@@ -3211,8 +2965,8 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         return {'RUNNING_MODAL'}
     
     def draw_svfnum(self, context):  
-        region = context.region    
-        self.results_bar.draw(region.height)
+#        region = context.region    
+        self.results_bar.draw(context.area.regions[2])
         self.legend.draw(context)
         self.legend_num.draw(context)
         
@@ -3377,10 +3131,11 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'ss' 
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(self, self.simnode)
-        self.results_bar = results_bar(('legend.png', 'scatter.png'), 300, region)
-        self.legend = ss_legend(context, 'Sunlit (%)', [305, self.height - 80], self.width, self.height, 125, 400)
+        self.results_bar = results_bar(('legend.png', 'scatter.png'), context.area.regions[2].width + 10, region)
+        self.legend = draw_legend(context, 'Sunlit (%)', self.results_bar.ret_coords(0)[0], self.width, self.height, 125, 400, 20)
+#        draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(0)[0], area.width, area.height, 125, 400, 20)
         self.num_display = linumdisplay(self, context)
-        self.dhscatter = ss_scatter(context, [355, self.height - 80], self.width, self.height, 600, 200)
+        self.dhscatter = ss_scatter(context, self.results_bar.ret_coords(1)[0], self.width, self.height, 600, 200)
         svp.vi_disp_wire = 1
         self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')        
 #        self.legend.update(context)
@@ -3390,9 +3145,8 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def draw_ssnum(self, context):
-        area = context.area
-        ah = area.height                
-        self.results_bar.draw(ah)
+        area = context.area               
+        self.results_bar.draw(context.area.regions[2])
         self.legend.draw(context)
         self.dhscatter.draw(context, area.width)
         self.num_display.draw(context)
@@ -3481,146 +3235,25 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                     context.region.tag_redraw()
                 return {'RUNNING_MODAL'} 
         return {'PASS_THROUGH'}                    
-#                self.bsdf.draw(context)
-
-#        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
-#            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
-#                self.remove(context)
-#                context.scene['viparams']['vidisp'] = self.olddisp
-#                return {'CANCELLED'}
-#
-#            mx, my = event.mouse_region_x, event.mouse_region_y
-#            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
-#                self.bsdf.hl = (0, 1, 1, 1)  
-#                
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.bsdfpress = 1
-#                        self.bsdfmove = 0
-#                        return {'RUNNING_MODAL'}
-#                    elif event.value == 'RELEASE':
-#                        if not self.bsdfmove:
-#                            self.bsdf.expand = 0 if self.bsdf.expand else 1
-#                        self.bsdfpress = 0
-#                        self.bsdfmove = 0
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-#                        
-#                elif event.type == 'ESC':
-#                    self.remove(context)
-#                    context.scene['viparams']['vidisp'] = self.olddisp
-#                    return {'CANCELLED'}                   
-#                elif self.bsdfpress and event.type == 'MOUSEMOVE':
-#                     self.bsdfmove = 1
-#                     self.bsdfpress = 0
-#                            
-#            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
-#                self.bsdf.hl = (0, 1, 1, 1) 
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.bsdf.resize = 1
-#                    if self.bsdf.resize and event.value == 'RELEASE':
-#                        self.bsdf.resize = 0
-#                    return {'RUNNING_MODAL'}  
-#            
-#            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
-#                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-#                    self.bsdf.plt.show()
-#            
-#            else:
-#                for butrange in self.bsdf.buttons:
-#                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
-#                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
-#                            if butrange in ('Front', 'Back'):
-#                                self.bsdf.dir_select = butrange
-#                            elif butrange in ('Visible', 'Solar', 'Discrete'):
-#                                self.bsdf.rad_select = butrange
-#                            elif butrange in ('Transmission', 'Reflection'):
-#                                self.bsdf.type_select = butrange
-#                            self.bsdf.plot(context)
-#
-#                self.bsdf.hl = (1, 1, 1, 1)
-#                                
-#            if event.type == 'MOUSEMOVE':                
-#                if self.bsdfmove:
-#                    self.bsdf.pos = [mx, my]
-#                    context.area.tag_redraw()
-#                    return {'RUNNING_MODAL'}
-#                if self.bsdf.resize:
-#                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
-#            
-#            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
-#                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
-#                phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
-#
-#                if theta < self.bsdf.radii[-1]:
-#                    for ri, r in enumerate(self.bsdf.radii):
-#                        if theta < r:
-#                            break
-#
-#                    upperangles = [p * 2 * pi/self.bsdf.phis[ri] + pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
-#                    uai = 0
-#
-#                    if ri > 0:
-#                        for uai, ua in enumerate(upperangles): 
-#                            if phi > upperangles[-1]:
-#                                uai = 0
-#                                break
-#                            if phi < ua:
-#                                break
-#
-#                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
-#                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
-#                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
-#                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
-#                        self.bsdf.plot(context)
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-#                        
-#                else:
-#                    self.bsdf.patch_hl = None
-#                    
-            
-
-                
+               
     def invoke(self, context, event):
         cao = context.active_object
         region = context.region
         scene = context.scene
         svp = scene.vi_params
-#        width, height = area.width, area.height
+
         if cao and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['xml'] and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full':
             bsdf = parseString(cao.active_material.vi_params['bsdf']['xml'])
-#        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
-#        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
-
             svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
-#            svp.vi_bsdf_direc = bpy.props.EnumProperty(items = direcs, name = "", description = "BSDf display direction")
-#            width, height = context.region.width, context.region.height
             self.images = ['bsdf.png']
             self.results_bar = results_bar(self.images, 300, region)
             self.bsdf = bsdf_disp(context, '', [305, region.height - 80], region.width, region.height, 800, 375)
-#            context.scene.bsdf = bsdf_disp(context, '', [305, region.height - 80], region.width, region.height, 800, 375)
-#            self.bsdf.update(context)
-#            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
             svp.vi_display = 1
             self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
-#            self.olddisp = context.scene['viparams']['vidisp']
             context.window_manager.modal_handler_add(self)
-#            if not context.scene.get('viparams'):
-#                context.scene['viparams'] = {}
             svp['viparams']['vidisp'] = 'bsdf_panel'
             context.area.tag_redraw()  
-#            self.results_bar = results_bar(('legend.png',), 300, area)
-#            self.legend = svf_legend(context, 'Sky View (%)', [305, area.height - 80], area.width, area.height, 125, 400)
-#            self.legend_num = linumdisplay(self, context)
-#            self.height = area.height
-#            self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
-#            self.cao = context.active_object
-#            area.tag_redraw()
-#            context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
-            #return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'},"Selected material contains no BSDF information or contains the wrong BSDF type (only Klems is supported)")
             return {'CANCELLED'}
@@ -3633,7 +3266,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         context.area.tag_redraw()
     
     def draw_bsdfnum(self, context):
-        self.results_bar.draw(context.region.height)
+        self.results_bar.draw(context.area.regions[2])
         self.bsdf.draw(context)
 
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
@@ -3648,18 +3281,17 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0 
-        
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
+
+        if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
-            context.area.tag_redraw()
+            if context.area:
+                context.area.tag_redraw()
+            else:
+                logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
             return {'CANCELLED'}        
         
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
             mx, my = event.mouse_region_x, event.mouse_region_y 
-            
-#            if any((svp.vi_leg_levels != self.legend.levels, svp.vi_leg_col != self.legend.col, svp.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
-#                self.legend.update(context)                
-#                redraw = 1
                  
             # Legend routine 
             
@@ -3677,19 +3309,22 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
                     if event.value == 'PRESS':
                         self.legend.move = 1
                         self.legend.draw(context)
-                        context.area.tag_redraw()
+                        if context.area:
+                            context.area.tag_redraw()
                     elif self.legend.move and event.value == 'RELEASE':
                         self.legend.move = 0                        
                     return {'RUNNING_MODAL'}
               
             elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-                context.area.tag_redraw()
+                if context.area:
+                    context.area.tag_redraw()
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.legend.resize = 1
                         self.legend.draw(context)
-                        context.area.tag_redraw()
+                        if context.area:
+                            context.area.tag_redraw()
                     elif self.legend.resize and event.value == 'RELEASE':
                         self.legend.resize = 0
                     return {'RUNNING_MODAL'}  
@@ -3702,17 +3337,78 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
                 if self.legend.move:
                     self.legend.lspos[0], self.legend.lepos[1] = mx, my
                     self.legend.draw(context)
-                    context.area.tag_redraw() 
+                    if context.area:
+                        context.area.tag_redraw() 
                 elif self.legend.resize:
                     self.legend.lepos[0], self.legend.lspos[1] = mx, my
                     self.legend.draw(context)
-                    context.area.tag_redraw()
+                    if context.area:
+                        context.area.tag_redraw()
             
             if redraw:
-                context.area.tag_redraw()
+                if context.area:
+                    context.area.tag_redraw()
 
         return {'PASS_THROUGH'}
     
+    def invoke(self, context, event):
+        area = context.area
+        self.scene = context.scene
+        svp = context.scene.vi_params
+        svp.vi_display, svp.vi_disp_wire = 1, 1        
+        clearscene(self.scene, self)
+        svp['viparams']['vidisp'] = 'li' 
+        self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]        
+        self.images = ['legend.png']
+        self.results_bar = results_bar(self.images, context.area.regions[2].width + 10, area)
+        self.frame = self.scene.frame_current
+        
+        if li_display(self, self.simnode) == 'CANCELLED':
+            return {'CANCELLED'}
+
+        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(0)[0], area.width, area.height, 125, 400, 20)
+        self.legend_num = linumdisplay(self, context)
+        self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')             
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def draw_linum(self, context):           
+        self.results_bar.draw(context.area.regions[2])
+        self.legend.draw(context)
+        self.legend_num.draw(context)
+        
+        
+        
+        
+#        self.dhscatter.draw(context, area.width)
+#        self.num_display.draw(context)
+
+#        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+
+#        if svp['viparams']['visimcontext'] == 'LiVi Basic':
+#            self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)  
+#
+#        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self.table_comp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
+#
+#            if self.simnode['coptions']['canalysis'] == '3':
+#                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
+#                self.dhscatter.update(context)        
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+
+#        self.dhscatter.update(context)
+        
+#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+#        elif self.scene['viparams']['visimcontext'] == 'LiVi Basic':
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        if self.scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        elif self.scene['viparams']['visimcontext'] == 'LiVi CBDM':
+#            if self.simnode['coptions']['cbanalysis'] != '0':
+#                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
+#                self.dhscatter.update(context)
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+
 #    def modal(self, context, event): 
 #        redraw = 0 
 #        
@@ -3987,71 +3683,544 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 #                
 #        return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):
-        area = context.area
-#        region = context.region
-        self.scene = context.scene
-        svp = context.scene.vi_params
-        svp.vi_display, svp.vi_disp_wire = 1, 1        
-        clearscene(self.scene, self)
-        svp['viparams']['vidisp'] = 'li' 
-        self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        
-        self.images = ['legend.png']#, 'table_new.png']
-#        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
-#            self.images.append('compliance.png')
-#            if self.simnode['coptions']['canalysis'] == '3':
-#                self.images.append('scatter.png')
-#        elif svp['viparams']['visimcontext'] == 'LiVi CBDM':
-#            self.images.append('scatter.png')
-        self.results_bar = results_bar(self.images, area.width * 0.45, area)
-        
-#        self.scene['viparams']['vidisp'] = 'lipanel'
-        self.frame = self.scene.frame_current
-        
-        if li_display(self, self.simnode) == 'CANCELLED':
-            return {'CANCELLED'}
+#                self.bsdf.draw(context)
 
-#        lnd = linumdisplay(self, context)
-   #     self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
-        self.legend = livi_legend(context, svp['liparams']['unit'], [area.width * 0.45 + 5, area.height - 80], area.width, area.height, 125, 400)
-        self.legend_num = linumdisplay(self, context)
-#        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-
-#        if svp['viparams']['visimcontext'] == 'LiVi Basic':
-#            self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)  
+#        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
+#            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
+#                self.remove(context)
+#                context.scene['viparams']['vidisp'] = self.olddisp
+#                return {'CANCELLED'}
 #
-#        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
-#            self.table_comp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
+#            mx, my = event.mouse_region_x, event.mouse_region_y
+#            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
+#                self.bsdf.hl = (0, 1, 1, 1)  
+#                
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.bsdfpress = 1
+#                        self.bsdfmove = 0
+#                        return {'RUNNING_MODAL'}
+#                    elif event.value == 'RELEASE':
+#                        if not self.bsdfmove:
+#                            self.bsdf.expand = 0 if self.bsdf.expand else 1
+#                        self.bsdfpress = 0
+#                        self.bsdfmove = 0
+#                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+#                        
+#                elif event.type == 'ESC':
+#                    self.remove(context)
+#                    context.scene['viparams']['vidisp'] = self.olddisp
+#                    return {'CANCELLED'}                   
+#                elif self.bsdfpress and event.type == 'MOUSEMOVE':
+#                     self.bsdfmove = 1
+#                     self.bsdfpress = 0
+#                            
+#            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
+#                self.bsdf.hl = (0, 1, 1, 1) 
+#                if event.type == 'LEFTMOUSE':
+#                    if event.value == 'PRESS':
+#                        self.bsdf.resize = 1
+#                    if self.bsdf.resize and event.value == 'RELEASE':
+#                        self.bsdf.resize = 0
+#                    return {'RUNNING_MODAL'}  
+#            
+#            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
+#                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+#                    self.bsdf.plt.show()
+#            
+#            else:
+#                for butrange in self.bsdf.buttons:
+#                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
+#                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
+#                            if butrange in ('Front', 'Back'):
+#                                self.bsdf.dir_select = butrange
+#                            elif butrange in ('Visible', 'Solar', 'Discrete'):
+#                                self.bsdf.rad_select = butrange
+#                            elif butrange in ('Transmission', 'Reflection'):
+#                                self.bsdf.type_select = butrange
+#                            self.bsdf.plot(context)
 #
-#            if self.simnode['coptions']['canalysis'] == '3':
-#                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
-#                self.dhscatter.update(context)        
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#                self.bsdf.hl = (1, 1, 1, 1)
+#                                
+#            if event.type == 'MOUSEMOVE':                
+#                if self.bsdfmove:
+#                    self.bsdf.pos = [mx, my]
+#                    context.area.tag_redraw()
+#                    return {'RUNNING_MODAL'}
+#                if self.bsdf.resize:
+#                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
+#            
+#            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
+#                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
+#                phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
+#
+#                if theta < self.bsdf.radii[-1]:
+#                    for ri, r in enumerate(self.bsdf.radii):
+#                        if theta < r:
+#                            break
+#
+#                    upperangles = [p * 2 * pi/self.bsdf.phis[ri] + pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
+#                    uai = 0
+#
+#                    if ri > 0:
+#                        for uai, ua in enumerate(upperangles): 
+#                            if phi > upperangles[-1]:
+#                                uai = 0
+#                                break
+#                            if phi < ua:
+#                                break
+#
+#                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
+#                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
+#                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
+#                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
+#                        self.bsdf.plot(context)
+#                        context.area.tag_redraw()
+#                        return {'RUNNING_MODAL'}
+#                        
+#                else:
+#                    self.bsdf.patch_hl = None
+#                    
 
-#        self.dhscatter.update(context)
+#def draw_legend(self, scene, unit):
+#     font_id = 0
+#     blf.enable(0, 4)
+#     blf.enable(0, 8)
+#     blf.shadow(font_id, 5, 0.7, 0.7, 0.7, 1)    
+#     levels = len(self.resvals)
+#     xdiff = self.lepos[0] - self.lspos[0]
+#     ydiff = self.lepos[1] - self.lspos[1]
+#     lh = ydiff/(levels + 1.25)   
+#     blf.size(font_id, 12, 300)
+#     titxdimen = blf.dimensions(font_id, unit)[0]
+#     resxdimen = blf.dimensions(font_id, self.resvals[-1])[0]
+#     mydimen = blf.dimensions(font_id, unit)[1]
+#     fontscale = max(titxdimen/(xdiff * 0.9), resxdimen/(xdiff * 0.6), mydimen * 1.25/lh)
+#     blf.size(font_id, 12, int(300/fontscale))
+
+#     if not self.resize:
+#         self.lspos = [self.spos[0], self.spos[1] - ydiff]
+#         self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            
+#     else:
+#         self.lspos = [self.spos[0], self.lspos[1]]
+#         self.lepos = [self.lepos[0], self.spos[1]]
+    
+#     bgl.glLineWidth(1)
+#     self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+#     self.legf_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+#     self.legfc_shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
+#     colours = [item for item in [self.cols[i] for i in range(levels)] for i in range(4)]
+#     v_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lepos[1]), (self.lepos[0], self.lepos[1]), (self.lepos[0], self.lspos[1])]
+#     vl_coords = v_coords
+#     f_indices = [(0, 1, 2), (2, 3, 0)]
+#     fl1_indices = [tuple(array((0, 1, 2)) +4 * i) for i in range(levels)]
+#     fl2_indices = [tuple(array((2, 3, 0)) +4 * i) for i in range(levels)]
+#     fl_indices = list(fl1_indices) + list(fl2_indices)
+
+#     for i in range(0, levels):
+#         vl_coords += [(self.lspos[0], int(self.lspos[1] + i * lh)), (int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + i * lh)), (int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh)), (self.lspos[0], int(self.lspos[1] + (i + 1) * lh))]
+
+#     self.legl_batch = batch_for_shader(self.legl_shader, 'LINE_LOOP', {"pos": vl_coords})
+#     self.legf_batch = batch_for_shader(self.legf_shader, 'TRIS', {"pos": v_coords}, indices = f_indices)
+#     self.legfc_batch = batch_for_shader(self.legfc_shader, 'TRIS', {"pos": vl_coords[4:], "color": colours}, indices = fl_indices)
+#     bgl.glEnable(bgl.GL_BLEND)
+#     self.legf_shader.bind()
+#     self.legf_shader.uniform_float("color", (self.hl))
+#     self.legf_batch.draw(self.legf_shader)
+#     bgl.glDisable(bgl.GL_BLEND)
+    
+#     self.legfc_shader.bind()
+#     self.legfc_batch.draw(self.legfc_shader)
+    
+#     self.legl_shader.bind()
+#     self.legl_shader.uniform_float("color", (0, 0, 0, 1))
+#     self.legl_batch.draw(self.legl_shader)
+
+#     blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.45, self.spos[1] - 0.5 * lh - blf.dimensions(font_id, unit)[1] * 0.3, 0) 
+#     blf.color(font_id, 0, 0, 0, 1)      
+#     blf.draw(font_id, unit)
+# #    blf.enable(0, blf.SHADOW)
+# #    blf.enable(0, blf.KERNING_DEFAULT)
+# #    blf.shadow(0, 5, 0, 0, 0, 0.7)
+    
+# #    bgl.glColor4f(*scene.vi_display_rp_fc)
+
+#     blf.shadow(font_id, 5, 0.8, 0.8, 0.8, 1)
+    
+#     blf.size(font_id, 12, int(250/fontscale))
+#     bgl.glDisable(bgl.GL_BLEND)
+    
+# #    self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
+   
+#     for i in range(levels):
+#         num = self.resvals[i]
+# #        rgba = self.cols[i]
+#         bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+#         ndimen = blf.dimensions(font_id, "{}".format(num))
+#         blf.position(font_id, int(self.lepos[0] - xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
+# #        bgl.glColor4f(0, 0, 0, 1)
+#         blf.draw(font_id, "{}".format(self.resvals[i]))
+    
+#     bgl.glLineWidth(1)
+# #    bgl.glColor4f(0, 0, 0, 1)
+#     blf.disable(0, 8)  
+#     blf.disable(0, 4)
+
+# class ss_legend(Base_Display):
+#     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
+#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
+#         self.base_unit = unit
+#         self.font_id = 0
+#         self.dpi = 300
+#         self.levels = 20        
+#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
+#         self.f_indices = [(0, 1, 2), (2, 3, 0)]
+#         self.update(context)
+#         self.create_batch()
+                                
+#     def update(self, context):        
+#         scene = context.scene
+#         svp = scene.vi_params
+#         self.levels = svp.vi_leg_levels
+#         self.lh = 1/(self.levels + 1.25)
+#         self.cao = context.active_object        
+#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+#         (self.minres, self.maxres) = leg_min_max(svp)
+#         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
+
+# #        for key, val in unit_dict.items():
+# #            if val == svp.li_disp_basic:
+# #                self.base_unit =  key
+#         self.base_unit =  res2unit[svp.li_disp_basic]
+#         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
+#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+#         resdiff = self.maxres - self.minres
         
-#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-#        elif self.scene['viparams']['visimcontext'] == 'LiVi Basic':
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        if self.scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        elif self.scene['viparams']['visimcontext'] == 'LiVi CBDM':
-#            if self.simnode['coptions']['cbanalysis'] != '0':
-#                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
-#                self.dhscatter.update(context)
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-        self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')        
-#     
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+#         if not svp.get('liparams'):
+#             svp.vi_display = 0
+#             return
+#         dplaces = retdp(self.maxres, 1)
+#         resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
+#                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
 
-    def draw_linum(self, context):
-        area = context.region
-        ah = area.height                
-        self.results_bar.draw(ah)
-        self.legend.draw(context)
-        self.legend_num.draw(context)
-#        self.dhscatter.draw(context, area.width)
-#        self.num_display.draw(context)
+#         self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+#         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
+#         blf.size(self.font_id, 12, self.dpi)        
+#         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
+#         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
+#         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
 
+#     def ret_coords(self):      
+#         lh = 1/(self.levels + 1.25) 
+#         vl_coords = self.v_coords[:]
+#         fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
+#         fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
+#         fl_indices = list(fl1_indices) + list(fl2_indices)
+        
+#         for i in range(0, self.levels):
+#             vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
+#         return (vl_coords, fl_indices)
+    
+#     def draw(self, context):
+#         self.ah = context.area.height
+#         self.aw = context.area.width
+#         svp = context.scene.vi_params
+        
+#         if self.expand:
+#             if self.resize:
+#                 self.xdiff = self.lepos[0] - self.lspos[0]
+#                 self.ydiff = self.lepos[1] - self.lspos[1]
+#             elif self.move:
+#                 self.lspos[1] = self.lepos[1] - self.ydiff
+#                 self.lepos[0] = self.lspos[0] + self.xdiff
+#             if self.lepos[1] > self.ah:
+#                 self.lspos[1] = self.ah - self.ydiff 
+#                 self.lepos[1] = self.ah
+#             if self.lepos[0] > self.aw:
+#                 self.lspos[0] = self.aw - self.xdiff   
+#                 self.lepos[0] = self.aw
+                
+#             self.base_shader.bind()
+#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.base_shader.uniform_float("spos", self.lspos)
+#             self.base_shader.uniform_float("colour", self.hl)      
+#             self.base_batch.draw(self.base_shader)  
+
+#             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
+#                 self.update(context)
+#                 (vl_coords, fl_indices) = self.ret_coords()
+#                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+#                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+                
+#             self.col_shader.bind()
+#             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.col_shader.uniform_float("spos", self.lspos)  
+#             self.col_batch.draw(self.col_shader)            
+#             self.line_shader.bind()
+#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.line_shader.uniform_float("spos", self.lspos)
+#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
+#             self.line_batch.draw(self.line_shader)
+#             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
+#             blf.enable(0, 4)
+#             blf.enable(0, 8)
+#             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
+#             blf.size(self.font_id, 12, int(self.dpi/fontscale))
+#             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
+#             blf.color(self.font_id, 0, 0, 0, 1)   
+#             blf.draw(self.font_id, self.unit)
+#             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
+#             blf.size(self.font_id, 12, int((self.dpi - 50)/fontscale))
+            
+#             for i in range(self.levels):
+#                 num = self.resvals[i]            
+#                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
+#                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.025 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
+#                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
+                
+#             blf.disable(0, 8)  
+#             blf.disable(0, 4)
+           
+#     def create_batch(self):
+#         base_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+            
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1]; 
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                 }
+#             '''
+            
+#         base_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+            
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+           
+#             '''
+            
+#         col_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+#             in vec4 colour;
+#             flat out vec4 f_colour;
+            
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1]; 
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                    f_colour = colour;
+#                 }
+#             '''
+            
+#         col_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+#             flat in vec4 f_colour;
+            
+#             void main()
+#                 {
+#                     FragColour = f_colour;
+#                 }
+           
+#             '''  
+            
+#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+#         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
+#         (vl_coords, fl_indices) = self.ret_coords()
+#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
+#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+#         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+
+# class livi_legend(Base_Display):
+#     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
+#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
+#         self.base_unit = unit
+#         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
+#         self.dpi = 157
+#         self.levels = 20        
+#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
+#         self.f_indices = [(0, 1, 2), (2, 3, 0)]
+#         self.update(context)
+#         self.create_batch()
+                                
+#     def update(self, context):        
+#         scene = context.scene
+#         svp = scene.vi_params
+#         self.levels = svp.vi_leg_levels
+#         self.lh = 1/(self.levels + 1.25)
+#         self.cao = context.active_object        
+#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+#         (self.minres, self.maxres) = leg_min_max(svp)
+#         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
+
+# #        for key, val in unit_dict.items():
+# #            if val == svp.li_disp_basic:
+# #                self.base_unit =  key
+#         self.base_unit =  res2unit[svp.li_disp_menu]        
+#         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
+#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+#         resdiff = self.maxres - self.minres
+        
+#         if not svp.get('liparams'):
+#             svp.vi_display = 0
+#             return
+#         dplaces = retdp(self.maxres, 1)
+#         resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
+#                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
+
+#         self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+#         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
+#         blf.size(self.font_id, 12, self.dpi)        
+#         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
+#         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
+#         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
+
+#     def ret_coords(self):      
+#         lh = 1/(self.levels + 1.25) 
+#         vl_coords = self.v_coords[:]
+#         fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
+#         fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
+#         fl_indices = list(fl1_indices) + list(fl2_indices)
+        
+#         for i in range(0, self.levels):
+#             vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
+#         return (vl_coords, fl_indices)
+    
+#     def draw(self, context):
+#         self.ah = context.region.height
+#         self.aw = context.region.width
+#         svp = context.scene.vi_params
+        
+#         if self.expand:
+#             if self.resize:
+#                 self.xdiff = self.lepos[0] - self.lspos[0]
+#                 self.ydiff = self.lepos[1] - self.lspos[1]
+#             elif self.move:
+#                 self.lspos[1] = self.lepos[1] - self.ydiff
+#                 self.lepos[0] = self.lspos[0] + self.xdiff
+#             if self.lepos[1] > self.ah:
+#                 self.lspos[1] = self.ah - self.ydiff 
+#                 self.lepos[1] = self.ah
+#             if self.lepos[0] > self.aw:
+#                 self.lspos[0] = self.aw - self.xdiff   
+#                 self.lepos[0] = self.aw
+                
+#             self.base_shader.bind()
+#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.base_shader.uniform_float("spos", self.lspos)
+#             self.base_shader.uniform_float("colour", self.hl)      
+#             self.base_batch.draw(self.base_shader)  
+#             self.unit = svp.vi_leg_unit if svp.vi_leg_unit else self.unit
+            
+#             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
+#                 self.update(context)
+#                 (vl_coords, fl_indices) = self.ret_coords()
+#                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+#                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+                               
+#             self.col_shader.bind()
+#             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.col_shader.uniform_float("spos", self.lspos)  
+#             self.col_batch.draw(self.col_shader)            
+#             self.line_shader.bind()
+#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.line_shader.uniform_float("spos", self.lspos)
+#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
+#             self.line_batch.draw(self.line_shader)
+#             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
+#             blf.enable(0, 4)
+#             blf.enable(0, 8)
+#             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
+#             blf.shadow_offset(self.font_id, 1, 1)
+#             blf.size(self.font_id, int(14/fontscale), self.dpi)
+#             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
+#             blf.color(self.font_id, 0, 0, 0, 1)   
+#             blf.draw(self.font_id, self.unit)
+#             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
+#             blf.size(self.font_id, int(11/fontscale), self.dpi)
+            
+#             for i in range(self.levels):
+#                 num = self.resvals[i]            
+#                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
+#                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.025 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
+#                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
+                
+#             blf.disable(0, 8)  
+#             blf.disable(0, 4)
+           
+#     def create_batch(self):
+#         base_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+            
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1]; 
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                 }
+#             '''
+            
+#         base_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+            
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+           
+#             '''
+            
+#         col_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+#             in vec4 colour;
+#             flat out vec4 f_colour;
+            
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1]; 
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                    f_colour = colour;
+#                 }
+#             '''
+            
+#         col_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+#             flat in vec4 f_colour;
+            
+#             void main()
+#                 {
+#                     FragColour = f_colour;
+#                 }
+           
+#             '''  
+            
+#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+#         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
+#         (vl_coords, fl_indices) = self.ret_coords()
+#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
+#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+#         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)

@@ -493,7 +493,7 @@ def lividisplay(self, scene):
         bm.from_mesh(self.id_data.data)
         geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces  
         livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
-        res = geom.layers.float['res{}'.format(frame)]
+        res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
         oreslist = [g[livires] for g in geom]
         self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
         smaxres, sminres =  max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())

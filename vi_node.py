@@ -1107,9 +1107,8 @@ class ViSSNode(Node, ViNodes):
     signore: BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
     
     def init(self, context):
-#        self['nodeid'] = nodeid(self)
         self.inputs.new('So_Vi_Loc', 'Location in')
-        self.outputs.new('ViR', 'Results out')
+        self.outputs.new('So_Vi_Res', 'Results out')
         self.outputs['Results out'].hide = True
         self['exportstate'] = ''
         self['goptions'] = {}
@@ -1369,7 +1368,6 @@ class No_En_Sim(Node, ViNodes):
         self['AStart'], self['AEnd'] = context.scene.vi_params['enparams']['fs'], context.scene.vi_params['enparams']['fe']
      
     def postsim(self, sim_op, condition):
-#        scene = bpy.context.scene
         nodecolour(self, 0)
         self.run = -1
         if condition == 'FINISHED':

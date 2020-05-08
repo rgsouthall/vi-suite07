@@ -1,5 +1,6 @@
-unit2res = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'Sky View': 'sv', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
-             'lxh': 'illu','kWh (f)': 'firrad', 'kWh/m2 (f)': 'firradm2', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (v)': 'virradm2', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 
+unit2res = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'SVF': 'svf', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
+             'lxh': 'illuh','kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh', u'kWh/m\u00b2 (v)': 'virradhm2', 'DA (%)': 'da', 
+             'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', '% Sunlit': 'sm',
              'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh', 'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux'}
 
 res2unit = {unit2res[u]: u for u in unit2res}

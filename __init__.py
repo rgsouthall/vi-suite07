@@ -113,19 +113,19 @@ def unititems(self, context):
         svp = scene.vi_params
         
         if svp['liparams']['unit'] == 'W/m2 (f)':
-            return [('firrad', 'Full irradiance', 'Full spectrum irradiance')]
+            return [('firradm2', 'Full irradiance', 'Full spectrum irradiance')]
         elif svp['liparams']['unit'] == 'Lux':
             return [('illu', 'Illuminance', 'Illuminance'), 
                     ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
-        elif svp['liparams']['unit'] == 'DF (%)':
-            return [('df', 'Daylight factor', 'daylight factor'), 
-                    ('illu', 'Illuminance', 'Illuminance'), 
-                    ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
+        # elif svp['liparams']['unit'] == 'DF (%)':
+        #     return [('df', 'Daylight factor', 'daylight factor'), 
+        #             ('illu', 'Illuminance', 'Illuminance'), 
+        #             ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'lxh':
-            return [('illu', 'Lux-hours', 'Lux-hours'), ('virrad', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
+            return [('illuh', 'Lux-hours', 'Lux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
         elif svp['liparams']['unit'] == 'kWh (f)':
-            return [('firrad', 'kWh (f)', 'kilo-Watt hours (solar spectrum)'), 
-                    ('firradm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
+            return [('firradh', 'kWh (f)', 'kilo-Watt hours (solar spectrum)'), 
+                    ('firradhm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
         elif svp['liparams']['unit'] == 'DA (%)':
             return[("da", "DA", "Daylight Autonomy"), 
                    ("sda", "SDA", "Spatial Daylight Autonomy"), 
@@ -137,6 +137,10 @@ def unititems(self, context):
                    ("maxlux", "Lux level (max)", "Maximum lux level"), 
                    ("avelux", "Lux level (ave)", "Average lux level"), 
                    ("minlux", "Lux level (min)", "Minimum lux level")]
+        elif svp['liparams']['unit'] == '% Sunlit':
+            return [('sm', '% Sunlit', '% of time sunlit')]
+        elif svp['liparams']['unit'] == 'SVF (%)':
+            return [('svf', 'SVF (%)', '% of sky visible')]
         else:
             return [('None', 'None','None' )]
     except:

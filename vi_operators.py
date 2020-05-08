@@ -218,7 +218,7 @@ class NODE_OT_SVF(bpy.types.Operator):
         if not svp.get('liparams'):
            svp['liparams'] = {}
            
-        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
+        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, 'SVF (%)', 'VI Shadow'
         simnode.preexport()
         (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)      
         svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
@@ -268,7 +268,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
             geom.layers.int.new('cindex')
             cindex = geom.layers.int['cindex']
-            [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
+            [geom.layers.float.new('svf{}'.format(fi)) for fi in frange]
             avres, minres, maxres, g = [], [], [], 0
             
             if simnode.cpoint == '0':
@@ -283,7 +283,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                 g, oshadres = 0, array([])                
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
-                shadres = geom.layers.float['res{}'.format(frame)]
+                shadres = geom.layers.float['svf{}'.format(frame)]
                                     
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
@@ -299,14 +299,14 @@ class NODE_OT_SVF(bpy.types.Operator):
                             return {'CANCELLED'}
               
                     shadres = [gp[shadres] for gp in gpoints]
-                    ovp['omin']['res{}'.format(frame)], ovp['omax']['res{}'.format(frame)], ovp['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
+                    ovp['omin']['svf{}'.format(frame)], ovp['omax']['svf{}'.format(frame)], ovp['oave']['svf{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
-                    avres.append(ovp['oave']['res{}'.format(frame)])
-                    minres.append(ovp['omin']['res{}'.format(frame)])
-                    maxres.append(ovp['omax']['res{}'.format(frame)])
+                    avres.append(ovp['oave']['svf{}'.format(frame)])
+                    minres.append(ovp['omin']['svf{}'.format(frame)])
+                    maxres.append(ovp['omax']['svf{}'.format(frame)])
 
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
             reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
@@ -415,7 +415,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
             geom.layers.int.new('cindex')
             cindex = geom.layers.int['cindex']
-            [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
+            [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]
             [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
             avres, minres, maxres, g = [], [], [], 0
             
@@ -431,7 +431,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 g, oshadres = 0, array([])                
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
-                shadres = geom.layers.float['res{}'.format(frame)]
+                shadres = geom.layers.float['sm{}'.format(frame)]
                                   
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
@@ -452,14 +452,14 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     ap = numpy.average(allpoints, axis=0)                
                     shadres = [gp[shadres] for gp in gpoints]
                     ovp['dhres{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
-                    ovp['omin']['res{}'.format(frame)], ovp['omax']['res{}'.format(frame)], ovp['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
+                    ovp['omin']['sm{}'.format(frame)], ovp['omax']['sm{}'.format(frame)], ovp['oave']['sm{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
-                    avres.append(ovp['oave']['res{}'.format(frame)])
-                    minres.append(ovp['omin']['res{}'.format(frame)])
-                    maxres.append(ovp['omax']['res{}'.format(frame)])
+                    avres.append(ovp['oave']['sm{}'.format(frame)])
+                    minres.append(ovp['omin']['sm{}'.format(frame)])
+                    maxres.append(ovp['omax']['sm{}'.format(frame)])
             
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
             reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
@@ -1940,8 +1940,6 @@ class TREE_OT_goto_mat(bpy.types.Operator):
 
     def execute(self, context):
         context.space_data.tree_type = 'EnViMatN'
-#        context.space_data.node_tree = self.mat.vi_params.envi_nodes
-#        context.space_data.shader_type = 'OBJECT'
         mat = bpy.data.materials[self.mat]
         context.space_data.node_tree = mat.vi_params.envi_nodes
         context.space_data.node_tree.name = mat.name
@@ -1966,8 +1964,6 @@ class TREE_OT_goto_mat(bpy.types.Operator):
 
         if objs_with_mat == 0:
             self.report({'WARNING'}, "No objects in this scene use '" + mat.name + "' material")
-#            slot = dummy.material_slots[0]
-#            slot.material = mat
 
         return {'FINISHED'}
     
@@ -1980,7 +1976,6 @@ class TREE_OT_goto_group(bpy.types.Operator):
     tree: bpy.props.StringProperty(default="")
 
     def execute(self, context):
-#        print(self.tree)
         try:  # Go up one group as many times as possible - error will occur when the top level is reached
             while True:
                 bpy.ops.node.tree_path_parent()
@@ -1990,7 +1985,6 @@ class TREE_OT_goto_group(bpy.types.Operator):
         context.space_data.path.append(bpy.data.node_groups[self.tree])
         context.space_data.node_tree = bpy.data.node_groups[self.tree]
         context.space_data.node_tree.use_fake_user = 1
-#        print(dir(context.space_data))
         return {'FINISHED'}
     
 class NODE_OT_CSV(bpy.types.Operator, io_utils.ExportHelper):

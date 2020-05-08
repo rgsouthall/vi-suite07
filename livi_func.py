@@ -526,17 +526,17 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     for f, frame in enumerate(frames): 
         geom.layers.float.new('res{}'.format(frame))
         if simnode['coptions']['unit'] == 'lxh':
-            geom.layers.float.new('virradm2{}'.format(frame))        
-            geom.layers.float.new('virrad{}'.format(frame))
-            geom.layers.float.new('illu{}'.format(frame))
-            virradm2res = geom.layers.float['virradm2{}'.format(frame)]
-            virradres = geom.layers.float['virrad{}'.format(frame)]
-            illures = geom.layers.float['illu{}'.format(frame)]
+            geom.layers.float.new('virradhm2{}'.format(frame))        
+            geom.layers.float.new('virradh{}'.format(frame))
+            geom.layers.float.new('illuh{}'.format(frame))
+            virradm2res = geom.layers.float['virradhm2{}'.format(frame)]
+            virradres = geom.layers.float['virradh{}'.format(frame)]
+            illures = geom.layers.float['illuh{}'.format(frame)]
         elif simnode['coptions']['unit'] == 'kWh (f)':
-            geom.layers.float.new('firradm2{}'.format(frame))
-            geom.layers.float.new('firrad{}'.format(frame))        
-            firradm2res = geom.layers.float['firradm2{}'.format(frame)]
-            firradres = geom.layers.float['firrad{}'.format(frame)]
+            geom.layers.float.new('firradhm2{}'.format(frame))
+            geom.layers.float.new('firradh{}'.format(frame))        
+            firradm2res = geom.layers.float['firradhm2{}'.format(frame)]
+            firradres = geom.layers.float['firradh{}'.format(frame)]
                  
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
@@ -585,21 +585,21 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             minovirrad = nmin(ovirrad)
             aveovirradm2 = nmean(ovirradm2)
             aveovirrad = nmean(ovirrad)
-            self['omax']['virrad{}'.format(frame)] = maxovirrad
-            self['omin']['virrad{}'.format(frame)] = minovirrad
-            self['oave']['virrad{}'.format(frame)] = aveovirrad
-            self['omax']['virradm2{}'.format(frame)] = maxovirradm2
-            self['omin']['virradm2{}'.format(frame)] = minovirradm2
-            self['oave']['virradm2{}'.format(frame)] = aveovirradm2
-            self['omax']['illu{}'.format(frame)] = maxovirradm2 * 179
-            self['omin']['illu{}'.format(frame)] = minovirradm2 * 179
-            self['oave']['illu{}'.format(frame)] = aveovirradm2 * 179
+            self['omax']['virradh{}'.format(frame)] = maxovirrad
+            self['omin']['virradh{}'.format(frame)] = minovirrad
+            self['oave']['virradh{}'.format(frame)] = aveovirrad
+            self['omax']['virradhm2{}'.format(frame)] = maxovirradm2
+            self['omin']['virradhm2{}'.format(frame)] = minovirradm2
+            self['oave']['virradhm2{}'.format(frame)] = aveovirradm2
+            self['omax']['illuh{}'.format(frame)] = maxovirradm2 * 179
+            self['omin']['illuh{}'.format(frame)] = minovirradm2 * 179
+            self['oave']['illuh{}'.format(frame)] = aveovirradm2 * 179
             self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
+                 ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illuh{}'.format(frame)]), '{:.1f}'.format(self['oave']['illuh{}'.format(frame)]), '{:.1f}'.format(self['omax']['illuh{}'.format(frame)])]])
             self['tablevim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradm2{}'.format(frame)])]])
+                 ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradhm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradhm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradhm2{}'.format(frame)])]])
             self['tablevi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])]])
+                 ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradh{}'.format(frame)])]])
 
         elif simnode['coptions']['unit'] == 'kWh (f)':
             ofirradm2 = array([g[firradm2res] for g in gps])
@@ -610,16 +610,16 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             minofirrad = nmin(ofirrad)
             aveofirradm2 = nmean(ofirradm2)
             aveofirrad = nmean(ofirrad)
-            self['omax']['firrad{}'.format(frame)] = maxofirrad
-            self['omin']['firrad{}'.format(frame)] = minofirrad
-            self['oave']['firrad{}'.format(frame)] = aveofirrad
-            self['omax']['firradm2{}'.format(frame)] = maxofirradm2
-            self['omin']['firradm2{}'.format(frame)] = minofirradm2
-            self['oave']['firradm2{}'.format(frame)] = aveofirradm2
+            self['omax']['firradh{}'.format(frame)] = maxofirrad
+            self['omin']['firradh{}'.format(frame)] = minofirrad
+            self['oave']['firradh{}'.format(frame)] = aveofirrad
+            self['omax']['firradhm2{}'.format(frame)] = maxofirradm2
+            self['omin']['firradhm2{}'.format(frame)] = minofirradm2
+            self['oave']['firradhm2{}'.format(frame)] = aveofirradm2
             self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradm2{}'.format(frame)])]])
+                 ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradhm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradhm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradhm2{}'.format(frame)])]])
             self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
+                 ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradh{}'.format(frame)])]])
             
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
@@ -889,7 +889,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax']) if svp['viparams']['visimcontext'] != 'LiVi Compliance' else (300, 1000)
     vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     hours = vecvals.shape[0]
-    restypes = ('da', 'sda', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firrad', 'firradm2', 'maxlux', 'minlux', 'avelux')
+    restypes = ('da', 'sda', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firradh', 'firradhm2', 'maxlux', 'minlux', 'avelux')
     self['livires']['cbdm_days'] = cbdm_days
     self['livires']['cbdm_hours'] = cbdm_hours
 
@@ -1056,18 +1056,18 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 return {'CANCELLED'}
         
         if svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1':
-            self['omax']['firrad{}'.format(frame)] = nmax(kwh).astype(float64)
-            self['omin']['firrad{}'.format(frame)] = nmin(kwh).astype(float64)
-            self['oave']['firrad{}'.format(frame)] = nmean(kwh).astype(float64)
-            self['omax']['firradm2{}'.format(frame)] = nmax(kwhm2).astype(float64)
-            self['omin']['firradm2{}'.format(frame)] = nmin(kwhm2).astype(float64)
-            self['oave']['firradm2{}'.format(frame)] = nmean(kwhm2).astype(float64)
-            self['livires']['firrad{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
-            self['livires']['firradm2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()            
-            self['tablekwh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['Irradiance (kW)', '{:.1f}'.format(self['omin']['kW{}'.format(frame)]), '{:.1f}'.format(self['oave']['kW{}'.format(frame)]), '{:.1f}'.format(self['omax']['kW{}'.format(frame)])]])
-            self['tablekwhm2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['Irradiance (kW/m2)', '{:.1f}'.format(self['omin']['kW/m2{}'.format(frame)]), '{:.1f}'.format(self['oave']['kW/m2{}'.format(frame)]), '{:.1f}'.format(self['omax']['kW/m2{}'.format(frame)])]])
+            self['omax']['firradh{}'.format(frame)] = nmax(kwh).astype(float64)
+            self['omin']['firradh{}'.format(frame)] = nmin(kwh).astype(float64)
+            self['oave']['firradh{}'.format(frame)] = nmean(kwh).astype(float64)
+            self['omax']['firradhm2{}'.format(frame)] = nmax(kwhm2).astype(float64)
+            self['omin']['firradhm2{}'.format(frame)] = nmin(kwhm2).astype(float64)
+            self['oave']['firradhm2{}'.format(frame)] = nmean(kwhm2).astype(float64)
+            self['livires']['firradh{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
+            self['livires']['firradhm2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()            
+            # self['tablekwh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['Irradiance (kW)', '{:.1f}'.format(self['omin']['kW{}'.format(frame)]), '{:.1f}'.format(self['oave']['kW{}'.format(frame)]), '{:.1f}'.format(self['omax']['kW{}'.format(frame)])]])
+            # self['tablekwhm2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['Irradiance (kW/m2)', '{:.1f}'.format(self['omin']['kW/m2{}'.format(frame)]), '{:.1f}'.format(self['oave']['kW/m2{}'.format(frame)]), '{:.1f}'.format(self['omax']['kW/m2{}'.format(frame)])]])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
             
