@@ -1781,7 +1781,6 @@ def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
        
 def sunposlivi(scene, skynode, frames, sun, stime):
     svp = scene.vi_params
-#    sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
     
     if skynode['skynum'] < 3 or (skynode.skyprog == '1' and skynode.epsilon > 1): 
         times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]  
@@ -1871,7 +1870,7 @@ def sunapply(scene, sun, values, solposs, frames):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]
         sunpos = [x*100 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
         sunrot = [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
-        
+        scene.display.light_direction = (-sin(solposs[f][3]) * cos(solposs[f][2]), sin(solposs[f][2]),  cos(solposs[f][3]) * cos(solposs[f][2])) 
         if scene.render.engine == 'CYCLES' and scene.world.node_tree:
             if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
                 skydir = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])

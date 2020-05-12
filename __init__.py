@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 6, 0),
-    "blender": (2, 82),
+    "blender": (2, 83),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -37,7 +37,7 @@ if "bpy" in locals():
     imp.reload(vi_node)
     imp.reload(envi_mat)
 else:
-    import sys, os, inspect, shutil
+    import sys, os, inspect
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
@@ -51,7 +51,7 @@ else:
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform))   
          
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
-    from .vi_node import No_Li_Geo, No_Li_Con, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
+    from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
     from .vi_node import No_Li_Sim
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
@@ -117,10 +117,6 @@ def unititems(self, context):
         elif svp['liparams']['unit'] == 'Lux':
             return [('illu', 'Illuminance', 'Illuminance'), 
                     ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
-        # elif svp['liparams']['unit'] == 'DF (%)':
-        #     return [('df', 'Daylight factor', 'daylight factor'), 
-        #             ('illu', 'Illuminance', 'Illuminance'), 
-        #             ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'lxh':
             return [('illuh', 'Lux-hours', 'Lux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
         elif svp['liparams']['unit'] == 'kWh (f)':
@@ -207,22 +203,6 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     sp_td: bprop("", "",0)
     li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     li_disp_menu: EnumProperty(items = unititems, name = "", description = "BLiVi metric selection", update = livires_update)  
-#    li_disp_menu: EnumProperty(items = [('None', 'None', 'None')], name = "", description = "LiVi metric selection")
-#    li_disp_basic: EnumProperty(items = unititems, name = "", description = "Basic metric selection", update = livires_update)    
-#    li_disp_cbdm: EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), 
-#                                      ("3", "UDISup", "Spatial Daylight Autonomy"), 
-#                                      ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), 
-#                                      ("6", "ASE", "Annual sunlight exposure"), ("7", "Max lux", "Maximum lux level"), 
-#                                      ("8", "Avg Lux", "Average lux level"), ("9", "Min lux", "Minimum lux level")], name = "", description = "Result selection", default = "0", update = livires_update)
-#    li_disp_exp: EnumProperty(items = [("0", "LuxHours", "Display LuhHours values"), 
-#                                       ("1", "Full Irradiance", "Display full spectrum radiation exposure values"), 
-#                                       ("2", "Visible Irradiance", "Display visible spectrum radiation exposure values"),
-#                                       ("3", "Full Irradiance Density", "Display full spectrum radiation exposure values"), 
-#                                       ("4", "Visible Irradiance Density", "Display visible spectrum radiation exposure values")], 
-#                                        name = "", description = "Result selection", default = "0", update = livires_update)
-#    li_disp_irrad: EnumProperty(items = [("0", "kWh", "Display kWh values"), ("1", "kWh/m2", "Display kWh/m2 values")], 
-#                                         name = "", description = "Result selection", default = "0", update = livires_update)
-
     vi_display_rp_fsh: fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_fs: iprop("", "Point result font size", 4, 24, 24)
     vi_display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
@@ -511,7 +491,7 @@ def flovi_levels(self, context):
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPath, NODE_OT_TextUpdate, 
            VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, ViWRNode, ViSVFNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
            NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, ViSSNode, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
-           No_Li_Geo, No_Li_Con, So_Li_Geo, NODE_OT_Li_Geo, So_Li_Con, NODE_OT_Li_Con, No_Text, So_Text,
+           No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, NODE_OT_Li_Geo, So_Li_Con, NODE_OT_Li_Con, No_Text, So_Text,
            No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
@@ -552,8 +532,8 @@ def register():
 
 def unregister():
     nodeitems_utils.unregister_node_categories("EnVi Material Nodes")
-    nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
+    nodeitems_utils.unregister_node_categories("Vi Nodes")
     
     
     for cl in reversed(classes):

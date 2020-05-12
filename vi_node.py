@@ -52,7 +52,7 @@ class No_Loc(Node, ViNodes):
     '''Node describing a geographical location manually or with an EPW file'''
     bl_idname = 'No_Loc'
     bl_label = 'VI Location'
-    bl_icon = 'FORCE_WIND'
+    bl_icon = 'WORLD'
 
     def updatelatlong(self, context):
         context.space_data.edit_tree == ''
@@ -152,7 +152,8 @@ class No_Li_Geo(Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
     bl_idname = 'No_Li_Geo'
     bl_label = 'LiVi Geometry'
-
+    bl_icon = 'OBJECT_DATA'
+    
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)])
 
@@ -197,10 +198,20 @@ class No_Li_Geo(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)]
         nodecolour(self, 0)
 
+class No_Li_Sen(Node, ViNodes):
+    '''Node for creating LiVi sensing geometry'''
+    bl_idname = 'No_Li_Sen'
+    bl_label = 'LiVi Sense'
+    bl_icon = 'TEXTURE'
+    
+    def draw_buttons(self, context, layout):
+        pass
+    
 class No_Li_Con(Node, ViNodes):
     '''Node for creating a LiVi context'''
     bl_idname = 'No_Li_Con'
     bl_label = 'LiVi Context'
+    bl_icon = 'LIGHT_SUN'
 
     def nodeupdate(self, context):
         scene = context.scene
@@ -1885,7 +1896,7 @@ class So_En_ResU(NodeSocket):
         
 ####################### Vi Nodes Categories ##############################
 
-vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), 
+vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), NodeItem("No_Li_Sen", label="LiVi Sense"), 
               NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context")]
                 
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
