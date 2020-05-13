@@ -513,16 +513,20 @@ class NODE_OT_Li_Con(bpy.types.Operator, io_utils.ExportHelper):
     def invoke(self, context, event):
         scene = context.scene
         self.svp = scene.vi_params
+        
         if viparams(self, scene):
             return {'CANCELLED'}
+        
         node = context.node
         self.svp['viparams']['vidisp'] = ''
         self.svp['viparams']['viexpcontext'] = 'LiVi {}'.format(node.contextmenu)
         self.svp['viparams']['connode'] = '{}@{}'.format(node.name, node.id_data.name)
         objmode()
         node.preexport()
+        
         if not node.export(scene, self):
             node.postexport()
+            
         return {'FINISHED'}
     
 # BSDF Operators
@@ -817,7 +821,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         clearscene(scene, self)
         simnode = context.node
         simnode.presim()
-        contextdict = {'Basic': 'LiVi Basic', 'Compliance': 'LiVi Compliance', 'CBDM': 'LiVi CBDM'}        
+        contextdict = {'Basic': 'LiVi Basic', 'CBDM': 'LiVi CBDM'}        
         
         # Set scene parameters
         svp['viparams']['visimcontext'] = contextdict[simnode['coptions']['Context']]
