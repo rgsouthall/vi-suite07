@@ -22,11 +22,11 @@ class VI_PT_3D(bpy.types.Panel):
         layout = self.layout
 
         try:
-            if cao and cao.active_material and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5' and svp['viparams'].get('vidisp'):                
-                if svp['viparams']['vidisp'] == 'bsdf':
-                    row = layout.row()
-                    row.operator("view3d.bsdf_display", text="BSDF Display") 
-                elif svp['viparams']['vidisp'] == 'bsdf_panel':
+            if cao and cao.active_material and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':                
+#                if svp['viparams']['vidisp'] == 'bsdf':
+                row = layout.row()
+                row.operator("view3d.bsdf_display", text="BSDF Display") 
+                if svp['viparams']['vidisp'] == 'bsdf_panel':
                     newrow(layout, 'Direction:', svp, "vi_bsdf_direc")
                     newrow(layout, 'BSDF max:', svp, "vi_bsdfleg_max")
                     newrow(layout, 'BSDF min:', svp, "vi_bsdfleg_min")
@@ -478,17 +478,22 @@ class VI_PT_Ob(bpy.types.Panel):
 
         if obj.type == 'MESH':
             row = layout.row()
-            row.prop(ovp, "vi_type")
-            if ovp.vi_type == '1':
+            row.prop(ovp, 'vi_type')
+            
+            if ovp.vi_type == '0':
                 row = layout.row()
-                row.prop(ovp, "envi_type")
+                row.operator('object.vi_genoct', text = "Generate Octree")
+                
+            elif ovp.vi_type == '1':
+                row = layout.row()
+                row.prop(ovp, 'envi_type')
                 if ovp.envi_type == '0':
                     newrow(layout, "Habitable:", ovp, 'envi_hab')
 #                if ovp.envi_type == '0':
 #                    newrow(layout, 'Inside convection:', ovp, "envi_ica")
 #                    newrow(layout, 'Outside convection:', ovp, "envi_oca")
                     
-            if ovp.vi_type == '3':
+            elif ovp.vi_type == '3':
                 newrow(layout, 'Feature level:', ovp, "flovi_fl")
                 newrow(layout, 'Surface max level:', ovp, "flovi_slmax")
                 newrow(layout, 'Surface min level:', ovp, "flovi_slmin")

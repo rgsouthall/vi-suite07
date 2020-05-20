@@ -74,11 +74,11 @@ def leg_update(self, context):
                     bpy.ops.object.material_slot_remove()
                     
         for f, frame in enumerate(frames):
-            if bm.faces.layers.float.get('{}{}'.format(svp.vi_disp_menu, frame)):
-                livires = bm.faces.layers.float['{}{}'.format(svp.vi_disp_menu, frame)] 
+            if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
+                livires = bm.faces.layers.float['{}{}'.format(svp.li_disp_menu, frame)] 
                 ovals = array([f[livires] for f in bm.faces])
-            elif bm.verts.layers.float.get('{}{}'.format(svp.vi_disp_menu, frame)):
-                livires = bm.verts.layers.float['{}{}'.format(svp.vi_disp_menu, frame)] 
+            elif bm.verts.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
+                livires = bm.verts.layers.float['{}{}'.format(svp.li_disp_menu, frame)] 
                 ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
             
             if svp.vi_leg_max > svp.vi_leg_min:
@@ -567,13 +567,12 @@ def spnumdisplay(disp_op, context):
     else:
         return
     
-class bsdf_disp(Base_Display):
+class draw_bsdf(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
         self.plt = plt
         self.pw, self.ph = 0.175 * xdiff, 0.35 * ydiff
         self.radii = array([0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125])
-#        self.patch_select = 0
         self.type_select = 0
         self.patch_hl = 0
         self.scale_select = 'Log'
@@ -598,10 +597,8 @@ class bsdf_disp(Base_Display):
         self.cseg = 0
         self.srs = 1
         self.crs = 0
-#        self.update(context)
         self.create_batch('all')
         self.get_data(context)
-#        self.bsdf = context.active_object.active_material['bsdf']['xml']
     
     def get_data(self, context):
         self.mat = context.active_object.active_material
@@ -1507,9 +1504,7 @@ class ss_scatter(Base_Display):
             
     def show_plot(self, context):
         show_plot(self, context)
-            
-
-        
+                    
 class draw_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff, levels):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
@@ -1531,8 +1526,7 @@ class draw_legend(Base_Display):
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         (self.minres, self.maxres) = leg_min_max(svp)
         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
-        self.base_unit =  res2unit[svp.li_disp_menu]        
-        self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
+        self.unit = res2unit[svp.li_disp_menu] if not svp.vi_leg_unit else svp.vi_leg_unit
         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         resdiff = self.maxres - self.minres
         
@@ -1586,7 +1580,7 @@ class draw_legend(Base_Display):
             self.base_shader.uniform_float("spos", self.lspos)
             self.base_shader.uniform_float("colour", self.hl)      
             self.base_batch.draw(self.base_shader)  
-            self.unit = svp.vi_leg_unit if svp.vi_leg_unit else self.unit
+            self.unit = svp.vi_leg_unit if svp.vi_leg_unit else res2unit[svp.li_disp_menu]
             
             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
                 self.update(context)
@@ -1689,10 +1683,7 @@ class draw_legend(Base_Display):
         
     
 def draw_icon_new(self):    
-#    IMAGE_NAME = "Untitled"
     image = bpy.data.images[self.image]
-
-    
     shader = gpu.shader.from_builtin('2D_IMAGE')
     batch = batch_for_shader(
         shader, 'TRI_FAN',
@@ -1715,7 +1706,6 @@ def draw_icon_new(self):
         batch.draw(shader)
 
     draw()
-#    bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
     
 def draw_icon(self):
     drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)        
@@ -2448,7 +2438,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         scene = context.scene
         node = context.node
         scene.display.shadow_focus = 1
-#        context.space_data.shading.light = 'FLAT'
         svp = scene.vi_params
         svp['viparams'] = {}
         svp['spparams'] = {}
@@ -2541,7 +2530,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'sp'
         svp['viparams']['visimcontext'] = 'SunPath'
         sunpath(scene)
-#        node = context.node
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
         self.latitude = svp.latitude
@@ -2570,8 +2558,7 @@ class wr_scatter(Base_Display):
         self.create_batch()
         self.line_shader.bind()
         self.line_shader.uniform_float("colour", (0, 0, 0, 1)) 
-        
-        
+                
     def update(self, context):
         scene = context.scene
         svp = scene.vi_params
@@ -3163,7 +3150,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         svp = scene.vi_params
         ah, aw = context.region.height, context.region.width
         redraw = 0
-#        self.bsdf.f_colours = [(1, 1, 1, 1)] * (721 + 8 * 720)   
+ 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or event.type == 'ESC':
             svp['viparams']['vidisp'] = 'bsdf'
             svp.vi_display = 0
@@ -3187,58 +3174,68 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             mx, my = event.mouse_region_x, event.mouse_region_y            
-            # Legend routine 
-            if self.bsdf.ispos[0] < mx < self.bsdf.iepos[0] and self.bsdf.ispos[1] < my < self.bsdf.iepos[1]:
+            rbxl = self.results_bar.ret_coords(0)
+            
+            if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.bsdf.hl = (0.8, 0.8, 0.8, 0.8) 
                 redraw = 1
+                
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'RELEASE':
                         self.bsdf.expand = 0 if self.bsdf.expand else 1
-
+                        
                 context.region.tag_redraw()
-                
-            elif self.bsdf.expand and ((mx - self.bsdf.lspos[0] - 175)**2 + (my - ah + 300)**2)**0.5 <= 170:
-                dist = ((mx - self.bsdf.lspos[0] - 175)**2 + (my - ah + 300)**2)**0.5
-                for radius in self.bsdf.radii:
-                    if dist <= radius:
-                        redraw = 1
-                        mring = self.bsdf.radii.index(radius)
-#                        angles = [0] + [si*2*pi/self.bsdf.segments[ring] for si in range(1, self.bsdf.segments[mring])]
-                        mangle = atan2((-my + ah - 300), (mx - self.bsdf.lspos[0] - 175)) + pi + pi/self.bsdf.segments[mring]
-#                        phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
-#                        for a in angles:
-#                            if abs(a - angle) < 2*pi/self.bsdf.segments[ring]:
-                        if mring == 0:
-                            ms = 1
-#                            self.bsdf.f_colours[:721] = [(0.5, 0.5, 0.5, 1)] * 721
-                        else:
-                            ms = int(mangle*self.bsdf.segments[mring]/(2*pi)) + 1 if int(mangle*self.bsdf.segments[mring]/(2*pi)) < self.bsdf.segments[mring] else 1 
-#                            self.bsdf.f_colours[int(720*mring + ms*720/self.bsdf.segments[mring] + 1) + 1: int(720*mring + (ms+1)*2*pi/self.bsdf.segments[mring]) + 2] = [(0.5, 0.5, 0.5, 1)] * ((int(720*mring + (ms+1)*2*pi/self.bsdf.segments[mring]) + 2) - (int(720*mring + ms*2*pi/self.bsdf.segments[mring] + 1) + 1))
-                        msegment = sum([self.bsdf.segments[ri] for ri in range(mring)]) + ms
-                        break
-                self.bsdf.cr, self.bsdf.crs, self.bsdf.cseg = mring, ms, msegment
-                self.bsdf.create_batch('sel')
-                
-                if event.type == 'LEFTMOUSE':
+                return {'RUNNING_MODAL'}
+            
+            elif self.bsdf.expand:
+                if ((mx - self.bsdf.lspos[0] - 175)**2 + (my - ah + 300)**2)**0.5 <= 170:
+                    dist = ((mx - self.bsdf.lspos[0] - 175)**2 + (my - ah + 300)**2)**0.5
+                    for radius in self.bsdf.radii:
+                        if dist <= radius:
+                            redraw = 1
+                            mring = self.bsdf.radii.index(radius)
+    #                        angles = [0] + [si*2*pi/self.bsdf.segments[ring] for si in range(1, self.bsdf.segments[mring])]
+                            mangle = atan2((-my + ah - 300), (mx - self.bsdf.lspos[0] - 175)) + pi + pi/self.bsdf.segments[mring]
+    #                        phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
+    #                        for a in angles:
+    #                            if abs(a - angle) < 2*pi/self.bsdf.segments[ring]:
+                            if mring == 0:
+                                ms = 1
+    #                            self.bsdf.f_colours[:721] = [(0.5, 0.5, 0.5, 1)] * 721
+                            else:
+                                ms = int(mangle*self.bsdf.segments[mring]/(2*pi)) + 1 if int(mangle*self.bsdf.segments[mring]/(2*pi)) < self.bsdf.segments[mring] else 1 
+    #                            self.bsdf.f_colours[int(720*mring + ms*720/self.bsdf.segments[mring] + 1) + 1: int(720*mring + (ms+1)*2*pi/self.bsdf.segments[mring]) + 2] = [(0.5, 0.5, 0.5, 1)] * ((int(720*mring + (ms+1)*2*pi/self.bsdf.segments[mring]) + 2) - (int(720*mring + ms*2*pi/self.bsdf.segments[mring] + 1) + 1))
+                            msegment = sum([self.bsdf.segments[ri] for ri in range(mring)]) + ms
+                            break
+                    self.bsdf.cr, self.bsdf.crs, self.bsdf.cseg = mring, ms, msegment
+                    self.bsdf.create_batch('sel')
                     
-#                    self.bsdf.f_colours[int(720*mring + s*720/self.bsdf.segments[mring] + 1) + 1: int(720*mring + (s+1)*720/self.bsdf.segments[mring]) + 2] = [(0.5, 0.5, 0.5, 1)] * ((int(720*mring + (s+1)*2*pi/self.bsdf.segments[mring]) + 2) - (int(720*mring + s*2*pi/self.bsdf.segments[mring] + 1) + 1))
+                    if event.type == 'LEFTMOUSE':
+                        
+    #                    self.bsdf.f_colours[int(720*mring + s*720/self.bsdf.segments[mring] + 1) + 1: int(720*mring + (s+1)*720/self.bsdf.segments[mring]) + 2] = [(0.5, 0.5, 0.5, 1)] * ((int(720*mring + (s+1)*2*pi/self.bsdf.segments[mring]) + 2) - (int(720*mring + s*2*pi/self.bsdf.segments[mring] + 1) + 1))
+    
+    #                    if self.bsdf.expand:
+                        redraw = 1
+                        self.bsdf.create_batch('arc')
+                        if self.bsdf.cseg != self.bsdf.sseg:
+                            self.bsdf.sr, self.bsdf.srs, self.bsdf.sseg = mring, ms, msegment
+                            self.bsdf.plot(context)
 
-#                    if self.bsdf.expand:
-                    redraw = 1
-                    self.bsdf.create_batch('arc')
-                    if self.bsdf.cseg != self.bsdf.sseg:
-                        self.bsdf.sr, self.bsdf.srs, self.bsdf.sseg = mring, ms, msegment
-                        self.bsdf.plot(context)
-
+                elif (self.bsdf.imspos[0] < mx < self.bsdf.imspos[0] + 350) and (self.bsdf.imspos[1] < my < self.bsdf.imspos[1] + 350):
+                    if event.type == 'LEFTMOUSE':
+                        if event.value == 'RELEASE':
+                            self.bsdf.plt.show()
+                            return {'RUNNING_MODAL'} 
                 
                 if redraw:
                     context.region.tag_redraw()
-                return {'RUNNING_MODAL'} 
+                    return {'RUNNING_MODAL'} 
         return {'PASS_THROUGH'}                    
                
     def invoke(self, context, event):
         cao = context.active_object
         region = context.region
+        area = context.area
         scene = context.scene
         svp = scene.vi_params
 
@@ -3246,8 +3243,9 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             bsdf = parseString(cao.active_material.vi_params['bsdf']['xml'])
             svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
             self.images = ['bsdf.png']
-            self.results_bar = results_bar(self.images, 300, region)
-            self.bsdf = bsdf_disp(context, '', [305, region.height - 80], region.width, region.height, 800, 375)
+            self.results_bar = results_bar(self.images, area.regions[2].width + 10, area)
+            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(0)[0], region.width, region.height, 800, 375)
+#            context, 'Sky View (%)', self.results_bar.ret_coords(0)[0], region.width, region.height, 100, 400, 20
             svp.vi_display = 1
             self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
             context.window_manager.modal_handler_add(self)
@@ -3291,11 +3289,12 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             return {'CANCELLED'}        
         
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
-            mx, my = event.mouse_region_x, event.mouse_region_y 
-                 
-            # Legend routine 
+            mx, my = event.mouse_region_x, event.mouse_region_y  
             
-            if self.legend.ispos[0] < mx < self.legend.iepos[0] and self.legend.ah - 80 < my < self.legend.ah - 40:
+            # Legend routine 
+            rbxl = self.results_bar.ret_coords(0)
+            
+            if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
                 redraw = 1
                 if event.type == 'LEFTMOUSE':

@@ -1297,6 +1297,13 @@ def frameindex(scene, anim):
     else:
         return(range(0, scene.frame_end - scene.frame_start +1))
 
+def ret_camera_menu(self, context):
+    cameras = [o for o in bpy.data.objects if o.type == 'CAMERA']
+    if cameras:
+        return [(o.name, o.name, 'Name of the section plane') for o in cameras]
+    else:
+        return [('None', 'None', 'None')]
+
 def retobjs(otypes):
     scene = bpy.context.scene
     svp = scene.vi_params
@@ -1316,9 +1323,11 @@ def retobjs(otypes):
     elif otypes == 'livir':
         return([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials] and o.name not in svp['liparams']['livic']])
     elif otypes == 'envig':
-        return([o for o in scene.objects if o.type == 'MESH' and o.hide == False and not o.layers[1]])
+        return([o for o in scene.objects if o.type == 'MESH' and o.hide == False])
     elif otypes == 'ssc':        
         return [o for o in validobs if o.type == 'MESH' and o.name not in svp['liparams']['livir'] and o.data.materials and any([o.data.materials[poly.material_index].vi_params.mattype == '1' for poly in o.data.polygons])]
+    elif otypes == 'selected': 
+        return [o for o in [bpy.context.active_object] if o.type == 'MESH']
 
 def radmesh(scene, obs, export_op):
     for o in obs:

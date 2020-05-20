@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
 import numpy
 from numpy import arange, histogram, array, int8, float16
-import bpy_extras.io_utils as io_utils
+from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE
 from collections import OrderedDict
 from datetime import datetime as dt
@@ -31,7 +31,7 @@ from xml.dom.minidom import parse, parseString
 #from bpy_extras import view3d_utils
 
 #from multiprocessing import Pool
-from .livi_export import radgexport, createoconv, createradfile
+from .livi_export import radgexport, createoconv, createradfile, gen_octree
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
@@ -47,6 +47,7 @@ from .livi_func import retpmap, radpoints
 #from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
+from .vi_dicts import rvuerrdict, pmerrdict
 
 #from .vi_display import wr_legend, results_bar, wr_table, wr_scatter, svf_legend
 #from .vi_display import li_display, linumdisplay, ss_legend, ss_scatter, livi_legend#, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
@@ -72,17 +73,6 @@ try:
     psu = 1
 except: 
     psu = 0    
-
-
-rvuerrdict = {'view up parallel to view direction': "Camera cannot point directly upwards", 
-              ' x11': "No X11 display server found. You may need to install XQuartz", 
-              'source center': "A light source has concave faces. Use mesh - cleanup - split concave faces"}
-pmerrdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry",
-             'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
-               'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-               'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
-               'fatal - no valid photon ports found\n': 'Make sure photon ports are valid', 
-               'fatal - failed photon distribution\n': 'Do the lights see enough geometry?'}
 
 class NODE_OT_TextUpdate(bpy.types.Operator):
     bl_idname = "node.textupdate"
@@ -503,7 +493,7 @@ class NODE_OT_Li_Geo(bpy.types.Operator):
         node.postexport(scene)
         return {'FINISHED'}
     
-class NODE_OT_Li_Con(bpy.types.Operator, io_utils.ExportHelper):
+class NODE_OT_Li_Con(bpy.types.Operator, ExportHelper):
     bl_idname = "node.liexport"
     bl_label = "LiVi context export"
     bl_description = "Export the scene to the Radiance file format"
@@ -554,20 +544,22 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
                 return{'PASS_THROUGH'}
         else:
             self.o.vi_params.bsdf_running = 0
+            filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name))
+            
             if self.kivyrun.poll() is None:
                 self.kivyrun.kill() 
             
             if self.o.vi_params.li_bsdf_proxy:
                 self.pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)))), stdin = PIPE, stdout = PIPE)
                 self.mat.vi_params['radentry'] = ''.join([line.decode() for line in self.pkgbsdfrun.stdout])
-                print(self.mat.vi_params['radentry'])
-                
-            with open(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:               
+
+            with open(filepath, 'r') as bsdffile:               
                 self.mat.vi_params['bsdf']['xml'] = bsdffile.read()
                 bsdf = parseString(self.mat.vi_params['bsdf']['xml'])
                 self.mat.vi_params['bsdf']['direcs'] = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
                 self.mat.vi_params['bsdf']['type'] = [path.firstChild.data for path in bsdf.getElementsByTagName('AngleBasisName')][0]
-            
+                self.mat.vi_params['bsdf']['filepath'] = filepath
+
             context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
             return {'FINISHED'}
     
@@ -626,7 +618,8 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         bm.free()  
         bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp)         
         gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
-
+        logentry('genBSDF running with command: {}'.format(gbcmd))
+        
         with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'w') as mgfile:
             mgfile.write(mradfile+gradfile)
 
@@ -640,7 +633,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         wm.modal_handler_add(self)        
         return {'RUNNING_MODAL'}
         
-class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, io_utils.ImportHelper):
+class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
     bl_idname = "material.load_bsdf"
     bl_label = "Select BSDF file"
     filename_ext = ".XML;.xml;"
@@ -661,6 +654,7 @@ class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, io_utils.ImportHelper):
         else:
             with open(self.filepath, 'r') as bsdffile:
                 context.material['bsdf']['xml'] = bsdffile.read()
+                context.material['bsdf']['filepath'] = self.filepath
             return {'FINISHED'}
 
     def invoke(self,context,event):
@@ -678,13 +672,13 @@ class MATERIAL_OT_Li_DBSDF(bpy.types.Operator):
         del context.material['bsdf']
         return {'FINISHED'}
         
-class MATERIAL_OT_Li_SBSDF(bpy.types.Operator):
+class MATERIAL_OT_Li_SBSDF(bpy.types.Operator, ExportHelper):
     bl_idname = "material.save_bsdf"
     bl_label = "Save BSDF"
     bl_description = "Save a BSDF for the current selected object"
     bl_register = True
-
-    filename_ext = ".XML;.xml;"
+    filename = "material"
+    filename_ext = ".xml"
     filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
     filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
     
@@ -693,16 +687,17 @@ class MATERIAL_OT_Li_SBSDF(bpy.types.Operator):
         row = layout.row()
         row.label(text="Save BSDF XML file with the file browser", icon='WORLD_DATA')
 
-    def execute(self, context):
+    def execute(self, context):        
         with open(self.filepath, 'w') as bsdfsave:
-            bsdfsave.write(context.material['bsdf']['xml'])
+            bsdfsave.write(context.material.vi_params['bsdf']['xml'])
         return {'FINISHED'}
 
     def invoke(self,context,event):
+        self.filepath= '{}.xml'.format(context.material.name)
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
         
-class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
+class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
     bl_idname = "node.radpreview"
     bl_label = "LiVi preview"
     bl_description = "Prevew the scene with Radiance"
@@ -712,14 +707,16 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
     def modal(self, context, event):
         if event.type == 'TIMER':
             if self.rvurun.poll() is not None: # If finished
+                self.simnode.run = 0
+                
                 for line in self.rvurun.stderr:
-                    logentry(line)
+                    if  b'fatal IO error' not in line and b'events remaining' not in line and b'Broken pipe' not in line and b'explicit kill' not in line:
+                        logentry(line)
                     for rvuerr in rvuerrdict:
                         if rvuerr in line.decode():
                             self.report({'ERROR'}, rvuerrdict[rvuerr])
                             return {'CANCELLED'}
-
-                self.simnode.run = 0
+                
                 return {'FINISHED'}
             else:           
                 return {'PASS_THROUGH'}
@@ -744,7 +741,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
             
-        cam = scene.camera
+        cam = bpy.data.objects[self.simnode.camera.lstrip()]
         
         if cam:
             curres = 0.1
@@ -796,7 +793,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, io_utils.ExportHelper):
             self.rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
             self.simnode.run = 1
             wm = context.window_manager
-            self._timer = wm.event_timer_add(5, window = context.window)
+            self._timer = wm.event_timer_add(1, window = context.window)
             wm.modal_handler_add(self)
             return {'RUNNING_MODAL'}
 
@@ -1222,7 +1219,7 @@ class NODE_OT_En_UV(bpy.types.Operator):
 #        node.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
         return {'FINISHED'}
     
-class NODE_OT_En_Con(bpy.types.Operator, io_utils.ExportHelper):
+class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
     bl_idname = "node.encon"
     bl_label = "Export"
     bl_description = "Export the scene to the EnergyPlus file format"
@@ -1467,7 +1464,25 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         bmesh.update_edit_mesh(self.o.data)
         return {'FINISHED'}
     
-class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
+class OBJECT_OT_GOct(bpy.types.Operator):
+    ''''''
+    bl_idname = "object.vi_genoct"
+    bl_label = "Octree Generator"
+    bl_options = {"REGISTER", 'UNDO'}
+    
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return (obj and obj.type == 'MESH')
+    
+    def execute(self, context):
+        scene = context.scene
+        fallback = 0
+#        scene, o, op, fallback
+        gen_octree(scene, context.object, self, fallback)
+        return {'FINISHED'}
+    
+class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
     bl_idname = "node.chart"
     bl_label = "Chart"
     bl_description = "Create a 2D graph from the results file"
@@ -1991,7 +2006,7 @@ class TREE_OT_goto_group(bpy.types.Operator):
         context.space_data.node_tree.use_fake_user = 1
         return {'FINISHED'}
     
-class NODE_OT_CSV(bpy.types.Operator, io_utils.ExportHelper):
+class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
     bl_idname = "node.csvexport"
     bl_label = "Export a CSV file"
     bl_description = "Select the CSV file to export"

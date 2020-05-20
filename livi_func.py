@@ -21,14 +21,31 @@ def radpoints(o, faces, sks):
 
     for f, face in enumerate(faces):
         fmi = face.material_index
-        mname = mns[fmi]
+        m = o.data.materials[fmi]
+        mname = mns[fmi] if not m.vi_params.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
+        mentry = face_bsdf(o, m, mname, mns[fmi], face.calc_tangent_edge(), face.index)
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
+        
         if sks:
             ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
             ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format(v.co) for v in face.verts])
-        fentries[f] = ''.join((fentry, ventries+'\n'))        
+        
+        fentries[f] = ''.join((mentry, fentry, ventries+'\n'))        
     return ''.join(fentries)
+
+def face_bsdf(o, m, mname, fname, fi, findex):
+    print(o.name, fi, fname, findex)
+#    mx_inv = o.matrix_world.inverted()
+#    mx_norm = mx_inv.transposed().to_3x3()
+#    fi = mx_norm@fi
+    
+    if m.vi_params.get('bsdf'):
+        return 'void BSDF {0}\n6 0.0000 {1} {2[0]} {2[1]} {2[2]} .\n0\n0\n\n'.format(mname,  
+                os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', 
+                '{}.xml'.format(fname)), fi)
+    else:
+        return ''
 
 def radbsdf(self, radname, fi, rot, trans):
     fmat = self.data.materials[self.data.polygons[fi].material_index]
@@ -73,7 +90,7 @@ def setscenelivivals(scene):
         res = svp.li_disp_menu
     else:
         res = unit2res[svp['liparams']['unit']]
-    print(res)
+
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
 
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -99,7 +116,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
     bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.0001)
-    bmesh.ops.dissolve_limit(bm, angle_limit = 0.0001, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = {'NORMAL'})
+#    bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = {'NORMAL'})
     bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.0001, faces = bm.faces)
     mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
     mpps = array([not m.vi_params.pport for m in o.data.materials])        
@@ -363,17 +380,18 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     
     for f, frame in enumerate(frames):
         self['res{}'.format(frame)] = {}
-        if svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+        if svp['liparams']['unit'] == 'Lux':
+            geom.layers.float.new('virradm2{}'.format(frame))
             geom.layers.float.new('virrad{}'.format(frame))
             geom.layers.float.new('illu{}'.format(frame))
+            virradm2res = geom.layers.float['virradm2{}'.format(frame)]
             virradres = geom.layers.float['virrad{}'.format(frame)]
             illures = geom.layers.float['illu{}'.format(frame)]
-        if svp['liparams']['unit'] == 'DF (%)':
-            geom.layers.float.new('df{}'.format(frame))
-            dfres = geom.layers.float['df{}'.format(frame)]
         elif svp['liparams']['unit'] == 'W/m2 (f)':
             geom.layers.float.new('firrad{}'.format(frame))
+            geom.layers.float.new('firradm2{}'.format(frame))
             firradres = geom.layers.float['firrad{}'.format(frame)]
+            firradm2res = geom.layers.float['firradm2{}'.format(frame)]
 
         geom.layers.float.new('res{}'.format(frame))
         res =  geom.layers.float['res{}'.format(frame)]
@@ -388,61 +406,69 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             
         for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
+            for sl in rtrun[0].splitlines():
+                print(sl)
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
+            print(xyzirrad.shape)
             if svp['liparams']['unit'] == 'W/m2 (f)':
-                firrad = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)
-            elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):
-                virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
-                illu = virrad * 179
-#            firrad = virrad * 1.64
-                if svp['liparams']['unit'] == 'DF (%)':
-                    df = illu * 0.01
+                firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)                
+            elif svp['liparams']['unit'] == 'Lux':
+                virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
+                illu = virradm2 * 179
             
             for gi, gp in enumerate(chunk):                
                 if svp['liparams']['unit'] == 'W/m2 (f)':
-                    gp[firradres] = firrad[gi].astype(float32)
-                    gp[res] = firrad[gi].astype(float32)
+                    gp[firradm2res] = firradm2[gi].astype(float32)
+                    gp[firradres] = (firradm2[gi] * gp.calc_area()).astype(float32)
                 elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):   
-                    gp[virradres] = virrad[gi].astype(float32)
+                    gp[virradm2res] = virradm2[gi].astype(float32)
+                    gp[virradres] = (virradm2[gi] * gp.calc_area()).astype(float32)
                     gp[illures] = illu[gi].astype(float32)                    
-                    if svp['liparams']['unit'] == 'DF':
-                        gp[dfres] = df[gi].astype(float16)
-                    gp[res] = illu[gi].astype(float32)
                 
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
 
-        oirrad = array([g[virradres] for g in geom]).astype(float64) if svp['liparams']['unit'] in ('DF (%)', 'Lux') else array([g[firradres] for g in geom]).astype(float64)
+        oirrad = array([g[virradres] for g in geom]).astype(float64) if svp['liparams']['unit'] in ('DF (%)', 'Lux') else array([g[firradm2res] for g in geom]).astype(float64)
         maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
         self['livires'][str(frame)] = (maxoirrad, minoirrad, aveoirrad)
+        
         if svp['liparams']['unit'] == 'W/m2 (f)':
-            self['omax']['firrad{}'.format(frame)] =  maxoirrad
+            oirradm2 = array([g[firradm2res] for g in geom]).astype(float64)
+            oirrad = array([g[firradres] for g in geom]).astype(float64)
+            maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
+            maxoirradm2, minoirradm2, aveoirradm2 = nmax(oirradm2), nmin(oirradm2), nmean(oirradm2)
+            self['omax']['firrad{}'.format(frame)] = maxoirrad
             self['oave']['firrad{}'.format(frame)] = aveoirrad            
             self['omin']['firrad{}'.format(frame)] = minoirrad
-            if self['omax']['firrad{}'.format(frame)] > self['omin']['firrad{}'.format(frame)]:
-                vals = [(gp[res] - self['omin']['firrad{}'.format(frame)])/(self['omax']['firrad{}'.format(frame)] - self['omin']['firrad{}'.format(frame)]) for gp in geom]
+            self['omax']['firradm2{}'.format(frame)] = maxoirradm2
+            self['oave']['firradm2{}'.format(frame)] = aveoirradm2            
+            self['omin']['firradm2{}'.format(frame)] = minoirradm2
+            if self['omax']['firradm2{}'.format(frame)] > self['omin']['firradm2{}'.format(frame)]:
+                vals = [(gp[res] - self['omin']['firradm2{}'.format(frame)])/(self['omax']['firradm2{}'.format(frame)] - self['omin']['firradm2{}'.format(frame)]) for gp in geom]
             else:
                 vals = [1 for gp in geom]
         elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+            oirradm2 = array([g[virradm2res] for g in geom]).astype(float64)
+            oirrad = array([g[virradres] for g in geom]).astype(float64)
+            maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
+            maxoirradm2, minoirradm2, aveoirradm2 = nmax(oirradm2), nmin(oirradm2), nmean(oirradm2)
             self['omax']['virrad{}'.format(frame)] = maxoirrad
+            self['omax']['virradm2{}'.format(frame)] = maxoirradm2
             self['omax']['illu{}'.format(frame)] =  maxoirrad * 179
             self['omin']['virrad{}'.format(frame)] = minoirrad
+            self['omin']['virradm2{}'.format(frame)] = minoirradm2
             self['oave']['illu{}'.format(frame)] = aveoirrad * 179
             self['oave']['virrad{}'.format(frame)] = aveoirrad
+            self['oave']['virradm2{}'.format(frame)] = aveoirradm2
             self['omin']['illu{}'.format(frame)] = minoirrad * 179
             
             if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
                 vals = [(gp[res] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]
             else:
                 vals = [1 for gp in geom]
-                
-            if svp['liparams']['unit'] == 'DF':        
-                self['omax']['df{}'.format(frame)] =  maxoirrad * 1.79
-                self['oave']['df{}'.format(frame)] = aveoirrad * 1.79       
-                self['omin']['df{}'.format(frame)] = minoirrad * 1.79
-        
+                        
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
 #        illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
@@ -875,18 +901,22 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     reslen = len(geom)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
+    
     if self.get('wattres'):
         del self['wattres']
         
     illumod = array((47.4, 120, 11.6)).astype(float32)
     wattmod = array((0.265, 0.67, 0.065)).astype(float32)
 #    fwattarray = vwattarray * 1.64
-    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]                          
+    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]
+    leedmi = simnode['coptions']['times'].index('20/03/15 09:00:00') 
+    leedei = simnode['coptions']['times'].index("20/03/15 15:00:00") 
+    print(len(simnode['coptions']['times']))                  
     vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), simnode, times)
     cbdm_days = [d for d in range(simnode['coptions']['sdoy'], simnode['coptions']['edoy'] + 1)] if svp['viparams']['visimcontext'] == 'LiVi CBDM' else [d for d in range(1, 366)]
     cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'])]
     dno, hno = len(cbdm_days), len(cbdm_hours)    
-    (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax']) if svp['viparams']['visimcontext'] != 'LiVi Compliance' else (300, 1000)
+    (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax'])
     vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     hours = vecvals.shape[0]
     restypes = ('da', 'sda', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firradh', 'firradhm2', 'maxlux', 'minlux', 'avelux')
@@ -947,6 +977,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':   
                 illuarray = nsum(resarray*illumod, axis = 2).astype(float32)                
                 finalillu = inner(illuarray, vecvals).astype(float32)
+#                udiabool = choose(finalillu < simnode['coptions']['daauto'] and finalillu >=  simnode['coptions']['dasup'], [0, 1]).astype(int8)
+                sdabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
+                asebool = choose(finalillu >= luxmax, [0, 1]).astype(int8)                                  
                 dabool = choose(finalillu >= simnode['coptions']['dalux'], [0, 1]).astype(int8)
                 udilbool = choose(finalillu < simnode['coptions']['damin'], [0, 1]).astype(int8)
                 udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
@@ -1054,7 +1087,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
-        
+
         if svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1':
             self['omax']['firradh{}'.format(frame)] = nmax(kwh).astype(float64)
             self['omin']['firradh{}'.format(frame)] = nmin(kwh).astype(float64)
@@ -1147,8 +1180,11 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 ['sDA (% hours)', '{:.1f}'.format(self['omin']['sda{}'.format(frame)]), '{:.1f}'.format(self['oave']['sda{}'.format(frame)]), '{:.1f}'.format(self['omax']['sda{}'.format(frame)])]])
             self['tablease{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['ASE (hrs)', '{:.1f}'.format(self['omin']['ase{}'.format(frame)]), '{:.1f}'.format(self['oave']['ase{}'.format(frame)]), '{:.1f}'.format(self['omax']['ase{}'.format(frame)])]])
-            reslists.append([str(frame), 'Zone', self.name, 'Annual Sunlight Exposure (% area)', ' '.join([str(p) for p in 100 * totasearea/totarea])])
-            reslists.append([str(frame), 'Zone', self.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/overallsdaarea])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join([str(p) for p in 100 * totasearea/totarea])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/overallsdaarea])])
+#            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/overallsdaarea])])
+
+#            reslists.append([str(frame), 'Zone', self.name, 'Annual Sunlight Exposure (hours)', ' '.join([str(p) for p in 100 * totasearea/totarea])])
             
 #        metric, scores, pf = [], [], ('Fail', 'Pass')
 #

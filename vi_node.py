@@ -24,11 +24,12 @@ from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates
-from .vi_func import delobj, logentry
+from .vi_func import delobj, logentry, ret_camera_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_layer, envi_layertype, envi_con_list
+from numpy import where, sort, median, array
 #from .vi_dicts import e1ddict
 
 envi_mats = envi_materials()
@@ -154,8 +155,11 @@ class No_Li_Geo(Node, ViNodes):
     bl_label = 'LiVi Geometry'
     bl_icon = 'OBJECT_DATA'
     
+    def ret_params(self):
+        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback, self.selected)]
+    
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)])
+        nodecolour(self, self['exportstate'] != self.ret_params())
 
     cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
@@ -164,6 +168,7 @@ class No_Li_Geo(Node, ViNodes):
     startframe: IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
     fallback: BoolProperty(name="", description="Enforce simple geometry export", default = 0, update = nodeupdate)
+    selected: BoolProperty(name="", description="Only convert the currently selected object", default = 0, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -172,7 +177,9 @@ class No_Li_Geo(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Fallback:', self, 'fallback')
+        newrow(layout, 'Selected:', self, 'selected')
         newrow(layout, 'Animated:', self, 'animated')
+        
         if self.animated:
             row = layout.row()
             row.label(text = 'Frames:')
@@ -195,7 +202,7 @@ class No_Li_Geo(Node, ViNodes):
         
     def postexport(self, scene):
         self.id_data.use_fake_user = 1
-        self['exportstate'] = [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)]
+        self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
 
 class No_Li_Sen(Node, ViNodes):
@@ -915,6 +922,7 @@ class No_Li_Sim(Node, ViNodes):
             name="", description="Simulation accuracy", default="1", update = nodeupdate)
     cusacc: StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+    
     rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
     rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
     rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
@@ -925,6 +933,7 @@ class No_Li_Sim(Node, ViNodes):
     run: IntProperty(default = 0)
     validparams: BoolProperty(name = '', default = True)
     illu: BoolProperty(name = '', default = False)
+    camera: EnumProperty(items=ret_camera_menu, name = '', description = 'Camera')
 
     def init(self, context):
         self['simdict'] = {'Basic': 'simacc', 'Compliance':'csimacc', 'CBDM':'csimacc'}
@@ -937,6 +946,7 @@ class No_Li_Sim(Node, ViNodes):
     def draw_buttons(self, context, layout): 
         scene = context.scene
         svp = scene.vi_params
+        
         try:
             row = layout.row()
             row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
@@ -951,14 +961,19 @@ class No_Li_Sim(Node, ViNodes):
             
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
+
             if not self.run and self.validparams:
                 if cinnode['Options']['Preview']:
                     row = layout.row()
-                    row.operator("node.radpreview", text = 'Preview')
-#                if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1' and not self.run:
-#                    row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
+                    row.prop(self, "camera") 
+
+                    if self.camera != 'None':
+                        row.operator("node.radpreview", text = 'Preview')
+
                 if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
+                    row = layout.row()
                     row.operator("node.livicalc", text = 'Calculate')
+                    
         except Exception as e:
             logentry('Problem with LiVi simulation: {}'.format(e))
 
@@ -1592,8 +1607,23 @@ class No_Vi_Metrics(Node, ViNodes):
         if self.inputs[0].links:
             rl = self.inputs[0].links[0].from_node['reslists']
 #            zrl = list(zip(*rl))
-            znames = set([z[2] for z in rl if z[1] == 'Zone'])
-            return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+            try:
+                znames = set([z[2] for z in rl if z[1] == 'Zone'])
+                return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+            except:
+                return [('None', 'None', 'None')]
+        else:
+            return [('None', 'None', 'None')]
+        
+    def frames(self, context):
+        if self.inputs[0].links:
+            rl = self.inputs[0].links[0].from_node['reslists']
+#            zrl = list(zip(*rl))
+            try:
+                frames = set([z[0] for z in rl])
+                return [(f, f, 'Frame') for f in frames]
+            except:
+                return [('None', 'None', 'None')]
         else:
             return [('None', 'None', 'None')]
     
@@ -1606,6 +1636,8 @@ class No_Vi_Metrics(Node, ViNodes):
                 name="", description="Results metric", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
+    frame_menu: EnumProperty(items=frames,
+                name="", description="Frame results", update=zupdate)
     mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
     
     def init(self, context):
@@ -1618,6 +1650,7 @@ class No_Vi_Metrics(Node, ViNodes):
             newrow(layout, 'Metric:', self, "energy_menu")
         else:
             newrow(layout, 'Metric:', self, "light_menu")
+        newrow(layout, 'Frame', self, "frame_menu")
         newrow(layout, 'Zone', self, "zone_menu")
         
         if self.metric == '0':
@@ -1654,7 +1687,24 @@ class No_Vi_Metrics(Node, ViNodes):
                         row = layout.row()
                         epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
                         row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
-                    
+        if self.metric == '1':
+             if self.light_menu == '1':
+                 if self['res'] and self['res'].get('ase'): 
+                     row = layout.row()
+                     row.label(text = "Option 1:")
+                     row = layout.row()
+                     row.label(text = "ASE1000 (hours): {:.0f} | < 250 | {}".format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]))
+                     row = layout.row()
+                     row.label(text = "sDA300 (%): {:.1f} | > (55, 75) | {}".format(self['res']['sda'], ('Pass', 'Fail')[self['res']['sda'] < 55]))
+                     row = layout.row()
+                     row.label(text = "Total credits: {}".format(self['res']['o1']))
+                     
+#                     row = layout.row()
+#                     row.label(text = "Option 2:")
+#                     row = layout.row()
+#                     row.label(text = "Morning (%): {:.1f}".format(self['res']['udiam']))
+#                     row = layout.row()
+#                     row.label(text = "Afternoon (%): {:.1f}".format(self['res']['udiae']))
     def update(self):
         self.ret_metrics()
         if self.inputs[0].links:
@@ -1716,22 +1766,35 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['fa'] = 'N/A'
                 self['res']['ECF'] = 'N/A'
         
-            elif self.metric == '1' and self.light_menu == '1':
-                self['res']['asearea'] = 0
-                self['res']['sdaarea'] = 0
-                self['res']['autoarea'] = 0
-                
                 if self.light_menu == '1':
+                    self['res']['ase'] = 0
+                    self['res']['sda'] = 0
+                    self['res']['auto'] = 0
+                    self['res']['o1'] = 0
+                    
                     for r in rl:
-                        if r[2] == self.zone_menu:
-                            if r[3] == 'Heating (W)':
-                                self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
-                            elif r[3] == 'Cooling (W)':        
-                                self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
-                        elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
-                                self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                
-                
+                        print(r[2], r[3])
+                        if r[0] == self.frame_menu:
+                            if r[2] == self.zone_menu:
+                                if r[3] == 'Annual Sunlight Exposure (% area)':
+                                    aseareas = array([float(p) for p in r[4].split()])
+                                    self['res']['ase'] = len(aseareas[aseareas > 10])
+                                elif r[3] == 'Spatial Daylight Autonomy (% area)': 
+                                    sdaareas = array([float(p) for p in r[4].split()])                                
+                                    self['res']['sda'] = median(sort(sdaareas))                                
+                                elif r[3] == 'UDI-a Area (%)':
+                                    udiaareas = array([float(p) for p in r[4].split()]) 
+                                    im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
+                                    ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
+                                    self['res']['udiam'] = udiaareas[im]
+                                    self['res']['udiae'] = udiaareas[ie]
+                    if self['res']['ase'] < 250:
+                        if self['res']['sda'] > 55:
+                            self['res']['o1'] = 2  
+                        if self['res']['sda'] > 75:
+                            self['res']['o1'] = 3
+                    
+                    
     def ret_metrics(self):
         if self.inputs['Results in'].links:
             reslist = self.inputs['Results in'].links[0].from_node['reslists']

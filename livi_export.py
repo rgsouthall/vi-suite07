@@ -30,7 +30,7 @@ def radgexport(export_op, node, **kwargs):
     frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     svp['liparams']['cp'] = node.cpoint
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
-    
+            
     for o in caloblist:
         if any([s < 0 for s in o.scale]):
             logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
@@ -90,9 +90,10 @@ def radgexport(export_op, node, **kwargs):
             bm.free()
             
             if o.particle_systems:
-                ps = o.particle_systems.active                
+                ps = o.evaluated_get(depsgraph).particle_systems[0]
+#                ps = o.particle_systems.active                
                 particles = ps.particles
-                dob = ps.settings.dupli_object
+                dob = ps.settings.instance_object
                 dobs = [dob] if dob else []
                 dobs = ps.settings.dupli_group.objects if not dobs else dobs
                 
@@ -103,15 +104,16 @@ def radgexport(export_op, node, **kwargs):
                     bm.transform(dob.matrix_world)
                     bm.normal_update() 
                     dob.to_mesh_clear()
-                    gradfile += bmesh2mesh(scene, bm, dob, frame, tempmatfilename, node.fallback)
+                    bmesh2mesh(scene, bm, dob, frame, tempmatfilename, node.fallback)
                     bm.free()
                     
-                    if os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(dob.name.replace(' ', '_'), frame)) in gradfile:
+                    if os.path.isfile(os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_')))):
                         for p, part in enumerate(particles):
-                            gradfile += 'void mesh id\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name, 
-                                        p, [-p for p in dob.location], part.location, part.size, [180 * r/math.pi for r in part.rotation.to_euler('XYZ')], os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(dob.name.replace(' ', '_'), frame)))
+                            gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name, 
+                                        p, [-p for p in dob.location], part.location, part.size, [180 * r/math.pi for r in part.rotation.to_euler('XYZ')], 
+                                        os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
                     else:
-                        logentry('Radiance mesh export of {} failed. Dupli_objects not exported'.format(dob.name))
+                        logentry('Octree for object {} not found in {}'.format(dob.name, os.path.join(svp['viparams']['newdir'], 'octrees')))
       
     # Lights export routine
 
@@ -150,19 +152,70 @@ def radgexport(export_op, node, **kwargs):
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
 
+def gen_octree(scene, o, op, fallback):
+    dg = bpy.context.evaluated_depsgraph_get()
+    bm = bmesh.new()
+    tempmesh = o.evaluated_get(dg).to_mesh()
+    bm.from_mesh(tempmesh)
+    bm.transform(o.matrix_world)
+    bm.normal_update() 
+    o.to_mesh_clear()
+    nd = scene.vi_params['viparams']['newdir']
+    
+    if not os.path.isdir(os.path.join(nd, 'octrees')):
+        os.makedirs(os.path.join(nd, 'octrees'))
+        
+    mats = o.data.materials
+    mradfile =  "".join([m.vi_params.radmat(scene) for m in mats if m])        
+    bpy.ops.object.select_all(action='DESELECT')
+    mf = os.path.join(nd, 'octrees', '{}.mat'.format(o.name))
+        
+    with open(mf, "w") as tempmatfile:
+        tempmatfile.write(mradfile)  
+        
+    gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, fallback)
+    
+    with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
+        try:
+            ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
+            err = ocrun.communicate(input = gradfile, timeout = 600)[1]
+
+            if err:
+                logentry('Oconv conversion error: {}'.format(err))
+                return 'CANCELLED'
+            
+        except TimeoutExpired:
+            ocrun.kill()
+            errmsg = 'Oconv conversion taking too long. Try joining/simplfying geometry or using geometry export fallback'
+            op.report({'ERROR'}, errmsg)
+            logentry('Oconv error: {}'.format(errmsg))
+            return 'CANCELLED'
+            
+    for line in err:
+        logentry('Oconv error: {}'.format(line))
+    if err and 'fatal -' in err:
+        op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
+        return 'CANCELLED'
+    elif err and 'set overflow' in err:
+        op.report({'ERROR'}, 'Ratio of largest to smallest geometry is too large. Clean up mesh geometry or decrease the radius of any HDR panorama')
+        return 'CANCELLED'
+    
 def livi_sun(scene, node, frame):
     svp = scene.vi_params
+    
     if node.skyprog in ('0', '1') and node.contextmenu == 'Basic':        
         simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, svp.latitude, svp.longitude)
         
         if node.skyprog == '0':
-            gsrun = Popen("gensky -ang {} {} {} -t {} -g {}".format(solalt, solazi, node['skytypeparams'], node.turb, node.gref).split(), stdout = PIPE) 
+            gscmd = "gensky -ang {} {} {} -t {} -g {}".format(solalt, solazi, node['skytypeparams'], node.turb, node.gref)            
         else:
-            gsrun = Popen("gendaylit -ang {} {} {} -g {}".format(solalt, solazi, node['skytypeparams'], node.gref).split(), stdout = PIPE)
+            gscmd = "gendaylit -ang {} {} {} -g {}".format(solalt, solazi, node['skytypeparams'], node.gref)
     else:
-        gsrun = Popen("gensky -ang {} {} {} -g {}".format(45, 0, node['skytypeparams'], node.gref).split(), stdout = PIPE)
-    
+        gscmd = "gensky -ang {} {} {} -g {}".format(45, 0, node['skytypeparams'], node.gref)
+        
+    logentry('Generating sky with the command: {}'.format(gscmd))
+    gsrun = Popen(gscmd.split(), stdout = PIPE) 
     return gsrun.stdout.read().decode()
 
 def hdrexport(scene, f, frame, node, skytext):
@@ -220,7 +273,7 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
     with open("{}.oct".format(fbase), "wb") as octfile:
         try:
             ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
-            err = ocrun.communicate(input = simnode['radfiles'][str(frame)], timeout = 60)[1]
+            err = ocrun.communicate(input = simnode['radfiles'][str(frame)], timeout = 600)[1]
 
             if err:
                 logentry('Oconv conversion error: {}'.format(err))
@@ -300,10 +353,11 @@ def cyfc1(self):
             except Exception as e:
                 print(e, 'Something wrong with changing the material attribute name')    
         
-def genbsdf(scene, export_op, o): 
+def genbsdf(scene, export_op, o):     
     if viparams(export_op, scene):
         return
-
+    
+    svp = scene.vi_params
     bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
 
     if bsdfmats:

@@ -73,7 +73,7 @@ else:
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
     from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
-    from .vi_operators import OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
+    from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, NODE_OT_SunPath
     from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
@@ -113,10 +113,12 @@ def unititems(self, context):
         svp = scene.vi_params
         
         if svp['liparams']['unit'] == 'W/m2 (f)':
-            return [('firradm2', 'Full irradiance', 'Full spectrum irradiance')]
+            return [('firradm2', 'W/m2', 'Full spectrum irradiance per metre square'),
+                    ('firrad', 'W', 'Full spectrum irradiance')]
         elif svp['liparams']['unit'] == 'Lux':
-            return [('illu', 'Illuminance', 'Illuminance'), 
-                    ('virrad', 'Visible irradiance', 'Visible spectrum illuminance')]
+            return [('illu', 'Lux', 'Illuminance'), 
+                    ('virradm2', 'Watts/m2', 'Visible spectrum illuminance'),
+                    ('virrad', 'Watts', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'lxh':
             return [('illuh', 'Lux-hours', 'Lux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
         elif svp['liparams']['unit'] == 'kWh (f)':
@@ -124,7 +126,7 @@ def unititems(self, context):
                     ('firradhm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
         elif svp['liparams']['unit'] == 'DA (%)':
             return[("da", "DA", "Daylight Autonomy"), 
-                   ("sda", "SDA", "Spatial Daylight Autonomy"), 
+                   ("sda", "sDA", "Spatial Daylight Autonomy"), 
                    ("udilow", "UDI (low)", "Useful daylight illuminance (low)"), 
                    ("udisup", "UDI (supp)", "Useful daylight illuminance (supplemented)"), 
                    ("udiauto", "UDI (auto)", "Useful daylight illuminance (autonomous)"), 
@@ -503,7 +505,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
-           OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV)
+           OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV)
                      
 def register():
     for cl in classes:

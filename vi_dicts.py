@@ -1,5 +1,5 @@
-unit2res = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'virrad', u'W/m\u00b2 (f)': 'firrad', 'SVF': 'svf', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
-             'lxh': 'illuh','kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh', u'kWh/m\u00b2 (v)': 'virradhm2', 'DA (%)': 'da', 
+unit2res = {'Lux': 'illu', 'DF (%)': 'df', 'W/m2 (v)': 'virradm2', 'W/m2 (f)': 'firradm2', 'W (f)': 'firrad', 'W (v)': 'virrad', 'SVF': 'svf', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
+             'lxh': 'illuh','kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh', 'kWh/m2 (v)': 'virradhm2', 'DA (%)': 'da', 
              'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', '% Sunlit': 'sm',
              'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh', 'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux'}
 
@@ -31,3 +31,13 @@ e1ddict = {'BPsolar 275': (4.75,  21.4, 17, 4.45, 0.00065, -0.08, 36, 320, 0.63)
                'UniSolar PVL-64': (4.8, 23.8, 16.5, 3.88, 0.00065, -0.1, 40, 323, 0.65),
                'UniSolar PVL-128': (4.8, 47.6, 33, 3.88, 0.00065, -0.2, 80, 323, 1.25),
                'Custom': (None, None, None, None, None, None, None, None, None)}
+
+rvuerrdict = {'view up parallel to view direction': "Camera cannot point directly upwards", 
+              ' x11': "No X11 display server found. You may need to install XQuartz", 
+              'source center': "A light source has concave faces. Use mesh - cleanup - split concave faces"}
+pmerrdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry",
+             'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
+               'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
+               'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
+               'fatal - no valid photon ports found\n': 'Make sure photon ports are valid', 
+               'fatal - failed photon distribution\n': 'Do the lights see enough geometry?'}
