@@ -23,9 +23,9 @@ from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
-from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates
+from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
 from .vi_func import delobj, logentry, ret_camera_menu
-from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams
+from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_layer, envi_layertype, envi_con_list
@@ -148,6 +148,23 @@ class No_Loc(Node, ViNodes):
             return 1
         return 0
 
+class No_ASC_Import(Node, ViNodes):
+    '''Node describing a LiVi geometry export node'''
+    bl_idname = 'No_ASC_Import'
+    bl_label = 'Vi ASC Import'
+    bl_icon = 'GRID'
+
+    single: BoolProperty(name = '', default = False)
+    ascfile: StringProperty()
+    clear_nodata: EnumProperty(name="", description="Deal with no data", items=[('0', 'Zero', 'Make no data zero'), ('1', 'Delete', 'Delete no data')], default='0')
+
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Single file:', self, 'single')
+        newrow(layout, 'No data:', self, 'clear_nodata')
+        row = layout.row()
+        row.operator('node.ascimport', text = 'Import ASC')
+        
 # Export Nodes
 class No_Li_Geo(Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
@@ -156,7 +173,7 @@ class No_Li_Geo(Node, ViNodes):
     bl_icon = 'OBJECT_DATA'
     
     def ret_params(self):
-        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback, self.selected)]
+        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)]
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
@@ -168,7 +185,6 @@ class No_Li_Geo(Node, ViNodes):
     startframe: IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
     fallback: BoolProperty(name="", description="Enforce simple geometry export", default = 0, update = nodeupdate)
-    selected: BoolProperty(name="", description="Only convert the currently selected object", default = 0, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -177,7 +193,6 @@ class No_Li_Geo(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Fallback:', self, 'fallback')
-        newrow(layout, 'Selected:', self, 'selected')
         newrow(layout, 'Animated:', self, 'animated')
         
         if self.animated:
@@ -224,7 +239,7 @@ class No_Li_Con(Node, ViNodes):
         return [str(x) for x in (self.contextmenu, self.spectrummenu, self.canalysismenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
-                   self.cbdm_end_hour, self.bambuildmenu, self.leed4)]
+                   self.cbdm_end_hour, self.bambuildmenu, self.leed4, self.colour)]
 
     def nodeupdate(self, context):
         scene = context.scene
@@ -320,6 +335,7 @@ class No_Li_Con(Node, ViNodes):
     endmonth: IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     startframe: IntProperty(name = '', default = 0, min = 0, description = 'Start Frame', update = nodeupdate)
     leed4: BoolProperty(name = '', description = 'LEED v4 Compliance',  default = False, update = nodeupdate)
+    colour: BoolProperty(name = '', description = 'Coloured Gendaylit sky',  default = False, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
@@ -366,6 +382,7 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, "Ground col:", self, 'gcol')
                 newrow(layout, "Start hour:", self, 'shour')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+                newrow(layout, 'Colour sky', self, "colour")
                 newrow(layout, "Animation;", self, 'animated')
                 
                 if self.animated:
@@ -530,7 +547,7 @@ class No_Li_Con(Node, ViNodes):
             self['preview'] = 1
             
             if self.skyprog in ('0', '1'):
-                self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {} -O {}".format(self.epsilon, self.delta, int(self.spectrummenu))
+                self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {} -O {} {}".format(self.epsilon, self.delta, int(self.spectrummenu), ('', '-C')[self.colour])
 
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):                  
                     skytext = livi_sun(scene, self, f) + livi_sky(self['skynum']) + livi_ground(*self.gcol, self.gref)
@@ -634,7 +651,7 @@ class No_Li_Con(Node, ViNodes):
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-                    'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 'leed4': self.leed4}
+                    'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 'leed4': self.leed4, 'colour': self.colour}
         nodecolour(self, 0)
         self['exportstate'] = self.ret_params()
 
@@ -952,9 +969,13 @@ class No_Li_Sim(Node, ViNodes):
             row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
             cinnode = self.inputs['Context in'].links[0].from_node
             newrow(layout, 'Photon map:', self, 'pmap')
+
             if self.pmap:
                newrow(layout, 'Global photons:', self, 'pmapgno')
-               newrow(layout, 'Caustic photons:', self, 'pmapcno')
+               
+               if self['coptions']['context'] == 'Basic' or (self['coptions']['context'] == 'CBDM' and self['coptions']['subcontext'] == '0'):
+                   newrow(layout, 'Caustic photons:', self, 'pmapcno')
+
             row = layout.row()
             row.label(text = "Accuracy:")            
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
@@ -1079,7 +1100,7 @@ class ViSVFNode(Node, ViNodes):
     '''Node for sky view factor analysis'''
     bl_idname = 'ViSVFNode'
     bl_label = 'VI SVF'
-    bl_icon = 'COLOR'
+    bl_icon = 'MOD_SOFT'
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)])
@@ -2005,7 +2026,7 @@ vi_gen = []
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_Metrics", label="Metrics")]
 vi_out = [NodeItem("No_CSV", label="CSV")]
 vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
-vi_input = [NodeItem("No_Loc", label="VI Location")]
+vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
 
 vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out), 
                      ViNodeCategory("Edit", "Edit Nodes", items=vi_edit), 

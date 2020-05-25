@@ -8,9 +8,28 @@ from numpy import mean as nmean
 from numpy import append as nappend
 
 #from numpy import delete as ndelete
-from .vi_func import vertarea, logentry, ct2RGB, clearlayers, chunks, selobj
+from .vi_func import vertarea, logentry, ct2RGB, clearlayers, chunks, selobj, solarPosition, sunapply
 from .vi_dicts import res2unit, unit2res
 
+def sunposlivi(scene, skynode, frames, sun, stime):
+    svp = scene.vi_params
+    
+    if skynode['skynum'] < 3 or (skynode.skyprog == '1' and skynode.epsilon > 1): 
+        times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]  
+        solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, svp.latitude, svp.longitude) for t in times]
+        beamvals = [(0, 3)[solposs[t][0] > 0] for t in range(len(times))] if skynode['skynum'] < 2  or (skynode.skyprog == '1' and skynode.epsilon > 1) else [0 for t in range(len(times))]
+        skyvals = [5 for t in range(len(times))]
+        
+    elif skynode['skynum'] == 3 and skynode.skyprog == '0': 
+        times = [datetime.datetime(2015, 3, 20, 12, 0)]
+        solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, 0, 0) for t in times]
+        beamvals = [0 for t in range(len(times))]
+        skyvals = [5 for t in range(len(times))]
+       
+    shaddict = {'0': 0.01, '1': 2, '2': 5, '3': 5}
+    values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
+    sunapply(scene, sun, values, solposs, frames)
+    
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces) 
     mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials]
@@ -35,7 +54,6 @@ def radpoints(o, faces, sks):
     return ''.join(fentries)
 
 def face_bsdf(o, m, mname, fname, fi, findex):
-    print(o.name, fi, fname, findex)
 #    mx_inv = o.matrix_world.inverted()
 #    mx_norm = mx_inv.transposed().to_3x3()
 #    fi = mx_norm@fi
@@ -92,8 +110,9 @@ def setscenelivivals(scene):
         res = unit2res[svp['liparams']['unit']]
 
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
-
+    
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+        print(res, olist[0].vi_params['omax']['{}{}'.format(res, frame)])
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
         svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(res, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(res, frame)] for o in olist])
@@ -176,7 +195,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
         with open(ofile, 'w') as objfile:
             objfile.write(otext + vtext + ftext)
 
-    bm.free()        
+    bm.free() 
+#    print('start', gradfile, 'stop')       
     return gradfile
         
 def radmat(self, scene):
@@ -406,10 +426,8 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             
         for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
-            for sl in rtrun[0].splitlines():
-                print(sl)
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
-            print(xyzirrad.shape)
+
             if svp['liparams']['unit'] == 'W/m2 (f)':
                 firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)                
             elif svp['liparams']['unit'] == 'Lux':
@@ -430,7 +448,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 bm.free()
                 return {'CANCELLED'}
 
-        oirrad = array([g[virradres] for g in geom]).astype(float64) if svp['liparams']['unit'] in ('DF (%)', 'Lux') else array([g[firradm2res] for g in geom]).astype(float64)
+        oirrad = array([g[virradm2res] for g in geom]).astype(float64) if svp['liparams']['unit'] == 'Lux' else array([g[firradm2res] for g in geom]).astype(float64)
         maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
         self['livires'][str(frame)] = (maxoirrad, minoirrad, aveoirrad)
         
@@ -449,20 +467,21 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 vals = [(gp[res] - self['omin']['firradm2{}'.format(frame)])/(self['omax']['firradm2{}'.format(frame)] - self['omin']['firradm2{}'.format(frame)]) for gp in geom]
             else:
                 vals = [1 for gp in geom]
-        elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):
+                
+        elif svp['liparams']['unit'] == 'Lux':
             oirradm2 = array([g[virradm2res] for g in geom]).astype(float64)
             oirrad = array([g[virradres] for g in geom]).astype(float64)
             maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
             maxoirradm2, minoirradm2, aveoirradm2 = nmax(oirradm2), nmin(oirradm2), nmean(oirradm2)
             self['omax']['virrad{}'.format(frame)] = maxoirrad
             self['omax']['virradm2{}'.format(frame)] = maxoirradm2
-            self['omax']['illu{}'.format(frame)] =  maxoirrad * 179
+            self['omax']['illu{}'.format(frame)] =  maxoirradm2 * 179
             self['omin']['virrad{}'.format(frame)] = minoirrad
             self['omin']['virradm2{}'.format(frame)] = minoirradm2
-            self['oave']['illu{}'.format(frame)] = aveoirrad * 179
+            self['oave']['illu{}'.format(frame)] = aveoirradm2 * 179
             self['oave']['virrad{}'.format(frame)] = aveoirrad
             self['oave']['virradm2{}'.format(frame)] = aveoirradm2
-            self['omin']['illu{}'.format(frame)] = minoirrad * 179
+            self['omin']['illu{}'.format(frame)] = minoirradm2 * 179
             
             if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
                 vals = [(gp[res] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]
@@ -907,11 +926,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         
     illumod = array((47.4, 120, 11.6)).astype(float32)
     wattmod = array((0.265, 0.67, 0.065)).astype(float32)
-#    fwattarray = vwattarray * 1.64
-    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]
-    leedmi = simnode['coptions']['times'].index('20/03/15 09:00:00') 
-    leedei = simnode['coptions']['times'].index("20/03/15 15:00:00") 
-    print(len(simnode['coptions']['times']))                  
+    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]                  
     vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), simnode, times)
     cbdm_days = [d for d in range(simnode['coptions']['sdoy'], simnode['coptions']['edoy'] + 1)] if svp['viparams']['visimcontext'] == 'LiVi CBDM' else [d for d in range(1, 366)]
     cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'])]

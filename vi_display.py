@@ -58,7 +58,7 @@ def leg_update(self, context):
         bins = array([(slices[i] - increment * (svp.vi_leg_levels - i))/100 for i in range(svp.vi_leg_levels + 1)])
         bins = array([1 - log10(i)/log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
         bins = bins[1:-1]
-    
+
     for o in obs:
         selobj(context.view_layer, o)
         bm = bmesh.new()
@@ -265,6 +265,7 @@ def li_display(disp_op, simnode):
         cv = ores.cycles_visibility
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
+        svp['liparams']['livir'] = [ores.name]
         orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave'] 
         selobj(bpy.context.view_layer, ores)
         cmap(svp)
@@ -296,7 +297,7 @@ def li_display(disp_op, simnode):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
                 
-    svp['liparams']['livir'] = [o.name for o in obreslist]            
+    svp['liparams']['livir'] = [o.name for o in obreslist]          
     skframe('', scene, obreslist)                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(svp['liparams']['fs'])

@@ -74,6 +74,88 @@ try:
 except: 
     psu = 0    
 
+class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
+    bl_idname = "node.ascimport"
+    bl_label = "Select ESRI Grid file"
+    bl_description = "Select the ESRI Grid file to process"
+    filename = ""
+    filename_ext = ".asc"
+    filter_glob: bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = False
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an asc file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        scene = context.scene
+        asccoll = create_coll(context, 'Terrain')
+        startxs, startys, vlen = [], [], 0
+        ascfiles = [self.filepath] if self.node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
+        obs = []
+        headerdict = {'ncols': 0, 'nrows': 0, 'xllcorner': 0, 'yllcorner': 0, 'cellsize': 0, 'NODATA_value': 0}
+
+        for file in ascfiles:
+            basename = file.split(os.sep)[-1].split('.')[0]
+            me = bpy.data.meshes.new("{} mesh".format(basename))
+            bm = bmesh.new()
+            l = 0
+            with open(file, 'r') as ascfile:
+                lines = ascfile.readlines()
+                
+                while len(lines[l].split()) == 2:
+                    if lines[l].split()[0] in headerdict:
+                        headerdict[lines[l].split()[0]] = eval(lines[l].split()[1])
+                    l += 1
+   
+                vlen = headerdict['nrows'] * headerdict['ncols']                   
+                startxs.append(headerdict['xllcorner'])
+                startys.append(headerdict['yllcorner'])                
+                x, y = 0, headerdict['nrows']
+                
+                for l, line in enumerate(lines[l:]):   
+                    for zval in line.split():
+                        [bm.verts.new((x * headerdict['cellsize'], y * headerdict['cellsize'], float(zval)))]                         
+                        x += 1
+                    x = 0
+                    y -=1
+            
+            bm.verts.ensure_lookup_table()
+            faces = [(i+1, i, i+headerdict['ncols'], i+headerdict['ncols'] + 1) for i in range(0, vlen - headerdict['ncols']) if (i+1)%headerdict['ncols']]
+            [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces]
+            
+            if self.node.clear_nodata == '1':
+                bmesh.ops.delete(bm, geom = [v for v in bm.verts if v.co[2] == headerdict['NODATA_value']], context = 1)
+            
+            elif self.node.clear_nodata == '0':
+                for v in bm.verts:
+                    if v.co[2] == headerdict['NODATA_value']:
+                        v.co[2] = 0
+                        
+            bm.to_mesh(me)
+            bm.free()
+            ob = bpy.data.objects.new(basename, me)
+            if ob.name not in asccoll.objects:
+                asccoll.objects.link(ob)
+                if ob.name in scene.collection.objects:
+                    scene.collection.objects.unlink(ob)
+#            bpy.context.view_layer.objects.link(ob)
+            obs.append(ob)
+
+        minstartx,  minstarty = min(startxs), min(startys)
+
+        for o, ob in enumerate(obs):
+            ob.location = (startxs[o] - minstartx, startys[o] - minstarty, 0)
+            
+        return {'FINISHED'}
+        
+    def invoke(self,context,event):
+        self.node = context.node
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
 class NODE_OT_TextUpdate(bpy.types.Operator):
     bl_idname = "node.textupdate"
     bl_label = "Update a text file"
@@ -756,7 +838,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
-                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
+                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -n {6} -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
                 logentry('Photon map command: {}'.format(pmcmd))
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
 
@@ -1432,22 +1514,23 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         mesh = bmesh.from_edit_mesh(self.o.data)
         mesh.faces.ensure_lookup_table()
         mesh.verts.ensure_lookup_table()
-        self.upv = mesh.faces[0].calc_tangent_edge_pair().copy().normalized()
-        self.norm = mesh.faces[0].normal.copy()
+        fs = [f for f in mesh.faces[:] if f.select]
+        self.upv = fs[0].calc_tangent_edge_pair().copy().normalized()
+        self.norm = fs[0].normal.copy()
         self.acv = self.upv.copy()
         eul = Euler(radians(-90) * self.norm, 'XYZ')
         self.acv.rotate(eul)
+        self.acv = self.upv.cross(self.norm)
         rotation = Euler(radians(self.rotate) * self.norm, 'XYZ')
         self.upv.rotate(rotation)
         self.acv.rotate(rotation)
-        vertdots = [Vector.dot(self.upv, vert.co) for vert in mesh.verts]
-        vertdots2 = [Vector.dot(self.acv, vert.co) for vert in mesh.verts]
-        svpos = mesh.verts[vertdots.index(min(vertdots))].co
-        svpos2 = mesh.verts[vertdots2.index(min(vertdots2))].co
+        vertdots = [Vector.dot(self.upv, vert.co) for vert in fs[0].verts]
+        vertdots2 = [Vector.dot(self.acv, vert.co) for vert in fs[0].verts]
+        svpos = fs[0].verts[vertdots.index(min(vertdots))].co
+        svpos2 = fs[0].verts[vertdots2.index(min(vertdots2))].co
         res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
-        vs = mesh.verts[:]
-        es = mesh.edges[:]
-        fs = [f for f in mesh.faces[:] if f.select]
+        vs = fs[0].verts[:]
+        es = fs[0].edges[:]        
         gs = vs + es + fs
           
         while res1:
@@ -1478,7 +1561,6 @@ class OBJECT_OT_GOct(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         fallback = 0
-#        scene, o, op, fallback
         gen_octree(scene, context.object, self, fallback)
         return {'FINISHED'}
     

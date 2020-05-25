@@ -473,56 +473,58 @@ def ret_res_vals(svp, reslist):
         
 def lividisplay(self, scene): 
     svp = scene.vi_params
-    frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
-    ll = svp.vi_leg_levels
-    increment = 1/ll
     
-    if len(frames) > 1:
-        if not self.id_data.data.animation_data:
-            self.id_data.data.animation_data_create()
+    if self.id_data.name in svp['liparams']['livir']:        
+        frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
+        ll = svp.vi_leg_levels
+        increment = 1/ll
         
-        self.id_data.data.animation_data.action = bpy.data.actions.new(name="LiVi {} MI".format(self.name))
-        fis = [str(face.index) for face in self.id_data.data.polygons]
-        lms = {fi: self.id_data.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
-        
-        for fi in fis:
-            lms[fi].keyframe_points.add(len(frames))
-
-    for f, frame in enumerate(frames):  
-        bm = bmesh.new()
-        bm.from_mesh(self.id_data.data)
-        geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces  
-        livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
-        res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
-        oreslist = [g[livires] for g in geom]
-        self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-        smaxres, sminres =  max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
-        
-        if smaxres > sminres:        
-            vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
-                (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
-        else:
-            vals = array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])
-    
-        if livires != res:
-            for g in geom:
-                g[res] = g[livires]  
-                
-        if svp['liparams']['unit'] == 'Sky View':
-            nmatis = [(0, ll - 1)[v == 1] for v in vals]
-        else:
-            bins = array([increment * i for i in range(ll + 1)])
-            nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None) + 1
+        if len(frames) > 1:
+            if not self.id_data.data.animation_data:
+                self.id_data.data.animation_data_create()
             
-        bm.to_mesh(self.id_data.data)
-        bm.free()
+            self.id_data.data.animation_data.action = bpy.data.actions.new(name="LiVi {} MI".format(self.name))
+            fis = [str(face.index) for face in self.id_data.data.polygons]
+            lms = {fi: self.id_data.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
+            
+            for fi in fis:
+                lms[fi].keyframe_points.add(len(frames))
+    
+        for f, frame in enumerate(frames):  
+            bm = bmesh.new()
+            bm.from_mesh(self.id_data.data)
+            geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces  
+            livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+            res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+            oreslist = [g[livires] for g in geom]
+            self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+            smaxres, sminres =  max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
+            
+            if smaxres > sminres:        
+                vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
+                    (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
+            else:
+                vals = array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])
         
-        if len(frames) == 1:
-            self.id_data.data.polygons.foreach_set('material_index', nmatis)
-        elif len(frames) > 1:
-            for fii, fi in enumerate(fis):
-                lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
+            if livires != res:
+                for g in geom:
+                    g[res] = g[livires]  
+                    
+            if svp['liparams']['unit'] == 'Sky View':
+                nmatis = [(0, ll - 1)[v == 1] for v in vals]
+            else:
+                bins = array([increment * i for i in range(ll + 1)])
+                nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None) + 1
                 
+            bm.to_mesh(self.id_data.data)
+            bm.free()
+            
+            if len(frames) == 1:
+                self.id_data.data.polygons.foreach_set('material_index', nmatis)
+            elif len(frames) > 1:
+                for fii, fi in enumerate(fis):
+                    lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
+                                    
 def ret_vp_loc(context):
     return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
           
@@ -1321,7 +1323,8 @@ def retobjs(otypes):
     elif otypes == 'livic':
         return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.name not in svp['liparams']['livir']])
     elif otypes == 'livir':
-        return([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials] and o.name not in svp['liparams']['livic']])
+        return([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]\
+                and o.name not in svp['liparams']['livic']])
     elif otypes == 'envig':
         return([o for o in scene.objects if o.type == 'MESH' and o.hide == False])
     elif otypes == 'ssc':        
@@ -1777,35 +1780,6 @@ def li_calcob(ob, li):
     else:
         ovp.licalc = 1 if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index] and ob.data.materials[face.material_index].vi_params.mattype == '1'] else 0
     return ovp.licalc
-    
-def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
-    frames = range(scene.frame_start, scene.frame_end)
-    times = [datetime.datetime(2015, mdata[hi], ddata[hi], h - 1, 0) for hi, h in enumerate(hdata)]
-    solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
-    beamvals = [0.01 * d for d in dirsol]
-    skyvals =  [1 + 0.01 * d for d in difsol]
-    sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
-    values = list(zip(sizevals, beamvals, skyvals))
-    sunapply(scene, sun, values, solposs, frames)
-       
-def sunposlivi(scene, skynode, frames, sun, stime):
-    svp = scene.vi_params
-    
-    if skynode['skynum'] < 3 or (skynode.skyprog == '1' and skynode.epsilon > 1): 
-        times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]  
-        solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, svp.latitude, svp.longitude) for t in times]
-        beamvals = [(0, 3)[solposs[t][0] > 0] for t in range(len(times))] if skynode['skynum'] < 2  or (skynode.skyprog == '1' and skynode.epsilon > 1) else [0 for t in range(len(times))]
-        skyvals = [5 for t in range(len(times))]
-        
-    elif skynode['skynum'] == 3 and skynode.skyprog == '0': 
-        times = [datetime.datetime(2015, 3, 20, 12, 0)]
-        solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, 0, 0) for t in times]
-        beamvals = [0 for t in range(len(times))]
-        skyvals = [5 for t in range(len(times))]
-       
-    shaddict = {'0': 0.01, '1': 2, '2': 5, '3': 5}
-    values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
-    sunapply(scene, sun, values, solposs, frames)
     
 def sunposh(context, suns):
     scene = context.scene

@@ -90,31 +90,45 @@ def radgexport(export_op, node, **kwargs):
             bm.free()
             
             if o.particle_systems:
-                ps = o.evaluated_get(depsgraph).particle_systems[0]
-#                ps = o.particle_systems.active                
+                ps = o.particle_systems[0]
+                hl = ps.settings.hair_length
+                ps.settings.hair_length = 0 
+                dp = bpy.context.evaluated_depsgraph_get()
+                ps = o.evaluated_get(dp).particle_systems[0]  
                 particles = ps.particles
                 dob = ps.settings.instance_object
+                (t, r, s) = dob.matrix_world.decompose()
+                dob_axis = mathutils.Vector((0.0, 1.0, 0.0))
+                dob_axis_glo = r@dob_axis
                 dobs = [dob] if dob else []
                 dobs = ps.settings.dupli_group.objects if not dobs else dobs
                 
-                for dob in dobs:
-                    bm = bmesh.new()
-                    tempmesh = dob.to_mesh()
-                    bm.from_mesh(tempmesh)
-                    bm.transform(dob.matrix_world)
-                    bm.normal_update() 
-                    dob.to_mesh_clear()
-                    bmesh2mesh(scene, bm, dob, frame, tempmatfilename, node.fallback)
-                    bm.free()
-                    
-                    if os.path.isfile(os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_')))):
-                        for p, part in enumerate(particles):
-                            gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name, 
-                                        p, [-p for p in dob.location], part.location, part.size, [180 * r/math.pi for r in part.rotation.to_euler('XYZ')], 
-                                        os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
-                    else:
+                for dob in dobs: 
+                    if not os.path.isfile(os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_')))):
                         logentry('Octree for object {} not found in {}'.format(dob.name, os.path.join(svp['viparams']['newdir'], 'octrees')))
-      
+#                        gen_octree(scene, dob, export_op, node.fallback)
+                    
+#                        if node.fallback or dob.hide_get(): # Should check visibility with dob.hide_get() but it's not working
+                    else:
+                        ovp = dob.vi_params
+                        bm = bmesh.new()
+                        tempmesh = dob.evaluated_get(depsgraph).to_mesh()
+                        bm.from_mesh(tempmesh)
+                        bm.transform(dob.matrix_world)
+                        bm.normal_update() 
+                        dob.to_mesh_clear()
+                        bmesh2mesh(scene, bm, dob, frame, tempmatfilename, 0)
+        
+                        for p, part in enumerate(particles):
+                           nv = mathutils.Vector((1, 0, 0))
+                           nv.rotate(part.rotation)
+                           rdiff = dob_axis_glo.rotation_difference(nv).to_euler()
+                           gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name, 
+                                        p, [-p for p in dob.location], part.location, part.size, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)], 
+                                        os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
+
+                o.particle_systems[0].settings.hair_length = hl
+
     # Lights export routine
 
         lradfile = "# Lights \n\n"
@@ -174,11 +188,11 @@ def gen_octree(scene, o, op, fallback):
         tempmatfile.write(mradfile)  
         
     gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, fallback)
-    
+
     with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
         try:
             ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
-            err = ocrun.communicate(input = gradfile, timeout = 600)[1]
+            err = ocrun.communicate(input = mradfile + gradfile, timeout = 600)[1]
 
             if err:
                 logentry('Oconv conversion error: {}'.format(err))
