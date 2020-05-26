@@ -239,7 +239,7 @@ class No_Li_Con(Node, ViNodes):
         return [str(x) for x in (self.contextmenu, self.spectrummenu, self.canalysismenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
-                   self.cbdm_end_hour, self.bambuildmenu, self.leed4, self.colour)]
+                   self.cbdm_end_hour, self.bambuildmenu, self.leed4, self.colour, self.cbdm_res)]
 
     def nodeupdate(self, context):
         scene = context.scene
@@ -324,7 +324,7 @@ class No_Li_Con(Node, ViNodes):
     weekdays: BoolProperty(name = '', default = False, update = nodeupdate)
     cbdm_start_hour:  IntProperty(name = '', default = 8, min = 1, max = 24, update = nodeupdate)
     cbdm_end_hour:  IntProperty(name = '', default = 20, min = 1, max = 24, update = nodeupdate)
-    cbdm_res: IntProperty(name = '', default = 1, min = 1, max = 3, update = nodeupdate)
+    cbdm_res: IntProperty(name = '', default = 1, min = 1, max = 2, update = nodeupdate)
     dalux:  IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate)
     damin: IntProperty(name = '', default = 100, min = 1, max = 2000, update = nodeupdate)
     dasupp: IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate)
@@ -651,7 +651,7 @@ class No_Li_Con(Node, ViNodes):
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-                    'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 'leed4': self.leed4, 'colour': self.colour}
+                    'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1]}
         nodecolour(self, 0)
         self['exportstate'] = self.ret_params()
 
@@ -964,39 +964,41 @@ class No_Li_Sim(Node, ViNodes):
         scene = context.scene
         svp = scene.vi_params
         
-        try:
-            row = layout.row()
-            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
-            cinnode = self.inputs['Context in'].links[0].from_node
-            newrow(layout, 'Photon map:', self, 'pmap')
+#        try:
+        cinnode = self.inputs['Context in'].links[0].from_node
+        ginnode = self.inputs['Geometry in'].links[0].from_node
+        row = layout.row()
+        row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
+        
+        newrow(layout, 'Photon map:', self, 'pmap')
 
-            if self.pmap:
-               newrow(layout, 'Global photons:', self, 'pmapgno')
-               
-               if self['coptions']['context'] == 'Basic' or (self['coptions']['context'] == 'CBDM' and self['coptions']['subcontext'] == '0'):
-                   newrow(layout, 'Caustic photons:', self, 'pmapcno')
+        if self.pmap:
+           newrow(layout, 'Global photons:', self, 'pmapgno')
+           
+           if self['coptions']['Context'] == 'Basic' or (self['coptions']['Context'] == 'CBDM' and self['coptions']['Type'] == '0'):
+               newrow(layout, 'Caustic photons:', self, 'pmapcno')
 
-            row = layout.row()
-            row.label(text = "Accuracy:")            
-            row.prop(self, self['simdict'][cinnode['Options']['Context']])
-            
-            if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
-               newrow(layout, "Radiance parameters:", self, 'cusacc')
+        row = layout.row()
+        row.label(text = "Accuracy:")            
+        row.prop(self, self['simdict'][cinnode['Options']['Context']])
+        
+        if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
+           newrow(layout, "Radiance parameters:", self, 'cusacc')
 
-            if not self.run and self.validparams:
-                if cinnode['Options']['Preview']:
-                    row = layout.row()
-                    row.prop(self, "camera") 
+        if not self.run and (self.simacc != '3' or self.validparams):
+            if cinnode['Options']['Preview']:
+                row = layout.row()
+                row.prop(self, "camera") 
 
-                    if self.camera != 'None':
-                        row.operator("node.radpreview", text = 'Preview')
+                if self.camera != 'None':
+                    row.operator("node.radpreview", text = 'Preview')
 
-                if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
-                    row = layout.row()
-                    row.operator("node.livicalc", text = 'Calculate')
+            if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
+                row = layout.row()
+                row.operator("node.livicalc", text = 'Calculate')
                     
-        except Exception as e:
-            logentry('Problem with LiVi simulation: {}'.format(e))
+#        except Exception as e:
+#            logentry('Problem with LiVi simulation: {}'.format(e))
 
     def update(self):
         if self.outputs.get('Results out'):

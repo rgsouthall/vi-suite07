@@ -847,8 +847,10 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '%' in line:
-                                curres = float(line.split()[6][:-2])
-                                break
+                                for entry in line.split():
+                                    if '%' in entry:
+                                        curres = float(entry[:-2])
+                                        break
                                 
                     if self.pfile.check(curres) == 'CANCELLED': 
                         pmrun.kill()                                   

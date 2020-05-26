@@ -34,6 +34,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     pfs, epfs, curres = [], [], 0
     context = simnode['coptions']['Context']
     subcontext = simnode['coptions']['Type']
+    patches = simnode['coptions']['cbdm_res']
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
     frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(svp['viparams']['newdir'])
@@ -100,9 +101,9 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(svp['viparams']['nproc'], simnode['radparams'], svp['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
         else:
             if simnode.pmap:
-                rccmds.append("rcontrib -w  -h -I -fo -ap {2}.cpm -bn 146 {0} -n {1} -f tregenza.cal -b tbin -m sky_glow {2}-{3}.oct".format(simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
+                rccmds.append("rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow {2}-{3}.oct".format(simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
             else:   
-                rccmds.append("rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
+                rccmds.append("rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(patches, simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
 
     tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
     calcsteps = sum(tpoints) * len(frames)
