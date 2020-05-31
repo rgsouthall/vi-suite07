@@ -37,8 +37,9 @@ kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0
 def script_update(self, context):
     svp = context.scene.vi_params
     if svp.vi_res_process == '2':
-        script = bpy.data.texts[context.scene.script_file]
+        script = bpy.data.texts[svp.script_file.lstrip()]
         exec(script.as_string())
+        print('resmod' in bpy.app.driver_namespace.keys())
 
 def col_update(self, context):
     cmap(context.scene.vi_params)
@@ -101,14 +102,14 @@ def leg_update(self, context):
        
 def leg_min_max(svp):
     try:
-        if svp.vi_res_process == '2' and bpy.app.driver_namespace.get('resmod'):
+        if svp.vi_res_process == '2' and 'resmod' in bpy.app.driver_namespace.keys():
             return bpy.app.driver_namespace['resmod']([svp.vi_leg_min, svp.vi_leg_max])
         elif svp.vi_res_process == '1'  and svp.vi_res_mod:
             return (eval('{}{}'.format(svp.vi_leg_min, svp.vi_res_mod)), eval('{}{}'.format(svp.vi_leg_max, svp.vi_res_mod)))
         else:
             return (svp.vi_leg_min, svp.vi_leg_max)
     except Exception as e:
-        print(e)
+        logentry(e)
         return (svp.vi_leg_min, svp.vi_leg_max)
 
 def e_update(self, context):
@@ -1539,7 +1540,12 @@ class draw_legend(Base_Display):
         resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
 
-        self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+        
+        if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
+            self.resvals = bpy.app.driver_namespace.get('restext')()
+        else:
+            self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+            
         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
         blf.size(self.font_id, 12, self.dpi)        
         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]

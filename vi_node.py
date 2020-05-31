@@ -964,39 +964,40 @@ class No_Li_Sim(Node, ViNodes):
         scene = context.scene
         svp = scene.vi_params
         
-#        try:
-        cinnode = self.inputs['Context in'].links[0].from_node
-        ginnode = self.inputs['Geometry in'].links[0].from_node
-        row = layout.row()
-        row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
-        
-        newrow(layout, 'Photon map:', self, 'pmap')
-
-        if self.pmap:
-           newrow(layout, 'Global photons:', self, 'pmapgno')
-           
-           if self['coptions']['Context'] == 'Basic' or (self['coptions']['Context'] == 'CBDM' and self['coptions']['Type'] == '0'):
-               newrow(layout, 'Caustic photons:', self, 'pmapcno')
-
-        row = layout.row()
-        row.label(text = "Accuracy:")            
-        row.prop(self, self['simdict'][cinnode['Options']['Context']])
-        
-        if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
-           newrow(layout, "Radiance parameters:", self, 'cusacc')
-
-        if not self.run and (self.simacc != '3' or self.validparams):
-            if cinnode['Options']['Preview']:
-                row = layout.row()
-                row.prop(self, "camera") 
-
-                if self.camera != 'None':
-                    row.operator("node.radpreview", text = 'Preview')
-
-            if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
-                row = layout.row()
-                row.operator("node.livicalc", text = 'Calculate')
-                    
+        if self.inputs['Context in'].links and self.inputs['Geometry in'].links:
+            cinnode = self.inputs['Context in'].links[0].from_node
+            ginnode = self.inputs['Geometry in'].links[0].from_node
+            row = layout.row()
+            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
+            
+            newrow(layout, 'Photon map:', self, 'pmap')
+    
+            if self.pmap:
+               newrow(layout, 'Global photons:', self, 'pmapgno')
+               newrow
+               
+               if self['coptions']['Context'] == 'Basic' or (self['coptions']['Context'] == 'CBDM' and self['coptions']['Type'] == '0'):
+                   newrow(layout, 'Caustic photons:', self, 'pmapcno')
+    
+            row = layout.row()
+            row.label(text = "Accuracy:")            
+            row.prop(self, self['simdict'][cinnode['Options']['Context']])
+            
+            if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
+               newrow(layout, "Radiance parameters:", self, 'cusacc')
+    
+            if not self.run and (self.simacc != '3' or self.validparams):
+                if cinnode['Options']['Preview']:
+                    row = layout.row()
+                    row.prop(self, "camera") 
+    
+                    if self.camera != 'None':
+                        row.operator("node.radpreview", text = 'Preview')
+    
+                if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
+                    row = layout.row()
+                    row.operator("node.livicalc", text = 'Calculate')
+                        
 #        except Exception as e:
 #            logentry('Problem with LiVi simulation: {}'.format(e))
 

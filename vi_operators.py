@@ -600,6 +600,53 @@ class NODE_OT_Li_Con(bpy.types.Operator, ExportHelper):
             node.postexport()
             
         return {'FINISHED'}
+
+class NODE_OT_FileSelect(bpy.types.Operator, ImportHelper):
+    bl_idname = "node.fileselect"
+    bl_label = "Select file"
+    filename = ""
+    bl_register = True
+    bl_undo = True
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import {} file with the file browser".format(self.filename), icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        if self.filepath.split(".")[-1] in self.fextlist:
+            if self.nodeprop == 'epwname':
+                self.node.epwname = self.filepath
+            elif self.nodeprop == 'hdrname':
+                self.node.hdrname = self.filepath
+            elif self.nodeprop == 'skyname':
+                self.node.skyname = self.filepath
+            elif self.nodeprop == 'mtxname':
+                self.node.mtxname = self.filepath
+            elif self.nodeprop == 'resfilename':
+                self.node.resfilename = self.filepath
+            elif self.nodeprop == 'idffilename':
+                self.node.idffilename = self.filepath
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        self.node = context.node
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
+class NODE_OT_HdrSelect(NODE_OT_FileSelect):
+    bl_idname = "node.hdrselect"
+    bl_label = "Select HDR/VEC file"
+    bl_description = "Select the HDR sky image or vector file"
+    filename_ext = ".HDR;.hdr;"
+    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
+    nodeprop = 'hdrname'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("HDR", "hdr")
+    nodeid = bpy.props.StringProperty()
     
 # BSDF Operators
 class OBJECT_OT_Li_GBSDF(bpy.types.Operator):

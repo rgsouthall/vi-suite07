@@ -456,14 +456,16 @@ def chunks(l, n):
         yield l[v:v + n]
            
 # This function can be used to modify results with a driver function
-def ret_res_vals(svp, reslist):    
-    if svp.vi_res_process and bpy.app.driver_namespace.get('resmod'):
+def ret_res_vals(svp, reslist): 
+    if svp.vi_res_process == '2' and svp.script_file:
         try:
+            print(reslist)
+            print(bpy.app.driver_namespace['resmod'](reslist))
             return bpy.app.driver_namespace['resmod'](reslist)
         except Exception as e:
             logentry('User script error {}. Check console'.format(e))
             return reslist
-    elif svp.vi_res_mod:
+    elif svp.vi_res_process == '1' and svp.vi_res_mod:
         try:
             return [eval('{}{}'.format(r, svp.vi_res_mod)) for r in reslist]
         except:
@@ -730,20 +732,16 @@ def clearscene(scene, op):
     for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
         if ob.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode = 'OBJECT')
+
         if ob.name in svp['liparams']['livir']:
             delobj(bpy.context.view_layer, ob)
-#            scene.objects.unlink(ob) 
         elif ob.name in svp['liparams']['livig']:
-#        if svp['liparams'].get('livig') and ob.name in svp['liparams']['livig']:
-            v, f, svv, svf = [0] * 4             
+            v, f, svv, svf = [0] * 4 
+            
             if 'export' in op.name or 'simulation' in op.name:
                 bm = bmesh.new()
                 bm.from_mesh(ob.data)
-#                if "export" in op.name:
-#                    if bm.faces.layers.int.get('rtindex'):
-#                        bm.faces.layers.int.remove(bm.faces.layers.int['rtindex'])
-#                    if bm.verts.layers.int.get('rtindex'):
-#                        bm.verts.layers.int.remove(bm.verts.layers.int['rtindex'])
+
                 if "simulation" in op.name:
                     while bm.verts.layers.float.get('res{}'.format(v)):
                         livires = bm.verts.layers.float['res{}'.format(v)]
@@ -773,17 +771,6 @@ def clearscene(scene, op):
             for keys in sk.keys():
                 keys.animation_data_clear()
     scene.vi_params['liparams']['livir'] = []
-#def zrupdate(zonemenu, innode):
-#    rl = innode['reslists']
-#    for r in rl:
-#        print(dir(zonemenu), r[2])
-#    zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == zonemenu]
-#    print(zri)
-#    return zri
-#    del self.zonermenu
-#    zonermenu = bpy.props.EnumProperty(items = zri, name = '', description = '', default = zri[0][0])
-#    self.zonermenu = zonermenu
-#    self.items = 
         
 def rtupdate(self, context):
     try: 
@@ -1309,7 +1296,7 @@ def ret_camera_menu(self, context):
 def retobjs(otypes):
     scene = bpy.context.scene
     svp = scene.vi_params
-    validobs = [o for o in scene.objects if not o.hide_get()]
+    validobs = [o for o in scene.objects if o.visible_get()]
     
     if otypes == 'livig':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.vi_params.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
