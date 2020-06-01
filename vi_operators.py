@@ -1441,6 +1441,11 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         
         while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr = PIPE))
+            errtext =  self.esimruns[-1].stderr.read().decode()
+            
+            if errtext:
+                logentry('Energyplus error: {}'.format(errtext))
+#                return {self.terminate('CANCELLED', context)}
             self.e += 1
     
         if event.type == 'TIMER':
@@ -1453,11 +1458,12 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                             self.percent = 100 * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy)
                             break
                 except:
-                    pass
-#                    logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
+#                    pass
+                    logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
 #                    return {self.terminate('CANCELLED', context)}
                 
             if all([esim.poll() is not None for esim in self.esimruns]) and self.e == self.lenframes:
+                print('ending')
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(self.nd, fname))
 
@@ -1517,6 +1523,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
         os.chdir(svp['viparams']['newdir'])
         self.esimcmds = ["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames] 
+        print(["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames])
         self.esimruns = []
         self.simnode.run = 1
         self.processors = self.simnode.processors if self.simnode.mp else 1

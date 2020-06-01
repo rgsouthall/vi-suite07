@@ -37,16 +37,21 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 #        scene.update()
         scene.frame_set(frame)
         geo_colls = bpy.data.collections['EnVi Geometry'].children
+        onames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
+        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
+        zonenames = [c.name for c in geo_colls]
         en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
+        enng['enviparams']['afn'] = 0
         badnodes = [node for node in enng.nodes if node.use_custom_color]
         
         for node in badnodes:
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
             return
-#        if any([node.bl_idname in 'No_En_Net_SSFlow'])
-        enng['enviparams']['afn'] = 1
+        if any([node.bl_idname in ('No_En_Net_SSFlow', 'No_En_Net_SFlow') for node in enng.nodes if hasattr(node, 'zone') and node.zone in zonenames]):
+            enng['enviparams']['afn'] = 1
+
         en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), svp['enparams']['epversion']))    
         params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
                   'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
@@ -54,7 +59,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write(epentry('Building', params, paramvs))
         params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Default frequency of calculation', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')
         paramvs = ('Timestep, {}'.format(node.timesteps), 'SurfaceConvectionAlgorithm:Inside, TARP', 'SurfaceConvectionAlgorithm:Outside, TARP',
-                   'ShadowCalculation, AverageOverDaysInFrequency, 10', 'SimulationControl, No,No,No,No,Yes')
+                   'ShadowCalculation, PolygonClipping, Periodic', 'SimulationControl, No,No,No,No,Yes')
     
         for ppair in zip(params, paramvs):
             en_idf.write(epentry('', [ppair[0]], [ppair[1]]) + ('', '\n\n')[ppair[0] == params[-1]])
@@ -89,9 +94,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         em.thickdict = {}
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
-        onames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
-        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
-        zonenames = [c.name for c in geo_colls]
         zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
         
 #        for zn in zonenodes:

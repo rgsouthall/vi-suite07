@@ -80,6 +80,7 @@ def boundpoly(obj, emnode, poly, enng):
                     return(("Surface", outsock.links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
                 
             else:
+#                print('adaibatic')
                 return(("Adiabatic", "", "NoSun", "NoWind"))
 
     elif emnode.envi_con_con == 'Thermal mass':

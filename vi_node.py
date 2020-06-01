@@ -126,7 +126,10 @@ class No_Loc(Node, ViNodes):
         self.outputs.new('So_Vi_Loc', 'Location out')
         self['year'] = 2015
         self['entries'] = [('None', 'None', 'None')] 
-        NodeTree.get_from_context(context).use_fake_user = True
+        try:
+            NodeTree.get_from_context(context).use_fake_user = True
+        except:
+            pass
 
     def update(self):
         socklink2(self.outputs['Location out'], self.id_data)
@@ -1403,6 +1406,7 @@ class No_En_Sim(Node, ViNodes):
     def draw_buttons(self, context, layout):
         scene = context.scene
         svp = scene.vi_params
+        
         if self.run > -1:
             row = layout.row()
             row.label(text = 'Calculating {}%'.format(self.run))
@@ -1436,6 +1440,7 @@ class No_En_Sim(Node, ViNodes):
     def postsim(self, sim_op, condition):
         nodecolour(self, 0)
         self.run = -1
+        
         if condition == 'FINISHED':
             processf(sim_op, self)
 
@@ -3927,7 +3932,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     '''Node defining the EnVi material construction'''
     bl_idname = 'No_En_Mat_Con'
     bl_label = 'EnVi Construction'
-    bl_icon = 'FORCE_WIND'
+    bl_icon = 'NODE_COMPOSITING'
     
     def con_update(self, context):
         if len(self.inputs) == 3:
@@ -4209,7 +4214,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         
         if self.envi_con_makeup == '1' and self.envi_con_type != 'Shading':
             newrow(layout, 'Name:', self, "con_name")
-            if self.con_name:
+            
+            if self.con_name and self.inputs['Outer layer'].links:
                 row = layout.row()
                 row.operator('node.con_save', text = "Save")
 #            elif self.envi_con_type == 'PV' and self.envi_con_makeup == '0':

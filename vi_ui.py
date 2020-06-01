@@ -176,98 +176,98 @@ class VI_PT_3D(bpy.types.Panel):
                         row.label(text="{:-<60}".format(""))
                 newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
 
-            elif svp['viparams']['vidisp'] in ('en', 'enpanel'):
-                fs, fe = scene['enparams']['fs'], scene['enparams']['fe']
-                sedt = svp.en_disp_type
-                resnode = bpy.data.node_groups[svp['viparams']['resnode'].split('@')[1]].nodes[svp['viparams']['resnode'].split('@')[0]]
-
-                if sedt == '1':
-                    zresdict = {}
-                    lmetrics = []
-                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Avg Flow in": "resazlavef_disp"} 
-                else: 
-                    lmetrics, zmetrics = svp['enparams']['lmetrics'], svp['enparams']['zmetrics']
-                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
-                                'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
-                                'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
-                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
-
-                if svp['viparams']['vidisp'] == 'en': 
-                    newrow(layout, 'Static/Parametric', svp, 'en_disp_type')
-                    if sedt == '1':
-                        row = layout.row()               
-                        row.prop(resnode, '["AStart"]')
-                        row.prop(resnode, '["AEnd"]')
-                    else:  
-                        if fe > fs:                        
-                            newrow(layout, 'Frame:', resnode, '["AStart"]')
-
-                        row = layout.row() 
-                        row.label(text = 'Start/End day:')
-                        row.prop(resnode, '["Start"]')
-                        row.prop(resnode, '["End"]')
-                        row = layout.row() 
-                        row.label(text = 'Ambient')
-                        row = layout.row() 
-                        row.prop(svp, 'resaa_disp')
-                        row.prop(svp, 'resas_disp')
-                        
-                        for ri, rzname in enumerate(zmetrics):
-                            if ri == 0:                    
-                                row = layout.row()
-                                row.label(text = 'Zone')                    
-                            if not ri%2:
-                                row = layout.row()  
-                            if rzname in zresdict:
-                                row.prop(svp, zresdict[rzname])
-                        
-                        for ri, rname in enumerate(lmetrics):
-                            if ri == 0:                    
-                                row = layout.row()
-                                row.label(text = 'Ventilation')                    
-                            if not ri%2:
-                                row = layout.row()                            
-                            if rname in vresdict:
-                                row.prop(svp, vresdict[rname])  
-                        if lmetrics:    
-                            newrow(layout, 'Link to object', svp, 'envi_flink')  
-                        
-                        row = layout.row() 
-   
-                    if sedt == '0':
-                        row.operator("view3d.endisplay", text="EnVi Display")
-                    elif sedt == '1':
-                        row.operator("view3d.enpdisplay", text="EnVi Display")
-                        
-            if svp['viparams']['vidisp'] == 'enpanel':                                
-                if sedt == '0':
-                    newrow(layout, 'Display unit:', svp, 'en_disp_unit')  
-                    newrow(layout, 'Bar colour:', svp, "vi_leg_col")
-
-                    if fe > fs:
-                        newrow(layout, 'Parametric frame:', resnode, '["AStart"]')
-
-                    envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
-                                'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max'),
-                                'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
-                                'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
-                                'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max'),
-                                'Equipment (W)': ('en_eq_min', 'en_eq_max')}
-               
-                    for envirt in envimenudict:
-                        if envirt in zmetrics:
-                            row = layout.row()
-                            row.label(envirt)
-                            row.prop(scene, envimenudict[envirt][0])
-                            row.prop(scene, envimenudict[envirt][1])
-                
-                elif sedt == '1':
-                    newrow(layout, 'Display unit:', svp, 'en_disp_punit')  
-                    newrow(layout, 'Legend colour:', svp, "vi_leg_col")
-                    row = layout.row()
-                    row.label('Bar chart range:')
-                    row.prop(scene, 'bar_min')
-                    row.prop(scene, 'bar_max')
+#            elif svp['viparams']['vidisp'] in ('en', 'enpanel'):
+#                fs, fe = svp['enparams']['fs'], svp['enparams']['fe']
+#                sedt = svp.en_disp_type
+#                resnode = bpy.data.node_groups[svp['viparams']['resnode'].split('@')[1]].nodes[svp['viparams']['resnode'].split('@')[0]]
+#
+#                if sedt == '1':
+#                    zresdict = {}
+#                    lmetrics = []
+#                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Avg Flow in": "resazlavef_disp"} 
+#                else: 
+#                    lmetrics, zmetrics = svp['enparams']['lmetrics'], svp['enparams']['zmetrics']
+#                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
+#                                'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
+#                                'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
+#                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
+#
+#                if svp['viparams']['vidisp'] == 'en': 
+#                    newrow(layout, 'Static/Parametric', svp, 'en_disp_type')
+#                    if sedt == '1':
+#                        row = layout.row()               
+#                        row.prop(resnode, '["AStart"]')
+#                        row.prop(resnode, '["AEnd"]')
+#                    else:  
+#                        if fe > fs:                        
+#                            newrow(layout, 'Frame:', resnode, '["AStart"]')
+#
+#                        row = layout.row() 
+#                        row.label(text = 'Start/End day:')
+#                        row.prop(resnode, '["Start"]')
+#                        row.prop(resnode, '["End"]')
+#                        row = layout.row() 
+#                        row.label(text = 'Ambient')
+#                        row = layout.row() 
+#                        row.prop(svp, 'resaa_disp')
+#                        row.prop(svp, 'resas_disp')
+#                        
+#                        for ri, rzname in enumerate(zmetrics):
+#                            if ri == 0:                    
+#                                row = layout.row()
+#                                row.label(text = 'Zone')                    
+#                            if not ri%2:
+#                                row = layout.row()  
+#                            if rzname in zresdict:
+#                                row.prop(svp, zresdict[rzname])
+#                        
+#                        for ri, rname in enumerate(lmetrics):
+#                            if ri == 0:                    
+#                                row = layout.row()
+#                                row.label(text = 'Ventilation')                    
+#                            if not ri%2:
+#                                row = layout.row()                            
+#                            if rname in vresdict:
+#                                row.prop(svp, vresdict[rname])  
+#                        if lmetrics:    
+#                            newrow(layout, 'Link to object', svp, 'envi_flink')  
+#                        
+#                        row = layout.row() 
+#   
+#                    if sedt == '0':
+#                        row.operator("view3d.endisplay", text="EnVi Display")
+#                    elif sedt == '1':
+#                        row.operator("view3d.enpdisplay", text="EnVi Display")
+#                        
+#            if svp['viparams']['vidisp'] == 'enpanel':                                
+#                if sedt == '0':
+#                    newrow(layout, 'Display unit:', svp, 'en_disp_unit')  
+#                    newrow(layout, 'Bar colour:', svp, "vi_leg_col")
+#
+#                    if fe > fs:
+#                        newrow(layout, 'Parametric frame:', resnode, '["AStart"]')
+#
+#                    envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
+#                                'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max'),
+#                                'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
+#                                'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
+#                                'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max'),
+#                                'Equipment (W)': ('en_eq_min', 'en_eq_max')}
+#               
+#                    for envirt in envimenudict:
+#                        if envirt in zmetrics:
+#                            row = layout.row()
+#                            row.label(envirt)
+#                            row.prop(scene, envimenudict[envirt][0])
+#                            row.prop(scene, envimenudict[envirt][1])
+#                
+#                elif sedt == '1':
+#                    newrow(layout, 'Display unit:', svp, 'en_disp_punit')  
+#                    newrow(layout, 'Legend colour:', svp, "vi_leg_col")
+#                    row = layout.row()
+#                    row.label('Bar chart range:')
+#                    row.prop(scene, 'bar_min')
+#                    row.prop(scene, 'bar_max')
                                             
             if svp.vi_display:            
                 newrow(layout, 'Display active', svp, 'vi_display')
