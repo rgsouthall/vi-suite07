@@ -504,6 +504,7 @@ class VI_PT_Ob(bpy.types.Panel):
             newrow(layout, 'IES Dimension:', ovp, "ies_unit")
             newrow(layout, 'IES Strength:', ovp, "ies_strength")
             newrow(layout, 'IES Colour:', ovp, "ies_colmenu")
+            
             if ovp.ies_colmenu == '0':
                 newrow(layout, 'IES RGB:', ovp, "ies_rgb")
             else:

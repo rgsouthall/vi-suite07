@@ -1320,6 +1320,7 @@ class NODE_OT_En_Geo(bpy.types.Operator):
     bl_context = "scene"
 
     def invoke(self, context, event):
+        objmode()
         scene = context.scene
         svp = scene.vi_params
         

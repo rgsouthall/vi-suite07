@@ -49,7 +49,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
             return
-        if any([node.bl_idname in ('No_En_Net_SSFlow', 'No_En_Net_SFlow') for node in enng.nodes if hasattr(node, 'zone') and node.zone in zonenames]):
+        if any([node.bl_idname in ('No_En_Net_SSFlow', 'No_En_Net_SFlow') for node in enng.nodes]):
             enng['enviparams']['afn'] = 1
 
         en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), svp['enparams']['epversion']))    
@@ -59,7 +59,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write(epentry('Building', params, paramvs))
         params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Default frequency of calculation', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')
         paramvs = ('Timestep, {}'.format(node.timesteps), 'SurfaceConvectionAlgorithm:Inside, TARP', 'SurfaceConvectionAlgorithm:Outside, TARP',
-                   'ShadowCalculation, PolygonClipping, Periodic', 'SimulationControl, No,No,No,No,Yes')
+                   'ShadowCalculation, {}, Periodic'.format(("PolygonClipping", "PixelCounting")[int(node.shadow_calc)]), 'SimulationControl, No,No,No,No,Yes')
     
         for ppair in zip(params, paramvs):
             en_idf.write(epentry('', [ppair[0]], [ppair[1]]) + ('', '\n\n')[ppair[0] == params[-1]])
@@ -103,17 +103,19 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         
         for coll in geo_colls:
             znode = get_zone_node(coll, enng)
-            znode.update()
             
-            cvp = coll.vi_params
-            cvp['enparams']['floorarea'] = sum(o.vi_params['enparams']['floorarea'] for o in coll.objects) if znode.envi_hab else 0
-
-#        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
-            if coll.objects[0].vi_params.envi_type in ('0', '2'):
-                params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
-                          'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
-                paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
-                en_idf.write(epentry('Zone', params, paramvs))
+            if znode:
+                znode.update()
+                
+                cvp = coll.vi_params
+                cvp['enparams']['floorarea'] = sum(o.vi_params['enparams']['floorarea'] for o in coll.objects) if znode.envi_hab else 0
+    
+    #        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
+                if coll.objects[0].vi_params.envi_type in ('0', '2'):
+                    params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
+                              'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
+                    paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
+                    en_idf.write(epentry('Zone', params, paramvs))
         
         params = ('Starting Vertex Position', 'Vertex Entry Direction', 'Coordinate System')
         paramvs = ('UpperRightCorner', 'Counterclockwise', 'World')
@@ -475,10 +477,10 @@ def pregeo(context, op):
                 bm = bmesh.new()
                 bm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
                 o.to_mesh_clear()
-                bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001) 
-#                print(bmesh.ops.split(bm, geom = bm.faces, use_only_faces = True))
+                bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.005) 
                 bmesh.ops.split_edges(bm, edges = bm.edges)
-                bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, use_dissolve_boundaries = False, verts = bm.verts, delimit = {'MATERIAL'})
+                bmesh.ops.dissolve_degenerate(bm, dist = 0.005, edges = bm.edges)
+                bmesh.ops.dissolve_limit(bm, angle_limit = 0.001, use_dissolve_boundaries = False, verts = bm.verts, delimit = {'MATERIAL'})
                 bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces], context = 'VERTS')
                 bmesh.ops.delete(bm, geom = [f for f in bm.faces if f.calc_area() < 0.001], context = 'FACES') 
                 bmesh.ops.delete(bm, geom = [f for f in bm.faces if o.material_slots[f.material_index].material == None], context = 'FACES') 
@@ -531,7 +533,8 @@ def pregeo(context, op):
     enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
     enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0, 'pcm':0}
-    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.zone not in [c.name for c in eg.children]]
+#    print([scene.objects[node.zone].vi_params.envi_type for node in enng.nodes if hasattr(node, 'zone')])
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]
          
     dcdict = {'Wall':(1, 1, 1, 1), 'Partition':(1, 1, 0, 1), 'Window':(0, 1, 1, 1), 'Roof':(0, 1, 0, 1), 'Ceiling':(1, 1, 0, 1), 'Floor':(0.44,0.185,0.07, 1), 'Shading':(1, 0, 0, 1)}
     ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'} 

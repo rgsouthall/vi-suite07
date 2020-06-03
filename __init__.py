@@ -326,7 +326,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     ns: fprop("", "Strength of normal effect", 0, 5, 1)
     nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'VELOCITY', -1, 1)
     nside: fvprop(3, '', 'Image side vector', [-1, 0, 0], 'VELOCITY', -1, 1)
-    radcolour: fvprop(3, "Material Colour",'Material Colour', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
+    radcolour: fvprop(3, "Material Reflectance",'Material Reflectance', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
     radcolmenu: eprop([("0", "RGB", "Specify colour temperature"), ("1", "Temperature", "Specify colour temperature")], "Colour type:", "Specify the colour input", "0")
     radrough: fprop("Roughness", "Material roughness", 0, 1, 0.1)
     radspec: fprop("Specularity", "Material specular reflection", 0, 1, 0.0)

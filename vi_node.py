@@ -650,11 +650,17 @@ class No_Li_Con(Node, ViNodes):
                     'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 
                     'CBDM': (('lxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
         btypedict = {'0': self.bambuildmenu, '1': '', '2': self.bambuildmenu, '3': self.lebuildmenu}
-        self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
-                    'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
-                    'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
-                    'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-                    'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1]}
+        self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 
+            'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour, 
+            'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 
+            'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
+            'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 
+            'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 
+            'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
+            'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
+            'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 
+            'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
+            'sm': self.skymenu, 'sp': self.skyprog}
         nodecolour(self, 0)
         self['exportstate'] = self.ret_params()
 
@@ -1289,7 +1295,8 @@ class No_En_Geo(Node, ViNodes):
         socklink(self.outputs['Geometry out'], self.id_data.name)
         
     def preexport(self, scene):
-         pass
+        pass
+#         objmode()
                
     def postexport(self):
         nodecolour(self, 0)
@@ -1316,6 +1323,8 @@ class No_En_Con(Node, ViNodes):
     sdoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
     edoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps: IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
+    shadow_calc: EnumProperty(items = [("0", "CPU", "CPU based shadow calculations"), ("1", "GPU", "GPU based shadow calculations")],
+                                   name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
     restype: EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), 
                                    ("2", "Zone Ventilation", "Zone Ventilation Results"), ("3", "Ventilation Link", "Ventilation Link Results"), 
                                    ("4", "Thermal Chimney", "Thermal Chimney Results"), ("5", "Power", "Power Production Results")],
@@ -1335,6 +1344,7 @@ class No_En_Con(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         (sdate, edate) = retdates(self.sdoy, self.edoy, self['year'])
+        newrow(layout, 'Shadow:', self, 'shadow_calc')
         row = layout.row()
         row.label(text = 'Animation:')
         row.prop(self, 'animated')
@@ -1661,7 +1671,8 @@ class No_Vi_Metrics(Node, ViNodes):
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
                 name="", description="Results metric", default="0", update=zupdate)
     light_menu: EnumProperty(items=[("0", "BREEAM", "BREEAM HEA1 results"),
-                                    ("1", "LEED", "LEED v4 results")],
+                                    ("1", "LEED", "LEED v4 results"),
+                                    ("2", "RIBA 2030", "RIBA 2030 results")],
                 name="", description="Results metric", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
@@ -1694,8 +1705,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     row.label(text = "PV (kWh/m2): {}".format(pva))
                     row = layout.row()
                     hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
-                    row.label(text = "Heating (kWh): {}".format(hkwh))
-                    
+                    row.label(text = "Heating (kWh): {}".format(hkwh))                    
                     row = layout.row()
                     ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                     row.label(text = "Heating (kWh/m2): {}".format(ha))
@@ -1717,16 +1727,22 @@ class No_Vi_Metrics(Node, ViNodes):
                         epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
                         row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
         if self.metric == '1':
-             if self.light_menu == '1':
-                 if self['res'] and self['res'].get('ase'): 
-                     row = layout.row()
-                     row.label(text = "Option 1:")
-                     row = layout.row()
-                     row.label(text = "ASE1000 (hours): {:.0f} | < 250 | {}".format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]))
-                     row = layout.row()
-                     row.label(text = "sDA300 (%): {:.1f} | > (55, 75) | {}".format(self['res']['sda'], ('Pass', 'Fail')[self['res']['sda'] < 55]))
-                     row = layout.row()
-                     row.label(text = "Total credits: {}".format(self['res']['o1']))
+            if self.light_menu == '2':
+                row = layout.row()
+                row.label(text = "Average DF: {:.2f}".format(self['res']['avDF']))
+                row = layout.row()
+                row.label(text = "Ratio: {:.2f}".format(self['res']['ratioDF']))
+                
+            if self.light_menu == '1':
+                if self['res'] and self['res'].get('ase'): 
+                    row = layout.row()
+                    row.label(text = "Option 1:")
+                    row = layout.row()
+                    row.label(text = "ASE1000 (hours): {:.0f} | < 250 | {}".format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]))
+                    row = layout.row()
+                    row.label(text = "sDA300 (%): {:.1f} | > (55, 75) | {}".format(self['res']['sda'], ('Pass', 'Fail')[self['res']['sda'] < 55]))
+                    row = layout.row()
+                    row.label(text = "Total credits: {}".format(self['res']['o1']))
                      
 #                     row = layout.row()
 #                     row.label(text = "Option 2:")
@@ -1788,21 +1804,37 @@ class No_Vi_Metrics(Node, ViNodes):
                                     self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
                             elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
                                     self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+
             elif self.metric == '1':
-                self['res']['pvkwh'] = 'N/A'
-                self['res']['hkwh'] = 'N/A'
-                self['res']['ckwh'] = 'N/A'
-                self['res']['fa'] = 'N/A'
-                self['res']['ECF'] = 'N/A'
-        
-                if self.light_menu == '1':
+                self['res']['avDF'] = 'N/A'
+                self['res']['ratioDF'] = 'N/A'
+                self['res']['ase'] = 'N/A'
+                self['res']['sda'] = 'N/A'
+                self['res']['auto'] = 'N/A'
+                self['res']['o1'] = 'N/A'
+                
+                if self.light_menu == '2':
+                    for r in rl:
+                        if r[0] == self.frame_menu:
+                            if r[2] == self.zone_menu:
+                                if r[3] == 'Areas (m2)':
+                                    dfareas = array([float(p) for p in r[4].split()])
+                                    print(dfareas)
+                                elif r[3] == 'DF (%)':
+                                    df = array([float(p) for p in r[4].split()])
+                                    print(df)
+                    try:
+                        self['res']['avDF'] = sum(df * dfareas)/sum(dfareas)
+                        self['res']['ratioDF'] = min(df)/self['res']['avDF']
+                    except:
+                        pass                                            
+                elif self.light_menu == '1':
                     self['res']['ase'] = 0
                     self['res']['sda'] = 0
                     self['res']['auto'] = 0
                     self['res']['o1'] = 0
                     
                     for r in rl:
-                        print(r[2], r[3])
                         if r[0] == self.frame_menu:
                             if r[2] == self.zone_menu:
                                 if r[3] == 'Annual Sunlight Exposure (% area)':
@@ -2399,39 +2431,44 @@ class No_En_Net_Zone(Node, EnViNodes):
         sflowdict = {'So_En_Net_SFlow': 'Envi surface flow', 'So_En_Net_SSFlow': 'Envi sub-surface flow'}
         [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
                 
-        try:            
-            for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-                self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
-    
-            for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-                if self.inputs.get(outp.name):
-                    self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
-    
-            for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-                if inp.bl_idname == 'So_En_Bound' and not inp.hide and not inp.links:
-                    bi = 0
-                elif inp.bl_idname in sflowdict:
-                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != sflowdict[inp.bl_idname]):
-                        si = 0
-                        if inp.links:
-                            remlink(self, [inp.links[0]])    
-            
-            for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-                if outp.bl_idname == 'So_En_Bound' and not outp.hide and not outp.links:
-                    bo = 0
-                elif outp.bl_idname  in sflowdict:
-                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != sflowdict[outp.bl_idname]):
-                        so = 0
-                        if outp.links:
-                            remlink(self, [outp.links[0]])
+#        try:            
+        for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+            self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
-        except Exception as e:
-            logentry("There was a problem an EnVi Zone {} node socket change: {}".format(self.zone, e))
+        for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+            if self.inputs.get(outp.name):
+                self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+
+        for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+            if inp.bl_idname == 'So_En_Bound' and not inp.hide and not inp.links:
+                bi = 0
+            elif inp.bl_idname in sflowdict:
+                if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != sflowdict[inp.bl_idname]):
+#                    print('hii', inp.links[0].to_node.bl_label, sflowdict[inp.bl_idname])
+                    si = 0
+                    if inp.links:
+                        remlink(self.id_data, [inp.links[0]])    
+        
+        for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+            if outp.bl_idname == 'So_En_Bound' and not outp.hide and not outp.links:
+                bo = 0
+            elif outp.bl_idname in sflowdict:
+                if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != sflowdict[outp.bl_idname]):
+#                    if outp.links:
+#                        print('hi', outp.links[0].to_node.bl_label, sflowdict[outp.bl_idname])
+                    so = 0
+                    if outp.links:
+#                        pass
+                        remlink(self.id_data, [outp.links[0]])
+
+#        except Exception as e:
+#            logentry("There was a problem an EnVi Zone {} node socket change: {}".format(self.zone, e))
         
         for sock in self.outputs:
             socklink2(sock, self.id_data)
             
         self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
+        print((bi, si, ssi, bo, so, sso))
         nodecolour(self, self.errorcode())
         
     def uvsockupdate(self):
@@ -3470,7 +3507,7 @@ class No_En_Net_Sched(Node, EnViNodes):
     '''Node describing a schedule'''
     bl_idname = 'No_En_Net_Sched'
     bl_label = 'Schedule'
-    bl_icon = 'SOUND'
+    bl_icon = 'TIME'
 
     def tupdate(self, context):
         try:

@@ -43,6 +43,8 @@ def radgexport(export_op, node, **kwargs):
     
     for o in eolist:  
         ovp = o.vi_params
+        ovt = ovp.vi_type
+
         if not node.animated:
             o.animation_data_clear()
             o.data.animation_data_clear()
@@ -51,7 +53,8 @@ def radgexport(export_op, node, **kwargs):
         if o in caloblist:
             o.vi_params['rtpoints'] = {}
             o.vi_params['lisenseareas'] = {}
-        
+        o.vi_params.vi_type = ovt
+
     for frame in frames:
         scene.frame_set(frame)
         mradfile =  "".join([m.vi_params.radmat(scene) for m in mats if m])
