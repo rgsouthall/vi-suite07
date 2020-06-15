@@ -20,7 +20,99 @@ import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex
 from math import sin, cos, pi
 from subprocess import PIPE, Popen, TimeoutExpired
 from .vi_func import clearscene, solarPosition, retobjs, clearlayers, viparams, ct2RGB, logentry
-from .livi_func import radpoints, bmesh2mesh
+from .livi_func import face_bsdf
+from numpy import array, where, in1d
+
+def radpoints(o, faces, sks):
+    fentries = ['']*len(faces) 
+    mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials]
+    on = o.name.replace(" ", "_")
+    
+    if sks:
+        (skv0, skv1, skl0, skl1) = sks
+
+    for f, face in enumerate(faces):
+        fmi = face.material_index
+        m = o.data.materials[fmi]
+        mname = mns[fmi] if not m.vi_params.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
+        mentry = face_bsdf(o, m, mname, mns[fmi], m.vi_params.li_bsdf_up, face.index)
+        fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
+        
+        if sks:
+            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+        else:
+            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format(v.co) for v in face.verts])
+        
+        fentries[f] = ''.join((mentry, fentry, ventries+'\n'))        
+    return ''.join(fentries)
+
+def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
+    svp = scene.vi_params
+    ftext, gradfile, vtext = '', '', ''
+    bm = obmesh.copy()
+    bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.0001)
+#    bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = {'NORMAL'})
+    bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.0001, faces = bm.faces)
+    mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
+    mpps = array([not m.vi_params.pport for m in o.data.materials])        
+    mnpps = where(mpps, 0, 1)        
+    mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))        
+    fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert = True)
+    mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
+    ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
+    mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
+    otext = 'o {}\n'.format(o.name)
+    vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+    
+    if o.data.polygons[0].use_smooth:
+        vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
+        
+    if not o.data.uv_layers:            
+        if mfaces:
+            for mat in mmats:
+                matname = mat.vi_params['radname']
+                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
+    else:            
+        uv_layer = bm.loops.layers.uv.values()[0]
+        bm.faces.ensure_lookup_table()
+        vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
+        
+        li = 1
+
+        for face in bm.faces:
+            for loop in face.loops:
+                loop.index = li
+                li +=1
+                
+        if mfaces:
+            for mat in mmats:
+                matname = mat.vi_params['radname']
+                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
+          
+    if ffaces:
+        gradfile += radpoints(o, ffaces, 0)
+
+    if ftext:   
+        mfile = os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
+        ofile = os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.obj'.format(o.name.replace(' ', '_'), frame))
+        
+        with open(mfile, 'w') as mesh:
+            o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE, universal_newlines=True).communicate(input = (otext + vtext + ftext))
+                           
+        if os.path.getsize(mfile) and not o2mrun[1] and not fb:
+            gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
+
+        else:
+            if o2mrun[1]:
+                logentry('Obj2mesh error: {}. Using geometry export fallback on {}'.format(o2mrun[1], o.name))
+
+            gradfile += radpoints(o, mfaces, 0)
+
+        with open(ofile, 'w') as objfile:
+            objfile.write(otext + vtext + ftext)
+
+    bm.free()       
+    return gradfile
 
 def radgexport(export_op, node, **kwargs):
     depsgraph = bpy.context.evaluated_depsgraph_get()

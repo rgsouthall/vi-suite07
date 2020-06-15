@@ -138,7 +138,8 @@ class VI_PT_3D(bpy.types.Panel):
                         newrow(layout, 'Modifier:', svp, "vi_res_mod")
                     elif svp.vi_res_process == '2':
                         layout.prop_search(svp, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
-                       
+                        
+                    newrow(layout, 'Frame:', svp, "vi_frames")   
                     newrow(layout, 'Legend max:', svp, "vi_leg_max")
                     newrow(layout, 'Legend min:', svp, "vi_leg_min")
                     newrow(layout, 'Legend scale:', svp, "vi_leg_scale")
@@ -545,6 +546,7 @@ def rmmenu(layout, cm):
             
     if mvp.radmatmenu == '8':
         newrow(layout, 'Proxy depth:', mvp, 'li_bsdf_proxy_depth')
+        newrow(layout, 'Up vector:', mvp, 'li_bsdf_up')
         row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
     elif mvp.radmatmenu == '9':

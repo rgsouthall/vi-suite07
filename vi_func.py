@@ -19,7 +19,7 @@
 import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, bpy_extras, math
 #from collections import OrderedDict
 from subprocess import Popen
-from numpy import array, digitize, amax, amin, average, clip, char, int8
+from numpy import array, digitize, amax, amin, average, clip, char, int8, frombuffer, uint8, multiply, float32
 #set_printoptions(threshold=nan)
 from math import sin, cos, asin, acos, pi, tan, ceil, log10
 from math import e as expo
@@ -86,13 +86,21 @@ def create_coll(c, name):
             c.view_layer.active_layer_collection = lcc
     return coll
 
+def create_empty_coll(c, name):
+    coll = create_coll(c, name)
+    
+    for o in coll.objects:
+        bpy.data.objects.remove(o)
+    
+    return coll
+
 def move_to_coll(context, coll, o):
     collection = create_coll(context, coll)
     if o.name not in collection.objects:
-            collection.objects.link(o)
-            for c in bpy.data.collections:
-                if c.name != coll and o.name in c.objects:
-                    c.objects.unlink(o)
+        collection.objects.link(o)
+        for c in bpy.data.collections:
+            if c.name != coll and o.name in c.objects:
+                c.objects.unlink(o)
                 
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03, 
 2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02, 
@@ -927,82 +935,92 @@ def wind_rose(wro, maxws, wrsvg, wrtype, colors):
 
     return ((wrbo, wro), scale)
     
-def compass(loc, scale, wro, platmat, basemat):
-    txts = []
-    come = bpy.data.meshes.new("Compass")   
-    coo = bpy.data.objects.new('Compass', come)
-    coo.location = loc
-    bpy.context.scene.collection.objects.link(coo)
+def compass(loc, scale, platmat, basemat, greymat):
+    print(bpy.ops.wm.append(filepath="sp.blend",directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                    'Images/sp.blend', 'Object'),filename="SPathMesh", autoselect = True))
+    
+    coo = bpy.data.objects['SPathMesh']
+    print([o.name for o in bpy.data.objects])
     bpy.context.view_layer.objects.active = coo
-    bpy.ops.object.material_slot_add()
-    coo.material_slots[-1].material = platmat
-    bm = bmesh.new()
+    print(coo.name)
+#    txts = []
+#    come = bpy.data.meshes.new("Compass")   
+#    coo = bpy.data.objects.new('Compass', come)
+#   coo.location = loc
+#    bpy.context.scene.collection.objects.link(coo)
+#    bpy.context.view_layer.objects.active = coo
+#    bpy.ops.object.material_slot_add()
+    coo.material_slots[0].material = basemat
+    coo.material_slots[1].material = platmat
+    coo.material_slots[2].material = greymat
+#    bm = bmesh.new()
 #    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
-    bmesh.ops.create_circle(bm, cap_ends=True, radius=100, segments=132,  matrix=Matrix.Rotation(0, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+#    bmesh.ops.create_circle(bm, cap_ends=True, radius=100, segments=132,  matrix=Matrix.Rotation(0, 4, 'Z')@Matrix.Translation((0, 0, 0)))
 
-    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+#    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
     
-    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
-        face.material_index = 1
-    newverts0 = []
-    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
-        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
-        vert.co[2] = 0
-        newverts0.append(vert)
-              
-    newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05], use_select_history=False)
-    
-    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
-        face.material_index = 0
-    
-    newverts = []
-    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
-        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.05
-        vert.co[2] = 0
-        newverts.append(vert)
-            
-    for v in newverts:
-        if abs(v.co[1]) < 0.01:
-            v.co[0] += v.co[0] * 0.025
-        elif abs(v.co[0]) < 0.01:
-            v.co[1] += v.co[1] * 0.025
-
-    newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts], use_select_history=False)
-    
-    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
-        face.material_index = 1
-    
-    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
-        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
-        vert.co[2] = 0
-        
-    bmesh.ops.dissolve_edges(bm, edges = [e for e in bm.edges if e.verts[0] in (newverts0 + newverts) and e.verts[1] in (newverts0 + newverts) and len(e.link_faces) == 2 and abs(e.link_faces[0].calc_area() - e.link_faces[1].calc_area()) < 1.0], 
-                                          use_verts = True, use_face_split = False)
-
-#    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
-    degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
-    tmatrot = Matrix.Rotation(0, 4, 'Z')
-    direc = Vector((0, 1, 0))
-    tmatrot = Matrix.Rotation(0, 4, 'Z')
-    f_sizes = (0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06)
-    f_texts = ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')
-    f_texts = ('N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE', 'E', 'ENE', 'NE', 'NNE')
-    f_texts = ('N', u'337.5\u00B0', 'NW', u'292.5\u00B0', 'W', u'247.5\u00B0', 'SW', u'202.5\u00B0', 'S', u'157.5\u00B0', 'SE', u'112.5\u00B0', 'E', u'67.5\u00B0', 'NE', u'22.5\u00B0')
-
-    for d in range(16):
-        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.0005*(tmatrot@direc), rotation=tmatrot.to_euler())
-        txt = bpy.context.active_object
-        txt.data.font = bpy.data.fonts.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Light.ttf'))
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), f_texts[d], 'CENTER', 'BOTTOM', 0.05
-        bpy.ops.object.convert(target='MESH')
-        bpy.ops.object.material_slot_add()
-        txt.material_slots[-1].material = basemat
-        txts.append(txt)
-        tmatrot = tmatrot @ degmatrot
-
-    bm.to_mesh(come)
-    bm.free()
-    return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
+#    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
+#        face.material_index = 1
+#    newverts0 = []
+#    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
+#        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
+#        vert.co[2] = 0
+#        newverts0.append(vert)
+#              
+#    newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.calc_length() > 0.05], use_select_history=False)
+#    
+#    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
+#        face.material_index = 0
+#    
+#    newverts = []
+#    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
+#        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.05
+#        vert.co[2] = 0
+#        newverts.append(vert)
+#            
+#    for v in newverts:
+#        if abs(v.co[1]) < 0.01:
+#            v.co[0] += v.co[0] * 0.025
+#        elif abs(v.co[0]) < 0.01:
+#            v.co[1] += v.co[1] * 0.025
+#
+#    newgeo = bmesh.ops.extrude_edge_only(bm, edges = [e for e in newgeo['geom'] if isinstance(e, bmesh.types.BMEdge) and e.verts[0] in newverts and e.verts[1] in newverts], use_select_history=False)
+#    
+#    for face in [f for f in newgeo['geom'] if isinstance(f, bmesh.types.BMFace)]:
+#        face.material_index = 1
+#    
+#    for v, vert in enumerate([v for v in newgeo['geom'] if isinstance(v, bmesh.types.BMVert)]):
+#        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * 0.0025
+#        vert.co[2] = 0
+#        
+#    bmesh.ops.dissolve_edges(bm, edges = [e for e in bm.edges if e.verts[0] in (newverts0 + newverts) and e.verts[1] in (newverts0 + newverts) and len(e.link_faces) == 2 and abs(e.link_faces[0].calc_area() - e.link_faces[1].calc_area()) < 1.0], 
+#                                          use_verts = True, use_face_split = False)
+#
+##    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+#    degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
+#    tmatrot = Matrix.Rotation(0, 4, 'Z')
+#    direc = Vector((0, 1, 0))
+#    tmatrot = Matrix.Rotation(0, 4, 'Z')
+#    f_sizes = (0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06, 0.08, 0.06, 0.06, 0.06)
+#    f_texts = ('N', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', 'W', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', 'S', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', 'E', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')
+#    f_texts = ('N', 'NNW', 'NW', 'WNW', 'W', 'WSW', 'SW', 'SSW', 'S', 'SSE', 'SE', 'ESE', 'E', 'ENE', 'NE', 'NNE')
+#    f_texts = ('N', u'337.5\u00B0', 'NW', u'292.5\u00B0', 'W', u'247.5\u00B0', 'SW', u'202.5\u00B0', 'S', u'157.5\u00B0', 'SE', u'112.5\u00B0', 'E', u'67.5\u00B0', 'NE', u'22.5\u00B0')
+#
+#    for d in range(16):
+#        bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.0005*(tmatrot@direc), rotation=tmatrot.to_euler())
+#        txt = bpy.context.active_object
+#        txt.data.font = bpy.data.fonts.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
+#        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*f_sizes[d], scale*f_sizes[d], scale*f_sizes[d]), f_texts[d], 'CENTER', 'BOTTOM', 0.05
+#        bpy.ops.object.convert(target='MESH')
+#        bpy.ops.object.material_slot_add()
+#        txt.material_slots[-1].material = basemat
+#        txts.append(txt)
+#        tmatrot = tmatrot @ degmatrot
+#
+#    bm.to_mesh(come)
+#    bm.free()
+    return coo
+#    return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
 
 def spathrange(mats):
     sprme = bpy.data.meshes.new("SPRange")   
@@ -1125,6 +1143,27 @@ def wind_compass(loc, scale, wro, mat):
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
 
+def mp2im(fig, imname):
+    fig.canvas.draw()
+    ipwidth, ipheight = fig.canvas.width(), fig.canvas.height()
+    
+    if imname not in [im.name for im in bpy.data.images]:
+        bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(1, 1, 1, 1), alpha=True, generated_type='BLANK', float=False, use_stereo_3d=False)
+        im = bpy.data.images[imname]
+
+    else:
+        im = bpy.data.images[imname] 
+        im.buffers_free()
+        
+        if im.size[:] != (ipwidth, ipheight):
+            im.scale(ipwidth, ipheight)
+                   
+    rgba = +frombuffer(fig.canvas.buffer_rgba(), dtype=uint8)
+    rgba.shape = (ipheight, ipwidth, 4) # for RGBA
+    rgba = rgba[::-1].ravel() # reverse y and flatten
+    rgba = multiply(rgba, 0.00392, dtype = float32) # convert to float
+    im.pixels.foreach_set(rgba)
+    
 def livisimacc(simnode):
     context = simnode.inputs['Context in'].links[0].from_node['Options']['Context']
     return(simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)

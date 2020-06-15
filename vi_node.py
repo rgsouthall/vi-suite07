@@ -584,6 +584,7 @@ class No_Li_Con(Node, ViNodes):
                     
                     with open(self.skyname, 'r') as radfiler:
                         self['Text'][str(scene.frame_current)] = radfiler.read()
+                        
                         if self.hdr:
                             hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
                 else:
@@ -1760,7 +1761,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['hkwh'] = 0
                 self['res']['ahkwh'] = 0
                 self['res']['ckwh'] = 0            
-                self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
+                self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children if c.vi_params['enparams'].get('floorarea')]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
 
                 if self.energy_menu == '0':
                     if self['res']['fa'] > 13.9:
@@ -2337,7 +2338,7 @@ class No_En_Net_Zone(Node, EnViNodes):
     '''Node describing a simulation zone'''
     bl_idname = 'No_En_Net_Zone'
     bl_label = 'Zone'
-    bl_icon = 'SOUND'
+    bl_icon = 'CUBE'
 
     def zupdate(self, context):
         self.afs = 0
@@ -2822,7 +2823,7 @@ class No_En_Net_Occ(Node, EnViNodes):
     '''Zone occupancy node'''
     bl_idname = 'No_En_Net_Occ'
     bl_label = 'Occupancy'
-    bl_icon = 'SOUND'
+    bl_icon = 'ARMATURE_DATA'
 
     envi_occwatts: IntProperty(name = "W/p", description = "Watts per person", min = 1, max = 800, default = 90)
     envi_weff: FloatProperty(name = "", description = "Work efficiency", min = 0, max = 1, default = 0.0)
@@ -3063,7 +3064,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     '''Sub-surface airflow node'''
     bl_idname = 'No_En_Net_SSFlow'
     bl_label = 'Envi sub-surface flow'
-    bl_icon = 'SOUND'
+    bl_icon = 'FORCE_WIND'
 
     def supdate(self, context):
         if self.linkmenu in ('Crack', 'EF', 'ELA') or self.controls != 'Temperature':
@@ -3097,7 +3098,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     noof: IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
     spa: IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
     dcof: FloatProperty(default = 0.7, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
-    ddtw: FloatProperty(default = 0.001, min = 0, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
+    ddtw: FloatProperty(default = 0.001, min = 0.1, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
     amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, precision = 5, name = "")
     amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, precision = 3, name = "")
     dlen: FloatProperty(default = 2, name = "")
@@ -3238,7 +3239,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                         sn = othersock.sn
                         snames.append(('win-', 'door-')[get_con_node(bpy.data.materials[othersock.name[:-len(sn)-4]].vi_params).envi_con_type == 'Door']+zn+'_'+sn)
                         params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor')
-                        paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, self.wdof1)
+                        paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.wdof1))
                         if self.linkmenu in ('SO', 'DO'):
                             params += ('Ventilation Control Mode', 'Vent Temperature Schedule Name', 'Limit  Value on Multiplier for Modulating Venting Open Factor (dimensionless)', \
                             'Lower Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)', 'Upper Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)',\
@@ -3306,7 +3307,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
     '''Surface airflow node'''
     bl_idname = 'No_En_Net_SFlow'
     bl_label = 'Envi surface flow'
-    bl_icon = 'SOUND'
+    bl_icon = 'FORCE_WIND'
 
     linktype = [("Crack", "Crack", "Crack aperture used for leakage calculation"),
         ("ELA", "ELA", "Effective leakage area")]
@@ -3421,7 +3422,7 @@ class No_En_Net_ACon(Node, EnViNodes):
     '''Node defining the overall airflow network simulation'''
     bl_idname = 'No_En_Net_ACon'
     bl_label = 'AFN Control'
-    bl_icon = 'SOUND'
+    bl_icon = 'FORCE_WIND'
 
     def wpcupdate(self, context):
         if self.wpctype == 'SurfaceAverageCalculation':
@@ -3506,49 +3507,55 @@ class No_En_Net_ACon(Node, EnViNodes):
 class No_En_Net_Sched(Node, EnViNodes):
     '''Node describing a schedule'''
     bl_idname = 'No_En_Net_Sched'
-    bl_label = 'Schedule'
+    bl_label = 'Net Schedule'
     bl_icon = 'TIME'
 
     def tupdate(self, context):
         try:
-            err = 0
-            if self.t2 <= self.t1 and self.t1 < 365:
-                self.t2 = self.t1 + 1
-                if self.t3 <= self.t2 and self.t2 < 365:
-                    self.t3 = self.t2 + 1
-                    if self.t4 != 365:
-                        self.t4 = 365
-
-            tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
-            if max((self.t1, self.t2, self.t3, self.t4)[:tn]) != 365:
-                err = 1
-            if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
-                err = 1
-            if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
-                err = 1
-
-            for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
-                for fd in f.split(' '):
-                    if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKENDS", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
-                        err = 1
-
-            for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
-                for uf in u.split(';'):
-                    for ud in uf.split(','):
-                        if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
+            if self.source == '1':
+                if os.path.isfile(bpy.path.abspath(self.select_file)):
+                    nodecolour(self, 0)
+                else:
+                    nodecolour(self, 1)
+            else:
+                err = 0
+                if self.t2 <= self.t1 and self.t1 < 365:
+                    self.t2 = self.t1 + 1
+                    if self.t3 <= self.t2 and self.t2 < 365:
+                        self.t3 = self.t2 + 1
+                        if self.t4 != 365:
+                            self.t4 = 365
+    
+                tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
+                if max((self.t1, self.t2, self.t3, self.t4)[:tn]) != 365:
+                    err = 1
+                if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
+                    err = 1
+                if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
+                    err = 1
+    
+                for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
+                    for fd in f.split(' '):
+                        if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKENDS", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
                             err = 1
-            nodecolour(self, err)
+    
+                for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
+                    for uf in u.split(';'):
+                        for ud in uf.split(','):
+                            if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
+                                err = 1
+                nodecolour(self, err)
 
         except:
             nodecolour(self, 1)
 
-    file: EnumProperty(name = '', items = [("0", "None", "No file"), ("1", "Select", "Select file"), ("2", "Generate", "Generate file")], default = '0')
-    select_file: StringProperty(name="", description="Name of the variable file", default="", subtype="FILE_PATH")
+    source: EnumProperty(name = '', items = [("0", "Node", "Generate schedule within the node"), ("1", "File", "Select schedule file")], default = '0', update = tupdate)
+    select_file: StringProperty(name="", description="Name of the variable file", default="", subtype="FILE_PATH", update = tupdate)
     cn: IntProperty(name = "", default = 1, min = 1)
     rtsat: IntProperty(name = "", default = 0, min = 0)
     hours: IntProperty(name = "", default = 8760, min = 1, max = 8760)
     delim: EnumProperty(name = '', items = [("Comma", "Comma", "Comma delimiter"), ("Space", "Space", "space delimiter")], default = 'Comma')
-    generate_file: StringProperty(default = "", name = "")
+#    generate_file: StringProperty(default = "", name = "")
     (u1, u2, u3, u4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)] * 4
     (f1, f2, f3, f4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)] * 4
     (t1, t2, t3, t4) = [IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
@@ -3562,17 +3569,17 @@ class No_En_Net_Sched(Node, EnViNodes):
     def draw_buttons(self, context, layout):
         uvals, u = (1, self.u1, self.u2, self.u3, self.u4), 0
         tvals = (0, self.t1, self.t2, self.t3, self.t4)
-        newrow(layout, 'From file', self, 'file')
+        newrow(layout, 'Source', self, 'source')
         
-        if self.file == "1":
+        if self.source == "1":
             newrow(layout, 'Select', self, 'select_file')
             newrow(layout, 'Columns', self, 'cn')
             newrow(layout, 'Skip rows', self, 'rtsat')
             newrow(layout, 'Delimiter', self, 'delim')
-        elif self.file == "2":
-            newrow(layout, 'Generate', self, 'generate_file')
+#        elif self.file == "2":
+#            newrow(layout, 'Generate', self, 'generate_file')
 
-        if self.file != "1":        
+        if self.source != "1":        
             while uvals[u] and tvals[u] < 365:
                 [newrow(layout, v[0], self, v[1]) for v in (('End day {}:'.format(u+1), 't'+str(u+1)), ('Fors:', 'f'+str(u+1)), ('Untils:', 'u'+str(u+1)))]
                 u += 1
@@ -3583,21 +3590,35 @@ class No_En_Net_Sched(Node, EnViNodes):
         self.id_data.interface_update(bpy.context)
 
     def epwrite(self, name, stype):
-        schedtext, ths = '', []
-        for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
-            if not schedtext:
-                for t in (self.t1, self.t2, self.t3, self.t4):
-                    ths.append(t)
-                    if t == 365:
-                        break
-#                ths = [self.t1, self.t2, self.t3, self.t4]
-                fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
-                uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
-                ts, fs, us = rettimes(ths, fos, uns)
-                
-#                if self.file == '0':
-                schedtext = epschedwrite(name, stype, ts, fs, us)
-        return schedtext
+        if self.source == '0':            
+            schedtext, ths = '', []
+            for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
+                if not schedtext:
+                    for t in (self.t1, self.t2, self.t3, self.t4):
+                        ths.append(t)
+                        if t == 365:
+                            break
+    #                ths = [self.t1, self.t2, self.t3, self.t4]
+                    fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
+                    uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
+                    ts, fs, us = rettimes(ths, fos, uns)
+                    
+    #                if self.file == '0':
+                    schedtext = epschedwrite(name, stype, ts, fs, us)
+            return schedtext
+        else:
+            params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
+            paramvs = (name, 'Any number', bpy.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
+            schedtext = epentry('Schedule:File', params, paramvs)
+            '''    Schedule:File,
+            elecTDVfromCZ01res, !- Name
+            Any Number, !- ScheduleType
+            TDV_kBtu_CTZ01.csv, !- Name of File
+            2, !- Column Number
+            4, !- Rows to Skip at Top
+            8760, !- Number of Hours of Data
+            Comma; !- Column Separator'''
+            return schedtext
             
     def epwrite_sel_file(self, name):               
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
@@ -3643,7 +3664,7 @@ class No_En_Net_Prog(Node, EnViNodes):
     '''Node describing an EMS Program'''
     bl_idname = 'No_En_Net_Prog'
     bl_label = 'Envi Program'
-    bl_icon = 'SOUND'
+    bl_icon = 'TEXT'
 
     text_file: StringProperty(description="Textfile to show")
 
@@ -3687,8 +3708,8 @@ class No_En_Net_Prog(Node, EnViNodes):
             cmparams = ('Name', 'EnergyPlus Model Calling Point', 'Program Name 1')
             cmparamvs = (self.name.replace(' ', '_'), 'BeginTimestepBeforePredictor', '{}_controller'.format(self.name.replace(' ', '_')))
             cmentry = epentry('EnergyManagementSystem:ProgramCallingManager', cmparams, cmparamvs)
-            pparams = ['Name'] + ['line{}'.format(l) for l, line in enumerate(bpy.data.texts[self.text_file].lines) if line.body and line.body.strip()[0] != '!']
-            pparamvs = ['{}_controller'.format(self.name.replace(' ', '_'))] + [line.body.strip() for line in bpy.data.texts[self.text_file].lines if line.body and line.body.strip()[0] != '!']
+            pparams = ['Name'] + ['line{}'.format(l) for l, line in enumerate(bpy.data.texts[self.text_file.lstrip()].lines) if line.body and line.body.strip()[0] != '!']
+            pparamvs = ['{}_controller'.format(self.name.replace(' ', '_'))] + [line.body.strip() for line in bpy.data.texts[self.text_file.lstrip()].lines if line.body and line.body.strip()[0] != '!']
             pentry = epentry('EnergyManagementSystem:Program', pparams, pparamvs)
             return sentries + aentries + cmentry + pentry
 
@@ -3696,8 +3717,11 @@ class No_En_Net_EMSZone(Node, EnViNodes):
     '''Node describing a simulation zone'''
     bl_idname = 'No_En_Net_EMSZone'
     bl_label = 'EMS Zone'
-    bl_icon = 'SOUND'
+    bl_icon = 'LIGHTPROBE_CUBEMAP'
 
+    def zonelist(self, context):
+        return [(c.name, c.name, c.name) for c in bpy.data.collections['EnVi Geometry'].children]
+    
     def supdate(self, context):
         self.inputs[0].name = '{}_{}'.format(self.emszone, self.sensordict[self.sensortype][0])
 
@@ -3733,7 +3757,8 @@ class No_En_Net_EMSZone(Node, EnViNodes):
                     self.inputs.new('So_En_Net_Act', sock).sn = sock.split('_')[0] + '-' + '_'.join(sock.split('_')[1:-1])
                 except Exception as e: print('3190', e)
 
-    emszone: StringProperty(name = '', update = zupdate)
+#    emszone: StringProperty(name = '', update = zupdate)
+    emszone: EnumProperty(name="", description="Zone name", items=zonelist, update = zupdate)
     sensorlist = [("0", "Zone Temperature", "Sense the zone temperature"), ("1", "Zone Humidity", "Sense the zone humidity"), ("2", "Zone CO2", "Sense the zone CO2"),
                   ("3", "Zone Occupancy", "Sense the zone occupancy"), ("4", "Zone Equipment", "Sense the equipment level")]
     sensortype: EnumProperty(name="", description="Linkage type", items=sensorlist, default='0', update = supdate)
@@ -3766,13 +3791,13 @@ class EnViNodeCategory(NodeCategory):
 envi_zone = [NodeItem("No_En_Net_Zone", label="Zone"), NodeItem("No_En_Net_Occ", label="Occupancy"),
              NodeItem("No_En_Net_Hvac", label="HVAC"), NodeItem("No_En_Net_Eq", label="Equipment"),
              NodeItem("No_En_Net_Inf", label="Infiltration"), NodeItem("No_En_Net_TC", label="Thermal Chimney")]
-envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule")]
+envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule Net")]
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
                 NodeItem("No_En_Net_Ext", label="External Air")]
 envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program")]
 
 envinode_categories = [EnViNodeCategory("Zone", "Zone Nodes", items=envi_zone), 
-                       EnViNodeCategory("Schedule", "Schedule Nodes", items=envi_sched),
+                       EnViNodeCategory("Schedule_Net", "Schedule Nodes", items=envi_sched),
                        EnViNodeCategory("Airflow", "Airflow Nodes", items=envi_airflow),
                        EnViNodeCategory("EMS", "EMS Nodes", items=envi_ems)]
 
@@ -5503,11 +5528,11 @@ class No_En_Mat_PVG(Node, EnViMatNodes):
         newrow(layout, "Inverter efficiency:", self, "ie")
         newrow(layout, 'Radiative fraction:', self, 'rf')
         
-class No_En_Mat_Sched(Node, EnViNodes):
+class No_En_Mat_Sched(Node, EnViMatNodes):
     '''Node describing a schedule'''
     bl_idname = 'No_En_Mat_Sched'
     bl_label = 'Schedule'
-    bl_icon = 'SOUND'
+    bl_icon = 'TIME'
 
     def tupdate(self, context):
         try:
@@ -5542,7 +5567,7 @@ class No_En_Mat_Sched(Node, EnViNodes):
         except:
             nodecolour(self, 1)
 
-    file: EnumProperty(name = '', items = [("0", "None", "No file"), ("1", "Select", "Select file"), ("2", "Generate", "Generate file")], default = '0')
+    source: EnumProperty(name = '', items = [("0", "None", "No file"), ("1", "Select", "Select file")], default = '0')
     select_file: StringProperty(name="", description="Name of the variable file", default="", subtype="FILE_PATH")
     cn: IntProperty(name = "", default = 1, min = 1)
     rtsat: IntProperty(name = "", default = 0, min = 0)
@@ -5562,17 +5587,17 @@ class No_En_Mat_Sched(Node, EnViNodes):
     def draw_buttons(self, context, layout):
         uvals, u = (1, self.u1, self.u2, self.u3, self.u4), 0
         tvals = (0, self.t1, self.t2, self.t3, self.t4)
-        newrow(layout, 'From file', self, 'file')
+        newrow(layout, 'Source:', self, 'source')
         
-        if self.file == "1":
-            newrow(layout, 'Select', self, 'select_file')
-            newrow(layout, 'Columns', self, 'cn')
-            newrow(layout, 'Skip rows', self, 'rtsat')
-            newrow(layout, 'Delimiter', self, 'delim')
-        elif self.file == "2":
-            newrow(layout, 'Generate', self, 'generate_file')
+        if self.source == "1":
+            newrow(layout, 'Select:', self, 'select_file')
+            newrow(layout, 'Columns:', self, 'cn')
+            newrow(layout, 'Skip rows:', self, 'rtsat')
+            newrow(layout, 'Delimiter:', self, 'delim')
+#        elif self.source == "2":
+#            newrow(layout, 'Generate', self, 'generate_file')
 
-        if self.file != "1":        
+        if self.source != "1":        
             while uvals[u] and tvals[u] < 365:
                 [newrow(layout, v[0], self, v[1]) for v in (('End day {}:'.format(u+1), 't'+str(u+1)), ('Fors:', 'f'+str(u+1)), ('Untils:', 'u'+str(u+1)))]
                 u += 1

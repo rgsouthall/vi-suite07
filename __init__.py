@@ -170,8 +170,36 @@ class VIPreferences(AddonPreferences):
             row.label(text=entry)   
             row.prop(self, self.ui_dict[entry])
 
+def get_frame(self):
+    return self.vi_frames
+
+def set_frame(self, value):
+    if value > self['liparams']['fe']:
+        self.vi_frames = self['liparams']['fe']
+    elif value < self['liparams']['fs']:
+        self.vi_frames =  self['liparams']['fs']
+    else:
+        self.vi_frames = value
+        
 class VI_Params_Scene(bpy.types.PropertyGroup): 
+    def get_frame(self):
+#        if 
+#        return self.id_data.frame_current
+        return self.get('vi_frames', self['liparams']['fe'])
+    
+    def set_frame(self, value):
+        
+        if value > self['liparams']['fe']:
+            self['vi_frames'] = self['liparams']['fe']
+        elif value < self['liparams']['fs']:
+            self['vi_frames'] =  self['liparams']['fs']
+        else:
+            self.id_data.frame_set(value)
+            self['vi_frames'] = value
+        
+            
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath) 
+    vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     solhour: bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
     sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1) 
@@ -324,8 +352,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
     radnorm: bprop("", "Flag to signify whether the material has a normal map associated with it", False)
     ns: fprop("", "Strength of normal effect", 0, 5, 1)
-    nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'VELOCITY', -1, 1)
-    nside: fvprop(3, '', 'Image side vector', [-1, 0, 0], 'VELOCITY', -1, 1)
+    nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'XYZ', -1, 1)
+    nside: fvprop(3, '', 'Image side vector', [-1, 0, 0], 'XYZ', -1, 1)
     radcolour: fvprop(3, "Material Reflectance",'Material Reflectance', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
     radcolmenu: eprop([("0", "RGB", "Specify colour temperature"), ("1", "Temperature", "Specify colour temperature")], "Colour type:", "Specify the colour input", "0")
     radrough: fprop("Roughness", "Material roughness", 0, 1, 0.1)
@@ -366,6 +394,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     '5': ['radcolmenu', 0, 'radcolour', 0, 'radct',  0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': [], '8': [], '9': []}
     radmat = radmat
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)
+    li_bsdf_up: fvprop(3, '', 'BSDF up vector', [0, 0, 1], 'XYZ', -1, 1)
     
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 

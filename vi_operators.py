@@ -31,7 +31,7 @@ from xml.dom.minidom import parse, parseString
 #from bpy_extras import view3d_utils
 
 #from multiprocessing import Pool
-from .livi_export import radgexport, createoconv, createradfile, gen_octree
+from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
@@ -43,7 +43,7 @@ from .vi_func import ret_plt, logentry, rettree, cmap
 
 from .vi_func import windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode
-from .livi_func import retpmap, radpoints
+from .livi_func import retpmap
 #from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
@@ -416,14 +416,17 @@ class NODE_OT_Shadow(bpy.types.Operator):
             return {'CANCELLED'}
 
         shadobs = retobjs('livig')
+        
         if not shadobs:
             self.report({'ERROR'},"No shading objects have a material attached.")
             return {'CANCELLED'}
             
         svp['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
+        
         if not svp['liparams']['shadc']:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
             return {'CANCELLED'}
+        
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
         
@@ -523,7 +526,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     
                     ap = numpy.average(allpoints, axis=0)                
                     shadres = [gp[shadres] for gp in gpoints]
-                    ovp['dhres{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
+                    ovp['ss{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
                     ovp['omin']['sm{}'.format(frame)], ovp['omax']['sm{}'.format(frame)], ovp['oave']['sm{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])

@@ -42,6 +42,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         zonenames = [c.name for c in geo_colls]
         en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
+#        enng = node.id_data
         enng['enviparams']['afn'] = 0
         badnodes = [node for node in enng.nodes if node.use_custom_color]
         
@@ -441,7 +442,7 @@ def pregeo(context, op):
         [bpy.data.objects.remove(o, do_unlink = True, do_id_user=True, do_ui_user=True) for o in chil.objects]
         eg.children.unlink(chil)
         bpy.data.collections.remove(chil)
-#    depsgraph = bpy.context.evaluated_depsgraph_get()
+
     for mesh in bpy.data.meshes:
         if mesh.users == 0:
             bpy.data.meshes.remove(mesh)
@@ -456,21 +457,24 @@ def pregeo(context, op):
     for c in [c for c in bpy.data.collections if c.name != 'EnVi Geometry' and c.name not in [c.name for c in bpy.data.collections['EnVi Geometry'].children]]:
         c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c.vi_params.envi_hab = 1 if any([o.vi_params.envi_hab == '1' for o in c.objects]) else 0
-        
+        c_name = c.name.upper().replace('-', '_').replace('/', '_')
         if c.vi_params.envi_zone:
-            bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c.name.upper())))
+            bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
             for o in c.objects:
                 if o.type == 'MESH' and o.vi_params.envi_type in ('0', '1'):
-                    if [f for f in o.data.polygons if o.material_slots and o.material_slots[f.material_index].material and o.material_slots[f.material_index].material.vi_params.envi_nodes]:
+                    if [f for f in o.data.polygons if o.material_slots and \
+                        o.material_slots[f.material_index].material and \
+                        o.material_slots[f.material_index].material.vi_params.envi_nodes and \
+                        get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type != 'None']:
                         selobj(context.view_layer, o)
                         bpy.ops.object.duplicate(linked=False)
                         no = context.active_object.copy()  
                         no.location += context.node.geo_offset                       
                         bpy.ops.object.delete()
-                        no.name = 'en_{}'.format(c.name) 
-                        bpy.data.collections['EN_{}'.format(c.name.upper())].objects.link(no)
+                        no.name = 'en_{}'.format(c_name) 
+                        bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
             
-    for chil in  bpy.data.collections['EnVi Geometry'].children: 
+    for chil in bpy.data.collections['EnVi Geometry'].children: 
         if chil.objects:
             therm = 0
             for o in chil.objects:
