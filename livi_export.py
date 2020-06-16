@@ -115,6 +115,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     return gradfile
 
 def radgexport(export_op, node, **kwargs):
+    time = datetime.datetime.now()
     depsgraph = bpy.context.evaluated_depsgraph_get()
     scene = bpy.context.scene
     svp = scene.vi_params
@@ -132,7 +133,7 @@ def radgexport(export_op, node, **kwargs):
     eolist = set(geooblist + caloblist)
 #    mats = set([item for sublist in [o.data.materials for o in eolist] for item in sublist])
     mats = bpy.data.materials
-    
+    print('t1', datetime.datetime.now() - time)
     for o in eolist:  
         ovp = o.vi_params
         ovt = ovp.vi_type
@@ -146,9 +147,10 @@ def radgexport(export_op, node, **kwargs):
             o.vi_params['rtpoints'] = {}
             o.vi_params['lisenseareas'] = {}
         o.vi_params.vi_type = ovt
-
+    print('t2', datetime.datetime.now() - time)
     for frame in frames:
         scene.frame_set(frame)
+        print('t3', datetime.datetime.now() - time)
         mradfile =  "".join([m.vi_params.radmat(scene) for m in mats if m])
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = svp['viparams']['filebase']+".tempmat"
@@ -159,7 +161,7 @@ def radgexport(export_op, node, **kwargs):
         # Geometry export routine
 
         gradfile = "# Geometry \n\n"
-
+        print('t4', datetime.datetime.now() - time)
         for o in eolist:
             ovp = o.vi_params
             bm = bmesh.new()
@@ -168,7 +170,7 @@ def radgexport(export_op, node, **kwargs):
             bm.transform(o.matrix_world)
             bm.normal_update() 
             o.to_mesh_clear()
-
+            print('t5', o.name, datetime.datetime.now() - time)
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback)
           
             if o in caloblist:
@@ -260,7 +262,7 @@ def radgexport(export_op, node, **kwargs):
 
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
-
+        print('tend', datetime.datetime.now() - time)
 def gen_octree(scene, o, op, fallback):
     dg = bpy.context.evaluated_depsgraph_get()
     bm = bmesh.new()

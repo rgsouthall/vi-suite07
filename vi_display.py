@@ -3094,7 +3094,9 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene
         svp = scene.vi_params
-        ah = context.area.regions[2].height
+        r2 = context.area.regions[2]
+        r2h = r2.height
+        r2w = r2.width
         redraw = 0
  
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or event.type == 'ESC':
@@ -3120,7 +3122,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             mx, my = event.mouse_region_x, event.mouse_region_y            
-            rbxl = self.results_bar.ret_coords(ah, 0)
+            rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
             
             if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.bsdf.hl = (0.8, 0.8, 0.8, 0.8) 
@@ -3134,7 +3136,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                 return {'RUNNING_MODAL'}
             
             elif self.bsdf.expand:
-                self.bsdf.lspos = [self.results_bar.ret_coords(ah, 0)[0][0] - 5, self.results_bar.ret_coords(ah, 0)[0][1] - self.bsdf.ydiff - 25]
+                self.bsdf.lspos = [self.results_bar.ret_coords(r2w, r2h, 0)[0][0] - 5, self.results_bar.ret_coords(r2w, r2h, 0)[0][1] - self.bsdf.ydiff - 25]
                 self.bsdf.lepos = [self.bsdf.lspos[0] + self.bsdf.xdiff, self.bsdf.lspos[1] + self.bsdf.ydiff]
                 
                 if ((mx - (self.bsdf.lspos[0] + 50 + 125))**2 + (my - self.bsdf.lepos[1] + 155)**2)**0.5 <= 124:
@@ -3179,7 +3181,9 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         cao = context.active_object
         region = context.region
         area = context.area
-        ah = area.regions[2].height
+        r2 = area.regions[2]
+        r2h = r2.height
+        r2w = r2.width
         scene = context.scene
         svp = scene.vi_params
 
@@ -3188,7 +3192,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
             self.images = ['bsdf.png']
             self.results_bar = results_bar(self.images, area.regions[2].width + 10, area.regions[2])
-            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(ah, 0)[0], region.width, ah, 400, 650)
+            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r2h, 0)[0], region.width, r2h, 400, 650)
 #            context, 'Sky View (%)', self.results_bar.ret_coords(0)[0], region.width, region.height, 100, 400, 20
             svp.vi_display = 1
             self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
@@ -3208,7 +3212,8 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         context.area.tag_redraw()
     
     def draw_bsdfnum(self, context):
-        self.results_bar.draw(context.area.regions[2].height)
+        r2 = context.area.regions[2]
+        self.results_bar.draw(r2.width, r2.height)
         self.bsdf.draw(context)
 
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
@@ -3223,6 +3228,9 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0 
+        r2 = context.area.regions[2]
+        r2h = r2.height
+        r2w = r2.width
 
         if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
@@ -3236,7 +3244,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             mx, my = event.mouse_region_x, event.mouse_region_y  
             
             # Legend routine 
-            rbxl = self.results_bar.ret_coords(context.region.height, 0)
+            rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
             
             if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
@@ -3296,7 +3304,9 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
     
     def invoke(self, context, event):
         area = context.area
-        region = context.region
+        r2 = area.regions[2]
+        r2h = r2.height
+        r2w = r2.width
         self.scene = context.scene
         svp = context.scene.vi_params
         svp.vi_display, svp.vi_disp_wire = 1, 1        
@@ -3304,20 +3314,21 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'li' 
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]        
         self.images = ['legend.png']
-        self.results_bar = results_bar(self.images, area.regions[2].width + 10, area)
+        self.results_bar = results_bar(self.images)
         self.frame = self.scene.frame_current
         
         if li_display(self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
 
-        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(region.height, 0)[0], area.width, area.height, 125, 400, 20)
+        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r2h, 0)[0], r2w, r2h, 125, 400, 20)
         self.legend_num = linumdisplay(self, context)
         self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')             
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
-    def draw_linum(self, context):           
-        self.results_bar.draw(context.area.regions[2].height)
+    def draw_linum(self, context):  
+        r2 = context.area.regions[2]         
+        self.results_bar.draw(r2.width, r2.height)
         self.legend.draw(context)
         self.legend_num.draw(context)
         
