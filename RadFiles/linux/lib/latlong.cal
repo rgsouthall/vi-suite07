@@ -1,0 +1,22 @@
+{ Generates a lat-long HDR envirnment map}
+
+{ Parameters defined externaly:
+   XD : horizontal picture dimension (pixels) 
+   YD : vertical picture dimension (pixels) }
+
+{ Direction of the current pixel (angles in radians)  }
+px=$2;
+py=YD-$1;
+altitude=((py-YD*0.5)*180*inYD)*0.017453;
+azimut=(90+((px*inXD)*360))*0.017453;
+
+{ Transformation into a direction vector }
+n=sqrt(1+sin(altitude)^2);
+dx=-sin(azimut)*cos(altitude);
+dy=-cos(azimut)*cos(altitude);
+dz=sin(altitude);
+
+{ Output line to rtrace }
+$1=0;$2=0;$3=0;
+$4=dx;$5=dy;$6=dz;
+
