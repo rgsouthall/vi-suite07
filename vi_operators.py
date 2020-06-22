@@ -38,7 +38,7 @@ from .envi_mat import envi_materials, envi_constructions
 
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
 
-#from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
+from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
 from .vi_func import ret_plt, logentry, rettree, cmap
 
 from .vi_func import windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
@@ -645,11 +645,10 @@ class NODE_OT_HdrSelect(NODE_OT_FileSelect):
     bl_label = "Select HDR/VEC file"
     bl_description = "Select the HDR sky image or vector file"
     filename_ext = ".HDR;.hdr;"
-    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
+    filter_glob: bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
     nodeprop = 'hdrname'
-    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    filepath:bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
     fextlist = ("HDR", "hdr")
-    nodeid = bpy.props.StringProperty()
     
 # BSDF Operators
 class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
@@ -916,11 +915,11 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             self.report({'ERROR'}, pmerrdict[line])
                             return {'CANCELLED'}
                                         
-                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
+                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
                                  vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
                 
             else:
-                rvucmd = "rvu -w {9} -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
+                rvucmd = "rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
                                  vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
 
             logentry('Rvu command: {}'.format(rvucmd))
@@ -2191,4 +2190,43 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
             self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')            
         context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}    
+        return {'RUNNING_MODAL'}   
+    
+# Openfoam operators
+
+class NODE_OT_Blockmesh(bpy.types.Operator):
+    bl_idname = "node.blockmesh"
+    bl_label = "Blockmesh export"
+    bl_description = "Export an Openfoam blockmesh"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
+        expnode = context.node if context.node.bl_label == "FloVi BlockMesh" else context.node.inputs[0].links[0].from_node
+        bmos = [o for o in scene.objects if o.vi_params.vi_type == '2']
+        
+        if viparams(self, scene):
+            return {'CANCELLED'} 
+        
+        if len(bmos) != 1:
+            self.report({'ERROR'},"One and only one object with the CFD Domain property is allowed")
+            return {'CANCELLED'}
+        elif [f.material_index for f in bmos[0].data.polygons if f.material_index + 1 > len(bmos[0].data.materials)]:
+            self.report({'ERROR'},"Not every domain face has a material attached")
+            logentry("Not every face has a material attached")
+            return {'CANCELLED'}
+        with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
+            cdfile.write(fvcdwrite("simpleFoam", 0.005, 5))
+        with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
+            fvsolfile.write(fvsolwrite(expnode))
+        with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
+            fvschfile.write(fvschwrite(expnode))
+        with open(os.path.join(svp['flparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
+            bmfile.write(fvbmwrite(bmos[0], expnode))
+
+        call(("blockMesh", "-case", "{}".format(scene['flparams']['offilebase'])))
+        fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['flparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
+        expnode.export()
+        return {'FINISHED'}

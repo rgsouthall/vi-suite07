@@ -8,7 +8,7 @@ from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, 
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath
 from .livi_func import setscenelivivals
 from .livi_export import spfc
-from .vi_dicts import res2unit
+from .vi_dicts import res2unit, unit2res
 from . import livi_export
 from math import pi, log10, atan2, sin, cos
 from numpy import array, repeat, logspace, multiply, digitize
@@ -129,11 +129,13 @@ def e_update(self, context):
                 bm.transform(o.matrix_world)            
                 skb = bm.verts.layers.shape['Basis']
                 skf = bm.verts.layers.shape[str(frame)]
+#                resname = unit2res[svp.li_disp_menu]
                 
                 if str(frame) in ovp['omax']:
-                    if bm.faces.layers.float.get('res{}'.format(frame)):
+                    if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
                         extrude = bm.faces.layers.int['extrude']
-                        res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
+                        
+                        res = bm.faces.layers.float['{}{}'.format(svp.li_disp_menu, frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
                         faces = [f for f in bm.faces if f[extrude]]
                         fnorms = array([f.normal.normalized() for f in faces]).T
                         fres = array([f[res] for f in faces])
@@ -144,8 +146,8 @@ def e_update(self, context):
                             for v in face.verts:
                                 v[skf] = v[skb] + mathutils.Vector(extrudes[f])
                     
-                    elif bm.verts.layers.float.get('res{}'.format(frame)):
-                        res = bm.verts.layers.float['res{}'.format(frame)]
+                    elif bm.verts.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
+                        res = bm.verts.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                         vnorms = array([v.normal.normalized() for v in bm.verts]).T
                         vres = array([v[res] for v in bm.verts])
                         extrudes = multiply(vnorms, svp.vi_disp_3dlevel * ((vres-mino)/odiff)).T if svp.vi_leg_scale == '0' else \

@@ -53,7 +53,7 @@ else:
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
-    from .vi_node import No_Li_Sim, No_ASC_Import
+    from .vi_node import No_Li_Sim, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
     from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op, No_En_Mat_Sched
@@ -65,12 +65,12 @@ else:
     from .vi_func import lividisplay
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, radbsdf, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
-    #    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
+    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update
     #    from .vi_display import setcols
 
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
-    from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
+    from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_Blockmesh
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
     from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
@@ -343,6 +343,12 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     retsv = retsv
     envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney")], "EnVi surface type", "Specify the EnVi surface type", "0")
     envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
+    flovi_solver: EnumProperty(items = [('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
+                                        ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')], 
+                                        name = "", default = 'icoFoam', update = flovi_bm_update)
+    flovi_turb: EnumProperty(items = [('kEpsilon', 'K-Epsilon', 'K-Epsion turbulence model'), ('kOmega', 'K-Omega', 'K-Omega turbulence model'),
+                                        ('SpalartAllmaras', 'SpalartAllmaras', 'SpalartAllmaras turbulence model')], 
+                                        name = "", default = 'kEpsilon', update = flovi_bm_update)
     flovi_fl: IntProperty(name = '', description = 'SnappyHexMesh object features levels', min = 1, max = 20, default = 4) 
     flovi_slmax: IntProperty(name = '', description = 'SnappyHexMesh surface maximum levels', min = 1, max = 20, default = 4, update=flovi_levels)   
     flovi_slmin: IntProperty(name = '', description = 'SnappyHexMesh surface minimum levels', min = 1, max = 20, default = 3, update=flovi_levels)     
@@ -395,6 +401,53 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radmat = radmat
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)
     li_bsdf_up: fvprop(3, '', 'BSDF up vector', [0, 0, 1], 'XYZ', -1, 1)
+    
+    # FloVi Materials
+    flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
+#    Material.flovi_bmb_type: eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Symmetry", "Symmetry boundary"), ("4", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
+
+    flovi_bmbp_subtype: EnumProperty(items = ret_fvbp_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbp_val: fprop("", "Pressure value", -1000, 1000, 0.0)
+    flovi_p_field: bprop("", "Take boundary velocity from the field velocity", False)
+    flovi_bmbp_p0val: fprop("", "Pressure value", -1000, 1000, 0)
+    flovi_bmbp_gamma: fprop("", "Pressure value", -1000, 1000, 1.4)
+    
+    flovi_bmbu_subtype: EnumProperty(items = ret_fvbu_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbu_val: fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
+    flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
+    
+    flovi_bmbnut_subtype: EnumProperty(items = ret_fvbnut_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbnut_val: fprop("", "Nut value", -1000, 1000, 0.0)
+    flovi_nut_field: bprop("", "Take boundary nut from the field nut", False)
+    
+    flovi_bmbk_subtype: EnumProperty(items = ret_fvbk_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbk_val: fprop("", "k value", -1000, 1000, 0.0)
+    flovi_k_field: bprop("", "Take boundary k from the field k", False)
+    
+    flovi_bmbe_subtype: EnumProperty(items = ret_fvbepsilon_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbe_val: fprop("", "Epsilon value", -1000, 1000, 0.0)
+    flovi_e_field: bprop("", "Take boundary epsilon from the field epsilon", False)
+
+    flovi_bmbo_subtype: EnumProperty(items = ret_fvbomega_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbo_val = fprop("", "Omega value", -1000, 1000, 0.0)
+    flovi_o_field = bprop("", "Take boundary omega from the field omega", False)
+
+    flovi_bmbnutilda_subtype: EnumProperty(items = ret_fvbnutilda_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbnutilda_val: fprop("", "NuTilda value", -1000, 1000, 0.0)
+    flovi_nutilda_field: bprop("", "Take boundary nutilda from the field nutilda", False)
+
+    flovi_bmbt_subtype: EnumProperty(items = ret_fvbt_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbt_val: fprop("", "T value", -1000, 1000, 0.0)
+    flovi_t_field: bprop("", "Take boundary t from the field t", False)
+
+    flovi_bmba_subtype: EnumProperty(items = ret_fvba_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmba_val: fprop("", "T value", -1000, 1000, 0.0)
+    flovi_a_field: bprop("", "Take boundary alphat from the field alphat", False)
+
+    flovi_bmbprgh_subtype: EnumProperty(items = ret_fvbprgh_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbprgh_val: fprop("", "p_rgh value", -1000, 1000, 0.0)
+    flovi_prgh_field: bprop("", "Take boundary p_rgh from the field p_rgh", False)    
+
     
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
@@ -535,7 +588,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
-           NODE_OT_ASCImport, No_ASC_Import)
+           NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Blockmesh)
                      
 def register():
     for cl in classes:

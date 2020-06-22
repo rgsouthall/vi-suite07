@@ -484,7 +484,7 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, 'HDR:', self, 'hdr')
         
         if self.contextmenu == 'Basic':
-            if int(self.skymenu) > 2 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
+            if int(self.skymenu) > 2 or int(self.skyprog) > 1 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
                 row = layout.row()
                 row.operator("node.liexport", text = "Export")
         elif (self.contextmenu == 'CBDM' and self.cbanalysismenu == '0' and self.sourcemenu2 == '1') or \
@@ -2050,12 +2050,74 @@ class So_En_ResU(NodeSocket):
 
     def draw(self, context, layout, node, text):
         layout.label(text = self.bl_label)
+        
+# Openfoam nodes
+
+class So_Flo_Mesh(NodeSocket):
+    '''FloVi mesh socket'''
+    bl_idname = 'So_Flo_Mesh'
+    bl_label = 'FloVi Mesh socket'
+
+    valid = ['FloVi mesh']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text = text)
+
+    def draw_color(self, context, node):
+        return (0.5, 1.0, 0.0, 0.75)
+    
+class No_Flo_BMesh(Node, ViNodes):
+    '''Openfoam blockmesh export node'''
+    bl_idname = 'No_Flo_BMesh'
+    bl_label = 'FloVi BlockMesh'
+    bl_icon = 'GRID'
+
+    
+    turbulence: StringProperty()
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
+
+    bm_xres: IntProperty(name = "X", description = "Blockmesh X resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
+    bm_yres: IntProperty(name = "Y", description = "Blockmesh Y resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
+    bm_zres: IntProperty(name = "Z", description = "Blockmesh Z resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
+    bm_xgrad: FloatProperty(name = "X", description = "Blockmesh X simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
+    bm_ygrad: FloatProperty(name = "Y", description = "Blockmesh Y simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
+    bm_zgrad: FloatProperty(name = "Z", description = "Blockmesh Z simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self.outputs.new('So_Flo_Mesh', 'Mesh out')
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        split = layout.split()
+        col = split.column(align=True)
+        col.label(text="Cell resolution:")
+        col.prop(self, "bm_xres")
+        col.prop(self, "bm_yres")
+        col.prop(self, "bm_zres")
+        col = split.column(align=True)
+        col.label(text="Cell grading:")
+        col.prop(self, "bm_xgrad")
+        col.prop(self, "bm_ygrad")
+        col.prop(self, "bm_zgrad")
+        row = layout.row()
+        row.operator("node.blockmesh", text = "Export")
+    
+    def update(self):
+        socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
+
+    def export(self):
+        self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
+        nodecolour(self, 0)
     
         
 ####################### Vi Nodes Categories ##############################
 
 vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), NodeItem("No_Li_Sen", label="LiVi Sense"), 
-              NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context")]
+              NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")]
                 
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
 vi_analysis = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose"), 
@@ -2077,6 +2139,9 @@ vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out),
                      ViNodeCategory("Analysis", "Analysis Nodes", items=vi_analysis), 
                      ViNodeCategory("Process", "Process Nodes", items=vi_process), 
                      ViNodeCategory("Input", "Input Nodes", items=vi_input)]
+
+
+# EnVi Nodes
 
 class EnViNetwork(NodeTree):
     '''A node tree for the creation of EnVi advanced networks.'''
