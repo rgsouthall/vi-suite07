@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# :Id: $Id: tex2mathml_extern.py 8208 2018-01-04 07:03:42Z milde $
+# :Id: $Id: tex2mathml_extern.py 8376 2019-08-27 19:49:29Z milde $
 # :Copyright: © 2015 Günter Milde.
 # :License: Released under the terms of the `2-Clause BSD license`_, in short:
 #
@@ -15,6 +15,7 @@
 # Wrappers for TeX->MathML conversion by external tools
 # =====================================================
 
+from __future__ import print_function
 import subprocess
 
 document_template = r"""\documentclass{article}
@@ -64,7 +65,7 @@ def latexml(math_code, reporter=None):
         reporter.error(post_p_err)
 
     # extract MathML code:
-    start,end = result.find('<math'), result.find('</math>')+7
+    start, end = result.find('<math'), result.find('</math>')+7
     result = result[start:end]
     if 'class="ltx_ERROR' in result:
         raise SyntaxError(result)
@@ -94,7 +95,7 @@ def ttm(math_code, reporter=None):
         raise SyntaxError('\nMessage from external converter TtM:\n'+ msg)
     if reporter and err.find('**** Error') >= 0 or not result:
         reporter.error(err)
-    start,end = result.find('<math'), result.find('</math>')+7
+    start, end = result.find('<math'), result.find('</math>')+7
     result = result[start:end]
     return result
 
@@ -132,7 +133,7 @@ def blahtexml(math_code, inline=True, reporter=None):
                 +result[result.find('<message>')+9:result.find('</message>')])
     if reporter and (err.find('**** Error') >= 0 or not result):
         reporter.error(err)
-    start,end = result.find('<markup>')+9, result.find('</markup>')
+    start, end = result.find('<markup>')+9, result.find('</markup>')
     result = ('<math xmlns="http://www.w3.org/1998/Math/MathML"%s>\n'
               '%s</math>\n') % (mathmode_arg, result[start:end])
     return result
@@ -140,7 +141,8 @@ def blahtexml(math_code, inline=True, reporter=None):
 # self-test
 
 if __name__ == "__main__":
-    example = r'\frac{\partial \sin^2(\alpha)}{\partial \vec r} \varpi \, \text{Grüße}'
-    # print latexml(example).encode('utf8')
-    # print ttm(example)#.encode('utf8')
+    example = (u'\\frac{\\partial \\sin^2(\\alpha)}{\\partial \\vec r}'
+               u'\\varpi \\, \\text{Grüße}')
+    # print(latexml(example).encode('utf8'))
+    # print(ttm(example))
     print(blahtexml(example).encode('utf8'))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# :Id: $Id: error_reporting.py 8119 2017-06-22 20:59:19Z milde $
+# :Id: $Id: error_reporting.py 8367 2019-08-27 12:09:56Z milde $
 # :Copyright: © 2011 Günter Milde.
 # :License: Released under the terms of the `2-Clause BSD license`_, in short:
 #
@@ -35,7 +35,8 @@ The `SafeString`, `ErrorString` and `ErrorOutput` classes handle
 common exceptions.
 """
 
-import sys, codecs
+import codecs
+import sys
 
 # Guess the locale's encoding.
 # If no valid guess can be made, locale_encoding is set to `None`:
@@ -64,6 +65,9 @@ else:
         locale_encoding = None
 
 
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
+
 
 class SafeString(object):
     """
@@ -88,8 +92,8 @@ class SafeString(object):
                                         self.encoding_errors))
                         for arg in self.data.args]
                 return ', '.join(args)
-            if isinstance(self.data, str):
-                if sys.version_info > (3,0):
+            if isinstance(self.data, unicode):
+                if sys.version_info > (3, 0):
                     return self.data
                 else:
                     return self.data.encode(self.encoding,
@@ -109,24 +113,24 @@ class SafeString(object):
         * else decode with `self.encoding` and `self.decoding_errors`.
         """
         try:
-            u = str(self.data)
+            u = unicode(self.data)
             if isinstance(self.data, EnvironmentError):
                 u = u.replace(": u'", ": '") # normalize filename quoting
             return u
         except UnicodeError as error: # catch ..Encode.. and ..Decode.. errors
             if isinstance(self.data, EnvironmentError):
-                return  "[Errno %s] %s: '%s'" % (self.data.errno,
+                return  u"[Errno %s] %s: '%s'" % (self.data.errno,
                     SafeString(self.data.strerror, self.encoding,
                                self.decoding_errors),
                     SafeString(self.data.filename, self.encoding,
                                self.decoding_errors))
             if isinstance(self.data, Exception):
-                args = [str(SafeString(arg, self.encoding,
+                args = [unicode(SafeString(arg, self.encoding,
                             decoding_errors=self.decoding_errors))
                         for arg in self.data.args]
-                return ', '.join(args)
+                return u', '.join(args)
             if isinstance(error, UnicodeDecodeError):
-                return str(self.data, self.encoding, self.decoding_errors)
+                return unicode(self.data, self.encoding, self.decoding_errors)
             raise
 
 class ErrorString(SafeString):
@@ -138,7 +142,7 @@ class ErrorString(SafeString):
                             super(ErrorString, self).__str__())
 
     def __unicode__(self):
-        return '%s: %s' % (self.data.__class__.__name__,
+        return u'%s: %s' % (self.data.__class__.__name__,
                             super(ErrorString, self).__unicode__())
 
 
@@ -168,7 +172,7 @@ class ErrorOutput(object):
         # if `stream` is a file name, open it
         elif isinstance(stream, str):
             stream = open(stream, 'w')
-        elif isinstance(stream, str):
+        elif isinstance(stream, unicode):
             stream = open(stream.encode(sys.getfilesystemencoding()), 'w')
 
         self.stream = stream
@@ -193,21 +197,21 @@ class ErrorOutput(object):
         if self.stream is False:
             return
         if isinstance(data, Exception):
-            data = str(SafeString(data, self.encoding,
+            data = unicode(SafeString(data, self.encoding,
                                   self.encoding_errors, self.decoding_errors))
         try:
             self.stream.write(data)
         except UnicodeEncodeError:
             self.stream.write(data.encode(self.encoding, self.encoding_errors))
-        except TypeError: 
-            if isinstance(data, str): # passed stream may expect bytes
-                self.stream.write(data.encode(self.encoding, 
+        except TypeError:
+            if isinstance(data, unicode): # passed stream may expect bytes
+                self.stream.write(data.encode(self.encoding,
                                               self.encoding_errors))
                 return
             if self.stream in (sys.stderr, sys.stdout):
                 self.stream.buffer.write(data) # write bytes to raw stream
             else:
-                self.stream.write(str(data, self.encoding,
+                self.stream.write(unicode(data, self.encoding,
                                           self.decoding_errors))
 
     def close(self):

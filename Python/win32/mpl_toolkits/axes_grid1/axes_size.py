@@ -15,7 +15,7 @@ from matplotlib import cbook
 from matplotlib.axes import Axes
 
 
-class _Base(object):
+class _Base:
     "Base class"
 
     def __rmul__(self, other):
@@ -111,7 +111,7 @@ class AxesX(_Base):
         l1, l2 = self._axes.get_xlim()
         if self._aspect == "axes":
             ref_aspect = _get_axes_aspect(self._ref_ax)
-            aspect = ref_aspect/_get_axes_aspect(self._axes)
+            aspect = ref_aspect / _get_axes_aspect(self._axes)
         else:
             aspect = self._aspect
 
@@ -154,9 +154,7 @@ class MaxExtent(_Base):
     def __init__(self, artist_list, w_or_h):
         self._artist_list = artist_list
 
-        if w_or_h not in ["width", "height"]:
-            raise ValueError()
-
+        cbook._check_in_list(["width", "height"], w_or_h=w_or_h)
         self._w_or_h = w_or_h
 
     def add_artist(self, a):
@@ -227,9 +225,8 @@ class MaxHeight(_Base):
 class Fraction(_Base):
     """
     An instance whose size is a *fraction* of the *ref_size*.
-    ::
 
-      >>> s = Fraction(0.3, AxesX(ax))
+    >>> s = Fraction(0.3, AxesX(ax))
 
     """
     def __init__(self, fraction, ref_size):
@@ -295,7 +292,7 @@ class SizeFromFunc(_Base):
         return rel_size, abs_size
 
 
-class GetExtentHelper(object):
+class GetExtentHelper:
     _get_func_map = {
         "left":   lambda self, axes_bbox: axes_bbox.xmin - self.xmin,
         "right":  lambda self, axes_bbox: self.xmax - axes_bbox.xmax,

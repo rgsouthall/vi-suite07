@@ -1,4 +1,4 @@
- # $Id: statemachine.py 8163 2017-08-11 14:05:30Z milde $
+ # $Id: statemachine.py 8435 2019-12-12 13:04:57Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -103,18 +103,21 @@ How To Use This Module
 
        sm.unlink()
 """
+from __future__ import print_function
 
 __docformat__ = 'restructuredtext'
 
 import sys
 import re
-import types
 import unicodedata
 from docutils import utils
 from docutils.utils.error_reporting import ErrorOutput
 
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
 
-class StateMachine:
+
+class StateMachine(object):
 
     """
     A finite state machine for text filters using regular expressions.
@@ -177,7 +180,7 @@ class StateMachine:
 
     def unlink(self):
         """Remove circular references to objects no longer required."""
-        for state in list(self.states.values()):
+        for state in self.states.values():
             state.unlink()
         self.states = None
 
@@ -214,8 +217,8 @@ class StateMachine:
         self.current_state = initial_state or self.initial_state
         if self.debug:
             print((
-                '\nStateMachine.run: input_lines (line_offset=%s):\n| %s'
-                % (self.line_offset, '\n| '.join(self.input_lines))), file=self._stderr)
+                u'\nStateMachine.run: input_lines (line_offset=%s):\n| %s'
+                % (self.line_offset, u'\n| '.join(self.input_lines))), file=self._stderr)
         transitions = None
         results = []
         state = self.get_state()
@@ -232,8 +235,8 @@ class StateMachine:
                             source, offset = self.input_lines.info(
                                 self.line_offset)
                             print((
-                                '\nStateMachine.run: line (source=%r, '
-                                'offset=%r):\n| %s'
+                                u'\nStateMachine.run: line (source=%r, '
+                                u'offset=%r):\n| %s'
                                 % (source, offset, self.line)), file=self._stderr)
                         context, next_state, result = self.check_line(
                             context, state, transitions)
@@ -382,15 +385,11 @@ class StateMachine:
             # line is None if index is "Just past the end"
             src, srcline = self.get_source_and_line(offset + self.input_offset)
             return src, srcline + 1
-        except (IndexError): # `offset` is off the list
+        except (IndexError):  # `offset` is off the list
             src, srcline = None, None
             # raise AssertionError('cannot find line %d in %s lines' %
             #                      (offset, len(self.input_lines)))
             #                      # list(self.input_lines.lines())))
-        # assert offset == srcoffset, str(self.input_lines)
-        # print "get_source_and_line(%s):" % lineno,
-        # print offset + 1, '->', src, srcline
-        # print self.input_lines
         return (src, srcline)
 
     def insert_input(self, input_lines, source):
@@ -488,15 +487,15 @@ class StateMachine:
         """
         Initialize `self.states`.
         """
-        for state in list(self.states.values()):
+        for state in self.states.values():
             state.runtime_init()
 
     def error(self):
         """Report error details."""
         type, value, module, line, function = _exception_data()
-        print('%s: %s' % (type, value), file=self._stderr)
+        print(u'%s: %s' % (type, value), file=self._stderr)
         print('input line %s' % (self.abs_line_number()), file=self._stderr)
-        print(('module %s, line %s, function %s' %
+        print((u'module %s, line %s, function %s' %
                                (module, line, function)), file=self._stderr)
 
     def attach_observer(self, observer):
@@ -518,7 +517,7 @@ class StateMachine:
             observer(*info)
 
 
-class State:
+class State(object):
 
     """
     State superclass. Contains a list of transitions, and transition methods.
@@ -715,7 +714,7 @@ class State:
         try:
             pattern = self.patterns[name]
             if not hasattr(pattern, 'match'):
-                pattern = re.compile(pattern)
+                pattern = self.patterns[name] = re.compile(pattern)
         except KeyError:
             raise TransitionPatternNotFound(
                   '%s.patterns[%r]' % (self.__class__.__name__, name))
@@ -738,7 +737,7 @@ class State:
         names = []
         transitions = {}
         for namestate in name_list:
-            if type(namestate) is stringtype:
+            if isinstance(namestate, stringtype):
                 transitions[namestate] = self.make_transition(namestate)
                 names.append(namestate)
             else:
@@ -859,7 +858,7 @@ class StateMachineWS(StateMachine):
             offset += 1
         return indented, offset, blank_finish
 
-    def get_first_known_indented(self, indent, until_blank=False, 
+    def get_first_known_indented(self, indent, until_blank=False,
                                  strip_indent=True, strip_top=True):
         """
         Return an indented block and info.
@@ -945,8 +944,8 @@ class StateWS(State):
     `indent_sm_kwargs`. Override it in subclasses to avoid the default.
     """
 
-    ws_patterns = {'blank': ' *$',
-                   'indent': ' +'}
+    ws_patterns = {'blank': re.compile(' *$'),
+                   'indent': re.compile(' +')}
     """Patterns for default whitespace transitions.  May be overridden in
     subclasses."""
 
@@ -1034,7 +1033,7 @@ class StateWS(State):
         return context, next_state, results
 
 
-class _SearchOverride:
+class _SearchOverride(object):
 
     """
     Mix-in class to override `StateMachine` regular expression behavior.
@@ -1067,7 +1066,7 @@ class SearchStateMachineWS(_SearchOverride, StateMachineWS):
     pass
 
 
-class ViewList:
+class ViewList(object):
 
     """
     List with extended functionality: slices of ViewList objects are child
@@ -1127,7 +1126,12 @@ class ViewList:
     def __ne__(self, other): return self.data != self.__cast(other)
     def __gt__(self, other): return self.data >  self.__cast(other)
     def __ge__(self, other): return self.data >= self.__cast(other)
-    def __cmp__(self, other): return cmp(self.data, self.__cast(other))
+
+    def __cmp__(self, other):
+        # from https://docs.python.org/3.0/whatsnew/3.0.html
+        mine = self.data
+        yours = self.__cast(other)
+        return (mine > yours) - (yours < mine)
 
     def __cast(self, other):
         if isinstance(other, ViewList):
@@ -1293,8 +1297,7 @@ class ViewList:
         self.parent = None
 
     def sort(self, *args):
-        tmp = list(zip(self.data, self.items))
-        tmp.sort(*args)
+        tmp = sorted(zip(self.data, self.items), *args)
         self.data = [entry[0] for entry in tmp]
         self.items = [entry[1] for entry in tmp]
         self.parent = None
@@ -1455,7 +1458,7 @@ class StringList(ViewList):
         east_asian_width = unicodedata.east_asian_width
         for i in range(len(self.data)):
             line = self.data[i]
-            if isinstance(line, str):
+            if isinstance(line, unicode):
                 new = []
                 for char in line:
                     new.append(char)
@@ -1497,7 +1500,6 @@ class StateCorrection(Exception):
     transition name.
     """
 
-
 def string2lines(astring, tab_width=8, convert_whitespace=False,
                  whitespace=re.compile('[\v\f]')):
     """
@@ -1515,6 +1517,8 @@ def string2lines(astring, tab_width=8, convert_whitespace=False,
     """
     if convert_whitespace:
         astring = whitespace.sub(' ', astring)
+    # TODO: add a test for too long lines (max_line_lenght = 1000, say)?
+    # See bug #381.
     return [s.expandtabs(tab_width).rstrip() for s in astring.splitlines()]
 
 def _exception_data():

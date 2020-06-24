@@ -37,7 +37,7 @@ directives = {
       'punti-salienti': 'highlights',
       'estratto-evidenziato': 'pull-quote',
       'composito': 'compound',
-      'container (translation required)': 'container',
+      u'container (translation required)': 'container',
       #'questions': 'questions',
       #'qa': 'questions',
       #'faq': 'questions',
@@ -74,7 +74,7 @@ mapping."""
 roles = {
       'abbreviazione': 'abbreviation',
       'acronimo': 'acronym',
-      'code (translation required)': 'code',
+      u'code (translation required)': 'code',
       'indice': 'index',
       'deponente': 'subscript',
       'esponente': 'superscript',

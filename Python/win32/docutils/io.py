@@ -1,4 +1,4 @@
-# $Id: io.py 8228 2018-09-09 18:57:00Z grubert $
+# $Id: io.py 8394 2019-09-18 10:13:17Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -6,6 +6,7 @@
 I/O classes provide a uniform API for low-level input and output.  Subclasses
 exist for a variety of input/output mechanisms.
 """
+from __future__ import print_function
 
 __docformat__ = 'reStructuredText'
 
@@ -15,6 +16,9 @@ import re
 import codecs
 from docutils import TransformSpec
 from docutils.utils.error_reporting import locale_encoding, ErrorString, ErrorOutput
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
 
 
 class InputError(IOError): pass
@@ -84,10 +88,10 @@ class Input(TransformSpec):
             locale.setlocale(locale.LC_ALL, '')
         """
         if self.encoding and self.encoding.lower() == 'unicode':
-            assert isinstance(data, str), (
+            assert isinstance(data, unicode), (
                 'input encoding is "unicode" '
                 'but input is not a unicode object')
-        if isinstance(data, str):
+        if isinstance(data, unicode):
             # Accept unicode even if self.encoding != 'unicode'.
             return data
         if self.encoding:
@@ -109,10 +113,10 @@ class Input(TransformSpec):
                     encodings.insert(1, locale_encoding)
         for enc in encodings:
             try:
-                decoded = str(data, enc, self.error_handler)
+                decoded = unicode(data, enc, self.error_handler)
                 self.successful_encoding = enc
                 # Return decoded, removing BOMs.
-                return decoded.replace('\ufeff', '')
+                return decoded.replace(u'\ufeff', u'')
             except (UnicodeError, LookupError) as err:
                 error = err # in Python 3, the <exception instance> is
                             # local to the except clause
@@ -185,11 +189,11 @@ class Output(TransformSpec):
 
     def encode(self, data):
         if self.encoding and self.encoding.lower() == 'unicode':
-            assert isinstance(data, str), (
+            assert isinstance(data, unicode), (
                 'the encoding given is "unicode" but the output is not '
                 'a Unicode string')
             return data
-        if not isinstance(data, str):
+        if not isinstance(data, unicode):
             # Non-unicode (e.g. bytes) output.
             return data
         else:
@@ -204,7 +208,7 @@ class FileInput(Input):
     def __init__(self, source=None, source_path=None,
                  encoding=None, error_handler='strict',
                  autoclose=True,
-                 mode='r' if sys.version_info >= (3, 4) else 'rU', **kwargs):
+                 mode='r' if sys.version_info >= (3, 0) else 'rU'):
         """
         :Parameters:
             - `source`: either a file-like object (which is read directly), or
@@ -216,38 +220,27 @@ class FileInput(Input):
               `sys.stdin` is the source).
             - `mode`: how the file is to be opened (see standard function
               `open`). The default 'rU' provides universal newline support
-              for text files on Python < 3.4.
+              for text files with Python 2.x.
         """
         Input.__init__(self, source, source_path, encoding, error_handler)
         self.autoclose = autoclose
         self._stderr = ErrorOutput()
-        # deprecation warning
-        for key in kwargs:
-            if key == 'handle_io_errors':
-                sys.stderr.write('deprecation warning: '
-                    'io.FileInput() argument `handle_io_errors` '
-                    'is ignored since Docutils 0.10 (2012-12-16) '
-                    'and will soon be removed.')
-            else:
-                raise TypeError('__init__() got an unexpected keyword '
-                                "argument '%s'" % key)
 
         if source is None:
             if source_path:
                 # Specify encoding in Python 3
-                if sys.version_info >= (3,0):
+                if sys.version_info >= (3, 0):
                     kwargs = {'encoding': self.encoding,
                               'errors': self.error_handler}
                 else:
                     kwargs = {}
-
                 try:
                     self.source = open(source_path, mode, **kwargs)
                 except IOError as error:
                     raise InputError(error.errno, error.strerror, source_path)
             else:
                 self.source = sys.stdin
-        elif (sys.version_info >= (3,0) and
+        elif (sys.version_info >= (3, 0) and
               check_encoding(self.source, self.encoding) is False):
             # TODO: re-open, warn or raise error?
             raise UnicodeError('Encoding clash: encoding given is "%s" '
@@ -264,7 +257,7 @@ class FileInput(Input):
         Read and decode a single file and return the data (Unicode string).
         """
         try:
-            if self.source is sys.stdin and sys.version_info >= (3,0):
+            if self.source is sys.stdin and sys.version_info >= (3, 0):
                 # read as binary data to circumvent auto-decoding
                 data = self.source.buffer.read()
                 # normalize newlines
@@ -343,9 +336,9 @@ class FileOutput(Output):
         elif (# destination is file-type object -> check mode:
               mode and hasattr(self.destination, 'mode')
               and mode != self.destination.mode):
-                print(('Warning: Destination mode "%s" '
-                               'differs from specified mode "%s"' %
-                               (self.destination.mode, mode)), file=self._stderr)
+                print('Warning: Destination mode "%s" differs from specified '
+                      'mode "%s"' % (self.destination.mode, mode),
+                      file=self._stderr)
         if not destination_path:
             try:
                 self.destination_path = self.destination.name
@@ -354,7 +347,7 @@ class FileOutput(Output):
 
     def open(self):
         # Specify encoding in Python 3.
-        if sys.version_info >= (3,0) and 'b' not in self.mode:
+        if sys.version_info >= (3, 0) and 'b' not in self.mode:
             kwargs = {'encoding': self.encoding,
                       'errors': self.error_handler}
         else:
@@ -374,17 +367,17 @@ class FileOutput(Output):
         """
         if not self.opened:
             self.open()
-        if ('b' not in self.mode and sys.version_info < (3,0)
+        if ('b' not in self.mode and sys.version_info < (3, 0)
             or check_encoding(self.destination, self.encoding) is False
            ):
             data = self.encode(data)
-            if sys.version_info >= (3,0) and os.linesep != '\n':
+            if sys.version_info >= (3, 0) and os.linesep != '\n':
                 data = data.replace(b'\n', bytes(os.linesep, 'ascii')) # fix endings
 
         try:
             self.destination.write(data)
         except TypeError as e:
-            if sys.version_info >= (3,0) and isinstance(data, bytes):
+            if sys.version_info >= (3, 0) and isinstance(data, bytes):
                 try:
                     self.destination.buffer.write(data)
                 except AttributeError:
@@ -457,7 +450,7 @@ class NullInput(Input):
 
     def read(self):
         """Return a null string."""
-        return ''
+        return u''
 
 
 class NullOutput(Output):

@@ -22,12 +22,13 @@ windows:
 import logging
 from numbers import Integral
 
+from matplotlib import cbook
 import matplotlib.lines as mlines
 
 _log = logging.getLogger(__name__)
 
 
-class BlockingInput(object):
+class BlockingInput:
     """Callable for retrieving events in a blocking way."""
 
     def __init__(self, fig, eventslist=()):
@@ -76,8 +77,7 @@ class BlockingInput(object):
 
     def __call__(self, n=1, timeout=30):
         """Blocking call to retrieve *n* events."""
-        if not isinstance(n, Integral):
-            raise ValueError("Requires an integer argument")
+        cbook._check_isinstance(Integral, n=n)
         self.n = n
         self.events = []
 

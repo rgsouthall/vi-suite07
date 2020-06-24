@@ -121,7 +121,7 @@ def has_nested_fields(ndtype):
 
     """
     for name in ndtype.names or ():
-        if ndtype[name].names is not None:
+        if ndtype[name].names:
             return True
     return False
 
@@ -931,27 +931,28 @@ def easy_dtype(ndtype, names=None, defaultfmt="f%i", **validationargs):
         names = validate(names, nbfields=nbfields, defaultfmt=defaultfmt)
         ndtype = np.dtype(dict(formats=ndtype, names=names))
     else:
+        nbtypes = len(ndtype)
         # Explicit names
         if names is not None:
             validate = NameValidator(**validationargs)
             if isinstance(names, basestring):
                 names = names.split(",")
             # Simple dtype: repeat to match the nb of names
-            if ndtype.names is None:
+            if nbtypes == 0:
                 formats = tuple([ndtype.type] * len(names))
                 names = validate(names, defaultfmt=defaultfmt)
                 ndtype = np.dtype(list(zip(names, formats)))
             # Structured dtype: just validate the names as needed
             else:
-                ndtype.names = validate(names, nbfields=len(ndtype.names),
+                ndtype.names = validate(names, nbfields=nbtypes,
                                         defaultfmt=defaultfmt)
         # No implicit names
-        elif ndtype.names is not None:
+        elif (nbtypes > 0):
             validate = NameValidator(**validationargs)
             # Default initial names : should we change the format ?
-            if ((ndtype.names == tuple("f%i" % i for i in range(len(ndtype.names)))) and
+            if ((ndtype.names == tuple("f%i" % i for i in range(nbtypes))) and
                     (defaultfmt != "f%i")):
-                ndtype.names = validate([''] * len(ndtype.names), defaultfmt=defaultfmt)
+                ndtype.names = validate([''] * nbtypes, defaultfmt=defaultfmt)
             # Explicit initial names : just validate
             else:
                 ndtype.names = validate(ndtype.names, defaultfmt=defaultfmt)

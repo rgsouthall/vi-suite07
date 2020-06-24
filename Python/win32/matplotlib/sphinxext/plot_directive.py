@@ -1,44 +1,44 @@
 """
-A directive for including a matplotlib plot in a Sphinx document.
+A directive for including a Matplotlib plot in a Sphinx document
+================================================================
 
-By default, in HTML output, `plot` will include a .png file with a
-link to a high-res .png and .pdf.  In LaTeX output, it will include a
-.pdf.
+By default, in HTML output, `plot` will include a .png file with a link to a
+high-res .png and .pdf.  In LaTeX output, it will include a .pdf.
 
 The source code for the plot may be included in one of three ways:
 
-  1. **A path to a source file** as the argument to the directive::
+1. **A path to a source file** as the argument to the directive::
 
-       .. plot:: path/to/plot.py
+     .. plot:: path/to/plot.py
 
-     When a path to a source file is given, the content of the
-     directive may optionally contain a caption for the plot::
+   When a path to a source file is given, the content of the
+   directive may optionally contain a caption for the plot::
 
-       .. plot:: path/to/plot.py
+     .. plot:: path/to/plot.py
 
-          This is the caption for the plot
+        This is the caption for the plot
 
-     Additionally, one may specify the name of a function to call (with
-     no arguments) immediately after importing the module::
+   Additionally, one may specify the name of a function to call (with
+   no arguments) immediately after importing the module::
 
-       .. plot:: path/to/plot.py plot_function1
+     .. plot:: path/to/plot.py plot_function1
 
-  2. Included as **inline content** to the directive::
+2. Included as **inline content** to the directive::
 
-       .. plot::
+     .. plot::
 
-          import matplotlib.pyplot as plt
-          import matplotlib.image as mpimg
-          import numpy as np
-          img = mpimg.imread('_static/stinkbug.png')
-          imgplot = plt.imshow(img)
+        import matplotlib.pyplot as plt
+        import matplotlib.image as mpimg
+        import numpy as np
+        img = mpimg.imread('_static/stinkbug.png')
+        imgplot = plt.imshow(img)
 
-  3. Using **doctest** syntax::
+3. Using **doctest** syntax::
 
-       .. plot::
-          A plotting example:
-          >>> import matplotlib.pyplot as plt
-          >>> plt.plot([1,2,3], [4,5,6])
+     .. plot::
+        A plotting example:
+        >>> import matplotlib.pyplot as plt
+        >>> plt.plot([1, 2, 3], [4, 5, 6])
 
 Options
 -------
@@ -53,30 +53,26 @@ The ``plot`` directive supports the following options:
         using the `plot_include_source` variable in conf.py
 
     encoding : str
-        If this source file is in a non-UTF8 or non-ASCII encoding,
-        the encoding must be specified using the `:encoding:` option.
-        The encoding will not be inferred using the ``-*- coding -*-``
-        metacomment.
+        If this source file is in a non-UTF8 or non-ASCII encoding, the
+        encoding must be specified using the `:encoding:` option.  The encoding
+        will not be inferred using the ``-*- coding -*-`` metacomment.
 
     context : bool or str
-        If provided, the code will be run in the context of all
-        previous plot directives for which the `:context:` option was
-        specified.  This only applies to inline code plot directives,
-        not those run from files. If the ``:context: reset`` option is
-        specified, the context is reset for this and future plots, and
-        previous figures are closed prior to running the code.
-        ``:context:close-figs`` keeps the context but closes previous figures
-        before running the code.
+        If provided, the code will be run in the context of all previous plot
+        directives for which the `:context:` option was specified.  This only
+        applies to inline code plot directives, not those run from files. If
+        the ``:context: reset`` option is specified, the context is reset
+        for this and future plots, and previous figures are closed prior to
+        running the code. ``:context: close-figs`` keeps the context but closes
+        previous figures before running the code.
 
     nofigs : bool
-        If specified, the code block will be run, but no figures will
-        be inserted.  This is usually useful with the ``:context:``
-        option.
+        If specified, the code block will be run, but no figures will be
+        inserted.  This is usually useful with the ``:context:`` option.
 
-Additionally, this directive supports all of the options of the
-`image` directive, except for `target` (since plot will add its own
-target).  These include `alt`, `height`, `width`, `scale`, `align` and
-`class`.
+Additionally, this directive supports all of the options of the `image`
+directive, except for *target* (since plot will add its own target).  These
+include `alt`, `height`, `width`, `scale`, `align` and `class`.
 
 Configuration options
 ---------------------
@@ -109,7 +105,7 @@ The plot directive has the following configuration options:
         that determine the file format and the DPI. For entries whose
         DPI was omitted, sensible defaults are chosen. When passing from
         the command line through sphinx_build the list should be passed as
-        suffix:dpi,suffix:dpi, ....
+        suffix:dpi,suffix:dpi, ...
 
     plot_html_show_formats
         Whether to show links to the files in HTML.
@@ -146,7 +142,6 @@ import shutil
 import sys
 import textwrap
 import traceback
-import warnings
 
 from docutils.parsers.rst import directives, Directive
 from docutils.parsers.rst.directives.images import Image
@@ -154,16 +149,10 @@ import jinja2  # Sphinx dependency.
 
 import matplotlib
 from matplotlib.backend_bases import FigureManagerBase
-try:
-    with warnings.catch_warnings(record=True):
-        warnings.simplefilter("error", UserWarning)
-        matplotlib.use('Agg')
-except UserWarning:
-    import matplotlib.pyplot as plt
-    plt.switch_backend("Agg")
-else:
-    import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from matplotlib import _pylab_helpers, cbook
+
+matplotlib.use("agg")
 align = Image.align
 
 __version__ = 2
@@ -213,9 +202,8 @@ def _option_align(arg):
 
 def mark_plot_labels(app, document):
     """
-    To make plots referenceable, we need to move the reference from
-    the "htmlonly" (or "latexonly") node to the actual figure node
-    itself.
+    To make plots referenceable, we need to move the reference from the
+    "htmlonly" (or "latexonly") node to the actual figure node itself.
     """
     for name, explicit in document.nametypes.items():
         if not explicit:
@@ -352,13 +340,6 @@ def split_code_at_show(text):
     return parts
 
 
-def remove_coding(text):
-    r"""Remove the coding comment, which six.exec\_ doesn't like."""
-    cbook.warn_deprecated('3.0', name='remove_coding', removal='3.1')
-    sub_re = re.compile(r"^#\s*-\*-\s*coding:\s*.*-\*-$", flags=re.MULTILINE)
-    return sub_re.sub("", text)
-
-
 # -----------------------------------------------------------------------------
 # Template
 # -----------------------------------------------------------------------------
@@ -430,7 +411,7 @@ Exception occurred rendering plot.
 plot_context = dict()
 
 
-class ImageFile(object):
+class ImageFile:
     def __init__(self, basename, dirname):
         self.basename = basename
         self.dirname = dirname
@@ -504,7 +485,7 @@ def run_code(code, code_path, ns=None, function_name=None):
                 if function_name is not None:
                     exec(function_name + "()", ns)
 
-        except (Exception, SystemExit) as err:
+        except (Exception, SystemExit):
             raise PlotError(traceback.format_exc())
         finally:
             os.chdir(pwd)
@@ -574,11 +555,11 @@ def render_figures(code, code_path, output_dir, output_base, context,
                                 output_dir)
             else:
                 img = ImageFile('%s_%02d' % (output_base, j), output_dir)
-            for format, dpi in formats:
-                if out_of_date(code_path, img.filename(format)):
+            for fmt, dpi in formats:
+                if out_of_date(code_path, img.filename(fmt)):
                     all_exists = False
                     break
-                img.formats.append(format)
+                img.formats.append(fmt)
 
             # assume that if we have one, we have them all
             if not all_exists:
@@ -626,12 +607,12 @@ def render_figures(code, code_path, output_dir, output_base, context,
                 img = ImageFile("%s_%02d_%02d" % (output_base, i, j),
                                 output_dir)
             images.append(img)
-            for format, dpi in formats:
+            for fmt, dpi in formats:
                 try:
-                    figman.canvas.figure.savefig(img.filename(format), dpi=dpi)
-                except Exception as err:
+                    figman.canvas.figure.savefig(img.filename(fmt), dpi=dpi)
+                except Exception:
                     raise PlotError(traceback.format_exc())
-                img.formats.append(format)
+                img.formats.append(fmt)
 
         results.append((code_piece, images))
 

@@ -42,10 +42,6 @@ _log = logging.getLogger(__name__)
 
 backend_version = tk.TkVersion
 
-# the true dots per inch on the screen; should be display dependent
-# see http://groups.google.com/groups?q=screen+dpi+x11&hl=en&lr=&ie=UTF-8&oe=UTF-8&safe=off&selm=7077.26e81ad5%40swift.cs.tcd.ie&rnum=5 for some info about screen dpi
-PIXELS_PER_INCH = 75
-
 cursord = {
     cursors.MOVE: "fleur",
     cursors.HAND: "hand2",
@@ -128,6 +124,8 @@ class TimerTk(TimerBase):
 
 
 class FigureCanvasTk(FigureCanvasBase):
+    required_interactive_framework = "tk"
+
     keyvald = {65507: 'control',
                65505: 'shift',
                65513: 'alt',
@@ -211,11 +209,13 @@ class FigureCanvasTk(FigureCanvasBase):
         self._tkcanvas.bind("<Enter>", self.enter_notify_event)
         self._tkcanvas.bind("<Leave>", self.leave_notify_event)
         self._tkcanvas.bind("<KeyRelease>", self.key_release)
-        for name in "<Button-1>", "<Button-2>", "<Button-3>":
+        for name in ["<Button-1>", "<Button-2>", "<Button-3>"]:
             self._tkcanvas.bind(name, self.button_press_event)
-        for name in "<Double-Button-1>", "<Double-Button-2>", "<Double-Button-3>":
+        for name in [
+                "<Double-Button-1>", "<Double-Button-2>", "<Double-Button-3>"]:
             self._tkcanvas.bind(name, self.button_dblclick_event)
-        for name in "<ButtonRelease-1>", "<ButtonRelease-2>", "<ButtonRelease-3>":
+        for name in [
+                "<ButtonRelease-1>", "<ButtonRelease-2>", "<ButtonRelease-3>"]:
             self._tkcanvas.bind(name, self.button_release_event)
 
         # Mouse wheel on Linux generates button 4/5 events
@@ -257,74 +257,6 @@ class FigureCanvasTk(FigureCanvasBase):
             int(width / 2), int(height / 2), image=self._tkphoto)
         self.resize_event()
         self.draw()
-
-        # a resizing will in general move the pointer position
-        # relative to the canvas, so process it as a motion notify
-        # event.  An intended side effect of this call is to allow
-        # window raises (which trigger a resize) to get the cursor
-        # position to the mpl event framework so key presses which are
-        # over the axes will work w/o clicks or explicit motion
-        self._update_pointer_position(event)
-
-    def _update_pointer_position(self, guiEvent=None):
-        """
-        Figure out if we are inside the canvas or not and update the
-        canvas enter/leave events
-        """
-        # if the pointer if over the canvas, set the lastx and lasty
-        # attrs of the canvas so it can process event w/o mouse click
-        # or move
-
-        # the window's upper, left coords in screen coords
-        xw = self._tkcanvas.winfo_rootx()
-        yw = self._tkcanvas.winfo_rooty()
-        # the pointer's location in screen coords
-        xp, yp = self._tkcanvas.winfo_pointerxy()
-
-        # not figure out the canvas coordinates of the pointer
-        xc = xp - xw
-        yc = yp - yw
-
-        # flip top/bottom
-        yc = self.figure.bbox.height - yc
-
-        # JDH: this method was written originally to get the pointer
-        # location to the backend lastx and lasty attrs so that events
-        # like KeyEvent can be handled without mouse events.  e.g., if
-        # the cursor is already above the axes, then key presses like
-        # 'g' should toggle the grid.  In order for this to work in
-        # backend_bases, the canvas needs to know _lastx and _lasty.
-        # There are three ways to get this info the canvas:
-        #
-        # 1) set it explicitly
-        #
-        # 2) call enter/leave events explicitly.  The downside of this
-        #    in the impl below is that enter could be repeatedly
-        #    triggered if the mouse is over the axes and one is
-        #    resizing with the keyboard.  This is not entirely bad,
-        #    because the mouse position relative to the canvas is
-        #    changing, but it may be surprising to get repeated entries
-        #    without leaves
-        #
-        # 3) process it as a motion notify event.  This also has pros
-        #    and cons.  The mouse is moving relative to the window, but
-        #    this may surprise an event handler writer who is getting
-        #   motion_notify_events even if the mouse has not moved
-
-        # here are the three scenarios
-        if 1:
-            # just manually set it
-            self._lastx, self._lasty = xc, yc
-        elif 0:
-            # alternate implementation: process it as a motion
-            FigureCanvasBase.motion_notify_event(self, xc, yc, guiEvent)
-        elif 0:
-            # alternate implementation -- process enter/leave events
-            # instead of motion/notify
-            if self.figure.bbox.contains(xc, yc):
-                self.enter_notify_event(guiEvent, xy=(xc, yc))
-            else:
-                self.leave_notify_event(guiEvent)
 
     def draw_idle(self):
         # docstring inherited
@@ -500,7 +432,6 @@ class FigureManagerTk(FigureManagerBase):
         # widget is getting shrunk first (-> the canvas)
         self.toolbar = self._get_toolbar()
         self.canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        self._num = num
 
         self.statusbar = None
 
@@ -529,21 +460,25 @@ class FigureManagerTk(FigureManagerBase):
         return toolmanager
 
     def resize(self, width, height):
-        self.canvas._tkcanvas.master.geometry("%dx%d" % (width, height))
+        max_size = 1_400_000  # the measured max on xorg 1.20.8 was 1_409_023
 
-        if self.toolbar is not None:
-            self.toolbar.configure(width=width)
+        if (width > max_size or height > max_size) and sys.platform == 'linux':
+            raise ValueError(
+                'You have requested to resize the '
+                f'Tk window to ({width}, {height}), one of which '
+                f'is bigger than {max_size}.  At larger sizes xorg will '
+                'either exit with an error on newer versions (~1.20) or '
+                'cause corruption on older version (~1.19).  We '
+                'do not expect a window over a million pixel wide or tall '
+                'to be intended behavior.')
+        self.canvas._tkcanvas.configure(width=width, height=height)
 
     def show(self):
-        """
-        this function doesn't segfault but causes the
-        PyEval_RestoreThread: NULL state bug on win32
-        """
         with _restore_foreground_window_at_end():
             if not self._shown:
                 def destroy(*args):
                     self.window = None
-                    Gcf.destroy(self._num)
+                    Gcf.destroy(self.num)
                 self.canvas._tkcanvas.bind("<Destroy>", destroy)
                 self.window.deiconify()
             else:
@@ -614,12 +549,15 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
 
     def set_cursor(self, cursor):
         window = self.canvas.get_tk_widget().master
-        window.configure(cursor=cursord[cursor])
-        window.update_idletasks()
+        try:
+            window.configure(cursor=cursord[cursor])
+        except tkinter.TclError:
+            pass
+        else:
+            window.update_idletasks()
 
     def _Button(self, text, file, command, extension='.gif'):
-        img_file = os.path.join(
-            rcParams['datapath'], 'images', file + extension)
+        img_file = str(cbook._get_data_path('images', file + extension))
         im = tk.PhotoImage(master=self, file=img_file)
         b = tk.Button(
             master=self, text=text, padx=2, pady=2, image=im, command=command)
@@ -708,6 +646,7 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
         except Exception as e:
             tkinter.messagebox.showerror("Error saving file", str(e))
 
+    @cbook.deprecated("3.1")
     def set_active(self, ind):
         self._ind = ind
         self._active = [self._axes[i] for i in self._ind]
@@ -718,7 +657,7 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
             NavigationToolbar2.update(self)
 
 
-class ToolTip(object):
+class ToolTip:
     """
     Tooltip recipe from
     http://www.voidspace.org.uk/python/weblog/arch_d7_2006_07_01.shtml#e387
@@ -938,7 +877,6 @@ Toolbar = ToolbarTk
 
 @_Backend.export
 class _BackendTk(_Backend):
-    required_interactive_framework = "tk"
     FigureManager = FigureManagerTk
 
     @classmethod
@@ -950,12 +888,12 @@ class _BackendTk(_Backend):
             window = tk.Tk(className="matplotlib")
             window.withdraw()
 
-            # Put a mpl icon on the window rather than the default tk icon.
-            # Tkinter doesn't allow colour icons on linux systems, but tk>=8.5
-            # has a iconphoto command which we call directly. Source:
+            # Put a Matplotlib icon on the window rather than the default tk
+            # icon.  Tkinter doesn't allow colour icons on linux systems, but
+            # tk>=8.5 has a iconphoto command which we call directly.  See
             # http://mail.python.org/pipermail/tkinter-discuss/2006-November/000954.html
-            icon_fname = os.path.join(
-                rcParams['datapath'], 'images', 'matplotlib.ppm')
+            icon_fname = str(cbook._get_data_path(
+                'images/matplotlib_128.ppm'))
             icon_img = tk.PhotoImage(file=icon_fname, master=window)
             try:
                 window.iconphoto(False, icon_img)

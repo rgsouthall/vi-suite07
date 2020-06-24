@@ -1,4 +1,4 @@
-# $Id: __init__.py 8258 2019-06-25 18:15:26Z milde $
+# $Id: __init__.py 8344 2019-08-26 12:10:43Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -72,7 +72,7 @@ __docformat__ = 'reStructuredText'
 
 import docutils.parsers
 import docutils.statemachine
-from docutils.parsers.rst import states
+from docutils.parsers.rst import roles, states
 from docutils import frontend, nodes, Component
 from docutils.transforms import universal
 

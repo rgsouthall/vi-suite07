@@ -1,4 +1,4 @@
-# $Id: nodes.py 8295 2019-07-24 09:22:01Z grubert $
+# $Id: nodes.py 8446 2019-12-23 21:43:20Z milde $
 # Author: David Goodger <goodger@python.org>
 # Maintainer: docutils-develop@lists.sourceforge.net
 # Copyright: This module has been placed in the public domain.
@@ -19,6 +19,8 @@ hierarchy.
 
 .. _DTD: http://docutils.sourceforge.net/docs/ref/docutils.dtd
 """
+from __future__ import print_function
+from collections import Counter
 
 __docformat__ = 'reStructuredText'
 
@@ -26,8 +28,39 @@ import sys
 import os
 import re
 import warnings
-import types
 import unicodedata
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
+    basestring = str  # noqa
+
+class _traversal_list(list):
+    # auxiliary class to report a FutureWarning
+    done = False
+    def _warning_decorator(fun):
+        msg = ("\n   The iterable returned by Node.traverse()"
+               "\n   will become an iterator instead of a list in "
+               "Docutils > 0.16.")
+        def wrapper(self, *args, **kwargs):
+            if not self.done:
+                warnings.warn(msg, FutureWarning, stacklevel=2)
+            self.done = True
+            return fun(self, *args, **kwargs)
+        return wrapper
+
+    __add__ = _warning_decorator(list.__add__)
+    __contains__ = _warning_decorator(list.__contains__)
+    __getitem__ = _warning_decorator(list.__getitem__)
+    __reversed__ = _warning_decorator(list.__reversed__)
+    __setitem__ = _warning_decorator(list.__setitem__)
+    append = _warning_decorator(list.append)
+    count = _warning_decorator(list.count)
+    extend = _warning_decorator(list.extend)
+    index = _warning_decorator(list.index)
+    insert = _warning_decorator(list.insert)
+    pop = _warning_decorator(list.pop)
+    reverse = _warning_decorator(list.reverse)
+
 
 # ==============================
 #  Functional Node Base Classes
@@ -60,11 +93,14 @@ class Node(object):
         """
         return True
 
-    if sys.version_info < (3,):
+    if sys.version_info < (3, 0):
+        __nonzero__ = __bool__
+
+    if sys.version_info < (3, 0):
         # on 2.x, str(node) will be a byte string with Unicode
         # characters > 255 escaped; on 3.x this is no longer necessary
         def __str__(self):
-            return str(self).encode('raw_unicode_escape')
+            return unicode(self).encode('raw_unicode_escape')
 
     def asdom(self, dom=None):
         """Return a DOM **fragment** representation of this Node."""
@@ -192,21 +228,19 @@ class Node(object):
         return stop
 
     def _fast_traverse(self, cls):
-        """Specialized traverse() that only supports instance checks."""
-        result = []
+        """Return iterator that only supports instance checks."""
         if isinstance(self, cls):
-            result.append(self)
+            yield self
         for child in self.children:
-            result.extend(child._fast_traverse(cls))
-        return result
+            for subnode in child._fast_traverse(cls):
+                yield subnode
 
     def _all_traverse(self):
-        """Specialized traverse() that doesn't check for a condition."""
-        result = []
-        result.append(self)
+        """Return iterator that doesn't check for a condition."""
+        yield self
         for child in self.children:
-            result.extend(child._all_traverse())
-        return result
+            for subnode in child._all_traverse():
+                yield subnode
 
     def traverse(self, condition=None, include_self=True, descend=True,
                  siblings=False, ascend=False):
@@ -245,43 +279,58 @@ class Node(object):
 
             [<strong>, <#text: Foo>, <#text: Bar>, <reference>, <#text: Baz>]
         """
+        # Although the documented API only promises an "iterable" as return
+        # value, the implementation returned a list up to v. 0.15. Some 3rd
+        # party code still relies on this (e.g. Sphinx as of 2019-09-07).
+        # Therefore, let's return a list until this is sorted out:
+        return _traversal_list(self._traverse(condition, include_self,
+                                   descend, siblings, ascend))
+
+    def _traverse(self, condition=None, include_self=True, descend=True,
+                  siblings=False, ascend=False):
+        """Return iterator over nodes following `self`. See `traverse()`."""
         if ascend:
             siblings=True
         # Check for special argument combinations that allow using an
         # optimized version of traverse()
         if include_self and descend and not siblings:
             if condition is None:
-                return self._all_traverse()
+                for subnode in self._all_traverse():
+                    yield subnode
+                return
             elif isinstance(condition, type):
-                return self._fast_traverse(condition)
+                for subnode in self._fast_traverse(condition):
+                    yield subnode
+                return
         # Check if `condition` is a class (check for TypeType for Python
         # implementations that use only new-style classes, like PyPy).
         if isinstance(condition, type):
             node_class = condition
             def condition(node, node_class=node_class):
                 return isinstance(node, node_class)
-        r = []
+
+
         if include_self and (condition is None or condition(self)):
-            r.append(self)
+            yield self
         if descend and len(self.children):
             for child in self:
-                r.extend(child.traverse(include_self=True, descend=True,
-                                        siblings=False, ascend=False,
-                                        condition=condition))
+                for subnode in child._traverse(condition=condition,
+                                    include_self=True, descend=True,
+                                    siblings=False, ascend=False):
+                    yield subnode
         if siblings or ascend:
             node = self
             while node.parent:
                 index = node.parent.index(node)
                 for sibling in node.parent[index+1:]:
-                    r.extend(sibling.traverse(include_self=True,
-                                              descend=descend,
-                                              siblings=False, ascend=False,
-                                              condition=condition))
+                    for subnode in sibling._traverse(condition=condition,
+                                        include_self=True, descend=descend,
+                                        siblings=False, ascend=False):
+                        yield subnode
                 if not ascend:
                     break
                 else:
                     node = node.parent
-        return r
 
     def next_node(self, condition=None, include_self=False, descend=True,
                   siblings=False, ascend=False):
@@ -290,33 +339,32 @@ class Node(object):
         or None if the iterable is empty.
 
         Parameter list is the same as of traverse.  Note that
-        include_self defaults to 0, though.
+        include_self defaults to False, though.
         """
-        iterable = self.traverse(condition=condition,
-                                 include_self=include_self, descend=descend,
-                                 siblings=siblings, ascend=ascend)
+        node_iterator = self._traverse(condition, include_self,
+                                      descend, siblings, ascend)
         try:
-            return iterable[0]
-        except IndexError:
+            return next(node_iterator)
+        except StopIteration:
             return None
 
-if sys.version_info < (3,):
-    class reprunicode(str):
+if sys.version_info < (3, 0):
+    class reprunicode(unicode):
         """
         A unicode sub-class that removes the initial u from unicode's repr.
         """
 
         def __repr__(self):
-            return str.__repr__(self)[1:]
+            return unicode.__repr__(self)[1:]
 else:
-    reprunicode = str
+    reprunicode = unicode
 
 
 def ensure_str(s):
     """
     Failsave conversion of `unicode` to `str`.
     """
-    if sys.version_info < (3,) and isinstance(s, str):
+    if sys.version_info < (3, 0) and isinstance(s, unicode):
         return s.encode('ascii', 'backslashreplace')
     return s
 
@@ -348,7 +396,7 @@ class Text(Node, reprunicode):
     children = ()
     """Text nodes have no children, and cannot have children."""
 
-    if sys.version_info > (3,):
+    if sys.version_info > (3, 0):
         def __new__(cls, data, rawsource=None):
             """Prevent the rawsource argument from propagating to str."""
             if isinstance(data, bytes):
@@ -373,7 +421,7 @@ class Text(Node, reprunicode):
         return self.shortrepr(maxlen=68)
 
     def _dom_node(self, domroot):
-        return domroot.createTextNode(str(self))
+        return domroot.createTextNode(unicode(self))
 
     def astext(self):
         return reprunicode(unescape(self))
@@ -491,7 +539,7 @@ class Element(Node):
         for att in self.list_attributes:
             self.attributes[att] = []
 
-        for att, value in list(attributes.items()):
+        for att, value in attributes.items():
             att = att.lower()
             if att in self.list_attributes:
                 # mutable list; make a copy for this node
@@ -534,14 +582,13 @@ class Element(Node):
 
     def __unicode__(self):
         if self.children:
-            return '%s%s%s' % (self.starttag(),
-                                ''.join([str(c) for c in self.children]),
+            return u'%s%s%s' % (self.starttag(),
+                                ''.join([unicode(c) for c in self.children]),
                                 self.endtag())
         else:
             return self.emptytag()
 
-    if sys.version_info > (3,):
-        # 2to3 doesn't convert __unicode__ to __str__
+    if sys.version_info >= (3, 0):
         __str__ = __unicode__
 
     def starttag(self, quoteattr=None):
@@ -557,31 +604,24 @@ class Element(Node):
                 values = [serial_escape('%s' % (v,)) for v in value]
                 value = ' '.join(values)
             else:
-                value = str(value)
+                value = unicode(value)
             value = quoteattr(value)
-            parts.append('%s=%s' % (name, value))
-        return '<%s>' % ' '.join(parts)
+            parts.append(u'%s=%s' % (name, value))
+        return u'<%s>' % u' '.join(parts)
 
     def endtag(self):
         return '</%s>' % self.tagname
 
     def emptytag(self):
-        return '<%s/>' % ' '.join([self.tagname] +
+        return u'<%s/>' % u' '.join([self.tagname] +
                                     ['%s="%s"' % (n, v)
                                      for n, v in self.attlist()])
 
     def __len__(self):
         return len(self.children)
 
-    def __contains__(self, key):
-        # support both membership test for children and attributes
-        # (has_key is translated to "in" by 2to3)
-        if isinstance(key, str):
-            return key in self.attributes
-        return key in self.children
-
     def __getitem__(self, key):
-        if isinstance(key, str):
+        if isinstance(key, basestring):
             return self.attributes[key]
         elif isinstance(key, int):
             return self.children[key]
@@ -590,10 +630,10 @@ class Element(Node):
             return self.children[key.start:key.stop]
         else:
             raise TypeError('element index must be an integer, a slice, or '
-                              'an attribute name string')
+                            'an attribute name string')
 
     def __setitem__(self, key, item):
-        if isinstance(key, str):
+        if isinstance(key, basestring):
             self.attributes[str(key)] = item
         elif isinstance(key, int):
             self.setup_child(item)
@@ -605,10 +645,10 @@ class Element(Node):
             self.children[key.start:key.stop] = item
         else:
             raise TypeError('element index must be an integer, a slice, or '
-                              'an attribute name string')
+                            'an attribute name string')
 
     def __delitem__(self, key):
-        if isinstance(key, str):
+        if isinstance(key, basestring):
             del self.attributes[key]
         elif isinstance(key, int):
             del self.children[key]
@@ -617,7 +657,7 @@ class Element(Node):
             del self.children[key.start:key.stop]
         else:
             raise TypeError('element index must be an integer, a simple '
-                              'slice, or an attribute name string')
+                            'slice, or an attribute name string')
 
     def __add__(self, other):
         return self.children + other
@@ -639,14 +679,13 @@ class Element(Node):
 
     def non_default_attributes(self):
         atts = {}
-        for key, value in list(self.attributes.items()):
+        for key, value in self.attributes.items():
             if self.is_not_default(key):
                 atts[key] = value
         return atts
 
     def attlist(self):
-        attlist = list(self.non_default_attributes().items())
-        attlist.sort()
+        attlist = sorted(self.non_default_attributes().items())
         return attlist
 
     def get(self, key, failobj=None):
@@ -665,7 +704,12 @@ class Element(Node):
     has_key = hasattr
 
     # support operator ``in``
-    __contains__ = hasattr
+    def __contains__(self, key):
+        # support both membership test for children and attributes
+        # (has_key is translated to "in" by 2to3)
+        if isinstance(key, basestring):
+            return key in self.attributes
+        return key in self.children
 
     def get_language_code(self, fallback=''):
         """Return node's language tag.
@@ -1112,12 +1156,12 @@ class FixedTextElement(TextElement):
 #  Mixins
 # ========
 
-class Resolvable:
+class Resolvable(object):
 
     resolved = 0
 
 
-class BackLinkable:
+class BackLinkable(object):
 
     def add_backref(self, refid):
         self['backrefs'].append(refid)
@@ -1127,39 +1171,63 @@ class BackLinkable:
 #  Element Categories
 # ====================
 
-class Root: pass
+class Root(object):
+    pass
 
-class Titular: pass
 
-class PreBibliographic:
+class Titular(object):
+    pass
+
+
+class PreBibliographic(object):
     """Category of Node which may occur before Bibliographic Nodes."""
 
-class Bibliographic: pass
 
-class Decorative(PreBibliographic): pass
+class Bibliographic(object):
+    pass
 
-class Structural: pass
 
-class Body: pass
+class Decorative(PreBibliographic):
+    pass
 
-class General(Body): pass
+
+class Structural(object):
+    pass
+
+
+class Body(object):
+    pass
+
+
+class General(Body):
+    pass
+
 
 class Sequential(Body):
     """List-like elements."""
 
+
 class Admonition(Body): pass
+
 
 class Special(Body):
     """Special internal body elements."""
 
+
 class Invisible(PreBibliographic):
     """Internal elements that don't appear in output."""
 
-class Part: pass
 
-class Inline: pass
+class Part(object):
+    pass
 
-class Referential(Resolvable): pass
+
+class Inline(object):
+    pass
+
+
+class Referential(Resolvable):
+    pass
 
 
 class Targetable(Resolvable):
@@ -1171,7 +1239,7 @@ class Targetable(Resolvable):
     Required for MoinMoin/reST compatibility."""
 
 
-class Labeled:
+class Labeled(object):
     """Contains a `label` as its first element."""
 
 
@@ -1259,8 +1327,8 @@ class document(Root, Structural, Element):
         self.symbol_footnote_start = 0
         """Initial symbol footnote symbol index."""
 
-        self.id_start = 1
-        """Initial ID number."""
+        self.id_counter = Counter()
+        """Numbers added to otherwise identical IDs."""
 
         self.parse_messages = []
         """System messages generated while parsing."""
@@ -1294,23 +1362,39 @@ class document(Root, Structural, Element):
         domroot.appendChild(self._dom_node(domroot))
         return domroot
 
-    def set_id(self, node, msgnode=None):
+    def set_id(self, node, msgnode=None, suggested_prefix=''):
         for id in node['ids']:
             if id in self.ids and self.ids[id] is not node:
                 msg = self.reporter.severe('Duplicate ID: "%s".' % id)
                 if msgnode != None:
                     msgnode += msg
         if not node['ids']:
+            id_prefix = self.settings.id_prefix
+            auto_id_prefix = self.settings.auto_id_prefix
+            base_id = ''
+            id = ''
             for name in node['names']:
-                id = self.settings.id_prefix + make_id(name)
-                if id and id not in self.ids:
+                base_id = make_id(name)
+                id = id_prefix + base_id
+                # TODO: allow names starting with numbers if `id_prefix`
+                # is non-empty:  id = make_id(id_prefix + name)
+                if base_id and id not in self.ids:
                     break
             else:
-                id = ''
-                while not id or id in self.ids:
-                    id = (self.settings.id_prefix +
-                          self.settings.auto_id_prefix + str(self.id_start))
-                    self.id_start += 1
+                if base_id and auto_id_prefix.endswith('%'):
+                    # disambiguate name-derived ID
+                    # TODO: remove second condition after announcing change
+                    prefix = id + '-'
+                else:
+                    prefix = id_prefix + auto_id_prefix
+                    if  prefix.endswith('%'):
+                        prefix = '%s%s-' % (prefix[:-1], suggested_prefix
+                                                    or make_id(node.tagname))
+                while True:
+                    self.id_counter[prefix] += 1
+                    id = '%s%d' % (prefix, self.id_counter[prefix])
+                    if id not in self.ids:
+                        break
             node['ids'].append(id)
         self.ids[id] = node
         return id
@@ -1705,7 +1789,7 @@ class system_message(Special, BackLinkable, PreBibliographic, Element):
 
     def astext(self):
         line = self.get('line', '')
-        return '%s:%s: (%s/%s) %s' % (self['source'], line, self['type'],
+        return u'%s:%s: (%s/%s) %s' % (self['source'], line, self['type'],
                                        self['level'], Element.astext(self))
 
 
@@ -1754,8 +1838,7 @@ class pending(Special, Invisible, Element):
               '     .transform: %s.%s' % (self.transform.__module__,
                                           self.transform.__name__),
               '     .details:']
-        details = list(self.details.items())
-        details.sort()
+        details = sorted(self.details.items())
         for key, value in details:
             if isinstance(value, Node):
                 internals.append('%7s%s:' % ('', key))
@@ -1856,7 +1939,7 @@ node_class_names = """
 """A list of names of all concrete Node subclasses."""
 
 
-class NodeVisitor:
+class NodeVisitor(object):
 
     """
     "Visitor" pattern [GoF95]_ abstract superclass implementation for
@@ -2144,7 +2227,7 @@ def make_id(string):
     .. _CSS1 spec: http://www.w3.org/TR/REC-CSS1
     """
     id = string.lower()
-    if not isinstance(id, str):
+    if not isinstance(id, unicode):
         id = id.decode()
     id = id.translate(_non_id_translate_digraphs)
     id = id.translate(_non_id_translate)
@@ -2160,46 +2243,46 @@ def make_id(string):
 _non_id_chars = re.compile('[^a-z0-9]+')
 _non_id_at_ends = re.compile('^[-0-9]+|-+$')
 _non_id_translate = {
-    0x00f8: 'o',       # o with stroke
-    0x0111: 'd',       # d with stroke
-    0x0127: 'h',       # h with stroke
-    0x0131: 'i',       # dotless i
-    0x0142: 'l',       # l with stroke
-    0x0167: 't',       # t with stroke
-    0x0180: 'b',       # b with stroke
-    0x0183: 'b',       # b with topbar
-    0x0188: 'c',       # c with hook
-    0x018c: 'd',       # d with topbar
-    0x0192: 'f',       # f with hook
-    0x0199: 'k',       # k with hook
-    0x019a: 'l',       # l with bar
-    0x019e: 'n',       # n with long right leg
-    0x01a5: 'p',       # p with hook
-    0x01ab: 't',       # t with palatal hook
-    0x01ad: 't',       # t with hook
-    0x01b4: 'y',       # y with hook
-    0x01b6: 'z',       # z with stroke
-    0x01e5: 'g',       # g with stroke
-    0x0225: 'z',       # z with hook
-    0x0234: 'l',       # l with curl
-    0x0235: 'n',       # n with curl
-    0x0236: 't',       # t with curl
-    0x0237: 'j',       # dotless j
-    0x023c: 'c',       # c with stroke
-    0x023f: 's',       # s with swash tail
-    0x0240: 'z',       # z with swash tail
-    0x0247: 'e',       # e with stroke
-    0x0249: 'j',       # j with stroke
-    0x024b: 'q',       # q with hook tail
-    0x024d: 'r',       # r with stroke
-    0x024f: 'y',       # y with stroke
+    0x00f8: u'o',       # o with stroke
+    0x0111: u'd',       # d with stroke
+    0x0127: u'h',       # h with stroke
+    0x0131: u'i',       # dotless i
+    0x0142: u'l',       # l with stroke
+    0x0167: u't',       # t with stroke
+    0x0180: u'b',       # b with stroke
+    0x0183: u'b',       # b with topbar
+    0x0188: u'c',       # c with hook
+    0x018c: u'd',       # d with topbar
+    0x0192: u'f',       # f with hook
+    0x0199: u'k',       # k with hook
+    0x019a: u'l',       # l with bar
+    0x019e: u'n',       # n with long right leg
+    0x01a5: u'p',       # p with hook
+    0x01ab: u't',       # t with palatal hook
+    0x01ad: u't',       # t with hook
+    0x01b4: u'y',       # y with hook
+    0x01b6: u'z',       # z with stroke
+    0x01e5: u'g',       # g with stroke
+    0x0225: u'z',       # z with hook
+    0x0234: u'l',       # l with curl
+    0x0235: u'n',       # n with curl
+    0x0236: u't',       # t with curl
+    0x0237: u'j',       # dotless j
+    0x023c: u'c',       # c with stroke
+    0x023f: u's',       # s with swash tail
+    0x0240: u'z',       # z with swash tail
+    0x0247: u'e',       # e with stroke
+    0x0249: u'j',       # j with stroke
+    0x024b: u'q',       # q with hook tail
+    0x024d: u'r',       # r with stroke
+    0x024f: u'y',       # y with stroke
 }
 _non_id_translate_digraphs = {
-    0x00df: 'sz',      # ligature sz
-    0x00e6: 'ae',      # ae
-    0x0153: 'oe',      # ligature oe
-    0x0238: 'db',      # db digraph
-    0x0239: 'qp',      # qp digraph
+    0x00df: u'sz',      # ligature sz
+    0x00e6: u'ae',      # ae
+    0x0153: u'oe',      # ligature oe
+    0x0238: u'db',      # db digraph
+    0x0239: u'qp',      # qp digraph
 }
 
 def dupname(node, name):

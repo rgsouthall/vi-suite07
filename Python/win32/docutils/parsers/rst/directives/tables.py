@@ -1,4 +1,4 @@
-# $Id: tables.py 8187 2017-10-19 16:21:27Z milde $
+# $Id: tables.py 8377 2019-08-27 19:49:45Z milde $
 # Authors: David Goodger <goodger@python.org>; David Priest
 # Copyright: This module has been placed in the public domain.
 
@@ -104,7 +104,7 @@ class Table(Directive):
         return self.options.get('widths', '')
 
     def get_column_widths(self, max_cols):
-        if type(self.widths) == list:
+        if isinstance(self.widths, list):
             if len(self.widths) != max_cols:
                 error = self.state_machine.reporter.error(
                     '"%s" widths do not match the number of columns in table '
@@ -152,7 +152,7 @@ class RSTTable(Table):
         if 'align' in self.options:
             table_node['align'] = self.options.get('align')
         tgroup = table_node[0]
-        if type(self.widths) == list:
+        if isinstance(self.widths, list):
             colspecs = [child for child in tgroup.children
                         if child.tagname == 'colspec']
             for colspec, col_width in zip(colspecs, self.widths):
@@ -263,7 +263,7 @@ class CSVTable(Table):
             return [detail.args[0]]
         except csv.Error as detail:
             message = str(detail)
-            if sys.version_info < (3,) and '1-character string' in message:
+            if sys.version_info < (3, 0) and '1-character string' in message:
                 message += '\nwith Python 2.x this must be an ASCII character.'
             error = self.state_machine.reporter.error(
                 'Error with CSV data in "%s" directive:\n%s'
@@ -322,7 +322,7 @@ class CSVTable(Table):
                 csv_data = csv_file.read().splitlines()
             except IOError as error:
                 severe = self.state_machine.reporter.severe(
-                    'Problems with "%s" directive path:\n%s.'
+                    u'Problems with "%s" directive path:\n%s.'
                     % (self.name, SafeString(error)),
                     nodes.literal_block(self.block_text, self.block_text),
                     line=self.lineno)
@@ -332,11 +332,16 @@ class CSVTable(Table):
             # Do not import urllib2 at the top of the module because
             # it may fail due to broken SSL dependencies, and it takes
             # about 0.15 seconds to load.
-            import urllib.request, urllib.error, urllib.parse
+            if sys.version_info >= (3, 0):
+                from urllib.request import urlopen
+                from urllib.error import URLError
+            else:
+                from urllib2 import urlopen, URLError
+
             source = self.options['url']
             try:
-                csv_text = urllib.request.urlopen(source).read()
-            except (urllib.error.URLError, IOError, OSError, ValueError) as error:
+                csv_text = urlopen(source).read()
+            except (URLError, IOError, OSError, ValueError) as error:
                 severe = self.state_machine.reporter.severe(
                       'Problems with "%s" directive URL "%s":\n%s.'
                       % (self.name, self.options['url'], SafeString(error)),
@@ -356,7 +361,7 @@ class CSVTable(Table):
             raise SystemMessagePropagation(error)
         return csv_data, source
 
-    if sys.version_info < (3,):
+    if sys.version_info < (3, 0):
         # 2.x csv module doesn't do Unicode
         def decode_from_csv(s):
             return s.decode('utf-8')
@@ -446,6 +451,7 @@ class ListTable(Table):
                 line=self.lineno)
             raise SystemMessagePropagation(error)
         list_node = node[0]
+        num_cols = 0
         # Check for a uniform two-level bullet list:
         for item_index in range(len(list_node)):
             item = list_node[item_index]
@@ -458,9 +464,6 @@ class ListTable(Table):
                     self.block_text, self.block_text), line=self.lineno)
                 raise SystemMessagePropagation(error)
             elif item_index:
-                # ATTN pychecker users: num_cols is guaranteed to be set in the
-                # "else" clause below for item_index==0, before this branch is
-                # triggered.
                 if len(item[0]) != num_cols:
                     error = self.state_machine.reporter.error(
                         'Error parsing content block for the "%s" directive: '

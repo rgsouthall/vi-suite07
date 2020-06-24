@@ -163,15 +163,11 @@ def _mark_every_path(markevery, tpath, affine, ax_transform):
             delta = np.empty((len(disp_coords), 2))
             delta[0, :] = 0
             delta[1:, :] = disp_coords[1:, :] - disp_coords[:-1, :]
-            delta = np.sum(delta**2, axis=1)
-            delta = np.sqrt(delta)
-            delta = np.cumsum(delta)
+            delta = np.hypot(*delta.T).cumsum()
             # calc distance between markers along path based on the axes
             # bounding box diagonal being a distance of unity:
-            scale = ax_transform.transform(np.array([[0, 0], [1, 1]]))
-            scale = np.diff(scale, axis=0)
-            scale = np.sum(scale**2)
-            scale = np.sqrt(scale)
+            (x0, y0), (x1, y1) = ax_transform.transform([[0, 0], [1, 1]])
+            scale = np.hypot(x1 - x0, y1 - y0)
             marker_delta = np.arange(start * scale, delta[-1], step * scale)
             # find closest actual data point that is closest to
             # the theoretical distance along the path:
@@ -292,10 +288,10 @@ class Line2D(Artist):
                  **kwargs
                  ):
         """
-        Create a :class:`~matplotlib.lines.Line2D` instance with *x*
-        and *y* data in sequences *xdata*, *ydata*.
+        Create a `.Line2D` instance with *x* and *y* data in sequences of
+        *xdata*, *ydata*.
 
-        The kwargs are :class:`~matplotlib.lines.Line2D` properties:
+        Additional keyword arguments are `.Line2D` properties:
 
         %(_Line2D_docstr)s
 
@@ -450,8 +446,9 @@ class Line2D(Artist):
 
             TODO: sort returned indices by distance
         """
-        if callable(self._contains):
-            return self._contains(self, mouseevent)
+        inside, info = self._default_contains(mouseevent)
+        if inside is not None:
+            return inside, info
 
         if not isinstance(self.pickradius, Number):
             raise ValueError("pick radius should be a distance")
@@ -576,6 +573,9 @@ class Line2D(Artist):
               functionality as every=0.1 is exhibited but the first marker will
               be 0.5 multiplied by the display-coordinate-diagonal-distance
               along the line.
+
+            For examples see
+            :doc:`/gallery/lines_bars_and_markers/markevery_demo`.
 
         Notes
         -----
@@ -1082,6 +1082,7 @@ class Line2D(Artist):
             - 'steps' is equal to 'steps-pre' and is maintained for
               backward-compatibility.
 
+            For examples see :doc:`/gallery/lines_bars_and_markers/step_demo`.
         """
         if drawstyle is None:
             drawstyle = 'default'
@@ -1164,9 +1165,6 @@ class Line2D(Artist):
               ``'None'`` or ``' '`` or ``''``   draw nothing
               ===============================   =================
 
-              Optionally, the string may be preceded by a drawstyle, e.g.
-              ``'steps--'``. See :meth:`set_drawstyle` for details.
-
             - Alternatively a dash tuple of the following form can be
               provided::
 
@@ -1174,6 +1172,8 @@ class Line2D(Artist):
 
               where ``onoffseq`` is an even length tuple of on and off ink
               in points. See also :meth:`set_dashes`.
+
+            For examples see :doc:`/gallery/lines_bars_and_markers/linestyles`.
         """
         if isinstance(ls, str):
             ds, ls = self._split_drawstyle_linestyle(ls)
@@ -1328,7 +1328,7 @@ class Line2D(Artist):
             self.set_linestyle((0, seq))
 
     def update_from(self, other):
-        """Copy properties from other to self."""
+        """Copy properties from *other* to self."""
         Artist.update_from(self, other)
         self._linestyle = other._linestyle
         self._linewidth = other._linewidth
@@ -1405,6 +1405,7 @@ class Line2D(Artist):
         Parameters
         ----------
         s : {'butt', 'round', 'projecting'}
+            For examples see :doc:`/gallery/lines_bars_and_markers/joinstyle`.
         """
         s = s.lower()
         cbook._check_in_list(self.validCap, s=s)
@@ -1419,6 +1420,7 @@ class Line2D(Artist):
         Parameters
         ----------
         s : {'butt', 'round', 'projecting'}
+            For examples see :doc:`/gallery/lines_bars_and_markers/joinstyle`.
         """
         s = s.lower()
         cbook._check_in_list(self.validCap, s=s)
@@ -1451,10 +1453,10 @@ class Line2D(Artist):
         return self._linestyle in ('--', '-.', ':')
 
 
-class VertexSelector(object):
+class VertexSelector:
     """
     Manage the callbacks to maintain a list of selected vertices for
-    :class:`matplotlib.lines.Line2D`. Derived classes should override
+    `.Line2D`. Derived classes should override
     :meth:`~matplotlib.lines.VertexSelector.process_selected` to do
     something with the picks.
 
@@ -1484,10 +1486,9 @@ class VertexSelector(object):
     """
     def __init__(self, line):
         """
-        Initialize the class with a :class:`matplotlib.lines.Line2D`
-        instance.  The line should already be added to some
-        :class:`matplotlib.axes.Axes` instance and should have the
-        picker property set.
+        Initialize the class with a `.Line2D` instance.  The line should
+        already be added to some :class:`matplotlib.axes.Axes` instance and
+        should have the picker property set.
         """
         if line.axes is None:
             raise RuntimeError('You must first add the line to the Axes')

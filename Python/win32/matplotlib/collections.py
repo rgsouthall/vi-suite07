@@ -146,6 +146,8 @@ class Collection(artist.Artist, cm.ScalarMappable):
             self._joinstyle = None
 
         self._offsets = np.zeros((1, 2))
+        # save if offsets passed in were none...
+        self._offsetsNone = offsets is None
         self._uniform_offsets = None
         if offsets is not None:
             offsets = np.asanyarray(offsets, float)
@@ -179,30 +181,69 @@ class Collection(artist.Artist, cm.ScalarMappable):
         return t
 
     def get_datalim(self, transData):
+
+        # Get the automatic datalim of the collection.
+        #
+        # This operation depends on the transforms for the data in the
+        # collection and whether the collection has offsets.
+        #
+        # 1) offsets = None, transform child of transData: use the paths for
+        # the automatic limits (i.e. for LineCollection in streamline).
+        # 2) offsets != None: offset_transform is child of transData:
+        #    a) transform is child of transData: use the path + offset for
+        #       limits (i.e for bar).
+        #    b) transform is not a child of transData: just use the offsets
+        #       for the limits (i.e. for scatter)
+        # 3) otherwise return a null Bbox.
+
         transform = self.get_transform()
         transOffset = self.get_offset_transform()
+        if (not self._offsetsNone and
+            not transOffset.contains_branch(transData)):
+            # if there are offsets but in some co-ords other than data,
+            # then don't use them for autoscaling.
+            return transforms.Bbox.null()
         offsets = self._offsets
+
         paths = self.get_paths()
 
         if not transform.is_affine:
             paths = [transform.transform_path_non_affine(p) for p in paths]
-            transform = transform.get_affine()
-        if not transOffset.is_affine:
-            offsets = transOffset.transform_non_affine(offsets)
-            transOffset = transOffset.get_affine()
+            # Don't convert transform to transform.get_affine() here because
+            # we may have transform.contains_branch(transData) but not
+            # transforms.get_affine().contains_branch(transData).  But later,
+            # be careful to only apply the affine part that remains.
 
         if isinstance(offsets, np.ma.MaskedArray):
             offsets = offsets.filled(np.nan)
             # get_path_collection_extents handles nan but not masked arrays
 
         if len(paths) and len(offsets):
-            result = mpath.get_path_collection_extents(
-                transform.frozen(), paths, self.get_transforms(),
-                offsets, transOffset.frozen())
-            result = result.inverse_transformed(transData)
-        else:
-            result = transforms.Bbox.null()
-        return result
+            if any(transform.contains_branch_seperately(transData)):
+                # collections that are just in data units (like quiver)
+                # can properly have the axes limits set by their shape +
+                # offset.  LineCollections that have no offsets can
+                # also use this algorithm (like streamplot).
+                result = mpath.get_path_collection_extents(
+                    transform.get_affine(), paths, self.get_transforms(),
+                    transOffset.transform_non_affine(offsets),
+                    transOffset.get_affine().frozen())
+                return result.transformed(transData.inverted())
+            if not self._offsetsNone:
+                # this is for collections that have their paths (shapes)
+                # in physical, axes-relative, or figure-relative units
+                # (i.e. like scatter). We can't uniquely set limits based on
+                # those shapes, so we just set the limits based on their
+                # location.
+
+                offsets = (transOffset - transData).transform(offsets)
+                # note A-B means A B^{-1}
+                offsets = np.ma.masked_invalid(offsets)
+                if not offsets.mask.all():
+                    points = np.row_stack((offsets.min(axis=0),
+                                           offsets.max(axis=0)))
+                    return transforms.Bbox(points)
+        return transforms.Bbox.null()
 
     def get_window_extent(self, renderer):
         # TODO: check to ensure that this does not fail for
@@ -295,13 +336,12 @@ class Collection(artist.Artist, cm.ScalarMappable):
             len(self._antialiaseds) == 1 and len(self._urls) == 1 and
             self.get_hatch() is None):
             if len(trans):
-                combined_transform = (transforms.Affine2D(trans[0]) +
-                                      transform)
+                combined_transform = transforms.Affine2D(trans[0]) + transform
             else:
                 combined_transform = transform
             extents = paths[0].get_extents(combined_transform)
-            width, height = renderer.get_canvas_width_height()
-            if extents.width < width and extents.height < height:
+            if (extents.width < self.figure.bbox.width
+                    and extents.height < self.figure.bbox.height):
                 do_single_path_optimization = True
 
         if self._joinstyle:
@@ -353,8 +393,9 @@ class Collection(artist.Artist, cm.ScalarMappable):
         Returns ``bool, dict(ind=itemlist)``, where every item in itemlist
         contains the event.
         """
-        if self._contains is not None:
-            return self._contains(self, mouseevent)
+        inside, info = self._default_contains(mouseevent)
+        if inside is not None:
+            return inside, info
 
         if not self.get_visible():
             return False, {}
@@ -364,6 +405,9 @@ class Collection(artist.Artist, cm.ScalarMappable):
             if isinstance(self._picker, Number) and
                self._picker is not True  # the bool, not just nonzero or 1
             else self._pickradius)
+
+        if self.axes and self.get_offset_position() == "data":
+            self.axes._unstale_viewLim()
 
         transform, transOffset, offsets, paths = self._prepare_points()
 
@@ -432,7 +476,7 @@ class Collection(artist.Artist, cm.ScalarMappable):
 
         Parameters
         ----------
-        offsets : float or sequence of floats
+        offsets : array-like (N, 2) or (2,)
         """
         offsets = np.asanyarray(offsets, float)
         if offsets.shape == (2,):  # Broadcast (2,) -> (1, 2) but nothing else.
@@ -556,10 +600,8 @@ class Collection(artist.Artist, cm.ScalarMappable):
         cs : {'butt', 'round', 'projecting'}
             The capstyle
         """
-        if cs in ('butt', 'round', 'projecting'):
-            self._capstyle = cs
-        else:
-            raise ValueError('Unrecognized cap style.  Found %s' % cs)
+        cbook._check_in_list(('butt', 'round', 'projecting'), capstyle=cs)
+        self._capstyle = cs
 
     def get_capstyle(self):
         return self._capstyle
@@ -573,10 +615,8 @@ class Collection(artist.Artist, cm.ScalarMappable):
         js : {'miter', 'round', 'bevel'}
             The joinstyle
         """
-        if js in ('miter', 'round', 'bevel'):
-            self._joinstyle = js
-        else:
-            raise ValueError('Unrecognized join style.  Found %s' % js)
+        cbook._check_in_list(('miter', 'round', 'bevel'), joinstyle=js)
+        self._joinstyle = js
 
     def get_joinstyle(self):
         return self._joinstyle
@@ -663,10 +703,9 @@ class Collection(artist.Artist, cm.ScalarMappable):
 
     def set_facecolor(self, c):
         """
-        Set the facecolor(s) of the collection.  *c* can be a
-        matplotlib color spec (all patches have same color), or a
-        sequence of specs; if it is a sequence the patches will
-        cycle through the sequence.
+        Set the facecolor(s) of the collection. *c* can be a color (all patches
+        have same color), or a sequence of colors; if it is a sequence the
+        patches will cycle through the sequence.
 
         If *c* is 'none', the patch will not be filled.
 
@@ -728,20 +767,9 @@ class Collection(artist.Artist, cm.ScalarMappable):
         self._set_edgecolor(c)
 
     def set_alpha(self, alpha):
-        """
-        Set the alpha transparencies of the collection.
-
-        Parameters
-        ----------
-        alpha : float or None
-        """
-        if alpha is not None:
-            try:
-                float(alpha)
-            except TypeError:
-                raise TypeError('alpha must be a float or None')
+        # docstring inherited
+        super().set_alpha(alpha)
         self.update_dict['array'] = True
-        artist.Artist.set_alpha(self, alpha)
         self._set_facecolor(self._original_facecolor)
         self._set_edgecolor(self._original_edgecolor)
 
@@ -898,7 +926,7 @@ class PathCollection(_CollectionWithSizes):
         Creates legend handles and labels for a PathCollection. This is useful
         for obtaining a legend for a :meth:`~.Axes.scatter` plot. E.g.::
 
-            scatter = plt.scatter([1,2,3], [4,5,6], c=[7,2,3])
+            scatter = plt.scatter([1, 2, 3],  [4, 5, 6],  c=[7, 2, 3])
             plt.legend(*scatter.legend_elements())
 
         Also see the :ref:`automatedlegendcreation` example.
@@ -920,7 +948,7 @@ class PathCollection(_CollectionWithSizes):
             to a `~.ticker.Locator` being used to find useful locations.
             If a list or array, use exactly those elements for the legend.
             Finally, a `~.ticker.Locator` can be provided.
-        fmt : string, `~matplotlib.ticker.Formatter`, or None (default)
+        fmt : str, `~matplotlib.ticker.Formatter`, or None (default)
             The format or formatter to use for the labels. If a string must be
             a valid input for a `~.StrMethodFormatter`. If None (the default),
             use a `~.ScalarFormatter`.
@@ -933,12 +961,12 @@ class PathCollection(_CollectionWithSizes):
             the legend labels have the correct values;
             e.g. *func = np.exp(x, 10)*.
         kwargs : further parameters
-            Allowed kwargs are *color* and *size*. E.g. it may be useful to
-            set the color of the markers if *prop="sizes"* is used; similarly
-            to set the size of the markers if *prop="colors"* is used.
-            Any further parameters are passed onto the `.Line2D` instance.
-            This may be useful to e.g. specify a different *markeredgecolor* or
-            *alpha* for the legend handles.
+            Allowed keyword arguments are *color* and *size*. E.g. it may be
+            useful to set the color of the markers if *prop="sizes"* is used;
+            similarly to set the size of the markers if *prop="colors"* is
+            used. Any further parameters are passed onto the `.Line2D`
+            instance. This may be useful to e.g. specify a different
+            *markeredgecolor* or *alpha* for the legend handles.
 
         Returns
         -------
@@ -1162,15 +1190,14 @@ class RegularPolyCollection(_CollectionWithSizes):
         Example: see :doc:`/gallery/event_handling/lasso_demo` for a
         complete example::
 
-            offsets = np.random.rand(20,2)
+            offsets = np.random.rand(20, 2)
             facecolors = [cm.jet(x) for x in np.random.rand(20)]
-            black = (0,0,0,1)
 
             collection = RegularPolyCollection(
                 numsides=5, # a pentagon
                 rotation=0, sizes=(50,),
                 facecolors=facecolors,
-                edgecolors=(black,),
+                edgecolors=("black",),
                 linewidths=(1,),
                 offsets=offsets,
                 transOffset=ax.transData,
@@ -1255,8 +1282,8 @@ class LineCollection(Collection):
         antialiaseds : sequence, optional
             A sequence of ones or zeros.
 
-        linestyles : string, tuple, optional
-            Either one of [ 'solid' | 'dashed' | 'dashdot' | 'dotted' ], or
+        linestyles : str or tuple, optional
+            Either one of {'solid', 'dashed', 'dashdot', 'dotted'}, or
             a dash tuple. The dash tuple is::
 
                 (offset, onoffseq)
@@ -1267,7 +1294,7 @@ class LineCollection(Collection):
         norm : Normalize, optional
             `~.colors.Normalize` instance.
 
-        cmap : string or Colormap, optional
+        cmap : str or Colormap, optional
             Colormap name or `~.colors.Colormap` instance.
 
         pickradius : float, optional
@@ -1295,7 +1322,7 @@ class LineCollection(Collection):
         *offsets* are added to the segments before any transformation.
         In this case, a single offset can be specified as::
 
-            offsets=(xo,yo)
+            offsets=(xo, yo)
 
         and this value will be added cumulatively to each successive
         segment, so as to produce a set of successively offset curves.
@@ -1314,7 +1341,6 @@ class LineCollection(Collection):
             antialiaseds = (mpl.rcParams['lines.antialiased'],)
 
         colors = mcolors.to_rgba_array(colors)
-
         Collection.__init__(
             self,
             edgecolors=colors,
@@ -1467,7 +1493,6 @@ class EventCollection(LineCollection):
 
         Examples
         --------
-
         .. plot:: gallery/lines_bars_and_markers/eventcollection_demo.py
         """
         if positions is None:
@@ -1511,7 +1536,6 @@ class EventCollection(LineCollection):
         '''
         return an array containing the floating-point values of the positions
         '''
-        segments = self.get_segments()
         pos = 0 if self.is_horizontal() else 1
         return [segment[0, pos] for segment in self.get_segments()]
 
@@ -1557,10 +1581,9 @@ class EventCollection(LineCollection):
         return self._is_horizontal
 
     def get_orientation(self):
-        '''
-        get the orientation of the event line, may be:
-        [ 'horizontal' | 'vertical' ]
-        '''
+        """
+        Return the orientation of the event line ('horizontal' or 'vertical').
+        """
         return 'horizontal' if self.is_horizontal() else 'vertical'
 
     def switch_orientation(self):
@@ -1576,11 +1599,14 @@ class EventCollection(LineCollection):
         self.stale = True
 
     def set_orientation(self, orientation=None):
-        '''
-        set the orientation of the event line
-        [ 'horizontal' | 'vertical' | None ]
-        defaults to 'horizontal' if not specified or None
-        '''
+        """
+        Set the orientation of the event line.
+
+        Parameters
+        ----------
+        orientation: {'horizontal', 'vertical'} or None
+            Defaults to 'horizontal' if not specified or None.
+        """
         if (orientation is None or orientation.lower() == 'none' or
                 orientation.lower() == 'horizontal'):
             is_horizontal = True
@@ -1859,7 +1885,7 @@ class TriMesh(Collection):
     def draw(self, renderer):
         if not self.get_visible():
             return
-        renderer.open_group(self.__class__.__name__)
+        renderer.open_group(self.__class__.__name__, gid=self.get_gid())
         transform = self.get_transform()
 
         # Get a list of triangles and the color at each vertex.

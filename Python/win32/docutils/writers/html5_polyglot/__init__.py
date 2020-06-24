@@ -1,5 +1,5 @@
 # .. coding: utf-8
-# $Id: __init__.py 8181 2017-09-22 10:29:55Z milde $
+# $Id: __init__.py 8410 2019-11-04 21:14:43Z milde $
 # :Author: Günter Milde <milde@users.sf.net>
 #          Based on the html4css1 writer by David Goodger.
 # :Maintainer: docutils-develop@lists.sourceforge.net
@@ -20,7 +20,7 @@
 """
 Plain HyperText Markup Language document tree Writer.
 
-The output conforms to the `HTML5` specification.
+The output conforms to the `HTML 5` specification.
 
 The cascading style sheet "minimal.css" is required for proper viewing,
 the style sheet "plain.css" improves reading experience.
@@ -38,7 +38,7 @@ class Writer(writers._html_base.Writer):
     supported = ('html', 'html5', 'html4', 'xhtml', 'xhtml10')
     """Formats this writer supports."""
 
-    default_stylesheets = ['minimal.css','plain.css']
+    default_stylesheets = ['minimal.css', 'plain.css']
     default_stylesheet_dirs = ['.', os.path.abspath(os.path.dirname(__file__))]
 
     default_template = 'template.txt'
@@ -155,7 +155,7 @@ class HTMLTranslator(writers._html_base.HTMLTranslator):
     and examples.
     """
 
-    # <acronym> tag not supported in HTML5. Use the <abbr> tag instead.
+    # <acronym> tag obsolete in HTML5. Use the <abbr> tag instead.
     def visit_acronym(self, node):
         # @@@ implementation incomplete ("title" attribute)
         self.body.append(self.starttag(node, 'abbr', ''))
@@ -217,7 +217,3 @@ class HTMLTranslator(writers._html_base.HTMLTranslator):
     # TODO: use the new HTML5 element <section>?
     # def visit_section(self, node):
     # def depart_section(self, node):
-
-    # TODO: use the new HTML5 element <aside>?
-    # def visit_topic(self, node):
-    # def depart_topic(self, node):

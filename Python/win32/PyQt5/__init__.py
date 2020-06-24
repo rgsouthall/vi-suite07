@@ -1,4 +1,4 @@
-# Copyright (c) 2019 Riverbank Computing Limited <info@riverbankcomputing.com>
+# Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
 # 
 # This file is part of PyQt5.
 # 
@@ -16,6 +16,10 @@
 # WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 
+# Support PyQt5 sub-packages that have been created by setuptools.
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+
+
 def find_qt():
     import os, sys
 
@@ -26,7 +30,6 @@ def find_qt():
         path = os.environ['PATH']
 
         dll_dir = os.path.dirname(__file__) + '\\Qt\\bin'
-
         if os.path.isfile(dll_dir + qtcore_dll):
             path = dll_dir + ';' + path
             os.environ['PATH'] = path

@@ -1,4 +1,4 @@
-# $Id: __init__.py 8304 2019-07-30 09:51:07Z grubert $
+# $Id: __init__.py 8453 2020-01-12 13:28:32Z grubert $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -56,12 +56,12 @@ from collections import namedtuple
 
 __docformat__ = 'reStructuredText'
 
-__version__ = '0.15.2'
+__version__ = '0.16'
 """Docutils version identifier (complies with PEP 440)::
 
     major.minor[.micro][releaselevel[serial]][.dev]
 
-For version comparison operations, use `__version_info__` (which see, below)
+For version comparison operations, use `__version_info__` (see, below)
 rather than parsing the text of `__version__`.
 
 See 'Version Numbering' in docs/dev/policies.txt.
@@ -72,8 +72,8 @@ VersionInfo = namedtuple(
 
 __version_info__ = VersionInfo(
     major=0,
-    minor=15,
-    micro=2,
+    minor=16,
+    micro=0,
     releaselevel='final', # one of 'alpha', 'beta', 'candidate', 'final'
     # pre-release serial number (0 for final releases and active development):
     serial=0,
@@ -89,10 +89,11 @@ __version_details__ = 'release'
 
 
 class ApplicationError(Exception): pass
+
 class DataError(ApplicationError): pass
 
 
-class SettingsSpec:
+class SettingsSpec(object):
 
     """
     Runtime setting specification base class.

@@ -34,13 +34,13 @@
 **
 ****************************************************************************/
 
-import QtQuick 2.12
-import QtQuick.Window 2.12
-import QtQuick.Controls 2.12
-import QtQuick.Controls.impl 2.12
-import QtQuick.Templates 2.12 as T
-import QtQuick.Controls.Material 2.12
-import QtQuick.Controls.Material.impl 2.12
+import QtQuick 2.15
+import QtQuick.Window 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Controls.impl 2.15
+import QtQuick.Templates 2.15 as T
+import QtQuick.Controls.Material 2.15
+import QtQuick.Controls.Material.impl 2.15
 
 T.ComboBox {
     id: control
@@ -89,6 +89,7 @@ T.ComboBox {
         readOnly: control.down
         inputMethodHints: control.inputMethodHints
         validator: control.validator
+        selectByMouse: control.selectTextByMouse
 
         font: control.font
         color: control.enabled ? control.Material.foreground : control.Material.hintTextColor

@@ -303,8 +303,7 @@ class ApacheConfLexer(RegexLexer):
             (r'#(.*\\\n)+.*$|(#.*?)$', Comment),
             (r'(<[^\s>]+)(?:(\s+)(.*))?(>)',
              bygroups(Name.Tag, Text, String, Name.Tag)),
-            (r'([a-z]\w*)(\s+)',
-             bygroups(Name.Builtin, Text), 'value'),
+            (r'[a-z]\w*', Name.Builtin, 'value'),
             (r'\.+', Text),
         ],
         'value': [
@@ -314,7 +313,7 @@ class ApacheConfLexer(RegexLexer):
             (r'[^\S\n]+', Text),
             (r'\d+\.\d+\.\d+\.\d+(?:/\d+)?', Number),
             (r'\d+', Number),
-            (r'/([a-z0-9][\w./-]+)', String.Other),
+            (r'/([*a-z0-9][*\w./-]+)', String.Other),
             (r'(on|off|none|any|all|double|email|dns|min|minimal|'
              r'os|productonly|full|emerg|alert|crit|error|warn|'
              r'notice|info|debug|registry|script|inetd|standalone|'
@@ -900,7 +899,7 @@ class TOMLLexer(RegexLexer):
 
     name = 'TOML'
     aliases = ['toml']
-    filenames = ['*.toml']
+    filenames = ['*.toml', 'Pipfile', 'poetry.lock']
 
     tokens = {
         'root': [

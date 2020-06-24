@@ -22,18 +22,18 @@ mplDeprecation = MatplotlibDeprecationWarning
 
 
 def _generate_deprecation_warning(
-        since, message='', name='', alternative='', pending=False,
-        obj_type='attribute', addendum='', *, removal=''):
-
-    if removal == "":
-        removal = {"2.2": "in 3.1", "3.0": "in 3.2", "3.1": "in 3.3"}.get(
-            since, "two minor releases later")
-    elif removal:
-        if pending:
+        since, message='', name='', alternative='', pending=False, obj_type='',
+        addendum='', *, removal=''):
+    if pending:
+        if removal:
             raise ValueError(
                 "A pending deprecation cannot have a scheduled removal")
-        removal = "in {}".format(removal)
-
+    else:
+        if removal:
+            removal = "in {}".format(removal)
+        else:
+            removal = {"2.2": "in 3.1", "3.0": "in 3.2", "3.1": "in 3.3"}.get(
+                since, "two minor releases later")
     if not message:
         message = (
             "\nThe %(name)s %(obj_type)s"
@@ -46,10 +46,8 @@ def _generate_deprecation_warning(
             + "."
             + (" Use %(alternative)s instead." if alternative else "")
             + (" %(addendum)s" if addendum else ""))
-
     warning_cls = (PendingDeprecationWarning if pending
                    else MatplotlibDeprecationWarning)
-
     return warning_cls(message % dict(
         func=name, name=name, obj_type=obj_type, since=since, removal=removal,
         alternative=alternative, addendum=addendum))
@@ -57,7 +55,7 @@ def _generate_deprecation_warning(
 
 def warn_deprecated(
         since, *, message='', name='', alternative='', pending=False,
-        obj_type='attribute', addendum='', removal=''):
+        obj_type='', addendum='', removal=''):
     """
     Used to display deprecation in a standard way.
 
@@ -100,12 +98,11 @@ def warn_deprecated(
 
     Examples
     --------
+    Basic example::
 
-        Basic example::
-
-            # To warn of the deprecation of "matplotlib.name_of_module"
-            warn_deprecated('1.4.0', name='matplotlib.name_of_module',
-                            obj_type='module')
+        # To warn of the deprecation of "matplotlib.name_of_module"
+        warn_deprecated('1.4.0', name='matplotlib.name_of_module',
+                        obj_type='module')
     """
     warning = _generate_deprecation_warning(
         since, message, name, alternative, pending, obj_type, addendum,
@@ -138,15 +135,8 @@ def deprecated(since, *, message='', name='', alternative='', pending=False,
         object.
 
     name : str, optional
-        The name of the deprecated object; if not provided the name
-        is automatically determined from the passed in object,
-        though this is useful in the case of renamed functions, where
-        the new function is just assigned to the name of the
-        deprecated function.  For example::
-
-            def new_function():
-                ...
-            old_function = new_function
+        The name used in the deprecation message; if not provided, the name
+        is automatically determined from the deprecated object.
 
     alternative : str, optional
         An alternative API that the user may use in place of the deprecated
@@ -158,8 +148,8 @@ def deprecated(since, *, message='', name='', alternative='', pending=False,
         DeprecationWarning.  Cannot be used together with *removal*.
 
     obj_type : str, optional
-        The object type being deprecated; by default, 'function' if decorating
-        a function and 'class' if decorating a class.
+        The object type being deprecated; by default, 'class' if decorating
+        a class, 'attribute' if decorating a property, 'function' otherwise.
 
     addendum : str, optional
         Additional text appended directly to the final message.
@@ -172,12 +162,11 @@ def deprecated(since, *, message='', name='', alternative='', pending=False,
 
     Examples
     --------
+    Basic example::
 
-        Basic example::
-
-            @deprecated('1.4.0')
-            def the_function_to_deprecate():
-                pass
+        @deprecated('1.4.0')
+        def the_function_to_deprecate():
+            pass
     """
 
     def deprecate(obj, message=message, name=name, alternative=alternative,
@@ -195,7 +184,7 @@ def deprecated(since, *, message='', name='', alternative='', pending=False,
                     obj.__doc__ = new_doc
                 except AttributeError:  # Can't set on some extension objects.
                     pass
-                obj.__init__ = wrapper
+                obj.__init__ = functools.wraps(obj.__init__)(wrapper)
                 return obj
 
         elif isinstance(obj, property):
@@ -279,8 +268,8 @@ def _rename_parameter(since, old, new, func=None):
 
     Examples
     --------
-
     ::
+
         @_rename_parameter("3.1", "bad_name", "good_name")
         def func(good_name): ...
     """
@@ -337,8 +326,8 @@ def _delete_parameter(since, name, func=None):
 
     Examples
     --------
-
     ::
+
         @_delete_parameter("3.1", "unused")
         def func(used_arg, other_arg, unused, more_args): ...
     """
@@ -396,9 +385,7 @@ def _make_keyword_only(since, name, func=None):
     kwonly = [name for name in names[names.index(name):]
               if signature.parameters[name].kind == POK]
     func.__signature__ = signature.replace(parameters=[
-        param.replace(kind=inspect.Parameter.KEYWORD_ONLY)
-        if param.name in kwonly
-        else param
+        param.replace(kind=KWO) if param.name in kwonly else param
         for param in signature.parameters.values()])
 
     @functools.wraps(func)

@@ -23,9 +23,14 @@ try:
     import threading
 except ImportError:
     import dummy_threading as threading
-import numpy as np
-from collections import OrderedDict
+try:
+    from contextlib import nullcontext
+except ImportError:
+    from contextlib import ExitStack as nullcontext  # Py 3.6.
 from math import radians, cos, sin
+
+import numpy as np
+
 from matplotlib import cbook, rcParams, __version__
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, RendererBase)
@@ -45,6 +50,7 @@ if _has_pil:
     from PIL import Image
 
 backend_version = 'v2.2'
+
 
 def get_hinting_flag():
     mapping = {
@@ -157,8 +163,8 @@ class RendererAgg(RendererBase):
 
         xd = descent * sin(radians(angle))
         yd = descent * cos(radians(angle))
-        x = np.round(x + ox + xd)
-        y = np.round(y - oy + yd)
+        x = round(x + ox + xd)
+        y = round(y - oy + yd)
         self._renderer.draw_text_image(font_image, x, y + 1, angle, gc)
 
     def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
@@ -172,23 +178,20 @@ class RendererAgg(RendererBase):
 
         if font is None:
             return None
-        if len(s) == 1 and ord(s) > 127:
-            font.load_char(ord(s), flags=flags)
-        else:
-            # We pass '0' for angle here, since it will be rotated (in raster
-            # space) in the following call to draw_text_image).
-            font.set_text(s, 0, flags=flags)
+        # We pass '0' for angle here, since it will be rotated (in raster
+        # space) in the following call to draw_text_image).
+        font.set_text(s, 0, flags=flags)
         font.draw_glyphs_to_bitmap(antialiased=rcParams['text.antialiased'])
         d = font.get_descent() / 64.0
         # The descent needs to be adjusted for the angle.
         xo, yo = font.get_bitmap_offset()
         xo /= 64.0
         yo /= 64.0
-        xd = -d * sin(radians(angle))
+        xd = d * sin(radians(angle))
         yd = d * cos(radians(angle))
-
-        self._renderer.draw_text_image(
-            font, np.round(x - xd + xo), np.round(y + yd + yo) + 1, angle, gc)
+        x = round(x + xo + xd)
+        y = round(y + yo + yd)
+        self._renderer.draw_text_image(font, x, y + 1, angle, gc)
 
     def get_text_width_height_descent(self, s, prop, ismath):
         # docstring inherited
@@ -229,9 +232,8 @@ class RendererAgg(RendererBase):
         w, h, d = self.get_text_width_height_descent(s, prop, ismath)
         xd = d * sin(radians(angle))
         yd = d * cos(radians(angle))
-        x = np.round(x + xd)
-        y = np.round(y + yd)
-
+        x = round(x + xd)
+        y = round(y + yd)
         self._renderer.draw_text_image(Z, x, y, angle, gc)
 
     def get_canvas_width_height(self):
@@ -384,7 +386,10 @@ class FigureCanvasAgg(FigureCanvasBase):
         Draw the figure using the renderer.
         """
         self.renderer = self.get_renderer(cleared=True)
-        with RendererAgg.lock:
+        # Acquire a lock on the shared font cache.
+        with RendererAgg.lock, \
+             (self.toolbar._wait_cursor_for_draw_cm() if self.toolbar
+              else nullcontext()):
             self.figure.draw(self.renderer)
             # A GUI class may be need to update a window using this draw, so
             # don't forget to call the superclass.
@@ -441,9 +446,8 @@ class FigureCanvasAgg(FigureCanvasBase):
     def print_raw(self, filename_or_obj, *args, **kwargs):
         FigureCanvasAgg.draw(self)
         renderer = self.get_renderer()
-        with cbook._setattr_cm(renderer, dpi=self.figure.dpi), \
-                cbook.open_file_cm(filename_or_obj, "wb") as fh:
-            fh.write(renderer._renderer.buffer_rgba())
+        with cbook.open_file_cm(filename_or_obj, "wb") as fh:
+            fh.write(renderer.buffer_rgba())
 
     print_rgba = print_raw
 
@@ -502,41 +506,41 @@ class FigureCanvasAgg(FigureCanvasBase):
 
         if metadata is None:
             metadata = {}
-        metadata = {
+        default_metadata = {
             "Software":
                 f"matplotlib version{__version__}, http://matplotlib.org/",
-            **metadata,
         }
 
+        FigureCanvasAgg.draw(self)
         if pil_kwargs is not None:
             from PIL import Image
             from PIL.PngImagePlugin import PngInfo
-            buf, size = self.print_to_buffer()
             # Only use the metadata kwarg if pnginfo is not set, because the
             # semantics of duplicate keys in pnginfo is unclear.
-            if "pnginfo" not in pil_kwargs:
+            if "pnginfo" in pil_kwargs:
+                if metadata:
+                    cbook._warn_external("'metadata' is overridden by the "
+                                         "'pnginfo' entry in 'pil_kwargs'.")
+            else:
                 pnginfo = PngInfo()
-                for k, v in metadata.items():
+                for k, v in {**default_metadata, **metadata}.items():
                     pnginfo.add_text(k, v)
                 pil_kwargs["pnginfo"] = pnginfo
             pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-            (Image.frombuffer("RGBA", size, buf, "raw", "RGBA", 0, 1)
+            (Image.fromarray(np.asarray(self.buffer_rgba()))
              .save(filename_or_obj, format="png", **pil_kwargs))
 
         else:
-            FigureCanvasAgg.draw(self)
             renderer = self.get_renderer()
-            with cbook._setattr_cm(renderer, dpi=self.figure.dpi), \
-                    cbook.open_file_cm(filename_or_obj, "wb") as fh:
-                _png.write_png(renderer._renderer, fh,
-                               self.figure.dpi, metadata=metadata)
+            with cbook.open_file_cm(filename_or_obj, "wb") as fh:
+                _png.write_png(renderer._renderer, fh, self.figure.dpi,
+                               metadata={**default_metadata, **metadata})
 
     def print_to_buffer(self):
         FigureCanvasAgg.draw(self)
         renderer = self.get_renderer()
-        with cbook._setattr_cm(renderer, dpi=self.figure.dpi):
-            return (renderer._renderer.buffer_rgba(),
-                    (int(renderer.width), int(renderer.height)))
+        return (bytes(renderer.buffer_rgba()),
+                (int(renderer.width), int(renderer.height)))
 
     if _has_pil:
 
@@ -544,6 +548,7 @@ class FigureCanvasAgg(FigureCanvasBase):
         # print_figure(), and the latter ensures that `self.figure.dpi` already
         # matches the dpi kwarg (if any).
 
+        @cbook._delete_parameter("3.2", "dryrun")
         def print_jpg(self, filename_or_obj, *args, dryrun=False,
                       pil_kwargs=None, **kwargs):
             """
@@ -576,15 +581,13 @@ class FigureCanvasAgg(FigureCanvasBase):
                 `PIL.Image.save` when saving the figure.  These take precedence
                 over *quality*, *optimize* and *progressive*.
             """
-            buf, size = self.print_to_buffer()
+            FigureCanvasAgg.draw(self)
             if dryrun:
                 return
-            # The image is "pasted" onto a white background image to safely
-            # handle any transparency
-            image = Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
-            rgba = mcolors.to_rgba(rcParams['savefig.facecolor'])
-            color = tuple([int(x * 255) for x in rgba[:3]])
-            background = Image.new('RGB', size, color)
+            # The image is pasted onto a white background image to handle
+            # transparency.
+            image = Image.fromarray(np.asarray(self.buffer_rgba()))
+            background = Image.new('RGB', image.size, "white")
             background.paste(image, image)
             if pil_kwargs is None:
                 pil_kwargs = {}
@@ -598,16 +601,17 @@ class FigureCanvasAgg(FigureCanvasBase):
 
         print_jpeg = print_jpg
 
+        @cbook._delete_parameter("3.2", "dryrun")
         def print_tif(self, filename_or_obj, *args, dryrun=False,
                       pil_kwargs=None, **kwargs):
-            buf, size = self.print_to_buffer()
+            FigureCanvasAgg.draw(self)
             if dryrun:
                 return
-            image = Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
             if pil_kwargs is None:
                 pil_kwargs = {}
             pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-            return image.save(filename_or_obj, format='tiff', **pil_kwargs)
+            return (Image.fromarray(np.asarray(self.buffer_rgba()))
+                    .save(filename_or_obj, format='tiff', **pil_kwargs))
 
         print_tiff = print_tif
 

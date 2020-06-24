@@ -1,4 +1,4 @@
-# $Id: __init__.py 8239 2018-11-21 21:46:00Z milde $
+# $Id: __init__.py 8376 2019-08-27 19:49:29Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -26,7 +26,7 @@ def get_language(language_code, reporter=None):
     """
     # TODO: use a dummy module returning emtpy strings?, configurable?
     for tag in normalize_language_tag(language_code):
-        tag = tag.replace('-','_') # '-' not valid in module names
+        tag = tag.replace('-', '_') # '-' not valid in module names
         if tag in _languages:
             return _languages[tag]
         try:

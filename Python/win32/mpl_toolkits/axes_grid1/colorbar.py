@@ -20,6 +20,7 @@ is a thin wrapper over :meth:`~matplotlib.figure.Figure.colorbar`.
 
 import numpy as np
 import matplotlib as mpl
+from matplotlib import cbook
 import matplotlib.colors as colors
 import matplotlib.cm as cm
 from matplotlib import docstring
@@ -29,6 +30,10 @@ import matplotlib.contour as contour
 from matplotlib.path import Path
 from matplotlib.patches import PathPatch
 from matplotlib.transforms import Bbox
+
+
+cbook.warn_deprecated(
+    "3.2", name=__name__, obj_type="module", alternative="matplotlib.colorbar")
 
 
 make_axes_kw_doc = '''
@@ -151,9 +156,9 @@ segments::
     cbar.solids.set_edgecolor("face")
     draw()
 
-However this has negative consequences in other circumstances. Particularly with
-semi transparent images (alpha < 1) and colorbar extensions and is not enabled
-by default see (issue #1188).
+However this has negative consequences in other circumstances. Particularly
+with semi transparent images (alpha < 1) and colorbar extensions and is not
+enabled by default see (issue #1188).
 
 returns:
     :class:`~matplotlib.colorbar.Colorbar` instance; see also its base class,
@@ -171,7 +176,7 @@ unconventional value is to prevent underflow when log scale is used.
 #docstring.interpd.update(colorbar_doc=colorbar_doc)
 
 
-class CbarAxesLocator(object):
+class CbarAxesLocator:
     """
     CbarAxesLocator is a axes_locator for colorbar axes. It adjust the
     position of the axes to make a room for extended ends, i.e., the
@@ -315,19 +320,20 @@ class ColorbarBase(cm.ScalarMappable):
     Useful public methods are :meth:`set_label` and :meth:`add_lines`.
     '''
 
-    def __init__(self, ax, cmap=None,
-                           norm=None,
-                           alpha=1.0,
-                           values=None,
-                           boundaries=None,
-                           orientation='vertical',
-                           extend='neither',
-                           spacing='uniform',  # uniform or proportional
-                           ticks=None,
-                           format=None,
-                           drawedges=False,
-                           filled=True,
-                           ):
+    def __init__(self, ax,
+                 cmap=None,
+                 norm=None,
+                 alpha=1.0,
+                 values=None,
+                 boundaries=None,
+                 orientation='vertical',
+                 extend='neither',
+                 spacing='uniform',  # uniform or proportional
+                 ticks=None,
+                 format=None,
+                 drawedges=False,
+                 filled=True,
+                 ):
         self.ax = ax
 
         if cmap is None:
@@ -467,9 +473,9 @@ class ColorbarBase(cm.ScalarMappable):
         del self.extension_patch2
 
         path1, path2 = self.ax.get_axes_locator().get_path_ends()
-        fc=mpl.rcParams['axes.facecolor']
-        ec=mpl.rcParams['axes.edgecolor']
-        linewidths=0.5*mpl.rcParams['axes.linewidth']
+        fc = mpl.rcParams['axes.facecolor']
+        ec = mpl.rcParams['axes.edgecolor']
+        linewidths = 0.5 * mpl.rcParams['axes.linewidth']
         self.extension_patch1 = PathPatch(path1,
                                           fc=fc, ec=ec, lw=linewidths,
                                           zorder=2.,
@@ -788,7 +794,7 @@ def colorbar(mappable, cax=None, ax=None, **kw):
         cb.set_clim(m.get_clim())
         cb.update_bruteforce(m)
 
-    cbid = mappable.callbacksSM.connect('changed', on_changed)
+    mappable.callbacksSM.connect('changed', on_changed)
     mappable.colorbar = cb
     ax.figure.sca(ax)
     return cb

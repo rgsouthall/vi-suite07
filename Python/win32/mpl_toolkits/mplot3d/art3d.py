@@ -168,16 +168,16 @@ class Line3D(lines.Line2D):
 
         Parameters
         ----------
-        x : array_like
-            The x-data to be plotted
-        y : array_like
-            The y-data to be plotted
-        z : array_like
-            The z-data to be plotted
+        x : array-like
+            The x-data to be plotted.
+        y : array-like
+            The y-data to be plotted.
+        z : array-like
+            The z-data to be plotted.
 
         Notes
         -----
-        Accepts x, y, z arguments or a single array_like (x, y, z)
+        Accepts x, y, z arguments or a single array-like (x, y, z)
         """
         if len(args) == 1:
             self._verts3d = args[0]
@@ -191,8 +191,8 @@ class Line3D(lines.Line2D):
 
         Returns
         -------
-        verts3d : length-3 tuple or array_likes
-            The current data as a tuple or array_likes
+        verts3d : length-3 tuple or array-likes
+            The current data as a tuple or array-likes.
         """
         return self._verts3d
 
@@ -580,17 +580,39 @@ def patch_collection_2d_to_3d(col, zs=0, zdir='z', depthshade=True):
 class Poly3DCollection(PolyCollection):
     """
     A collection of 3D polygons.
+
+    .. note::
+        **Filling of 3D polygons**
+
+        There is no simple definition of the enclosed surface of a 3D polygon
+        unless the polygon is planar.
+
+        In practice, Matplotlib performs the filling on the 2D projection of
+        the polygon. This gives a correct filling appearance only for planar
+        polygons. For all other polygons, you'll find orientations in which
+        the edges of the polygon intersect in the projection. This will lead
+        to an incorrect visualization of the 3D area.
+
+        If you need filled areas, it is recommended to create them via
+        `~mpl_toolkits.mplot3d.axes3d.Axes3D.plot_trisurf`, which creates a
+        triangulation and thus generates consistent surfaces.
     """
 
     def __init__(self, verts, *args, zsort='average', **kwargs):
         """
-        Create a Poly3DCollection.
+        Parameters
+        ----------
+        verts : list of array-like Nx3
+            Each element describes a polygon as a sequnce of ``N_i`` points
+            ``(x, y, z)``.
+        zsort : {'average', 'min', 'max'}, default: 'average'
+            The calculation method for the z-order.
+            See `~.Poly3DCollection.set_zsort` for details.
+        *args, **kwargs
+            All other parameters are forwarded to `.PolyCollection`.
 
-        *verts* should contain 3D coordinates.
-
-        Keyword arguments:
-        zsort, see set_zsort for options.
-
+        Notes
+        -----
         Note that this class does a bit of magic with the _facecolors
         and _edgecolors properties.
         """
@@ -627,25 +649,15 @@ class Poly3DCollection(PolyCollection):
 
     def get_vector(self, segments3d):
         """Optimize points for projection."""
-        si = 0
-        ei = 0
-        segis = []
-        points = []
-        for p in segments3d:
-            points.extend(p)
-            ei = si + len(p)
-            segis.append((si, ei))
-            si = ei
-
         if len(segments3d):
-            xs, ys, zs = zip(*points)
-        else:
-            # We need this so that we can skip the bad unpacking from zip()
+            xs, ys, zs = np.row_stack(segments3d).T
+        else:  # row_stack can't stack zero arrays.
             xs, ys, zs = [], [], []
-
         ones = np.ones(len(xs))
         self._vec = np.array([xs, ys, zs, ones])
-        self._segis = segis
+
+        indices = [0, *np.cumsum([len(segment) for segment in segments3d])]
+        self._segslices = [*map(slice, indices[:-1], indices[1:])]
 
     def set_verts(self, verts, closed=True):
         """Set 3D vertices."""
@@ -688,8 +700,7 @@ class Poly3DCollection(PolyCollection):
             self._facecolors3d = self._facecolors
 
         txs, tys, tzs = proj3d._proj_transform_vec(self._vec, renderer.M)
-        xyzlist = [(txs[si:ei], tys[si:ei], tzs[si:ei])
-                   for si, ei in self._segis]
+        xyzlist = [(txs[sl], tys[sl], tzs[sl]) for sl in self._segslices]
 
         # This extra fuss is to re-order face / edge colors
         cface = self._facecolors3d
@@ -744,18 +755,7 @@ class Poly3DCollection(PolyCollection):
         self._edgecolors3d = PolyCollection.get_edgecolor(self)
 
     def set_alpha(self, alpha):
-        """
-        Set the alpha transparencies of the collection.
-
-        Parameters
-        ----------
-        alpha : float or None
-        """
-        if alpha is not None:
-            try:
-                float(alpha)
-            except TypeError:
-                raise TypeError('alpha must be a float or None')
+        # docstring inherited
         artist.Artist.set_alpha(self, alpha)
         try:
             self._facecolors3d = mcolors.to_rgba_array(

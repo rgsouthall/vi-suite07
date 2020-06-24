@@ -1,4 +1,4 @@
-# $Id: frontend.py 8126 2017-06-23 09:34:28Z milde $
+# $Id: frontend.py 8439 2019-12-13 17:02:41Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -33,15 +33,24 @@ import os
 import os.path
 import sys
 import warnings
-import configparser as CP
 import codecs
 import optparse
 from optparse import SUPPRESS_HELP
+if sys.version_info >= (3, 0):
+    from configparser import RawConfigParser
+    from os import getcwd
+else:
+    from ConfigParser import RawConfigParser
+    from os import getcwdu as getcwd
+
 import docutils
 import docutils.utils
 import docutils.nodes
 from docutils.utils.error_reporting import (locale_encoding, SafeString,
                                             ErrorOutput, ErrorString)
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
 
 
 def store_multiple(option, opt, value, parser, *args, **kwargs):
@@ -53,7 +62,7 @@ def store_multiple(option, opt, value, parser, *args, **kwargs):
     """
     for attribute in args:
         setattr(parser.values, attribute, None)
-    for key, value in list(kwargs.items()):
+    for key, value in kwargs.items():
         setattr(parser.values, key, value)
 
 def read_config_file(option, opt, value, parser):
@@ -72,7 +81,7 @@ def validate_encoding(setting, value, option_parser,
         codecs.lookup(value)
     except LookupError:
         raise LookupError('setting "%s": unknown encoding: "%s"'
-                           % (setting, value))
+                          % (setting, value))
     return value
 
 def validate_encoding_error_handler(setting, value, option_parser,
@@ -173,7 +182,7 @@ def validate_comma_separated_list(setting, value, option_parser,
     # this function is called for every option added to `value`
     # -> split the last item and append the result:
     last = value.pop()
-    items = [i.strip(' \t\n') for i in last.split(',') if i.strip(' \t\n')]
+    items = [i.strip(u' \t\n') for i in last.split(u',') if i.strip(u' \t\n')]
     value.extend(items)
     return value
 
@@ -226,7 +235,7 @@ def validate_smartquotes_locales(setting, value, option_parser,
             lc_quotes.append(item)
             continue
         except ValueError:
-            raise ValueError('Invalid value "%s".'
+            raise ValueError(u'Invalid value "%s".'
                              ' Format is "<language>:<quotes>".'
                              % item.encode('ascii', 'backslashreplace'))
         # parse colon separated string list:
@@ -238,7 +247,7 @@ def validate_smartquotes_locales(setting, value, option_parser,
             raise ValueError('Invalid value "%s". Please specify 4 quotes\n'
                 '    (primary open/close; secondary open/close).'
                              % item.encode('ascii', 'backslashreplace'))
-        lc_quotes.append((lang,quotes))
+        lc_quotes.append((lang, quotes))
     return lc_quotes
 
 def make_paths_absolute(pathdict, keys, base_path=None):
@@ -249,7 +258,7 @@ def make_paths_absolute(pathdict, keys, base_path=None):
     `OptionParser.relative_path_settings`.
     """
     if base_path is None:
-        base_path = os.getcwd() # type(base_path) == unicode
+        base_path = getcwd() # type(base_path) == unicode
         # to allow combining non-ASCII cwd with unicode values in `pathdict`
     for key in keys:
         if key in pathdict:
@@ -286,7 +295,7 @@ def filter_settings_spec(settings_spec, *exclude, **replace):
                        ][0]
             if opt_name in exclude:
                 continue
-            if opt_name in list(replace.keys()):
+            if opt_name in replace.keys():
                 newopts.append(replace[opt_name])
             else:
                 newopts.append(opt_spec)
@@ -312,7 +321,7 @@ class Values(optparse.Values):
         if isinstance(other_dict, Values):
             other_dict = other_dict.__dict__
         other_dict = other_dict.copy()
-        for setting in list(option_parser.lists.keys()):
+        for setting in option_parser.lists.keys():
             if (hasattr(self, setting) and setting in other_dict):
                 value = getattr(self, setting)
                 if value:
@@ -732,7 +741,7 @@ class OptionParser(optparse.OptionParser, docutils.SettingsSpec):
         raise KeyError('No option with dest == %r.' % dest)
 
 
-class ConfigParser(CP.RawConfigParser):
+class ConfigParser(RawConfigParser):
 
     old_settings = {
         'pep_stylesheet': ('pep_html writer', 'stylesheet'),
@@ -754,7 +763,7 @@ Skipping "%s" configuration file.
 """
 
     def __init__(self, *args, **kwargs):
-        CP.RawConfigParser.__init__(self, *args, **kwargs)
+        RawConfigParser.__init__(self, *args, **kwargs)
 
         self._files = []
         """List of paths of configuration files read."""
@@ -763,7 +772,7 @@ Skipping "%s" configuration file.
         """Wrapper around sys.stderr catching en-/decoding errors"""
 
     def read(self, filenames, option_parser):
-        if type(filenames) in (str, str):
+        if type(filenames) in (str, unicode):
             filenames = [filenames]
         for filename in filenames:
             try:
@@ -772,10 +781,10 @@ Skipping "%s" configuration file.
             except IOError:
                 continue
             try:
-                if sys.version_info < (3,2):
-                    CP.RawConfigParser.readfp(self, fp, filename)
+                if sys.version_info < (3, 0):
+                    RawConfigParser.readfp(self, fp, filename)
                 else:
-                    CP.RawConfigParser.read_file(self, fp, filename)
+                    RawConfigParser.read_file(self, fp, filename)
             except UnicodeDecodeError:
                 self._stderr.write(self.not_utf8_error % (filename, filename))
                 fp.close()
@@ -792,7 +801,7 @@ Skipping "%s" configuration file.
         options = self.get_section('options')
         if not self.has_section('general'):
             self.add_section('general')
-        for key, value in list(options.items()):
+        for key, value in options.items():
             if key in self.old_settings:
                 section, setting = self.old_settings[key]
                 if not self.has_section(section):

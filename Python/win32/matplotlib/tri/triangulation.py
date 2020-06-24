@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class Triangulation(object):
+class Triangulation:
     """
     An unstructured triangular grid consisting of npoints points and
     ntri triangles.  The triangles can either be specified by the user
@@ -11,7 +11,7 @@ class Triangulation(object):
     ----------
     x, y : array-like of shape (npoints)
         Coordinates of grid points.
-    triangles : integer array_like of shape (ntri, 3), optional
+    triangles : integer array-like of shape (ntri, 3), optional
         For each triangle, the indices of the three points that make
         up the triangle, ordered in an anticlockwise manner.  If not
         specified, the Delaunay triangulation is calculated.
@@ -28,7 +28,7 @@ class Triangulation(object):
         Masked out triangles.
     is_delaunay : bool
         Whether the Triangulation is a calculated Delaunay
-        triangulation (where `triangles` was not specified) or not.
+        triangulation (where *triangles* was not specified) or not.
 
     Notes
     -----
@@ -134,12 +134,9 @@ class Triangulation(object):
         the possible args and kwargs.
         """
         if isinstance(args[0], Triangulation):
-            triangulation = args[0]
-            args = args[1:]
+            triangulation, *args = args
         else:
-            x = args[0]
-            y = args[1]
-            args = args[2:]  # Consumed first two args.
+            x, y, *args = args
 
             # Check triangles in kwargs then args.
             triangles = kwargs.pop('triangles', None)
@@ -182,14 +179,13 @@ class Triangulation(object):
     @property
     def neighbors(self):
         """
-        Return integer array of shape (ntri, 3) containing neighbor
-        triangles.
+        Return integer array of shape (ntri, 3) containing neighbor triangles.
 
         For each triangle, the indices of the three triangles that
         share the same edges, or -1 if there is no such neighboring
-        triangle.  neighbors[i,j] is the triangle that is the neighbor
-        to the edge from point index triangles[i,j] to point index
-        triangles[i,(j+1)%3].
+        triangle.  ``neighbors[i, j]`` is the triangle that is the neighbor
+        to the edge from point index ``triangles[i,j]`` to point index
+        ``triangles[i,(j+1)%3]``.
         """
         if self._neighbors is None:
             self._neighbors = self.get_cpp_triangulation().get_neighbors()

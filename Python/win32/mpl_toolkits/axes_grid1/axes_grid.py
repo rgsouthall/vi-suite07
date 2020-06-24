@@ -1,11 +1,12 @@
 from numbers import Number
 
+import matplotlib as mpl
+from matplotlib import cbook
 import matplotlib.axes as maxes
 import matplotlib.ticker as ticker
 from matplotlib.gridspec import SubplotSpec
 
 from .axes_divider import Size, SubplotDivider, Divider
-from .colorbar import Colorbar
 from .mpl_axes import Axes
 
 
@@ -28,26 +29,30 @@ def _tick_only(ax, bottom_on, left_on):
     ax.axis["left"].toggle(ticklabels=left_off, label=left_off)
 
 
-class CbarAxesBase(object):
+class CbarAxesBase:
 
-    def colorbar(self, mappable, *, locator=None, **kwargs):
-
-        if locator is None:
-            if "ticks" not in kwargs:
-                kwargs["ticks"] = ticker.MaxNLocator(5)
-        if locator is not None:
-            if "ticks" in kwargs:
-                raise ValueError("Either *locator* or *ticks* need" +
-                                 " to be given, not both")
-            else:
-                kwargs["ticks"] = locator
+    @cbook._rename_parameter("3.2", "locator", "ticks")
+    def colorbar(self, mappable, *, ticks=None, **kwargs):
 
         if self.orientation in ["top", "bottom"]:
             orientation = "horizontal"
         else:
             orientation = "vertical"
 
-        cb = Colorbar(self, mappable, orientation=orientation, **kwargs)
+        if mpl.rcParams["mpl_toolkits.legacy_colorbar"]:
+            cbook.warn_deprecated(
+                "3.2", message="Since %(since)s, mpl_toolkits's own colorbar "
+                "implementation is deprecated; it will be removed "
+                "%(removal)s.  Set the 'mpl_toolkits.legacy_colorbar' rcParam "
+                "to False to use Matplotlib's default colorbar implementation "
+                "and suppress this deprecation warning.")
+            if ticks is None:
+                ticks = ticker.MaxNLocator(5)  # For backcompat.
+            from .colorbar import Colorbar
+        else:
+            from matplotlib.colorbar import Colorbar
+        cb = Colorbar(
+            self, mappable, orientation=orientation, ticks=ticks, **kwargs)
         self._config_axes()
 
         def on_changed(m):
@@ -58,7 +63,10 @@ class CbarAxesBase(object):
         self.cbid = mappable.callbacksSM.connect('changed', on_changed)
         mappable.colorbar = cb
 
-        self.locator = cb.cbar_axis.get_major_locator()
+        if mpl.rcParams["mpl_toolkits.legacy_colorbar"]:
+            self.locator = cb.cbar_axis.get_major_locator()
+        else:
+            self.locator = cb.locator
 
         return cb
 
@@ -111,7 +119,7 @@ class CbarAxes(CbarAxesBase, Axes):
         self._config_axes()
 
 
-class Grid(object):
+class Grid:
     """
     A class that creates a grid of Axes. In matplotlib, the axes
     location (and size) is specified in the normalized figure

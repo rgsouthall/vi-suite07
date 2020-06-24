@@ -1,4 +1,4 @@
-# $Id: __init__.py 8164 2017-08-14 11:28:48Z milde $
+# $Id: __init__.py 8412 2019-11-06 18:15:21Z milde $
 # Authors: Chris Liechti <cliechti@gmx.net>;
 #          David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
@@ -83,7 +83,8 @@ class Writer(html4css1.Writer):
     settings_default_overrides = {'toc_backlinks': 0}
 
     config_section = 's5_html writer'
-    config_section_dependencies = ('writers', 'html4css1 writer')
+    config_section_dependencies = ('writers', 'html writers',
+                                   'html4css1 writer')
 
     def __init__(self):
         html4css1.Writer.__init__(self)
@@ -215,7 +216,8 @@ class S5HTMLTranslator(html4css1.HTMLTranslator):
             base_theme_file = os.path.join(path, self.base_theme_file)
             # If it exists, read it and record the theme path:
             if os.path.isfile(base_theme_file):
-                lines = open(base_theme_file).readlines()
+                with open(base_theme_file) as f:
+                    lines = f.readlines()
                 for line in lines:
                     line = line.strip()
                     if line and not line.startswith('#'):
@@ -236,7 +238,7 @@ class S5HTMLTranslator(html4css1.HTMLTranslator):
         if len(required_files_copied) != len(self.required_theme_files):
             # Some required files weren't found & couldn't be copied.
             required = list(self.required_theme_files)
-            for f in list(required_files_copied.keys()):
+            for f in required_files_copied.keys():
                 required.remove(f)
             raise docutils.ApplicationError(
                 'Theme files not found: %s'

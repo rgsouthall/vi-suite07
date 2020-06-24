@@ -5,6 +5,7 @@ import inspect
 import os
 from pathlib import Path
 import shutil
+import string
 import sys
 import unittest
 import warnings
@@ -17,7 +18,7 @@ from matplotlib import cbook
 from matplotlib import ft2font
 from matplotlib import pyplot as plt
 from matplotlib import ticker
-from . import is_called_from_pytest
+
 from .compare import comparable_formats, compare_images, make_test_filename
 from .exceptions import ImageComparisonFailure
 
@@ -45,15 +46,6 @@ class CleanupTestCase(unittest.TestCase):
         cls._cm.__exit__(None, None, None)
 
 
-@cbook.deprecated("3.0")
-class CleanupTest(object):
-    setup_class = classmethod(CleanupTestCase.setUpClass.__func__)
-    teardown_class = classmethod(CleanupTestCase.tearDownClass.__func__)
-
-    def test(self):
-        self._func()
-
-
 def cleanup(style=None):
     """
     A decorator to ensure that any global state is reset before
@@ -61,11 +53,12 @@ def cleanup(style=None):
 
     Parameters
     ----------
-    style : str, optional
-        The name of the style to apply.
+    style : str, dict, or list, optional
+        The style(s) to apply.  Defaults to ``["classic",
+        "_classic_test_patch"]``.
     """
 
-    # If cleanup is used without arguments, `style` will be a callable, and we
+    # If cleanup is used without arguments, *style* will be a callable, and we
     # pass it directly to the wrapper generator.  If cleanup if called with an
     # argument, it is a string naming a style, and the function will be passed
     # as an argument to what we return.  This is a confusing, but somewhat
@@ -85,13 +78,13 @@ def cleanup(style=None):
 
         return wrapped_callable
 
-    if isinstance(style, str):
-        return make_cleanup
-    else:
+    if callable(style):
         result = make_cleanup(style)
         # Default of mpl_test_settings fixture and image_comparison too.
-        style = '_classic_test'
+        style = ["classic", "_classic_test_patch"]
         return result
+    else:
+        return make_cleanup
 
 
 def check_freetype_version(ver):
@@ -136,10 +129,6 @@ def _raise_on_image_difference(expected, actual, tol):
     __tracebackhide__ = True
 
     err = compare_images(expected, actual, tol, in_decorator=True)
-
-    if not os.path.exists(expected):
-        raise ImageComparisonFailure('image does not exist: %s' % expected)
-
     if err:
         for key in ["actual", "expected"]:
             err[key] = os.path.relpath(err[key])
@@ -174,40 +163,40 @@ def _mark_skip_if_format_is_uncomparable(extension):
                         marks=[*marks, _skip_if_format_is_uncomparable(name)])
 
 
-class _ImageComparisonBase(object):
+class _ImageComparisonBase:
     """
     Image comparison base class
 
     This class provides *just* the comparison-related functionality and avoids
     any code that would be specific to any testing framework.
     """
-    def __init__(self, tol, remove_text, savefig_kwargs):
-        self.func = self.baseline_dir = self.result_dir = None
+
+    def __init__(self, func, tol, remove_text, savefig_kwargs):
+        self.func = func
+        self.baseline_dir, self.result_dir = _image_directories(func)
         self.tol = tol
         self.remove_text = remove_text
         self.savefig_kwargs = savefig_kwargs
 
-    def delayed_init(self, func):
-        assert self.func is None, "it looks like same decorator used twice"
-        self.func = func
-        self.baseline_dir, self.result_dir = _image_directories(func)
-
     def copy_baseline(self, baseline, extension):
-        baseline_path = os.path.join(self.baseline_dir, baseline)
-        orig_expected_fname = baseline_path + '.' + extension
-        if extension == 'eps' and not os.path.exists(orig_expected_fname):
-            orig_expected_fname = baseline_path + '.pdf'
+        baseline_path = self.baseline_dir / baseline
+        orig_expected_path = baseline_path.with_suffix(f'.{extension}')
+        if extension == 'eps' and not orig_expected_path.exists():
+            orig_expected_path = orig_expected_path.with_suffix('.pdf')
         expected_fname = make_test_filename(
-            os.path.join(self.result_dir,
-                         os.path.basename(orig_expected_fname)),
-            'expected')
-        if os.path.exists(orig_expected_fname):
-            shutil.copyfile(orig_expected_fname, expected_fname)
-        else:
-            reason = ("Do not have baseline image {} because this "
-                      "file does not exist: {}".format(expected_fname,
-                                                       orig_expected_fname))
-            raise ImageComparisonFailure(reason)
+            self.result_dir / orig_expected_path.name, 'expected')
+        try:
+            # os.symlink errors if the target already exists.
+            with contextlib.suppress(OSError):
+                os.remove(expected_fname)
+            try:
+                os.symlink(orig_expected_path, expected_fname)
+            except OSError:  # On Windows, symlink *may* be unavailable.
+                shutil.copyfile(orig_expected_path, expected_fname)
+        except OSError:
+            raise ImageComparisonFailure(
+                f"Missing baseline image {expected_fname} because the "
+                f"following file cannot be accessed: {orig_expected_path}")
         return expected_fname
 
     def compare(self, idx, baseline, extension):
@@ -218,76 +207,16 @@ class _ImageComparisonBase(object):
         if self.remove_text:
             remove_ticks_and_titles(fig)
 
-        actual_fname = (
-            os.path.join(self.result_dir, baseline) + '.' + extension)
+        actual_path = (self.result_dir / baseline).with_suffix(f'.{extension}')
         kwargs = self.savefig_kwargs.copy()
         if extension == 'pdf':
             kwargs.setdefault('metadata',
                               {'Creator': None, 'Producer': None,
                                'CreationDate': None})
-        fig.savefig(actual_fname, **kwargs)
+        fig.savefig(actual_path, **kwargs)
 
-        expected_fname = self.copy_baseline(baseline, extension)
-        _raise_on_image_difference(expected_fname, actual_fname, self.tol)
-
-
-@cbook.deprecated("3.0")
-class ImageComparisonTest(CleanupTest, _ImageComparisonBase):
-    """
-    Nose-based image comparison class
-
-    This class generates tests for a nose-based testing framework. Ideally,
-    this class would not be public, and the only publicly visible API would
-    be the :func:`image_comparison` decorator. Unfortunately, there are
-    existing downstream users of this class (e.g., pytest-mpl) so it cannot yet
-    be removed.
-    """
-    def __init__(self, baseline_images, extensions, tol,
-                 freetype_version, remove_text, savefig_kwargs, style):
-        _ImageComparisonBase.__init__(self, tol, remove_text, savefig_kwargs)
-        self.baseline_images = baseline_images
-        self.extensions = extensions
-        self.freetype_version = freetype_version
-        self.style = style
-
-    def setup(self):
-        func = self.func
-        plt.close('all')
-        self.setup_class()
-        try:
-            matplotlib.style.use(self.style)
-            matplotlib.testing.set_font_settings_for_testing()
-            func()
-            assert len(plt.get_fignums()) == len(self.baseline_images), (
-                "Test generated {} images but there are {} baseline images"
-                .format(len(plt.get_fignums()), len(self.baseline_images)))
-        except:
-            # Restore original settings before raising errors.
-            self.teardown_class()
-            raise
-
-    def teardown(self):
-        self.teardown_class()
-
-    def nose_runner(self):
-        func = self.compare
-        func = _checked_on_freetype_version(self.freetype_version)(func)
-        funcs = {extension: _skip_if_format_is_uncomparable(extension)(func)
-                 for extension in self.extensions}
-        for idx, baseline in enumerate(self.baseline_images):
-            for extension in self.extensions:
-                yield funcs[extension], idx, baseline, extension
-
-    def __call__(self, func):
-        self.delayed_init(func)
-        import nose.tools
-
-        @functools.wraps(func)
-        @nose.tools.with_setup(self.setup, self.teardown)
-        def runner_wrapper():
-            yield from self.nose_runner()
-
-        return runner_wrapper
+        expected_path = self.copy_baseline(baseline, extension)
+        _raise_on_image_difference(expected_path, actual_path, self.tol)
 
 
 def _pytest_image_comparison(baseline_images, extensions, tol,
@@ -317,9 +246,8 @@ def _pytest_image_comparison(baseline_images, extensions, tol,
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             __tracebackhide__ = True
-            img = _ImageComparisonBase(tol=tol, remove_text=remove_text,
+            img = _ImageComparisonBase(func, tol=tol, remove_text=remove_text,
                                        savefig_kwargs=savefig_kwargs)
-            img.delayed_init(func)
             matplotlib.testing.set_font_settings_for_testing()
             func(*args, **kwargs)
 
@@ -345,7 +273,7 @@ def image_comparison(baseline_images, extensions=None, tol=0,
                      freetype_version=None, remove_text=False,
                      savefig_kwarg=None,
                      # Default of mpl_test_settings fixture and cleanup too.
-                     style='_classic_test'):
+                     style=("classic", "_classic_test_patch")):
     """
     Compare images generated by the test with those specified in
     *baseline_images*, which must correspond, else an `ImageComparisonFailure`
@@ -365,6 +293,10 @@ def image_comparison(baseline_images, extensions=None, tol=0,
         The list of extensions to test, e.g. ``['png', 'pdf']``.
 
         If *None*, defaults to all supported extensions: png, pdf, and svg.
+
+        When testing a single extension, it can be directly included in the
+        names passed to *baseline_images*.  In that case, *extensions* must not
+        be set.
 
         In order to keep the size of the test suite from ballooning, we only
         include the ``svg`` or ``pdf`` outputs if the test is explicitly
@@ -389,42 +321,46 @@ def image_comparison(baseline_images, extensions=None, tol=0,
     savefig_kwarg : dict
         Optional arguments that are passed to the savefig method.
 
-    style : string
-        Optional name for the base style to apply to the image test. The test
-        itself can also apply additional styles if desired. Defaults to the
-        '_classic_test' style.
-
+    style : str, dict, or list
+        The optional style(s) to apply to the image test. The test itself
+        can also apply additional styles if desired. Defaults to ``["classic",
+        "_classic_test_patch"]``.
     """
+
+    if baseline_images is not None:
+        # List of non-empty filename extensions.
+        baseline_exts = [*filter(None, {Path(baseline).suffix[1:]
+                                        for baseline in baseline_images})]
+        if baseline_exts:
+            if extensions is not None:
+                raise ValueError(
+                    "When including extensions directly in 'baseline_images', "
+                    "'extensions' cannot be set as well")
+            if len(baseline_exts) > 1:
+                raise ValueError(
+                    "When including extensions directly in 'baseline_images', "
+                    "all baselines must share the same suffix")
+            extensions = baseline_exts
+            baseline_images = [  # Chop suffix out from baseline_images.
+                Path(baseline).stem for baseline in baseline_images]
     if extensions is None:
-        # default extensions to test
+        # Default extensions to test, if not set via baseline_images.
         extensions = ['png', 'pdf', 'svg']
-
     if savefig_kwarg is None:
-        #default no kwargs to savefig
-        savefig_kwarg = dict()
-
-    if is_called_from_pytest():
-        return _pytest_image_comparison(
-            baseline_images=baseline_images, extensions=extensions, tol=tol,
-            freetype_version=freetype_version, remove_text=remove_text,
-            savefig_kwargs=savefig_kwarg, style=style)
-    else:
-        if baseline_images is None:
-            raise ValueError('baseline_images must be specified')
-
-        return ImageComparisonTest(
-            baseline_images=baseline_images, extensions=extensions, tol=tol,
-            freetype_version=freetype_version, remove_text=remove_text,
-            savefig_kwargs=savefig_kwarg, style=style)
+        savefig_kwarg = dict()  # default no kwargs to savefig
+    return _pytest_image_comparison(
+        baseline_images=baseline_images, extensions=extensions, tol=tol,
+        freetype_version=freetype_version, remove_text=remove_text,
+        savefig_kwargs=savefig_kwarg, style=style)
 
 
 def check_figures_equal(*, extensions=("png", "pdf", "svg"), tol=0):
     """
     Decorator for test cases that generate and compare two figures.
 
-    The decorated function must take two arguments, *fig_test* and *fig_ref*,
-    and draw the test and reference images on them.  After the function
-    returns, the figures are saved and compared.
+    The decorated function must take two keyword arguments, *fig_test*
+    and *fig_ref*, and draw the test and reference images on them.
+    After the function returns, the figures are saved and compared.
 
     This decorator should be preferred over `image_comparison` when possible in
     order to keep the size of the test suite from ballooning.
@@ -445,44 +381,63 @@ def check_figures_equal(*, extensions=("png", "pdf", "svg"), tol=0):
         def test_plot(fig_test, fig_ref):
             fig_test.subplots().plot([1, 3, 5])
             fig_ref.subplots().plot([0, 1, 2], [1, 3, 5])
-    """
 
+    """
+    ALLOWED_CHARS = set(string.digits + string.ascii_letters + '_-[]()')
+    KEYWORD_ONLY = inspect.Parameter.KEYWORD_ONLY
     def decorator(func):
         import pytest
 
-        _, result_dir = map(Path, _image_directories(func))
+        _, result_dir = _image_directories(func)
+        old_sig = inspect.signature(func)
 
-        if len(inspect.signature(func).parameters) == 2:
-            # Free-standing function.
-            @pytest.mark.parametrize("ext", extensions)
-            def wrapper(ext):
+        if not {"fig_test", "fig_ref"}.issubset(old_sig.parameters):
+            raise ValueError("The decorated function must have at least the "
+                             "parameters 'fig_ref' and 'fig_test', but your "
+                             f"function has the signature {old_sig}")
+
+        @pytest.mark.parametrize("ext", extensions)
+        def wrapper(*args, **kwargs):
+            ext = kwargs['ext']
+            if 'ext' not in old_sig.parameters:
+                kwargs.pop('ext')
+            request = kwargs['request']
+            if 'request' not in old_sig.parameters:
+                kwargs.pop('request')
+
+            file_name = "".join(c for c in request.node.name
+                                if c in ALLOWED_CHARS)
+            try:
                 fig_test = plt.figure("test")
                 fig_ref = plt.figure("reference")
-                func(fig_test, fig_ref)
-                test_image_path = str(
-                    result_dir / (func.__name__ + "." + ext))
-                ref_image_path = str(
-                    result_dir / (func.__name__ + "-expected." + ext))
+                func(*args, fig_test=fig_test, fig_ref=fig_ref, **kwargs)
+                test_image_path = result_dir / (file_name + "." + ext)
+                ref_image_path = result_dir / (file_name + "-expected." + ext)
                 fig_test.savefig(test_image_path)
                 fig_ref.savefig(ref_image_path)
                 _raise_on_image_difference(
-                    ref_image_path, test_image_path, tol=tol)
+                    ref_image_path, test_image_path, tol=tol
+                )
+            finally:
+                plt.close(fig_test)
+                plt.close(fig_ref)
 
-        elif len(inspect.signature(func).parameters) == 3:
-            # Method.
-            @pytest.mark.parametrize("ext", extensions)
-            def wrapper(self, ext):
-                fig_test = plt.figure("test")
-                fig_ref = plt.figure("reference")
-                func(self, fig_test, fig_ref)
-                test_image_path = str(
-                    result_dir / (func.__name__ + "." + ext))
-                ref_image_path = str(
-                    result_dir / (func.__name__ + "-expected." + ext))
-                fig_test.savefig(test_image_path)
-                fig_ref.savefig(ref_image_path)
-                _raise_on_image_difference(
-                    ref_image_path, test_image_path, tol=tol)
+        parameters = [
+            param
+            for param in old_sig.parameters.values()
+            if param.name not in {"fig_test", "fig_ref"}
+        ]
+        if 'ext' not in old_sig.parameters:
+            parameters += [inspect.Parameter("ext", KEYWORD_ONLY)]
+        if 'request' not in old_sig.parameters:
+            parameters += [inspect.Parameter("request", KEYWORD_ONLY)]
+        new_sig = old_sig.replace(parameters=parameters)
+        wrapper.__signature__ = new_sig
+
+        # reach a bit into pytest internals to hoist the marks from
+        # our wrapped function
+        new_marks = getattr(func, "pytestmark", []) + wrapper.pytestmark
+        wrapper.pytestmark = new_marks
 
         return wrapper
 
@@ -502,7 +457,7 @@ def _image_directories(func):
     baseline_dir = module_path.parent / "baseline_images" / module_path.stem
     result_dir = Path().resolve() / "result_images" / module_path.stem
     result_dir.mkdir(parents=True, exist_ok=True)
-    return str(baseline_dir), str(result_dir)
+    return baseline_dir, result_dir
 
 
 @cbook.deprecated("3.1", alternative="pytest.mark.backend")
@@ -523,25 +478,3 @@ def switch_backend(backend):
         return backend_switcher
 
     return switch_backend_decorator
-
-
-@cbook.deprecated("3.0")
-def skip_if_command_unavailable(cmd):
-    """
-    skips a test if a command is unavailable.
-
-    Parameters
-    ----------
-    cmd : list of str
-        must be a complete command which should not
-        return a non zero exit code, something like
-        ["latex", "-version"]
-    """
-    from subprocess import check_output
-    try:
-        check_output(cmd)
-    except Exception:
-        import pytest
-        return pytest.mark.skip(reason='missing command: %s' % cmd[0])
-
-    return lambda f: f

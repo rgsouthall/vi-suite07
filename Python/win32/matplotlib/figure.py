@@ -23,7 +23,7 @@ from matplotlib import get_backend
 
 import matplotlib.artist as martist
 from matplotlib.artist import Artist, allow_rasterization
-from matplotlib.backend_bases import FigureCanvasBase
+from matplotlib.backend_bases import FigureCanvasBase, NonGuiException
 import matplotlib.cbook as cbook
 import matplotlib.colorbar as cbar
 import matplotlib.image as mimage
@@ -33,17 +33,13 @@ from matplotlib.blocking_input import BlockingMouseInput, BlockingKeyMouseInput
 from matplotlib.gridspec import GridSpec
 import matplotlib.legend as mlegend
 from matplotlib.patches import Rectangle
-from matplotlib.projections import (get_projection_names,
-                                    process_projection_requirements)
+from matplotlib.projections import process_projection_requirements
 from matplotlib.text import Text, TextWithDash
 from matplotlib.transforms import (Affine2D, Bbox, BboxTransformTo,
                                    TransformedBbox)
 import matplotlib._layoutbox as layoutbox
-from matplotlib.backend_bases import NonGuiException
 
 _log = logging.getLogger(__name__)
-
-docstring.interpd.update(projection_names=get_projection_names())
 
 
 def _stale_figure_callback(self, val):
@@ -51,16 +47,16 @@ def _stale_figure_callback(self, val):
         self.figure.stale = val
 
 
-class AxesStack(cbook.Stack):
+class _AxesStack(cbook.Stack):
     """
     Specialization of the `.Stack` to handle all tracking of
     `~matplotlib.axes.Axes` in a `.Figure`.
     This stack stores ``key, (ind, axes)`` pairs, where:
 
-        * **key** should be a hash of the args and kwargs
-          used in generating the Axes.
-        * **ind** is a serial number for tracking the order
-          in which axes were added.
+    * **key** should be a hash of the args and kwargs
+      used in generating the Axes.
+    * **ind** is a serial number for tracking the order
+      in which axes were added.
 
     The AxesStack is a callable, where ``ax_stack()`` returns
     the current axes. Alternatively the :meth:`current_key_axes` will
@@ -123,8 +119,7 @@ class AxesStack(cbook.Stack):
         """
         # All the error checking may be unnecessary; but this method
         # is called so seldom that the overhead is negligible.
-        if not isinstance(a, Axes):
-            raise ValueError("second argument, {!r}, is not an Axes".format(a))
+        cbook._check_isinstance(Axes, a=a)
         try:
             hash(key)
         except TypeError:
@@ -161,7 +156,12 @@ class AxesStack(cbook.Stack):
         return a in self.as_list()
 
 
-class SubplotParams(object):
+@cbook.deprecated("3.2")
+class AxesStack(_AxesStack):
+    pass
+
+
+class SubplotParams:
     """
     A class to hold the parameters for a subplot.
     """
@@ -345,12 +345,12 @@ class Figure(Artist):
         if frameon is None:
             frameon = rcParams['figure.frameon']
 
-        if not np.isfinite(figsize).all():
-            raise ValueError('figure size must be finite not '
-                             '{}'.format(figsize))
+        if not np.isfinite(figsize).all() or (np.array(figsize) <= 0).any():
+            raise ValueError('figure size must be positive finite not '
+                             f'{figsize}')
         self.bbox_inches = Bbox.from_bounds(0, 0, *figsize)
 
-        self.dpi_scale_trans = Affine2D().scale(dpi, dpi)
+        self.dpi_scale_trans = Affine2D().scale(dpi)
         # do not use property as it will trigger
         self._dpi = dpi
         self.bbox = TransformedBbox(self.bbox_inches, self.dpi_scale_trans)
@@ -358,9 +358,10 @@ class Figure(Artist):
         self.transFigure = BboxTransformTo(self.bbox)
 
         self.patch = Rectangle(
-            xy=(0, 0), width=1, height=1,
+            xy=(0, 0), width=1, height=1, visible=frameon,
             facecolor=facecolor, edgecolor=edgecolor, linewidth=linewidth,
-            visible=frameon)
+            # Don't let the figure patch influence bbox calculation.
+            in_layout=False)
         self._set_artist_props(self.patch)
         self.patch.set_antialiased(False)
 
@@ -378,7 +379,7 @@ class Figure(Artist):
 
         self.set_tight_layout(tight_layout)
 
-        self._axstack = AxesStack()  # track all figure axes and current axes
+        self._axstack = _AxesStack()  # track all figure axes and current axes
         self.clf()
         self._cachedRenderer = None
 
@@ -472,7 +473,7 @@ class Figure(Artist):
             Passed on to `~.Figure.set_size_inches`
         """
         self._dpi = dpi
-        self.dpi_scale_trans.clear().scale(dpi, dpi)
+        self.dpi_scale_trans.clear().scale(dpi)
         w, h = self.get_size_inches()
         self.set_size_inches(w, h, forward=forward)
         self.callbacks.process('dpi_changed', self)
@@ -549,7 +550,6 @@ class Figure(Artist):
 
         Parameters
         ----------
-
         w_pad : scalar
             Width padding in inches.  This is the pad around axes
             and is meant to make sure there is enough room for fonts to
@@ -587,7 +587,6 @@ class Figure(Artist):
 
         Parameters
         ----------
-
         relative : boolean
             If `True`, then convert from inches to figure relative.
         """
@@ -621,7 +620,7 @@ class Figure(Artist):
         rotation : angle in degrees
             The rotation of the xtick labels.
 
-        ha : string
+        ha : str
             The horizontal alignment of the xticklabels.
 
         which : {None, 'major', 'minor', 'both'}
@@ -668,8 +667,9 @@ class Figure(Artist):
         -------
             bool, {}
         """
-        if self._contains is not None:
-            return self._contains(self, mouseevent)
+        inside, info = self._default_contains(mouseevent, figure=self)
+        if inside is not None:
+            return inside, info
         inside = self.bbox.contains(mouseevent.x, mouseevent.y)
         return inside, {}
 
@@ -730,7 +730,6 @@ default: 'top'
 
         Examples
         --------
-
         >>> fig.suptitle('This is the figure title', fontsize=12)
         """
         manual_position = ('x' in kwargs or 'y' in kwargs)
@@ -842,7 +841,7 @@ default: 'top'
         (:meth:`~matplotlib.axes.Axes.imshow`) which will be resampled
         to fit the current axes.  If you want a resampled image to
         fill the entire figure, you can define an
-        :class:`~matplotlib.axes.Axes` with extent [0,0,1,1].
+        :class:`~matplotlib.axes.Axes` with extent [0, 0, 1, 1].
 
 
         Examples::
@@ -873,43 +872,42 @@ default: 'top'
         return im
 
     def set_size_inches(self, w, h=None, forward=True):
-        """Set the figure size in inches.
+        """
+        Set the figure size in inches.
 
         Call signatures::
 
              fig.set_size_inches(w, h)  # OR
              fig.set_size_inches((w, h))
 
-        optional kwarg *forward=True* will cause the canvas size to be
-        automatically updated; e.g., you can resize the figure window
-        from the shell
-
-        ACCEPTS: a (w, h) tuple with w, h in inches
+        Parameters
+        ----------
+        w : (float, float) or float
+            Width and height in inches (if height not specified as a separate
+            argument) or width.
+        h : float
+            Height in inches.
+        forward : bool, default: True
+            If ``True``, the canvas size is automatically updated, e.g.,
+            you can resize the figure window from the shell.
 
         See Also
         --------
         matplotlib.Figure.get_size_inches
         """
-
-        # the width and height have been passed in as a tuple to the first
-        # argument, so unpack them
-        if h is None:
+        if h is None:  # Got called with a single pair as argument.
             w, h = w
-        if not all(np.isfinite(_) for _ in (w, h)):
-            raise ValueError('figure size must be finite not '
-                             '({}, {})'.format(w, h))
-        self.bbox_inches.p1 = w, h
-
+        size = np.array([w, h])
+        if not np.isfinite(size).all() or (size <= 0).any():
+            raise ValueError(f'figure size must be positive finite not {size}')
+        self.bbox_inches.p1 = size
         if forward:
             canvas = getattr(self, 'canvas')
             if canvas is not None:
-                ratio = getattr(self.canvas, '_dpi_ratio', 1)
-                dpival = self.dpi / ratio
-                canvasw = w * dpival
-                canvash = h * dpival
-                manager = getattr(self.canvas, 'manager', None)
+                dpi_ratio = getattr(canvas, '_dpi_ratio', 1)
+                manager = getattr(canvas, 'manager', None)
                 if manager is not None:
-                    manager.resize(int(canvasw), int(canvash))
+                    manager.resize(*(size * self.dpi / dpi_ratio).astype(int))
         self.stale = True
 
     def get_size_inches(self):
@@ -1143,7 +1141,6 @@ default: 'top'
 
         Parameters
         ----------
-
         rect : sequence of float
             The dimensions [left, bottom, width, height] of the new axes. All
             quantities are in fractions of figure width and height.
@@ -1174,6 +1171,7 @@ default: 'top'
             the following table but there might also be other keyword
             arguments if another projection is used, see the actual axes
             class.
+
             %(Axes)s
 
         Returns
@@ -1213,11 +1211,11 @@ default: 'top'
 
             rect = l, b, w, h
             fig = plt.figure()
-            fig.add_axes(rect,label=label1)
-            fig.add_axes(rect,label=label2)
+            fig.add_axes(rect, label=label1)
+            fig.add_axes(rect, label=label2)
             fig.add_axes(rect, frameon=False, facecolor='g')
             fig.add_axes(rect, polar=True)
-            ax=fig.add_axes(rect, projection='polar')
+            ax = fig.add_axes(rect, projection='polar')
             fig.delaxes(ax)
             fig.add_axes(ax)
         """
@@ -1312,11 +1310,12 @@ default: 'top'
         Other Parameters
         ----------------
         **kwargs
-            This method also takes the keyword arguments for
-            the returned axes base class. The keyword arguments for the
-            rectilinear base class `~.axes.Axes` can be found in
+            This method also takes the keyword arguments for the returned axes
+            base class; except for the *figure* argument. The keyword arguments
+            for the rectilinear base class `~.axes.Axes` can be found in
             the following table but there might also be other keyword
             arguments if another projection is used.
+
             %(Axes)s
 
         Returns
@@ -1382,6 +1381,12 @@ default: 'top'
                                  "three-digit number, not {}".format(args[0]))
             args = tuple(map(int, str(args[0])))
 
+        if 'figure' in kwargs:
+            # Axes itself allows for a 'figure' kwarg, but since we want to
+            # bind the created Axes to self, it is not allowed here.
+            raise TypeError(
+                "add_subplot() got an unexpected keyword argument 'figure'")
+
         if isinstance(args[0], SubplotBase):
 
             a = args[0]
@@ -1441,12 +1446,10 @@ default: 'top'
             Controls sharing of properties among x (`sharex`) or y (`sharey`)
             axes:
 
-                - True or 'all': x- or y-axis will be shared among all
-                  subplots.
-                - False or 'none': each subplot x- or y-axis will be
-                  independent.
-                - 'row': each subplot row will share an x- or y-axis.
-                - 'col': each subplot column will share an x- or y-axis.
+            - True or 'all': x- or y-axis will be shared among all subplots.
+            - False or 'none': each subplot x- or y-axis will be independent.
+            - 'row': each subplot row will share an x- or y-axis.
+            - 'col': each subplot column will share an x- or y-axis.
 
             When subplots have a shared x-axis along a column, only the x tick
             labels of the bottom subplot are created. Similarly, when subplots
@@ -1458,12 +1461,11 @@ default: 'top'
             - If True, extra dimensions are squeezed out from the returned
               array of Axes:
 
-                - if only one subplot is constructed (nrows=ncols=1), the
-                  resulting single Axes object is returned as a scalar.
-                - for Nx1 or 1xM subplots, the returned object is a 1D numpy
-                  object array of Axes objects.
-                - for NxM, subplots with N>1 and M>1 are returned
-                  as a 2D array.
+              - if only one subplot is constructed (nrows=ncols=1), the
+                resulting single Axes object is returned as a scalar.
+              - for Nx1 or 1xM subplots, the returned object is a 1D numpy
+                object array of Axes objects.
+              - for NxM, subplots with N>1 and M>1 are returned as a 2D array.
 
             - If False, no squeezing at all is done: the returned Axes object
               is always a 2D array containing Axes instances, even if it ends
@@ -1498,19 +1500,18 @@ default: 'top'
             # Create a figure
             plt.figure()
 
-            # Creates a subplot
+            # Create a subplot
             ax = fig.subplots()
             ax.plot(x, y)
             ax.set_title('Simple plot')
 
-            # Creates two subplots and unpacks the output array immediately
+            # Create two subplots and unpack the output array immediately
             ax1, ax2 = fig.subplots(1, 2, sharey=True)
             ax1.plot(x, y)
             ax1.set_title('Sharing Y axis')
             ax2.scatter(x, y)
 
-            # Creates four polar axes, and accesses them through the
-            # returned array
+            # Create four polar axes and access them through the returned array
             axes = fig.subplots(2, 2, subplot_kw=dict(polar=True))
             axes[0, 0].plot(x, y)
             axes[1, 1].scatter(x, y)
@@ -1527,12 +1528,12 @@ default: 'top'
             # Note that this is the same as
             fig.subplots(2, 2, sharex=True, sharey=True)
 
-            See Also
-            --------
-            .pyplot.subplots
-            .Figure.add_subplot
-            .pyplot.subplot
-            """
+        See Also
+        --------
+        .pyplot.subplots
+        .Figure.add_subplot
+        .pyplot.subplot
+        """
 
         if isinstance(sharex, bool):
             sharex = "all" if sharex else "none"
@@ -1597,11 +1598,37 @@ default: 'top'
             return axarr
 
     def _remove_ax(self, ax):
-        def _reset_loc_form(axis):
-            axis.set_major_formatter(axis.get_major_formatter())
-            axis.set_major_locator(axis.get_major_locator())
-            axis.set_minor_formatter(axis.get_minor_formatter())
-            axis.set_minor_locator(axis.get_minor_locator())
+        def _reset_locators_and_formatters(axis):
+            # Set the formatters and locators to be associated with axis
+            # (where previously they may have been associated with another
+            # Axis isntance)
+            #
+            # Because set_major_formatter() etc. force isDefault_* to be False,
+            # we have to manually check if the original formatter was a
+            # default and manually set isDefault_* if that was the case.
+            majfmt = axis.get_major_formatter()
+            isDefault = majfmt.axis.isDefault_majfmt
+            axis.set_major_formatter(majfmt)
+            if isDefault:
+                majfmt.axis.isDefault_majfmt = True
+
+            majloc = axis.get_major_locator()
+            isDefault = majloc.axis.isDefault_majloc
+            axis.set_major_locator(majloc)
+            if isDefault:
+                majloc.axis.isDefault_majloc = True
+
+            minfmt = axis.get_minor_formatter()
+            isDefault = majloc.axis.isDefault_minfmt
+            axis.set_minor_formatter(minfmt)
+            if isDefault:
+                minfmt.axis.isDefault_minfmt = True
+
+            minloc = axis.get_minor_locator()
+            isDefault = majloc.axis.isDefault_minloc
+            axis.set_minor_locator(minloc)
+            if isDefault:
+                minloc.axis.isDefault_minloc = True
 
         def _break_share_link(ax, grouper):
             siblings = grouper.get_siblings(ax)
@@ -1615,11 +1642,11 @@ default: 'top'
         self.delaxes(ax)
         last_ax = _break_share_link(ax, ax._shared_y_axes)
         if last_ax is not None:
-            _reset_loc_form(last_ax.yaxis)
+            _reset_locators_and_formatters(last_ax.yaxis)
 
         last_ax = _break_share_link(ax, ax._shared_x_axes)
         if last_ax is not None:
-            _reset_loc_form(last_ax.xaxis)
+            _reset_locators_and_formatters(last_ax.xaxis)
 
     def clf(self, keep_observers=False):
         """
@@ -1664,6 +1691,7 @@ default: 'top'
         Render the figure using :class:`matplotlib.backend_bases.RendererBase`
         instance *renderer*.
         """
+        self._cachedRenderer = renderer
 
         # draw the figure bounding box, perhaps none for white figure
         if not self.get_visible():
@@ -1693,13 +1721,12 @@ default: 'top'
                         child.apply_aspect()
 
         try:
-            renderer.open_group('figure')
+            renderer.open_group('figure', gid=self.get_gid())
             if self.get_constrained_layout() and self.axes:
                 self.execute_constrained_layout(renderer)
             if self.get_tight_layout() and self.axes:
                 try:
-                    self.tight_layout(renderer,
-                                      **self._tight_parameters)
+                    self.tight_layout(**self._tight_parameters)
                 except ValueError:
                     pass
                     # ValueError can occur when resizing a window.
@@ -1712,7 +1739,6 @@ default: 'top'
         finally:
             self.stale = False
 
-        self._cachedRenderer = renderer
         self.canvas.draw_event(renderer)
 
     def draw_artist(self, a):
@@ -1766,8 +1792,7 @@ default: 'top'
 
         Parameters
         ----------
-
-        handles : sequence of `.Artist`, optional
+        handles : list of `.Artist`, optional
             A list of Artists (lines, patches) to be added to the legend.
             Use this together with *labels*, if you need full control on what
             is shown in the legend and the automatic mechanism described above
@@ -1776,7 +1801,7 @@ default: 'top'
             The length of handles and labels should be the same in this
             case. If they are not, they are truncated to the smaller length.
 
-        labels : sequence of strings, optional
+        labels : list of str, optional
             A list of labels to show next to the artists.
             Use this together with *handles*, if you need full control on what
             is shown in the legend and the automatic mechanism described above
@@ -1784,7 +1809,6 @@ default: 'top'
 
         Other Parameters
         ----------------
-
         %(_legend_kw_doc)s
 
         Returns
@@ -1847,6 +1871,7 @@ default: 'top'
         ----------------
         **kwargs : `~matplotlib.text.Text` properties
             Other miscellaneous text parameters.
+
             %(Text)s
 
         Returns
@@ -2001,7 +2026,7 @@ default: 'top'
 
         # re-initialise some of the unstored state information
         self._axobservers = []
-        self.canvas = None
+        FigureCanvasBase(self)  # Set self.canvas.
         self._layoutbox = None
 
         if restore_to_pylab:
@@ -2050,7 +2075,6 @@ default: 'top'
 
         Parameters
         ----------
-
         fname : str or PathLike or file-like object
             A path, or a Python file-like object, or
             possibly some backend-dependent object such as
@@ -2065,7 +2089,6 @@ default: 'top'
 
         Other Parameters
         ----------------
-
         dpi : [ *None* | scalar > 0 | 'figure' ]
             The resolution in dots per inch.  If *None*, defaults to
             :rc:`savefig.dpi`.  If 'figure', uses the figure's dpi value.
@@ -2073,7 +2096,7 @@ default: 'top'
         quality : [ *None* | 1 <= scalar <= 100 ]
             The image quality, on a scale from 1 (worst) to 95 (best).
             Applicable only if *format* is jpg or jpeg, ignored otherwise.
-            If *None*, defaults to :rc:`savefig.jpeg_quality` (95 by default).
+            If *None*, defaults to :rc:`savefig.jpeg_quality`.
             Values above 95 should be avoided; 100 completely disables the
             JPEG quantization stage.
 
@@ -2088,11 +2111,11 @@ default: 'top'
             progressive JPEG file. Applicable only if *format* is jpg or
             jpeg, ignored otherwise. Is *False* by default.
 
-        facecolor : color spec or None, optional
+        facecolor : color or None, optional
             The facecolor of the figure; if *None*, defaults to
             :rc:`savefig.facecolor`.
 
-        edgecolor : color spec or None, optional
+        edgecolor : color or None, optional
             The edgecolor of the figure; if *None*, defaults to
             :rc:`savefig.edgecolor`
 
@@ -2300,7 +2323,6 @@ default: 'top'
         terminates input and any other key (not already used by the window
         manager) selects a point.
         """
-
         blocking_mouse_input = BlockingMouseInput(self,
                                                   mouse_add=mouse_add,
                                                   mouse_pop=mouse_pop,
@@ -2318,7 +2340,6 @@ default: 'top'
 
         If *timeout* is negative, does not timeout.
         """
-
         blocking_input = BlockingKeyMouseInput(self)
         return blocking_input(timeout=timeout)
 
@@ -2328,9 +2349,6 @@ default: 'top'
         for ax in self.axes:
             if ax.get_visible():
                 bbox_artists.extend(ax.get_default_bbox_extra_artists())
-        # we don't want the figure's patch to influence the bbox calculation
-        if self.patch in bbox_artists:
-            bbox_artists.remove(self.patch)
         return bbox_artists
 
     def get_tightbbox(self, renderer, bbox_extra_artists=None):
@@ -2387,8 +2405,7 @@ default: 'top'
 
         _bbox = Bbox.union(bb)
 
-        bbox_inches = TransformedBbox(_bbox,
-                                      Affine2D().scale(1. / self.dpi))
+        bbox_inches = TransformedBbox(_bbox, Affine2D().scale(1 / self.dpi))
 
         return bbox_inches
 
@@ -2428,6 +2445,7 @@ default: 'top'
             renderer = layoutbox.get_renderer(fig)
         do_constrained_layout(fig, renderer, h_pad, w_pad, hspace, wspace)
 
+    @cbook._delete_parameter("3.2", "renderer")
     def tight_layout(self, renderer=None, pad=1.08, h_pad=None, w_pad=None,
                      rect=None):
         """
@@ -2440,8 +2458,7 @@ default: 'top'
         Parameters
         ----------
         renderer : subclass of `~.backend_bases.RendererBase`, optional
-            Defaults to the renderer for the figure.
-
+            Defaults to the renderer for the figure.  Deprecated.
         pad : float, optional
             Padding between the figure edge and the edges of subplots,
             as a fraction of the font size.
@@ -2461,7 +2478,7 @@ default: 'top'
 
         from .tight_layout import (
             get_renderer, get_subplotspec_list, get_tight_layout_figure)
-
+        from contextlib import suppress
         subplotspec_list = get_subplotspec_list(self.axes)
         if None in subplotspec_list:
             cbook._warn_external("This figure includes Axes that are not "
@@ -2470,10 +2487,13 @@ default: 'top'
 
         if renderer is None:
             renderer = get_renderer(self)
-
-        kwargs = get_tight_layout_figure(
-            self, self.axes, subplotspec_list, renderer,
-            pad=pad, h_pad=h_pad, w_pad=w_pad, rect=rect)
+        ctx = (renderer._draw_disabled()
+               if hasattr(renderer, '_draw_disabled')
+               else suppress())
+        with ctx:
+            kwargs = get_tight_layout_figure(
+                self, self.axes, subplotspec_list, renderer,
+                pad=pad, h_pad=h_pad, w_pad=w_pad, rect=rect)
         if kwargs:
             self.subplots_adjust(**kwargs)
 
@@ -2724,7 +2744,7 @@ def figaspect(arg):
 
     Make a figure with the proper aspect for an array::
 
-        A = rand(5,3)
+        A = rand(5, 3)
         w, h = figaspect(A)
         fig = Figure(figsize=(w, h))
         ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])

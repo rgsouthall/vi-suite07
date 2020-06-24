@@ -1,7 +1,6 @@
 """Wheels support."""
 
 from distutils.util import get_platform
-from distutils import log
 import email
 import itertools
 import os
@@ -12,9 +11,9 @@ import zipfile
 import pkg_resources
 import setuptools
 from pkg_resources import parse_version
-from setuptools.extern.packaging.tags import sys_tags
 from setuptools.extern.packaging.utils import canonicalize_name
 from setuptools.extern.six import PY3
+from setuptools import pep425tags
 from setuptools.command.egg_info import write_requirements
 
 
@@ -77,7 +76,7 @@ class Wheel:
 
     def is_compatible(self):
         '''Is the wheel is compatible with the current platform?'''
-        supported_tags = set((t.interpreter, t.abi, t.platform) for t in sys_tags())
+        supported_tags = pep425tags.get_supported()
         return next((True for t in self.tags() if t in supported_tags), False)
 
     def egg_name(self):
@@ -163,17 +162,11 @@ class Wheel:
                 extras_require=extras_require,
             ),
         )
-        # Temporarily disable info traces.
-        log_threshold = log._global_log.threshold
-        log.set_threshold(log.WARN)
-        try:
-            write_requirements(
-                setup_dist.get_command_obj('egg_info'),
-                None,
-                os.path.join(egg_info, 'requires.txt'),
-            )
-        finally:
-            log.set_threshold(log_threshold)
+        write_requirements(
+            setup_dist.get_command_obj('egg_info'),
+            None,
+            os.path.join(egg_info, 'requires.txt'),
+        )
 
     @staticmethod
     def _move_data_entries(destination_eggdir, dist_data):
@@ -213,8 +206,6 @@ class Wheel:
             for mod in namespace_packages:
                 mod_dir = os.path.join(destination_eggdir, *mod.split('.'))
                 mod_init = os.path.join(mod_dir, '__init__.py')
-                if not os.path.exists(mod_dir):
-                    os.mkdir(mod_dir)
-                if not os.path.exists(mod_init):
+                if os.path.exists(mod_dir) and not os.path.exists(mod_init):
                     with open(mod_init, 'w') as fp:
                         fp.write(NAMESPACE_PACKAGE_INIT)

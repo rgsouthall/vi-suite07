@@ -8,7 +8,7 @@ import matplotlib.backend_tools as tools
 _log = logging.getLogger(__name__)
 
 
-class ToolEvent(object):
+class ToolEvent:
     """Event for tool manipulation (add/remove)."""
     def __init__(self, name, sender, tool, data=None):
         self.name = name
@@ -24,7 +24,7 @@ class ToolTriggerEvent(ToolEvent):
         self.canvasevent = canvasevent
 
 
-class ToolManagerMessageEvent(object):
+class ToolManagerMessageEvent:
     """
     Event carrying messages from toolmanager.
 
@@ -36,7 +36,7 @@ class ToolManagerMessageEvent(object):
         self.message = message
 
 
-class ToolManager(object):
+class ToolManager:
     """
     Manager for actions triggered by user interactions (key press, toolbar
     clicks, ...) on a Figure.
@@ -163,8 +163,8 @@ class ToolManager(object):
 
         Parameters
         ----------
-        name : string
-            Name of the Tool
+        name : str
+            Name of the Tool.
 
         Returns
         -------
@@ -184,8 +184,8 @@ class ToolManager(object):
 
         Parameters
         ----------
-        name : string
-            Name of the Tool
+        name : str
+            Name of the Tool.
         keys : keys to associate with the Tool
         """
 
@@ -207,8 +207,8 @@ class ToolManager(object):
 
         Parameters
         ----------
-        name : string
-            Name of the Tool
+        name : str
+            Name of the Tool.
         """
 
         tool = self.get_tool(name)
@@ -355,8 +355,8 @@ class ToolManager(object):
 
         Parameters
         ----------
-        name : string
-            Name of the tool
+        name : str
+            Name of the tool.
         sender : object
             Object that wishes to trigger the tool
         canvasevent : Event

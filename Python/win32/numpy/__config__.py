@@ -14,11 +14,26 @@ if sys.platform == 'win32' and os.path.isdir(extra_dll_dir):
 
 blas_mkl_info={}
 blis_info={}
-openblas_info={'library_dirs': ['C:\\projects\\numpy-wheels\\numpy\\build\\openblas'], 'libraries': ['openblas'], 'language': 'f77', 'define_macros': [('HAVE_CBLAS', None)]}
-blas_opt_info={'library_dirs': ['C:\\projects\\numpy-wheels\\numpy\\build\\openblas'], 'libraries': ['openblas'], 'language': 'f77', 'define_macros': [('HAVE_CBLAS', None)]}
+openblas_info={}
+atlas_3_10_blas_threads_info={}
+atlas_3_10_blas_info={}
+atlas_blas_threads_info={}
+atlas_blas_info={}
+accelerate_info={}
+blas_info={}
+blas_src_info={}
+blas_opt_info={}
 lapack_mkl_info={}
-openblas_lapack_info={'library_dirs': ['C:\\projects\\numpy-wheels\\numpy\\build\\openblas'], 'libraries': ['openblas'], 'language': 'f77', 'define_macros': [('HAVE_CBLAS', None)]}
-lapack_opt_info={'library_dirs': ['C:\\projects\\numpy-wheels\\numpy\\build\\openblas'], 'libraries': ['openblas'], 'language': 'f77', 'define_macros': [('HAVE_CBLAS', None)]}
+openblas_lapack_info={}
+openblas_clapack_info={}
+flame_info={}
+atlas_3_10_threads_info={}
+atlas_3_10_info={}
+atlas_threads_info={}
+atlas_info={}
+lapack_info={}
+lapack_src_info={}
+lapack_opt_info={}
 
 def get_info(name):
     g = globals()

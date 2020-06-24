@@ -63,16 +63,21 @@ else:
 
 
 def _setup_pyqt5():
-    global QtCore, QtGui, QtWidgets, __version__, is_pyqt5, _getSaveFileName
+    global QtCore, QtGui, QtWidgets, __version__, is_pyqt5, \
+        _isdeleted, _getSaveFileName
 
     if QT_API == QT_API_PYQT5:
         from PyQt5 import QtCore, QtGui, QtWidgets
+        import sip
         __version__ = QtCore.PYQT_VERSION_STR
         QtCore.Signal = QtCore.pyqtSignal
         QtCore.Slot = QtCore.pyqtSlot
         QtCore.Property = QtCore.pyqtProperty
+        _isdeleted = sip.isdeleted
     elif QT_API == QT_API_PYSIDE2:
         from PySide2 import QtCore, QtGui, QtWidgets, __version__
+        import shiboken2
+        def _isdeleted(obj): return not shiboken2.isValid(obj)
     else:
         raise ValueError("Unexpected value for the 'backend.qt5' rcparam")
     _getSaveFileName = QtWidgets.QFileDialog.getSaveFileName
@@ -82,11 +87,12 @@ def _setup_pyqt5():
 
 
 def _setup_pyqt4():
-    global QtCore, QtGui, QtWidgets, __version__, is_pyqt5, _getSaveFileName
+    global QtCore, QtGui, QtWidgets, __version__, is_pyqt5, \
+        _isdeleted, _getSaveFileName
 
     def _setup_pyqt4_internal(api):
         global QtCore, QtGui, QtWidgets, \
-            __version__, is_pyqt5, _getSaveFileName
+            __version__, is_pyqt5, _isdeleted, _getSaveFileName
         # List of incompatible APIs:
         # http://pyqt.sourceforge.net/Docs/PyQt4/incompatible_apis.html
         _sip_apis = ["QDate", "QDateTime", "QString", "QTextStream", "QTime",
@@ -102,6 +108,7 @@ def _setup_pyqt4():
                 except ValueError:
                     pass
         from PyQt4 import QtCore, QtGui
+        import sip  # Always succeeds *after* importing PyQt4.
         __version__ = QtCore.PYQT_VERSION_STR
         # PyQt 4.6 introduced getSaveFileNameAndFilter:
         # https://riverbankcomputing.com/news/pyqt-46
@@ -110,16 +117,19 @@ def _setup_pyqt4():
         QtCore.Signal = QtCore.pyqtSignal
         QtCore.Slot = QtCore.pyqtSlot
         QtCore.Property = QtCore.pyqtProperty
+        _isdeleted = sip.isdeleted
         _getSaveFileName = QtGui.QFileDialog.getSaveFileNameAndFilter
 
     if QT_API == QT_API_PYQTv2:
         _setup_pyqt4_internal(api=2)
     elif QT_API == QT_API_PYSIDE:
         from PySide import QtCore, QtGui, __version__, __version_info__
+        import shiboken
         # PySide 1.0.3 fixed the following:
         # https://srinikom.github.io/pyside-bz-archive/809.html
         if __version_info__ < (1, 0, 3):
             raise ImportError("PySide<1.0.3 is not supported")
+        def _isdeleted(obj): return not shiboken.isValid(obj)
         _getSaveFileName = QtGui.QFileDialog.getSaveFileName
     elif QT_API == QT_API_PYQT:
         _setup_pyqt4_internal(api=1)
@@ -163,4 +173,38 @@ else:  # We should not get there.
 # These globals are only defined for backcompatibility purposes.
 ETS = dict(pyqt=(QT_API_PYQTv2, 4), pyside=(QT_API_PYSIDE, 4),
            pyqt5=(QT_API_PYQT5, 5), pyside2=(QT_API_PYSIDE2, 5))
-QT_RC_MAJOR_VERSION = 5 if is_pyqt5() else 4
+
+QT_RC_MAJOR_VERSION = int(QtCore.qVersion().split(".")[0])
+
+
+def _devicePixelRatioF(obj):
+    """
+    Return obj.devicePixelRatioF() with graceful fallback for older Qt.
+
+    This can be replaced by the direct call when we require Qt>=5.6.
+    """
+    try:
+        # Not available on Qt<5.6
+        return obj.devicePixelRatioF() or 1
+    except AttributeError:
+        pass
+    try:
+        # Not available on Qt4 or some older Qt5.
+        # self.devicePixelRatio() returns 0 in rare cases
+        return obj.devicePixelRatio() or 1
+    except AttributeError:
+        return 1
+
+
+def _setDevicePixelRatioF(obj, val):
+    """
+    Call obj.setDevicePixelRatioF(val) with graceful fallback for older Qt.
+
+    This can be replaced by the direct call when we require Qt>=5.6.
+    """
+    if hasattr(obj, 'setDevicePixelRatioF'):
+        # Not available on Qt<5.6
+        obj.setDevicePixelRatioF(val)
+    elif hasattr(obj, 'setDevicePixelRatio'):
+        # Not available on Qt4 or some older Qt5.
+        obj.setDevicePixelRatio(val)

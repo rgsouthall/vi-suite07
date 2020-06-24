@@ -1,4 +1,4 @@
-# $Id: body.py 7267 2011-12-20 14:14:21Z milde $
+# $Id: body.py 8347 2019-08-26 12:12:02Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -11,12 +11,12 @@ See `docutils.parsers.rst.directives` for API details.
 __docformat__ = 'reStructuredText'
 
 
-import sys
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.roles import set_classes
 from docutils.utils.code_analyzer import Lexer, LexerError, NumberLines
+
 
 class BasePseudoSection(Directive):
 
@@ -145,7 +145,7 @@ class CodeBlock(Directive):
 
         # set up lexical analyzer
         try:
-            tokens = Lexer('\n'.join(self.content), language,
+            tokens = Lexer(u'\n'.join(self.content), language,
                            self.state.document.settings.syntax_highlight)
         except LexerError as error:
             raise self.warning(error)
@@ -167,12 +167,11 @@ class CodeBlock(Directive):
             node.attributes['source'] = self.options['source']
         # analyze content and add nodes for every token
         for classes, value in tokens:
-            # print (classes, value)
             if classes:
                 node += nodes.inline(value, value, classes=classes)
             else:
                 # insert as Text to decrease the verbosity of the output
-                node += nodes.Text(value, value)
+                node += nodes.Text(value)
 
         return [node]
 

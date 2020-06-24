@@ -5,10 +5,9 @@ import urllib.parse
 
 import numpy as np
 
-from matplotlib import cbook, dviread, font_manager, rcParams
+from matplotlib import _text_layout, cbook, dviread, font_manager, rcParams
 from matplotlib.font_manager import FontProperties, get_font
-from matplotlib.ft2font import (
-    KERNING_DEFAULT, LOAD_NO_HINTING, LOAD_TARGET_LIGHT)
+from matplotlib.ft2font import LOAD_NO_HINTING, LOAD_TARGET_LIGHT
 from matplotlib.mathtext import MathTextParser
 from matplotlib.path import Path
 from matplotlib.transforms import Affine2D
@@ -16,7 +15,7 @@ from matplotlib.transforms import Affine2D
 _log = logging.getLogger(__name__)
 
 
-class TextToPath(object):
+class TextToPath:
     """A class that converts strings to paths."""
 
     FONT_SCALE = 100.
@@ -25,11 +24,6 @@ class TextToPath(object):
     def __init__(self):
         self.mathtext_parser = MathTextParser('path')
         self._texmanager = None
-
-    @property
-    @cbook.deprecated("3.0")
-    def tex_font_map(self):
-        return dviread.PsfontsMap(dviread.find_tex_file('pdftex.map'))
 
     def _get_font(self, prop):
         """
@@ -103,7 +97,6 @@ class TextToPath(object):
 
         Parameters
         ----------
-
         prop : `matplotlib.font_manager.FontProperties` instance
             The font properties for the text.
 
@@ -118,14 +111,12 @@ class TextToPath(object):
 
         Returns
         -------
-
         verts, codes : tuple of lists
             *verts*  is a list of numpy arrays containing the x and y
             coordinates of the vertices. *codes* is a list of path codes.
 
         Examples
         --------
-
         Create a list of vertices and codes from a text, and create a `Path`
         from those::
 
@@ -170,14 +161,6 @@ class TextToPath(object):
         Convert string *s* to vertices and codes using the provided ttf font.
         """
 
-        # Mostly copied from backend_svg.py.
-
-        lastgind = None
-
-        currx = 0
-        xpositions = []
-        glyph_ids = []
-
         if glyph_map is None:
             glyph_map = OrderedDict()
 
@@ -186,35 +169,14 @@ class TextToPath(object):
         else:
             glyph_map_new = glyph_map
 
-        # I'm not sure if I get kernings right. Needs to be verified. -JJL
-
-        for c in s:
-            ccode = ord(c)
-            gind = font.get_char_index(ccode)
-            if gind is None:
-                ccode = ord('?')
-                gind = 0
-
-            if lastgind is not None:
-                kern = font.get_kerning(lastgind, gind, KERNING_DEFAULT)
-            else:
-                kern = 0
-
-            glyph = font.load_char(ccode, flags=LOAD_NO_HINTING)
-            horiz_advance = glyph.linearHoriAdvance / 65536
-
-            char_id = self._get_char_id(font, ccode)
+        xpositions = []
+        glyph_ids = []
+        for char, (_, x) in zip(s, _text_layout.layout(s, font)):
+            char_id = self._get_char_id(font, ord(char))
+            glyph_ids.append(char_id)
+            xpositions.append(x)
             if char_id not in glyph_map:
                 glyph_map_new[char_id] = font.get_path()
-
-            currx += kern / 64
-
-            xpositions.append(currx)
-            glyph_ids.append(char_id)
-
-            currx += horiz_advance
-
-            lastgind = gind
 
         ypositions = [0] * len(xpositions)
         sizes = [1.] * len(xpositions)
@@ -254,7 +216,7 @@ class TextToPath(object):
             if char_id not in glyph_map:
                 font.clear()
                 font.set_size(self.FONT_SCALE, self.DPI)
-                glyph = font.load_char(ccode, flags=LOAD_NO_HINTING)
+                font.load_char(ccode, flags=LOAD_NO_HINTING)
                 glyph_map_new[char_id] = font.get_path()
 
             xpositions.append(ox)
@@ -363,9 +325,9 @@ class TextToPath(object):
             # FreeType-synthesized charmap but the native ones (we can't
             # directly identify it but it's typically an Adobe charmap), and
             # directly load the dvi glyph indices using FT_Load_Char/load_char.
-            for charmap_name, charmap_code in [
-                    ("ADOBE_CUSTOM", 1094992451),
-                    ("ADOBE_STANDARD", 1094995778),
+            for charmap_code in [
+                    1094992451,  # ADOBE_CUSTOM.
+                    1094995778,  # ADOBE_STANDARD.
             ]:
                 try:
                     font.select_charmap(charmap_code)
@@ -374,7 +336,6 @@ class TextToPath(object):
                 else:
                     break
             else:
-                charmap_name = ""
                 _log.warning("No supported encoding in font (%s).",
                              font_bunch.filename)
             enc = None
@@ -400,7 +361,6 @@ class TextPath(Path):
 
         Parameters
         ----------
-
         xy : tuple or array of two float values
             Position of the text. For no offset, use ``xy=(0, 0)``.
 
@@ -424,7 +384,6 @@ class TextPath(Path):
 
         Examples
         --------
-
         The following creates a path from the string "ABC" with Helvetica
         font face; and another path from the latex fraction 1/2::
 
@@ -493,9 +452,9 @@ class TextPath(Path):
         `~.FONT_SCALE`, and this path is rescaled to other size when necessary.
         """
         if self._invalid or self._cached_vertices is None:
-            tr = Affine2D().scale(
-                    self._size / text_to_path.FONT_SCALE,
-                    self._size / text_to_path.FONT_SCALE).translate(*self._xy)
+            tr = (Affine2D()
+                  .scale(self._size / text_to_path.FONT_SCALE)
+                  .translate(*self._xy))
             self._cached_vertices = tr.transform(self._vertices)
             self._invalid = False
 

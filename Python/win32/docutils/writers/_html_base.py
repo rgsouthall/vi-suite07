@@ -3,7 +3,7 @@
 # :Author: David Goodger, Günter Milde
 #          Based on the html4css1 writer by David Goodger.
 # :Maintainer: docutils-develop@lists.sourceforge.net
-# :Revision: $Revision: 8244 $
+# :Revision: $Revision: 8412 $
 # :Date: $Date: 2005-06-28$
 # :Copyright: © 2016 David Goodger, Günter Milde
 # :License: Released under the terms of the `2-Clause BSD license`_, in short:
@@ -20,7 +20,6 @@
 import sys
 import os.path
 import re
-import urllib.request, urllib.parse, urllib.error
 
 try: # check for the Python Imaging Library
     import PIL.Image
@@ -39,6 +38,14 @@ from docutils.transforms import writer_aux
 from docutils.utils.math import (unichar2tex, pick_math_environment,
                                  math2html, latex2mathml, tex2mathml_extern)
 
+if sys.version_info >= (3, 0):
+    from urllib.request import url2pathname
+else:
+    from urllib import url2pathname
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
+
 
 class Writer(writers.Writer):
 
@@ -54,7 +61,7 @@ class Writer(writers.Writer):
     settings_defaults = {'output_encoding_error_handler': 'xmlcharrefreplace'}
 
     # config_section = ... # set in subclass!
-    config_section_dependencies = ['writers', 'html writers']
+    config_section_dependencies = ('writers', 'html writers')
 
     visitor_attributes = (
         'head_prefix', 'head', 'stylesheet', 'body_prefix',
@@ -75,7 +82,7 @@ class Writer(writers.Writer):
 
     def apply_template(self):
         template_file = open(self.document.settings.template, 'rb')
-        template = str(template_file.read(), 'utf-8')
+        template = unicode(template_file.read(), 'utf-8')
         template_file.close()
         subs = self.interpolation_dict()
         return template % subs
@@ -188,11 +195,11 @@ class HTMLTranslator(nodes.NodeVisitor):
     in_word_wrap_point = re.compile(r'.+\W\W.+|[-?].+', re.U)
     lang_attribute = 'lang' # name changes to 'xml:lang' in XHTML 1.1
 
-    special_characters = {ord('&'): '&amp;',
-                          ord('<'): '&lt;',
-                          ord('"'): '&quot;',
-                          ord('>'): '&gt;',
-                          ord('@'): '&#64;', # may thwart address harvesters
+    special_characters = {ord('&'): u'&amp;',
+                          ord('<'): u'&lt;',
+                          ord('"'): u'&quot;',
+                          ord('>'): u'&gt;',
+                          ord('@'): u'&#64;', # may thwart address harvesters
                          }
     """Character references for characters with a special meaning in HTML."""
 
@@ -267,7 +274,7 @@ class HTMLTranslator(nodes.NodeVisitor):
         # Use only named entities known in both XML and HTML
         # other characters are automatically encoded "by number" if required.
         # @@@ A codec to do these and all other HTML entities would be nice.
-        text = str(text)
+        text = unicode(text)
         return text.translate(self.special_characters)
 
     def cloak_mailto(self, uri):
@@ -303,7 +310,7 @@ class HTMLTranslator(nodes.NodeVisitor):
                                        encoding='utf-8').read()
                 self.settings.record_dependencies.add(path)
             except IOError as err:
-                msg = "Cannot embed stylesheet '%s': %s." % (
+                msg = u"Cannot embed stylesheet '%s': %s." % (
                                 path, SafeString(err.strerror))
                 self.document.reporter.error(msg)
                 return '<--- %s --->\n' % msg
@@ -323,12 +330,12 @@ class HTMLTranslator(nodes.NodeVisitor):
         prefix = []
         atts = {}
         ids = []
-        for (name, value) in list(attributes.items()):
+        for (name, value) in attributes.items():
             atts[name.lower()] = value
         classes = []
         languages = []
         # unify class arguments and move language specification
-        for cls in node.get('classes', []) + atts.pop('class', '').split() :
+        for cls in node.get('classes', []) + atts.pop('class', '').split():
             if cls.startswith('language-'):
                 languages.append(cls[9:])
             elif cls.strip() and cls not in classes:
@@ -362,20 +369,19 @@ class HTMLTranslator(nodes.NodeVisitor):
                     # Non-empty tag.  Place the auxiliary <span> tag
                     # *inside* the element, as the first child.
                     suffix += '<span id="%s"></span>' % id
-        attlist = list(atts.items())
-        attlist.sort()
+        attlist = sorted(atts.items())
         parts = [tagname]
         for name, value in attlist:
             # value=None was used for boolean attributes without
             # value, but this isn't supported by XHTML.
             assert value is not None
             if isinstance(value, list):
-                values = [str(v) for v in value]
+                values = [unicode(v) for v in value]
                 parts.append('%s="%s"' % (name.lower(),
                                           self.attval(' '.join(values))))
             else:
                 parts.append('%s="%s"' % (name.lower(),
-                                          self.attval(str(value))))
+                                          self.attval(unicode(value))))
         if empty:
             infix = ' /'
         else:
@@ -438,7 +444,7 @@ class HTMLTranslator(nodes.NodeVisitor):
     def depart_admonition(self, node=None):
         self.body.append('</div>\n')
 
-    attribution_formats = {'dash': ('\u2014', ''),
+    attribution_formats = {'dash': (u'\u2014', ''),
                            'parentheses': ('(', ')'),
                            'parens': ('(', ')'),
                            'none': ('', '')}
@@ -494,7 +500,6 @@ class HTMLTranslator(nodes.NodeVisitor):
     # the end of this file).
 
     def is_compactable(self, node):
-        # print "is_compactable %s ?" % node.__class__,
         # explicite class arguments have precedence
         if 'compact' in node['classes']:
             return True
@@ -503,11 +508,9 @@ class HTMLTranslator(nodes.NodeVisitor):
         # check config setting:
         if (isinstance(node, (nodes.field_list, nodes.definition_list))
             and not self.settings.compact_field_lists):
-            # print "`compact-field-lists` is False"
             return False
         if (isinstance(node, (nodes.enumerated_list, nodes.bullet_list))
             and not self.settings.compact_lists):
-            # print "`compact-lists` is False"
             return False
         # more special cases:
         if (self.topic_classes == ['contents']): # TODO: self.in_contents
@@ -881,8 +884,7 @@ class HTMLTranslator(nodes.NodeVisitor):
     def visit_generated(self, node):
         if 'sectnum' in node['classes']:
             # get section number (strip trailing no-break-spaces)
-            sectnum = node.astext().rstrip(' ')
-            # print sectnum.encode('utf-8')
+            sectnum = node.astext().rstrip(u' ')
             self.body.append('<span class="sectnum">%s</span> '
                                     % self.encode(sectnum))
             # Content already processed:
@@ -924,7 +926,7 @@ class HTMLTranslator(nodes.NodeVisitor):
         if 'scale' in node:
             if (PIL and not ('width' in node and 'height' in node)
                 and self.settings.file_insertion_enabled):
-                imagepath = urllib.request.url2pathname(uri)
+                imagepath = url2pathname(uri)
                 try:
                     img = PIL.Image.open(
                             imagepath.encode(sys.getfilesystemencoding()))
@@ -972,7 +974,6 @@ class HTMLTranslator(nodes.NodeVisitor):
             self.body.append(self.emptytag(node, 'img', suffix, **atts))
 
     def depart_image(self, node):
-        # self.body.append(self.context.pop())
         pass
 
     def visit_inline(self, node):
@@ -1101,9 +1102,9 @@ class HTMLTranslator(nodes.NodeVisitor):
         clsarg = self.math_tags[self.math_output][2]
         # LaTeX container
         wrappers = {# math_mode: (inline, block)
-                    'mathml':  ('$%s$',   '\\begin{%s}\n%s\n\\end{%s}'),
-                    'html':    ('$%s$',   '\\begin{%s}\n%s\n\\end{%s}'),
-                    'mathjax': (r'\(%s\)', '\\begin{%s}\n%s\n\\end{%s}'),
+                    'mathml':  ('$%s$',   u'\\begin{%s}\n%s\n\\end{%s}'),
+                    'html':    ('$%s$',   u'\\begin{%s}\n%s\n\\end{%s}'),
+                    'mathjax': (r'\(%s\)', u'\\begin{%s}\n%s\n\\end{%s}'),
                     'latex':   (None,     None),
                    }
         wrapper = wrappers[self.math_output][math_env != '']
@@ -1167,7 +1168,7 @@ class HTMLTranslator(nodes.NodeVisitor):
                 err_node = self.document.reporter.error(err, base_node=node)
                 self.visit_system_message(err_node)
                 self.body.append(self.starttag(node, 'p'))
-                self.body.append(','.join(err.args))
+                self.body.append(u','.join(err.args))
                 self.body.append('</p>\n')
                 self.body.append(self.starttag(node, 'pre',
                                                CLASS='literal-block'))
@@ -1194,7 +1195,6 @@ class HTMLTranslator(nodes.NodeVisitor):
         pass # never reached
 
     def visit_math_block(self, node):
-        # print node.astext().encode('utf8')
         math_env = pick_math_environment(node.astext())
         self.visit_math(node, math_env=math_env)
 
@@ -1458,7 +1458,7 @@ class HTMLTranslator(nodes.NodeVisitor):
 
     def visit_table(self, node):
         atts = {}
-        classes = [cls.strip(' \t\n')
+        classes = [cls.strip(u' \t\n')
                    for cls in self.settings.table_style.split(',')]
         if 'align' in node:
             classes.append('align-%s' % node['align'])
@@ -1513,11 +1513,10 @@ class HTMLTranslator(nodes.NodeVisitor):
 
     def visit_title(self, node):
         """Only 6 section levels are supported by HTML."""
-        check_id = 0  # TODO: is this a bool (False) or a counter?
         close_tag = '</p>\n'
         if isinstance(node.parent, nodes.topic):
             self.body.append(
-                  self.starttag(node, 'p', '', CLASS='topic-title first'))
+                  self.starttag(node, 'p', '', CLASS='topic-title'))
         elif isinstance(node.parent, nodes.sidebar):
             self.body.append(
                   self.starttag(node, 'p', '', CLASS='sidebar-title'))
@@ -1611,20 +1610,16 @@ class SimpleListChecker(nodes.GenericNodeVisitor):
         raise nodes.NodeFound
 
     def visit_list_item(self, node):
-        # print "visiting list item", node.__class__
         children = [child for child in node.children
                     if not isinstance(child, nodes.Invisible)]
-        # print "has %s visible children" % len(children)
         if (children and isinstance(children[0], nodes.paragraph)
             and (isinstance(children[-1], nodes.bullet_list) or
                  isinstance(children[-1], nodes.enumerated_list) or
                  isinstance(children[-1], nodes.field_list))):
             children.pop()
-        # print "%s children remain" % len(children)
         if len(children) <= 1:
             return
         else:
-            # print "found", child.__class__, "in", node.__class__
             raise nodes.NodeFound
 
     def pass_node(self, node):

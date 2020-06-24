@@ -19,60 +19,15 @@ import matplotlib as mpl
 from matplotlib.testing.exceptions import ImageComparisonFailure
 from matplotlib import cbook
 
-__all__ = ['compare_float', 'compare_images', 'comparable_formats']
+__all__ = ['compare_images', 'comparable_formats']
 
 
 def make_test_filename(fname, purpose):
     """
-    Make a new filename by inserting `purpose` before the file's
-    extension.
+    Make a new filename by inserting *purpose* before the file's extension.
     """
     base, ext = os.path.splitext(fname)
     return '%s-%s%s' % (base, purpose, ext)
-
-
-@cbook.deprecated("3.0")
-def compare_float(expected, actual, relTol=None, absTol=None):
-    """
-    Fail if the floating point values are not close enough, with
-    the given message.
-
-    You can specify a relative tolerance, absolute tolerance, or both.
-
-    """
-    if relTol is None and absTol is None:
-        raise ValueError("You haven't specified a 'relTol' relative "
-                         "tolerance or a 'absTol' absolute tolerance "
-                         "function argument. You must specify one.")
-    msg = ""
-
-    if absTol is not None:
-        absDiff = abs(expected - actual)
-        if absTol < absDiff:
-            template = ['',
-                        'Expected: {expected}',
-                        'Actual:   {actual}',
-                        'Abs diff: {absDiff}',
-                        'Abs tol:  {absTol}']
-            msg += '\n  '.join([line.format(**locals()) for line in template])
-
-    if relTol is not None:
-        # The relative difference of the two values.  If the expected value is
-        # zero, then return the absolute value of the difference.
-        relDiff = abs(expected - actual)
-        if expected:
-            relDiff = relDiff / abs(expected)
-
-        if relTol < relDiff:
-            # The relative difference is a ratio, so it's always unit-less.
-            template = ['',
-                        'Expected: {expected}',
-                        'Actual:   {actual}',
-                        'Rel diff: {relDiff}',
-                        'Rel tol:  {relTol}']
-            msg += '\n  '.join([line.format(**locals()) for line in template])
-
-    return msg or None
 
 
 def get_cache_dir():
@@ -139,7 +94,7 @@ class _ConverterError(Exception):
     pass
 
 
-class _Converter(object):
+class _Converter:
     def __init__(self):
         self._proc = None
         # Explicitly register deletion from an atexit handler because if we
@@ -175,7 +130,7 @@ class _GSConverter(_Converter):
         if not self._proc:
             self._proc = subprocess.Popen(
                 [mpl._get_executable_info("gs").executable,
-                 "-dNOPAUSE", "-sDEVICE=png16m"],
+                 "-dNOSAFER", "-dNOPAUSE", "-sDEVICE=png16m"],
                 # As far as I can see, ghostscript never outputs to stderr.
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             try:
@@ -256,22 +211,22 @@ class _SVGConverter(_Converter):
             # Inkscape's output is not localized but gtk's is, so the output
             # stream probably has a mixed encoding.  Using the filesystem
             # encoding should at least get the filenames right...
-            self._stderr.seek(0)
+            self._proc.stderr.seek(0)
             raise ImageComparisonFailure(
-                self._stderr.read().decode(
+                self._proc.stderr.read().decode(
                     sys.getfilesystemencoding(), "replace"))
 
 
 def _update_converter():
     try:
         mpl._get_executable_info("gs")
-    except FileNotFoundError:
+    except mpl.ExecutableNotFoundError:
         pass
     else:
         converter['pdf'] = converter['eps'] = _GSConverter()
     try:
         mpl._get_executable_info("inkscape")
-    except FileNotFoundError:
+    except mpl.ExecutableNotFoundError:
         pass
     else:
         converter['svg'] = _SVGConverter()
@@ -308,16 +263,10 @@ def convert(filename, cache):
     hash of the exact contents of the input file.  There is no limit on the
     size of the cache, so it may need to be manually cleared periodically.
     """
-    base, extension = filename.rsplit('.', 1)
+    base, extension = os.fspath(filename).rsplit('.', 1)
     if extension not in converter:
-        reason = "Don't know how to convert %s files to png" % extension
-        from . import is_called_from_pytest
-        if is_called_from_pytest():
-            import pytest
-            pytest.skip(reason)
-        else:
-            from nose import SkipTest
-            raise SkipTest(reason)
+        import pytest
+        pytest.skip(f"Don't know how to convert {extension} files to png")
     newname = base + '_' + extension + '.png'
     if not os.path.exists(filename):
         raise IOError("'%s' does not exist" % filename)
@@ -419,27 +368,26 @@ def compare_images(expected, actual, tol, in_decorator=False):
     """
     from matplotlib import _png
 
+    actual = os.fspath(actual)
     if not os.path.exists(actual):
         raise Exception("Output image %s does not exist." % actual)
-
     if os.stat(actual).st_size == 0:
         raise Exception("Output image file %s is empty." % actual)
 
     # Convert the image to png
-    extension = expected.split('.')[-1]
-
+    expected = os.fspath(expected)
     if not os.path.exists(expected):
         raise IOError('Baseline image %r does not exist.' % expected)
-
+    extension = expected.split('.')[-1]
     if extension != 'png':
         actual = convert(actual, False)
         expected = convert(expected, True)
 
     # open the image files and remove the alpha channel (if it exists)
-    expected_image = _png.read_png_int(expected)
-    actual_image = _png.read_png_int(actual)
-    expected_image = expected_image[:, :, :3]
-    actual_image = actual_image[:, :, :3]
+    with open(expected, "rb") as expected_file:
+        expected_image = _png.read_png_int(expected_file)[:, :, :3]
+    with open(actual, "rb") as actual_file:
+        actual_image = _png.read_png_int(actual_file)[:, :, :3]
 
     actual_image, expected_image = crop_to_same(
         actual, actual_image, expected, expected_image)
@@ -490,8 +438,10 @@ def save_diff_image(expected, actual, output):
     '''
     # Drop alpha channels, similarly to compare_images.
     from matplotlib import _png
-    expected_image = _png.read_png(expected)[..., :3]
-    actual_image = _png.read_png(actual)[..., :3]
+    with open(expected, "rb") as expected_file:
+        expected_image = _png.read_png(expected_file)[..., :3]
+    with open(actual, "rb") as actual_file:
+        actual_image = _png.read_png(actual_file)[..., :3]
     actual_image, expected_image = crop_to_same(
         actual, actual_image, expected, expected_image)
     expected_image = np.array(expected_image).astype(float)
@@ -517,4 +467,5 @@ def save_diff_image(expected, actual, output):
     # Hard-code the alpha channel to fully solid
     save_image_np[:, :, 3] = 255
 
-    _png.write_png(save_image_np, output)
+    with open(output, "wb") as output_file:
+        _png.write_png(save_image_np, output_file)

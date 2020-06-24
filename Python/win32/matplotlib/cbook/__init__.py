@@ -19,6 +19,7 @@ import operator
 import os
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -36,32 +37,6 @@ from .deprecation import (
     _rename_parameter, _delete_parameter, _make_keyword_only,
     _suppress_matplotlib_deprecation_warning,
     MatplotlibDeprecationWarning, mplDeprecation)
-
-
-@deprecated("3.0")
-def unicode_safe(s):
-
-    if isinstance(s, bytes):
-        try:
-            # On some systems, locale.getpreferredencoding returns None,
-            # which can break unicode; and the sage project reports that
-            # some systems have incorrect locale specifications, e.g.,
-            # an encoding instead of a valid locale name.  Another
-            # pathological case that has been reported is an empty string.
-            # On some systems, getpreferredencoding sets the locale, which has
-            # side effects.  Passing False eliminates those side effects.
-            preferredencoding = locale.getpreferredencoding(
-                matplotlib.rcParams['axes.formatter.use_locale']).strip()
-            if not preferredencoding:
-                preferredencoding = None
-        except (ValueError, ImportError, AttributeError):
-            preferredencoding = None
-
-        if preferredencoding is None:
-            return str(s)
-        else:
-            return str(s, preferredencoding)
-    return s
 
 
 def _exception_printer(exc):
@@ -86,7 +61,7 @@ class _StrongRef:
         return hash(self._obj)
 
 
-class CallbackRegistry(object):
+class CallbackRegistry:
     """Handle registering and disconnecting for a set of signals and callbacks:
 
         >>> def oneat(x):
@@ -177,7 +152,12 @@ class CallbackRegistry(object):
         self.callbacks[s][cid] = proxy
         return cid
 
-    def _remove_proxy(self, proxy):
+    # Keep a reference to sys.is_finalizing, as sys may have been cleared out
+    # at that point.
+    def _remove_proxy(self, proxy, *, _is_finalizing=sys.is_finalizing):
+        if _is_finalizing():
+            # Weakrefs can't be properly torn down at that point anymore.
+            return
         for signal, proxies in list(self._func_cid_map.items()):
             try:
                 del self.callbacks[signal][proxies[proxy]]
@@ -225,9 +205,20 @@ class CallbackRegistry(object):
 
 class silent_list(list):
     """
-    override repr when returning a list of matplotlib artists to
-    prevent long, meaningless output.  This is meant to be used for a
-    homogeneous list of a given type
+    A list with a short ``repr()``.
+
+    This is meant to be used for a homogeneous list of artists, so that they
+    don't cause long, meaningless output.
+
+    Instead of ::
+
+        [<matplotlib.lines.Line2D object at 0x7f5749fed3c8>,
+         <matplotlib.lines.Line2D object at 0x7f5749fed4e0>,
+         <matplotlib.lines.Line2D object at 0x7f5758016550>]
+
+    one will get ::
+
+        <a list of 3 Line2D objects>
     """
     def __init__(self, type, seq=None):
         self.type = type
@@ -251,7 +242,7 @@ class silent_list(list):
 class IgnoredKeywordWarning(UserWarning):
     """
     A class for issuing warnings about keyword arguments that will be ignored
-    by matplotlib
+    by Matplotlib.
     """
     pass
 
@@ -260,7 +251,7 @@ def local_over_kwdict(local_var, kwargs, *keys):
     """
     Enforces the priority of a local variable over potentially conflicting
     argument(s) from a kwargs dict. The following possible output values are
-    considered in order of priority:
+    considered in order of priority::
 
         local_var > kwargs[keys[0]] > ... > kwargs[keys[-1]]
 
@@ -270,26 +261,26 @@ def local_over_kwdict(local_var, kwargs, *keys):
 
     Parameters
     ----------
-        local_var : any object
-            The local variable (highest priority)
+    local_var : any object
+        The local variable (highest priority).
 
-        kwargs : dict
-            Dictionary of keyword arguments; modified in place
+    kwargs : dict
+        Dictionary of keyword arguments; modified in place.
 
-        keys : str(s)
-            Name(s) of keyword arguments to process, in descending order of
-            priority
+    keys : str(s)
+        Name(s) of keyword arguments to process, in descending order of
+        priority.
 
     Returns
     -------
-        out : any object
-            Either local_var or one of kwargs[key] for key in keys
+    out : any object
+        Either local_var or one of kwargs[key] for key in keys.
 
     Raises
     ------
-        IgnoredKeywordWarning
-            For each key in keys that is removed from kwargs but not used as
-            the output value
+    IgnoredKeywordWarning
+        For each key in keys that is removed from kwargs but not used as
+        the output value.
 
     """
     out = local_var
@@ -325,20 +316,6 @@ def strip_math(s):
         ]:
             s = s.replace(tex, plain)
     return s
-
-
-@deprecated('3.0', alternative='types.SimpleNamespace')
-class Bunch(types.SimpleNamespace):
-    """
-    Often we want to just collect a bunch of stuff together, naming each
-    item of the bunch; a dictionary's OK for that, but a small do- nothing
-    class is even handier, and prettier to use.  Whenever you want to
-    group a few variables::
-
-      >>> point = Bunch(datum=2, squared=4, coord=12)
-      >>> point.datum
-    """
-    pass
 
 
 @deprecated('3.1', alternative='np.iterable')
@@ -379,12 +356,6 @@ def file_requires_unicode(x):
         return False
 
 
-@deprecated('3.0', alternative='isinstance(..., numbers.Number)')
-def is_numlike(obj):
-    """return true if *obj* looks like a number"""
-    return isinstance(obj, (numbers.Number, np.number))
-
-
 def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
     """
     Convert a path to an open file handle or pass-through a file-like object.
@@ -394,7 +365,7 @@ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
 
     Parameters
     ----------
-    fname : str or PathLike or file-like object
+    fname : str or path-like or file-like object
         If `str` or `os.PathLike`, the file is opened using the flags specified
         by *flag* and *encoding*.  If a file-like object, it is passed through.
     flag : str, default 'r'
@@ -463,38 +434,36 @@ def get_sample_data(fname, asfileobj=True):
     `mpl-data/sample_data` directory.  If *asfileobj* is `True`
     return a file object, otherwise just a file path.
 
-    Set the rc parameter examples.directory to the directory where we should
-    look, if sample_data files are stored in a location different than
-    default (which is 'mpl-data/sample_data` at the same level of 'matplotlib`
-    Python module files).
+    Sample data files are stored in the 'mpl-data/sample_data' directory within
+    the Matplotlib package.
 
     If the filename ends in .gz, the file is implicitly ungzipped.
     """
-    # Don't trigger deprecation warning when just fetching.
-    if dict.__getitem__(matplotlib.rcParams, 'examples.directory'):
-        root = matplotlib.rcParams['examples.directory']
-    else:
-        root = os.path.join(matplotlib._get_data_path(), 'sample_data')
-    path = os.path.join(root, fname)
-
+    path = Path(matplotlib.get_data_path(), 'sample_data', fname)
     if asfileobj:
-        if os.path.splitext(fname)[-1].lower() in ['.csv', '.xrc', '.txt']:
-            mode = 'r'
+        suffix = path.suffix.lower()
+        if suffix == '.gz':
+            return gzip.open(path)
+        elif suffix in ['.csv', '.xrc', '.txt']:
+            return path.open('r')
         else:
-            mode = 'rb'
-
-        base, ext = os.path.splitext(fname)
-        if ext == '.gz':
-            return gzip.open(path, mode)
-        else:
-            return open(path, mode)
+            return path.open('rb')
     else:
-        return path
+        return str(path)
+
+
+def _get_data_path(*args):
+    """
+    Return the `Path` to a resource file provided by Matplotlib.
+
+    ``*args`` specify a path relative to the base data path.
+    """
+    return Path(matplotlib.get_data_path(), *args)
 
 
 def flatten(seq, scalarp=is_scalar_or_string):
     """
-    Return a generator of flattened nested containers
+    Return a generator of flattened nested containers.
 
     For example:
 
@@ -512,38 +481,6 @@ def flatten(seq, scalarp=is_scalar_or_string):
             yield item
         else:
             yield from flatten(item, scalarp)
-
-
-@deprecated("3.0")
-def mkdirs(newdir, mode=0o777):
-    """
-    make directory *newdir* recursively, and set *mode*.  Equivalent to ::
-
-        > mkdir -p NEWDIR
-        > chmod MODE NEWDIR
-    """
-    # this functionality is now in core python as of 3.2
-    # LPY DROP
-    os.makedirs(newdir, mode=mode, exist_ok=True)
-
-
-@deprecated('3.0')
-class GetRealpathAndStat(object):
-    def __init__(self):
-        self._cache = {}
-
-    def __call__(self, path):
-        result = self._cache.get(path)
-        if result is None:
-            realpath = os.path.realpath(path)
-            if sys.platform == 'win32':
-                stat_key = realpath
-            else:
-                stat = os.stat(realpath)
-                stat_key = (stat.st_ino, stat.st_dev)
-            result = realpath, stat_key
-            self._cache[path] = result
-        return result
 
 
 @functools.lru_cache()
@@ -603,40 +540,14 @@ def dedent(s):
     return result
 
 
-@deprecated("3.0")
-def listFiles(root, patterns='*', recurse=1, return_folders=0):
-    """
-    Recursively list files
-
-    from Parmar and Martelli in the Python Cookbook
-    """
-    import os.path
-    import fnmatch
-    # Expand patterns from semicolon-separated string to list
-    pattern_list = patterns.split(';')
-    results = []
-
-    for dirname, dirs, files in os.walk(root):
-        # Append to results all relevant files (and perhaps folders)
-        for name in files:
-            fullname = os.path.normpath(os.path.join(dirname, name))
-            if return_folders or os.path.isfile(fullname):
-                for pattern in pattern_list:
-                    if fnmatch.fnmatch(name, pattern):
-                        results.append(fullname)
-                        break
-        # Block recursion if recursion was disallowed
-        if not recurse:
-            break
-
-    return results
-
-
 class maxdict(dict):
     """
-    A dictionary with a maximum size; this doesn't override all the
-    relevant methods to constrain the size, just setitem, so use with
-    caution
+    A dictionary with a maximum size.
+
+    Notes
+    -----
+    This doesn't override all the relevant methods to constrain the size,
+    just ``__setitem__``, so use with caution.
     """
     def __init__(self, maxsize):
         dict.__init__(self)
@@ -652,7 +563,7 @@ class maxdict(dict):
         dict.__setitem__(self, k, v)
 
 
-class Stack(object):
+class Stack:
     """
     Stack of elements with a movable cursor.
 
@@ -810,15 +721,18 @@ def safe_masked_invalid(x, copy=False):
 
 def print_cycles(objects, outstream=sys.stdout, show_progress=False):
     """
-    *objects*
-        A list of objects to find cycles in.  It is often useful to
-        pass in gc.garbage to find the cycles that are preventing some
-        objects from being garbage collected.
+    Print loops of cyclic references in the given *objects*.
 
-    *outstream*
+    It is often useful to pass in ``gc.garbage`` to find the cycles that are
+    preventing some objects from being garbage collected.
+
+    Parameters
+    ----------
+    objects
+        A list of objects to find cycles in.
+    outstream
         The stream for output.
-
-    *show_progress*
+    show_progress : bool
         If True, print the number of objects reached as they are found.
     """
     import gc
@@ -874,7 +788,7 @@ def print_cycles(objects, outstream=sys.stdout, show_progress=False):
         recurse(obj, obj, {}, [])
 
 
-class Grouper(object):
+class Grouper:
     """
     This class provides a lightweight way to group arbitrary objects
     together into disjoint sets when a full-blown graph data structure
@@ -889,7 +803,7 @@ class Grouper(object):
     For example:
 
         >>> from matplotlib.cbook import Grouper
-        >>> class Foo(object):
+        >>> class Foo:
         ...     def __init__(self, s):
         ...         self.s = s
         ...     def __repr__(self):
@@ -976,6 +890,9 @@ def simple_linear_interpolation(a, steps):
     """
     Resample an array with ``steps - 1`` points between original point pairs.
 
+    Along each column of *a*, ``(steps - 1)`` points are introduced between
+    each original values; the values are linearly interpolated.
+
     Parameters
     ----------
     a : array, shape (n, ...)
@@ -983,10 +900,8 @@ def simple_linear_interpolation(a, steps):
 
     Returns
     -------
-    array, shape ``((n - 1) * steps + 1, ...)``
-
-    Along each column of *a*, ``(steps - 1)`` points are introduced between
-    each original values; the values are linearly interpolated.
+    array
+        shape ``((n - 1) * steps + 1, ...)``
     """
     fps = a.reshape((len(a), -1))
     xp = np.arange(len(a)) * steps
@@ -1134,12 +1049,12 @@ def _combine_masks(*args):
 
 def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
                   autorange=False):
-    """
+    r"""
     Returns list of dictionaries of statistics used to draw a series
     of box and whisker plots. The `Returns` section enumerates the
     required keys of the dictionary. Users can skip this function and
     pass a user-defined set of dictionaries to the new `axes.bxp` method
-    instead of relying on MPL to do the calculations.
+    instead of relying on Matplotlib to do the calculations.
 
     Parameters
     ----------
@@ -1147,20 +1062,25 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
         Data that will be represented in the boxplots. Should have 2 or
         fewer dimensions.
 
-    whis : float, string, or sequence (default = 1.5)
-        As a float, determines the reach of the whiskers beyond the
-        first and third quartiles. In other words, where IQR is the
-        interquartile range (`Q3-Q1`), the upper whisker will extend to last
-        datum less than `Q3 + whis*IQR`. Similarly, the lower whisker will
-        extend to the first datum greater than `Q1 - whis*IQR`.
-        Beyond the whiskers, data are considered outliers
-        and are plotted as individual points. This can be set to an
-        ascending sequence of percentiles (e.g., [5, 95]) to set the
-        whiskers at specific percentiles of the data. Finally, `whis`
-        can be the string ``'range'`` to force the whiskers to the
-        minimum and maximum of the data. In the edge case that the 25th
-        and 75th percentiles are equivalent, `whis` can be automatically
-        set to ``'range'`` via the `autorange` option.
+    whis : float or (float, float) (default = 1.5)
+        The position of the whiskers.
+
+        If a float, the lower whisker is at the lowest datum above
+        ``Q1 - whis*(Q3-Q1)``, and the upper whisker at the highest datum below
+        ``Q3 + whis*(Q3-Q1)``, where Q1 and Q3 are the first and third
+        quartiles.  The default value of ``whis = 1.5`` corresponds to Tukey's
+        original definition of boxplots.
+
+        If a pair of floats, they indicate the percentiles at which to draw the
+        whiskers (e.g., (5, 95)).  In particular, setting this to (0, 100)
+        results in whiskers covering the whole range of the data.  "range" is
+        a deprecated synonym for (0, 100).
+
+        In the edge case where ``Q1 == Q3``, *whis* is automatically set to
+        (0, 100) (cover the whole range of the data) if *autorange* is True.
+
+        Beyond the whiskers, data are considered outliers and are plotted as
+        individual points.
 
     bootstrap : int, optional
         Number of times the confidence intervals around the median
@@ -1168,11 +1088,11 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
 
     labels : array-like, optional
         Labels for each dataset. Length must be compatible with
-        dimensions of `X`.
+        dimensions of *X*.
 
     autorange : bool, optional (False)
         When `True` and the data are distributed such that the 25th and 75th
-        percentiles are equal, ``whis`` is set to ``'range'`` such that the
+        percentiles are equal, ``whis`` is set to (0, 100) such that the
         whisker ends are at the minimum and maximum of the data.
 
     Returns
@@ -1203,7 +1123,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
 
     .. math::
 
-        \\mathrm{med} \\pm 1.57 \\times \\frac{\\mathrm{iqr}}{\\sqrt{N}}
+        \mathrm{med} \pm 1.57 \times \frac{\mathrm{iqr}}{\sqrt{N}}
 
     General approach from:
     McGill, R., Tukey, J.W., and Larsen, W.A. (1978) "Variations of
@@ -1290,7 +1210,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
         # interquartile range
         stats['iqr'] = q3 - q1
         if stats['iqr'] == 0 and autorange:
-            whis = 'range'
+            whis = (0, 100)
 
         # conf. interval around median
         stats['cilo'], stats['cihi'] = _compute_conf_interval(
@@ -1303,14 +1223,17 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
                 loval = q1 - whis * stats['iqr']
                 hival = q3 + whis * stats['iqr']
             elif whis in ['range', 'limit', 'limits', 'min/max']:
+                warn_deprecated(
+                    "3.2", message=f"Setting whis to {whis!r} is deprecated "
+                    "since %(since)s and support for it will be removed "
+                    "%(removal)s; set it to [0, 100] to achieve the same "
+                    "effect.")
                 loval = np.min(x)
                 hival = np.max(x)
             else:
-                raise ValueError('whis must be a float, valid string, or list '
-                                 'of percentiles')
+                raise ValueError('whis must be a float or list of percentiles')
         else:
-            loval = np.percentile(x, whis[0])
-            hival = np.percentile(x, whis[1])
+            loval, hival = np.percentile(x, whis)
 
         # get high extreme
         wiskhi = x[x <= hival]
@@ -1346,8 +1269,8 @@ ls_mapper_r = {v: k for k, v in ls_mapper.items()}
 
 def contiguous_regions(mask):
     """
-    Return a list of (ind0, ind1) such that mask[ind0:ind1].all() is
-    True and we cover all such regions
+    Return a list of (ind0, ind1) such that ``mask[ind0:ind1].all()`` is
+    True and we cover all such regions.
     """
     mask = np.asarray(mask, dtype=bool)
 
@@ -1371,8 +1294,12 @@ def contiguous_regions(mask):
 
 
 def is_math_text(s):
-    # Did we find an even number of non-escaped dollar signs?
-    # If so, treat is as math text.
+    """
+    Returns whether the string *s* contains math expressions.
+
+    This is done by checking whether *s* contains an even number of
+    non-escaped dollar signs.
+    """
     s = str(s)
     dollar_count = s.count(r'$') - s.count(r'\$')
     even_dollars = (dollar_count > 0 and dollar_count % 2 == 0)
@@ -1399,11 +1326,34 @@ def _check_1d(x):
         return np.atleast_1d(x)
     else:
         try:
-            ndim = x[:, None].ndim
-            # work around https://github.com/pandas-dev/pandas/issues/27775
-            # which mean the shape is not as expected. That this ever worked
-            # was an unintentional quirk of pandas the above line will raise
-            # an exception in the future.
+            # work around
+            # https://github.com/pandas-dev/pandas/issues/27775 which
+            # means the shape of multi-dimensional slicing is not as
+            # expected.  That this ever worked was an unintentional
+            # quirk of pandas and will raise an exception in the
+            # future.  This slicing warns in pandas >= 1.0rc0 via
+            # https://github.com/pandas-dev/pandas/pull/30588
+            #
+            # < 1.0rc0 : x[:, None].ndim == 1, no warning, custom type
+            # >= 1.0rc1 : x[:, None].ndim == 2, warns, numpy array
+            # future : x[:, None] -> raises
+            #
+            # This code should correctly identify and coerce to a
+            # numpy array all pandas versions.
+            with warnings.catch_warnings(record=True) as w:
+                warnings.filterwarnings(
+                    "always",
+                    category=DeprecationWarning,
+                    message='Support for multi-dimensional indexing')
+
+                ndim = x[:, None].ndim
+                # we have definitely hit a pandas index or series object
+                # cast to a numpy array.
+                if len(w) > 0:
+                    return np.asanyarray(x)
+            # We have likely hit a pandas object, or at least
+            # something where 2D slicing does not result in a 2D
+            # object.
             if ndim < 2:
                 return np.atleast_1d(x)
             return x
@@ -1436,13 +1386,17 @@ def _reshape_2D(X, name):
         raise ValueError("{} must have 2 or fewer dimensions".format(name))
 
 
-def violin_stats(X, method, points=100):
+def violin_stats(X, method, points=100, quantiles=None):
     """
     Returns a list of dictionaries of data which can be used to draw a series
-    of violin plots. See the `Returns` section below to view the required keys
-    of the dictionary. Users can skip this function and pass a user-defined set
-    of dictionaries to the `axes.vplot` method instead of using MPL to do the
-    calculations.
+    of violin plots.
+
+    See the Returns section below to view the required keys of the dictionary.
+
+    Users can skip this function and pass a user-defined set of dictionaries
+    with the same keys to `~.axes.Axes.violinplot` instead of using Matplotlib
+    to do the calculations. See the *Returns* section below for the keys
+    that must be present in the dictionaries.
 
     Parameters
     ----------
@@ -1456,15 +1410,21 @@ def violin_stats(X, method, points=100):
         return a vector of the values of the KDE evaluated at the values
         specified in coords.
 
-    points : scalar, default = 100
+    points : int, default = 100
         Defines the number of points to evaluate each of the gaussian kernel
         density estimates at.
 
+    quantiles : array-like, default = None
+        Defines (if not None) a list of floats in interval [0, 1] for each
+        column of data, which represents the quantiles that will be rendered
+        for that column of data. Must have 2 or fewer dimensions. 1D array will
+        be treated as a singleton list containing them.
+
     Returns
     -------
-
-    A list of dictionaries containing the results for each column of data.
-    The dictionaries contain at least the following:
+    vpstats : list of dict
+        A list of dictionaries containing the results for each column of data.
+        The dictionaries contain at least the following:
 
         - coords: A list of scalars containing the coordinates this particular
           kernel density estimate was evaluated at.
@@ -1474,6 +1434,7 @@ def violin_stats(X, method, points=100):
         - median: The median value for this column of data.
         - min: The minimum value for this column of data.
         - max: The maximum value for this column of data.
+        - quantiles: The quantile values for this column of data.
     """
 
     # List of dictionaries describing each of the violins.
@@ -1482,13 +1443,27 @@ def violin_stats(X, method, points=100):
     # Want X to be a list of data sequences
     X = _reshape_2D(X, "X")
 
-    for x in X:
+    # Want quantiles to be as the same shape as data sequences
+    if quantiles is not None and len(quantiles) != 0:
+        quantiles = _reshape_2D(quantiles, "quantiles")
+    # Else, mock quantiles if is none or empty
+    else:
+        quantiles = [[]] * np.shape(X)[0]
+
+    # quantiles should has the same size as dataset
+    if np.shape(X)[:1] != np.shape(quantiles)[:1]:
+        raise ValueError("List of violinplot statistics and quantiles values"
+                         " must have the same length")
+
+    # Zip x and quantiles
+    for (x, q) in zip(X, quantiles):
         # Dictionary of results for this distribution
         stats = {}
 
         # Calculate basic stats for the distribution
         min_val = np.min(x)
         max_val = np.max(x)
+        quantile_val = np.percentile(x, 100 * q)
 
         # Evaluate the kernel density estimate
         coords = np.linspace(min_val, max_val, points)
@@ -1500,6 +1475,7 @@ def violin_stats(X, method, points=100):
         stats['median'] = np.median(x)
         stats['min'] = min_val
         stats['max'] = max_val
+        stats['quantiles'] = np.atleast_1d(quantile_val)
 
         # Append to output
         vpstats.append(stats)
@@ -1533,10 +1509,10 @@ def pts_to_prestep(x, *args):
 
     Examples
     --------
-    >> x_s, y1_s, y2_s = pts_to_prestep(x, y1, y2)
+    >>> x_s, y1_s, y2_s = pts_to_prestep(x, y1, y2)
     """
     steps = np.zeros((1 + len(args), max(2 * len(x) - 1, 0)))
-    # In all `pts_to_*step` functions, only assign *once* using `x` and `args`,
+    # In all `pts_to_*step` functions, only assign once using *x* and *args*,
     # as converting to an array may be expensive.
     steps[0, 0::2] = x
     steps[0, 1::2] = steps[0, 0:-2:2]
@@ -1571,7 +1547,7 @@ def pts_to_poststep(x, *args):
 
     Examples
     --------
-    >> x_s, y1_s, y2_s = pts_to_poststep(x, y1, y2)
+    >>> x_s, y1_s, y2_s = pts_to_poststep(x, y1, y2)
     """
     steps = np.zeros((1 + len(args), max(2 * len(x) - 1, 0)))
     steps[0, 0::2] = x
@@ -1607,7 +1583,7 @@ def pts_to_midstep(x, *args):
 
     Examples
     --------
-    >> x_s, y1_s, y2_s = pts_to_midstep(x, y1, y2)
+    >>> x_s, y1_s, y2_s = pts_to_midstep(x, y1, y2)
     """
     steps = np.zeros((1 + len(args), 2 * len(x)))
     x = np.asanyarray(x)
@@ -1628,11 +1604,12 @@ STEP_LOOKUP_MAP = {'default': lambda x, y: (x, y),
 
 def index_of(y):
     """
-    A helper function to get the index of an input to plot
-    against if x values are not explicitly given.
+    A helper function to create reasonable x values for the given *y*.
 
-    Tries to get `y.index` (works if this is a pd.Series), if that
-    fails, return np.arange(y.shape[0]).
+    This is used for plotting (x, y) if x values are not explicitly given.
+
+    First try ``y.index`` (assuming *y* is a `pandas.Series`), if that
+    fails, use ``range(len(y))``.
 
     This will be extended in the future to deal with more types of
     labeled data.
@@ -1640,7 +1617,6 @@ def index_of(y):
     Parameters
     ----------
     y : scalar or array-like
-        The proposed y-value
 
     Returns
     -------
@@ -1655,6 +1631,12 @@ def index_of(y):
 
 
 def safe_first_element(obj):
+    """
+    Return the first element in *obj*.
+
+    This is an type-independent way of obtaining the first element, supporting
+    both index access and the iterator protocol.
+    """
     if isinstance(obj, collections.abc.Iterator):
         # needed to accept `array.flat` as input.
         # np.flatiter reports as an instance of collections.Iterator
@@ -1671,57 +1653,69 @@ def safe_first_element(obj):
 
 
 def sanitize_sequence(data):
-    """Converts dictview object to list"""
+    """
+    Convert dictview objects to list. Other inputs are returned unchanged.
+    """
     return (list(data) if isinstance(data, collections.abc.MappingView)
             else data)
 
 
 def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
                      allowed=None):
-    """Helper function to normalize kwarg inputs
+    """
+    Helper function to normalize kwarg inputs.
 
     The order they are resolved are:
 
-     1. aliasing
-     2. required
-     3. forbidden
-     4. allowed
+    1. aliasing
+    2. required
+    3. forbidden
+    4. allowed
 
     This order means that only the canonical names need appear in
-    `allowed`, `forbidden`, `required`
+    *allowed*, *forbidden*, *required*.
 
     Parameters
     ----------
+    kw : dict
+        A dict of keyword arguments.
 
-    alias_mapping, dict, optional
+    alias_mapping : dict or Artist subclass or Artist instance, optional
         A mapping between a canonical name to a list of
         aliases, in order of precedence from lowest to highest.
 
         If the canonical value is not in the list it is assumed to have
         the highest priority.
 
-    required : iterable, optional
-        A tuple of fields that must be in kwargs.
+        If an Artist subclass or instance is passed, use its properties alias
+        mapping.
 
-    forbidden : iterable, optional
-        A list of keys which may not be in kwargs
+    required : list of str, optional
+        A list of keys that must be in *kws*.
 
-    allowed : tuple, optional
-        A tuple of allowed fields.  If this not None, then raise if
-        `kw` contains any keys not in the union of `required`
-        and `allowed`.  To allow only the required fields pass in
-        ``()`` for `allowed`
+    forbidden : list of str, optional
+        A list of keys which may not be in *kw*.
+
+    allowed : list of str, optional
+        A list of allowed fields.  If this not None, then raise if
+        *kw* contains any keys not in the union of *required*
+        and *allowed*.  To allow only the required fields pass in
+        an empty tuple ``allowed=()``.
 
     Raises
     ------
     TypeError
         To match what python raises if invalid args/kwargs are passed to
         a callable.
-
     """
+    from matplotlib.artist import Artist
+
     # deal with default value of alias_mapping
     if alias_mapping is None:
         alias_mapping = dict()
+    elif (isinstance(alias_mapping, type) and issubclass(alias_mapping, Artist)
+          or isinstance(alias_mapping, Artist)):
+        alias_mapping = getattr(alias_mapping, "_alias_map", {})
 
     # make a local so we can pop
     kw = dict(kw)
@@ -1800,62 +1794,6 @@ and has failed.  This maybe due to any other process holding this
 lock.  If you are sure no other matplotlib process is running try
 removing these folders and trying again.
 """
-
-
-@deprecated("3.0")
-class Locked(object):
-    """
-    Context manager to handle locks.
-
-    Based on code from conda.
-
-    (c) 2012-2013 Continuum Analytics, Inc. / https://www.continuum.io/
-    All Rights Reserved
-
-    conda is distributed under the terms of the BSD 3-clause license.
-    Consult LICENSE_CONDA or https://opensource.org/licenses/BSD-3-Clause.
-    """
-    LOCKFN = '.matplotlib_lock'
-
-    class TimeoutError(RuntimeError):
-        pass
-
-    def __init__(self, path):
-        self.path = path
-        self.end = "-" + str(os.getpid())
-        self.lock_path = os.path.join(self.path, self.LOCKFN + self.end)
-        self.pattern = os.path.join(self.path, self.LOCKFN + '-*')
-        self.remove = True
-
-    def __enter__(self):
-        retries = 50
-        sleeptime = 0.1
-        while retries:
-            files = glob.glob(self.pattern)
-            if files and not files[0].endswith(self.end):
-                time.sleep(sleeptime)
-                retries -= 1
-            else:
-                break
-        else:
-            err_str = _lockstr.format(self.pattern)
-            raise self.TimeoutError(err_str)
-
-        if not files:
-            try:
-                os.makedirs(self.lock_path)
-            except OSError:
-                pass
-        else:  # PID lock already here --- someone else will remove it.
-            self.remove = False
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.remove:
-            for path in self.lock_path, self.path:
-                try:
-                    os.rmdir(path)
-                except OSError:
-                    pass
 
 
 @contextlib.contextmanager
@@ -1990,7 +1928,7 @@ def _array_perimeter(arr):
     perimeter : ndarray, shape (2*(M - 1) + 2*(N - 1),)
         The elements on the perimeter of the array::
 
-            [arr[0,0] ... arr[0,-1] ... arr[-1, -1] ... arr[-1,0] ...]
+           [arr[0, 0], ..., arr[0, -1], ..., arr[-1, -1], ..., arr[-1, 0], ...]
 
     Examples
     --------
@@ -2047,7 +1985,7 @@ def _warn_external(message, category=None):
         if frame is None:
             # when called in embedded context may hit frame is None
             break
-        if not re.match(r"\A(matplotlib|mpl_toolkits)(\Z|\.)",
+        if not re.match(r"\A(matplotlib|mpl_toolkits)(\Z|\.(?!tests\.))",
                         # Work around sphinx-gallery not setting __name__.
                         frame.f_globals.get("__name__", "")):
             break
@@ -2118,6 +2056,12 @@ def _unmultiplied_rgba8888_to_premultiplied_argb32(rgba8888):
     return argb32
 
 
+def _pformat_subprocess(command):
+    """Pretty-format a subprocess command for printing/logging purposes."""
+    return (command if isinstance(command, str)
+            else " ".join(shlex.quote(os.fspath(arg)) for arg in command))
+
+
 def _check_and_log_subprocess(command, logger, **kwargs):
     """
     Run *command*, returning its stdout output if it succeeds.
@@ -2128,13 +2072,13 @@ def _check_and_log_subprocess(command, logger, **kwargs):
     Regardless of the return code, the command is logged at DEBUG level on
     *logger*.  In case of success, the output is likewise logged.
     """
-    logger.debug('%s', str(command))
+    logger.debug('%s', _pformat_subprocess(command))
     proc = subprocess.run(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
     if proc.returncode:
         raise RuntimeError(
             f"The command\n"
-            f"    {str(command)}\n"
+            f"    {_pformat_subprocess(command)}\n"
             f"failed and generated the following output:\n"
             f"{proc.stdout.decode('utf-8')}\n"
             f"and the following error:\n"
@@ -2144,27 +2088,104 @@ def _check_and_log_subprocess(command, logger, **kwargs):
     return proc.stdout
 
 
-def _check_not_matrix(**kwargs):
+# In the following _check_foo functions, the first parameter starts with an
+# underscore because it is intended to be positional-only (e.g., so that
+# `_check_isinstance([...], types=foo)` doesn't fail.
+
+
+def _check_isinstance(_types, **kwargs):
     """
-    If any value in *kwargs* is a `np.matrix`, raise a TypeError with the key
-    name in its message.
+    For each *key, value* pair in *kwargs*, check that *value* is an instance
+    of one of *_types*; if not, raise an appropriate TypeError.
+
+    As a special case, a ``None`` entry in *_types* is treated as NoneType.
+
+    Examples
+    --------
+    >>> cbook._check_isinstance((SomeClass, None), arg=arg)
     """
+    types = _types
+    if isinstance(types, type) or types is None:
+        types = (types,)
+    none_allowed = None in types
+    types = tuple(tp for tp in types if tp is not None)
+
+    def type_name(tp):
+        return (tp.__qualname__ if tp.__module__ == "builtins"
+                else f"{tp.__module__}.{tp.__qualname__}")
+
+    names = [*map(type_name, types)]
+    if none_allowed:
+        types = (*types, type(None))
+        names.append("None")
     for k, v in kwargs.items():
-        if isinstance(v, np.matrix):
-            raise TypeError(f"Argument {k!r} cannot be a np.matrix")
+        if not isinstance(v, types):
+            raise TypeError(
+                "{!r} must be an instance of {}, not a {}".format(
+                    k,
+                    ", ".join(names[:-1]) + " or " + names[-1]
+                    if len(names) > 1 else names[0],
+                    type_name(type(v))))
 
 
-def _check_in_list(values, **kwargs):
+def _check_in_list(_values, **kwargs):
     """
-    For each *key, value* pair in *kwargs*, check that *value* is in *values*;
+    For each *key, value* pair in *kwargs*, check that *value* is in *_values*;
     if not, raise an appropriate ValueError.
 
     Examples
     --------
     >>> cbook._check_in_list(["foo", "bar"], arg=arg, other_arg=other_arg)
     """
+    values = _values
     for k, v in kwargs.items():
         if v not in values:
             raise ValueError(
                 "{!r} is not a valid value for {}; supported values are {}"
                 .format(v, k, ', '.join(map(repr, values))))
+
+
+def _check_getitem(_mapping, **kwargs):
+    """
+    *kwargs* must consist of a single *key, value* pair.  If *key* is in
+    *_mapping*, return ``_mapping[value]``; else, raise an appropriate
+    ValueError.
+
+    Examples
+    --------
+    >>> cbook._check_getitem({"foo": "bar"}, arg=arg)
+    """
+    mapping = _mapping
+    if len(kwargs) != 1:
+        raise ValueError("_check_getitem takes a single keyword argument")
+    (k, v), = kwargs.items()
+    try:
+        return mapping[v]
+    except KeyError:
+        raise ValueError(
+            "{!r} is not a valid value for {}; supported values are {}"
+            .format(v, k, ', '.join(map(repr, mapping)))) from None
+
+
+class _classproperty:
+    """
+    Like `property`, but also triggers on access via the class, and it is the
+    *class* that's passed as argument.
+
+    Examples
+    --------
+    ::
+
+        class C:
+            @classproperty
+            def foo(cls):
+                return cls.__name__
+
+        assert C.foo == "C"
+    """
+
+    def __init__(self, fget):
+        self._fget = fget
+
+    def __get__(self, instance, owner):
+        return self._fget(owner)

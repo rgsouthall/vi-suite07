@@ -22,7 +22,7 @@ as follows::
   texmanager = TexManager()
   s = ('\TeX\ is Number '
        '$\displaystyle\sum_{n=1}^\infty\frac{-e^{i\pi}}{2^n}$!')
-  Z = texmanager.get_rgba(s, fontsize=12, dpi=80, rgb=(1,0,0))
+  Z = texmanager.get_rgba(s, fontsize=12, dpi=80, rgb=(1, 0, 0))
 
 To enable tex rendering of all text in your matplotlib figure, set
 :rc:`text.usetex` to True.
@@ -46,7 +46,7 @@ from matplotlib import cbook, dviread, rcParams
 _log = logging.getLogger(__name__)
 
 
-class TexManager(object):
+class TexManager:
     """
     Convert strings to dvi files using TeX, caching the results to a directory.
 
@@ -86,10 +86,13 @@ class TexManager(object):
         'helvetica': ('phv', r'\usepackage{helvet}'),
         'avant garde': ('pag', r'\usepackage{avant}'),
         'courier': ('pcr', r'\usepackage{courier}'),
-        'monospace': ('cmtt', ''),
-        'computer modern roman': ('cmr', ''),
-        'computer modern sans serif': ('cmss', ''),
-        'computer modern typewriter': ('cmtt', '')}
+        # Loading the type1ec package ensures that cm-super is installed, which
+        # is necessary for unicode computer modern.  (It also allows the use of
+        # computer modern at arbitrary sizes, but that's just a side effect.)
+        'monospace': ('cmtt', r'\usepackage{type1ec}'),
+        'computer modern roman': ('cmr', r'\usepackage{type1ec}'),
+        'computer modern sans serif': ('cmss', r'\usepackage{type1ec}'),
+        'computer modern typewriter': ('cmtt', r'\usepackage{type1ec}')}
 
     _rc_cache = None
     _rc_cache_keys = (
@@ -189,6 +192,25 @@ class TexManager(object):
         """Return a string containing user additions to the tex preamble."""
         return rcParams['text.latex.preamble']
 
+    def _get_preamble(self):
+        unicode_preamble = "\n".join([
+            r"\usepackage[utf8]{inputenc}",
+            r"\DeclareUnicodeCharacter{2212}{\ensuremath{-}}",
+        ]) if rcParams["text.latex.unicode"] else ""
+        return "\n".join([
+            r"\documentclass{article}",
+            # Pass-through \mathdefault, which is used in non-usetex mode to
+            # use the default text font but was historically suppressed in
+            # usetex mode.
+            r"\newcommand{\mathdefault}[1]{#1}",
+            self._font_preamble,
+            unicode_preamble,
+            # Needs to come early so that the custom preamble can change the
+            # geometry, e.g. in convert_psfrags.
+            r"\usepackage[papersize=72in,body=70in,margin=1in]{geometry}",
+            self.get_custom_preamble(),
+        ])
+
     def make_tex(self, tex, fontsize):
         """
         Generate a tex file to render the tex string at a specific font size.
@@ -197,37 +219,29 @@ class TexManager(object):
         """
         basefile = self.get_basefile(tex, fontsize)
         texfile = '%s.tex' % basefile
-        custom_preamble = self.get_custom_preamble()
         fontcmd = {'sans-serif': r'{\sffamily %s}',
                    'monospace': r'{\ttfamily %s}'}.get(self.font_family,
                                                        r'{\rmfamily %s}')
         tex = fontcmd % tex
 
-        if rcParams['text.latex.unicode']:
-            unicode_preamble = r"""
-\usepackage[utf8]{inputenc}"""
-        else:
-            unicode_preamble = ''
-
         s = r"""
-\documentclass{article}
 %s
-%s
-%s
-\usepackage[papersize={72in,72in},body={70in,70in},margin={1in,1in}]{geometry}
 \pagestyle{empty}
 \begin{document}
-\fontsize{%f}{%f}%s
+%% The empty hbox ensures that a page is printed even for empty inputs, except
+%% when using psfrag which gets confused by it.
+\fontsize{%f}{%f}%%
+\ifdefined\psfrag\else\hbox{}\fi%%
+%s
 \end{document}
-""" % (self._font_preamble, unicode_preamble, custom_preamble,
-       fontsize, fontsize * 1.25, tex)
+""" % (self._get_preamble(), fontsize, fontsize * 1.25, tex)
         with open(texfile, 'wb') as fh:
             if rcParams['text.latex.unicode']:
                 fh.write(s.encode('utf8'))
             else:
                 try:
                     fh.write(s.encode('ascii'))
-                except UnicodeEncodeError as err:
+                except UnicodeEncodeError:
                     _log.info("You are using unicode and latex, but have not "
                               "enabled the 'text.latex.unicode' rcParam.")
                     raise
@@ -248,28 +262,17 @@ class TexManager(object):
         """
         basefile = self.get_basefile(tex, fontsize)
         texfile = '%s.tex' % basefile
-        custom_preamble = self.get_custom_preamble()
         fontcmd = {'sans-serif': r'{\sffamily %s}',
                    'monospace': r'{\ttfamily %s}'}.get(self.font_family,
                                                        r'{\rmfamily %s}')
         tex = fontcmd % tex
 
-        if rcParams['text.latex.unicode']:
-            unicode_preamble = r"""
-\usepackage[utf8]{inputenc}"""
-        else:
-            unicode_preamble = ''
-
         # newbox, setbox, immediate, etc. are used to find the box
         # extent of the rendered text.
 
         s = r"""
-\documentclass{article}
-%s
-%s
 %s
 \usepackage[active,showbox,tightpage]{preview}
-\usepackage[papersize={72in,72in},body={70in,70in},margin={1in,1in}]{geometry}
 
 %% we override the default showbox as it is treated as an error and makes
 %% the exit status not zero
@@ -281,15 +284,14 @@ class TexManager(object):
 {\fontsize{%f}{%f}%s}
 \end{preview}
 \end{document}
-""" % (self._font_preamble, unicode_preamble, custom_preamble,
-       fontsize, fontsize * 1.25, tex)
+""" % (self._get_preamble(), fontsize, fontsize * 1.25, tex)
         with open(texfile, 'wb') as fh:
             if rcParams['text.latex.unicode']:
                 fh.write(s.encode('utf8'))
             else:
                 try:
                     fh.write(s.encode('ascii'))
-                except UnicodeEncodeError as err:
+                except UnicodeEncodeError:
                     _log.info("You are using unicode and latex, but have not "
                               "enabled the 'text.latex.unicode' rcParam.")
                     raise
@@ -297,7 +299,7 @@ class TexManager(object):
         return texfile
 
     def _run_checked_subprocess(self, command, tex):
-        _log.debug(command)
+        _log.debug(cbook._pformat_subprocess(command))
         try:
             report = subprocess.check_output(command,
                                              cwd=self.texcache,
@@ -390,9 +392,16 @@ class TexManager(object):
         # see get_rgba for a discussion of the background
         if not os.path.exists(pngfile):
             dvifile = self.make_dvi(tex, fontsize)
-            self._run_checked_subprocess(
-                ["dvipng", "-bg", "Transparent", "-D", str(dpi),
-                 "-T", "tight", "-o", pngfile, dvifile], tex)
+            cmd = ["dvipng", "-bg", "Transparent", "-D", str(dpi),
+                   "-T", "tight", "-o", pngfile, dvifile]
+            # When testing, disable FreeType rendering for reproducibility; but
+            # dvipng 1.16 has a bug (fixed in f3ff241) that breaks --freetype0
+            # mode, so for it we keep FreeType enabled; the image will be
+            # slightly off.
+            if (getattr(mpl, "_called_from_pytest", False)
+                    and mpl._get_executable_info("dvipng").version != "1.16"):
+                cmd.insert(1, "--freetype0")
+            self._run_checked_subprocess(cmd, tex)
         return pngfile
 
     def get_grey(self, tex, fontsize=None, dpi=None):
@@ -402,7 +411,8 @@ class TexManager(object):
         alpha = self.grey_arrayd.get(key)
         if alpha is None:
             pngfile = self.make_png(tex, fontsize, dpi)
-            X = _png.read_png(os.path.join(self.texcache, pngfile))
+            with open(os.path.join(self.texcache, pngfile), "rb") as file:
+                X = _png.read_png(file)
             self.grey_arrayd[key] = alpha = X[:, :, -1]
         return alpha
 
@@ -444,7 +454,7 @@ class TexManager(object):
             return width, height + depth, depth
 
         else:
-            # use dviread. It sometimes returns a wrong descent.
+            # use dviread.
             dvifile = self.make_dvi(tex, fontsize)
             with dviread.Dvi(dvifile, 72 * dpi_fraction) as dvi:
                 page, = dvi

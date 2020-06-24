@@ -1,5 +1,5 @@
 # coding: utf-8
-# $Id: __init__.py 8295 2019-07-24 09:22:01Z grubert $
+# $Id: __init__.py 8376 2019-08-27 19:49:29Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -22,6 +22,9 @@ from docutils.nodes import unescape
 import docutils.io
 from docutils.utils.error_reporting import ErrorOutput, SafeString
 
+if sys.version_info >= (3, 0):
+    unicode = str
+
 
 class SystemMessage(ApplicationError):
 
@@ -33,7 +36,7 @@ class SystemMessage(ApplicationError):
 class SystemMessagePropagation(ApplicationError): pass
 
 
-class Reporter:
+class Reporter(object):
 
     """
     Info/warning/error reporter and ``system_message`` element generator.
@@ -72,7 +75,7 @@ class Reporter:
      INFO_LEVEL,
      WARNING_LEVEL,
      ERROR_LEVEL,
-     SEVERE_LEVEL) = list(range(5))
+     SEVERE_LEVEL) = range(5)
 
     def __init__(self, source, report_level, halt_level, stream=None,
                  debug=False, encoding=None, error_handler='backslashreplace'):
@@ -173,7 +176,6 @@ class Reporter:
         if not 'source' in attributes: # 'line' is absolute line number
             try: # look up (source, line-in-source)
                 source, line = self.get_source_and_line(attributes.get('line'))
-                # print "locator lookup", kwargs.get('line'), "->", source, line
             except AttributeError:
                 source, line = None, None
             if source is not None:
@@ -343,7 +345,7 @@ def decode_path(path):
     Decode file/path string in a failsave manner if not already done.
     """
     # see also http://article.gmane.org/gmane.text.docutils.user/2905
-    if isinstance(path, str):
+    if isinstance(path, unicode):
         return path
     try:
         path = path.decode(sys.getfilesystemencoding(), 'strict')
@@ -590,9 +592,9 @@ def split_escaped_whitespace(text):
     return list(itertools.chain(*strings))
 
 def strip_combining_chars(text):
-    if isinstance(text, str) and sys.version_info < (3,0):
+    if isinstance(text, str) and sys.version_info < (3, 0):
         return text
-    return ''.join([c for c in text if not unicodedata.combining(c)])
+    return u''.join([c for c in text if not unicodedata.combining(c)])
 
 def find_combining_chars(text):
     """Return indices of all combining chars in  Unicode string `text`.
@@ -602,7 +604,7 @@ def find_combining_chars(text):
     [3, 6, 9]
 
     """
-    if isinstance(text, str) and sys.version_info < (3,0):
+    if isinstance(text, str) and sys.version_info < (3, 0):
         return []
     return [i for i,c in enumerate(text) if unicodedata.combining(c)]
 
@@ -636,7 +638,7 @@ def column_width(text):
 
     Correct ``len(text)`` for wide East Asian and combining Unicode chars.
     """
-    if isinstance(text, str) and sys.version_info < (3,0):
+    if isinstance(text, str) and sys.version_info < (3, 0):
         return len(text)
     width = sum([east_asian_widths[unicodedata.east_asian_width(c)]
                  for c in text])
@@ -671,7 +673,7 @@ def normalize_language_tag(tag):
 
     """
     # normalize:
-    tag = tag.lower().replace('-','_')
+    tag = tag.lower().replace('-', '_')
     # split (except singletons, which mark the following tag as non-standard):
     tag = re.sub(r'_([a-zA-Z0-9])_', r'_\1-', tag)
     subtags = [subtag for subtag in tag.split('_')]

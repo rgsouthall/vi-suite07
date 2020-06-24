@@ -1,4 +1,4 @@
-# $Id: docutils_xml.py 8240 2018-11-21 21:46:06Z milde $
+# $Id: docutils_xml.py 8368 2019-08-27 12:10:14Z milde $
 # Author: David Goodger, Paul Tremblay, Guenter Milde
 # Maintainer: docutils-develop@lists.sourceforge.net
 # Copyright: This module has been placed in the public domain.
@@ -11,24 +11,19 @@ http://docutils.sourceforge.net/docs/ref/docutils.dtd.
 __docformat__ = 'reStructuredText'
 
 import sys
-
-# Work around broken PyXML and obsolete python stdlib behaviour. (The stdlib
-# replaces its own xml module with PyXML if the latter is installed. However,
-# PyXML is no longer maintained and partially incompatible/buggy.) Reverse
-# the order in which xml module and submodules are searched to import stdlib
-# modules if they exist and PyXML modules if they do not exist in the stdlib.
-#
-# See http://sourceforge.net/tracker/index.php?func=detail&aid=3552403&group_id=38414&atid=422030
-# and http://lists.fedoraproject.org/pipermail/python-devel/2012-July/000406.html
-import xml
-if "_xmlplus" in xml.__path__[0]: # PyXML sub-module
-    xml.__path__.reverse() # If both are available, prefer stdlib over PyXML
-
 import xml.sax.saxutils
-from io import StringIO
 
 import docutils
 from docutils import frontend, writers, nodes
+
+if sys.version_info >= (3, 0):
+    from io import StringIO  # noqa
+else:
+    from StringIO import StringIO  # noqa
+
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
 
 
 class RawXmlError(docutils.ApplicationError): pass
@@ -182,7 +177,7 @@ class XMLTranslator(nodes.GenericNodeVisitor):
         self.output.append(xml_string)
         self.default_departure(node)  # or not?
         # Check validity of raw XML:
-        if isinstance(xml_string, str) and sys.version_info < (3,):
+        if isinstance(xml_string, unicode) and sys.version_info < (3, 0):
             xml_string = xml_string.encode('utf8')
         try:
             self.xmlparser.parse(StringIO(xml_string))

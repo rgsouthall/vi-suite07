@@ -1,4 +1,4 @@
-from matplotlib import docstring, transforms
+from matplotlib import transforms
 from matplotlib.offsetbox import (AnchoredOffsetbox, AuxTransformBox,
                                   DrawingArea, TextArea, VPacker)
 from matplotlib.patches import (Rectangle, Ellipse, ArrowStyle,
@@ -144,7 +144,7 @@ class AnchoredAuxTransformBox(AnchoredOffsetbox):
         height of 0.4 in data coordinates:
 
         >>> box = AnchoredAuxTransformBox(ax.transData, loc='upper left')
-        >>> el = Ellipse((0,0), width=0.1, height=0.4, angle=30)
+        >>> el = Ellipse((0, 0), width=0.1, height=0.4, angle=30)
         >>> box.drawing_area.add_artist(el)
         >>> ax.add_artist(box)
         """
@@ -320,7 +320,7 @@ class AnchoredSizeBar(AnchoredOffsetbox):
         >>> from mpl_toolkits.axes_grid1.anchored_artists import (
         ...     AnchoredSizeBar)
         >>> fig, ax = plt.subplots()
-        >>> ax.imshow(np.random.random((10,10)))
+        >>> ax.imshow(np.random.random((10, 10)))
         >>> bar = AnchoredSizeBar(ax.transData, 3, '3 data units', 4)
         >>> ax.add_artist(bar)
         >>> fig.show()
@@ -387,7 +387,7 @@ class AnchoredDirectionArrows(AnchoredOffsetbox):
             The transformation object for the coordinate system in use, i.e.,
             :attr:`matplotlib.axes.Axes.transAxes`.
 
-        label_x, label_y : string
+        label_x, label_y : str
             Label text for the x and y arrows
 
         length : int or float, optional
@@ -503,7 +503,7 @@ class AnchoredDirectionArrows(AnchoredOffsetbox):
         >>> from mpl_toolkits.axes_grid1.anchored_artists import (
         ...     AnchoredDirectionArrows)
         >>> fig, ax = plt.subplots()
-        >>> ax.imshow(np.random.random((10,10)))
+        >>> ax.imshow(np.random.random((10, 10)))
         >>> arrows = AnchoredDirectionArrows(ax.transAxes, '111', '110')
         >>> ax.add_artist(arrows)
         >>> fig.show()

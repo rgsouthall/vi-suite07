@@ -198,7 +198,7 @@ import Qt.test.qtestroot 1.0
     }
     \endcode
 
-    The mousePress(), mouseRelease(), mouseClick(), mouseDoubleClick(), mouseDoubleClickSequence()
+    The mousePress(), mouseRelease(), mouseClick(), mouseDoubleClickSequence()
     and mouseMove() methods can be used to simulate mouse events in a
     similar fashion.
 
@@ -1331,7 +1331,7 @@ Item {
         If \a item is obscured by another item, or a child of \a item occupies
         that position, then the event will be delivered to the other item instead.
 
-        \sa mouseRelease(), mouseClick(), mouseDoubleClick(), mouseDoubleClickSequence(), mouseMove(), mouseDrag(), mouseWheel()
+        \sa mouseRelease(), mouseClick(), mouseDoubleClickSequence(), mouseMove(), mouseDrag(), mouseWheel()
     */
     function mousePress(item, x, y, button, modifiers, delay) {
         if (!qtest_verifyItem(item, "mousePress"))
@@ -1365,7 +1365,7 @@ Item {
         If \a item is obscured by another item, or a child of \a item occupies
         that position, then the event will be delivered to the other item instead.
 
-        \sa mousePress(), mouseClick(), mouseDoubleClick(), mouseDoubleClickSequence(), mouseMove(), mouseDrag(), mouseWheel()
+        \sa mousePress(), mouseClick(), mouseDoubleClickSequence(), mouseMove(), mouseDrag(), mouseWheel()
     */
     function mouseRelease(item, x, y, button, modifiers, delay) {
         if (!qtest_verifyItem(item, "mouseRelease"))
@@ -1398,7 +1398,7 @@ Item {
         If \a item is obscured by another item, or a child of \a item occupies
         that position, then the event will be delivered to the other item instead.
 
-        \sa mousePress(), mouseClick(), mouseDoubleClick(), mouseDoubleClickSequence(), mouseMove(), mouseRelease(), mouseWheel()
+        \sa mousePress(), mouseClick(), mouseDoubleClickSequence(), mouseMove(), mouseRelease(), mouseWheel()
     */
     function mouseDrag(item, x, y, dx, dy, button, modifiers, delay) {
         if (!qtest_verifyItem(item, "mouseDrag"))
@@ -1417,19 +1417,23 @@ Item {
         // Divide dx and dy to have intermediate mouseMove while dragging
         // Fractions of dx/dy need be superior to the dragThreshold
         // to make the drag works though
-        var ddx = Math.round(dx/3)
-        if (ddx < (util.dragThreshold + 1))
-            ddx = 0
-        var ddy = Math.round(dy/3)
-        if (ddy < (util.dragThreshold + 1))
-            ddy = 0
+        var intermediateDx = Math.round(dx/3)
+        if (Math.abs(intermediateDx) < (util.dragThreshold + 1))
+            intermediateDx = 0
+        var intermediateDy = Math.round(dy/3)
+        if (Math.abs(intermediateDy) < (util.dragThreshold + 1))
+            intermediateDy = 0
 
         mousePress(item, x, y, button, modifiers, delay)
-        //trigger dragging
-        mouseMove(item, x + util.dragThreshold + 1, y + util.dragThreshold + 1, moveDelay, button)
-        if (ddx > 0 || ddy > 0) {
-            mouseMove(item, x + ddx, y + ddy, moveDelay, button)
-            mouseMove(item, x + 2*ddx, y + 2*ddy, moveDelay, button)
+
+        // Trigger dragging by dragging past the drag threshold, but making sure to only drag
+        // along a certain axis if a distance greater than zero was given for that axis.
+        var dragTriggerXDistance = dx > 0 ? (util.dragThreshold + 1) : 0
+        var dragTriggerYDistance = dy > 0 ? (util.dragThreshold + 1) : 0
+        mouseMove(item, x + dragTriggerXDistance, y + dragTriggerYDistance, moveDelay, button)
+        if (intermediateDx !== 0 || intermediateDy !== 0) {
+            mouseMove(item, x + intermediateDx, y + intermediateDy, moveDelay, button)
+            mouseMove(item, x + 2*intermediateDx, y + 2*intermediateDy, moveDelay, button)
         }
         mouseMove(item, x + dx, y + dy, moveDelay, button)
         mouseRelease(item, x + dx, y + dy, button, modifiers, delay)
@@ -1449,7 +1453,7 @@ Item {
         If \a item is obscured by another item, or a child of \a item occupies
         that position, then the event will be delivered to the other item instead.
 
-        \sa mousePress(), mouseRelease(), mouseDoubleClick(), mouseDoubleClickSequence(), mouseMove(), mouseDrag(), mouseWheel()
+        \sa mousePress(), mouseRelease(), mouseDoubleClickSequence(), mouseMove(), mouseDrag(), mouseWheel()
     */
     function mouseClick(item, x, y, button, modifiers, delay) {
         if (!qtest_verifyItem(item, "mouseClick"))
@@ -1471,6 +1475,7 @@ Item {
 
     /*!
         \qmlmethod TestCase::mouseDoubleClick(item, x = item.width / 2, y = item.height / 2, button = Qt.LeftButton, modifiers = Qt.NoModifier, delay = -1)
+        \deprecated
 
         Simulates double-clicking a mouse \a button with optional \a modifiers
         on an \a item.  The position of the click is defined by \a x and \a y.
@@ -1524,7 +1529,7 @@ Item {
 
         This QML method was introduced in Qt 5.5.
 
-        \sa mouseDoubleClick(), mousePress(), mouseRelease(), mouseClick(), mouseMove(), mouseDrag(), mouseWheel()
+        \sa mousePress(), mouseRelease(), mouseClick(), mouseMove(), mouseDrag(), mouseWheel()
     */
     function mouseDoubleClickSequence(item, x, y, button, modifiers, delay) {
         if (!qtest_verifyItem(item, "mouseDoubleClickSequence"))
@@ -1556,7 +1561,7 @@ Item {
         If \a item is obscured by another item, or a child of \a item occupies
         that position, then the event will be delivered to the other item instead.
 
-        \sa mousePress(), mouseRelease(), mouseClick(), mouseDoubleClick(), mouseDoubleClickSequence(), mouseDrag(), mouseWheel()
+        \sa mousePress(), mouseRelease(), mouseClick(), mouseDoubleClickSequence(), mouseDrag(), mouseWheel()
     */
     function mouseMove(item, x, y, delay, buttons) {
         if (!qtest_verifyItem(item, "mouseMove"))
@@ -1584,7 +1589,7 @@ Item {
 
         The \a xDelta and \a yDelta contain the wheel rotation distance in eighths of a degree. see \l QWheelEvent::angleDelta() for more details.
 
-        \sa mousePress(), mouseClick(), mouseDoubleClick(), mouseDoubleClickSequence(), mouseMove(), mouseRelease(), mouseDrag(), QWheelEvent::angleDelta()
+        \sa mousePress(), mouseClick(), mouseDoubleClickSequence(), mouseMove(), mouseRelease(), mouseDrag(), QWheelEvent::angleDelta()
     */
     function mouseWheel(item, x, y, xDelta, yDelta, buttons, modifiers, delay) {
         if (!qtest_verifyItem(item, "mouseWheel"))

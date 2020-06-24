@@ -17,7 +17,7 @@ import matplotlib.transforms as mtransforms
 from . import axes_size as Size
 
 
-class Divider(object):
+class Divider:
     """
     This class calculates the axes position. It
     divides the given rectangular area into several
@@ -91,14 +91,9 @@ class Divider(object):
 
     @staticmethod
     def _calc_offsets(l, k):
-
         offsets = [0.]
-
-        #for s in l:
         for _rs, _as in l:
-            #_rs, _as = s.get_size(renderer)
             offsets.append(offsets[-1] + _rs*k + _as)
-
         return offsets
 
     def set_position(self, pos):
@@ -138,11 +133,9 @@ class Divider(object):
           =====  ============
 
         """
-        if anchor in mtransforms.Bbox.coefs or len(anchor) == 2:
-            self._anchor = anchor
-        else:
-            raise ValueError('argument must be among %s' %
-                             ', '.join(mtransforms.BBox.coefs))
+        if len(anchor) != 2:
+            cbook._check_in_list(mtransforms.Bbox.coefs, anchor=anchor)
+        self._anchor = anchor
 
     def get_anchor(self):
         "return the anchor"
@@ -295,7 +288,7 @@ class Divider(object):
             self.append_size(d, padded_size)
 
 
-class AxesLocator(object):
+class AxesLocator:
     """
     A simple callable object, initialized with AxesDivider class,
     returns the position and size of the given cell.
@@ -357,15 +350,17 @@ class SubplotDivider(Divider):
         """
         Parameters
         ----------
-        fig : :class:`matplotlib.figure.Figure`
-        *args : tuple (*numRows*, *numCols*, *plotNum*)
-            The array of subplots in the figure has dimensions *numRows*,
-            *numCols*, and *plotNum* is the number of the subplot
-            being created.  *plotNum* starts at 1 in the upper left
-            corner and increases to the right.
+        fig : `matplotlib.figure.Figure`
 
-            If *numRows* <= *numCols* <= *plotNum* < 10, *args* can be the
-            decimal integer *numRows* * 100 + *numCols* * 10 + *plotNum*.
+        *args : tuple (*nrows*, *ncols*, *index*) or int
+            The array of subplots in the figure has dimensions ``(nrows,
+            ncols)``, and *index* is the index of the subplot being created.
+            *index* starts at 1 in the upper left corner and increases to the
+            right.
+
+            If *nrows*, *ncols*, and *index* are all single digit numbers, then
+            *args* can be passed as a single 3-digit number (e.g. 234 for
+            (2, 3, 4)).
         """
 
         self.figure = fig
@@ -397,7 +392,7 @@ class SubplotDivider(Divider):
 
         # total = rows*cols
         # num -= 1    # convert from matlab to python indexing
-        #             # i.e., num in range(0,total)
+        #             # i.e., num in range(0, total)
         # if num >= total:
         #     raise ValueError( 'Subplot number exceeds total subplots')
         # self._rows = rows
@@ -452,28 +447,27 @@ class SubplotDivider(Divider):
     #                                                figW, figH)
 
     def update_params(self):
-        'update the subplot position from fig.subplotpars'
-
+        """Update the subplot position from fig.subplotpars."""
         self.figbox = self.get_subplotspec().get_position(self.figure)
 
     def get_geometry(self):
-        'get the subplot geometry, e.g., 2,2,3'
+        """Get the subplot geometry, e.g., (2, 2, 3)."""
         rows, cols, num1, num2 = self.get_subplotspec().get_geometry()
         return rows, cols, num1+1  # for compatibility
 
     # COVERAGE NOTE: Never used internally or from examples
     def change_geometry(self, numrows, numcols, num):
-        'change subplot geometry, e.g., from 1,1,1 to 2,2,3'
+        """Change subplot geometry, e.g., from (1, 1, 1) to (2, 2, 3)."""
         self._subplotspec = GridSpec(numrows, numcols)[num-1]
         self.update_params()
         self.set_position(self.figbox)
 
     def get_subplotspec(self):
-        'get the SubplotSpec instance'
+        """Get the SubplotSpec instance."""
         return self._subplotspec
 
     def set_subplotspec(self, subplotspec):
-        'set the SubplotSpec instance'
+        """Set the SubplotSpec instance."""
         self._subplotspec = subplotspec
 
 
@@ -520,22 +514,27 @@ class AxesDivider(Divider):
 
         Parameters
         ----------
-        size : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or string
+        size : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or str
             A width of the axes. If float or string is given, *from_any*
             function is used to create the size, with *ref_size* set to AxesX
             instance of the current axes.
-        pad : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or string
+        pad : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or str
             Pad between the axes. It takes same argument as *size*.
         pack_start : bool
             If False, the new axes is appended at the end
             of the list, i.e., it became the right-most axes. If True, it is
             inserted at the start of the list, and becomes the left-most axes.
-        kwargs
+        **kwargs
             All extra keywords arguments are passed to the created axes.
             If *axes_class* is given, the new axes will be created as an
             instance of the given class. Otherwise, the same class of the
             main axes will be used.
         """
+        if pad is None:
+            cbook.warn_deprecated(
+                "3.2", message="In a future version, 'pad' will default to "
+                "rcParams['figure.subplot.wspace'].  Set pad=0 to keep the "
+                "old behavior.")
         if pad:
             if not isinstance(pad, Size._Base):
                 pad = Size.from_any(pad, fraction_ref=self._xref)
@@ -564,22 +563,27 @@ class AxesDivider(Divider):
 
         Parameters
         ----------
-        size : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or string
+        size : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or str
             A height of the axes. If float or string is given, *from_any*
             function is used to create the size, with *ref_size* set to AxesX
             instance of the current axes.
-        pad : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or string
+        pad : :mod:`~mpl_toolkits.axes_grid.axes_size` or float or str
             Pad between the axes. It takes same argument as *size*.
         pack_start : bool
             If False, the new axes is appended at the end
             of the list, i.e., it became the right-most axes. If True, it is
             inserted at the start of the list, and becomes the left-most axes.
-        kwargs
+        **kwargs
             All extra keywords arguments are passed to the created axes.
             If *axes_class* is given, the new axes will be created as an
             instance of the given class. Otherwise, the same class of the
             main axes will be used.
         """
+        if pad is None:
+            cbook.warn_deprecated(
+                "3.2", message="In a future version, 'pad' will default to "
+                "rcParams['figure.subplot.hspace'].  Set pad=0 to keep the "
+                "old behavior.")
         if pad:
             if not isinstance(pad, Size._Base):
                 pad = Size.from_any(pad, fraction_ref=self._yref)
@@ -596,7 +600,8 @@ class AxesDivider(Divider):
             locator = self.new_locator(nx=self._xrefindex, ny=0)
         else:
             self._vertical.append(size)
-            locator = self.new_locator(nx=self._xrefindex, ny=len(self._vertical)-1)
+            locator = self.new_locator(
+                nx=self._xrefindex, ny=len(self._vertical)-1)
         ax = self._get_new_axes(**kwargs)
         ax.set_axes_locator(locator)
         return ax
@@ -694,11 +699,8 @@ class HBoxDivider(SubplotDivider):
     @staticmethod
     def _calc_offsets(appended_sizes, karray):
         offsets = [0.]
-
-        #for s in l:
         for (r, a), k in zip(appended_sizes, karray):
             offsets.append(offsets[-1] + r*k + a)
-
         return offsets
 
     def new_locator(self, nx, nx1=None):
@@ -842,22 +844,6 @@ class VBoxDivider(HBoxDivider):
         return mtransforms.Bbox.from_bounds(x1, y1, w1, h1)
 
 
-@cbook.deprecated('3.0',
-                  addendum=' There is no alternative. Deriving from '
-                           'matplotlib.axes.Axes provides this functionality '
-                           'already.')
-class LocatableAxesBase(object):
-    pass
-
-
-@cbook.deprecated('3.0',
-                  addendum=' There is no alternative. Classes derived from '
-                           'matplotlib.axes.Axes provide this functionality '
-                           'already.')
-def locatable_axes_factory(axes_class):
-    return axes_class
-
-
 def make_axes_locatable(axes):
     divider = AxesDivider(axes)
     locator = divider.new_locator(nx=0, ny=0)
@@ -878,18 +864,3 @@ def make_axes_area_auto_adjustable(ax,
 
     divider.add_auto_adjustable_area(use_axes=use_axes, pad=pad,
                                      adjust_dirs=adjust_dirs)
-
-
-from .mpl_axes import Axes as _Axes
-
-
-@cbook.deprecated('3.0',
-                  alternative='mpl_toolkits.axes_grid1.mpl_axes.Axes')
-class Axes(_Axes):
-    pass
-
-
-@cbook.deprecated('3.0',
-                  alternative='mpl_toolkits.axes_grid1.mpl_axes.Axes')
-class LocatableAxes(_Axes):
-    pass

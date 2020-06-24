@@ -35,10 +35,12 @@ import matplotlib.colors as mcolors
 
 
 def update_from_first_child(tgt, src):
-    tgt.update_from(src.get_children()[0])
+    first_child = next(iter(src.get_children()), None)
+    if first_child is not None:
+        tgt.update_from(first_child)
 
 
-class HandlerBase(object):
+class HandlerBase:
     """
     A Base class for default legend handlers.
 
@@ -166,7 +168,7 @@ class HandlerNpoints(HandlerBase):
                                 numpoints)
             xdata_marker = xdata
         else:
-            xdata = np.linspace(-xdescent, -xdescent + width, 2)
+            xdata = [-xdescent, -xdescent + width]
             xdata_marker = [-xdescent + 0.5 * width]
         return xdata, xdata_marker
 
@@ -324,7 +326,7 @@ class HandlerLineCollection(HandlerLine2D):
 
         xdata, xdata_marker = self.get_xdata(legend, xdescent, ydescent,
                                              width, height, fontsize)
-        ydata = ((height - ydescent) / 2.) * np.ones(xdata.shape, float)
+        ydata = np.full_like(xdata, (height - ydescent) / 2)
         legline = Line2D(xdata, ydata)
 
         self.update_prop(legline, orig_handle, legend)
@@ -466,7 +468,7 @@ class HandlerErrorbar(HandlerLine2D):
         xdata, xdata_marker = self.get_xdata(legend, xdescent, ydescent,
                                              width, height, fontsize)
 
-        ydata = ((height - ydescent) / 2.) * np.ones(xdata.shape, float)
+        ydata = np.full_like(xdata, (height - ydescent) / 2)
         legline = Line2D(xdata, ydata)
 
         xdata_marker = np.asarray(xdata_marker)
@@ -534,15 +536,11 @@ class HandlerErrorbar(HandlerLine2D):
                 handle_caplines.append(capline_left)
                 handle_caplines.append(capline_right)
 
-        artists = []
-        artists.extend(handle_barlinecols)
-        artists.extend(handle_caplines)
-        artists.append(legline)
-        artists.append(legline_marker)
-
+        artists = [
+            *handle_barlinecols, *handle_caplines, legline, legline_marker,
+        ]
         for artist in artists:
             artist.set_transform(trans)
-
         return artists
 
 
@@ -632,13 +630,9 @@ class HandlerStem(HandlerNpointsYoffsets):
                               [bottom, bottom])
         self.update_prop(leg_baseline, baseline, legend)
 
-        artists = leg_stemlines
-        artists.append(leg_baseline)
-        artists.append(leg_markerline)
-
+        artists = [*leg_stemlines, leg_baseline, leg_markerline]
         for artist in artists:
             artist.set_transform(trans)
-
         return artists
 
     def _copy_collection_props(self, legend_handle, orig_handle):

@@ -1,4 +1,4 @@
-# $Id: references.py 8197 2017-11-04 10:31:01Z milde $
+# $Id: references.py 8387 2019-09-06 13:16:34Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -475,17 +475,17 @@ class Footnotes(Transform):
           # Entries 1-4 and 6 below are from section 12.51 of
           # The Chicago Manual of Style, 14th edition.
           '*',                          # asterisk/star
-          '\u2020',                    # dagger &dagger;
-          '\u2021',                    # double dagger &Dagger;
-          '\u00A7',                    # section mark &sect;
-          '\u00B6',                    # paragraph mark (pilcrow) &para;
+          u'\u2020',                    # dagger &dagger;
+          u'\u2021',                    # double dagger &Dagger;
+          u'\u00A7',                    # section mark &sect;
+          u'\u00B6',                    # paragraph mark (pilcrow) &para;
                                         # (parallels ['||'] in CMoS)
           '#',                          # number sign
           # The entries below were chosen arbitrarily.
-          '\u2660',                    # spade suit &spades;
-          '\u2665',                    # heart suit &hearts;
-          '\u2666',                    # diamond suit &diams;
-          '\u2663',                    # club suit &clubs;
+          u'\u2660',                    # spade suit &spades;
+          u'\u2665',                    # heart suit &hearts;
+          u'\u2666',                    # diamond suit &diams;
+          u'\u2663',                    # club suit &clubs;
           ]
 
     def apply(self):
@@ -663,7 +663,7 @@ class Substitutions(Transform):
     def apply(self):
         defs = self.document.substitution_defs
         normed = self.document.substitution_names
-        subreflist = self.document.traverse(nodes.substitution_reference)
+        subreflist = list(self.document.traverse(nodes.substitution_reference))
         nested = {}
         for ref in subreflist:
             refname = ref['refname']

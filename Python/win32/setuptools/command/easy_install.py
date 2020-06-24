@@ -241,7 +241,7 @@ class easy_install(Command):
         """
         Render the Setuptools version and installation details, then exit.
         """
-        ver = '{}.{}'.format(*sys.version_info)
+        ver = sys.version[:3]
         dist = get_distribution('setuptools')
         tmpl = 'setuptools {dist.version} from {dist.location} (Python {ver})'
         print(tmpl.format(**locals()))
@@ -410,13 +410,7 @@ class easy_install(Command):
         ]
         self._expand_attrs(dirs)
 
-    def run(self, show_deprecation=True):
-        if show_deprecation:
-            self.announce(
-                "WARNING: The easy_install command is deprecated "
-                "and will be removed in a future version."
-                , log.WARN,
-            )
+    def run(self):
         if self.verbose != self.distribution.verbose:
             log.set_verbosity(self.verbose)
         try:
@@ -1186,7 +1180,8 @@ class easy_install(Command):
         # to the setup.cfg file.
         ei_opts = self.distribution.get_option_dict('easy_install').copy()
         fetch_directives = (
-            'find_links', 'site_dirs', 'index_url', 'optimize', 'allow_hosts',
+            'find_links', 'site_dirs', 'index_url', 'optimize',
+            'site_dirs', 'allow_hosts',
         )
         fetch_options = {}
         for key, val in ei_opts.items():
@@ -1417,7 +1412,7 @@ def get_site_dirs():
                     os.path.join(
                         prefix,
                         "lib",
-                        "python{}.{}".format(*sys.version_info),
+                        "python" + sys.version[:3],
                         "site-packages",
                     ),
                     os.path.join(prefix, "lib", "site-python"),
@@ -1438,7 +1433,7 @@ def get_site_dirs():
                             home,
                             'Library',
                             'Python',
-                            '{}.{}'.format(*sys.version_info),
+                            sys.version[:3],
                             'site-packages',
                         )
                         sitedirs.append(home_sp)

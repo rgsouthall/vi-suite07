@@ -1,4 +1,4 @@
-# $Id: __init__.py 8239 2018-11-21 21:46:00Z milde $
+# $Id: __init__.py 8367 2019-08-27 12:09:56Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -15,6 +15,9 @@ import sys
 from docutils import nodes
 from docutils.utils import split_escaped_whitespace, escape2null, unescape
 from docutils.parsers.rst.languages import en as _fallback_language_module
+
+if sys.version_info >= (3, 0):
+    unichr = chr  # noqa
 
 
 _directive_registry = {
@@ -169,7 +172,7 @@ def unchanged(argument):
     No argument implies empty string ("").
     """
     if argument is None:
-        return ''
+        return u''
     else:
         return argument  # unchanged!
 
@@ -301,12 +304,12 @@ def unicode_code(code):
     """
     try:
         if code.isdigit():                  # decimal number
-            return chr(int(code))
+            return unichr(int(code))
         else:
             match = unicode_pattern.match(code)
             if match:                       # hex number
                 value = match.group(1) or match.group(2)
-                return chr(int(value, 16))
+                return unichr(int(value, 16))
             else:                           # other text
                 return code
     except OverflowError as detail:

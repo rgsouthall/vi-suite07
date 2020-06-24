@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2014 Riverbank Computing Limited.
+## Copyright (C) 2020 Riverbank Computing Limited.
 ## Copyright (C) 2006 Thorsten Marek.
 ## All right reserved.
 ##
@@ -415,6 +415,8 @@ class QtWidgets(ProxyNamespace):
         def header(self):
             return QtWidgets.QHeaderView("%s.header()" % self,
                     False, (), noInstantiation=True)
+
+    class QUndoView(QListView): pass
 
     class QListWidgetItem(ProxyClass): pass
 

@@ -42,6 +42,7 @@ datetime objects::
 
 """
 
+from decimal import Decimal
 from numbers import Number
 
 import numpy as np
@@ -54,7 +55,23 @@ class ConversionError(TypeError):
     pass
 
 
-class AxisInfo(object):
+def _is_natively_supported(x):
+    """
+    Return whether *x* is of a type that Matplotlib natively supports or an
+    array of objects of such types.
+    """
+    # Matplotlib natively supports all number types except Decimal.
+    if np.iterable(x):
+        # Assume lists are homogeneous as other functions in unit system.
+        for thisx in x:
+            if thisx is ma.masked:
+                continue
+            return isinstance(thisx, Number) and not isinstance(thisx, Decimal)
+    else:
+        return isinstance(x, Number) and not isinstance(x, Decimal)
+
+
+class AxisInfo:
     """
     Information to support default axis labeling, tick labeling, and limits.
 
@@ -90,11 +107,12 @@ class AxisInfo(object):
         self.default_limits = default_limits
 
 
-class ConversionInterface(object):
+class ConversionInterface:
     """
     The minimal interface for a converter to take custom data types (or
     sequences) and convert them to values Matplotlib can use.
     """
+
     @staticmethod
     def axisinfo(unit, axis):
         """
@@ -136,6 +154,43 @@ class ConversionInterface(object):
             return isinstance(x, Number)
 
 
+class DecimalConverter(ConversionInterface):
+    """
+    Converter for decimal.Decimal data to float.
+    """
+    @staticmethod
+    def convert(value, unit, axis):
+        """
+        Convert Decimals to floats.
+
+        The *unit* and *axis* arguments are not used.
+
+        Parameters
+        ----------
+        value : decimal.Decimal or iterable
+            Decimal or list of Decimal need to be converted
+        """
+        # If value is a Decimal
+        if isinstance(value, Decimal):
+            return np.float(value)
+        else:
+            # assume x is a list of Decimal
+            converter = np.asarray
+            if isinstance(value, ma.MaskedArray):
+                converter = ma.asarray
+            return converter(value, dtype=np.float)
+
+    @staticmethod
+    def axisinfo(unit, axis):
+        # Since Decimal is a kind of Number, don't need specific axisinfo.
+        return AxisInfo()
+
+    @staticmethod
+    def default_units(x, axis):
+        # Return None since Decimal is a kind of Number.
+        return None
+
+
 class Registry(dict):
     """Register types with conversion interface."""
 
@@ -151,19 +206,22 @@ class Registry(dict):
             # If there are no elements in x, infer the units from its dtype
             if not x.size:
                 return self.get_converter(np.array([0], dtype=x.dtype))
-        try:  # Look up in the cache.
-            return self[type(x)]
-        except KeyError:
-            try:  # If cache lookup fails, look up based on first element...
-                first = cbook.safe_first_element(x)
-            except (TypeError, StopIteration):
+        for cls in type(x).__mro__:  # Look up in the cache.
+            try:
+                return self[cls]
+            except KeyError:
                 pass
-            else:
-                # ... and avoid infinite recursion for pathological iterables
-                # where indexing returns instances of the same iterable class.
-                if type(first) is not type(x):
-                    return self.get_converter(first)
+        try:  # If cache lookup fails, look up based on first element...
+            first = cbook.safe_first_element(x)
+        except (TypeError, StopIteration):
+            pass
+        else:
+            # ... and avoid infinite recursion for pathological iterables for
+            # which indexing returns instances of the same iterable class.
+            if type(first) is not type(x):
+                return self.get_converter(first)
         return None
 
 
 registry = Registry()
+registry[Decimal] = DecimalConverter()

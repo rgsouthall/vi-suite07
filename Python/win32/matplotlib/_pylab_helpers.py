@@ -6,7 +6,7 @@ import atexit
 import gc
 
 
-class Gcf(object):
+class Gcf:
     """
     Singleton to manage a set of integer-numbered figures.
 
@@ -15,12 +15,11 @@ class Gcf(object):
     methods that operate on those attributes, accessing them
     directly as class attributes.
 
-    Attributes:
-
-        *figs*:
+    Attributes
+    ----------
+    figs
           dictionary of the form {*num*: *manager*, ...}
-
-        *_activeQue*:
+    _activeQue
           list of *managers*, with active one at the end
 
     """

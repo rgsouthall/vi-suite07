@@ -5,7 +5,7 @@ import sys
 import io
 import contextlib
 
-from setuptools.extern import six, ordered_set
+from setuptools.extern import six
 
 from .py36compat import sdist_add_defaults
 
@@ -200,11 +200,9 @@ class sdist(sdist_add_defaults, orig.sdist):
         manifest.close()
 
     def check_license(self):
-        """Checks if license_file' or 'license_files' is configured and adds any
-        valid paths to 'self.filelist'.
+        """Checks if license_file' is configured and adds it to
+        'self.filelist' if the value contains a valid path.
         """
-
-        files = ordered_set.OrderedSet()
 
         opts = self.distribution.get_option_dict('metadata')
 
@@ -213,19 +211,11 @@ class sdist(sdist_add_defaults, orig.sdist):
 
         if license_file is None:
             log.debug("'license_file' option was not specified")
-        else:
-            files.add(license_file)
+            return
 
-        try:
-            files.update(self.distribution.metadata.license_files)
-        except TypeError:
-            log.warn("warning: 'license_files' option is malformed")
+        if not os.path.exists(license_file):
+            log.warn("warning: Failed to find the configured license file '%s'",
+                    license_file)
+            return
 
-        for f in files:
-            if not os.path.exists(f):
-                log.warn(
-                    "warning: Failed to find the configured license file '%s'",
-                    f)
-                files.remove(f)
-
-        self.filelist.extend(files)
+        self.filelist.append(license_file)

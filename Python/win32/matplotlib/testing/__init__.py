@@ -3,6 +3,7 @@ Helper functions for testing.
 """
 import locale
 import logging
+import sys
 import warnings
 
 import matplotlib as mpl
@@ -11,6 +12,7 @@ from matplotlib import cbook
 _log = logging.getLogger(__name__)
 
 
+@cbook.deprecated("3.2")
 def is_called_from_pytest():
     """Whether we are in a pytest run."""
     return getattr(mpl, '_called_from_pytest', False)
@@ -18,7 +20,7 @@ def is_called_from_pytest():
 
 def set_font_settings_for_testing():
     mpl.rcParams['font.family'] = 'DejaVu Sans'
-    mpl.rcParams['text.hinting'] = False
+    mpl.rcParams['text.hinting'] = 'none'
     mpl.rcParams['text.hinting_factor'] = 8
 
 
@@ -40,7 +42,7 @@ def setup():
                 "Could not set locale to English/United States. "
                 "Some date-related tests may fail.")
 
-    mpl.use('Agg', force=True, warn=False)  # use Agg backend for these tests
+    mpl.use('Agg')
 
     with cbook._suppress_matplotlib_deprecation_warning():
         mpl.rcdefaults()  # Start with all defaults

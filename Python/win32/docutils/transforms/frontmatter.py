@@ -1,4 +1,4 @@
-# $Id: frontmatter.py 8231 2018-11-20 23:55:14Z milde $
+# $Id: frontmatter.py 8389 2019-09-11 11:39:13Z milde $
 # Author: David Goodger, Ueli Schlaepfer <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -22,8 +22,14 @@ Transforms related to the front matter of a document or a section
 __docformat__ = 'reStructuredText'
 
 import re
+import sys
+
 from docutils import nodes, utils
 from docutils.transforms import TransformError, Transform
+
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
 
 
 class TitlePromoter(Transform):
@@ -57,15 +63,14 @@ class TitlePromoter(Transform):
         assert not (len(node) and isinstance(node[0], nodes.title))
         section, index = self.candidate_index(node)
         if index is None:
-            return None
+            return False
 
         # Transfer the section's attributes to the node:
-        # NOTE: Change second parameter to False to NOT replace
-        #       attributes that already exist in node with those in
-        #       section
-        # NOTE: Remove third parameter to NOT copy the 'source'
+        # NOTE: Change `replace` to False to NOT replace attributes that
+        #       already exist in node with those in section.
+        # NOTE: Remove `and_source` to NOT copy the 'source'
         #       attribute from section
-        node.update_all_atts_concatenating(section, True, True)
+        node.update_all_atts_concatenating(section, replace=True, and_source=True)
 
         # setup_child is called automatically for all nodes.
         node[:] = (section[:1]        # section title
@@ -73,7 +78,7 @@ class TitlePromoter(Transform):
                                       # node before the section
                    + section[1:])     # everything that was in the section
         assert isinstance(node[0], nodes.title)
-        return 1
+        return True
 
     def promote_subtitle(self, node):
         """
@@ -98,16 +103,15 @@ class TitlePromoter(Transform):
 
         subsection, index = self.candidate_index(node)
         if index is None:
-            return None
+            return False
         subtitle = nodes.subtitle()
 
         # Transfer the subsection's attributes to the new subtitle
-        # NOTE: Change second parameter to False to NOT replace
-        #       attributes that already exist in node with those in
-        #       section
-        # NOTE: Remove third parameter to NOT copy the 'source'
-        #       attribute from section
-        subtitle.update_all_atts_concatenating(subsection, True, True)
+        # NOTE: Change `replace` to False to NOT replace attributes
+        #       that already exist in node with those in section.
+        # NOTE: Remove `and_source` to NOT copy the 'source'
+        #       attribute from section.
+        subtitle.update_all_atts_concatenating(subsection, replace=True, and_source=True)
 
         # Transfer the contents of the subsection's title to the
         # subtitle:
@@ -118,7 +122,7 @@ class TitlePromoter(Transform):
                    + node[1:index]
                    # everything that was in the subsection:
                    + subsection[1:])
-        return 1
+        return True
 
     def candidate_index(self, node):
         """
@@ -128,8 +132,8 @@ class TitlePromoter(Transform):
         """
         index = node.first_child_not_matching_class(
             nodes.PreBibliographic)
-        if index is None or len(node) > (index + 1) or \
-               not isinstance(node[index], nodes.section):
+        if (index is None or len(node) > (index + 1)
+            or not isinstance(node[index], nodes.section)):
             return None, None
         else:
             return node[index], index
@@ -277,11 +281,10 @@ class SectionSubTitle(TitlePromoter):
     def apply(self):
         if not getattr(self.document.settings, 'sectsubtitle_xform', 1):
             return
-        for section in self.document.traverse(nodes.section):
-            # On our way through the node tree, we are deleting
-            # sections, but we call self.promote_subtitle for those
-            # sections nonetheless.  To do: Write a test case which
-            # shows the problem and discuss on Docutils-develop.
+        for section in self.document._traverse(nodes.section):
+            # On our way through the node tree, we are modifying it
+            # but only the not-yet-visited part, so that the iterator
+            # returned by _traverse() is not corrupted.
             self.promote_subtitle(section)
 
 
@@ -504,9 +507,12 @@ class DocInfo(Transform):
             raise
 
     def authors_from_one_paragraph(self, field):
-        """Return list of Text nodes for ";"- or ","-separated authornames."""
+        """Return list of Text nodes for authornames.
+        
+        The set of separators is locale dependent (default: ";"- or ",").
+        """
         # @@ keep original formatting? (e.g. ``:authors: A. Test, *et-al*``)
-        text = ''.join(str(node)
+        text = ''.join(unicode(node)
                        for node in field[1].traverse(nodes.Text))
         if not text:
             raise TransformError

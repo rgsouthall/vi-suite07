@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# $Id: manpage.py 8116 2017-06-18 19:09:40Z milde $
+# $Id: manpage.py 8451 2019-12-30 14:42:44Z grubert $
 # Author: Engelbert Gruber <grubert@users.sourceforge.net>
 # Copyright: This module is put into the public domain.
 
@@ -37,7 +37,7 @@ and
 
   AUTHOR .
 
-A unix-like system keeps an index of the DESCRIPTIONs, which is accesable
+A unix-like system keeps an index of the DESCRIPTIONs, which is accessible
 by the command whatis or apropos.
 
 """
@@ -45,6 +45,10 @@ by the command whatis or apropos.
 __docformat__ = 'reStructuredText'
 
 import re
+import sys
+
+if sys.version_info < (3, 0):
+    range = xrange
 
 import docutils
 from docutils import nodes, writers, languages
@@ -181,13 +185,13 @@ class Translator(nodes.NodeVisitor):
         # writing the header .TH and .SH NAME is postboned after
         # docinfo.
         self._docinfo = {
-                "title" : "", "title_upper": "",
-                "subtitle" : "",
-                "manual_section" : "", "manual_group" : "",
-                "author" : [],
-                "date" : "",
-                "copyright" : "",
-                "version" : "",
+                "title": "", "title_upper": "",
+                "subtitle": "",
+                "manual_section": "", "manual_group": "",
+                "author": [],
+                "date": "",
+                "copyright": "",
+                "version": "",
                     }
         self._docinfo_keys = []     # a list to keep the sequence as in source.
         self._docinfo_names = {}    # to get name from text not normalized.
@@ -206,27 +210,28 @@ class Translator(nodes.NodeVisitor):
         #
         # Fonts are put on a stack, the top one is used.
         # ``.ft P`` or ``\\fP`` pop from stack.
+        # But ``.BI`` seams to fill stack with BIBIBIBIB...
         # ``B`` bold, ``I`` italic, ``R`` roman should be available.
         # Hopefully ``C`` courier too.
         self.defs = {
-                'indent' : ('.INDENT %.1f\n', '.UNINDENT\n'),
-                'definition_list_item' : ('.TP', ''),
-                'field_name' : ('.TP\n.B ', '\n'),
-                'literal' : ('\\fB', '\\fP'),
-                'literal_block' : ('.sp\n.nf\n.ft C\n', '\n.ft P\n.fi\n'),
+                'indent': ('.INDENT %.1f\n', '.UNINDENT\n'),
+                'definition_list_item': ('.TP', ''),
+                'field_name': ('.TP\n.B ', '\n'),
+                'literal': ('\\fB', '\\fP'),
+                'literal_block': ('.sp\n.nf\n.ft C\n', '\n.ft P\n.fi\n'),
 
-                'option_list_item' : ('.TP\n', ''),
+                'option_list_item': ('.TP\n', ''),
 
-                'reference' : (r'\fI\%', r'\fP'),
+                'reference': (r'\fI\%', r'\fP'),
                 'emphasis': ('\\fI', '\\fP'),
-                'strong' : ('\\fB', '\\fP'),
-                'term' : ('\n.B ', '\n'),
-                'title_reference' : ('\\fI', '\\fP'),
+                'strong': ('\\fB', '\\fP'),
+                'term': ('\n.B ', '\n'),
+                'title_reference': ('\\fI', '\\fP'),
 
-                'topic-title' : ('.SS ',),
-                'sidebar-title' : ('.SS ',),
+                'topic-title': ('.SS ',),
+                'sidebar-title': ('.SS ',),
 
-                'problematic' : ('\n.nf\n', '\n.fi\n'),
+                'problematic': ('\n.nf\n', '\n.fi\n'),
                     }
         # NOTE do not specify the newline before a dot-command, but ensure
         # it is there.
@@ -258,7 +263,7 @@ class Translator(nodes.NodeVisitor):
         for i in range(len(self.body)-1, 0, -1):
             # remove superfluous vertical gaps.
             if self.body[i] == '.sp\n':
-                if self.body[i - 1][:4] in ('.BI ','.IP '):
+                if self.body[i - 1][:4] in ('.BI ', '.IP '):
                     self.body[i] = '.\n'
                 elif (self.body[i - 1][:3] == '.B ' and
                     self.body[i - 2][:4] == '.TP\n'):
@@ -272,18 +277,18 @@ class Translator(nodes.NodeVisitor):
         return ''.join(self.head + self.body + self.foot)
 
     def deunicode(self, text):
-        text = text.replace('\xa0', '\\ ')
-        text = text.replace('\u2020', '\\(dg')
+        text = text.replace(u'\xa0', '\\ ')
+        text = text.replace(u'\u2020', '\\(dg')
         return text
 
     def visit_Text(self, node):
         text = node.astext()
-        text = text.replace('\\','\\e')
+        text = text.replace('\\', '\\e')
         replace_pairs = [
-            ('-', r'\-'),
-            ('\'', r'\(aq'),
-            ('´', r'\''),
-            ('`', r'\(ga'),
+            (u'-', u'\\-'),
+            (u'\'', u'\\(aq'),
+            (u'´', u"\\'"),
+            (u'`', u'\\(ga'),
             ]
         for (in_char, out_markup) in replace_pairs:
             text = text.replace(in_char, out_markup)
@@ -302,8 +307,8 @@ class Translator(nodes.NodeVisitor):
     def list_start(self, node):
         class enum_char(object):
             enum_style = {
-                    'bullet'     : '\\(bu',
-                    'emdash'     : '\\(em',
+                    'bullet': '\\(bu',
+                    'emdash': '\\(em',
                      }
 
             def __init__(self, style):
@@ -314,7 +319,7 @@ class Translator(nodes.NodeVisitor):
                     self._cnt = 0
                 self._indent = 2
                 if style == 'arabic':
-                    # indentation depends on number of childrens
+                    # indentation depends on number of children
                     # and start value.
                     self._indent = len(str(len(node.children)))
                     self._indent += len(str(self._cnt)) + 1
@@ -345,6 +350,10 @@ class Translator(nodes.NodeVisitor):
                     return res.lower()
                 else:
                     return "%d." % self._cnt
+
+            if sys.version_info < (3, 0):
+                next = __next__
+
             def get_width(self):
                 return self._indent
             def __repr__(self):
@@ -439,7 +448,7 @@ class Translator(nodes.NodeVisitor):
         pass
 
     def visit_block_quote(self, node):
-        # BUG/HACK: indent alway uses the _last_ indention,
+        # BUG/HACK: indent always uses the _last_ indention,
         # thus we need two of them.
         self.indent(BLOCKQOUTE_INDENT)
         self.indent(0)
@@ -574,7 +583,7 @@ class Translator(nodes.NodeVisitor):
     def visit_document(self, node):
         # no blank line between comment and header.
         self.head.append(self.comment(self.document_start).rstrip()+'\n')
-        # writing header is postboned
+        # writing header is postponed
         self.header_written = 0
 
     def depart_document(self, node):
@@ -646,7 +655,7 @@ class Translator(nodes.NodeVisitor):
 
     def visit_field_body(self, node):
         if self._in_docinfo:
-            name_normalized = self._field_name.lower().replace(" ","_")
+            name_normalized = self._field_name.lower().replace(" ", "_")
             self._docinfo_names[name_normalized] = self._field_name
             self.visit_docinfo_item(node, name_normalized)
             raise nodes.SkipNode
@@ -821,7 +830,7 @@ class Translator(nodes.NodeVisitor):
         self.body.append(self.defs['literal'][1])
 
     def visit_literal_block(self, node):
-        # BUG/HACK: indent alway uses the _last_ indention,
+        # BUG/HACK: indent always uses the _last_ indention,
         # thus we need two of them.
         self.indent(LITERAL_BLOCK_INDENT)
         self.indent(0)
@@ -904,7 +913,10 @@ class Translator(nodes.NodeVisitor):
     def visit_option(self, node):
         # each form of the option will be presented separately
         if self.context[-1] > 0:
-            self.body.append('\\fP,\\fB ')
+            if self.context[-3] == '.BI':
+                self.body.append('\\fR,\\fB ')
+            else:
+                self.body.append('\\fP,\\fB ')
         if self.context[-3] == '.BI':
             self.body.append('\\')
         self.body.append(' ')
@@ -953,13 +965,16 @@ class Translator(nodes.NodeVisitor):
         # ``.PP`` : Start standard indented paragraph.
         # ``.LP`` : Start block paragraph, all except the first.
         # ``.P [type]``  : Start paragraph type.
-        # NOTE dont use paragraph starts because they reset indentation.
+        # NOTE do not use paragraph starts because they reset indentation.
         # ``.sp`` is only vertical space
         self.ensure_eol()
         if not self.first_child(node):
             self.body.append('.sp\n')
+        # set in literal to escape dots after a new-line-character
+        self._in_literal = True
 
     def depart_paragraph(self, node):
+        self._in_literal = False
         self.body.append('\n')
 
     def visit_problematic(self, node):

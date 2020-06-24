@@ -3,11 +3,13 @@ Mesh refinement for triangular grids.
 """
 
 import numpy as np
+
+from matplotlib import cbook
 from matplotlib.tri.triangulation import Triangulation
 import matplotlib.tri.triinterpolate
 
 
-class TriRefiner(object):
+class TriRefiner:
     """
     Abstract base class for classes implementing mesh refinement.
 
@@ -39,8 +41,7 @@ class TriRefiner(object):
 
     """
     def __init__(self, triangulation):
-        if not isinstance(triangulation, Triangulation):
-            raise ValueError("Expected a Triangulation object")
+        cbook._check_isinstance(Triangulation, triangulation=triangulation)
         self._triangulation = triangulation
 
 
@@ -165,9 +166,8 @@ class UniformTriRefiner(TriRefiner):
             interp = matplotlib.tri.CubicTriInterpolator(
                 self._triangulation, z)
         else:
-            if not isinstance(triinterpolator,
-                              matplotlib.tri.TriInterpolator):
-                raise ValueError("Expected a TriInterpolator object")
+            cbook._check_isinstance(matplotlib.tri.TriInterpolator,
+                                    triinterpolator=triinterpolator)
             interp = triinterpolator
 
         refi_tri, found_index = self.refine_triangulation(
@@ -200,9 +200,9 @@ class UniformTriRefiner(TriRefiner):
         y = triangulation.y
 
         #    According to tri.triangulation doc:
-        #         neighbors[i,j] is the triangle that is the neighbor
-        #         to the edge from point index masked_triangles[i,j] to point
-        #         index masked_triangles[i,(j+1)%3].
+        #         neighbors[i, j] is the triangle that is the neighbor
+        #         to the edge from point index masked_triangles[i, j] to point
+        #         index masked_triangles[i, (j+1)%3].
         neighbors = triangulation.neighbors
         triangles = triangulation.triangles
         npts = np.shape(x)[0]

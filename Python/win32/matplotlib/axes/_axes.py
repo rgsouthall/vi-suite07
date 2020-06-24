@@ -3,18 +3,16 @@ import functools
 import itertools
 import logging
 import math
-import operator
 from numbers import Number
 
 import numpy as np
 from numpy import ma
 
-from matplotlib import _preprocess_data, rcParams
+import matplotlib.category as _  # <-registers a category unit converter
 import matplotlib.cbook as cbook
 import matplotlib.collections as mcoll
 import matplotlib.colors as mcolors
 import matplotlib.contour as mcontour
-import matplotlib.category as _  # <-registers a category unit converter
 import matplotlib.dates as _  # <-registers a date unit converter
 import matplotlib.docstring as docstring
 import matplotlib.image as mimage
@@ -22,8 +20,8 @@ import matplotlib.legend as mlegend
 import matplotlib.lines as mlines
 import matplotlib.markers as mmarkers
 import matplotlib.mlab as mlab
-import matplotlib.path as mpath
 import matplotlib.patches as mpatches
+import matplotlib.path as mpath
 import matplotlib.quiver as mquiver
 import matplotlib.stackplot as mstack
 import matplotlib.streamplot as mstream
@@ -32,15 +30,17 @@ import matplotlib.text as mtext
 import matplotlib.ticker as mticker
 import matplotlib.transforms as mtransforms
 import matplotlib.tri as mtri
-from matplotlib.container import BarContainer, ErrorbarContainer, StemContainer
+from matplotlib import _preprocess_data, rcParams
 from matplotlib.axes._base import _AxesBase, _process_plot_format
 from matplotlib.axes._secondary_axes import SecondaryAxis
+from matplotlib.container import BarContainer, ErrorbarContainer, StemContainer
 
 try:
-    from numpy.lib.histograms import histogram_bin_edges
+    from numpy.lib.histograms import (
+        histogram_bin_edges as _histogram_bin_edges)
 except ImportError:
     # this function is new in np 1.15
-    def histogram_bin_edges(arr, bins, range=None, weights=None):
+    def _histogram_bin_edges(arr, bins, range=None, weights=None):
         # this in True for 1D arrays, and False for None and str
         if np.ndim(bins) == 1:
             return bins
@@ -96,23 +96,20 @@ def _make_inset_locator(bounds, trans, parent):
 
 class Axes(_AxesBase):
     """
-    The :class:`Axes` contains most of the figure elements:
-    :class:`~matplotlib.axis.Axis`, :class:`~matplotlib.axis.Tick`,
-    :class:`~matplotlib.lines.Line2D`, :class:`~matplotlib.text.Text`,
-    :class:`~matplotlib.patches.Polygon`, etc., and sets the
-    coordinate system.
+    The `Axes` contains most of the figure elements: `~.axis.Axis`,
+    `~.axis.Tick`, `~.lines.Line2D`, `~.text.Text`, `~.patches.Polygon`, etc.,
+    and sets the coordinate system.
 
-    The :class:`Axes` instance supports callbacks through a callbacks
-    attribute which is a :class:`~matplotlib.cbook.CallbackRegistry`
-    instance.  The events you can connect to are 'xlim_changed' and
-    'ylim_changed' and the callback will be called with func(*ax*)
-    where *ax* is the :class:`Axes` instance.
+    The `Axes` instance supports callbacks through a callbacks attribute which
+    is a `~.cbook.CallbackRegistry` instance.  The events you can connect to
+    are 'xlim_changed' and 'ylim_changed' and the callback will be called with
+    func(*ax*) where *ax* is the `Axes` instance.
 
     Attributes
     ----------
-    dataLim : `.BBox`
+    dataLim : `.Bbox`
         The bounding box enclosing all data displayed in the Axes.
-    viewLim : `.BBox`
+    viewLim : `.Bbox`
         The view limits in data coordinates.
 
     """
@@ -142,15 +139,13 @@ class Axes(_AxesBase):
             The title text string.
 
         """
-        try:
-            title = {'left': self._left_title,
-                     'center': self.title,
-                     'right': self._right_title}[loc.lower()]
-        except KeyError:
-            raise ValueError("'%s' is not a valid location" % loc)
+        titles = {'left': self._left_title,
+                  'center': self.title,
+                  'right': self._right_title}
+        title = cbook._check_getitem(titles, loc=loc.lower())
         return title.get_text()
 
-    def set_title(self, label, fontdict=None, loc="center", pad=None,
+    def set_title(self, label, fontdict=None, loc=None, pad=None,
                     **kwargs):
         """
         Set a title for the axes.
@@ -166,19 +161,21 @@ class Axes(_AxesBase):
 
         fontdict : dict
             A dictionary controlling the appearance of the title text,
-            the default `fontdict` is::
+            the default *fontdict* is::
 
                {'fontsize': rcParams['axes.titlesize'],
                 'fontweight' : rcParams['axes.titleweight'],
+                'color' : rcParams['axes.titlecolor'],
                 'verticalalignment': 'baseline',
                 'horizontalalignment': loc}
 
         loc : {'center', 'left', 'right'}, str, optional
-            Which title to set, defaults to 'center'
+            Which title to set.
+            If *None*, defaults to :rc:`axes.titlelocation`.
 
         pad : float
             The offset of the title from the top of the axes, in points.
-            Default is ``None`` to use rcParams['axes.titlepad'].
+            If *None*, defaults to :rc:`axes.titlepad`.
 
         Returns
         -------
@@ -192,17 +189,21 @@ class Axes(_AxesBase):
             :class:`~matplotlib.text.Text` for a list of valid text
             properties.
         """
-        try:
-            title = {'left': self._left_title,
-                     'center': self.title,
-                     'right': self._right_title}[loc.lower()]
-        except KeyError:
-            raise ValueError("'%s' is not a valid location" % loc)
+        if loc is None:
+            loc = rcParams['axes.titlelocation']
+
+        titles = {'left': self._left_title,
+                  'center': self.title,
+                  'right': self._right_title}
+        title = cbook._check_getitem(titles, loc=loc.lower())
         default = {
             'fontsize': rcParams['axes.titlesize'],
             'fontweight': rcParams['axes.titleweight'],
             'verticalalignment': 'baseline',
             'horizontalalignment': loc.lower()}
+        titlecolor = rcParams['axes.titlecolor']
+        if not cbook._str_lower_equal(titlecolor, 'auto'):
+            default["color"] = titlecolor
         if pad is None:
             pad = rcParams['axes.titlepad']
         self._set_title_offset_trans(float(pad))
@@ -359,7 +360,6 @@ class Axes(_AxesBase):
 
         Parameters
         ----------
-
         handles : sequence of `.Artist`, optional
             A list of Artists (lines, patches) to be added to the legend.
             Use this together with *labels*, if you need full control on what
@@ -369,7 +369,7 @@ class Axes(_AxesBase):
             The length of handles and labels should be the same in this
             case. If they are not, they are truncated to the smaller length.
 
-        labels : sequence of strings, optional
+        labels : list of str, optional
             A list of labels to show next to the artists.
             Use this together with *handles*, if you need full control on what
             is shown in the legend and the automatic mechanism described above
@@ -377,25 +377,20 @@ class Axes(_AxesBase):
 
         Other Parameters
         ----------------
-
         %(_legend_kw_doc)s
 
         Returns
         -------
-
-        :class:`matplotlib.legend.Legend` instance
+        legend : `~matplotlib.legend.Legend`
 
         Notes
         -----
-
         Not all kinds of artist are supported by the legend command. See
         :doc:`/tutorials/intermediate/legend_guide` for details.
 
         Examples
         --------
-
         .. plot:: gallery/text_labels_and_annotations/legend.py
-
         """
         handles, labels, extra_args, kwargs = mlegend._parse_legend_args(
                 [self],
@@ -417,12 +412,10 @@ class Axes(_AxesBase):
 
         Warnings
         --------
-
         This method is experimental as of 3.0, and the API may change.
 
         Parameters
         ----------
-
         bounds : [x0, y0, width, height]
             Lower-left corner of inset axes, and its width and height.
 
@@ -436,18 +429,15 @@ class Axes(_AxesBase):
             parent axes.
 
         **kwargs
-
-            Other *kwargs* are passed on to the `axes.Axes` child axes.
+            Other keyword arguments are passed on to the `.Axes` child axes.
 
         Returns
         -------
-
-        Axes
-            The created `.axes.Axes` instance.
+        ax
+            The created `~.axes.Axes` instance.
 
         Examples
         --------
-
         This example makes two inset axes, the first is in axes-relative
         coordinates, and the second in data-coordinates::
 
@@ -483,18 +473,15 @@ class Axes(_AxesBase):
         """
         Add an inset indicator to the axes.  This is a rectangle on the plot
         at the position indicated by *bounds* that optionally has lines that
-        connect the rectangle to an inset axes
-        (`.Axes.inset_axes`).
+        connect the rectangle to an inset axes (`.Axes.inset_axes`).
 
         Warnings
         --------
-
         This method is experimental as of 3.0, and the API may change.
 
 
         Parameters
         ----------
-
         bounds : [x0, y0, width, height]
             Lower-left corner of rectangle to be marked, and its width
             and height.
@@ -516,29 +503,28 @@ class Axes(_AxesBase):
             Color of the rectangle and color of the connecting lines.  Default
             is '0.5'.
 
-        alpha : number
+        alpha : float
             Transparency of the rectangle and connector lines.  Default is 0.5.
 
-        zorder : number
+        zorder : float
             Drawing order of the rectangle and connector lines. Default is 4.99
             (just below the default level of inset axes).
 
         **kwargs
-            Other *kwargs* are passed on to the rectangle patch.
+            Other keyword arguments are passed on to the rectangle patch.
 
         Returns
         -------
+        rectangle_patch : `.patches.Rectangle`
+             The indicator frame.
 
-        rectangle_patch : `.Patches.Rectangle`
-             Rectangle artist.
-
-        connector_lines : 4-tuple of `.Patches.ConnectionPatch`
-            One for each of four connector lines.  Two are set with visibility
-            to *False*,  but the user can set the visibility to True if the
-            automatic choice is not deemed correct.
+        connector_lines : 4-tuple of `.patches.ConnectionPatch`
+            The four connector lines connecting to (lower_left, upper_left,
+            lower_right upper_right) corners of *inset_ax*. Two lines are
+            set with visibility to *False*,  but the user can set the
+            visibility to True if the automatic choice is not deemed correct.
 
         """
-
         # to make the axes connectors work, we need to apply the aspect to
         # the parent axes.
         self.apply_aspect()
@@ -547,31 +533,41 @@ class Axes(_AxesBase):
             transform = self.transData
         label = kwargs.pop('label', 'indicate_inset')
 
-        xy = (bounds[0], bounds[1])
-        rectpatch = mpatches.Rectangle(xy, bounds[2], bounds[3],
-                facecolor=facecolor, edgecolor=edgecolor, alpha=alpha,
-                zorder=zorder,  label=label, transform=transform, **kwargs)
-        self.add_patch(rectpatch)
+        x, y, width, height = bounds
+        rectangle_patch = mpatches.Rectangle(
+            (x, y), width, height,
+            facecolor=facecolor, edgecolor=edgecolor, alpha=alpha,
+            zorder=zorder,  label=label, transform=transform, **kwargs)
+        self.add_patch(rectangle_patch)
+
+        connects = []
 
         if inset_ax is not None:
-            # want to connect the indicator to the rect....
-            connects = []
-            xr = [bounds[0], bounds[0]+bounds[2]]
-            yr = [bounds[1], bounds[1]+bounds[3]]
-            for xc in range(2):
-                for yc in range(2):
-                    xyA = (xc, yc)
-                    xyB = (xr[xc], yr[yc])
-                    connects += [mpatches.ConnectionPatch(xyA, xyB,
-                            'axes fraction', 'data',
-                            axesA=inset_ax, axesB=self, arrowstyle="-",
-                            zorder=zorder, edgecolor=edgecolor, alpha=alpha)]
-                    self.add_patch(connects[-1])
+            # connect the inset_axes to the rectangle
+            for xy_inset_ax in [(0, 0), (0, 1), (1, 0), (1, 1)]:
+                # inset_ax positions are in axes coordinates
+                # The 0, 1 values define the four edges if the inset_ax
+                # lower_left, upper_left, lower_right upper_right.
+                ex, ey = xy_inset_ax
+                if self.xaxis.get_inverted():
+                    ex = 1 - ex
+                if self.yaxis.get_inverted():
+                    ey = 1 - ey
+                xy_data = x + ex * width, y + ey * height
+                p = mpatches.ConnectionPatch(
+                    xyA=xy_inset_ax, coordsA=inset_ax.transAxes,
+                    xyB=xy_data, coordsB=self.transData,
+                    arrowstyle="-", zorder=zorder,
+                    edgecolor=edgecolor, alpha=alpha)
+                connects.append(p)
+                self.add_patch(p)
+
             # decide which two of the lines to keep visible....
             pos = inset_ax.get_position()
             bboxins = pos.transformed(self.figure.transFigure)
             rectbbox = mtransforms.Bbox.from_bounds(
-                        *bounds).transformed(transform)
+                *bounds
+            ).transformed(transform)
             x0 = rectbbox.x0 < bboxins.x0
             x1 = rectbbox.x1 < bboxins.x1
             y0 = rectbbox.y0 < bboxins.y0
@@ -581,7 +577,7 @@ class Axes(_AxesBase):
             connects[2].set_visible(x1 == y0)
             connects[3].set_visible(x1 ^ y1)
 
-        return rectpatch, connects
+        return rectangle_patch, tuple(connects) if connects else None
 
     def indicate_inset_zoom(self, inset_ax, **kwargs):
         """
@@ -591,40 +587,36 @@ class Axes(_AxesBase):
 
         Warnings
         --------
-
         This method is experimental as of 3.0, and the API may change.
 
         Parameters
         ----------
-
         inset_ax : `.Axes`
             Inset axes to draw connecting lines to.  Two lines are
             drawn connecting the indicator box to the inset axes on corners
             chosen so as to not overlap with the indicator box.
 
         **kwargs
-            Other *kwargs* are passed on to `.Axes.inset_rectangle`
+            Other keyword arguments are passed on to `.Axes.indicate_inset`
 
         Returns
         -------
-
         rectangle_patch : `.Patches.Rectangle`
              Rectangle artist.
 
         connector_lines : 4-tuple of `.Patches.ConnectionPatch`
-            One for each of four connector lines.  Two are set with visibility
-            to *False*,  but the user can set the visibility to True if the
-            automatic choice is not deemed correct.
-
+            Each of four connector lines coming from the rectangle drawn on
+            this axis, in the order lower left, upper left, lower right,
+            upper right.
+            Two are set with visibility to *False*,  but the user can
+            set the visibility to *True* if the automatic choice is not deemed
+            correct.
         """
 
         xlim = inset_ax.get_xlim()
         ylim = inset_ax.get_ylim()
-        rect = [xlim[0], ylim[0], xlim[1] - xlim[0], ylim[1] - ylim[0]]
-        rectpatch, connects = self.indicate_inset(
-                rect, inset_ax, **kwargs)
-
-        return rectpatch, connects
+        rect = (xlim[0], ylim[0], xlim[1] - xlim[0], ylim[1] - ylim[0])
+        return self.indicate_inset(rect, inset_ax, **kwargs)
 
     @docstring.dedent_interpd
     def secondary_xaxis(self, location, *, functions=None, **kwargs):
@@ -638,7 +630,6 @@ class Axes(_AxesBase):
 
         Examples
         --------
-
         The main axis shows frequency, and the secondary axis shows period.
 
         .. plot::
@@ -647,15 +638,12 @@ class Axes(_AxesBase):
             ax.loglog(range(1, 360, 5), range(1, 360, 5))
             ax.set_xlabel('frequency [Hz]')
 
-
             def invert(x):
                 return 1 / x
 
             secax = ax.secondary_xaxis('top', functions=(invert, invert))
             secax.set_xlabel('Period [s]')
             plt.show()
-
-
         """
         if (location in ['top', 'bottom'] or isinstance(location, Number)):
             secondary_ax = SecondaryAxis(self, 'x', location, functions,
@@ -666,6 +654,7 @@ class Axes(_AxesBase):
             raise ValueError('secondary_xaxis location must be either '
                              'a float or "top"/"bottom"')
 
+    @docstring.dedent_interpd
     def secondary_yaxis(self, location, *, functions=None, **kwargs):
         """
         Add a second y-axis to this axes.
@@ -677,7 +666,6 @@ class Axes(_AxesBase):
 
         Examples
         --------
-
         Add a secondary axes that converts from radians to degrees
 
         .. plot::
@@ -688,7 +676,6 @@ class Axes(_AxesBase):
             secax = ax.secondary_yaxis('right', functions=(np.deg2rad,
                                                            np.rad2deg))
             secax.set_ylabel('radians')
-
         """
         if location in ['left', 'right'] or isinstance(location, Number):
             secondary_ax = SecondaryAxis(self, 'y', location,
@@ -742,15 +729,15 @@ class Axes(_AxesBase):
             >>> text(x, y, s, fontsize=12)
 
         The default transform specifies that text is in data coords,
-        alternatively, you can specify text in axis coords (0,0 is
-        lower-left and 1,1 is upper-right).  The example below places
+        alternatively, you can specify text in axis coords ((0, 0) is
+        lower-left and (1, 1) is upper-right).  The example below places
         text in the center of the axes::
 
             >>> text(0.5, 0.5, 'matplotlib', horizontalalignment='center',
             ...      verticalalignment='center', transform=ax.transAxes)
 
         You can put a rectangular box around the text instance (e.g., to
-        set a background color) by using the keyword `bbox`.  `bbox` is
+        set a background color) by using the keyword *bbox*.  *bbox* is
         a dictionary of `~matplotlib.patches.Rectangle`
         properties.  For example::
 
@@ -817,15 +804,15 @@ class Axes(_AxesBase):
 
         Returns
         -------
-        line : :class:`~matplotlib.lines.Line2D`
+        line : `~matplotlib.lines.Line2D`
 
         Other Parameters
         ----------------
         **kwargs
-            Valid kwargs are :class:`~matplotlib.lines.Line2D` properties,
-            with the exception of 'transform':
+            Valid keyword arguments are `.Line2D` properties, with the
+            exception of 'transform':
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         See also
         --------
@@ -834,7 +821,6 @@ class Axes(_AxesBase):
 
         Examples
         --------
-
         * draw a thick red hline at 'y' = 0 that spans the xrange::
 
             >>> axhline(linewidth=4, color='r')
@@ -847,7 +833,6 @@ class Axes(_AxesBase):
           the xrange::
 
             >>> axhline(y=.5, xmin=0.25, xmax=0.75)
-
         """
         if "transform" in kwargs:
             raise ValueError(
@@ -864,7 +849,7 @@ class Axes(_AxesBase):
         trans = self.get_yaxis_transform(which='grid')
         l = mlines.Line2D([xmin, xmax], [y, y], transform=trans, **kwargs)
         self.add_line(l)
-        self.autoscale_view(scalex=False, scaley=scaley)
+        self._request_autoscale_view(scalex=False, scaley=scaley)
         return l
 
     @docstring.dedent_interpd
@@ -887,15 +872,15 @@ class Axes(_AxesBase):
 
         Returns
         -------
-        line : :class:`~matplotlib.lines.Line2D`
+        line : `~matplotlib.lines.Line2D`
 
         Other Parameters
         ----------------
         **kwargs
-            Valid kwargs are :class:`~matplotlib.lines.Line2D` properties,
-            with the exception of 'transform':
+            Valid keyword arguments are `.Line2D` properties, with the
+            exception of 'transform':
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         Examples
         --------
@@ -933,7 +918,7 @@ class Axes(_AxesBase):
         trans = self.get_xaxis_transform(which='grid')
         l = mlines.Line2D([x, x], [ymin, ymax], transform=trans, **kwargs)
         self.add_line(l)
-        self.autoscale_view(scalex=scalex, scaley=False)
+        self._request_autoscale_view(scalex=scalex, scaley=False)
         return l
 
     @docstring.dedent_interpd
@@ -989,15 +974,15 @@ class Axes(_AxesBase):
         p = mpatches.Polygon(verts, **kwargs)
         p.set_transform(trans)
         self.add_patch(p)
-        self.autoscale_view(scalex=False)
+        self._request_autoscale_view(scalex=False)
         return p
 
     def axvspan(self, xmin, xmax, ymin=0, ymax=1, **kwargs):
         """
         Add a vertical span (rectangle) across the axes.
 
-        Draw a vertical span (rectangle) from `xmin` to `xmax`.  With
-        the default values of `ymin` = 0 and `ymax` = 1. This always
+        Draw a vertical span (rectangle) from *xmin* to *xmax*.  With
+        the default values of *ymin* = 0 and *ymax* = 1. This always
         spans the yrange, regardless of the ylim settings, even if you
         change them, e.g., with the :meth:`set_ylim` command.  That is,
         the vertical extent is in axes coords: 0=bottom, 0.5=middle,
@@ -1053,7 +1038,7 @@ class Axes(_AxesBase):
         p = mpatches.Polygon(verts, **kwargs)
         p.set_transform(trans)
         self.add_patch(p)
-        self.autoscale_view(scaley=False)
+        self._request_autoscale_view(scaley=False)
         return p
 
     @_preprocess_data(replace_names=["y", "xmin", "xmax", "colors"],
@@ -1068,15 +1053,15 @@ class Axes(_AxesBase):
         y : scalar or sequence of scalar
             y-indexes where to plot the lines.
 
-        xmin, xmax : scalar or 1D array_like
+        xmin, xmax : scalar or 1D array-like
             Respective beginning and end of each line. If scalars are
             provided, all lines will have same length.
 
-        colors : array_like of colors, optional, default: 'k'
+        colors : array-like of colors, optional, default: 'k'
 
         linestyles : {'solid', 'dashed', 'dashdot', 'dotted'}, optional
 
-        label : string, optional, default: ''
+        label : str, optional, default: ''
 
         Returns
         -------
@@ -1128,7 +1113,7 @@ class Axes(_AxesBase):
             corners = (minx, miny), (maxx, maxy)
 
             self.update_datalim(corners)
-            self.autoscale_view()
+            self._request_autoscale_view()
 
         return lines
 
@@ -1143,18 +1128,18 @@ class Axes(_AxesBase):
 
         Parameters
         ----------
-        x : scalar or 1D array_like
+        x : scalar or 1D array-like
             x-indexes where to plot the lines.
 
-        ymin, ymax : scalar or 1D array_like
+        ymin, ymax : scalar or 1D array-like
             Respective beginning and end of each line. If scalars are
             provided, all lines will have same length.
 
-        colors : array_like of colors, optional, default: 'k'
+        colors : array-like of colors, optional, default: 'k'
 
         linestyles : {'solid', 'dashed', 'dashdot', 'dotted'}, optional
 
-        label : string, optional, default: ''
+        label : str, optional, default: ''
 
         Returns
         -------
@@ -1205,7 +1190,7 @@ class Axes(_AxesBase):
 
             corners = (minx, miny), (maxx, maxy)
             self.update_datalim(corners)
-            self.autoscale_view()
+            self._request_autoscale_view()
 
         return lines
 
@@ -1279,14 +1264,12 @@ class Axes(_AxesBase):
 
         Returns
         -------
-
         list : A list of :class:`~.collections.EventCollection` objects.
             Contains the :class:`~.collections.EventCollection` that
             were added.
 
         Notes
         -----
-
         For *linelengths*, *linewidths*, *colors*, and *linestyles*, if only
         a single value is given, that value is applied to all lines.  If an
         array-like is given, it must have the same length as *positions*, and
@@ -1294,7 +1277,6 @@ class Axes(_AxesBase):
 
         Examples
         --------
-
         .. plot:: gallery/lines_bars_and_markers/eventplot_demo.py
         """
         self._process_unit_info(xdata=positions,
@@ -1421,7 +1403,7 @@ class Axes(_AxesBase):
                 else:  # "horizontal", None or "none" (see EventCollection)
                     corners = (minpos, minline), (maxpos, maxline)
                 self.update_datalim(corners)
-                self.autoscale_view()
+                self._request_autoscale_view()
 
         return colls
 
@@ -1505,8 +1487,8 @@ class Axes(_AxesBase):
         By default, each line is assigned a different style specified by a
         'style cycle'. The *fmt* and line property parameters are only
         necessary if you want explicit deviations from these defaults.
-        Alternatively, you can also change the style cycle using the
-        'axes.prop_cycle' rcParam.
+        Alternatively, you can also change the style cycle using
+        :rc:`axes.prop_cycle`.
 
 
         Parameters
@@ -1555,15 +1537,15 @@ class Axes(_AxesBase):
             auto legends), linewidth, antialiasing, marker face color.
             Example::
 
-            >>> plot([1,2,3], [1,2,3], 'go-', label='line 1', linewidth=2)
-            >>> plot([1,2,3], [1,4,9], 'rs',  label='line 2')
+            >>> plot([1, 2, 3], [1, 2, 3], 'go-', label='line 1', linewidth=2)
+            >>> plot([1, 2, 3], [1, 4, 9], 'rs', label='line 2')
 
             If you make multiple lines with one plot command, the kwargs
             apply to all those lines.
 
             Here is a list of available `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         Returns
         -------
@@ -1661,11 +1643,11 @@ class Axes(_AxesBase):
         additionally use any  `matplotlib.colors` spec, e.g. full names
         (``'green'``) or hex strings (``'#008000'``).
         """
-        kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D._alias_map)
+        kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D)
         lines = [*self._get_lines(*args, data=data, **kwargs)]
         for line in lines:
             self.add_line(line)
-        self.autoscale_view(scalex=scalex, scaley=scaley)
+        self._request_autoscale_view(scalex=scalex, scaley=scaley)
         return lines
 
     @_preprocess_data(replace_names=["x", "y"], label_namer="y")
@@ -1690,9 +1672,9 @@ class Axes(_AxesBase):
             The plot format string. For details, see the corresponding
             parameter in `.plot`.
 
-        tz : [ *None* | timezone string | :class:`tzinfo` instance]
+        tz : timezone string or `tzinfo` or None
             The time zone to use in labeling dates. If *None*, defaults to
-            rcParam ``timezone``.
+            :rc:`timezone`.
 
         xdate : bool, optional, default: True
             If *True*, the *x*-axis will be interpreted as Matplotlib dates.
@@ -1704,17 +1686,15 @@ class Axes(_AxesBase):
         Returns
         -------
         lines
-            A list of `~.Line2D` objects representing the plotted data.
+            A list of `.Line2D` objects representing the plotted data.
 
 
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
-
+            %(_Line2D_docstr)s
 
         See Also
         --------
@@ -1722,7 +1702,6 @@ class Axes(_AxesBase):
         matplotlib.dates.date2num : Convert dates to num.
         matplotlib.dates.num2date : Convert num to dates.
         matplotlib.dates.drange : Create an equally spaced sequence of dates.
-
 
         Notes
         -----
@@ -1741,7 +1720,7 @@ class Axes(_AxesBase):
 
         ret = self.plot(x, y, fmt, **kwargs)
 
-        self.autoscale_view()
+        self._request_autoscale_view()
 
         return ret
 
@@ -1782,7 +1761,7 @@ class Axes(_AxesBase):
         Returns
         -------
         lines
-            A list of `~.Line2D` objects representing the plotted data.
+            A list of `.Line2D` objects representing the plotted data.
 
         Other Parameters
         ----------------
@@ -1823,7 +1802,7 @@ class Axes(_AxesBase):
         basex : scalar, optional, default 10
             Base of the x logarithm.
 
-        subsx : array_like, optional
+        subsx : array-like, optional
             The location of the minor xticks. If *None*, reasonable locations
             are automatically chosen depending on the number of decades in the
             plot. See `.Axes.set_xscale` for details.
@@ -1835,7 +1814,7 @@ class Axes(_AxesBase):
         Returns
         -------
         lines
-            A list of `~.Line2D` objects representing the plotted data.
+            A list of `.Line2D` objects representing the plotted data.
 
         Other Parameters
         ----------------
@@ -1872,7 +1851,7 @@ class Axes(_AxesBase):
         basey : scalar, optional, default 10
             Base of the y logarithm.
 
-        subsy : array_like, optional
+        subsy : array-like, optional
             The location of the minor yticks. If *None*, reasonable locations
             are automatically chosen depending on the number of decades in the
             plot. See `.Axes.set_yscale` for details.
@@ -1884,7 +1863,7 @@ class Axes(_AxesBase):
         Returns
         -------
         lines
-            A list of `~.Line2D` objects representing the plotted data.
+            A list of `.Line2D` objects representing the plotted data.
 
         Other Parameters
         ----------------
@@ -2081,11 +2060,11 @@ class Axes(_AxesBase):
 
         Parameters
         ----------
-        x : array_like
+        x : array-like
             1-D sequence of x positions. It is assumed, but not checked, that
             it is uniformly increasing.
 
-        y : array_like
+        y : array-like
             1-D sequence of y levels.
 
         fmt : str, optional
@@ -2127,9 +2106,7 @@ class Axes(_AxesBase):
         -----
         .. [notes section required to get data note injection right]
         """
-        if where not in ('pre', 'post', 'mid'):
-            raise ValueError("'where' argument to step must be "
-                             "'pre', 'post' or 'mid'")
+        cbook._check_in_list(('pre', 'post', 'mid'), where=where)
         kwargs['drawstyle'] = 'steps-' + where
         return self.plot(x, y, *args, data=data, **kwargs)
 
@@ -2240,19 +2217,19 @@ class Axes(_AxesBase):
         linewidth : scalar or array-like, optional
             Width of the bar edge(s). If 0, don't draw edges.
 
-        tick_label : string or array-like, optional
+        tick_label : str or array-like, optional
             The tick labels of the bars.
             Default: None (Use default numeric labels.)
 
-        xerr, yerr : scalar or array-like of shape(N,) or shape(2,N), optional
+        xerr, yerr : scalar or array-like of shape(N,) or shape(2, N), optional
             If not *None*, add horizontal / vertical errorbars to the bar tips.
             The values are +/- sizes relative to the data:
 
             - scalar: symmetric +/- values for all bars
             - shape(N,): symmetric +/- values for each bar
-            - shape(2,N): Separate - and + values for each bar. First row
-                contains the lower errors, the second row contains the
-                upper errors.
+            - shape(2, N): Separate - and + values for each bar. First row
+              contains the lower errors, the second row contains the upper
+              errors.
             - *None*: No errorbar. (Default)
 
             See :doc:`/gallery/statistics/errorbar_features`
@@ -2295,9 +2272,8 @@ class Axes(_AxesBase):
         Other optional kwargs:
 
         %(Rectangle)s
-
         """
-        kwargs = cbook.normalize_kwargs(kwargs, mpatches.Patch._alias_map)
+        kwargs = cbook.normalize_kwargs(kwargs, mpatches.Patch)
         color = kwargs.pop('color', None)
         if color is None:
             color = self._get_patches_for_fill.get_next_color()
@@ -2323,24 +2299,18 @@ class Axes(_AxesBase):
         error_kw.setdefault('capsize', capsize)
 
         orientation = kwargs.pop('orientation', 'vertical')
+        cbook._check_in_list(['vertical', 'horizontal'],
+                             orientation=orientation)
         log = kwargs.pop('log', False)
         label = kwargs.pop('label', '')
         tick_labels = kwargs.pop('tick_label', None)
 
-        adjust_ylim = False
-        adjust_xlim = False
-
         y = bottom  # Matches barh call signature.
         if orientation == 'vertical':
-            if bottom is None:
-                if self.get_yscale() == 'log':
-                    adjust_ylim = True
+            if y is None:
                 y = 0
-
         elif orientation == 'horizontal':
             if x is None:
-                if self.get_xscale() == 'log':
-                    adjust_xlim = True
                 x = 0
 
         if orientation == 'vertical':
@@ -2351,8 +2321,6 @@ class Axes(_AxesBase):
             self._process_unit_info(xdata=width, ydata=y, kwargs=kwargs)
             if log:
                 self.set_xscale('log', nonposx='clip')
-        else:
-            raise ValueError('invalid orientation: %s' % orientation)
 
         # lets do some conversions now since some types cannot be
         # subtracted uniformly
@@ -2395,6 +2363,7 @@ class Axes(_AxesBase):
 
         # We will now resolve the alignment and really have
         # left, bottom, width, height vectors
+        cbook._check_in_list(['center', 'edge'], align=align)
         if align == 'center':
             if orientation == 'vertical':
                 try:
@@ -2415,8 +2384,6 @@ class Axes(_AxesBase):
         elif align == 'edge':
             left = x
             bottom = y
-        else:
-            raise ValueError('invalid alignment: %s' % align)
 
         patches = []
         args = zip(left, bottom, width, height, color, edgecolor, linewidth)
@@ -2456,22 +2423,7 @@ class Axes(_AxesBase):
         else:
             errorbar = None
 
-        if adjust_xlim:
-            xmin, xmax = self.dataLim.intervalx
-            xmin = min(w for w in width if w > 0)
-            if xerr is not None:
-                xmin = xmin - np.max(xerr)
-            xmin = max(xmin * 0.9, 1e-100)
-            self.dataLim.intervalx = (xmin, xmax)
-
-        if adjust_ylim:
-            ymin, ymax = self.dataLim.intervaly
-            ymin = min(h for h in height if h > 0)
-            if yerr is not None:
-                ymin = ymin - np.max(yerr)
-            ymin = max(ymin * 0.9, 1e-100)
-            self.dataLim.intervaly = (ymin, ymax)
-        self.autoscale_view()
+        self._request_autoscale_view()
 
         bar_container = BarContainer(patches, errorbar, label=label)
         self.add_container(bar_container)
@@ -2538,19 +2490,19 @@ class Axes(_AxesBase):
         linewidth : scalar or array-like, optional
             Width of the bar edge(s). If 0, don't draw edges.
 
-        tick_label : string or array-like, optional
+        tick_label : str or array-like, optional
             The tick labels of the bars.
             Default: None (Use default numeric labels.)
 
-        xerr, yerr : scalar or array-like of shape(N,) or shape(2,N), optional
+        xerr, yerr : scalar or array-like of shape(N,) or shape(2, N), optional
             If not ``None``, add horizontal / vertical errorbars to the
             bar tips. The values are +/- sizes relative to the data:
 
             - scalar: symmetric +/- values for all bars
             - shape(N,): symmetric +/- values for each bar
-            - shape(2,N): Separate - and + values for each bar. First row
-                contains the lower errors, the second row contains the
-                upper errors.
+            - shape(2, N): Separate - and + values for each bar. First row
+              contains the lower errors, the second row contains the upper
+              errors.
             - *None*: No errorbar. (default)
 
             See :doc:`/gallery/statistics/errorbar_features`
@@ -2589,7 +2541,6 @@ class Axes(_AxesBase):
         Other optional kwargs:
 
         %(Rectangle)s
-
         """
         kwargs.setdefault('orientation', 'horizontal')
         patches = self.bar(x=left, height=height, width=width, bottom=y,
@@ -2615,7 +2566,7 @@ class Axes(_AxesBase):
             The x-positions and extends of the rectangles. For each tuple
             (*xmin*, *xwidth*) a rectangle is drawn from *xmin* to *xmin* +
             *xwidth*.
-        yranges : (*ymin*, *ymax*)
+        yrange : (*ymin*, *yheight*)
             The y-position and extend for all the rectangles.
 
         Other Parameters
@@ -2667,7 +2618,7 @@ class Axes(_AxesBase):
 
         col = mcoll.BrokenBarHCollection(xranges_conv, yrange_conv, **kwargs)
         self.add_collection(col, autolim=True)
-        self.autoscale_view()
+        self._request_autoscale_view()
 
         return col
 
@@ -2749,7 +2700,6 @@ class Axes(_AxesBase):
 
         Notes
         -----
-
         .. seealso::
             The MATLAB function
             `stem <http://www.mathworks.com/help/techdoc/ref/stem.html>`_
@@ -2760,16 +2710,13 @@ class Axes(_AxesBase):
             raise TypeError('stem expected between 1 and 5 positional '
                             'arguments, got {}'.format(args))
 
-        y = np.asarray(args[0])
-        args = args[1:]
-
-        # Try a second one
-        if not args:
+        if len(args) == 1:
+            y, = args
             x = np.arange(len(y))
+            args = ()
         else:
-            x = y
-            y = np.asarray(args[0], dtype=float)
-            args = args[1:]
+            x, y, *args = args
+
         self._process_unit_info(xdata=x, ydata=y)
         x = self.convert_xunits(x)
         y = self.convert_yunits(y)
@@ -2891,7 +2838,7 @@ class Axes(_AxesBase):
             will cycle.  If *None*, will use the colors in the currently
             active cycle.
 
-        autopct : None (default), string, or function, optional
+        autopct : None (default), str, or function, optional
             If not *None*, is a string or function used to label the wedges
             with their numeric value.  The label will be placed inside the
             wedge.  If it is a format string, the label will be ``fmt%pct``.
@@ -3012,7 +2959,6 @@ class Axes(_AxesBase):
         slices = []
         autotexts = []
 
-        i = 0
         for frac, label, expl in zip(x, labels, explode):
             x, y = center
             theta2 = (theta1 + frac) if counterclock else (theta1 - frac)
@@ -3040,17 +2986,17 @@ class Axes(_AxesBase):
             if labeldistance is not None:
                 xt = x + labeldistance * radius * math.cos(thetam)
                 yt = y + labeldistance * radius * math.sin(thetam)
-                label_alignment_h = xt > 0 and 'left' or 'right'
+                label_alignment_h = 'left' if xt > 0 else 'right'
                 label_alignment_v = 'center'
                 label_rotation = 'horizontal'
                 if rotatelabels:
-                    label_alignment_v = yt > 0 and 'bottom' or 'top'
-                    label_rotation = np.rad2deg(thetam) + (0 if xt > 0
-                                                             else 180)
+                    label_alignment_v = 'bottom' if yt > 0 else 'top'
+                    label_rotation = (np.rad2deg(thetam)
+                                      + (0 if xt > 0 else 180))
                 props = dict(horizontalalignment=label_alignment_h,
-                            verticalalignment=label_alignment_v,
-                            rotation=label_rotation,
-                            size=rcParams['xtick.labelsize'])
+                             verticalalignment=label_alignment_v,
+                             rotation=label_rotation,
+                             size=rcParams['xtick.labelsize'])
                 props.update(textprops)
 
                 t = self.text(xt, yt, label, **props)
@@ -3076,7 +3022,6 @@ class Axes(_AxesBase):
                 autotexts.append(t)
 
             theta1 = theta2
-            i += 1
 
         if not frame:
             self.set_frame_on(False)
@@ -3113,14 +3058,14 @@ class Axes(_AxesBase):
         x, y : scalar or array-like
             The data positions.
 
-        xerr, yerr : scalar or array-like, shape(N,) or shape(2,N), optional
+        xerr, yerr : scalar or array-like, shape(N,) or shape(2, N), optional
             The errorbar sizes:
 
             - scalar: Symmetric +/- values for all data points.
             - shape(N,): Symmetric +/-values for each data point.
-            - shape(2,N): Separate - and + values for each bar. First row
-                contains the lower errors, the second row contains the
-                upper errors.
+            - shape(2, N): Separate - and + values for each bar. First row
+              contains the lower errors, the second row contains the upper
+              errors.
             - *None*: No errorbar.
 
             Note that all error arrays should have *positive* values.
@@ -3128,16 +3073,16 @@ class Axes(_AxesBase):
             See :doc:`/gallery/statistics/errorbar_features`
             for an example on the usage of ``xerr`` and ``yerr``.
 
-        fmt : plot format string, optional, default: ''
+        fmt : str, optional, default: ''
             The format for the data points / data lines. See `.plot` for
             details.
 
             Use 'none' (case insensitive) to plot errorbars without any data
             markers.
 
-        ecolor : mpl color, optional, default: None
-            A matplotlib color arg which gives the color the errorbar lines.
-            If None, use the color of the line connecting the markers.
+        ecolor : color, optional, default: None
+            The color of the errorbar lines.  If None, use the color of the
+            line connecting the markers.
 
         elinewidth : scalar, optional, default: None
             The linewidth of the errorbar lines. If None, the linewidth of
@@ -3166,20 +3111,22 @@ class Axes(_AxesBase):
             and *yerr*.  To use limits with inverted axes, :meth:`set_xlim`
             or :meth:`set_ylim` must be called before :meth:`errorbar`.
 
-        errorevery : positive integer, optional, default: 1
-            Subsamples the errorbars. e.g., if errorevery=5, errorbars for
-            every 5-th datapoint will be plotted. The data plot itself still
-            shows all data points.
+        errorevery : int or (int, int), optional, default: 1
+            draws error bars on a subset of the data. *errorevery* =N draws
+            error bars on the points (x[::N], y[::N]).
+            *errorevery* =(start, N) draws error bars on the points
+            (x[start::N], y[start::N]). e.g. errorevery=(6, 3)
+            adds error bars to the data at (x[6], x[9], x[12], x[15], ...).
+            Used to avoid overlapping error bars when two series share x-axis
+            values.
 
         Returns
         -------
         container : :class:`~.container.ErrorbarContainer`
             The container contains:
 
-            - plotline: :class:`~matplotlib.lines.Line2D` instance of
-              x, y plot markers and/or line.
-            - caplines: A tuple of :class:`~matplotlib.lines.Line2D` instances
-              of the error bar caps.
+            - plotline: `.Line2D` instance of x, y plot markers and/or line.
+            - caplines: A tuple of `.Line2D` instances of the error bar caps.
             - barlinecols: A tuple of
               :class:`~matplotlib.collections.LineCollection` with the
               horizontal and vertical error ranges.
@@ -3191,7 +3138,7 @@ class Axes(_AxesBase):
             command for the markers. For example, this code makes big red
             squares with thick green edges::
 
-                x,y,yerr = rand(3,10)
+                x, y, yerr = rand(3, 10)
                 errorbar(x, y, yerr, marker='s', mfc='red',
                          mec='green', ms=20, mew=4)
 
@@ -3201,18 +3148,24 @@ class Axes(_AxesBase):
 
             Valid kwargs for the marker properties are `.Lines2D` properties:
 
-        %(_Line2D_docstr)s
-
+            %(_Line2D_docstr)s
         """
-        kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D._alias_map)
+        kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D)
         # anything that comes in as 'None', drop so the default thing
         # happens down stream
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         kwargs.setdefault('zorder', 2)
 
-        if errorevery < 1:
+        try:
+            offset, errorevery = errorevery
+        except TypeError:
+            offset = 0
+
+        if errorevery < 1 or int(errorevery) != errorevery:
             raise ValueError(
-                'errorevery has to be a strictly positive integer')
+                'errorevery must be positive integer or tuple of integers')
+        if int(offset) != offset:
+            raise ValueError("errorevery's starting index must be an integer")
 
         self._process_unit_info(xdata=x, ydata=y, kwargs=kwargs)
 
@@ -3321,7 +3274,8 @@ class Axes(_AxesBase):
         xlolims = np.broadcast_to(xlolims, len(x)).astype(bool)
         xuplims = np.broadcast_to(xuplims, len(x)).astype(bool)
 
-        everymask = np.arange(len(x)) % errorevery == 0
+        everymask = np.zeros(len(x), bool)
+        everymask[offset::errorevery] = True
 
         def xywhere(xs, ys, mask):
             """
@@ -3470,7 +3424,7 @@ class Axes(_AxesBase):
         for l in caplines:
             self.add_line(l)
 
-        self.autoscale_view()
+        self._request_autoscale_view()
         errorbar_container = ErrorbarContainer((data_line, tuple(caplines),
                                                 tuple(barcols)),
                                                has_xerr=(xerr is not None),
@@ -3530,20 +3484,26 @@ class Axes(_AxesBase):
             If `True` (default), makes the boxes vertical. If `False`,
             everything is drawn horizontally.
 
-        whis : float, sequence, or string (default = 1.5)
-            As a float, determines the reach of the whiskers to the beyond the
-            first and third quartiles. In other words, where IQR is the
-            interquartile range (`Q3-Q1`), the upper whisker will extend to
-            last datum less than `Q3 + whis*IQR`). Similarly, the lower whisker
-            will extend to the first datum greater than `Q1 - whis*IQR`.
-            Beyond the whiskers, data
-            are considered outliers and are plotted as individual
-            points. Set this to an unreasonably high value to force the
-            whiskers to show the min and max values. Alternatively, set
-            this to an ascending sequence of percentile (e.g., [5, 95])
-            to set the whiskers at specific percentiles of the data.
-            Finally, ``whis`` can be the string ``'range'`` to force the
-            whiskers to the min and max of the data.
+        whis : float or (float, float) (default = 1.5)
+            The position of the whiskers.
+
+            If a float, the lower whisker is at the lowest datum above
+            ``Q1 - whis*(Q3-Q1)``, and the upper whisker at the highest datum
+            below ``Q3 + whis*(Q3-Q1)``, where Q1 and Q3 are the first and
+            third quartiles.  The default value of ``whis = 1.5`` corresponds
+            to Tukey's original definition of boxplots.
+
+            If a pair of floats, they indicate the percentiles at which to
+            draw the whiskers (e.g., (5, 95)).  In particular, setting this to
+            (0, 100) results in whiskers covering the whole range of the data.
+            "range" is a deprecated synonym for (0, 100).
+
+            In the edge case where ``Q1 == Q3``, *whis* is automatically set
+            to (0, 100) (cover the whole range of the data) if *autorange* is
+            True.
+
+            Beyond the whiskers, data are considered outliers and are plotted
+            as individual points.
 
         bootstrap : int, optional
             Specifies whether to bootstrap the confidence intervals
@@ -3596,7 +3556,7 @@ class Axes(_AxesBase):
 
         autorange : bool, optional (False)
             When `True` and the data are distributed such that the 25th and
-            75th percentiles are equal, ``whis`` is set to ``'range'`` such
+            75th percentiles are equal, ``whis`` is set to (0, 100) such
             that the whisker ends are at the minimum and maximum of the data.
 
         meanline : bool, optional (False)
@@ -3636,9 +3596,8 @@ class Axes(_AxesBase):
         -------
         result : dict
           A dictionary mapping each component of the boxplot to a list
-          of the :class:`matplotlib.lines.Line2D` instances
-          created. That dictionary has the following keys (assuming
-          vertical boxplots):
+          of the `.Line2D` instances created. That dictionary has the
+          following keys (assuming vertical boxplots):
 
           - ``boxes``: the main body of the boxplot showing the
             quartiles and the median's confidence intervals if
@@ -3705,7 +3664,7 @@ class Axes(_AxesBase):
         # if non-default sym value, put it into the flier dictionary
         # the logic for providing the default symbol ('b+') now lives
         # in bxp in the initial value of final_flierprops
-        # handle all of the `sym` related logic here so we only have to pass
+        # handle all of the *sym* related logic here so we only have to pass
         # on the flierprops dict.
         if sym is not None:
             # no-flier case, which should really be done with
@@ -3789,7 +3748,6 @@ class Axes(_AxesBase):
 
         Parameters
         ----------
-
         bxpstats : list of dicts
           A list of dictionaries containing stats for each boxplot.
           Required keys are:
@@ -3837,9 +3795,8 @@ class Axes(_AxesBase):
           makes horizontal boxes.
 
         patch_artist : bool, default = False
-          If `False` produces boxes with the
-          `~matplotlib.lines.Line2D` artist.  If `True` produces boxes
-          with the `~matplotlib.patches.Patch` artist.
+          If `False` produces boxes with the `.Line2D` artist.
+          If `True` produces boxes with the `~matplotlib.patches.Patch` artist.
 
         shownotches : bool, default = False
           If `False` (default), produces a rectangular box plot.
@@ -3892,9 +3849,8 @@ class Axes(_AxesBase):
         -------
         result : dict
           A dictionary mapping each component of the boxplot to a list
-          of the :class:`matplotlib.lines.Line2D` instances
-          created. That dictionary has the following keys (assuming
-          vertical boxplots):
+          of the `.Line2D` instances created. That dictionary has the
+          following keys (assuming vertical boxplots):
 
           - ``boxes``: the main body of the boxplot showing the
             quartiles and the median's confidence intervals if
@@ -3915,7 +3871,6 @@ class Axes(_AxesBase):
 
         Examples
         --------
-
         .. plot:: gallery/statistics/bxp.py
 
         """
@@ -4146,14 +4101,14 @@ class Axes(_AxesBase):
                 axis.set_major_formatter(formatter)
             formatter.seq = [*formatter.seq, *datalabels]
 
-            self.autoscale_view(
+            self._request_autoscale_view(
                 scalex=self._autoscaleXon, scaley=self._autoscaleYon)
 
         return dict(whiskers=whiskers, caps=caps, boxes=boxes,
                     medians=medians, fliers=fliers, means=means)
 
     @staticmethod
-    def _parse_scatter_color_args(c, edgecolors, kwargs, xshape, yshape,
+    def _parse_scatter_color_args(c, edgecolors, kwargs, xsize,
                                   get_next_color_func):
         """
         Helper function to process color related arguments of `.Axes.scatter`.
@@ -4183,8 +4138,8 @@ class Axes(_AxesBase):
             Additional kwargs. If these keys exist, we pop and process them:
             'facecolors', 'facecolor', 'edgecolor', 'color'
             Note: The dict is modified by this function.
-        xshape, yshape : tuple of int
-            The shape of the x and y arrays passed to `.Axes.scatter`.
+        xsize : int
+            The size of the x and y arrays passed to `.Axes.scatter`.
         get_next_color_func : callable
             A callable that returns a color. This color is used as facecolor
             if no other color is provided.
@@ -4199,17 +4154,14 @@ class Axes(_AxesBase):
         Returns
         -------
         c
-            The input *c* if it was not *None*, else some color specification
-            derived from the other inputs or defaults.
+            The input *c* if it was not *None*, else a color derived from the
+            other inputs or defaults.
         colors : array(N, 4) or None
-            The facecolors as RGBA values or *None* if a colormap is used.
+            The facecolors as RGBA values, or *None* if a colormap is used.
         edgecolors
-            The edgecolor specification.
+            The edgecolor.
 
         """
-        xsize = functools.reduce(operator.mul, xshape, 1)
-        ysize = functools.reduce(operator.mul, yshape, 1)
-
         facecolors = kwargs.pop('facecolors', None)
         facecolors = kwargs.pop('facecolor', facecolors)
         edgecolors = kwargs.pop('edgecolor', edgecolors)
@@ -4225,10 +4177,10 @@ class Axes(_AxesBase):
             try:
                 mcolors.to_rgba_array(kwcolor)
             except ValueError:
-                raise ValueError("'color' kwarg must be an mpl color"
-                                 " spec or sequence of color specs.\n"
-                                 "For a sequence of values to be color-mapped,"
-                                 " use the 'c' argument instead.")
+                raise ValueError(
+                    "'color' kwarg must be an color or sequence of color "
+                    "specs.  For a sequence of values to be color-mapped, use "
+                    "the 'c' argument instead.")
             if edgecolors is None:
                 edgecolors = kwcolor
             if facecolors is None:
@@ -4242,68 +4194,62 @@ class Axes(_AxesBase):
             c = (facecolors if facecolors is not None
                  else "b" if rcParams['_internal.classic_mode']
                  else get_next_color_func())
+        c_is_string_or_strings = (
+            isinstance(c, str)
+            or (isinstance(c, collections.abc.Iterable) and len(c) > 0
+                and isinstance(cbook.safe_first_element(c), str)))
 
-        # After this block, c_array will be None unless
-        # c is an array for mapping.  The potential ambiguity
-        # with a sequence of 3 or 4 numbers is resolved in
-        # favor of mapping, not rgb or rgba.
-        # Convenience vars to track shape mismatch *and* conversion failures.
-        valid_shape = True  # will be put to the test!
-        n_elem = -1  # used only for (some) exceptions
+        def invalid_shape_exception(csize, xsize):
+            return ValueError(
+                f"'c' argument has {csize} elements, which is inconsistent "
+                f"with 'x' and 'y' with size {xsize}.")
 
-        if (c_was_none or
-                kwcolor is not None or
-                isinstance(c, str) or
-                (isinstance(c, collections.abc.Iterable) and
-                     len(c) > 0 and
-                     isinstance(cbook.safe_first_element(c), str))):
-            c_array = None
-        else:
+        c_is_mapped = False  # Unless proven otherwise below.
+        valid_shape = True  # Unless proven otherwise below.
+        if not c_was_none and kwcolor is None and not c_is_string_or_strings:
             try:  # First, does 'c' look suitable for value-mapping?
-                c_array = np.asanyarray(c, dtype=float)
-                n_elem = c_array.shape[0]
-                if c_array.shape in [xshape, yshape]:
-                    c = np.ma.ravel(c_array)
-                else:
-                    if c_array.shape in ((3,), (4,)):
+                c = np.asanyarray(c, dtype=float)
+            except ValueError:
+                pass  # Failed to convert to float array; must be color specs.
+            else:
+                # handle the documented special case of a 2D array with 1
+                # row which as RGB(A) to broadcast.
+                if c.shape == (1, 4) or c.shape == (1, 3):
+                    c_is_mapped = False
+                    if c.size != xsize:
+                        valid_shape = False
+                # If c can be either mapped values or a RGB(A) color, prefer
+                # the former if shapes match, the latter otherwise.
+                elif c.size == xsize:
+                    c = c.ravel()
+                    c_is_mapped = True
+                else:  # Wrong size; it must not be intended for mapping.
+                    if c.shape in ((3,), (4,)):
                         _log.warning(
-                            "'c' argument looks like a single numeric RGB or "
+                            "*c* argument looks like a single numeric RGB or "
                             "RGBA sequence, which should be avoided as value-"
                             "mapping will have precedence in case its length "
-                            "matches with 'x' & 'y'.  Please use a 2-D array "
-                            "with a single row if you really want to specify "
+                            "matches with *x* & *y*.  Please use the *color* "
+                            "keyword-argument or provide a 2-D array "
+                            "with a single row if you intend to specify "
                             "the same RGB or RGBA value for all points.")
-                    # Wrong size; it must not be intended for mapping.
                     valid_shape = False
-                    c_array = None
-            except ValueError:
-                # Failed to make a floating-point array; c must be color specs.
-                c_array = None
-        if c_array is None:
-            try:  # Then is 'c' acceptable as PathCollection facecolors?
+        if not c_is_mapped:
+            try:  # Is 'c' acceptable as PathCollection facecolors?
                 colors = mcolors.to_rgba_array(c)
-                n_elem = colors.shape[0]
-                if colors.shape[0] not in (0, 1, xsize, ysize):
+            except ValueError:
+                if not valid_shape:
+                    raise invalid_shape_exception(c.size, xsize)
+                # Both the mapping *and* the RGBA conversion failed: pretty
+                # severe failure => one may appreciate a verbose feedback.
+                raise ValueError(
+                    f"'c' argument must be a color, a sequence of colors, or "
+                    f"a sequence of numbers, not {c}")
+            else:
+                if len(colors) not in (0, 1, xsize):
                     # NB: remember that a single color is also acceptable.
                     # Besides *colors* will be an empty array if c == 'none'.
-                    valid_shape = False
-                    raise ValueError
-            except ValueError:
-                if not valid_shape:  # but at least one conversion succeeded.
-                    raise ValueError(
-                        "'c' argument has {nc} elements, which is not "
-                        "acceptable for use with 'x' with size {xs}, "
-                        "'y' with size {ys}."
-                            .format(nc=n_elem, xs=xsize, ys=ysize)
-                    )
-                else:
-                    # Both the mapping *and* the RGBA conversion failed: pretty
-                    # severe failure => one may appreciate a verbose feedback.
-                    raise ValueError(
-                        "'c' argument must be a mpl color, a sequence of mpl "
-                        "colors or a sequence of numbers, not {}."
-                            .format(c)  # note: could be long depending on c
-                    )
+                    raise invalid_shape_exception(len(colors), xsize)
         else:
             colors = None  # use cmap, norm after collection is created
         return c, colors, edgecolors
@@ -4312,30 +4258,31 @@ class Axes(_AxesBase):
                                      "edgecolors", "c", "facecolor",
                                      "facecolors", "color"],
                       label_namer="y")
+    @cbook._delete_parameter("3.2", "verts")
     def scatter(self, x, y, s=None, c=None, marker=None, cmap=None, norm=None,
                 vmin=None, vmax=None, alpha=None, linewidths=None,
                 verts=None, edgecolors=None, *, plotnonfinite=False,
                 **kwargs):
         """
-        A scatter plot of *y* vs *x* with varying marker size and/or color.
+        A scatter plot of *y* vs. *x* with varying marker size and/or color.
 
         Parameters
         ----------
-        x, y : array_like, shape (n, )
+        x, y : scalar or array-like, shape (n, )
             The data positions.
 
-        s : scalar or array_like, shape (n, ), optional
+        s : scalar or array-like, shape (n, ), optional
             The marker size in points**2.
             Default is ``rcParams['lines.markersize'] ** 2``.
 
-        c : color, sequence, or sequence of color, optional
-            The marker color. Possible values:
+        c : array-like or list of colors or color, optional
+            The marker colors. Possible values:
 
-            - A single color format string.
-            - A sequence of color specifications of length n.
-            - A sequence of n numbers to be mapped to colors using *cmap* and
-              *norm*.
+            - A scalar or sequence of n numbers to be mapped to colors using
+              *cmap* and *norm*.
             - A 2-D array in which the rows are RGB or RGBA.
+            - A sequence of colors of length n.
+            - A single color format string.
 
             Note that *c* should not be a single numeric RGB or RGBA sequence
             because that is indistinguishable from an array of values to be
@@ -4344,9 +4291,12 @@ class Axes(_AxesBase):
             matching will have precedence in case of a size matching with *x*
             and *y*.
 
-            Defaults to ``None``. In that case the marker color is determined
-            by the value of ``color``, ``facecolor`` or ``facecolors``. In case
-            those are not specified or ``None``, the marker color is determined
+            If you wish to specify a single color for all points
+            prefer the *color* keyword argument.
+
+            Defaults to `None`. In that case the marker color is determined
+            by the value of *color*, *facecolor* or *facecolors*. In case
+            those are not specified or `None`, the marker color is determined
             by the next color of the ``Axes``' current "shape and fill" color
             cycle. This cycle defaults to :rc:`axes.prop_cycle`.
 
@@ -4376,10 +4326,10 @@ class Axes(_AxesBase):
         alpha : scalar, optional, default: None
             The alpha blending value, between 0 (transparent) and 1 (opaque).
 
-        linewidths : scalar or array_like, optional, default: None
+        linewidths : scalar or array-like, optional, default: None
             The linewidth of the marker edges. Note: The default *edgecolors*
             is 'face'. You may want to change this as well.
-            If *None*, defaults to rcParams ``lines.linewidth``.
+            If *None*, defaults to :rc:`lines.linewidth`.
 
         edgecolors : {'face', 'none', *None*} or color or sequence of color, \
 optional.
@@ -4414,7 +4364,6 @@ optional.
 
         Notes
         -----
-
         * The `.plot` function will be faster for scatterplots where markers
           don't vary in size or color.
 
@@ -4423,7 +4372,7 @@ optional.
           plotted.
 
         * Fundamentally, scatter works with 1-D arrays; *x*, *y*, *s*, and *c*
-          may be input as 2-D arrays, but within scatter they will be
+          may be input as N-D arrays, but within scatter they will be
           flattened. The exception is *c*, which will be flattened only if its
           size matches the size of *x* and *y*.
 
@@ -4436,7 +4385,6 @@ optional.
 
         # np.ma.ravel yields an ndarray, not a masked array,
         # unless its argument is a masked array.
-        xshape, yshape = np.shape(x), np.shape(y)
         x = np.ma.ravel(x)
         y = np.ma.ravel(y)
         if x.size != y.size:
@@ -4445,11 +4393,13 @@ optional.
         if s is None:
             s = (20 if rcParams['_internal.classic_mode'] else
                  rcParams['lines.markersize'] ** 2.0)
-        s = np.ma.ravel(s)  # This doesn't have to match x, y in size.
+        s = np.ma.ravel(s)
+        if len(s) not in (1, x.size):
+            raise ValueError("s must be a scalar, or the same size as x and y")
 
         c, colors, edgecolors = \
             self._parse_scatter_color_args(
-                c, edgecolors, kwargs, xshape, yshape,
+                c, edgecolors, kwargs, x.size,
                 get_next_color_func=self._get_patches_for_fill.get_next_color)
 
         if plotnonfinite and colors is None:
@@ -4462,13 +4412,6 @@ optional.
                     x, y, s, c, colors, edgecolors, linewidths)
 
         scales = s   # Renamed for readability below.
-
-        # to be API compatible
-        if verts is not None:
-            cbook.warn_deprecated("3.0", name="'verts'", obj_type="kwarg",
-                                  alternative="'marker'")
-            if marker is None:
-                marker = verts
 
         # load default marker from rcParams
         if marker is None:
@@ -4500,9 +4443,6 @@ optional.
         collection.update(kwargs)
 
         if colors is None:
-            if norm is not None and not isinstance(norm, mcolors.Normalize):
-                raise ValueError(
-                    "'norm' must be an instance of 'mcolors.Normalize'")
             collection.set_array(c)
             collection.set_cmap(cmap)
             collection.set_norm(norm)
@@ -4524,7 +4464,7 @@ optional.
                 self.set_ymargin(0.05)
 
         self.add_collection(collection)
-        self.autoscale_view()
+        self._request_autoscale_view()
 
         return collection
 
@@ -4729,26 +4669,14 @@ optional.
         if C is None:
             lattice1 = np.zeros((nx1, ny1))
             lattice2 = np.zeros((nx2, ny2))
-
-            cond1 = (0 <= ix1) * (ix1 < nx1) * (0 <= iy1) * (iy1 < ny1)
-            cond2 = (0 <= ix2) * (ix2 < nx2) * (0 <= iy2) * (iy2 < ny2)
-
-            cond1 *= bdist
-            cond2 *= np.logical_not(bdist)
-            ix1, iy1 = ix1[cond1], iy1[cond1]
-            ix2, iy2 = ix2[cond2], iy2[cond2]
-
-            for ix, iy in zip(ix1, iy1):
-                lattice1[ix, iy] += 1
-            for ix, iy in zip(ix2, iy2):
-                lattice2[ix, iy] += 1
-
-            # threshold
+            c1 = (0 <= ix1) & (ix1 < nx1) & (0 <= iy1) & (iy1 < ny1) & bdist
+            c2 = (0 <= ix2) & (ix2 < nx2) & (0 <= iy2) & (iy2 < ny2) & ~bdist
+            np.add.at(lattice1, (ix1[c1], iy1[c1]), 1)
+            np.add.at(lattice2, (ix2[c2], iy2[c2]), 1)
             if mincnt is not None:
                 lattice1[lattice1 < mincnt] = np.nan
                 lattice2[lattice2 < mincnt] = np.nan
-            accum = np.hstack((lattice1.ravel(),
-                               lattice2.ravel()))
+            accum = np.concatenate([lattice1.ravel(), lattice2.ravel()])
             good_idxs = ~np.isnan(accum)
 
         else:
@@ -4805,9 +4733,8 @@ optional.
         offsets = offsets[good_idxs, :]
         accum = accum[good_idxs]
 
-        polygon = np.zeros((6, 2), float)
-        polygon[:, 0] = sx * np.array([0.5, 0.5, 0.0, -0.5, -0.5, 0.0])
-        polygon[:, 1] = sy * np.array([-0.5, 0.5, 1.0, 0.5, -0.5, -1.0]) / 3.0
+        polygon = [sx, sy / 3] * np.array(
+            [[.5, -.5], [.5, .5], [0., 1.], [-.5, .5], [-.5, -.5], [0., -1.]])
 
         if linewidths is None:
             linewidths = [1.0]
@@ -4838,11 +4765,6 @@ optional.
                 transOffset=mtransforms.IdentityTransform(),
                 offset_position="data"
                 )
-
-        # Check for valid norm
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            msg = "'norm' must be an instance of 'mcolors.Normalize'"
-            raise ValueError(msg)
 
         # Set normalizer if bins is 'log'
         if bins == 'log':
@@ -4886,9 +4808,7 @@ optional.
 
         corners = ((xmin, ymin), (xmax, ymax))
         self.update_datalim(corners)
-        collection.sticky_edges.x[:] = [xmin, xmax]
-        collection.sticky_edges.y[:] = [ymin, ymax]
-        self.autoscale_view(tight=True)
+        self._request_autoscale_view(tight=True)
 
         # add the collection last
         self.add_collection(collection, autolim=False)
@@ -5033,11 +4953,11 @@ optional.
         self.add_artist(a)
         return a
 
+    @docstring.copy(mquiver.QuiverKey.__init__)
     def quiverkey(self, Q, X, Y, U, label, **kw):
         qk = mquiver.QuiverKey(Q, X, Y, U, label, **kw)
         self.add_artist(qk)
         return qk
-    quiverkey.__doc__ = mquiver.QuiverKey.quiverkey_doc
 
     # Handle units for x and y, if they've been passed
     def _quiver_units(self, args, kw):
@@ -5058,7 +4978,7 @@ optional.
         q = mquiver.Quiver(self, *args, **kw)
 
         self.add_collection(q, autolim=True)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return q
     quiver.__doc__ = mquiver.Quiver.quiver_doc
 
@@ -5074,7 +4994,7 @@ optional.
 
         b = mquiver.Barbs(self, *args, **kw)
         self.add_collection(b, autolim=True)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return b
 
     # Uses a custom implementation of data-kwarg handling in
@@ -5123,13 +5043,12 @@ optional.
         two curves.
         """
         # For compatibility(!), get aliases from Line2D rather than Patch.
-        kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D._alias_map)
-
-        patches = []
-        for poly in self._get_patches_for_fill(*args, data=data, **kwargs):
+        kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D)
+        # _get_patches_for_fill returns a generator, convert it to a list.
+        patches = [*self._get_patches_for_fill(*args, data=data, **kwargs)]
+        for poly in patches:
             self.add_patch(poly)
-            patches.append(poly)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return patches
 
     @_preprocess_data(replace_names=["x", "y1", "y2", "where"])
@@ -5218,8 +5137,7 @@ optional.
 
         """
         if not rcParams['_internal.classic_mode']:
-            kwargs = cbook.normalize_kwargs(
-                kwargs, mcoll.Collection._alias_map)
+            kwargs = cbook.normalize_kwargs(kwargs, mcoll.Collection)
             if not any(c in kwargs for c in ('color', 'facecolor')):
                 kwargs['facecolor'] = \
                     self._get_patches_for_fill.get_next_color()
@@ -5240,6 +5158,14 @@ optional.
 
         if where is None:
             where = True
+        else:
+            where = np.asarray(where, dtype=bool)
+            if where.size != x.size:
+                cbook.warn_deprecated(
+                    "3.2",
+                    message="The parameter where must have the same size as x "
+                            "in fill_between(). This will become an error in "
+                            "future versions of Matplotlib.")
         where = where & ~functools.reduce(np.logical_or,
                                           map(np.ma.getmask, [x, y1, y2]))
 
@@ -5311,7 +5237,7 @@ optional.
         self.dataLim.update_from_data_xy(XY2, self.ignore_existing_data_limits,
                                          updatex=False, updatey=True)
         self.add_collection(collection, autolim=False)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return collection
 
     @_preprocess_data(replace_names=["y", "x1", "x2", "where"])
@@ -5400,8 +5326,7 @@ optional.
 
         """
         if not rcParams['_internal.classic_mode']:
-            kwargs = cbook.normalize_kwargs(
-                kwargs, mcoll.Collection._alias_map)
+            kwargs = cbook.normalize_kwargs(kwargs, mcoll.Collection)
             if not any(c in kwargs for c in ('color', 'facecolor')):
                 kwargs['facecolor'] = \
                     self._get_patches_for_fill.get_next_color()
@@ -5422,6 +5347,14 @@ optional.
 
         if where is None:
             where = True
+        else:
+            where = np.asarray(where, dtype=bool)
+            if where.size != y.size:
+                cbook.warn_deprecated(
+                    "3.2",
+                    message="The parameter where must have the same size as y "
+                            "in fill_between(). This will become an error in "
+                            "future versions of Matplotlib.")
         where = where & ~functools.reduce(np.logical_or,
                                           map(np.ma.getmask, [y, x1, x2]))
 
@@ -5492,10 +5425,10 @@ optional.
         self.dataLim.update_from_data_xy(X2Y, self.ignore_existing_data_limits,
                                          updatex=True, updatey=False)
         self.add_collection(collection, autolim=False)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return collection
 
-    #### plotting z(x,y): imshow, pcolor and relatives, contour
+    #### plotting z(x, y): imshow, pcolor and relatives, contour
     @_preprocess_data()
     @cbook._delete_parameter("3.1", "shape")
     @cbook._delete_parameter("3.1", "imlim")
@@ -5504,15 +5437,21 @@ optional.
                origin=None, extent=None, shape=None, filternorm=1,
                filterrad=4.0, imlim=None, resample=None, url=None, **kwargs):
         """
-        Display an image, i.e. data on a 2D regular raster.
+        Display data as an image; i.e. on a 2D regular raster.
+
+        The input may either be actual RGB(A) data, or 2D scalar data, which
+        will be rendered as a pseudocolor image. Note: For actually displaying
+        a grayscale image set up the color mapping using the parameters
+        ``cmap='gray', vmin=0, vmax=255``.
 
         Parameters
         ----------
         X : array-like or PIL image
             The image data. Supported array shapes are:
 
-            - (M, N): an image with scalar data. The data is visualized
-              using a colormap.
+            - (M, N): an image with scalar data. The values are mapped to
+              colors using normalization and a colormap. See parameters *norm*,
+              *cmap*, *vmin*, *vmax*.
             - (M, N, 3): an image with RGB values (0-1 float or 0-255 int).
             - (M, N, 4): an image with RGBA values (0-1 float or 0-255 int),
               i.e. including transparency.
@@ -5548,16 +5487,16 @@ optional.
               that the data fit in the axes. In general, this will result in
               non-square pixels.
 
-            If not given, use :rc:`image.aspect` (default: 'equal').
+            If not given, use :rc:`image.aspect`.
 
         interpolation : str, optional
-            The interpolation method used. If *None*
-            :rc:`image.interpolation` is used, which defaults to 'nearest'.
+            The interpolation method used. If *None*, :rc:`image.interpolation`
+            is used.
 
-            Supported values are 'none', 'nearest', 'bilinear', 'bicubic',
-            'spline16', 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser',
-            'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc',
-            'lanczos'.
+            Supported values are 'none', 'antialiased', 'nearest', 'bilinear',
+            'bicubic', 'spline16', 'spline36', 'hanning', 'hamming', 'hermite',
+            'kaiser', 'quadric', 'catrom', 'gaussian', 'bessel', 'mitchell',
+            'sinc', 'lanczos'.
 
             If *interpolation* is 'none', then no interpolation is performed
             on the Agg, ps, pdf and svg backends. Other backends will fall back
@@ -5565,17 +5504,28 @@ optional.
             rendering and that the default interpolation method they implement
             may differ.
 
+            If *interpolation* is the default 'antialiased', then 'nearest'
+            interpolation is used if the image is upsampled by more than a
+            factor of three (i.e. the number of display pixels is at least
+            three times the size of the data array).  If the upsampling rate is
+            smaller than 3, or the image is downsampled, then 'hanning'
+            interpolation is used to act as an anti-aliasing filter, unless the
+            image happens to be upsampled by exactly a factor of two or one.
+
             See
             :doc:`/gallery/images_contours_and_fields/interpolation_methods`
-            for an overview of the supported interpolation methods.
+            for an overview of the supported interpolation methods, and
+            :doc:`/gallery/images_contours_and_fields/image_antialiasing` for
+            a discussion of image antialiasing.
 
             Some interpolation methods require an additional radius parameter,
             which can be set by *filterrad*. Additionally, the antigrain image
             resize filter is controlled by the parameter *filternorm*.
 
-        alpha : scalar, optional
+        alpha : scalar or array-like, optional
             The alpha blending value, between 0 (transparent) and 1 (opaque).
-            This parameter is ignored for RGBA input data.
+            If *alpha* is an array, the alpha blending values are applied pixel
+            by pixel, and *alpha* must have the same shape as *X*.
 
         vmin, vmax : scalar, optional
             When using scalar data and no explicit *norm*, *vmin* and *vmax*
@@ -5584,7 +5534,7 @@ optional.
             data. *vmin*, *vmax* are ignored if the *norm* parameter is used.
 
         origin : {'upper', 'lower'}, optional
-            Place the [0,0] index of the array in the upper left or lower left
+            Place the [0, 0] index of the array in the upper left or lower left
             corner of the axes. The convention 'upper' is typically used for
             matrices and images.
             If not given, :rc:`image.origin` is used, defaulting to 'upper'.
@@ -5666,9 +5616,6 @@ optional.
         `~matplotlib.pyplot.imshow` expects RGB images adopting the straight
         (unassociated) alpha representation.
         """
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            raise ValueError(
-                "'norm' must be an instance of 'mcolors.Normalize'")
         if aspect is None:
             aspect = rcParams['image.aspect']
         self.set_aspect(aspect)
@@ -5706,12 +5653,11 @@ optional.
 
         if len(args) == 1:
             C = np.asanyarray(args[0])
-            numRows, numCols = C.shape
+            nrows, ncols = C.shape
             if allmatch:
-                X, Y = np.meshgrid(np.arange(numCols), np.arange(numRows))
+                X, Y = np.meshgrid(np.arange(ncols), np.arange(nrows))
             else:
-                X, Y = np.meshgrid(np.arange(numCols + 1),
-                                   np.arange(numRows + 1))
+                X, Y = np.meshgrid(np.arange(ncols + 1), np.arange(nrows + 1))
             C = cbook.safe_masked_invalid(C)
             return X, Y, C
 
@@ -5731,7 +5677,7 @@ optional.
                     X = X.data  # strip mask as downstream doesn't like it...
                 if isinstance(Y, np.ma.core.MaskedArray):
                     Y = Y.data
-            numRows, numCols = C.shape
+            nrows, ncols = C.shape
         else:
             raise TypeError(
                 'Illegal arguments to %s; see help(%s)' % (funcname, funcname))
@@ -5749,12 +5695,12 @@ optional.
                 'Incompatible X, Y inputs to %s; see help(%s)' % (
                 funcname, funcname))
         if allmatch:
-            if (Nx, Ny) != (numCols, numRows):
+            if (Nx, Ny) != (ncols, nrows):
                 raise TypeError('Dimensions of C %s are incompatible with'
                                 ' X (%d) and/or Y (%d); see help(%s)' % (
                                     C.shape, Nx, Ny, funcname))
         else:
-            if not (numCols in (Nx, Nx - 1) and numRows in (Ny, Ny - 1)):
+            if not (ncols in (Nx, Nx - 1) and nrows in (Ny, Ny - 1)):
                 raise TypeError('Dimensions of C %s are incompatible with'
                                 ' X (%d) and/or Y (%d); see help(%s)' % (
                                     C.shape, Nx, Ny, funcname))
@@ -5784,18 +5730,18 @@ optional.
 
         Parameters
         ----------
-        C : array_like
+        C : array-like
             A scalar 2-D array. The values will be color-mapped.
 
-        X, Y : array_like, optional
+        X, Y : array-like, optional
             The coordinates of the quadrilateral corners. The quadrilateral
-            for ``C[i,j]`` has corners at::
+            for ``C[i, j]`` has corners at::
 
-                (X[i+1, j], Y[i+1, j])          (X[i+1, j+1], Y[i+1, j+1])
-                                      +--------+
-                                      | C[i,j] |
-                                      +--------+
-                    (X[i, j], Y[i, j])          (X[i, j+1], Y[i, j+1]),
+                (X[i+1, j], Y[i+1, j])           (X[i+1, j+1], Y[i+1, j+1])
+                                      +---------+
+                                      | C[i, j] |
+                                      +---------+
+                    (X[i, j], Y[i, j])           (X[i, j+1], Y[i, j+1])
 
             Note that the column index corresponds to the
             x-coordinate, and the row index corresponds to y. For
@@ -5832,7 +5778,7 @@ optional.
             - *None*: :rc:`patch.edgecolor` will be used. Note that currently
               :rc:`patch.force_edgecolor` has to be True for this to work.
             - 'face': Use the adjacent face color.
-            - An mpl color or sequence of colors will set the edge color.
+            - A color or sequence of colors will set the edge color.
 
             The singular form *edgecolor* works as an alias.
 
@@ -5855,7 +5801,7 @@ optional.
             *edgecolors*\ ="none" is used.  This eliminates artificial lines
             at patch boundaries, and works regardless of the value of alpha.
             If *edgecolors* is not "none", then the default *antialiaseds*
-            is taken from :rc:`patch.antialiased`, which defaults to True.
+            is taken from :rc:`patch.antialiased`.
             Stroking the edges may be preferred if *alpha* is 1, but will
             cause artifacts otherwise.
 
@@ -5874,11 +5820,10 @@ optional.
 
         Notes
         -----
-
         **Masked arrays**
 
         *X*, *Y* and *C* may be masked arrays. If either ``C[i, j]``, or one
-        of the vertices surrounding ``C[i,j]`` (*X* or *Y* at
+        of the vertices surrounding ``C[i, j]`` (*X* or *Y* at
         ``[i, j], [i+1, j], [i, j+1], [i+1, j+1]``) is masked, nothing is
         plotted.
 
@@ -5959,9 +5904,6 @@ optional.
 
         collection.set_alpha(alpha)
         collection.set_array(C)
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            raise ValueError(
-                "'norm' must be an instance of 'mcolors.Normalize'")
         collection.set_cmap(cmap)
         collection.set_norm(norm)
         collection.set_clim(vmin, vmax)
@@ -5994,7 +5936,7 @@ optional.
         collection.sticky_edges.y[:] = [miny, maxy]
         corners = (minx, miny), (maxx, maxy)
         self.update_datalim(corners)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return collection
 
     @_preprocess_data()
@@ -6012,26 +5954,25 @@ optional.
 
         .. note::
 
-           ``pcolormesh()`` is similar to :func:`~Axes.pcolor`. It's much
-           faster and preferred in most cases. For a detailed discussion on
-           the differences see
-           :ref:`Differences between pcolor() and pcolormesh()
+           `~Axes.pcolormesh` is similar to `~Axes.pcolor`. It's much faster
+           and preferred in most cases. For a detailed discussion on the
+           differences see :ref:`Differences between pcolor() and pcolormesh()
            <differences-pcolor-pcolormesh>`.
 
         Parameters
         ----------
-        C : array_like
+        C : array-like
             A scalar 2-D array. The values will be color-mapped.
 
-        X, Y : array_like, optional
+        X, Y : array-like, optional
             The coordinates of the quadrilateral corners. The quadrilateral
-            for ``C[i,j]`` has corners at::
+            for ``C[i, j]`` has corners at::
 
-                (X[i+1, j], Y[i+1, j])          (X[i+1, j+1], Y[i+1, j+1])
-                                      +--------+
-                                      | C[i,j] |
-                                      +--------+
-                    (X[i, j], Y[i, j])          (X[i, j+1], Y[i, j+1]),
+                (X[i+1, j], Y[i+1, j])           (X[i+1, j+1], Y[i+1, j+1])
+                                      +---------+
+                                      | C[i, j] |
+                                      +---------+
+                    (X[i, j], Y[i, j])           (X[i, j+1], Y[i, j+1])
 
             Note that the column index corresponds to the
             x-coordinate, and the row index corresponds to y. For
@@ -6068,7 +6009,7 @@ optional.
             - *None*: :rc:`patch.edgecolor` will be used. Note that currently
               :rc:`patch.force_edgecolor` has to be True for this to work.
             - 'face': Use the adjacent face color.
-            - An mpl color or sequence of colors will set the edge color.
+            - A color or sequence of colors will set the edge color.
 
             The singular form *edgecolor* works as an alias.
 
@@ -6080,7 +6021,7 @@ optional.
 
             - 'flat': A solid color is used for each quad. The color of the
               quad (i, j), (i+1, j), (i, j+1), (i+1, j+1) is given by
-              ``C[i,j]``.
+              ``C[i, j]``.
             - 'gouraud': Each quad will be Gouraud shaded: The color of the
               corners (i', j') are given by ``C[i',j']``. The color values of
               the area in between is interpolated from the corner values.
@@ -6101,7 +6042,6 @@ optional.
 
         %(QuadMesh)s
 
-
         See Also
         --------
         pcolor : An alternative implementation with slightly different
@@ -6113,7 +6053,6 @@ optional.
 
         Notes
         -----
-
         **Masked arrays**
 
         *C* may be a masked array. If ``C[i, j]`` is masked, the corresponding
@@ -6179,9 +6118,6 @@ optional.
                                     **kwargs)
         collection.set_alpha(alpha)
         collection.set_array(C)
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            raise ValueError(
-                "'norm' must be an instance of 'mcolors.Normalize'")
         collection.set_cmap(cmap)
         collection.set_norm(norm)
         collection.set_clim(vmin, vmax)
@@ -6207,7 +6143,7 @@ optional.
         collection.sticky_edges.y[:] = [miny, maxy]
         corners = (minx, miny), (maxx, maxy)
         self.update_datalim(corners)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return collection
 
     @_preprocess_data()
@@ -6239,12 +6175,18 @@ optional.
         Parameters
         ----------
         C : array-like(M, N)
-            A 2D array or masked array. The values will be color-mapped.
-            This argument can only be passed positionally.
+            The image data. Supported array shapes are:
 
-            C can in some cases be 3D with the last dimension as rgb(a).
-            This is available when C qualifies for image or pcolorimage type,
-            will throw a TypeError if C is 3D and quadmesh.
+            - (M, N): an image with scalar data. The data is visualized
+              using a colormap.
+            - (M, N, 3): an image with RGB values (0-1 float or 0-255 int).
+            - (M, N, 4): an image with RGBA values (0-1 float or 0-255 int),
+              i.e. including transparency.
+
+            The first two dimensions (M, N) define the rows and columns of
+            the image.
+
+            This parameter can only be passed positionally.
 
         X, Y : tuple or array-like, default: ``(0, N)``, ``(0, M)``
             *X* and *Y* are used to specify the coordinates of the
@@ -6269,9 +6211,9 @@ optional.
             - Use 2D arrays *X*, *Y* if you need an *arbitrary quadrilateral
               grid* (i.e. if the quadrilaterals are not rectangular).
 
-              In this case *X* and *Y* are 2D arrays with shape (M, N),
+              In this case *X* and *Y* are 2D arrays with shape (M + 1, N + 1),
               specifying the x and y coordinates of the corners of the colored
-              quadrilaterals. See `~.Axes.pcolormesh` for details.
+              quadrilaterals.
 
               This is the most general, but the slowest to render.  It may
               produce faster and more compact output using ps, pdf, and
@@ -6312,11 +6254,7 @@ optional.
         Notes
         -----
         .. [notes section required to get data note injection right]
-
         """
-        if norm is not None and not isinstance(norm, mcolors.Normalize):
-            raise ValueError(
-                "'norm' must be an instance of 'mcolors.Normalize'")
 
         C = args[-1]
         nr, nc = np.shape(C)[:2]
@@ -6340,10 +6278,6 @@ optional.
                     else:
                         style = "pcolorimage"
             elif x.ndim == 2 and y.ndim == 2:
-                if C.ndim > 2:
-                    raise ValueError(
-                        'pcolorfast needs to use quadmesh, '
-                        'which is not supported when x and y are 2D and C 3D')
                 style = "quadmesh"
             else:
                 raise TypeError("arguments do not match valid signatures")
@@ -6351,60 +6285,41 @@ optional.
             raise TypeError("need 1 argument or 3 arguments")
 
         if style == "quadmesh":
-
-            # convert to one dimensional arrays
-            # This should also be moved to the QuadMesh class
-
             # data point in each cell is value at lower left corner
-            C = ma.ravel(C)
-            X = x.ravel()
-            Y = y.ravel()
-            Nx = nc + 1
-            Ny = nr + 1
-
-            # The following needs to be cleaned up; the renderer
-            # requires separate contiguous arrays for X and Y,
-            # but the QuadMesh class requires the 2D array.
-            coords = np.empty(((Nx * Ny), 2), np.float64)
-            coords[:, 0] = X
-            coords[:, 1] = Y
-
-            # The QuadMesh class can also be changed to
-            # handle relevant superclass kwargs; the initializer
-            # should do much more than it does now.
-            collection = mcoll.QuadMesh(nc, nr, coords, 0, edgecolors="None")
-            collection.set_alpha(alpha)
-            collection.set_array(C)
-            collection.set_cmap(cmap)
-            collection.set_norm(norm)
+            coords = np.stack([x, y], axis=-1)
+            if np.ndim(C) == 2:
+                qm_kwargs = {"array": np.ma.ravel(C)}
+            elif np.ndim(C) == 3:
+                qm_kwargs = {"color": np.ma.reshape(C, (-1, C.shape[-1]))}
+            else:
+                raise ValueError("C must be 2D or 3D")
+            collection = mcoll.QuadMesh(
+                nc, nr, coords, **qm_kwargs,
+                alpha=alpha, cmap=cmap, norm=norm,
+                antialiased=False, edgecolors="none")
             self.add_collection(collection, autolim=False)
-            xl, xr, yb, yt = X.min(), X.max(), Y.min(), Y.max()
+            xl, xr, yb, yt = x.min(), x.max(), y.min(), y.max()
             ret = collection
 
         else:  # It's one of the two image styles.
-            xl, xr, yb, yt = x[0], x[-1], y[0], y[-1]
-
+            extent = xl, xr, yb, yt = x[0], x[-1], y[0], y[-1]
             if style == "image":
-                im = mimage.AxesImage(self, cmap, norm,
-                                      interpolation='nearest',
-                                      origin='lower',
-                                      extent=(xl, xr, yb, yt),
-                                      **kwargs)
-                im.set_data(C)
-                im.set_alpha(alpha)
+                im = mimage.AxesImage(
+                    self, cmap, norm,
+                    data=C, alpha=alpha, extent=extent,
+                    interpolation='nearest', origin='lower',
+                    **kwargs)
             elif style == "pcolorimage":
-                im = mimage.PcolorImage(self, x, y, C,
-                                        cmap=cmap,
-                                        norm=norm,
-                                        alpha=alpha,
-                                        **kwargs)
-                im.set_extent((xl, xr, yb, yt))
+                im = mimage.PcolorImage(
+                    self, x, y, C,
+                    cmap=cmap, norm=norm, alpha=alpha, extent=extent,
+                    **kwargs)
             self.add_image(im)
             ret = im
 
         if vmin is not None or vmax is not None:
             ret.set_clim(vmin, vmax)
-        else:
+        elif np.ndim(C) == 2:  # C.ndim == 3 is RGB(A) so doesn't need scaling.
             ret.autoscale_None()
         if ret.get_clip_path() is None:
             # image does not already have clipping set, clip to axes patch
@@ -6413,14 +6328,14 @@ optional.
         ret.sticky_edges.x[:] = [xl, xr]
         ret.sticky_edges.y[:] = [yb, yt]
         self.update_datalim(np.array([[xl, yb], [xr, yt]]))
-        self.autoscale_view(tight=True)
+        self._request_autoscale_view(tight=True)
         return ret
 
     @_preprocess_data()
     def contour(self, *args, **kwargs):
         kwargs['filled'] = False
         contours = mcontour.QuadContourSet(self, *args, **kwargs)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return contours
     contour.__doc__ = mcontour.QuadContourSet._contour_doc
 
@@ -6428,7 +6343,7 @@ optional.
     def contourf(self, *args, **kwargs):
         kwargs['filled'] = True
         contours = mcontour.QuadContourSet(self, *args, **kwargs)
-        self.autoscale_view()
+        self._request_autoscale_view()
         return contours
     contourf.__doc__ = mcontour.QuadContourSet._contour_doc
 
@@ -6439,11 +6354,10 @@ optional.
     #### Data analysis
 
     @_preprocess_data(replace_names=["x", 'weights'], label_namer="x")
-    def hist(self, x, bins=None, range=None, density=None, weights=None,
+    def hist(self, x, bins=None, range=None, density=False, weights=None,
              cumulative=False, bottom=None, histtype='bar', align='mid',
              orientation='vertical', rwidth=None, log=False,
-             color=None, label=None, stacked=False, normed=None,
-             **kwargs):
+             color=None, label=None, stacked=False, **kwargs):
         """
         Plot a histogram.
 
@@ -6458,7 +6372,10 @@ optional.
         a 2-D ndarray in which each column is a dataset.  Note that
         the ndarray form is transposed relative to the list form.
 
-        Masked arrays are not supported at present.
+        Masked arrays are not supported.
+
+        The *bins*, *range*, *weights*, and *density* parameters behave as in
+        `numpy.histogram`.
 
         Parameters
         ----------
@@ -6467,15 +6384,13 @@ optional.
             arrays which are not required to be of the same length.
 
         bins : int or sequence or str, optional
-            If an integer is given, ``bins + 1`` bin edges are calculated and
-            returned, consistent with `numpy.histogram`.
+            If *bins* is an integer, it defines the number of equal-width bins
+            in the range.
 
-            If `bins` is a sequence, gives bin edges, including left edge of
-            first bin and right edge of last bin.  In this case, `bins` is
-            returned unmodified.
-
-            All but the last (righthand-most) bin is half-open.  In other
-            words, if `bins` is::
+            If *bins* is a sequence, it defines the bin edges, including the
+            left edge of the first bin and the right edge of the last bin;
+            in this case, bins may be unequally spaced.  All but the last
+            (righthand-most) bin is half-open.  In other words, if *bins* is::
 
                 [1, 2, 3, 4]
 
@@ -6483,14 +6398,11 @@ optional.
             the second ``[2, 3)``.  The last bin, however, is ``[3, 4]``, which
             *includes* 4.
 
-            Unequally spaced bins are supported if *bins* is a sequence.
+            If *bins* is a string, it is one of the binning strategies
+            supported by `numpy.histogram_bin_edges`: 'auto', 'fd', 'doane',
+            'scott', 'stone', 'rice', 'sturges', or 'sqrt'.
 
-            With Numpy 1.11 or newer, you can alternatively provide a string
-            describing a binning strategy, such as 'auto', 'sturges', 'fd',
-            'doane', 'scott', 'rice' or 'sqrt', see
-            `numpy.histogram`.
-
-            The default is taken from :rc:`hist.bins`.
+            The default is :rc:`hist.bins`.
 
         range : tuple or None, optional
             The lower and upper range of the bins. Lower and upper outliers
@@ -6512,13 +6424,9 @@ optional.
             number of observations. If *stacked* is also ``True``, the sum of
             the histograms is normalized to 1.
 
-            Default is ``None`` for both *normed* and *density*. If either is
-            set, then that value will be used. If neither are set, then the
-            args will be treated as ``False``.
+            Default is ``False``.
 
-            If both *density* and *normed* are set an error is raised.
-
-        weights : (n, ) array_like or None, optional
+        weights : (n, ) array-like or None, optional
             An array of weights, of the same shape as *x*.  Each value in *x*
             only contributes its associated weight towards the bin count
             (instead of 1).  If *normed* or *density* is ``True``,
@@ -6536,51 +6444,44 @@ optional.
 
             (or you may alternatively use `~.bar()`).
 
-        cumulative : bool, optional
+        cumulative : bool or -1, optional
             If ``True``, then a histogram is computed where each bin gives the
             counts in that bin plus all bins for smaller values. The last bin
-            gives the total number of datapoints. If *normed* or *density*
-            is also ``True`` then the histogram is normalized such that the
-            last bin equals 1. If *cumulative* evaluates to less than 0
-            (e.g., -1), the direction of accumulation is reversed.
-            In this case, if *normed* and/or *density* is also ``True``, then
-            the histogram is normalized such that the first bin equals 1.
+            gives the total number of datapoints.
 
-            Default is ``False``
+            If *density* is also ``True`` then the histogram is normalized such
+            that the last bin equals 1.
 
-        bottom : array_like, scalar, or None
-            Location of the bottom baseline of each bin.  If a scalar,
-            the base line for each bin is shifted by the same amount.
-            If an array, each bin is shifted independently and the length
-            of bottom must match the number of bins.  If None, defaults to 0.
+            If *cumulative* is a number less than 0 (e.g., -1), the direction
+            of accumulation is reversed.  In this case, if *density* is also
+            ``True``, then the histogram is normalized such that the first bin
+            equals 1.
 
-            Default is ``None``
+        bottom : array-like, scalar, or None, default: None
+            Location of the bottom of each bin, ie. bins are drawn from
+            ``bottom`` to ``bottom + hist(x, bins)`` If a scalar, the bottom
+            of each bin is shifted by the same amount. If an array, each bin
+            is shifted independently and the length of bottom must match the
+            number of bins. If None, defaults to 0.
 
         histtype : {'bar', 'barstacked', 'step',  'stepfilled'}, optional
             The type of histogram to draw.
 
             - 'bar' is a traditional bar-type histogram.  If multiple data
               are given the bars are arranged side by side.
-
             - 'barstacked' is a bar-type histogram where multiple
               data are stacked on top of each other.
-
-            - 'step' generates a lineplot that is by default
-              unfilled.
-
-            - 'stepfilled' generates a lineplot that is by default
-              filled.
+            - 'step' generates a lineplot that is by default unfilled.
+            - 'stepfilled' generates a lineplot that is by default filled.
 
             Default is 'bar'
 
         align : {'left', 'mid', 'right'}, optional
             Controls how the histogram is plotted.
 
-                - 'left': bars are centered on the left bin edges.
-
-                - 'mid': bars are centered between the bin edges.
-
-                - 'right': bars are centered on the right bin edges.
+            - 'left': bars are centered on the left bin edges.
+            - 'mid': bars are centered between the bin edges.
+            - 'right': bars are centered on the right bin edges.
 
             Default is 'mid'
 
@@ -6604,9 +6505,9 @@ optional.
 
             Default is ``False``
 
-        color : color or array_like of colors or None, optional
-            Color spec or sequence of color specs, one per dataset.  Default
-            (``None``) uses the standard line color sequence.
+        color : color or array-like of colors or None, optional
+            Color or sequence of colors, one per dataset.  Default (``None``)
+            uses the standard line color sequence.
 
             Default is ``None``
 
@@ -6624,16 +6525,13 @@ optional.
 
             Default is ``False``
 
-        normed : bool, optional
-            Deprecated; use the density keyword argument instead.
-
         Returns
         -------
         n : array or list of arrays
             The values of the histogram bins. See *density* and *weights* for a
             description of the possible semantics.  If input *x* is an array,
             then this is an array of length *nbins*. If input is a sequence of
-            arrays ``[data1, data2,..]``, then this is a list of arrays with
+            arrays ``[data1, data2, ...]``, then this is a list of arrays with
             the values of the histograms for each of the arrays in the same
             order.  The dtype of the array *n* (or of its element arrays) will
             always be float even if no weighting or normalization is used.
@@ -6666,29 +6564,15 @@ optional.
         if bins is None:
             bins = rcParams['hist.bins']
 
-        # Validate string inputs here so we don't have to clutter
-        # subsequent code.
-        if histtype not in ['bar', 'barstacked', 'step', 'stepfilled']:
-            raise ValueError("histtype %s is not recognized" % histtype)
-
-        if align not in ['left', 'mid', 'right']:
-            raise ValueError("align kwarg %s is not recognized" % align)
-
-        if orientation not in ['horizontal', 'vertical']:
-            raise ValueError(
-                "orientation kwarg %s is not recognized" % orientation)
+        # Validate string inputs here to avoid cluttering subsequent code.
+        cbook._check_in_list(['bar', 'barstacked', 'step', 'stepfilled'],
+                             histtype=histtype)
+        cbook._check_in_list(['left', 'mid', 'right'], align=align)
+        cbook._check_in_list(['horizontal', 'vertical'],
+                             orientation=orientation)
 
         if histtype == 'barstacked' and not stacked:
             stacked = True
-
-        if density is not None and normed is not None:
-            raise ValueError("kwargs 'density' and 'normed' cannot be used "
-                             "simultaneously. "
-                             "Please only use 'density', since 'normed'"
-                             "is deprecated.")
-        if normed is not None:
-            cbook.warn_deprecated("2.1", name="'normed'", obj_type="kwarg",
-                                  alternative="'density'", removal="3.1")
 
         # basic input validation
         input_empty = np.size(x) == 0
@@ -6703,6 +6587,9 @@ optional.
 
         if bin_range is not None:
             bin_range = self.convert_xunits(bin_range)
+
+        if not cbook.is_scalar_or_string(bins):
+            bins = self.convert_xunits(bins)
 
         # We need to do to 'weights' what was done to 'x'
         if weights is not None:
@@ -6756,46 +6643,37 @@ optional.
             else:
                 _w = None
 
-            bins = histogram_bin_edges(np.concatenate(x),
-                                       bins, bin_range, _w)
+            bins = _histogram_bin_edges(np.concatenate(x), bins, bin_range, _w)
         else:
             hist_kwargs['range'] = bin_range
 
-        density = bool(density) or bool(normed)
+        density = bool(density)
         if density and not stacked:
             hist_kwargs['density'] = density
 
         # List to store all the top coordinates of the histograms
-        tops = []
-        mlast = None
+        tops = []  # Will have shape (n_datasets, n_bins).
         # Loop through datasets
         for i in range(nx):
             # this will automatically overwrite bins,
             # so that each histogram uses the same bins
             m, bins = np.histogram(x[i], bins, weights=w[i], **hist_kwargs)
-            m = m.astype(float)  # causes problems later if it's an int
-            if mlast is None:
-                mlast = np.zeros(len(bins)-1, m.dtype)
-            if stacked:
-                m += mlast
-                mlast[:] = m
             tops.append(m)
-
-        # If a stacked density plot, normalize so the area of all the stacked
-        # histograms together is 1
-        if stacked and density:
-            db = np.diff(bins)
-            for m in tops:
-                m[:] = (m / db) / tops[-1].sum()
+        tops = np.array(tops, float)  # causes problems later if it's an int
+        if stacked:
+            tops = tops.cumsum(axis=0)
+            # If a stacked density plot, normalize so the area of all the
+            # stacked histograms together is 1
+            if density:
+                tops = (tops / np.diff(bins)) / tops[-1].sum()
         if cumulative:
             slc = slice(None)
             if isinstance(cumulative, Number) and cumulative < 0:
                 slc = slice(None, None, -1)
-
             if density:
-                tops = [(m * np.diff(bins))[slc].cumsum()[slc] for m in tops]
+                tops = (tops * np.diff(bins))[:, slc].cumsum(axis=1)[:, slc]
             else:
-                tops = [m[slc].cumsum()[slc] for m in tops]
+                tops = tops[:, slc].cumsum(axis=1)[:, slc]
 
         patches = []
 
@@ -6871,30 +6749,8 @@ optional.
             if log:
                 if orientation == 'horizontal':
                     self.set_xscale('log', nonposx='clip')
-                    logbase = self.xaxis._scale.base
                 else:  # orientation == 'vertical'
                     self.set_yscale('log', nonposy='clip')
-                    logbase = self.yaxis._scale.base
-
-                # Setting a minimum of 0 results in problems for log plots
-                if np.min(bottom) > 0:
-                    minimum = np.min(bottom)
-                elif density or weights is not None:
-                    # For data that is normed to form a probability density,
-                    # set to minimum data value / logbase
-                    # (gives 1 full tick-label unit for the lowest filled bin)
-                    ndata = np.array(tops)
-                    minimum = (np.min(ndata[ndata > 0])) / logbase
-                else:
-                    # For non-normed (density = False) data,
-                    # set the min to 1 / log base,
-                    # again so that there is 1 full tick-label unit
-                    # for the lowest bin
-                    minimum = 1.0 / logbase
-
-                y[0], y[-1] = minimum, minimum
-            else:
-                minimum = 0
 
             if align == 'left':
                 x -= 0.5*(bins[1]-bins[0])
@@ -6915,8 +6771,6 @@ optional.
                 # set the top of this polygon
                 y[1:2*len(bins)-1:2], y[2:2*len(bins):2] = (m + bottom,
                                                             m + bottom)
-                if log:
-                    y[y < minimum] = minimum
                 if orientation == 'horizontal':
                     xvals.append(y.copy())
                     yvals.append(x.copy())
@@ -6939,16 +6793,16 @@ optional.
             for patch_list in patches:
                 for patch in patch_list:
                     if orientation == 'vertical':
-                        patch.sticky_edges.y.append(minimum)
+                        patch.sticky_edges.y.append(0)
                     elif orientation == 'horizontal':
-                        patch.sticky_edges.x.append(minimum)
+                        patch.sticky_edges.x.append(0)
 
             # we return patches, so put it back in the expected order
             patches.reverse()
 
         self.set_autoscalex_on(_saved_autoscalex)
         self.set_autoscaley_on(_saved_autoscaley)
-        self.autoscale_view()
+        self._request_autoscale_view()
 
         if label is None:
             labels = [None]
@@ -6984,49 +6838,46 @@ optional.
 
         Parameters
         ----------
-        x, y : array_like, shape (n, )
+        x, y : array-like, shape (n, )
             Input values
 
-        bins : None or int or [int, int] or array_like or [array, array]
+        bins : None or int or [int, int] or array-like or [array, array]
 
             The bin specification:
 
-                - If int, the number of bins for the two dimensions
-                  (nx=ny=bins).
-
-                - If ``[int, int]``, the number of bins in each dimension
-                  (nx, ny = bins).
-
-                - If array_like, the bin edges for the two dimensions
-                  (x_edges=y_edges=bins).
-
-                - If ``[array, array]``, the bin edges in each dimension
-                  (x_edges, y_edges = bins).
+            - If int, the number of bins for the two dimensions
+              (nx=ny=bins).
+            - If ``[int, int]``, the number of bins in each dimension
+              (nx, ny = bins).
+            - If array-like, the bin edges for the two dimensions
+              (x_edges=y_edges=bins).
+            - If ``[array, array]``, the bin edges in each dimension
+              (x_edges, y_edges = bins).
 
             The default value is 10.
 
-        range : array_like shape(2, 2), optional, default: None
-             The leftmost and rightmost edges of the bins along each dimension
-             (if not specified explicitly in the bins parameters): ``[[xmin,
-             xmax], [ymin, ymax]]``. All values outside of this range will be
-             considered outliers and not tallied in the histogram.
+        range : array-like shape(2, 2), optional, default: None
+            The leftmost and rightmost edges of the bins along each dimension
+            (if not specified explicitly in the bins parameters): ``[[xmin,
+            xmax], [ymin, ymax]]``. All values outside of this range will be
+            considered outliers and not tallied in the histogram.
 
         density : bool, optional, default: False
-             Normalize histogram.  *normed* is a deprecated synonym for this
-             parameter.
+            Normalize histogram.  *normed* is a deprecated synonym for this
+            parameter.
 
-        weights : array_like, shape (n, ), optional, default: None
+        weights : array-like, shape (n, ), optional, default: None
             An array of values w_i weighing each sample (x_i, y_i).
 
         cmin : scalar, optional, default: None
-             All bins that has count less than cmin will not be displayed and
-             these count values in the return value count histogram will also
-             be set to nan upon return
+            All bins that has count less than cmin will not be displayed (set
+            to NaN before passing to imshow) and these count values in the
+            return value count histogram will also be set to nan upon return.
 
         cmax : scalar, optional, default: None
-             All bins that has count more than cmax will not be displayed (set
-             to none before passing to imshow) and these count values in the
-             return value count histogram will also be set to nan upon return
+            All bins that has count more than cmax will not be displayed (set
+            to NaN before passing to imshow) and these count values in the
+            return value count histogram will also be set to nan upon return.
 
         Returns
         -------
@@ -7062,7 +6913,7 @@ optional.
 
         Notes
         -----
-        - Currently ``hist2d`` calculates it's own axis limits, and any limits
+        - Currently ``hist2d`` calculates its own axis limits, and any limits
           previously set are ignored.
         - Rendering the histogram with a logarithmic color scale is
           accomplished by passing a `.colors.LogNorm` instance to the *norm*
@@ -7135,17 +6986,16 @@ optional.
         freqs : 1-D array
             The frequencies corresponding to the elements in *Pxx*.
 
-        line : a :class:`~matplotlib.lines.Line2D` instance
+        line : `~matplotlib.lines.Line2D`
             The line created by this function.
             Only returned if *return_line* is True.
 
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         See Also
         --------
@@ -7207,7 +7057,7 @@ optional.
     def csd(self, x, y, NFFT=None, Fs=None, Fc=None, detrend=None,
             window=None, noverlap=None, pad_to=None,
             sides=None, scale_by_freq=None, return_line=None, **kwargs):
-        """
+        r"""
         Plot the cross-spectral density.
 
         The cross spectral density :math:`P_{xy}` by Welch's average
@@ -7254,17 +7104,16 @@ optional.
         freqs : 1-D array
             The frequencies corresponding to the elements in *Pxy*.
 
-        line : a :class:`~matplotlib.lines.Line2D` instance
+        line : `~matplotlib.lines.Line2D`
             The line created by this function.
             Only returned if *return_line* is True.
 
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         See Also
         --------
@@ -7274,7 +7123,7 @@ optional.
         Notes
         -----
         For plotting, the power is plotted as
-        :math:`10\\log_{10}(P_{xy})` for decibels, though `P_{xy}` itself
+        :math:`10 \log_{10}(P_{xy})` for decibels, though `P_{xy}` itself
         is returned.
 
         References
@@ -7348,16 +7197,15 @@ optional.
         freqs : 1-D array
             The frequencies corresponding to the elements in *spectrum*.
 
-        line : a :class:`~matplotlib.lines.Line2D` instance
+        line : `~matplotlib.lines.Line2D`
             The line created by this function.
 
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         See Also
         --------
@@ -7436,16 +7284,15 @@ optional.
         freqs : 1-D array
             The frequencies corresponding to the elements in *spectrum*.
 
-        line : a :class:`~matplotlib.lines.Line2D` instance
+        line : `~matplotlib.lines.Line2D`
             The line created by this function.
 
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         See Also
         --------
@@ -7509,16 +7356,15 @@ optional.
         freqs : 1-D array
             The frequencies corresponding to the elements in *spectrum*.
 
-        line : a :class:`~matplotlib.lines.Line2D` instance
+        line : `~matplotlib.lines.Line2D`
             The line created by this function.
 
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         See Also
         --------
@@ -7552,7 +7398,7 @@ optional.
     def cohere(self, x, y, NFFT=256, Fs=2, Fc=0, detrend=mlab.detrend_none,
                window=mlab.window_hanning, noverlap=0, pad_to=None,
                sides='default', scale_by_freq=None, **kwargs):
-        """
+        r"""
         Plot the coherence between *x* and *y*.
 
         Plot the coherence between *x* and *y*.  Coherence is the
@@ -7560,7 +7406,7 @@ optional.
 
         .. math::
 
-          C_{xy} = \\frac{|P_{xy}|^2}{P_{xx}P_{yy}}
+          C_{xy} = \frac{|P_{xy}|^2}{P_{xx}P_{yy}}
 
         Parameters
         ----------
@@ -7590,10 +7436,9 @@ optional.
         Other Parameters
         ----------------
         **kwargs
-            Keyword arguments control the :class:`~matplotlib.lines.Line2D`
-            properties:
+            Keyword arguments control the `.Line2D` properties:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
 
         References
         ----------
@@ -7673,8 +7518,8 @@ optional.
             of the bins is smaller than those of the segments.
 
         **kwargs
-            Additional kwargs are passed on to imshow which makes the
-            specgram image.
+            Additional keyword arguments are passed on to imshow which makes
+            the specgram image.
 
         Returns
         -------
@@ -7780,14 +7625,14 @@ optional.
         **Image style**
 
         If *marker* and *markersize* are *None*, `~.Axes.imshow` is used. Any
-        extra remaining kwargs are passed to this method.
+        extra remaining keyword arguments are passed to this method.
 
         **Marker style**
 
         If *Z* is a `scipy.sparse.spmatrix` or *marker* or *markersize* are
-        *None*, a `~matplotlib.lines.Line2D` object will be returned with
-        the value of marker determining the marker type, and any
-        remaining kwargs passed to `~.Axes.plot`.
+        *None*, a `.Line2D` object will be returned with the value of marker
+        determining the marker type, and any remaining keyword arguments
+        passed to `~.Axes.plot`.
 
         Parameters
         ----------
@@ -7803,7 +7648,7 @@ optional.
             will be plotted, even if it is identically zero.
 
         origin : {'upper', 'lower'}, optional
-            Place the [0,0] index of the array in the upper left or lower left
+            Place the [0, 0] index of the array in the upper left or lower left
             corner of the axes. The convention 'upper' is typically used for
             matrices and images.
             If not given, :rc:`image.origin` is used, defaulting to 'upper'.
@@ -7821,7 +7666,7 @@ optional.
             - 'auto': The axes is kept fixed and the aspect is adjusted so
               that the data fit in the axes. In general, this will result in
               non-square pixels.
-            - *None*: Use :rc:`image.aspect` (default: 'equal').
+            - *None*: Use :rc:`image.aspect`.
 
             Default: 'equal'
 
@@ -7846,7 +7691,7 @@ optional.
             For the marker style, you can pass any `.Line2D` property except
             for *linestyle*:
 
-        %(_Line2D_docstr)s
+            %(_Line2D_docstr)s
         """
         if marker is None and markersize is None and hasattr(Z, 'tocoo'):
             marker = 's'
@@ -7929,7 +7774,7 @@ optional.
         Notes
         -----
         This is just a convenience function wrapping `.imshow` to set useful
-        defaults for a displaying a matrix. In particular:
+        defaults for displaying a matrix. In particular:
 
         - Set ``origin='upper'``.
         - Set ``interpolation='nearest'``.
@@ -7958,14 +7803,14 @@ optional.
     @_preprocess_data(replace_names=["dataset"])
     def violinplot(self, dataset, positions=None, vert=True, widths=0.5,
                    showmeans=False, showextrema=True, showmedians=False,
-                   points=100, bw_method=None):
+                   quantiles=None, points=100, bw_method=None):
         """
         Make a violin plot.
 
         Make a violin plot for each column of *dataset* or each vector in
         sequence *dataset*.  Each filled area extends to represent the
         entire data range, with optional lines at the mean, the median,
-        the minimum, and the maximum.
+        the minimum, the maximum, and user-specified quantiles.
 
         Parameters
         ----------
@@ -7994,6 +7839,11 @@ optional.
         showmedians : bool, default = False
           If `True`, will toggle rendering of the medians.
 
+        quantiles : array-like, default = None
+          If not None, set a list of floats in interval [0, 1] for each violin,
+          which stands for the quantiles that will be rendered for that
+          violin.
+
         points : scalar, default = 100
           Defines the number of points to evaluate each of the
           gaussian kernel density estimations at.
@@ -8007,40 +7857,32 @@ optional.
 
         Returns
         -------
-
         result : dict
           A dictionary mapping each component of the violinplot to a
           list of the corresponding collection instances created. The
           dictionary has the following keys:
 
-            - ``bodies``: A list of the
-              :class:`matplotlib.collections.PolyCollection` instances
-              containing the filled area of each violin.
+          - ``bodies``: A list of the `~.collections.PolyCollection`
+            instances containing the filled area of each violin.
 
-            - ``cmeans``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the mean values of each of the
-              violin's distribution.
+          - ``cmeans``: A `~.collections.LineCollection` instance that marks
+            the mean values of each of the violin's distribution.
 
-            - ``cmins``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the bottom of each violin's
-              distribution.
+          - ``cmins``: A `~.collections.LineCollection` instance that marks
+            the bottom of each violin's distribution.
 
-            - ``cmaxes``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the top of each violin's
-              distribution.
+          - ``cmaxes``: A `~.collections.LineCollection` instance that marks
+            the top of each violin's distribution.
 
-            - ``cbars``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the centers of each violin's
-              distribution.
+          - ``cbars``: A `~.collections.LineCollection` instance that marks
+            the centers of each violin's distribution.
 
-            - ``cmedians``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the median values of each of the
-              violin's distribution.
+          - ``cmedians``: A `~.collections.LineCollection` instance that
+            marks the median values of each of the violin's distribution.
+
+          - ``cquantiles``: A `~.collections.LineCollection` instance created
+            to identify the quantile values of each of the violin's
+            distribution.
 
         """
 
@@ -8051,7 +7893,8 @@ optional.
             kde = mlab.GaussianKDE(X, bw_method)
             return kde.evaluate(coords)
 
-        vpstats = cbook.violin_stats(dataset, _kde_method, points=points)
+        vpstats = cbook.violin_stats(dataset, _kde_method, points=points,
+                                     quantiles=quantiles)
         return self.violin(vpstats, positions=positions, vert=vert,
                            widths=widths, showmeans=showmeans,
                            showextrema=showextrema, showmedians=showmedians)
@@ -8060,13 +7903,12 @@ optional.
                showmeans=False, showextrema=True, showmedians=False):
         """Drawing function for violin plots.
 
-        Draw a violin plot for each column of `vpstats`. Each filled area
+        Draw a violin plot for each column of *vpstats*. Each filled area
         extends to represent the entire data range, with optional lines at the
-        mean, the median, the minimum, and the maximum.
+        mean, the median, the minimum, the maximum, and the quantiles values.
 
         Parameters
         ----------
-
         vpstats : list of dicts
           A list of dictionaries containing stats for each violin plot.
           Required keys are:
@@ -8085,6 +7927,11 @@ optional.
           - ``min``: The minimum value for this violin's dataset.
 
           - ``max``: The maximum value for this violin's dataset.
+
+          Optional keys are:
+
+          - ``quantiles``: A list of scalars containing the quantile values
+            for this violin's dataset.
 
         positions : array-like, default = [1, 2, ..., n]
           Sets the positions of the violins. The ticks and limits are
@@ -8115,34 +7962,27 @@ optional.
           list of the corresponding collection instances created. The
           dictionary has the following keys:
 
-            - ``bodies``: A list of the
-              :class:`matplotlib.collections.PolyCollection` instances
-              containing the filled area of each violin.
+          - ``bodies``: A list of the `~.collections.PolyCollection`
+            instances containing the filled area of each violin.
 
-            - ``cmeans``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the mean values of each of the
-              violin's distribution.
+          - ``cmeans``: A `~.collections.LineCollection` instance that marks
+            the mean values of each of the violin's distribution.
 
-            - ``cmins``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the bottom of each violin's
-              distribution.
+          - ``cmins``: A `~.collections.LineCollection` instance that marks
+            the bottom of each violin's distribution.
 
-            - ``cmaxes``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the top of each violin's
-              distribution.
+          - ``cmaxes``: A `~.collections.LineCollection` instance that marks
+            the top of each violin's distribution.
 
-            - ``cbars``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the centers of each violin's
-              distribution.
+          - ``cbars``: A `~.collections.LineCollection` instance that marks
+            the centers of each violin's distribution.
 
-            - ``cmedians``: A
-              :class:`matplotlib.collections.LineCollection` instance
-              created to identify the median values of each of the
-              violin's distribution.
+          - ``cmedians``: A `~.collections.LineCollection` instance that
+            marks the median values of each of the violin's distribution.
+
+          - ``cquantiles``: A `~.collections.LineCollection` instance created
+            to identify the quantiles values of each of the violin's
+            distribution.
 
         """
 
@@ -8151,6 +7991,7 @@ optional.
         mins = []
         maxes = []
         medians = []
+        quantiles = np.asarray([])
 
         # Collections to be returned
         artists = {}
@@ -8207,6 +8048,10 @@ optional.
             mins.append(stats['min'])
             maxes.append(stats['max'])
             medians.append(stats['median'])
+            q = stats.get('quantiles')
+            if q is not None:
+                # If exist key quantiles, assume it's a list of floats
+                quantiles = np.concatenate((quantiles, q))
         artists['bodies'] = bodies
 
         # Render means
@@ -8230,13 +8075,29 @@ optional.
                                              pmaxes,
                                              colors=edgecolor)
 
+        # Render quantile values
+        if quantiles.size > 0:
+            # Recalculate ranges for statistics lines for quantiles.
+            # ppmins are the left end of quantiles lines
+            ppmins = np.asarray([])
+            # pmaxes are the right end of quantiles lines
+            ppmaxs = np.asarray([])
+            for stats, cmin, cmax in zip(vpstats, pmins, pmaxes):
+                q = stats.get('quantiles')
+                if q is not None:
+                    ppmins = np.concatenate((ppmins, [cmin] * np.size(q)))
+                    ppmaxs = np.concatenate((ppmaxs, [cmax] * np.size(q)))
+            # Start rendering
+            artists['cquantiles'] = perp_lines(quantiles, ppmins, ppmaxs,
+                                                 colors=edgecolor)
+
         return artists
 
     # Methods that are entirely implemented in other modules.
 
     table = mtable.table
 
-    # args can by either Y or y1,y2,... and all should be replaced
+    # args can by either Y or y1, y2, ... and all should be replaced
     stackplot = _preprocess_data()(mstack.stackplot)
 
     streamplot = _preprocess_data(

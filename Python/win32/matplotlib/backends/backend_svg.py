@@ -3,6 +3,7 @@ import base64
 import gzip
 import hashlib
 import io
+import itertools
 import logging
 import re
 import uuid
@@ -82,7 +83,7 @@ def escape_comment(s):
 def escape_attrib(s):
     s = s.replace("&", "&amp;")
     s = s.replace("'", "&apos;")
-    s = s.replace("\"", "&quot;")
+    s = s.replace('"', "&quot;")
     s = s.replace("<", "&lt;")
     s = s.replace(">", "&gt;")
     return s
@@ -96,7 +97,7 @@ def short_float_fmt(x):
     return '{0:f}'.format(x).rstrip('0').rstrip('.')
 
 
-class XMLWriter(object):
+class XMLWriter:
     """
     Parameters
     ----------
@@ -151,12 +152,12 @@ class XMLWriter(object):
         self.__write(self.__indentation[:len(self.__tags) - 1])
         self.__write("<%s" % tag)
         for k, v in sorted({**attrib, **extra}.items()):
-            if not v == '':
+            if v:
                 k = escape_cdata(k)
                 v = escape_attrib(v)
                 self.__write(' %s="%s"' % (k, v))
         self.__open = 1
-        return len(self.__tags)-1
+        return len(self.__tags) - 1
 
     def comment(self, comment):
         """
@@ -229,7 +230,7 @@ class XMLWriter(object):
         :meth:`data`, and :meth:`end` in sequence. The *text* argument can be
         omitted.
         """
-        self.start(*(tag, attrib), **extra)
+        self.start(tag, attrib, **extra)
         if text:
             self.data(text)
         self.end(indent=False)
@@ -278,14 +279,11 @@ class RendererSVG(RendererBase):
         self.image_dpi = image_dpi  # actual dpi at which we rasterize stuff
 
         self._groupd = {}
-        if not rcParams['svg.image_inline']:
-            assert basename is not None
-            self.basename = basename
-            self._imaged = {}
+        self.basename = basename
+        self._image_counter = itertools.count()
         self._clipd = OrderedDict()
         self._markers = {}
         self._path_collection_id = 0
-        self._imaged = {}
         self._hatchd = OrderedDict()
         self._has_gouraud = False
         self._n_gradients = 0
@@ -823,19 +821,20 @@ class RendererSVG(RendererBase):
         if url is not None:
             self.writer.start('a', attrib={'xlink:href': url})
         if rcParams['svg.image_inline']:
-            bytesio = io.BytesIO()
-            _png.write_png(im, bytesio)
-            oid = oid or self._make_id('image', bytesio.getvalue())
+            buf = _png.write_png(im, None)
+            oid = oid or self._make_id('image', buf)
             attrib['xlink:href'] = (
                 "data:image/png;base64,\n" +
-                base64.b64encode(bytesio.getvalue()).decode('ascii'))
+                base64.b64encode(buf).decode('ascii'))
         else:
-            self._imaged[self.basename] = (
-                self._imaged.get(self.basename, 0) + 1)
-            filename = '%s.image%d.png' % (
-                self.basename, self._imaged[self.basename])
+            if self.basename is None:
+                raise ValueError("Cannot save image data to filesystem when "
+                                 "writing SVG to an in-memory buffer")
+            filename = '{}.image{}.png'.format(
+                self.basename, next(self._image_counter))
             _log.info('Writing image file for inclusion: %s', filename)
-            _png.write_png(im, filename)
+            with open(filename, 'wb') as file:
+                _png.write_png(im, file)
             oid = oid or 'Im_' + self._make_id('image', filename)
             attrib['xlink:href'] = filename
 
@@ -1024,15 +1023,10 @@ class RendererSVG(RendererBase):
             font = self._get_font(prop)
             font.set_text(s, 0.0, flags=LOAD_NO_HINTING)
 
-            fontsize = prop.get_size_in_points()
-
-            fontfamily = font.family_name
-            fontstyle = prop.get_style()
-
             attrib = {}
             # Must add "px" to workaround a Firefox bug
-            style['font-size'] = short_float_fmt(fontsize) + 'px'
-            style['font-family'] = str(fontfamily)
+            style['font-size'] = short_float_fmt(prop.get_size()) + 'px'
+            style['font-family'] = str(font.family_name)
             style['font-style'] = prop.get_style().lower()
             style['font-weight'] = str(prop.get_weight()).lower()
             attrib['style'] = generate_css(style)
@@ -1043,7 +1037,7 @@ class RendererSVG(RendererBase):
 
                 # Get anchor coordinates.
                 transform = mtext.get_transform()
-                ax, ay = transform.transform_point(mtext.get_position())
+                ax, ay = transform.transform(mtext.get_unitless_position())
                 ay = self.height - ay
 
                 # Don't do vertical anchor alignment. Most applications do not

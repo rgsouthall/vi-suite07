@@ -169,7 +169,7 @@ def _dispatch(table, min, max=None, state=None, args=('raw',)):
     return decorate
 
 
-class Dvi(object):
+class Dvi:
     """
     A reader for a dvi ("device-independent") file, as produced by TeX.
     The current implementation can only iterate through pages in order,
@@ -269,6 +269,12 @@ class Dvi(object):
             maxx = max(maxx, x + w)
             maxy = max(maxy, y + e)
             maxy_pure = max(maxy_pure, y)
+        if self._baseline_v is not None:
+            maxy_pure = self._baseline_v  # This should normally be the case.
+            self._baseline_v = None
+
+        if not self.text and not self.boxes:  # Avoid infs/nans from inf+/-inf.
+            return Page(text=[], boxes=[], width=0, height=0, descent=0)
 
         if self.dpi is None:
             # special case for ease of debugging: output raw dvi coordinates
@@ -296,9 +302,24 @@ class Dvi(object):
         Read one page from the file. Return True if successful,
         False if there were no more pages.
         """
+        # Pages appear to start with the sequence
+        #   bop (begin of page)
+        #   xxx comment
+        #   down
+        #   push
+        #     down, down
+        #     push
+        #       down (possibly multiple)
+        #       push  <=  here, v is the baseline position.
+        #         etc.
+        # (dviasm is useful to explore this structure.)
+        self._baseline_v = None
         while True:
             byte = self.file.read(1)[0]
             self._dtable[byte](self, byte)
+            if (self._baseline_v is None
+                    and len(getattr(self, "stack", [])) == 3):
+                self._baseline_v = self.v
             if byte == 140:                         # end of page
                 return True
             if self.state is _dvistate.post_post:   # end of file
@@ -455,7 +476,7 @@ class Dvi(object):
 
     @_dispatch(247, state=_dvistate.pre, args=('u1', 'u4', 'u4', 'u4', 'u1'))
     def _pre(self, i, num, den, mag, k):
-        comment = self.file.read(k)
+        self.file.read(k)  # comment in the dvi file
         if i != 2:
             raise ValueError("Unknown dvi format %d" % i)
         if num != 25400000 or den != 7227 * 2**16:
@@ -486,7 +507,7 @@ class Dvi(object):
         raise ValueError("unknown command: byte %d", 250 + offset)
 
 
-class DviFont(object):
+class DviFont:
     """
     Encapsulation of a font that a DVI file can refer to.
 
@@ -499,7 +520,6 @@ class DviFont(object):
 
     Parameters
     ----------
-
     scale : float
         Factor by which the font is scaled from its natural size.
     tfm : Tfm
@@ -514,7 +534,6 @@ class DviFont(object):
 
     Attributes
     ----------
-
     texname : bytes
     size : float
        Size of the font in Adobe points, converted from the slightly
@@ -527,9 +546,7 @@ class DviFont(object):
     __slots__ = ('texname', 'size', 'widths', '_scale', '_vf', '_tfm')
 
     def __init__(self, scale, tfm, texname, vf):
-        if not isinstance(texname, bytes):
-            raise ValueError("texname must be a bytestring, got %s"
-                             % type(texname))
+        cbook._check_isinstance(bytes, texname=texname)
         self._scale = scale
         self._tfm = tfm
         self.texname = texname
@@ -587,7 +604,7 @@ class Vf(Dvi):
 
     Parameters
     ----------
-    filename : string or bytestring
+    filename : str or path-like
 
     Notes
     -----
@@ -700,7 +717,7 @@ def _mul2012(num1, num2):
     return (num1*num2) >> 20
 
 
-class Tfm(object):
+class Tfm:
     """
     A TeX Font Metric file.
 
@@ -708,7 +725,7 @@ class Tfm(object):
 
     Parameters
     ----------
-    filename : string or bytestring
+    filename : str or path-like
 
     Attributes
     ----------
@@ -755,7 +772,7 @@ class Tfm(object):
 PsFont = namedtuple('Font', 'texname psname effects encoding filename')
 
 
-class PsfontsMap(object):
+class PsfontsMap:
     """
     A psfonts.map formatted file, mapping TeX fonts to PS fonts.
 
@@ -775,12 +792,10 @@ class PsfontsMap(object):
 
     Parameters
     ----------
-
-    filename : string or bytestring
+    filename : str or path-like
 
     Notes
     -----
-
     For historical reasons, TeX knows many Type-1 fonts by different
     names than the outside world. (For one thing, the names have to
     fit in eight characters.) Also, TeX's native fonts are not Type-1
@@ -923,7 +938,7 @@ class PsfontsMap(object):
                 encoding=encoding, filename=filename)
 
 
-class Encoding(object):
+class Encoding:
     r"""
     Parses a \*.enc file referenced from a psfonts.map style file.
     The format this class understands is a very limited subset of
@@ -936,7 +951,7 @@ class Encoding(object):
 
     Parameters
     ----------
-    filename : string or bytestring
+    filename : str or path-like
 
     Attributes
     ----------
@@ -995,7 +1010,7 @@ def _parse_enc(path):
     with open(path, encoding="ascii") as file:
         no_comments = "\n".join(line.split("%")[0].rstrip() for line in file)
     array = re.search(r"(?s)\[(.*)\]", no_comments).group(1)
-    lines = [line for line in array.split("\n") if line]
+    lines = [line for line in array.split() if line]
     if all(line.startswith("/") for line in lines):
         return [line[1:] for line in lines]
     else:
@@ -1017,14 +1032,13 @@ def find_tex_file(filename, format=None):
 
     Parameters
     ----------
-    filename : string or bytestring
-    format : string or bytestring
+    filename : str or path-like
+    format : str or bytes
         Used as the value of the `--format` option to :program:`kpsewhich`.
         Could be e.g. 'tfm' or 'vf' to limit the search to that type of files.
 
     References
     ----------
-
     .. [1] `Kpathsea documentation <http://www.tug.org/kpathsea/>`_
         The library that :program:`kpsewhich` is part of.
     """
@@ -1039,7 +1053,7 @@ def find_tex_file(filename, format=None):
     if os.name == 'nt':
         # On Windows only, kpathsea can use utf-8 for cmd args and output.
         # The `command_line_encoding` environment variable is set to force it
-        # to always use utf-8 encoding. See mpl issue #11848 for more info.
+        # to always use utf-8 encoding.  See Matplotlib issue #11848.
         kwargs = dict(env=dict(os.environ, command_line_encoding='utf-8'))
     else:
         kwargs = {}

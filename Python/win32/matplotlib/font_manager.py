@@ -1,11 +1,11 @@
 """
 A module for finding, managing, and using fonts across platforms.
 
-This module provides a single :class:`FontManager` instance that can
-be shared across backends and platforms.  The :func:`findfont`
+This module provides a single `FontManager` instance that can
+be shared across backends and platforms.  The `findfont`
 function returns the best TrueType (TTF) font file in the local or
-system font path that matches the specified :class:`FontProperties`
-instance.  The :class:`FontManager` also handles Adobe Font Metrics
+system font path that matches the specified `FontProperties`
+instance.  The `FontManager` also handles Adobe Font Metrics
 (AFM) font files for use by the PostScript backend.
 
 The design is based on the `W3C Cascading Style Sheet, Level 1 (CSS1)
@@ -44,44 +44,48 @@ from matplotlib.fontconfig_pattern import (
 _log = logging.getLogger(__name__)
 
 font_scalings = {
-    'xx-small' : 0.579,
-    'x-small'  : 0.694,
-    'small'    : 0.833,
-    'medium'   : 1.0,
-    'large'    : 1.200,
-    'x-large'  : 1.440,
-    'xx-large' : 1.728,
-    'larger'   : 1.2,
-    'smaller'  : 0.833,
-    None       : 1.0}
-
+    'xx-small': 0.579,
+    'x-small':  0.694,
+    'small':    0.833,
+    'medium':   1.0,
+    'large':    1.200,
+    'x-large':  1.440,
+    'xx-large': 1.728,
+    'larger':   1.2,
+    'smaller':  0.833,
+    None:       1.0,
+}
 stretch_dict = {
-    'ultra-condensed' : 100,
-    'extra-condensed' : 200,
-    'condensed'       : 300,
-    'semi-condensed'  : 400,
-    'normal'          : 500,
-    'semi-expanded'   : 600,
-    'expanded'        : 700,
-    'extra-expanded'  : 800,
-    'ultra-expanded'  : 900}
-
+    'ultra-condensed': 100,
+    'extra-condensed': 200,
+    'condensed':       300,
+    'semi-condensed':  400,
+    'normal':          500,
+    'semi-expanded':   600,
+    'semi-extended':   600,
+    'expanded':        700,
+    'extended':        700,
+    'extra-expanded':  800,
+    'extra-extended':  800,
+    'ultra-expanded':  900,
+    'ultra-extended':  900,
+}
 weight_dict = {
-    'ultralight' : 100,
-    'light'      : 200,
-    'normal'     : 400,
-    'regular'    : 400,
-    'book'       : 400,
-    'medium'     : 500,
-    'roman'      : 500,
-    'semibold'   : 600,
-    'demibold'   : 600,
-    'demi'       : 600,
-    'bold'       : 700,
-    'heavy'      : 800,
-    'extra bold' : 800,
-    'black'      : 900}
-
+    'ultralight': 100,
+    'light':      200,
+    'normal':     400,
+    'regular':    400,
+    'book':       400,
+    'medium':     500,
+    'roman':      500,
+    'semibold':   600,
+    'demibold':   600,
+    'demi':       600,
+    'bold':       700,
+    'heavy':      800,
+    'extra bold': 800,
+    'black':      900,
+}
 font_family_aliases = {
     'serif',
     'sans-serif',
@@ -89,20 +93,18 @@ font_family_aliases = {
     'cursive',
     'fantasy',
     'monospace',
-    'sans'}
-
-#  OS Font paths
+    'sans',
+}
+# OS Font paths
 MSFolders = \
     r'Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders'
-
 MSFontDirectories = [
     r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts',
     r'SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts']
-
 MSUserFontDirectories = [
-    os.path.join(str(Path.home()), r'AppData\Local\Microsoft\Windows\Fonts'),
-    os.path.join(str(Path.home()), r'AppData\Roaming\Microsoft\Windows\Fonts')]
-
+    str(Path.home() / 'AppData/Local/Microsoft/Windows/Fonts'),
+    str(Path.home() / 'AppData/Roaming/Microsoft/Windows/Fonts'),
+]
 X11FontDirectories = [
     # an old standard installation point
     "/usr/X11R6/lib/X11/fonts/TTF/",
@@ -118,7 +120,6 @@ X11FontDirectories = [
                             Path.home() / ".local/share")) / "fonts"),
     str(Path.home() / ".fonts"),
 ]
-
 OSXFontDirectories = [
     "/Library/Fonts/",
     "/Network/Library/Fonts/",
@@ -159,7 +160,7 @@ def list_fonts(directory, extensions):
 def win32FontDirectory():
     r"""
     Return the user-specified font directory for Win32.  This is
-    looked up from the registry key::
+    looked up from the registry key ::
 
       \\HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders\Fonts
 
@@ -272,6 +273,10 @@ def _call_fc_list():
         'This may take a moment.'))
     timer.start()
     try:
+        if b'--format' not in subprocess.check_output(['fc-list', '--help']):
+            _log.warning(  # fontconfig 2.7 implemented --format.
+                'Matplotlib needs fontconfig>=2.7 to query system fonts.')
+            return []
         out = subprocess.check_output(['fc-list', '--format=%{file}\\n'])
     except (OSError, subprocess.CalledProcessError):
         return []
@@ -319,7 +324,7 @@ def findSystemFonts(fontpaths=None, fontext='ttf'):
     return [fname for fname in fontfiles if os.path.exists(fname)]
 
 
-class FontEntry(object):
+class FontEntry:
     """
     A class for storing Font properties.  It is used when populating
     the font lookup dictionary.
@@ -398,12 +403,10 @@ def ttfFontProperty(font):
     else:
         variant = 'normal'
 
-    weight = next((w for w in weight_dict if sfnt4.find(w) >= 0), None)
-    if not weight:
-        if font.style_flags & ft2font.BOLD:
-            weight = 700
-        else:
-            weight = 400
+    if font.style_flags & ft2font.BOLD:
+        weight = 700
+    else:
+        weight = next((w for w in weight_dict if w in sfnt4), 400)
 
     #  Stretch can be absolute and relative
     #  Absolute stretches are: ultra-condensed, extra-condensed, condensed,
@@ -412,12 +415,11 @@ def ttfFontProperty(font):
     #  Relative stretches are: wider, narrower
     #  Child value is: inherit
 
-    if (sfnt4.find('narrow') >= 0 or sfnt4.find('condensed') >= 0 or
-            sfnt4.find('cond') >= 0):
+    if any(word in sfnt4 for word in ['narrow', 'condensed', 'cond']):
         stretch = 'condensed'
-    elif sfnt4.find('demi cond') >= 0:
+    elif 'demi cond' in sfnt4:
         stretch = 'semi-condensed'
-    elif sfnt4.find('wide') >= 0 or sfnt4.find('expanded') >= 0:
+    elif any(word in sfnt4 for word in ['wide', 'expanded', 'extended']):
         stretch = 'expanded'
     else:
         stretch = 'normal'
@@ -483,9 +485,9 @@ def afmFontProperty(fontpath, font):
     #  Child value is: inherit
     if 'demi cond' in fontname:
         stretch = 'semi-condensed'
-    elif 'narrow' in fontname or 'cond' in fontname:
+    elif any(word in fontname for word in ['narrow', 'cond']):
         stretch = 'condensed'
-    elif 'wide' in fontname or 'expanded' in fontname:
+    elif any(word in fontname for word in ['wide', 'expanded', 'extended']):
         stretch = 'expanded'
     else:
         stretch = 'normal'
@@ -504,6 +506,7 @@ def afmFontProperty(fontpath, font):
     return FontEntry(fontpath, name, style, variant, weight, stretch, size)
 
 
+@cbook.deprecated("3.2", alternative="FontManager.addfont")
 def createFontList(fontfiles, fontext='ttf'):
     """
     A function to create a font lookup list.  The default is to create
@@ -557,7 +560,7 @@ def createFontList(fontfiles, fontext='ttf'):
     return fontlist
 
 
-class FontProperties(object):
+class FontProperties:
     """
     A class for storing and manipulating font properties.
 
@@ -566,32 +569,32 @@ class FontProperties(object):
     <http://www.w3.org/TR/1998/REC-CSS2-19980512/>`_ font
     specification.  The six properties are:
 
-      - family: A list of font names in decreasing order of priority.
-        The items may include a generic font family name, either
-        'serif', 'sans-serif', 'cursive', 'fantasy', or 'monospace'.
-        In that case, the actual font to be used will be looked up
-        from the associated rcParam.
+    - family: A list of font names in decreasing order of priority.
+      The items may include a generic font family name, either
+      'serif', 'sans-serif', 'cursive', 'fantasy', or 'monospace'.
+      In that case, the actual font to be used will be looked up
+      from the associated rcParam.
 
-      - style: Either 'normal', 'italic' or 'oblique'.
+    - style: Either 'normal', 'italic' or 'oblique'.
 
-      - variant: Either 'normal' or 'small-caps'.
+    - variant: Either 'normal' or 'small-caps'.
 
-      - stretch: A numeric value in the range 0-1000 or one of
-        'ultra-condensed', 'extra-condensed', 'condensed',
-        'semi-condensed', 'normal', 'semi-expanded', 'expanded',
-        'extra-expanded' or 'ultra-expanded'
+    - stretch: A numeric value in the range 0-1000 or one of
+      'ultra-condensed', 'extra-condensed', 'condensed',
+      'semi-condensed', 'normal', 'semi-expanded', 'expanded',
+      'extra-expanded' or 'ultra-expanded'.
 
-      - weight: A numeric value in the range 0-1000 or one of
-        'ultralight', 'light', 'normal', 'regular', 'book', 'medium',
-        'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy',
-        'extra bold', 'black'
+    - weight: A numeric value in the range 0-1000 or one of
+      'ultralight', 'light', 'normal', 'regular', 'book', 'medium',
+      'roman', 'semibold', 'demibold', 'demi', 'bold', 'heavy',
+      'extra bold', 'black'.
 
-      - size: Either an relative value of 'xx-small', 'x-small',
-        'small', 'medium', 'large', 'x-large', 'xx-large' or an
-        absolute font size, e.g., 12
+    - size: Either an relative value of 'xx-small', 'x-small',
+      'small', 'medium', 'large', 'x-large', 'xx-large' or an
+      absolute font size, e.g., 12.
 
     The default font property for TrueType fonts (as specified in the
-    default rcParams) is::
+    default rcParams) is ::
 
       sans-serif, normal, normal, normal, normal, scalable.
 
@@ -604,8 +607,8 @@ class FontProperties(object):
     on the font manager's default font size.
 
     This class will also accept a fontconfig_ pattern_, if it is the only
-    argument provided.  This support does not require fontconfig to be
-    installed.  We are merely borrowing its pattern syntax for use here.
+    argument provided.  This support does not depend on fontconfig; we are
+    merely borrowing its pattern syntax for use here.
 
     .. _fontconfig: https://www.freedesktop.org/wiki/Software/fontconfig/
     .. _pattern:
@@ -735,8 +738,7 @@ class FontProperties(object):
         Get a fontconfig_ pattern_ suitable for looking up the font as
         specified with fontconfig's ``fc-match`` utility.
 
-        This support does not require fontconfig to be installed or
-        support for it to be enabled.  We are merely borrowing its
+        This support does not depend on fontconfig; we are merely borrowing its
         pattern syntax for use here.
         """
         return generate_fontconfig_pattern(self)
@@ -839,14 +841,13 @@ class FontProperties(object):
         Set the filename of the fontfile to use.  In this case, all
         other properties will be ignored.
         """
-        self._file = file
+        self._file = os.fspath(file) if file is not None else None
 
     def set_fontconfig_pattern(self, pattern):
         """
         Set the properties by parsing a fontconfig_ *pattern*.
 
-        This support does not require fontconfig to be installed or
-        support for it to be enabled.  We are merely borrowing its
+        This support does not depend on fontconfig; we are merely borrowing its
         pattern syntax for use here.
         """
         for key, val in self._parse_fontconfig_pattern(pattern).items():
@@ -862,15 +863,15 @@ class FontProperties(object):
         return new
 
 
-class JSONEncoder(json.JSONEncoder):
+class _JSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, FontManager):
             return dict(o.__dict__, __class__='FontManager')
         elif isinstance(o, FontEntry):
             d = dict(o.__dict__, __class__='FontEntry')
             try:
-                # Cache paths of fonts shipped with mpl relative to the mpl
-                # data path, which helps in the presence of venvs.
+                # Cache paths of fonts shipped with Matplotlib relative to the
+                # Matplotlib data path, which helps in the presence of venvs.
                 d["fname"] = str(
                     Path(d["fname"]).relative_to(mpl.get_data_path()))
             except ValueError:
@@ -878,6 +879,11 @@ class JSONEncoder(json.JSONEncoder):
             return d
         else:
             return super().default(o)
+
+
+@cbook.deprecated("3.2", alternative="json_dump")
+class JSONEncoder(_JSONEncoder):
+    pass
 
 
 def _json_decode(o):
@@ -900,26 +906,32 @@ def _json_decode(o):
 
 def json_dump(data, filename):
     """
-    Dumps a data structure as JSON in the named file.
+    Dump `FontManager` *data* as JSON to the file named *filename*.
 
-    Handles FontManager and its fields.  File paths that are children of the
-    Matplotlib data path (typically, fonts shipped with Matplotlib) are stored
-    relative to that data path (to remain valid across virtualenvs).
+    Notes
+    -----
+    File paths that are children of the Matplotlib data path (typically, fonts
+    shipped with Matplotlib) are stored relative to that data path (to remain
+    valid across virtualenvs).
+
+    See Also
+    --------
+    json_load
     """
     with open(filename, 'w') as fh:
         try:
-            json.dump(data, fh, cls=JSONEncoder, indent=2)
+            json.dump(data, fh, cls=_JSONEncoder, indent=2)
         except OSError as e:
             _log.warning('Could not save font_manager cache {}'.format(e))
 
 
 def json_load(filename):
     """
-    Loads a data structure as JSON from the named file.
+    Load a `FontManager` from the JSON file named *filename*.
 
-    Handles FontManager and its fields.  Relative file paths are interpreted
-    as being relative to the Matplotlib data path, and transformed into
-    absolute paths.
+    See Also
+    --------
+    json_dump
     """
     with open(filename, 'r') as fh:
         return json.load(fh, object_hook=_json_decode)
@@ -931,45 +943,7 @@ def _normalize_font_family(family):
     return family
 
 
-@cbook.deprecated("3.0")
-class TempCache(object):
-    """
-    A class to store temporary caches that are (a) not saved to disk
-    and (b) invalidated whenever certain font-related
-    rcParams---namely the family lookup lists---are changed or the
-    font cache is reloaded.  This avoids the expensive linear search
-    through all fonts every time a font is looked up.
-    """
-    # A list of rcparam names that, when changed, invalidated this
-    # cache.
-    invalidating_rcparams = (
-        'font.serif', 'font.sans-serif', 'font.cursive', 'font.fantasy',
-        'font.monospace')
-
-    def __init__(self):
-        self._lookup_cache = {}
-        self._last_rcParams = self.make_rcparams_key()
-
-    def make_rcparams_key(self):
-        return [id(fontManager)] + [
-            rcParams[param] for param in self.invalidating_rcparams]
-
-    def get(self, prop):
-        key = self.make_rcparams_key()
-        if key != self._last_rcParams:
-            self._lookup_cache = {}
-            self._last_rcParams = key
-        return self._lookup_cache.get(prop)
-
-    def set(self, prop, value):
-        key = self.make_rcparams_key()
-        if key != self._last_rcParams:
-            self._lookup_cache = {}
-            self._last_rcParams = key
-        self._lookup_cache[prop] = value
-
-
-class FontManager(object):
+class FontManager:
     """
     On import, the :class:`FontManager` singleton instance creates a
     list of TrueType fonts based on the font properties: name, style,
@@ -989,10 +963,8 @@ class FontManager(object):
         self.__default_weight = weight
         self.default_size = size
 
-        paths = [os.path.join(rcParams['datapath'], 'fonts', 'ttf'),
-                 os.path.join(rcParams['datapath'], 'fonts', 'afm'),
-                 os.path.join(rcParams['datapath'], 'fonts', 'pdfcorefonts')]
-
+        paths = [cbook._get_data_path('fonts', subdir)
+                 for subdir in ['ttf', 'afm', 'pdfcorefonts']]
         #  Create list of font paths
         for pathname in ['TTFPATH', 'AFMPATH']:
             if pathname in os.environ:
@@ -1010,22 +982,37 @@ class FontManager(object):
             'ttf': 'DejaVu Sans',
             'afm': 'Helvetica'}
 
-        ttffiles = findSystemFonts(paths) + findSystemFonts()
-        self.ttflist = createFontList(ttffiles)
+        self.afmlist = []
+        self.ttflist = []
+        for fontext in ["afm", "ttf"]:
+            for path in [*findSystemFonts(paths, fontext=fontext),
+                         *findSystemFonts(fontext=fontext)]:
+                try:
+                    self.addfont(path)
+                except OSError as exc:
+                    _log.info("Failed to open font file %s: %s", path, exc)
+                except Exception as exc:
+                    _log.info("Failed to extract font properties from %s: %s",
+                              path, exc)
 
-        afmfiles = (findSystemFonts(paths, fontext='afm')
-                    + findSystemFonts(fontext='afm'))
-        self.afmlist = createFontList(afmfiles, fontext='afm')
+    def addfont(self, path):
+        """
+        Cache the properties of the font at *path* to make it available to the
+        `FontManager`.  The type of font is inferred from the path suffix.
 
-    @cbook.deprecated("3.0")
-    @property
-    def ttffiles(self):
-        return [font.fname for font in self.ttflist]
-
-    @cbook.deprecated("3.0")
-    @property
-    def afmfiles(self):
-        return [font.fname for font in self.afmlist]
+        Parameters
+        ----------
+        path : str or path-like
+        """
+        if Path(path).suffix.lower() == ".afm":
+            with open(path, "rb") as fh:
+                font = afm.AFM(fh)
+            prop = afmFontProperty(path, font)
+            self.afmlist.append(prop)
+        else:
+            font = ft2font.FT2Font(path)
+            prop = ttfFontProperty(font)
+            self.ttflist.append(prop)
 
     @property
     def defaultFont(self):
@@ -1338,7 +1325,8 @@ if hasattr(os, "register_at_fork"):
 def get_font(filename, hinting_factor=None):
     if hinting_factor is None:
         hinting_factor = rcParams['text.hinting_factor']
-    return _get_font(filename, hinting_factor)
+    return _get_font(os.fspath(filename), hinting_factor,
+                     _kerning_factor=rcParams['text.kerning_factor'])
 
 
 def _rebuild():

@@ -13,7 +13,7 @@ from . import axes_size as Size
 from .parasite_axes import HostAxes
 
 
-class InsetPosition(object):
+class InsetPosition:
     @docstring.dedent_interpd
     def __init__(self, parent, lbwh):
         """
@@ -151,6 +151,7 @@ class BboxPatch(Patch):
 
         **kwargs
             Patch properties. Valid arguments include:
+
             %(Patch)s
         """
         if "transform" in kwargs:
@@ -294,6 +295,7 @@ class BboxConnector(Patch):
 
         **kwargs
             Patch properties for the line drawn. Valid arguments include:
+
             %(Patch)s
         """
         if "transform" in kwargs:
@@ -352,6 +354,7 @@ class BboxConnectorPatch(BboxConnector):
 
         **kwargs
             Patch properties for the line drawn:
+
             %(Patch)s
         """
         if "transform" in kwargs:
@@ -427,7 +430,7 @@ def inset_axes(parent_axes, width, height, loc='upper right',
         are relative to the parent_axes. Otherwise they are to be understood
         relative to the bounding box provided via *bbox_to_anchor*.
 
-    loc : int or string, optional, default to 1
+    loc : int or str, optional, default to 1
         Location to place the inset axes. The valid locations are::
 
             'upper right'  : 1,
@@ -471,6 +474,7 @@ def inset_axes(parent_axes, width, height, loc='upper right',
     axes_kwargs : dict, optional
         Keyworded arguments to pass to the constructor of the inset axes.
         Valid arguments include:
+
         %(Axes)s
 
     borderpad : float, optional
@@ -499,7 +503,7 @@ def inset_axes(parent_axes, width, height, loc='upper right',
             cbook._warn_external("Using the axes or figure transform "
                                  "requires a bounding box in the respective "
                                  "coordinates. "
-                                 "Using bbox_to_anchor=(0,0,1,1) now.")
+                                 "Using bbox_to_anchor=(0, 0, 1, 1) now.")
             bbox_to_anchor = (0, 0, 1, 1)
 
     if bbox_to_anchor is None:
@@ -510,7 +514,7 @@ def inset_axes(parent_axes, width, height, loc='upper right',
         if len(bbox_to_anchor) != 4:
             raise ValueError("Using relative units for width or height "
                              "requires to provide a 4-tuple or a "
-                             "`BBox` instance to `bbox_to_anchor.")
+                             "`Bbox` instance to `bbox_to_anchor.")
 
     axes_locator = AnchoredSizeLocator(bbox_to_anchor,
                                        width, height,
@@ -545,7 +549,7 @@ def zoomed_inset_axes(parent_axes, zoom, loc='upper right',
         coordinates (i.e., "zoomed in"), while *zoom* < 1 will shrink the
         coordinates (i.e., "zoomed out").
 
-    loc : int or string, optional, default to 1
+    loc : int or str, optional, default to 1
         Location to place the inset axes. The valid locations are::
 
             'upper right'  : 1,
@@ -588,6 +592,7 @@ def zoomed_inset_axes(parent_axes, zoom, loc='upper right',
     axes_kwargs : dict, optional
         Keyworded arguments to pass to the constructor of the inset axes.
         Valid arguments include:
+
         %(Axes)s
 
     borderpad : float, optional
@@ -644,6 +649,7 @@ def mark_inset(parent_axes, inset_axes, loc1, loc2, **kwargs):
 
     **kwargs
         Patch properties for the lines and box drawn:
+
         %(Patch)s
 
     Returns

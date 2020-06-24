@@ -62,12 +62,13 @@ romanNumeralPattern = re.compile("""
     (IX|IV|V?I{0,3})    # ones - 9 (IX), 4 (IV), 0-3 (0 to 3 I's),
                         #        or 5-8 (V, followed by 0 to 3 I's)
     $                   # end of string
-    """ ,re.VERBOSE)
+    """, re.VERBOSE)
 
 def fromRoman(s):
     """convert Roman numeral to integer"""
     if not s:
         raise InvalidRomanNumeralError('Input can not be blank')
+
     if not romanNumeralPattern.search(s):
         raise InvalidRomanNumeralError('Invalid Roman numeral: %s' % s)
 

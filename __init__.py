@@ -536,7 +536,7 @@ def path_update():
         else:
             os.environ["RAYPATH"] = radldir
            
-        os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir) 
+        os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}{0}{4}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
         if not os.environ.get("LD_LIBRARY_PATH"):
             os.environ["LD_LIBRARY_PATH"] = "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
         else:

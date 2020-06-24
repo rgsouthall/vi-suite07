@@ -1,4 +1,4 @@
-# $Id: roles.py 8254 2019-04-15 10:23:34Z milde $
+# $Id: roles.py 8347 2019-08-26 12:12:02Z milde $
 # Author: Edward Loper <edloper@gradient.cis.upenn.edu>
 # Copyright: This module has been placed in the public domain.
 
@@ -181,7 +181,7 @@ def register_generic_role(canonical_name, node_class):
     register_canonical_role(canonical_name, role)
 
 
-class GenericRole:
+class GenericRole(object):
 
     """
     Generic interpreted text role, where the interpreted text is simply
@@ -195,10 +195,10 @@ class GenericRole:
     def __call__(self, role, rawtext, text, lineno, inliner,
                  options={}, content=[]):
         set_classes(options)
-        return [self.node_class(rawtext, utils.unescape(text), **options)], []
+        return [self.node_class(rawtext, text, **options)], []
 
 
-class CustomRole:
+class CustomRole(object):
 
     """
     Wrapper for custom interpreted text roles.
@@ -234,7 +234,7 @@ def generic_custom_role(role, rawtext, text, lineno, inliner,
     # Once nested inline markup is implemented, this and other methods should
     # recursively call inliner.nested_parse().
     set_classes(options)
-    return [nodes.inline(rawtext, utils.unescape(text), **options)], []
+    return [nodes.inline(rawtext, text, **options)], []
 
 generic_custom_role.options = {'class': directives.class_option}
 
@@ -255,7 +255,7 @@ register_generic_role('title-reference', nodes.title_reference)
 def pep_reference_role(role, rawtext, text, lineno, inliner,
                        options={}, content=[]):
     try:
-        pepnum = int(text)
+        pepnum = int(utils.unescape(text))
         if pepnum < 0 or pepnum > 9999:
             raise ValueError
     except ValueError:
@@ -268,7 +268,7 @@ def pep_reference_role(role, rawtext, text, lineno, inliner,
     ref = (inliner.document.settings.pep_base_url
            + inliner.document.settings.pep_file_url_template % pepnum)
     set_classes(options)
-    return [nodes.reference(rawtext, 'PEP ' + utils.unescape(text), refuri=ref,
+    return [nodes.reference(rawtext, 'PEP ' + text, refuri=ref,
                             **options)], []
 
 register_canonical_role('pep-reference', pep_reference_role)
@@ -277,11 +277,11 @@ def rfc_reference_role(role, rawtext, text, lineno, inliner,
                        options={}, content=[]):
     try:
         if "#" in text:
-            rfcnum, section = text.split("#", 1)
+            rfcnum, section = utils.unescape(text).split("#", 1)
         else:
-            rfcnum, section  = text, None
+            rfcnum, section  = utils.unescape(text), None
         rfcnum = int(rfcnum)
-        if rfcnum <= 0:
+        if rfcnum < 1:
             raise ValueError
     except ValueError:
         msg = inliner.reporter.error(
@@ -294,7 +294,7 @@ def rfc_reference_role(role, rawtext, text, lineno, inliner,
     if section is not None:
         ref += "#"+section
     set_classes(options)
-    node = nodes.reference(rawtext, 'RFC ' + utils.unescape(str(rfcnum)), refuri=ref,
+    node = nodes.reference(rawtext, 'RFC ' + str(rfcnum), refuri=ref,
                            **options)
     return [node], []
 
@@ -342,7 +342,6 @@ def code_role(role, rawtext, text, lineno, inliner, options={}, content=[]):
 
     # analyse content and add nodes for every token
     for classes, value in tokens:
-        # print (classes, value)
         if classes:
             node += nodes.inline(value, value, classes=classes)
         else:

@@ -1,4 +1,4 @@
-# $Id: parts.py 8251 2019-03-12 17:03:11Z milde $
+# $Id: parts.py 8403 2019-10-11 10:09:53Z milde $
 # Authors: David Goodger <goodger@python.org>; Ueli Schlaepfer; Dmitry Jemerov
 # Copyright: This module has been placed in the public domain.
 
@@ -58,7 +58,7 @@ class SectNum(Transform):
                 # Use &nbsp; for spacing:
                 generated = nodes.generated(
                     '', (self.prefix + '.'.join(numbers) + self.suffix
-                         +  '\u00a0' * 3),
+                         +  u'\u00a0' * 3),
                     classes=['sectnum'])
                 title.insert(0, generated)
                 title['auto'] = 1
@@ -127,7 +127,8 @@ class Contents(Transform):
             entrytext = self.copy_and_filter(title)
             reference = nodes.reference('', '', refid=section['ids'][0],
                                         *entrytext)
-            ref_id = self.document.set_id(reference)
+            ref_id = self.document.set_id(reference,
+                                          suggested_prefix='toc-entry')
             entry = nodes.paragraph('', '', reference)
             item = nodes.list_item('', entry)
             if ( self.backlinks in ('entry', 'top')

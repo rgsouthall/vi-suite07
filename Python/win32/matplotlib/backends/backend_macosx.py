@@ -1,19 +1,13 @@
-import os
-
+import matplotlib
+from matplotlib import cbook, rcParams
 from matplotlib._pylab_helpers import Gcf
+from matplotlib.backends import _macosx
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, NavigationToolbar2,
     TimerBase)
-
 from matplotlib.figure import Figure
-from matplotlib import rcParams
-
 from matplotlib.widgets import SubplotTool
-
-import matplotlib
-from matplotlib.backends import _macosx
-
-from .backend_agg import FigureCanvasAgg
 
 
 ########################################################################
@@ -25,9 +19,9 @@ from .backend_agg import FigureCanvasAgg
 
 
 class TimerMac(_macosx.Timer, TimerBase):
-    '''
-    Subclass of :class:`backend_bases.TimerBase` that uses CoreFoundation
-    run loops for timer events.
+    """
+    Subclass of `.TimerBase` that uses CoreFoundation run loops for timer
+    events.
 
     Attributes
     ----------
@@ -40,8 +34,7 @@ class TimerMac(_macosx.Timer, TimerBase):
         Stores list of (func, args) tuples that will be called upon timer
         events. This list can be manipulated directly, or the functions
         `add_callback` and `remove_callback` can be used.
-
-    '''
+    """
     # completely implemented at the C-level (in _macosx.Timer)
 
 
@@ -59,8 +52,9 @@ class FigureCanvasMac(_macosx.FigureCanvas, FigureCanvasAgg):
     ----------
     figure : `matplotlib.figure.Figure`
         A high-level Figure instance
-
     """
+
+    required_interactive_framework = "macosx"
 
     def __init__(self, figure):
         FigureCanvasBase.__init__(self, figure)
@@ -83,15 +77,17 @@ class FigureCanvasMac(_macosx.FigureCanvas, FigureCanvasAgg):
 
     def draw(self):
         # docstring inherited
-        self.invalidate()
+        self.draw_idle()
         self.flush_events()
 
-    def draw_idle(self, *args, **kwargs):
-        # docstring inherited
-        self.invalidate()
+    # draw_idle is provided by _macosx.FigureCanvas
+
+    @cbook.deprecated("3.2", alternative="draw_idle()")
+    def invalidate(self):
+        return self.draw_idle()
 
     def blit(self, bbox=None):
-        self.invalidate()
+        self.draw_idle()
 
     def resize(self, width, height):
         dpi = self.figure.dpi
@@ -137,8 +133,8 @@ class NavigationToolbar2Mac(_macosx.NavigationToolbar2, NavigationToolbar2):
         NavigationToolbar2.__init__(self, canvas)
 
     def _init_toolbar(self):
-        basedir = os.path.join(rcParams['datapath'], "images")
-        _macosx.NavigationToolbar2.__init__(self, basedir)
+        _macosx.NavigationToolbar2.__init__(
+            self, str(cbook._get_data_path('images')))
 
     def draw_rubberband(self, event, x0, y0, x1, y1):
         self.canvas.set_rubberband(int(x0), int(y0), int(x1), int(y1))
@@ -160,7 +156,8 @@ class NavigationToolbar2Mac(_macosx.NavigationToolbar2, NavigationToolbar2):
         toolfig = Figure(figsize=(6, 3))
         canvas = FigureCanvasMac(toolfig)
         toolfig.subplots_adjust(top=0.9)
-        tool = SubplotTool(self.canvas.figure, toolfig)
+        # Need to keep a reference to the tool.
+        _tool = SubplotTool(self.canvas.figure, toolfig)
         return canvas
 
     def set_message(self, message):
@@ -175,18 +172,12 @@ class NavigationToolbar2Mac(_macosx.NavigationToolbar2, NavigationToolbar2):
 
 @_Backend.export
 class _BackendMac(_Backend):
-    required_interactive_framework = "macosx"
     FigureCanvas = FigureCanvasMac
     FigureManager = FigureManagerMac
 
     @staticmethod
     def trigger_manager_draw(manager):
-        # For performance reasons, we don't want to redraw the figure after
-        # each draw command. Instead, we mark the figure as invalid, so that it
-        # will be redrawn as soon as the event loop resumes via PyOS_InputHook.
-        # This function should be called after each draw event, even if
-        # matplotlib is not running interactively.
-        manager.canvas.invalidate()
+        manager.canvas.draw_idle()
 
     @staticmethod
     def mainloop():

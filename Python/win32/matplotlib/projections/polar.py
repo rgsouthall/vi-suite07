@@ -136,23 +136,19 @@ class InvertedPolarTransform(mtransforms.Transform):
 
     def transform_non_affine(self, xy):
         # docstring inherited
-        x = xy[:, 0:1]
-        y = xy[:, 1:]
+        x, y = xy.T
         r = np.hypot(x, y)
         theta = (np.arctan2(y, x) + 2 * np.pi) % (2 * np.pi)
-
         # PolarAxes does not use the theta transforms here, but apply them for
         # backwards-compatibility if not being used by it.
         if self._apply_theta_transforms and self._axis is not None:
             theta -= self._axis.get_theta_offset()
             theta *= self._axis.get_theta_direction()
             theta %= 2 * np.pi
-
         if self._use_rmin and self._axis is not None:
             r += self._axis.get_rorigin()
             r *= self._axis.get_rsign()
-
-        return np.concatenate((theta, r), 1)
+        return np.column_stack([theta, r])
 
     def inverted(self):
         # docstring inherited
@@ -183,7 +179,7 @@ class ThetaFormatter(mticker.Formatter):
             return format_str.format(value=np.rad2deg(x), digits=digits)
 
 
-class _AxisWrapper(object):
+class _AxisWrapper:
     def __init__(self, axis):
         self._axis = axis
 
@@ -229,6 +225,7 @@ class ThetaLocator(mticker.Locator):
         else:
             return np.deg2rad(self.base())
 
+    @cbook.deprecated("3.2")
     def autoscale(self):
         return self.base.autoscale()
 
@@ -236,6 +233,7 @@ class ThetaLocator(mticker.Locator):
         return self.base.pan(numsteps)
 
     def refresh(self):
+        # docstring inherited
         return self.base.refresh()
 
     def view_limits(self, vmin, vmax):
@@ -354,7 +352,7 @@ class ThetaAxis(maxis.XAxis):
     for an angular axis.
     """
     __name__ = 'thetaaxis'
-    axis_name = 'theta'
+    axis_name = 'theta'  #: Read-only name identifying the axis.
 
     def _get_tick(self, major):
         if major:
@@ -400,6 +398,7 @@ class RadialLocator(mticker.Locator):
     :class:`~matplotlib.ticker.Locator` (which may be different
     depending on the scale of the *r*-axis.
     """
+
     def __init__(self, base, axes=None):
         self.base = base
         self._axes = axes
@@ -417,6 +416,7 @@ class RadialLocator(mticker.Locator):
         else:
             return [tick for tick in self.base() if tick > rorigin]
 
+    @cbook.deprecated("3.2")
     def autoscale(self):
         return self.base.autoscale()
 
@@ -427,7 +427,13 @@ class RadialLocator(mticker.Locator):
         return self.base.zoom(direction)
 
     def refresh(self):
+        # docstring inherited
         return self.base.refresh()
+
+    def nonsingular(self, vmin, vmax):
+        # docstring inherited
+        return ((0, 1) if (vmin, vmax) == (-np.inf, np.inf)  # Init. limits.
+                else self.base.nonsingular(vmin, vmax))
 
     def view_limits(self, vmin, vmax):
         vmin, vmax = self.base.view_limits(vmin, vmax)
@@ -659,7 +665,7 @@ class RadialAxis(maxis.YAxis):
     for a radial axis.
     """
     __name__ = 'radialaxis'
-    axis_name = 'radius'
+    axis_name = 'radius'  #: Read-only name identifying the axis.
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -707,7 +713,7 @@ def _is_full_circle_rad(thetamin, thetamax):
 
 class _WedgeBbox(mtransforms.Bbox):
     """
-    Transform (theta,r) wedge Bbox into axes bounding box.
+    Transform (theta, r) wedge Bbox into axes bounding box.
 
     Parameters
     ----------
@@ -947,6 +953,7 @@ class PolarAxes(Axes):
         return self._yaxis_text_transform + pad_shift, 'center', halign
 
     def draw(self, *args, **kwargs):
+        self._unstale_viewLim()
         thetamin, thetamax = np.rad2deg(self._realViewLim.intervalx)
         if thetamin > thetamax:
             thetamin, thetamax = thetamax, thetamin
@@ -955,12 +962,12 @@ class PolarAxes(Axes):
         if isinstance(self.patch, mpatches.Wedge):
             # Backwards-compatibility: Any subclassed Axes might override the
             # patch to not be the Wedge that PolarAxes uses.
-            center = self.transWedge.transform_point((0.5, 0.5))
+            center = self.transWedge.transform((0.5, 0.5))
             self.patch.set_center(center)
             self.patch.set_theta1(thetamin)
             self.patch.set_theta2(thetamax)
 
-            edge, _ = self.transWedge.transform_point((1, 0))
+            edge, _ = self.transWedge.transform((1, 0))
             radius = edge - center[0]
             width = min(radius * (rmax - rmin) / rmax, radius)
             self.patch.set_radius(radius)
@@ -1010,15 +1017,19 @@ class PolarAxes(Axes):
         return spines
 
     def set_thetamax(self, thetamax):
+        """Set the maximum theta limit in degrees."""
         self.viewLim.x1 = np.deg2rad(thetamax)
 
     def get_thetamax(self):
+        """Return the maximum theta limit in degrees."""
         return np.rad2deg(self.viewLim.xmax)
 
     def set_thetamin(self, thetamin):
+        """Set the minimum theta limit in degrees."""
         self.viewLim.x0 = np.deg2rad(thetamin)
 
     def get_thetamin(self):
+        """Get the minimum theta limit in degrees."""
         return np.rad2deg(self.viewLim.xmin)
 
     def set_thetalim(self, *args, **kwargs):
@@ -1417,7 +1428,7 @@ class PolarAxes(Axes):
         mode = ''
         if button == 1:
             epsilon = np.pi / 45.0
-            t, r = self.transData.inverted().transform_point((x, y))
+            t, r = self.transData.inverted().transform((x, y))
             if angle - epsilon <= t <= angle + epsilon:
                 mode = 'drag_r_labels'
         elif button == 3:
@@ -1439,17 +1450,11 @@ class PolarAxes(Axes):
         p = self._pan_start
 
         if p.mode == 'drag_r_labels':
-            startt, startr = p.trans_inverse.transform_point((p.x, p.y))
-            t, r = p.trans_inverse.transform_point((x, y))
+            (startt, startr), (t, r) = p.trans_inverse.transform(
+                [(p.x, p.y), (x, y)])
 
             # Deal with theta
-            dt0 = t - startt
-            dt1 = startt - t
-            if abs(dt1) < abs(dt0):
-                dt = abs(dt1) * np.sign(dt0) * -1.0
-            else:
-                dt = dt0 * -1.0
-            dt = (dt / np.pi) * 180.0
+            dt = np.rad2deg(startt - t)
             self.set_rlabel_position(p.r_label_angle - dt)
 
             trans, vert1, horiz1 = self.get_yaxis_text1_transform(0.0)
@@ -1461,8 +1466,8 @@ class PolarAxes(Axes):
                 t.label2.set_ha(horiz2)
 
         elif p.mode == 'zoom':
-            startt, startr = p.trans_inverse.transform_point((p.x, p.y))
-            t, r = p.trans_inverse.transform_point((x, y))
+            (startt, startr), (t, r) = p.trans_inverse.transform(
+                [(p.x, p.y), (x, y)])
 
             # Deal with r
             scale = r / startr

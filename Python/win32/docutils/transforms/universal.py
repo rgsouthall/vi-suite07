@@ -1,4 +1,4 @@
-# $Id: universal.py 8235 2018-11-21 13:58:51Z milde $
+# $Id: universal.py 8393 2019-09-18 10:13:00Z milde $
 # -*- coding: utf-8 -*-
 # Authors: David Goodger <goodger@python.org>; Ueli Schlaepfer; Günter Milde
 # Maintainer: docutils-develop@lists.sourceforge.net
@@ -22,6 +22,11 @@ import time
 from docutils import nodes, utils
 from docutils.transforms import TransformError, Transform
 from docutils.utils import smartquotes
+
+
+if sys.version_info >= (3, 0):
+    unicode = str  # noqa
+
 
 class Decorations(Transform):
 
@@ -139,7 +144,7 @@ class FilterMessages(Transform):
     default_priority = 870
 
     def apply(self):
-        for node in self.document.traverse(nodes.system_message):
+        for node in tuple(self.document.traverse(nodes.system_message)):
             if node['level'] < self.document.reporter.report_level:
                 node.parent.remove(node)
 
@@ -171,7 +176,7 @@ class StripComments(Transform):
 
     def apply(self):
         if self.document.settings.strip_comments:
-            for node in self.document.traverse(nodes.comment):
+            for node in tuple(self.document.traverse(nodes.comment)):
                 node.parent.remove(node)
 
 
@@ -186,27 +191,31 @@ class StripClassesAndElements(Transform):
     default_priority = 420
 
     def apply(self):
-        if not (self.document.settings.strip_elements_with_classes
-                or self.document.settings.strip_classes):
+        if self.document.settings.strip_elements_with_classes:
+            self.strip_elements = set(
+                self.document.settings.strip_elements_with_classes)
+            # Iterate over a tuple as removing the current node
+            # corrupts the iterator returned by `traverse`:
+            for node in tuple(self.document.traverse(self.check_classes)):
+                node.parent.remove(node)
+
+        if not self.document.settings.strip_classes:
             return
-        # prepare dicts for lookup (not sets, for Python 2.2 compatibility):
-        self.strip_elements = dict(
-            [(key, None)
-             for key in (self.document.settings.strip_elements_with_classes
-                         or [])])
-        self.strip_classes = dict(
-            [(key, None) for key in (self.document.settings.strip_classes
-                                     or [])])
-        for node in self.document.traverse(self.check_classes):
-            node.parent.remove(node)
+        strip_classes = self.document.settings.strip_classes
+        for node in self.document.traverse(nodes.Element):
+            for class_value in strip_classes:
+                try:
+                    node['classes'].remove(class_value)
+                except ValueError:
+                    pass
 
     def check_classes(self, node):
-        if isinstance(node, nodes.Element):
-            for class_value in node['classes'][:]:
-                if class_value in self.strip_classes:
-                    node['classes'].remove(class_value)
-                if class_value in self.strip_elements:
-                    return 1
+        if not isinstance(node, nodes.Element):
+            return False
+        for class_value in node['classes'][:]:
+            if class_value in self.strip_elements:
+                return True
+        return False
 
 
 class SmartQuotes(Transform):
@@ -222,9 +231,10 @@ class SmartQuotes(Transform):
     nodes_to_skip = (nodes.FixedTextElement, nodes.Special)
     """Do not apply "smartquotes" to instances of these block-level nodes."""
 
-    literal_nodes = (nodes.image, nodes.literal, nodes.math,
+    literal_nodes = (nodes.FixedTextElement, nodes.Special,
+                     nodes.image, nodes.literal, nodes.math,
                      nodes.raw, nodes.problematic)
-    """Do not change quotes in instances of these inline nodes."""
+    """Do apply smartquotes to instances of these inline nodes."""
 
     smartquotes_action = 'qDe'
     """Setting to select smartquote transformations.
@@ -240,14 +250,14 @@ class SmartQuotes(Transform):
     def get_tokens(self, txtnodes):
         # A generator that yields ``(texttype, nodetext)`` tuples for a list
         # of "Text" nodes (interface to ``smartquotes.educate_tokens()``).
-
-        texttype = {True: 'literal', # "literal" text is not changed:
-                    False: 'plain'}
-        for txtnode in txtnodes:
-            nodetype = texttype[isinstance(txtnode.parent,
-                                           self.literal_nodes)]
-            yield (nodetype, txtnode.astext())
-
+        for node in txtnodes:
+            if (isinstance(node.parent, self.literal_nodes)
+                or isinstance(node.parent.parent, self.literal_nodes)):
+                yield ('literal', unicode(node))
+            else:
+                # SmartQuotes uses backslash escapes instead of null-escapes
+                txt = re.sub('(?<=\x00)([-\\\'".`])', r'\\\1', unicode(node))
+                yield ('plain', txt)
 
     def apply(self):
         smart_quotes = self.document.settings.smart_quotes
@@ -257,7 +267,6 @@ class SmartQuotes(Transform):
             alternative = smart_quotes.startswith('alt')
         except AttributeError:
             alternative = False
-        # print repr(alternative)
 
         document_language = self.document.settings.language_code
         lc_smartquotes = self.document.settings.smartquotes_locales
@@ -305,7 +314,7 @@ class SmartQuotes(Transform):
                                 attr=self.smartquotes_action, language=lang)
 
             for txtnode, newtext in zip(txtnodes, teacher):
-                txtnode.parent.replace(txtnode, nodes.Text(newtext, 
+                txtnode.parent.replace(txtnode, nodes.Text(newtext,
                                        rawsource=txtnode.rawsource))
 
         self.unsupported_languages = set() # reset

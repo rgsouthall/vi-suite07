@@ -15,7 +15,7 @@ from pygments.lexer import RegexLexer, include, bygroups, default, using, \
     this, words, combined
 from pygments.token import Text, Comment, Operator, Keyword, Name, String, \
     Number, Punctuation, Other
-from pygments.util import get_bool_opt, iteritems
+from pygments.util import get_bool_opt
 import pygments.unistring as uni
 
 __all__ = ['JavascriptLexer', 'KalLexer', 'LiveScriptLexer', 'DartLexer',
@@ -37,7 +37,7 @@ class JavascriptLexer(RegexLexer):
 
     name = 'JavaScript'
     aliases = ['js', 'javascript']
-    filenames = ['*.js', '*.jsm']
+    filenames = ['*.js', '*.jsm', '*.mjs']
     mimetypes = ['application/javascript', 'application/x-javascript',
                  'text/x-javascript', 'text/javascript']
 
@@ -259,11 +259,11 @@ class LiveScriptLexer(RegexLexer):
             (r'//', String.Regex, ('#pop', 'multilineregex')),
             (r'/(?! )(\\.|[^[/\\\n]|\[(\\.|[^\]\\\n])*])+/'
              r'([gim]+\b|\B)', String.Regex, '#pop'),
+            (r'/', Operator, '#pop'),
             default('#pop'),
         ],
         'root': [
-            # this next expr leads to infinite loops root -> slashstartsregex
-            # (r'^(?=\s|/|<!--)', Text, 'slashstartsregex'),
+            (r'^(?=\s|/)', Text, 'slashstartsregex'),
             include('commentsandwhitespace'),
             (r'(?:\([^()]+\))?[ ]*[~-]{1,2}>|'
              r'(?:\(?[^()\n]+\)?)?[ ]*<[~-]{1,2}', Name.Function),
@@ -767,9 +767,9 @@ class LassoLexer(RegexLexer):
         self._members = set()
         if self.builtinshighlighting:
             from pygments.lexers._lasso_builtins import BUILTINS, MEMBERS
-            for key, value in iteritems(BUILTINS):
+            for key, value in BUILTINS.items():
                 self._builtins.update(value)
-            for key, value in iteritems(MEMBERS):
+            for key, value in MEMBERS.items():
                 self._members.update(value)
         RegexLexer.__init__(self, **options)
 
@@ -1060,7 +1060,7 @@ class CoffeeScriptLexer(RegexLexer):
             # This isn't really guarding against mishighlighting well-formed
             # code, just the ability to infinite-loop between root and
             # slashstartsregex.
-            (r'/', Operator),
+            (r'/', Operator, '#pop'),
             default('#pop'),
         ],
         'root': [
@@ -1135,7 +1135,7 @@ class CoffeeScriptLexer(RegexLexer):
 
 class MaskLexer(RegexLexer):
     """
-    For `Mask <http://github.com/atmajs/MaskJS>`__ markup.
+    For `Mask <https://github.com/atmajs/MaskJS>`__ markup.
 
     .. versionadded:: 2.0
     """

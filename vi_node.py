@@ -2034,7 +2034,7 @@ class So_En_Res(NodeSocket):
             if self.rtypemenu != 'Time':
                 row.prop(self, 'multfactor')
         else:
-            row.label('No results')
+            row.label(text = 'No results')
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
@@ -2072,9 +2072,6 @@ class No_Flo_BMesh(Node, ViNodes):
     bl_idname = 'No_Flo_BMesh'
     bl_label = 'FloVi BlockMesh'
     bl_icon = 'GRID'
-
-    
-    turbulence: StringProperty()
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
@@ -3981,7 +3978,7 @@ class So_En_Mat_Sh(NodeSocket):
     valid = ['GLayer', 'Tlayer']
 
     def draw(self, context, layout, node, text):
-        layout.label(text)
+        layout.label(text = text)
 
     def draw_color(self, context, node):
         return (0, 0, 0, 1.0)
@@ -3996,7 +3993,7 @@ class So_En_Mat_Sc(NodeSocket):
     valid = ['ScreenLayer']
 
     def draw(self, context, layout, node, text):
-        layout.label(text)
+        layout.label(text = text)
 
     def draw_color(self, context, node):
         return (0.65, 0.65, 1, 1.0)
@@ -4011,7 +4008,7 @@ class So_En_Mat_Sw(NodeSocket):
 #    valid = ['SGLayer']
 
     def draw(self, context, layout, node, text):
-        layout.label(text)
+        layout.label(text = text)
 
     def draw_color(self, context, node):
         return (0.65, 0.65, 1, 1.0)
@@ -4026,7 +4023,7 @@ class So_En_Mat_ShC(NodeSocket):
     valid = ['SControl']
 
     def draw(self, context, layout, node, text):
-        layout.label(text)
+        layout.label(text = text)
 
     def draw_color(self, context, node):
         return (0, 0, 0, 1.0)

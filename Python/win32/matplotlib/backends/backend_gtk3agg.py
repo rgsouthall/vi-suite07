@@ -1,7 +1,11 @@
 import numpy as np
 
 from .. import cbook
-from . import backend_agg, backend_cairo, backend_gtk3
+try:
+    from . import backend_cairo
+except ImportError as e:
+    raise ImportError('backend Gtk3Agg requires cairo') from e
+from . import backend_agg, backend_gtk3
 from .backend_cairo import cairo
 from .backend_gtk3 import Gtk, _BackendGTK3
 from matplotlib import transforms
@@ -61,9 +65,8 @@ class FigureCanvasGTK3Agg(backend_gtk3.FigureCanvasGTK3,
             bbox = self.figure.bbox
 
         allocation = self.get_allocation()
-        w, h = allocation.width, allocation.height
         x = int(bbox.x0)
-        y = h - int(bbox.y1)
+        y = allocation.height - int(bbox.y1)
         width = int(bbox.x1) - int(bbox.x0)
         height = int(bbox.y1) - int(bbox.y0)
 

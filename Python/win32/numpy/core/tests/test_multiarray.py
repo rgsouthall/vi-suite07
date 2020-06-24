@@ -4562,26 +4562,18 @@ class TestTake(object):
         assert_equal(y, np.array([1, 2, 3]))
 
 class TestLexsort(object):
-    @pytest.mark.parametrize('dtype',[
-        np.uint8, np.uint16, np.uint32, np.uint64,
-        np.int8, np.int16, np.int32, np.int64,
-        np.float16, np.float32, np.float64
-    ])
-    def test_basic(self, dtype):
-        a = np.array([1, 2, 1, 3, 1, 5], dtype=dtype)
-        b = np.array([0, 4, 5, 6, 2, 3], dtype=dtype)
+    def test_basic(self):
+        a = [1, 2, 1, 3, 1, 5]
+        b = [0, 4, 5, 6, 2, 3]
         idx = np.lexsort((b, a))
         expected_idx = np.array([0, 4, 2, 1, 3, 5])
         assert_array_equal(idx, expected_idx)
-        assert_array_equal(a[idx], np.sort(a))
 
-    def test_mixed(self):
-        a = np.array([1, 2, 1, 3, 1, 5])
-        b = np.array([0, 4, 5, 6, 2, 3], dtype='datetime64[D]')
-
-        idx = np.lexsort((b, a))
-        expected_idx = np.array([0, 4, 2, 1, 3, 5])
+        x = np.vstack((b, a))
+        idx = np.lexsort(x)
         assert_array_equal(idx, expected_idx)
+
+        assert_array_equal(x[1][idx], np.sort(x[1]))
 
     def test_datetime(self):
         a = np.array([0,0,0], dtype='datetime64[D]')
@@ -6251,23 +6243,6 @@ class TestMatmul(MatmulCommon):
         with assert_raises(TypeError):
             b = np.matmul(a, a)
 
-    def test_matmul_bool(self):
-        # gh-14439
-        a = np.array([[1, 0],[1, 1]], dtype=bool)
-        assert np.max(a.view(np.uint8)) == 1
-        b = np.matmul(a, a)
-        # matmul with boolean output should always be 0, 1
-        assert np.max(b.view(np.uint8)) == 1
-
-        rg = np.random.default_rng(np.random.PCG64(43))
-        d = rg.integers(2, size=4*5, dtype=np.int8)
-        d = d.reshape(4, 5) > 0
-        out1 = np.matmul(d, d.reshape(5, 4))
-        out2 = np.dot(d, d.reshape(5, 4))
-        assert_equal(out1, out2)
-
-        c = np.matmul(np.zeros((2, 0), dtype=bool), np.zeros(0, dtype=bool))
-        assert not np.any(c)
 
 
 if sys.version_info[:2] >= (3, 5):
@@ -7921,8 +7896,6 @@ class TestFormat(object):
                 dst = object.__format__(a, '30')
                 assert_equal(res, dst)
 
-from numpy.testing import IS_PYPY
-
 class TestCTypes(object):
 
     def test_ctypes_is_available(self):
@@ -7989,29 +7962,7 @@ class TestCTypes(object):
 
         # but when the `ctypes_ptr` object dies, so should `arr`
         del ctypes_ptr
-        if IS_PYPY:
-            # Pypy does not recycle arr objects immediately. Trigger gc to
-            # release arr. Cpython uses refcounts. An explicit call to gc
-            # should not be needed here.
-            break_cycles()
-        assert_(arr_ref() is None, "unknowable whether ctypes pointer holds a reference")
-
-    def test_ctypes_as_parameter_holds_reference(self):
-        arr = np.array([None]).copy()
-
-        arr_ref = weakref.ref(arr)
-
-        ctypes_ptr = arr.ctypes._as_parameter_
-
-        # `ctypes_ptr` should hold onto `arr`
-        del arr
         break_cycles()
-        assert_(arr_ref() is not None, "ctypes pointer did not hold onto a reference")
-
-        # but when the `ctypes_ptr` object dies, so should `arr`
-        del ctypes_ptr
-        if IS_PYPY:
-            break_cycles()
         assert_(arr_ref() is None, "unknowable whether ctypes pointer holds a reference")
 
 
