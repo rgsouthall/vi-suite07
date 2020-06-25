@@ -115,7 +115,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     return gradfile
 
 def radgexport(export_op, node, **kwargs):
-    time = datetime.datetime.now()
     depsgraph = bpy.context.evaluated_depsgraph_get()
     scene = bpy.context.scene
     svp = scene.vi_params
@@ -133,7 +132,7 @@ def radgexport(export_op, node, **kwargs):
     eolist = set(geooblist + caloblist)
 #    mats = set([item for sublist in [o.data.materials for o in eolist] for item in sublist])
     mats = bpy.data.materials
-    print('t1', datetime.datetime.now() - time)
+
     for o in eolist:  
         ovp = o.vi_params
         ovt = ovp.vi_type
@@ -147,21 +146,18 @@ def radgexport(export_op, node, **kwargs):
             o.vi_params['rtpoints'] = {}
             o.vi_params['lisenseareas'] = {}
         o.vi_params.vi_type = ovt
-    print('t2', datetime.datetime.now() - time)
+
     for frame in frames:
         scene.frame_set(frame)
-        print('t3', datetime.datetime.now() - time)
         mradfile =  "".join([m.vi_params.radmat(scene) for m in mats if m])
+        gradfile = "# Geometry \n\n"
+        lradfile = "# Lights \n\n"
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = svp['viparams']['filebase']+".tempmat"
         
         with open(tempmatfilename, "w") as tempmatfile:
             tempmatfile.write(mradfile)
 
-        # Geometry export routine
-
-        gradfile = "# Geometry \n\n"
-        print('t4', datetime.datetime.now() - time)
         for o in eolist:
             ovp = o.vi_params
             bm = bmesh.new()
@@ -170,7 +166,6 @@ def radgexport(export_op, node, **kwargs):
             bm.transform(o.matrix_world)
             bm.normal_update() 
             o.to_mesh_clear()
-            print('t5', o.name, datetime.datetime.now() - time)
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback)
           
             if o in caloblist:
@@ -207,7 +202,7 @@ def radgexport(export_op, node, **kwargs):
                     
 #                        if node.fallback or dob.hide_get(): # Should check visibility with dob.hide_get() but it's not working
                     else:
-                        ovp = dob.vi_params
+#                        dovp = dob.vi_params
                         bm = bmesh.new()
                         tempmesh = dob.evaluated_get(depsgraph).to_mesh()
                         bm.from_mesh(tempmesh)
@@ -227,42 +222,47 @@ def radgexport(export_op, node, **kwargs):
                 o.particle_systems[0].settings.hair_length = hl
 
     # Lights export routine
-
-        lradfile = "# Lights \n\n"
+        
         for o in lightlist:
-            if ' ' in o.ies_name:
+            ovp = o.vi_params
+            
+            if ' ' in ovp.ies_name:
+                logentry('There is a space in the {} IES file name - rename it'.format(o.name))
                 export_op.report({'ERROR'}, 'There is a space in the {} IES file name - rename it'.format(o.name))
-            iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
+            else:
+                ab_ies_path = bpy.path.abspath(ovp.ies_name)
+                iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
+                print('hi', bpy.path.abspath(ovp.ies_name), ovp.ies_name, iesname)
+                if os.path.isfile(ab_ies_path):
+                    iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
+                    logentry('Running ies2rad with command: {}'.format(iescmd))
+                    subprocess.call(shlex.split(iescmd))
+    
+                    if o.type == 'LIGHT':
+                        if o.parent:
+                            o = o.parent
+                        lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
+    
+                    elif o.type == 'MESH':
+                        tm = o.to_mesh()
+                        bm = bmesh.new()
+                        bm.from_mesh(tm)
+                        o.to_mesh.clear()
+                        bm.transform(o.matrix_world)
+                        bm.normal_update()
+                        bm.faces.ensure_lookup_table()
+                        
+                        for f in bm.faces: 
+                            lrot = mathutils.Vector.rotation_difference(mathutils.Vector((0, 0, -1)), f.normal).to_euler('XYZ')
+                            lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_bounds(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
+                        bm.free()
 
-            if os.path.isfile(bpy.path.abspath(o.ies_name)):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(o.ies_strength, (o.ies_rgb, ct2RGB(o.ies_ct))[o.ies_colmenu == '1'], svp['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
-                subprocess.call(shlex.split(iescmd))
-
-                if o.type == 'LAMP':
-                    if o.parent:
-                        o = o.parent
-                    lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
-
-                elif o.type == 'MESH':
-                    tm = o.to_mesh()
-                    bm = bmesh.new()
-                    bm.from_mesh(tm)
-                    o.to_mesh.clear()
-                    bm.transform(o.matrix_world)
-                    bm.normal_update()
-                    bm.faces.ensure_lookup_table()
-                    
-                    for f in bm.faces: 
-                        lrot = mathutils.Vector.rotation_difference(mathutils.Vector((0, 0, -1)), f.normal).to_euler('XYZ')
-                        lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_bounds(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
-                    bm.free()
-
-            elif iesname:
-                export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
+                elif iesname:
+                    export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
 
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
-        print('tend', datetime.datetime.now() - time)
+
 def gen_octree(scene, o, op, fallback):
     dg = bpy.context.evaluated_depsgraph_get()
     bm = bmesh.new()
@@ -340,8 +340,8 @@ def hdrexport(scene, f, frame, node, skytext):
         Popen(rpictcmd.split(), stdout = hdrfile).communicate()
 
     cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
-    rcalccmd = 'rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
-    rcalcrun = Popen(rcalccmd.split(), stdin = cntrun.stdout, stdout = PIPE)
+    rcalccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
+    rcalcrun = Popen(shlex.split(rcalccmd), stdin = cntrun.stdout, stdout = PIPE)
     rtracecmd = 'rtrace -n {} -x 1500 -y 750 -fac {}-{}sky.oct'.format(svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
 
     with open('{}p.hdr'.format(os.path.join(svp['viparams']['newdir'], str(frame))), 'w') as hdrim:

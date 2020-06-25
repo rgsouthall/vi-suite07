@@ -1348,7 +1348,7 @@ def retobjs(otypes):
     elif otypes == 'livigengeosel':
         return([o for o in validobs if o.type == 'MESH' and o.select == True and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
     elif otypes == 'livil':
-        return([o for o in validobs if o.type == 'LAMP' or o.vi_params.vi_type == '4'])
+        return([o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4'])
     elif otypes == 'livic':
         return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.name not in svp['liparams']['livir']])
     elif otypes == 'livir':

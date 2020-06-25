@@ -132,7 +132,9 @@ class No_Loc(Node, ViNodes):
             pass
 
     def update(self):
-        socklink2(self.outputs['Location out'], self.id_data)
+#        self['year'] = 2015
+        if self.outputs.get('Location out'):
+            socklink(self.outputs['Location out'], self.id_data.name)
         nodecolour(self, self.ready())
         
     def draw_buttons(self, context, layout):
@@ -1158,7 +1160,8 @@ class ViSVFNode(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)]
 
     def update(self):
-        socklink2(self.outputs['Results out'], self.id_data)
+        if self.outputs.get('Results out'):
+            socklink(self.outputs['Results out'], self.id_data.name)
         
 class ViSSNode(Node, ViNodes):
     '''Node to create a VI-Suite shadow map'''
@@ -1820,10 +1823,9 @@ class No_Vi_Metrics(Node, ViNodes):
                             if r[2] == self.zone_menu:
                                 if r[3] == 'Areas (m2)':
                                     dfareas = array([float(p) for p in r[4].split()])
-                                    print(dfareas)
                                 elif r[3] == 'DF (%)':
                                     df = array([float(p) for p in r[4].split()])
-                                    print(df)
+
                     try:
                         self['res']['avDF'] = sum(df * dfareas)/sum(dfareas)
                         self['res']['ratioDF'] = min(df)/self['res']['avDF']
@@ -1860,7 +1862,6 @@ class No_Vi_Metrics(Node, ViNodes):
     def ret_metrics(self):
         if self.inputs['Results in'].links:
             reslist = self.inputs['Results in'].links[0].from_node['reslists']
-            print([r[3] for r in reslist])
 
 class No_CSV(Node, ViNodes):
     '''CSV Export Node'''
@@ -2009,7 +2010,7 @@ class So_En_Con(NodeSocket):
     
 class So_En_Res(NodeSocket):
     '''Results socket'''
-    bl_idname = 'ViEnRIn'
+    bl_idname = 'So_En_Res'
     bl_label = 'Results axis'
     valid = ['Vi Results']
 
@@ -2041,7 +2042,7 @@ class So_En_Res(NodeSocket):
         
 class So_En_ResU(NodeSocket):
     '''Vi unlinked results socket'''
-    bl_idname = 'ViEnRInU'
+    bl_idname = 'So_En_ResU'
     bl_label = 'Axis'
     valid = ['Vi Results']
 
@@ -2531,7 +2532,6 @@ class No_En_Net_Zone(Node, EnViNodes):
             socklink2(sock, self.id_data)
             
         self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
-        print((bi, si, ssi, bo, so, sso))
         nodecolour(self, self.errorcode())
         
     def uvsockupdate(self):
@@ -4433,7 +4433,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
      
     def ep_write(self, mn):
         self['matname'] = get_mat(self, 1).name
-        print('1', self['matname'], mn)
         con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
         envi_mats = envi_materials()
         

@@ -352,7 +352,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                 gp[cindex] = g + 1
 
             for frame in frange: 
-                g, oshadres = 0, array([])                
+                g = 0               
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['svf{}'.format(frame)]
@@ -375,7 +375,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
+                    reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
                     avres.append(ovp['oave']['svf{}'.format(frame)])
                     minres.append(ovp['omin']['svf{}'.format(frame)])
                     maxres.append(ovp['omax']['svf{}'.format(frame)])
@@ -396,6 +396,7 @@ class NODE_OT_SVF(bpy.types.Operator):
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         svp['viparams']['vidisp'] = 'svf'
         simnode['reslists'] = reslists
+        simnode['year'] = 2015
         simnode['frames'] = [f for f in frange]
         simnode.postexport(scene)
         return {'FINISHED'} 
@@ -503,7 +504,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 gp[cindex] = g + 1
             
             for frame in frange: 
-                g, oshadres = 0, array([])                
+                g = 0               
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['sm{}'.format(frame)]
@@ -531,7 +532,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
                     avres.append(ovp['oave']['sm{}'.format(frame)])
                     minres.append(ovp['omin']['sm{}'.format(frame)])
                     maxres.append(ovp['omax']['sm{}'.format(frame)])
@@ -887,10 +888,11 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
-                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -n {6} -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
+                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon {6} -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 logentry('Photon map command: {}'.format(pmcmd))
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
-
+                for line in pmrun.stderr:
+                    print(line)
                 while pmrun.poll() is None:   
                     sleep(10)
                     with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:

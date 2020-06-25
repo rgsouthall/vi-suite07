@@ -242,9 +242,12 @@ def cbdmhdr(node, scene):
             with open('{}.oct'.format(os.path.join(svp['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
                 Popen(shlex.split("oconv -w - "), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode(sys.getfilesystemencoding()))
             cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
-            rcalcrun = Popen('rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal')).split(), stdin = cntrun.stdout, stdout = PIPE)
+            rccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
+            logentry('Running rcalc: {}'.format(rccmd))
+            rcalcrun = Popen(shlex.split(rccmd), stdin = cntrun.stdout, stdout = PIPE)
             with open(latlonghdr, 'w') as panohdr:
                 rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac {}.oct'.format(svp['viparams']['nproc'], os.path.join(svp['viparams']['newdir'], node['epwbase'][0]))
+                logentry('Running rtrace: {}'.format(rtcmd))
                 Popen(rtcmd.split(), stdin = rcalcrun.stdout, stdout = panohdr)
     return skyentry
 
