@@ -888,9 +888,10 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
-                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon {6} -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                pmcmd = 'mkpmap -t 20 -e "{1}.pmapmon" {6} -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 logentry('Photon map command: {}'.format(pmcmd))
-                pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+                pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE)
+                
                 for line in pmrun.stderr:
                     print(line)
                 while pmrun.poll() is None:   
@@ -917,15 +918,15 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             self.report({'ERROR'}, pmerrdict[line])
                             return {'CANCELLED'}
                                         
-                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
+                rvucmd = 'rvu -w {11} -ap "{8}" 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], 
                                  vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
                 
             else:
-                rvucmd = "rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(svp['viparams']['wnproc'], 
+                rvucmd = 'rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], 
                                  vv, cang, vd, cam.location, self.simnode['radparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
 
             logentry('Rvu command: {}'.format(rvucmd))
-            self.rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
+            self.rvurun = Popen(shlex.split(rvucmd), stdout = PIPE, stderr = PIPE)
             self.simnode.run = 1
             wm = context.window_manager
             self._timer = wm.event_timer_add(1, window = context.window)

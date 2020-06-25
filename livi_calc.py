@@ -56,12 +56,12 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
             
             if context == 'Basic' or (context == 'CBDM' and subcontext == '0'):
-                pmcmd = 'mkpmap -n {6} -t 10 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, svp['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
+                pmcmd = 'mkpmap -n {6} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
             else:
-                pmcmd = 'mkpmap -n {3} -t 10 -e {1}.pmapmon -fo+ -bv+ -apC {1}.cpm {0} {1}-{2}.oct'.format(simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
+                pmcmd = 'mkpmap -n {3} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
             
-            logentry('Generating photon map with command {}'.format(pmcmd))
-            pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+            logentry('Generating photon map: {}'.format(pmcmd))
+            pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE)
                 
             while pmrun.poll() is None:   
                 sleep(10)
@@ -96,12 +96,12 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
             if simnode.pmap:
-                rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(svp['viparams']['nproc'], simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                rtcmds.append('rtrace -n {0} -w {1} -ap "{2}-{3}.gpm" 50 {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else:
-                rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(svp['viparams']['nproc'], simnode['radparams'], svp['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], simnode['radparams'], svp['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
         else:
             if simnode.pmap:
-                rccmds.append("rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow {2}-{3}.oct".format(simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
+                rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
             else:   
                 rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
 

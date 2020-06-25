@@ -615,7 +615,7 @@ class No_Li_Con(Node, ViNodes):
                     with open(self.mtxname, 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 if self.hdr:
-                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
+                    cbdmhdr(self, scene)
 
 #        elif self.contextmenu == "Compliance":
 #            if self.canalysismenu in ('0', '1', '2'):            

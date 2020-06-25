@@ -216,23 +216,23 @@ def cbdmhdr(node, scene):
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2015, 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(patches)])
-        vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
-        rcontribcmd = "rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f reinhart{}.cal -b rbin -o {} -m sky_glow {}-whitesky.oct".format(patches, svp['viparams']['nproc'], 
+        vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
+        rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f reinhart{}.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'], 
                                                            node.cbdm_res,
                                                            os.path.join(svp['viparams']['newdir'], 'p%d.hdr'), 
                                                            os.path.join(svp['viparams']['newdir'], 
                                                                         svp['viparams']['filename']))
 
-        vwrun = Popen(vwcmd.split(), stdout = PIPE)
-        rcrun = Popen(rcontribcmd.split(), stderr = PIPE, stdin = vwrun.stdout)
+        vwrun = Popen(shlex.split(vwcmd), stdout = PIPE)
+        rcrun = Popen(shlex.split(rcontribcmd), stderr = PIPE, stdin = vwrun.stdout)
         for line in rcrun.stderr:
             logentry('HDR generation error: {}'.format(line))
     
         for j in range(patches):
             with open(os.path.join(svp['viparams']['newdir'], "ps{}.hdr".format(j)), 'w') as psfile:
-                Popen("pcomb -s {} {}".format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j))).split(), stdout = psfile).wait()
+                Popen('pcomb -s {} "{}"'.format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j))).split(), stdout = psfile).wait()
         with open(targethdr, 'w') as epwhdr:
-            Popen("pcomb -h {}".format(pcombfiles).split(), stdout = epwhdr).wait()
+            Popen('pcomb -h {}'.format(pcombfiles).split(), stdout = epwhdr).wait()
         
         [os.remove(os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (patches)]
         [os.remove(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (patches)]
@@ -240,13 +240,13 @@ def cbdmhdr(node, scene):
     
         if node.hdr:
             with open('{}.oct'.format(os.path.join(svp['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
-                Popen(shlex.split("oconv -w - "), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode(sys.getfilesystemencoding()))
+                Popen(shlex.split('oconv -w - '), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode(sys.getfilesystemencoding()))
             cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
             rccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
             logentry('Running rcalc: {}'.format(rccmd))
             rcalcrun = Popen(shlex.split(rccmd), stdin = cntrun.stdout, stdout = PIPE)
             with open(latlonghdr, 'w') as panohdr:
-                rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac {}.oct'.format(svp['viparams']['nproc'], os.path.join(svp['viparams']['newdir'], node['epwbase'][0]))
+                rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}.oct"'.format(svp['viparams']['nproc'], os.path.join(svp['viparams']['newdir'], node['epwbase'][0]))
                 logentry('Running rtrace: {}'.format(rtcmd))
                 Popen(rtcmd.split(), stdin = rcalcrun.stdout, stdout = panohdr)
     return skyentry
@@ -333,9 +333,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         rt =  geom.layers.string['rt{}'.format(rtframe)]
             
         for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):
-            rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
+            logentry('Running rtrace: {}'.format(rtcmds[f]))
+            rtrun = Popen(shlex.split(rtcmds[f]), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
-
+            print(xyzirrad)
             if svp['liparams']['unit'] == 'W/m2 (f)':
                 firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)                
             elif svp['liparams']['unit'] == 'Lux':
@@ -877,7 +878,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
             print(shlex.split(rccmds[f]))
-            for line in sensrun[0]:
+            for line in sensrun[1]:
                 print(line)
 #            resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3).astype(float32)
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)

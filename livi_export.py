@@ -336,16 +336,16 @@ def hdrexport(scene, f, frame, node, skytext):
         Popen('oconv -w -'.split(), stdin = PIPE, stdout = skyoct).communicate(input = skytext.encode('utf-8'))
 
     with open(os.path.join(svp['viparams']['newdir'], str(frame)+".hdr"), 'w') as hdrfile:
-        rpictcmd = "rpict -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -x 1500 -y 1500 {}-{}sky.oct".format(svp['viparams']['filebase'], frame)
-        Popen(rpictcmd.split(), stdout = hdrfile).communicate()
+        rpictcmd = 'rpict -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -x 1500 -y 1500 "{}-{}sky.oct"'.format(svp['viparams']['filebase'], frame)
+        Popen(shlex.split(rpictcmd), stdout = hdrfile).communicate()
 
     cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
     rcalccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
     rcalcrun = Popen(shlex.split(rcalccmd), stdin = cntrun.stdout, stdout = PIPE)
-    rtracecmd = 'rtrace -n {} -x 1500 -y 750 -fac {}-{}sky.oct'.format(svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
+    rtracecmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}-{}sky.oct"'.format(svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
 
     with open('{}p.hdr'.format(os.path.join(svp['viparams']['newdir'], str(frame))), 'w') as hdrim:
-        Popen(rtracecmd.split(), stdin = rcalcrun.stdout, stdout = hdrim).communicate()
+        Popen(shlex.split(rtracecmd), stdin = rcalcrun.stdout, stdout = hdrim).communicate()
 
     if '{}p.hdr'.format(frame) not in bpy.data.images:
         bpy.data.images.load(os.path.join(svp['viparams']['newdir'], "{}p.hdr".format(frame)))
