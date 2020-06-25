@@ -3230,77 +3230,78 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0 
-        r2 = context.area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
-
-        if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
-            if context.area:
-                context.area.tag_redraw()
-            else:
-                logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
-            return {'CANCELLED'}        
-        
-        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
-            mx, my = event.mouse_region_x, event.mouse_region_y  
-            
-            # Legend routine 
-            rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
-            
-            if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
-                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-                redraw = 1
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'RELEASE':
-                        self.legend.expand = 0 if self.legend.expand else 1
-                        
-            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
-                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-                redraw = 1   
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.legend.move = 1
-                        self.legend.draw(context)
-                        if context.area:
-                            context.area.tag_redraw()
-                    elif self.legend.move and event.value == 'RELEASE':
-                        self.legend.move = 0                        
-                    return {'RUNNING_MODAL'}
-              
-            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
-                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+        if context.area:
+            r2 = context.area.regions[2]
+            r2h = r2.height
+            r2w = r2.width
+    
+            if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
+                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
                 if context.area:
                     context.area.tag_redraw()
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.legend.resize = 1
-                        self.legend.draw(context)
-                        if context.area:
-                            context.area.tag_redraw()
-                    elif self.legend.resize and event.value == 'RELEASE':
-                        self.legend.resize = 0
-                    return {'RUNNING_MODAL'}  
+                else:
+                    logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
+                return {'CANCELLED'}        
+            
+            if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
+                mx, my = event.mouse_region_x, event.mouse_region_y  
                 
-            elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
-                self.legend.hl = (1, 1, 1, 1)
-                redraw = 1
+                # Legend routine 
+                rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
                 
-            if event.type == 'MOUSEMOVE':                
-                if self.legend.move:
-                    self.legend.lspos[0], self.legend.lepos[1] = mx, my
-                    self.legend.draw(context)
-                    if context.area:
-                        context.area.tag_redraw() 
-                elif self.legend.resize:
-                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
-                    self.legend.draw(context)
+                if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
+                    self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                    redraw = 1
+                    if event.type == 'LEFTMOUSE':
+                        if event.value == 'RELEASE':
+                            self.legend.expand = 0 if self.legend.expand else 1
+                            
+                elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
+                    self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                    redraw = 1   
+                    if event.type == 'LEFTMOUSE':
+                        if event.value == 'PRESS':
+                            self.legend.move = 1
+                            self.legend.draw(context)
+                            if context.area:
+                                context.area.tag_redraw()
+                        elif self.legend.move and event.value == 'RELEASE':
+                            self.legend.move = 0                        
+                        return {'RUNNING_MODAL'}
+                  
+                elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                    self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
                     if context.area:
                         context.area.tag_redraw()
-            
-            if redraw:
-                if context.area:
-                    context.area.tag_redraw()
+                    if event.type == 'LEFTMOUSE':
+                        if event.value == 'PRESS':
+                            self.legend.resize = 1
+                            self.legend.draw(context)
+                            if context.area:
+                                context.area.tag_redraw()
+                        elif self.legend.resize and event.value == 'RELEASE':
+                            self.legend.resize = 0
+                        return {'RUNNING_MODAL'}  
+                    
+                elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
+                    self.legend.hl = (1, 1, 1, 1)
+                    redraw = 1
+                    
+                if event.type == 'MOUSEMOVE':                
+                    if self.legend.move:
+                        self.legend.lspos[0], self.legend.lepos[1] = mx, my
+                        self.legend.draw(context)
+                        if context.area:
+                            context.area.tag_redraw() 
+                    elif self.legend.resize:
+                        self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                        self.legend.draw(context)
+                        if context.area:
+                            context.area.tag_redraw()
+                
+                if redraw:
+                    if context.area:
+                        context.area.tag_redraw()
 
         return {'PASS_THROUGH'}
     

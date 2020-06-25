@@ -103,7 +103,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             if simnode.pmap:
                 rccmds.append("rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow {2}-{3}.oct".format(simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
             else:   
-                rccmds.append("rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(patches, simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
+                rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
 
     tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
     calcsteps = sum(tpoints) * len(frames)

@@ -820,6 +820,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     return (pfs, epfs, reslists)
     
 def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
+    print(rccmds)
     svp = scene.vi_params
     self['livires'] = {}
     self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
@@ -874,7 +875,10 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         totarea = sum([g.calc_area() for g in geom if g[rt]]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt]])
                 
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
-            sensrun = Popen(rccmds[f].split(), stdin=PIPE, stdout=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+            sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+            print(shlex.split(rccmds[f]))
+            for line in sensrun[0]:
+                print(line)
 #            resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3).astype(float32)
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if self['cpoint'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
