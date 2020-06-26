@@ -281,8 +281,8 @@ def retpmap(node, frame, scene):
     ammats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.vi_params.mattype == '1' and mat.vi_params.radmatmenu == '7' and mat.vi_params.get('radentry')])
     pportentry = ' '.join(['-apo {}'.format(ppm) for ppm in pportmats.split()]) if pportmats else ''
     amentry = '-aps {}'.format(ammats) if ammats else ''
-    cpentry = '-apc {}-{}.cpm {}'.format(svp['viparams']['filebase'], frame, node.pmapcno) if node.pmapcno else ''
-    cpfileentry = '-ap {}-{}.cpm 50'.format(svp['viparams']['filebase'], frame) if node.pmapcno else ''  
+    cpentry = '-apc "{}-{}.cpm" {}'.format(svp['viparams']['filebase'], frame, node.pmapcno) if node.pmapcno else ''
+    cpfileentry = '-ap "{}-{}.cpm" 50'.format(svp['viparams']['filebase'], frame) if node.pmapcno else ''  
     return amentry, pportentry, cpentry, cpfileentry   
 
 def retsv(self, scene, frame, rtframe, chunk, rt):

@@ -890,10 +890,11 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
                 pmcmd = 'mkpmap -t 20 -e "{1}.pmapmon" {6} -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 logentry('Photon map command: {}'.format(pmcmd))
+                os.chdir(svp['viparams']['newdir'])
                 pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE)
                 
-                for line in pmrun.stderr:
-                    print(line)
+                # for line in pmrun.stderr:
+                #     print(line)
                 while pmrun.poll() is None:   
                     sleep(10)
                     with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:
