@@ -30,7 +30,7 @@ from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrit
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_layer, envi_layertype, envi_con_list
 from numpy import where, sort, median, array
-#from .vi_dicts import e1ddict
+from .vi_dicts import rpictparams, rvuparams
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -189,7 +189,8 @@ class No_Li_Geo(Node, ViNodes):
     animated: BoolProperty(name="", description="Animated analysis", default = 0, update = nodeupdate)
     startframe: IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
-    fallback: BoolProperty(name="", description="Enforce simple geometry export", default = 0, update = nodeupdate)
+    fallback: BoolProperty(name="", description="Enforce simple geometry export", default = 1, update = nodeupdate)
+    triangulate: BoolProperty(name="", description="Triangulate mesh geometry for export", default = 0, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -197,6 +198,7 @@ class No_Li_Geo(Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
+        newrow(layout, 'Triangulate:', self, 'triangulate')
         newrow(layout, 'Fallback:', self, 'fallback')
         newrow(layout, 'Animated:', self, 'animated')
         
@@ -689,8 +691,8 @@ class No_Li_Im(Node, ViNodes):
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"), 
                                            ("3", "Custom", "Edit Radiance parameters")], name="", description="Simulation accuracy", default="0", update = nodeupdate)
-    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), 
-                   ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
+#    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), 
+#                   ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4), ("-pj", 0, 0.6, 0.9))
     pmap: BoolProperty(name = '', default = False, update = nodeupdate)
     pmapgno: IntProperty(name = '', default = 50000)
     pmapcno: IntProperty(name = '', default = 0)
@@ -743,6 +745,8 @@ class No_Li_Im(Node, ViNodes):
             if self.pmap:
                newrow(layout, 'Global photons*:', self, 'pmapgno')
                newrow(layout, 'Caustic photons*:', self, 'pmapcno')
+               newrow(layout, 'Photons options:', self, 'pmapoptions')
+               newrow(layout, 'Preview photons:', self, 'pmappreview')
 
                
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
@@ -778,7 +782,9 @@ class No_Li_Im(Node, ViNodes):
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
-        self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
+#        self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
+        self['rpictparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rpictparams[k][int(self.simacc)+1]) for k in rpictparams])
+        self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)+1]) for k in rvuparams])       
         self['basename'] = self.basename if self.basename else 'image'
         
         for frame in self['frames']:
@@ -797,7 +803,7 @@ class No_Li_Im(Node, ViNodes):
             if self.fisheye and self.fov == 180:
                 self['viewparams'][str(frame)]['-vth'] = ''
                 
-            (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else (vh, vv)
+            (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.3f}'.format(vh), '{:.3f}'.format(vv))
             self['viewparams'][str(frame)]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
             self['viewparams'][str(frame)]['-x'], self['viewparams'][str(frame)]['-y'] = self.x, self.y
             if self.mp:
@@ -938,9 +944,12 @@ class No_Li_Sim(Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'No_Li_Sim'
     bl_label = 'LiVi Simulation'
-
+    
+    def ret_params(self):
+        return [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno, self.pmapoptions, self.pmappreview)]
+    
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)])
+        nodecolour(self, self['exportstate'] != self.ret_params())
         
         if self.simacc == '3':
             self.validparams = validradparams(self.cusacc)
@@ -956,9 +965,11 @@ class No_Li_Sim(Node, ViNodes):
     rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
     rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
     rvuadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
-    pmap: BoolProperty(name = '', default = False)
-    pmapgno: IntProperty(name = '', default = 50000)
-    pmapcno: IntProperty(name = '', default = 0)
+    pmap: BoolProperty(name = '', default = False, update = nodeupdate)
+    pmapgno: IntProperty(name = '', default = 50000, update = nodeupdate)
+    pmapcno: IntProperty(name = '', default = 0, update = nodeupdate)
+    pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
+    pmappreview: BoolProperty(name = '', default = 0, update = nodeupdate)
     run: IntProperty(default = 0)
     validparams: BoolProperty(name = '', default = True)
     illu: BoolProperty(name = '', default = False)
@@ -986,10 +997,11 @@ class No_Li_Sim(Node, ViNodes):
     
             if self.pmap:
                newrow(layout, 'Global photons:', self, 'pmapgno')
-               newrow
-               
-               if self['coptions']['Context'] == 'Basic' or (self['coptions']['Context'] == 'CBDM' and self['coptions']['Type'] == '0'):
-                   newrow(layout, 'Caustic photons:', self, 'pmapcno')
+               newrow(layout, 'Caustic photons:', self, 'pmapcno')
+               newrow(layout, 'Photon options:', self, 'pmapoptions')
+               newrow(layout, 'Preview photons:', self, 'pmappreview')
+#               if self['coptions']['Context'] == 'Basic' or (self['coptions']['Context'] == 'CBDM' and self['coptions']['Type'] == '0'):
+                   
     
             row = layout.row()
             row.label(text = "Accuracy:")            
@@ -1026,13 +1038,13 @@ class No_Li_Sim(Node, ViNodes):
             self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
         else:
             self['radparams'] = ' {} '.format(self.cusacc) if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtraceadvance], [n[int(self.csimacc)] for n in self.rtraceadvance]))
-    
+        self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])
     def sim(self, scene):
         svp = scene.vi_params
         self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         
     def postsim(self):
-        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)]
+        self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
         
 class ViSPNode(Node, ViNodes):

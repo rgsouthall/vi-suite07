@@ -39,83 +39,89 @@ def radpoints(o, faces, sks):
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
         
         if sks:
-            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+            ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
-            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format(v.co) for v in face.verts])
+            ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format(v.co) for v in face.verts])
         
         fentries[f] = ''.join((mentry, fentry, ventries+'\n'))        
     return ''.join(fentries)
 
-def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
+def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
-    bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.0001)
-#    bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = {'NORMAL'})
-    bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.0001, faces = bm.faces)
-    mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
-    mpps = array([not m.vi_params.pport for m in o.data.materials])        
-    mnpps = where(mpps, 0, 1)        
-    mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))        
-    fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert = True)
-    mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
-    ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
-    mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
-    otext = 'o {}\n'.format(o.name)
-    vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+
+    if tri:
+        bmesh.ops.triangulate(bm, faces = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
+    if fb:
+        gradfile += radpoints(o, bm.faces, 0)
+    else:
+        mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
+        mpps = array([not m.vi_params.pport for m in o.data.materials])        
+        mnpps = where(mpps, 0, 1)        
+        mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))        
+        fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert = True)
+        mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
+        ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
+        mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
+        otext = 'o {}\n'.format(o.name)
+        vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+
+        
+        if o.data.polygons and o.data.polygons[0].use_smooth:
+            vtext += ''.join(['vn {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n'.format(v.normal.normalized()) for v in bm.verts])
+            
+        if not o.data.uv_layers:            
+            if mfaces:
+                for mat in mmats:
+                    matname = mat.vi_params['radname']
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
+        else:            
+            uv_layer = bm.loops.layers.uv.values()[0]
+            bm.faces.ensure_lookup_table()
+            vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
+            
+            li = 1
     
-    if o.data.polygons and o.data.polygons[0].use_smooth:
-        vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
-        
-    if not o.data.uv_layers:            
-        if mfaces:
-            for mat in mmats:
-                matname = mat.vi_params['radname']
-                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
-    else:            
-        uv_layer = bm.loops.layers.uv.values()[0]
-        bm.faces.ensure_lookup_table()
-        vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
-        
-        li = 1
-
-        for face in bm.faces:
-            for loop in face.loops:
-                loop.index = li
-                li +=1
+            for face in bm.faces:
+                for loop in face.loops:
+                    loop.index = li
+                    li +=1
+                    
+            if mfaces:
+                for mat in mmats:
+                    matname = mat.vi_params['radname']
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
+              
+        if ffaces:
+            gradfile += radpoints(o, ffaces, 0)
+    
+        if ftext:   
+            mfile = os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
+            ofile = os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.obj'.format(o.name.replace(' ', '_'), frame))
+            
+            with open(ofile, 'w') as objfile:
+                objfile.write(otext + vtext + ftext)
+                        
+            with open(mfile, 'w') as mesh:
+                logentry('Running obj2mesh: {}'.format('obj2mesh -w -a {} '.format(tmf)))
+                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE, universal_newlines=True).communicate(input = (otext + vtext + ftext))
                 
-        if mfaces:
-            for mat in mmats:
-                matname = mat.vi_params['radname']
-                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
-          
-    if ffaces:
-        gradfile += radpoints(o, ffaces, 0)
-
-    if ftext:   
-        mfile = os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
-        ofile = os.path.join(svp['viparams']['newdir'], 'obj', '{}-{}.obj'.format(o.name.replace(' ', '_'), frame))
-        
-        with open(mfile, 'w') as mesh:
-            o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE, universal_newlines=True).communicate(input = (otext + vtext + ftext))
-                           
-        if os.path.getsize(mfile) and not o2mrun[1] and not fb:
-            gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
-
-        else:
-            if o2mrun[1]:
-                logentry('Obj2mesh error: {}. Using geometry export fallback on {}'.format(o2mrun[1], o.name))
-
-            gradfile += radpoints(o, mfaces, 0)
-
-        with open(ofile, 'w') as objfile:
-            objfile.write(otext + vtext + ftext)
-
+                               
+            if os.path.getsize(mfile) and not o2mrun[1]:
+                gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
+    
+            else:
+                if o2mrun[1]:
+                    logentry('Obj2mesh error: {}. Using geometry export fallback on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
+    
+                gradfile += radpoints(o, mfaces, 0)
+           
     bm.free()       
     return gradfile
 
 def radgexport(export_op, node, **kwargs):
-    depsgraph = bpy.context.evaluated_depsgraph_get()
+    dp = bpy.context.evaluated_depsgraph_get()
     scene = bpy.context.scene
     svp = scene.vi_params
     clearscene(scene, export_op)
@@ -161,12 +167,12 @@ def radgexport(export_op, node, **kwargs):
         for o in eolist:
             ovp = o.vi_params
             bm = bmesh.new()
-            tempmesh = o.evaluated_get(depsgraph).to_mesh()
+            tempmesh = o.evaluated_get(dp).to_mesh()
             bm.from_mesh(tempmesh)
             bm.transform(o.matrix_world)
             bm.normal_update() 
             o.to_mesh_clear()
-            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback)
+            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback, node.triangulate)
           
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
@@ -185,7 +191,7 @@ def radgexport(export_op, node, **kwargs):
                 ps = o.particle_systems[0]
                 hl = ps.settings.hair_length
                 ps.settings.hair_length = 0 
-                dp = bpy.context.evaluated_depsgraph_get()
+#                dp = bpy.context.evaluated_depsgraph_get()
                 ps = o.evaluated_get(dp).particle_systems[0]  
                 particles = ps.particles
                 dob = ps.settings.instance_object
@@ -203,13 +209,14 @@ def radgexport(export_op, node, **kwargs):
 #                        if node.fallback or dob.hide_get(): # Should check visibility with dob.hide_get() but it's not working
                     else:
 #                        dovp = dob.vi_params
-                        bm = bmesh.new()
-                        tempmesh = dob.evaluated_get(depsgraph).to_mesh()
-                        bm.from_mesh(tempmesh)
-                        bm.transform(dob.matrix_world)
-                        bm.normal_update() 
-                        dob.to_mesh_clear()
-                        bmesh2mesh(scene, bm, dob, frame, tempmatfilename, 0)
+                        # bm = bmesh.new()
+                        # tempmesh = dob.evaluated_get(depsgraph).to_mesh()
+                        # bm.from_mesh(tempmesh)
+                        # bm.transform(dob.matrix_world)
+                        # bm.normal_update() 
+                        # dob.to_mesh_clear()
+                        # bmesh2mesh(scene, bm, dob, frame, tempmatfilename, 0, node.triangulate)
+                        # bm.free()
         
                         for p, part in enumerate(particles):
                            nv = mathutils.Vector((1, 0, 0))
@@ -263,7 +270,7 @@ def radgexport(export_op, node, **kwargs):
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
 
-def gen_octree(scene, o, op, fallback):
+def gen_octree(scene, o, op, fallback, tri):
     dg = bpy.context.evaluated_depsgraph_get()
     bm = bmesh.new()
     tempmesh = o.evaluated_get(dg).to_mesh()
@@ -284,7 +291,7 @@ def gen_octree(scene, o, op, fallback):
     with open(mf, "w") as tempmatfile:
         tempmatfile.write(mradfile)  
         
-    gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, fallback)
+    gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, fallback, tri)
 
     with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
         try:
@@ -439,11 +446,6 @@ def spfc(self):
                         blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)
-
-#            elif ob.get('VIType') == 'SkyMesh':
-#                ont = ob.data.materials['SkyMesh'].node_tree
-#                if ont and ont.nodes.get('Sky Texture'):
-#                    ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
 
             elif ob.get('VIType') == 'SunMesh':
                 ob.location = (0, 0, 0)

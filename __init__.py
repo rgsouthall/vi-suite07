@@ -352,7 +352,9 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     flovi_fl: IntProperty(name = '', description = 'SnappyHexMesh object features levels', min = 1, max = 20, default = 4) 
     flovi_slmax: IntProperty(name = '', description = 'SnappyHexMesh surface maximum levels', min = 1, max = 20, default = 4, update=flovi_levels)   
     flovi_slmin: IntProperty(name = '', description = 'SnappyHexMesh surface minimum levels', min = 1, max = 20, default = 3, update=flovi_levels)     
-    flovi_sl: IntProperty(name = '', description = 'SnappyHexMesh surface minimum levels', min = 0, max = 20, default = 3)
+    flovi_sl: iprop('', 'SnappyHexMesh surface minimum levels', 0, 20, 3)
+    fallback: bprop("", "Enforce simple geometry export", 0)
+    triangulate: bprop("", "Triangulate mesh geometry for export", 0)
 
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)

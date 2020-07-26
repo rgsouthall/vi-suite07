@@ -483,6 +483,10 @@ class VI_PT_Ob(bpy.types.Panel):
             
             if ovp.vi_type == '0':
                 row = layout.row()
+                row.label(text = '-- Octree generation --')
+                newrow(layout, 'Triangulate:', ovp, 'triangulate') 
+                newrow(layout, 'Fallback:', ovp, 'fallback')
+                row = layout.row()  
                 row.operator('object.vi_genoct', text = "Generate Octree")
                 
             elif ovp.vi_type == '1':
