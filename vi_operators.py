@@ -2213,6 +2213,42 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         return {'RUNNING_MODAL'}   
     
 # Openfoam operators
+class NODE_OT_Flo_Case(bpy.types.Operator):
+    bl_idname = "node.flovi_case"
+    bl_label = "Case export"
+    bl_description = "Export an Openfoam case"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
+        expnode = context.node# if context.node.bl_label == "FloVi BlockMesh" else context.node.inputs[0].links[0].from_node
+#        bmos = [o for o in scene.objects if o.vi_params.vi_type == '2']
+        
+        if viparams(self, scene):
+            return {'CANCELLED'} 
+        
+        # if len(bmos) != 1:
+        #     self.report({'ERROR'},"One and only one object with the CFD Domain property is allowed")
+        #     return {'CANCELLED'}
+        # elif [f.material_index for f in bmos[0].data.polygons if f.material_index + 1 > len(bmos[0].data.materials)]:
+        #     self.report({'ERROR'},"Not every domain face has a material attached")
+        #     logentry("Not every face has a material attached")
+        #     return {'CANCELLED'}
+        with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
+            cdfile.write(fvcdwrite(expnode.solver, expnode.stime, expnode.dtime, expnode.etime))
+        with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
+            fvsolfile.write(fvsolwrite(expnode))
+        with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
+            fvschfile.write(fvschwrite(expnode))
+#        with open(os.path.join(svp['flparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
+#            bmfile.write(fvbmwrite(bmos[0], expnode))
+
+#        call(("blockMesh", "-case", "{}".format(scene['flparams']['offilebase'])))
+#        fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['flparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
+#        expnode.export()
+        return {'FINISHED'}
 
 class NODE_OT_Blockmesh(bpy.types.Operator):
     bl_idname = "node.blockmesh"

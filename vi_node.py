@@ -2066,6 +2066,52 @@ class So_En_ResU(NodeSocket):
         
 # Openfoam nodes
 
+class No_Flo_Case(Node, ViNodes):
+    '''Openfoam case export node'''
+    bl_idname = 'No_Flo_Case'
+    bl_label = 'FloVi Case'
+    bl_icon = 'FILE_FOLDER' 
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.turbulence)])
+
+    
+    solver: EnumProperty(name = '', items = [('0', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = '0')
+    turbulence: EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
+                                      ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
+                                      ('kOmega', 'k-Omega', 'Transient turbulence solver'), 
+                                      ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", 
+                             default = 'laminar', update = nodeupdate)
+    stime: FloatProperty(name = '', description = 'Simulation start time', min = 0, max = 10, default = 0)
+    dtime: FloatProperty(name = '', description = 'False time step', min = 0.001, max = 10, default = 0.005)
+    etime: FloatProperty(name = '', description = 'Simulation end time', min = 1, max = 1000, default = 5)
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self.outputs.new('So_Flo_Case', 'Case out')
+        nodecolour(self, 1)
+    
+    def draw_buttons(self, context, layout):    
+        newrow(layout, 'Solver:', self, 'solver')
+        newrow(layout, 'Solver:', self, 'turbulence')
+        row = layout.row()
+        row.operator("node.flovi_case", text = "Export")
+        
+class So_Flo_Case(NodeSocket):
+    '''FloVi case socket'''
+    bl_idname = 'So_Flo_Case'
+    bl_label = 'FloVi Case socket'
+
+    valid = ['FloVi case']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text = text)
+
+    def draw_color(self, context, node):
+        return (1.0, 1.0, 1.0, 1.0)
+    
+
 class So_Flo_Mesh(NodeSocket):
     '''FloVi mesh socket'''
     bl_idname = 'So_Flo_Mesh'
@@ -2080,6 +2126,10 @@ class So_Flo_Mesh(NodeSocket):
     def draw_color(self, context, node):
         return (0.5, 1.0, 0.0, 0.75)
     
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.blockmesh", text = "Export")
+        
 class No_Flo_BMesh(Node, ViNodes):
     '''Openfoam blockmesh export node'''
     bl_idname = 'No_Flo_BMesh'
@@ -2127,7 +2177,8 @@ class No_Flo_BMesh(Node, ViNodes):
 ####################### Vi Nodes Categories ##############################
 
 vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), NodeItem("No_Li_Sen", label="LiVi Sense"), 
-              NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")]
+              NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_Case", label="FloVi Case"),
+              NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")]
                 
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
 vi_analysis = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose"), 
