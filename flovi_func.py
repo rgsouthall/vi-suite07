@@ -22,7 +22,7 @@ from .vi_func import selobj
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM:    The Open Source CFD Toolbox        |
-|  \\    /   O peration     | Version:     5                                  |
+|  \\    /   O peration     | Version:     8                                  |
 |   \\  /    A nd           | Web:         www.OpenFOAM.org                   |
 |    \\/     M anipulation  | Created by:  FloVi (part of the VI-Suite)       |
 \*---------------------------------------------------------------------------*/''' + '\n\n'
@@ -431,10 +431,10 @@ def fvmattype(mat, var):
         matbptype = 'empty'
         matbUtype = 'empty'
     
-def fvcdwrite(solver, dt, et):
+def fvcdwrite(solver, st, dt, et):
     pw = 0 if solver == 'icoFoam' else 1
     return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
-            'application     {};\nstartFrom       startTime;\nstartTime       0;\nstopAt          endTime;\nendTime         {};\n'.format(solver, et)+\
+            'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {};\n'.format(solver, st, et, dt)+\
             'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\
             'writeCompression off;\ntimeFormat      general;\ntimePrecision   6;\nrunTimeModifiable true;\n\n'
 

@@ -321,6 +321,7 @@ class VI_PT_Mat(bpy.types.Panel):
             
             elif mvp.mattype == '2':
 #                fvsimnode = bpy.data.node_groups[svp['viparams']['fvsimnode'].split('@')[1]].nodes[svp['viparams']['fvsimnode'].split('@')[0]] if svp.get('viparams') and 'fvsimnode' in svp['viparams'] else 0
+                newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")
                 newrow(layout, "Type:", mvp, "flovi_bmb_type")
 #                if fvsimnode:
 #                    svp['flparams']['solver'] = fvsimnode.solver

@@ -2076,7 +2076,7 @@ class No_Flo_Case(Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.turbulence)])
 
     
-    solver: EnumProperty(name = '', items = [('0', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = '0')
+    solver: EnumProperty(name = '', items = [('SimpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'SimpleFoam')
     turbulence: EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
                                       ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
                                       ('kOmega', 'k-Omega', 'Transient turbulence solver'), 
@@ -2093,9 +2093,38 @@ class No_Flo_Case(Node, ViNodes):
     
     def draw_buttons(self, context, layout):    
         newrow(layout, 'Solver:', self, 'solver')
-        newrow(layout, 'Solver:', self, 'turbulence')
+        newrow(layout, 'Turbulence:', self, 'turbulence')
+        newrow(layout, 'Start time:', self, 'stime')
+        newrow(layout, 'Time step:', self, 'dtime')
+        newrow(layout, 'End time:', self, 'etime')
         row = layout.row()
         row.operator("node.flovi_case", text = "Export")
+        
+class No_Flo_NG(Node, ViNodes):
+    '''Openfoam case export node'''
+    bl_idname = 'No_Flo_NG'
+    bl_label = 'FloVi NetGen'
+    bl_icon = 'MESH_ICOSPHERE' 
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.poly, self.vtk, self.pcorr, self.acorr)])
+    
+    poly: BoolProperty(name = '', description = 'Create polygonal mesh', default = 0)
+    vtk: BoolProperty(name = '', description = 'Export to VTK', default = 0)
+    pcorr: FloatProperty(name = "m", description = "Maximum distance for position correspondance", min = 0, max = 1, default = 0.1, update = nodeupdate)
+    acorr: FloatProperty(name = "m", description = "Minimum cosine for angular correspondance", min = 0, max = 1, default = 0.9, update = nodeupdate)
+
+    def init(self, context):
+        self['exportstate'] = ''
+        self.inputs.new('So_Flo_Case', 'Case in')
+        self.outputs.new('So_Flo_Mesh', 'Mesh out')
+        nodecolour(self, 1)
+    
+    def draw_buttons(self, context, layout):    
+        newrow(layout, 'Polygonal:', self, 'poly')
+        newrow(layout, 'VTK:', self, 'vtk')
+        row = layout.row()
+        row.operator("node.flovi_ng", text = "Generate")
         
 class So_Flo_Case(NodeSocket):
     '''FloVi case socket'''
@@ -2164,10 +2193,11 @@ class No_Flo_BMesh(Node, ViNodes):
         col.prop(self, "bm_ygrad")
         col.prop(self, "bm_zgrad")
         row = layout.row()
-        row.operator("node.blockmesh", text = "Export")
+        row.operator("node.flovi_bm", text = "Export")
     
     def update(self):
-        socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
+        if self.outputs.get('Mesh out'):
+            socklink(self.outputs['Mesh out'], self.id_data.name)
 
     def export(self):
         self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
@@ -2178,7 +2208,7 @@ class No_Flo_BMesh(Node, ViNodes):
 
 vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), NodeItem("No_Li_Sen", label="LiVi Sense"), 
               NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_Case", label="FloVi Case"),
-              NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")]
+              NodeItem("No_Flo_NG", label="FloVi NetGen"), NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")]
                 
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
 vi_analysis = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose"), 
