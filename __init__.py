@@ -15,6 +15,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
+#exec env LD_LIBRARY_PATH=/some/path/to/lib /path/to/specific/python -x "$0" "$@"
 
 bl_info = {
     "name": "VI-Suite",
@@ -45,11 +46,17 @@ else:
     if sys.platform in ('darwin', 'linux', 'win32'):      
         if os.environ.get('PYTHONPATH'):
             if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
-                os.environ['PYTHONPATH'] += os.path.join(addonpath, 'Python', sys.platform)
+                os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
         else:
             os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-               
-        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))   
+        os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)       
+        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))  
+    try:
+        from netgen.meshing import *
+    except Exception as e:
+        print(e)
+#        os.execv(sys.argv[0], sys.argv)
+    print(sys.path)
          
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
@@ -61,7 +68,7 @@ else:
     from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Net_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
-    from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG
+    from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, radbsdf, retsv
@@ -75,7 +82,7 @@ else:
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
     from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
-    from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_BM, NODE_OT_Flo_NG
+    from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_BM, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, NODE_OT_SunPath
     from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
@@ -347,17 +354,24 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
     flovi_solver: EnumProperty(items = [('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
                                         ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')], 
-                                        name = "", default = 'icoFoam', update = flovi_bm_update)
+                                        name = "", default = 'icoFoam')
     flovi_turb: EnumProperty(items = [('kEpsilon', 'K-Epsilon', 'K-Epsion turbulence model'), ('kOmega', 'K-Omega', 'K-Omega turbulence model'),
                                         ('SpalartAllmaras', 'SpalartAllmaras', 'SpalartAllmaras turbulence model')], 
-                                        name = "", default = 'kEpsilon', update = flovi_bm_update)
+                                        name = "", default = 'kEpsilon')
     flovi_fl: IntProperty(name = '', description = 'SnappyHexMesh object features levels', min = 1, max = 20, default = 4) 
     flovi_slmax: IntProperty(name = '', description = 'SnappyHexMesh surface maximum levels', min = 1, max = 20, default = 4, update=flovi_levels)   
     flovi_slmin: IntProperty(name = '', description = 'SnappyHexMesh surface minimum levels', min = 1, max = 20, default = 3, update=flovi_levels)     
     flovi_sl: iprop('', 'SnappyHexMesh surface minimum levels', 0, 20, 3)
     fallback: bprop("", "Enforce simple geometry export", 0)
     triangulate: bprop("", "Triangulate mesh geometry for export", 0)
-
+    flovi_ufield: fvprop(3, '', 'Velocity field value', [0, 0, 0], 'VELOCITY', -100, 100)
+    flovi_pfield: fprop("", "p field value", 0, 500, 0)
+    flovi_nutfield: fprop("", "nut field value", 0, 500, 0)
+    flovi_kfield: fprop("", "k field value", 0, 500, 1.5)
+    flovi_efield: fprop("", "e field value", 0, 500, 0.03)
+    flovi_ofield: fprop("", "o field value", 0, 500, 0.03)
+    flovi_probe: bprop("", "OpenFoam probe", False)
+    
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
     radnorm: bprop("", "Flag to signify whether the material has a normal map associated with it", False)
@@ -409,7 +423,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     # FloVi Materials
     flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
 #    Material.flovi_bmb_type: eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Symmetry", "Symmetry boundary"), ("4", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
-
+    flovi_mat = fvmat
     flovi_bmbp_subtype: EnumProperty(items = ret_fvbp_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbp_val: fprop("", "Pressure value", -1000, 1000, 0.0)
     flovi_p_field: bprop("", "Take boundary velocity from the field velocity", False)
@@ -424,8 +438,9 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_bmbnut_val: fprop("", "Nut value", -1000, 1000, 0.0)
     flovi_nut_field: bprop("", "Take boundary nut from the field nut", False)
     
-    flovi_bmbk_subtype: EnumProperty(items = ret_fvbk_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbk_val: fprop("", "k value", -1000, 1000, 0.0)
+    flovi_k_subtype: EnumProperty(items = ret_fvbk_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_k_val: fprop("", "k value", -1000, 1000, 0.0)
+    flovi_k_intensity: fprop("", "k value", -1000, 1000, 0.0)
     flovi_k_field: bprop("", "Take boundary k from the field k", False)
     
     flovi_bmbe_subtype: EnumProperty(items = ret_fvbepsilon_menu, name = "", description = "FloVi sub-type boundary")
@@ -441,20 +456,20 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_nutilda_field: bprop("", "Take boundary nutilda from the field nutilda", False)
 
     flovi_bmbt_subtype: EnumProperty(items = ret_fvbt_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbt_val: fprop("", "T value", -1000, 1000, 0.0)
+    flovi_bmbt_val: fprop("", "T value", 0, 1000, 300)
+    flovi_bmbti_val: fprop("", "T inlet/outlet value", 0, 1000, 300)
     flovi_t_field: bprop("", "Take boundary t from the field t", False)
 
     flovi_bmba_subtype: EnumProperty(items = ret_fvba_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmba_val: fprop("", "T value", -1000, 1000, 0.0)
     flovi_a_field: bprop("", "Take boundary alphat from the field alphat", False)
 
-    flovi_bmbprgh_subtype: EnumProperty(items = ret_fvbprgh_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbprgh_val: fprop("", "p_rgh value", -1000, 1000, 0.0)
-    flovi_prgh_field: bprop("", "Take boundary p_rgh from the field p_rgh", False)    
+    flovi_prgh_subtype: EnumProperty(items = ret_fvbprgh_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_prgh_val: fprop("", "p_rgh value", -1000, 1000, 0.0)
+    flovi_prgh_field: bprop("", "Take boundary p_rgh from the field p_rgh", True)    
     
     flovi_ng_max: fprop("", "Netgen max cell size", 0.001, 100, 0.5)
-
-    
+        
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
@@ -531,8 +546,8 @@ def path_update():
     epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', str(sys.platform))
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin') 
-    ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', 'bin') 
-    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', 'lib')
+    ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin') 
+    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
     ofedir = vi_prefs.ofetc if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles')
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
 
@@ -597,7 +612,8 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPat
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, 
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
-           NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG)
+           NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
+           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim)
                      
 def register():
     for cl in classes:

@@ -396,7 +396,10 @@ if __name__ == '__main__':\n\
     return Popen([bpy.app.binary_path_python, file+".py"])
 
 def fvprogressbar(file, residuals):
+    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+import os, sys\n\
+sys.path.append(os.path.join(r'"+addonpath+"', 'Python', sys.platform))\n\
 from kivy.app import App\n\
 from kivy.clock import Clock\n\
 from kivy.uix.progressbar import ProgressBar\n\
@@ -419,16 +422,26 @@ class CancelButton(Button):\n\
         self.focus = True\n\
 \n\
 class Calculating(App):\n\
-    rpbs, labels = [], []\n\
+    rpbs, labels, nums, oftime = [], [], [], ''\n\
     bl = BoxLayout(orientation='vertical')\n\
-    gl  = GridLayout(cols=2, height = 150)\n\
+    gl  = GridLayout(cols=3, height = 200)\n\
+    t = Label(text='Time:', font_size=20, size_hint=(0.2, .2))\n\
+    tpb = ProgressBar(max = 0)\n\
+    tt = Label(text=oftime, font_size=20, size_hint=(0.2, .2))\n\
+    gl.add_widget(t)\n\
+    gl.add_widget(tpb)\n\
+    gl.add_widget(tt)\n\
+\n\
     for r in "+residuals+":\n\
         rpb = ProgressBar(max = 1)\n\
         rpbs.append(rpb)\n\
         label = Label(text=r, font_size=20, size_hint=(0.2, .2))\n\
+        num = Label(text='1', font_size=20, size_hint=(0.2, .2))\n\
         labels.append(r)\n\
+        nums.append(num)\n\
         gl.add_widget(label)\n\
         gl.add_widget(rpb)\n\
+        gl.add_widget(num)\n\
     bl.add_widget(gl)\n\
     button = CancelButton(text='Cancel', font_size=20, size_hint=(1, .2))\n\
     bl.add_widget(button)\n\
@@ -443,9 +456,13 @@ class Calculating(App):\n\
         with open('"+file+"', 'r') as pffile:\n\
             for ri, r in enumerate(pffile.readlines()):\n\
                 try:\n\
-                    li = self.labels.index(r.split()[0])\n\
-                    self.rpbs[li].value = float(r.split()[1])\n\
-                except: pass\n\
+                    if r.split()[0] == 'Time':\n\
+                        self.tt.text = '{:.4f}'.format(float(r.split()[1]))\n\
+                    else:\n\
+                        li = self.labels.index(r.split()[0])\n\
+                        self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\
+                        self.nums[li].text = '{:.4f}'.format(abs(float(r.split()[1])))\n\
+                except Exception as e: pass\n\
 \n\
 if __name__ == '__main__':\n\
     Calculating().run()"
@@ -583,8 +600,10 @@ def viparams(op, scene):
     nd = os.path.join(fd, fn)
     fb, ofb, lfb, tfb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'lights'), os.path.join(nd, 'textures'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
+    
     if not svp.get('viparams'):
         svp['viparams'] = {}
+        
     svp['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
     svp['viparams']['nproc'] = str(multiprocessing.cpu_count())
     svp['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
@@ -593,6 +612,7 @@ def viparams(op, scene):
     svp['viparams']['filedir'] = fd
     svp['viparams']['newdir'] = nd 
     svp['viparams']['filebase'] = fb
+    
     if not svp.get('spparams'):
         svp['spparams'] = {}
     if not svp.get('liparams'):

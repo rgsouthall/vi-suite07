@@ -344,18 +344,23 @@ class VI_PT_Mat(bpy.types.Panel):
                         if not mvp.flovi_u_field:
                             newrow(layout, "Velocity value:", mvp, "flovi_bmbu_val")
                             
-                    if svp['flparams']['solver'] in ('simpleFoam', 'buoyantSimpleFoam', 'buoyantBoussinesqSimpleFoam'):    
+                    if svp['flparams']['solver'] in ('simpleFoam', 'buoyantSimpleFoam'):    
                         newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
                         if mvp.flovi_bmbnut_subtype == 'fixedValue':
                             newrow(layout, "Nut field:", mvp, "flovi_nut_field")
                             if not mvp.flovi_u_field:
                                 newrow(layout, "Nut value:", mvp, "flovi_bmbnut_val")
                         if svp['flparams']['turbulence'] == 'kEpsilon':
-                            newrow(layout, "k type:", mvp, "flovi_bmbk_subtype")
-                            if mvp.flovi_bmbk_subtype == 'fixedValue':
+                            newrow(layout, "k type:", mvp, "flovi_k_subtype")
+                            if mvp.flovi_k_subtype == 'fixedValue':
                                 newrow(layout, "K field:", mvp, "flovi_k_field")
                                 if not mvp.flovi_k_field:
-                                    newrow(layout, "K value:", mvp, "flovi_bmbk_val")
+                                    newrow(layout, "K value:", mvp, "flovi_k_val")
+                            elif mvp.flovi_k_subtype == 'turbulentIntensityKineticEnergyInlet':
+                                newrow(layout, "K intensity:", mvp, "flovi_k_intensity")
+                                newrow(layout, "K field:", mvp, "flovi_k_field")
+                                if not mvp.flovi_k_field:
+                                    newrow(layout, "K value:", mvp, "flovi_k_val")
                             newrow(layout, "Epsilon type:", mvp, "flovi_bmbe_subtype")
                             if mvp.flovi_bmbe_subtype == 'fixedValue':
                                 newrow(layout, "Epsilon field:", mvp, "flovi_e_field")
@@ -380,13 +385,21 @@ class VI_PT_Mat(bpy.types.Panel):
                                 if not mvp.flovi_nutilda_field:
                                     newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
                         
-                    if svp['flparams']['solver'] in ('buoyantSimpleFoam', 'buoyantBoussinesqSimpleFoam'):  
+                    if svp['flparams']['solver'] in ('buoyantSimpleFoam'):  
                         newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
                         if mvp.flovi_bmbt_subtype == 'fixedValue':
                             newrow(layout, "T field:", mvp, "flovi_t_field")
                             if not mvp.flovi_t_field:
                                 newrow(layout, "T value:", mvp, "flovi_bmbt_val")
-                            
+                        elif mvp.flovi_bmbt_subtype == 'inletOutlet':
+                            newrow(layout, "T field:", mvp, "flovi_t_field")
+                            if not mvp.flovi_t_field:
+                                newrow(layout, "T inlet value:", mvp, "flovi_bmbti_val")
+                                newrow(layout, "T value:", mvp, "flovi_bmbt_val")
+                        newrow(layout, "p_rgh type:", mvp, "flovi_prgh_subtype")        
+                        newrow(layout, "p_rgh field:", mvp, "flovi_prgh_field")
+                        if not mvp.flovi_prgh_field:
+                            newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val")    
 #                    newrow(layout, "Pressure type:", mvp, "flovi_bmwp_type")
 #                    if cm.flovi_bmwp_type == 'fixedValue':
 #                        newrow(layout, "Pressure value:", cm, "flovi_b_sval")
@@ -470,13 +483,16 @@ class VI_PT_Ob(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.object and context.object.type in ('LIGHT', 'MESH'):
+        if context.object and context.object.type in ('LIGHT', 'MESH', 'EMPTY'):
             return True
 
     def draw(self, context):
         obj = context.object
         ovp = obj.vi_params
         layout = self.layout
+        
+        if obj.type == 'EMPTY':
+            newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
 
         if obj.type == 'MESH':
             row = layout.row()
@@ -498,11 +514,19 @@ class VI_PT_Ob(bpy.types.Panel):
 #                if ovp.envi_type == '0':
 #                    newrow(layout, 'Inside convection:', ovp, "envi_ica")
 #                    newrow(layout, 'Outside convection:', ovp, "envi_oca")
-            elif ovp.vi_type == '2':   
-                newrow(layout, 'Solver:', ovp, "flovi_solver")
+            elif ovp.vi_type == '2': 
+                pass
+                # newrow(layout, 'U field:', ovp, "flovi_ufield")
+                # newrow(layout, 'P field:', ovp, "flovi_pfield")
+                # newrow(layout, 'Nut field:', ovp, "flovi_nutfield")
+                # newrow(layout, 'k field:', ovp, "flovi_kfield")
+                # newrow(layout, 'e field:', ovp, "flovi_efield")
+                # newrow(layout, 'o field:', ovp, "flovi_ofield")
                 
-                if ovp.flovi_solver in ('simpleFoam', 'bouyantFoam', 'bouyantBoussinesqFoam'):
-                    newrow(layout, 'Turbulence:', ovp, "flovi_turb")
+#                newrow(layout, 'Solver:', ovp, "flovi_solver")
+                
+#                if ovp.flovi_solver in ('simpleFoam', 'bouyantFoam', 'bouyantBoussinesqFoam'):
+#                    newrow(layout, 'Turbulence:', ovp, "flovi_turb")
                 
             elif ovp.vi_type == '3':
                 newrow(layout, 'Feature level:', ovp, "flovi_fl")
@@ -541,6 +565,17 @@ class VI_PT_Ob(bpy.types.Panel):
                 row = layout.row()
                 row.label(text = 'No BSDF material applied')
 
+# class VI_PT_Ob(bpy.types.Panel):
+#     bl_label = "VI-Suite Empty Definition"
+#     bl_space_type = "PROPERTIES"
+#     bl_region_type = "WINDOW"
+#     bl_context = "object"
+
+#     @classmethod
+#     def poll(cls, context):
+#         if context.object and context.object.type == :
+#             return True
+        
 def rmmenu(layout, cm):
     mvp = cm.vi_params
     row = layout.row()

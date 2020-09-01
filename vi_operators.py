@@ -23,7 +23,6 @@ from netgen.csg import *
 from netgen.stl import *
 import ngsolve
 import pyngcore as ngcore
-ngcore.SetNumThreads(8)
 from ngsolve.solve import Draw
 import subprocess
 import numpy
@@ -47,8 +46,9 @@ from .envi_mat import envi_materials, envi_constructions
 
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
 
-from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
-from .vi_func import ret_plt, logentry, rettree, cmap
+from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvraswrite, fvmtwrite
+from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite
+from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 
 from .vi_func import windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode
@@ -2232,11 +2232,17 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         svp = scene.vi_params
-        expnode = context.node# if context.node.bl_label == "FloVi BlockMesh" else context.node.inputs[0].links[0].from_node
+        casenode = context.node# if context.node.bl_label == "FloVi BlockMesh" else context.node.inputs[0].links[0].from_node
 #        bmos = [o for o in scene.objects if o.vi_params.vi_type == '2']
-        
+
+        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
+        gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
+        obs = dobs + gobs
+
         if viparams(self, scene):
             return {'CANCELLED'} 
+        
+#                    shutil.rmtree()
 #        if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], node.stime)):
 #            os.makedirs(os.path.join(svp['flparams']['offilebase'], node.stime))
 
@@ -2248,20 +2254,65 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         #     self.report({'ERROR'},"Not every domain face has a material attached")
         #     logentry("Not every face has a material attached")
         #     return {'CANCELLED'}
+        if casenode.turbulence == 'laminar':
+            svp['flparams']['solver'] = 'icoFoam'             
+        elif casenode.transience == '0':
+            if casenode.buoyancy:                
+                svp['flparams']['solver'] = 'buoyantSimpleFoam' 
+                if not casenode.buossinesq:
+                    solver = 'bsf'
+                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e']
+                else:
+                    solver = 'bbsf'
+                    svp['flparams']['residuals'] = ['Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e', 'p_rgh']
+            else:
+                svp['flparams']['solver'] = 'simpleFoam' 
+                svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon']
+                solver = 'sf'
+        elif casenode.transience == '1':
+            if casenode.buoyancy:
+                svp['flparams']['solver'] = 'buoyantPimpleFoam'
+                if not casenode.buossinesq:
+                    solver = 'bpf'
+                else:
+                    solver = 'bbpf'
+            else:
+                svp['flparams']['solver'] = 'pimpleFoam' 
+                solver = 'pf'
+        
+
+        svp['flparams']['st'] = casenode.stime
+        svp['flparams']['presid'] = casenode.presid
+        svp['flparams']['uresid'] = casenode.uresid
+        svp['flparams']['keoresid'] = casenode.keoresid
+        
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
-            cdfile.write(fvcdwrite(expnode.solver, expnode.stime, expnode.dtime, expnode.etime))
+            cdfile.write(fvcdwrite(casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
-            fvsolfile.write(fvsolwrite(expnode))
+            fvsolfile.write(fvsolwrite(casenode, solver))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
-            fvschfile.write(fvschwrite(expnode))
-            
-#        fvvarwrite(scene, obs, node)
+            fvschfile.write(fvschwrite(casenode, solver))
+        with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:    
+            tpfile.write(fvtpwrite(casenode, solver))
+        with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
+            mtfile.write(fvraswrite(casenode.turbulence))
+        if casenode.buoyancy:   
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'thermophysicalProperties'), 'w') as tppfile:    
+                tppfile.write(fvtppwrite(casenode, solver))
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
+                mtfile.write(fvmtwrite(casenode, solver))
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'g'), 'w') as gfile:    
+                gfile.write(fvgwrite())   
+                
+        fvvarwrite(scene, obs, casenode)
+#        fvsolvew(casenode, solver)
 #        with open(os.path.join(svp['flparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
 #            bmfile.write(fvbmwrite(bmos[0], expnode))
 
 #        call(("blockMesh", "-case", "{}".format(scene['flparams']['offilebase'])))
 #        fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['flparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
 #        expnode.export()
+
         return {'FINISHED'}
 
 class NODE_OT_Flo_BM(bpy.types.Operator):
@@ -2314,9 +2365,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         vl = context.view_layer
         expnode = context.node
         meshcoll = create_coll(context, 'FloVi Mesh')
-        maxh = 3
+        ngcore.SetNumThreads(int(svp['viparams']['nproc']))
+        maxh = expnode.maxcs
         st = '0'
-        totmesh = Mesh()        
+        totmesh = Mesh()  
         meshes = []
         mats = []
         dp = bpy.context.evaluated_depsgraph_get()
@@ -2340,9 +2392,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 fds.append(fd)
                 totmesh.SetBCName(fd, mat.name)
                 i += 1
-
+                
         for oi, o in enumerate(obs):
-            mp = MeshingParameters(maxh=maxh, yangle = 0)
+            mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading)
             bm = bmesh.new()
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
@@ -2379,10 +2431,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             el.index = face.material_index + 1 + sum(mns[:oi + 1]) 
                             intersect = 1
                             break
-                if not intersect:
-                    el.index = 1
-                meshes.append(m)  
+                    if not intersect:
+                        el.index = 1
+                meshes.append(m) 
+                m.Save(os.path.join(svp['flparams']['offilebase'], '{}_surface.vol'.format(o.name)))
             bm.free()
+            
         for mi, m in enumerate(meshes):   
             pmap1 = { }
             for e in m.Elements2D():
@@ -2390,32 +2444,51 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     if (v not in pmap1):
                         pmap1[v] = totmesh.Add(m[v])
                 totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
+        totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
+        try:
+            with ngcore.TaskManager():    
+                totmesh.GenerateVolumeMesh()
+        except:
+            logentry("Didn't work")
+            return {'CANCELLED'}
 
-        with ngcore.TaskManager():    
-            totmesh.GenerateVolumeMesh()
-
+#        totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
         totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
         subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
 
         if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
             os.makedirs(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
-           
+        
+        with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
+            nf = []
+            ns = []
+
+            for line in bfile.readlines():
+                if 'nFaces' in line:
+                    nf.append(int(line.split()[1].strip(';')))
+                if 'startFace' in line:
+                    ns.append(int(line.split()[1].strip(';')))
+
+        with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'w') as bfile:
+            bfile.write(ofheader) 
+            cl = 'polyBoundaryMesh' if expnode.bl_label == 'FloVi NetGen' else 'BoundaryMesh'
+            loc = 'constant/polyMesh' if expnode.bl_label == 'FloVi NetGen' else 'Mesh'
+            bfile.write(write_ffile(cl, loc, 'boundary'))
+            bfile.write('// **\n\n{}\n(\n'.format(len(ns)))
+            omi = 0
+            
+            for mi, mats in enumerate(omats):
+                for m in mats:
+                    if omi < len(ns):
+                        bfile.write(write_bound(obs[mi], m, ns[omi], nf[omi]))
+                        omi += 1
+            bfile.write(')\n\n// **\n')
+            
         for file in os.listdir(svp['flparams']['ofcpfilebase']):
             shutil.copy(os.path.join(svp['flparams']['ofcpfilebase'], file), os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
-
-        if expnode.poly:
-            subprocess.Popen(shlex.split('foamExec polyDualMesh -case {} -overwrite 2'.format(svp['flparams']['offilebase']))).wait()
         
-        bm = bmesh.new()
-        mesh = bpy.data.meshes.new("mesh") 
-        vcoords = []
-        findices = []
-        fi = []
-        fn = 0
-        prevline = ''
-        
-        with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'boundary'), 'r') as bfile:
+        with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
             nf = []
             ns = []
             for line in bfile.readlines():
@@ -2424,10 +2497,44 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 if 'startFace' in line:
                     ns.append(int(line.split()[1].strip(';')))
 
-        with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'boundary2'), 'w') as bfile:
-            bfile.write(ofheader)
+        with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'w') as bfile:
+            bfile.write(ofheader) 
+            cl = 'polyBoundaryMesh' if expnode.bl_label == 'FloVi NetGen' else 'BoundaryMesh'
+            loc = 'constant/polyMesh' if expnode.bl_label == 'FloVi NetGen' else 'Mesh'
+            bfile.write(write_ffile(cl, loc, 'boundary'))
+            bfile.write('// **\n\n{}\n(\n'.format(len(ns)))
+            omi = 0
             
+            for mi, mats in enumerate(omats):
+                for m in mats:
+                    if omi < len(ns):
+                        bfile.write(write_bound(obs[mi], m, ns[omi], nf[omi]))
+                        omi += 1
+                    
+            bfile.write(')\n\n// **\n')
+            
+        if expnode.poly:
+            Popen(shlex.split('foamExec polyDualMesh -case {} -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
+            Popen(shlex.split('foamExec combinePatchFaces -overwrite -case {} {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
+            
+            for file in os.listdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
+                shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', file), os.path.join(svp['flparams']['ofcpfilebase']))
+            
+            with open(os.path.join(svp['flparams']['offilebase'], '0', 'polyMesh', 'boundary'), 'r') as bfile:
+                nf = []
+                ns = []
+                for line in bfile.readlines():
+                    if 'nFaces' in line:
+                        nf.append(int(line.split()[1].strip(';')))
+                    if 'startFace' in line:
+                        ns.append(int(line.split()[1].strip(';')))
         
+        mesh = bpy.data.meshes.new("mesh") 
+        vcoords = []
+        findices = []
+        fi = []
+        fn = 0
+        prevline = ''    
             
         with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'points'), 'r') as mfile:
             for li, line in enumerate(mfile.readlines()):
@@ -2469,7 +2576,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             o.material_slots[-1].material = mat
             
         bpy.ops.object.material_slot_add()
-        o.material_slots[-1].material = bpy.data.materials.new("Volume")
+        o.material_slots[-1].material = bpy.data.materials.new("Volume") if 'Volume' not in [m.name for m in bpy.data.materials] else bpy.data.materials["Volume"]
         
         for face in o.data.polygons:
             mi = 0
@@ -2479,10 +2586,115 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     mi = 1
             if not mi:
                 face.material_index = len(ns)
-            
-        if expnode.vtk:
-            subprocess.Popen(shlex.split('foamExec foamToVTK -poly -case {}'.format(svp['flparams']['offilebase'])))
+   
+        if expnode.pv:
+            subprocess.Popen(shlex.split('foamExec paraFoam -builtin -case {}'.format(svp['flparams']['offilebase'])))
 
-            
-#        bpy.data.collection
         return {'FINISHED'}
+    
+class NODE_OT_Flo_Bound(bpy.types.Operator):
+    bl_idname = "node.flovi_bound"
+    bl_label = "Boundary export"
+    bl_description = "Export Openfoam boundaries"
+    bl_register = True
+    bl_undo = False
+    
+    def execute(self, context):
+        scene = context.scene
+        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
+        gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
+        obs = dobs + gobs
+        boundnode = context.node
+        meshnode = boundnode.inputs['Mesh in'].links[0].from_node
+        casenode = meshnode.inputs['Case in'].links[0].from_node
+        return {'FINISHED'}
+    
+class NODE_OT_Flo_Sim(bpy.types.Operator):
+    bl_idname = "node.flovi_sim"
+    bl_label = "FloVi simulation"
+    bl_description = "Solve an OpenFOAM case"
+    bl_register = True
+    bl_undo = True
+    
+    def modal(self, context, event):
+        if self.run.poll() is None and self.kivyrun.poll() is None:
+            with open(self.fpfile, 'r') as fpfile:
+                lines = fpfile.readlines()[::-1]
+                residict = {}
+
+                for line in lines:
+                    if 'Solving for' in line:
+                        residict[line.split()[3][:-1]] = abs(float(line.split()[7][:-1]))
+                    elif len(line.split()) and line.split()[0] == 'Time' and line.split()[1] == '=':
+                        residict[line.split()[0]] = float(line.split()[2])
+                    if len(residict) == len(self.residuals) + 1:
+                        break
+                print(residict, len(residict), len(self.residuals) + 1)
+                for var in residict:
+                    if var in ('epsilon', 'omega', 'k'):
+                        residict[var] = residict[var] - self.econvergence if residict[var] > self.econvergence else 0
+                    elif var == 'p':
+                        residict[var] = residict[var] - self.pconvergence if residict[var] > self.pconvergence else 0
+                    else:
+                        residict[var] = residict[var] - self.convergence if residict[var] > self.convergence else 0
+#                print(residict, self.econvergence, self.pconvergence, self.convergence)    
+                if residict:
+                    self.pfile.check("\n".join(['{0[0]} {0[1]}'.format(i) for i in residict.items()]))
+            return {'PASS_THROUGH'}
+        
+        elif self.run.poll() is None and self.kivyrun.poll() is not None:
+            self.run.kill()
+            return {'CANCELLED'}
+        else:
+            self.kivyrun.kill()
+            
+            if self.processes > 1:
+                Popen(shlex.split("foamExec reconstructPar -case {}".format(context.scene.vi_params['flparams']['offilebase']))).wait()
+                
+            Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(context.scene.vi_params['flparams']['offilebase']))).wait()
+            
+            if self.pv:
+                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(context.scene.vi_params['flparams']['offilebase'])))
+                
+            return {'FINISHED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        scene = context.scene
+        svp = scene.vi_params
+        simnode = context.node
+        
+        for root, dirs, files in os.walk(svp['flparams']['offilebase']):
+            for d in dirs:
+                try:
+                    if float(d) != svp['flparams']['st']:
+                        shutil.rmtree(os.path.join(root, d))
+                except:
+                    pass
+                
+        (self.convergence, self.econvergence, self.pconvergence, self.residuals, self.processes)  = (svp['flparams']['uresid'], svp['flparams']['keoresid'], svp['flparams']['presid'], svp['flparams']['residuals'], simnode.processes)
+        self.fpfile = os.path.join(svp['viparams']['newdir'], 'floviprogress')
+        self.pfile = fvprogressfile(svp['viparams']['newdir'])
+        self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), str(self.residuals))
+        self.pv = simnode.pv
+        
+        with open(self.fpfile, 'w') as fvprogress:
+            if self.processes > 1:
+                with open(os.path.join(svp['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
+                    fvdcpfile.write(fvdcpwrite(self.processes))
+                Popen(shlex.split("foamExec decomposePar -force -case {}".format(svp['flparams']['offilebase']))).wait()
+                self.run = Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], svp['flparams']['offilebase'])), stdout = fvprogress)
+            else:
+                print(svp['flparams']['solver'], "-case", "{}".format(svp['flparams']['offilebase']))
+                self.run = Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", svp['flparams']['offilebase'])), stdout = fvprogress)
+        
+
+#        self.pv = simnode.pv
+            
+#        simnode.postsim()
+        self._timer = wm.event_timer_add(5, window = context.window)
+        wm.modal_handler_add(self)        
+        return {'RUNNING_MODAL'}
+    
+    def terminate(self, scene):
+        self.run.kill()
