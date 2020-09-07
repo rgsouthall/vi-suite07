@@ -22,12 +22,11 @@ bl_info = {
     "author": "Ryan Southall",
     "version": (0, 6, 0),
     "blender": (2, 83),
-    "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
-    "description": "Radiance/EnergyPlus exporter and results visualiser",
+    "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
-    "wiki_url": "",
-    "tracker_url": "",
+    "tracker_url": "https://github.com/rgsouthall/vi-suite06/issues",
+    "doc_url": "http://blogs.brighton.ac.uk/visuite/",
     "category": "Import-Export"}
 
 if "bpy" in locals():
@@ -49,7 +48,9 @@ else:
                 os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
         else:
             os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-        os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)       
+        if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
+            os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
+            os.execv(sys.argv[0], sys.argv)
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform))  
     try:
         from netgen.meshing import *
@@ -73,7 +74,7 @@ else:
     from .vi_func import lividisplay
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, radbsdf, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
-    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update
+    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update, ret_fvrad_menu
     #    from .vi_display import setcols
 
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
@@ -167,7 +168,7 @@ class VIPreferences(AddonPreferences):
     epweath: StringProperty(name = '', description = 'EnergyPlus weather directory location', default = '', subtype='DIR_PATH', update=abspath)
     ofbin: StringProperty(name = '', description = 'OpenFOAM binary directory location', default = '', subtype='DIR_PATH', update=abspath)
     oflib: StringProperty(name = '', description = 'OpenFOAM library directory location', default = '', subtype='DIR_PATH', update=abspath)
-    ofetc: StringProperty(name = '', description = 'OpenFOAM letc directory location', default = '', subtype='DIR_PATH', update=abspath)
+    ofetc: StringProperty(name = '', description = 'OpenFOAM etc directory location', default = '', subtype='DIR_PATH', update=abspath)
     ui_dict = {"Radiance bin directory:": 'radbin', "Radiance lib directory:": 'radlib', "EnergyPlus bin directory:": 'epbin',
                "EnergyPlus weather directory:": 'epweath', 'OpenFOAM bin directory': 'ofbin', 'OpenFOAM lib directory': 'oflib', 'OpenFOAM etc directory': 'ofetc'}
 
@@ -460,15 +461,21 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_bmbti_val: fprop("", "T inlet/outlet value", 0, 1000, 300)
     flovi_t_field: bprop("", "Take boundary t from the field t", False)
 
-    flovi_bmba_subtype: EnumProperty(items = ret_fvba_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmba_val: fprop("", "T value", -1000, 1000, 0.0)
+    flovi_a_subtype: EnumProperty(items = ret_fvba_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_a_val: fprop("", "T value", -1000, 1000, 0.0)
     flovi_a_field: bprop("", "Take boundary alphat from the field alphat", False)
 
     flovi_prgh_subtype: EnumProperty(items = ret_fvbprgh_menu, name = "", description = "FloVi sub-type boundary")
     flovi_prgh_val: fprop("", "p_rgh value", -1000, 1000, 0.0)
+    flovi_prgh_p: fprop("", "p_rgh p", -1000, 1000, 0.0)
     flovi_prgh_field: bprop("", "Take boundary p_rgh from the field p_rgh", True)    
     
     flovi_ng_max: fprop("", "Netgen max cell size", 0.001, 100, 0.5)
+    
+    flovi_rad_subtype: EnumProperty(items = ret_fvrad_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_rad_em: eprop([('lookup', 'Lookup', 'Lookup emissivity')], "", "Emissivity mode", 'lookup')
+    flovi_rad_e: fprop("", "Emissivity value", 0, 1, 0.5)
+    flovi_rad_val: fprop("", "Radiation value", 0, 10000, 0)
         
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
@@ -564,8 +571,10 @@ def path_update():
             os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
         os.environ["WM_PROJECT_DIR"] = ofedir
     if sys.platform == 'linux':
-        Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
-        Popen('/opt/OpenFOAM/OpenFOAM-7/etc/bashrc', shell=True, executable="/bin/bash")
+        if ofedir:
+            Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
+        else:
+            Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
         
 
 #def tupdate(self, context):

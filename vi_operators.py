@@ -47,7 +47,7 @@ from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
 
 from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvraswrite, fvmtwrite
-from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite
+from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 
 from .vi_func import windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
@@ -2242,6 +2242,25 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         if viparams(self, scene):
             return {'CANCELLED'} 
         
+        for f in os.listdir(svp['flparams']['of0filebase']):
+#            for f in files:
+            try:
+                os.remove(os.path.join(svp['flparams']['of0filebase'], f))
+            except:
+                pass
+        
+        for f in os.listdir(svp['flparams']['ofcfilebase']):
+#            for f in files:
+            try:
+                os.remove(os.path.join(svp['flparams']['ofcfilebase'], f))
+            except:
+                pass
+                # try:
+                #     if float(d) != svp['flparams']['st']:
+                #         shutil.rmtree(os.path.join(root, d))
+                # except:
+                #     pass
+                
 #                    shutil.rmtree()
 #        if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], node.stime)):
 #            os.makedirs(os.path.join(svp['flparams']['offilebase'], node.stime))
@@ -2255,30 +2274,36 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         #     logentry("Not every face has a material attached")
         #     return {'CANCELLED'}
         if casenode.turbulence == 'laminar':
-            svp['flparams']['solver'] = 'icoFoam'             
+            svp['flparams']['solver'] = 'icoFoam' 
+            svp['flparams']['solver_type'] = 'if'            
         elif casenode.transience == '0':
             if casenode.buoyancy:                
                 svp['flparams']['solver'] = 'buoyantSimpleFoam' 
                 if not casenode.buossinesq:
-                    solver = 'bsf'
+                    svp['flparams']['solver_type'] = 'bsf'
                     svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e']
                 else:
-                    solver = 'bbsf'
+                    svp['flparams']['solver_type'] = 'bbsf'
                     svp['flparams']['residuals'] = ['Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e', 'p_rgh']
             else:
                 svp['flparams']['solver'] = 'simpleFoam' 
-                svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon']
-                solver = 'sf'
+                if casenode.turbulence == 'kEpsilon':
+                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon']
+                if casenode.turbulence == 'kOmega':  
+                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'omega']
+                if casenode.turbulence == 'SpalartAllmaras':  
+                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'nuTilda']
+                svp['flparams']['solver_type'] = 'sf'
         elif casenode.transience == '1':
             if casenode.buoyancy:
                 svp['flparams']['solver'] = 'buoyantPimpleFoam'
                 if not casenode.buossinesq:
-                    solver = 'bpf'
+                    svp['flparams']['solver_type'] = 'bpf'
                 else:
-                    solver = 'bbpf'
+                    svp['flparams']['solver_type'] = 'bbpf'
             else:
                 svp['flparams']['solver'] = 'pimpleFoam' 
-                solver = 'pf'
+                svp['flparams']['solver_type'] = 'pf'
         
 
         svp['flparams']['st'] = casenode.stime
@@ -2289,22 +2314,24 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
             cdfile.write(fvcdwrite(casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
-            fvsolfile.write(fvsolwrite(casenode, solver))
+            fvsolfile.write(fvsolwrite(casenode, svp['flparams']['solver_type']))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
-            fvschfile.write(fvschwrite(casenode, solver))
+            fvschfile.write(fvschwrite(casenode, svp['flparams']['solver_type']))
         with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:    
-            tpfile.write(fvtpwrite(casenode, solver))
+            tpfile.write(fvtpwrite(casenode, svp['flparams']['solver_type']))
         with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
             mtfile.write(fvraswrite(casenode.turbulence))
         if casenode.buoyancy:   
             with open(os.path.join(svp['flparams']['ofcfilebase'], 'thermophysicalProperties'), 'w') as tppfile:    
-                tppfile.write(fvtppwrite(casenode, solver))
+                tppfile.write(fvtppwrite(casenode, svp['flparams']['solver_type']))
             with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
-                mtfile.write(fvmtwrite(casenode, solver))
+                mtfile.write(fvmtwrite(casenode, svp['flparams']['solver_type']))
             with open(os.path.join(svp['flparams']['ofcfilebase'], 'g'), 'w') as gfile:    
                 gfile.write(fvgwrite())   
-                
-        fvvarwrite(scene, obs, casenode)
+            if casenode.radiation:    
+                 with open(os.path.join(svp['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as rpfile:    
+                     rpfile.write(fvrpwrite(casenode, svp['flparams']['solver_type']))
+        
 #        fvsolvew(casenode, solver)
 #        with open(os.path.join(svp['flparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
 #            bmfile.write(fvbmwrite(bmos[0], expnode))
@@ -2426,6 +2453,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     fpoint = [sum(m[v].p[x]/3 for v in el.vertices) for x in (0, 1, 2)]
                     fnorm = mathutils.geometry.normal([m[v].p for v in el.vertices]) 
                     intersect = 0
+                    
                     for face in bm.faces:
                         if bmesh.geometry.intersect_face_point(face, fpoint) and abs(mathutils.geometry.distance_point_to_plane(fpoint, face.calc_center_bounds(), face.normal)) < expnode.pcorr and abs(fnorm.dot(face.normal)) > expnode.acorr:
                             el.index = face.material_index + 1 + sum(mns[:oi + 1]) 
@@ -2607,6 +2635,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
         boundnode = context.node
         meshnode = boundnode.inputs['Mesh in'].links[0].from_node
         casenode = meshnode.inputs['Case in'].links[0].from_node
+        fvvarwrite(scene, obs, casenode)
         return {'FINISHED'}
     
 class NODE_OT_Flo_Sim(bpy.types.Operator):
@@ -2629,7 +2658,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         residict[line.split()[0]] = float(line.split()[2])
                     if len(residict) == len(self.residuals) + 1:
                         break
-                print(residict, len(residict), len(self.residuals) + 1)
+
                 for var in residict:
                     if var in ('epsilon', 'omega', 'k'):
                         residict[var] = residict[var] - self.econvergence if residict[var] > self.econvergence else 0

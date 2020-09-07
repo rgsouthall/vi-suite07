@@ -2077,9 +2077,29 @@ class No_Flo_Case(Node, ViNodes):
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.turbulence)])
-
+        params = ''
     
-    solver: EnumProperty(name = '', items = [('SimpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'SimpleFoam')
+        if self.buoyancy:
+            params += 't'            
+            if self.buossinesq:
+                params += 'b'
+            if self.radiation:
+                if self.radmodel == '0':
+                    params+= 'p'
+                else:
+                    params+= 'f'
+        if self.turbulence == 'laminar':
+            params += 'l'
+        if self.turbulence == 'kEpsilon':
+            params += 'k'
+        if self.turbulence == 'kOmega':
+            params += 'o'
+        if self.turbulence == 'SpalartAllmaras':
+            params += 's'
+            
+        context.scene.vi_params['flparams']['params'] = params
+    
+    solver: EnumProperty(name = '', items = [('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'simpleFoam')
     transience: EnumProperty(name = '', items = [('0', 'Steady', 'Steady state simulation'),
                                                  ('1', 'Transient', 'Transient simulation')], description = 'Transience selection', default = '0')
     
@@ -2088,9 +2108,9 @@ class No_Flo_Case(Node, ViNodes):
                                       ('kOmega', 'k-Omega', 'Transient turbulence solver'), 
                                       ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", 
                              default = 'kEpsilon', update = nodeupdate)
-    buoyancy: BoolProperty(name = '', description = 'Buoyancy', default = 0)
-    radiation: BoolProperty(name = '', description = 'Radiation', default = 0)
-    buossinesq: BoolProperty(name = '', description = 'Buossinesq approximation', default = 0)
+    buoyancy: BoolProperty(name = '', description = 'Thermal', default = 0, update = nodeupdate)
+    radiation: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
+    buossinesq: BoolProperty(name = '', description = 'Buossinesq approximation', default = 0, update = nodeupdate)
     stime: FloatProperty(name = '', description = 'Simulation start time', min = 0, max = 10, default = 0)
     dtime: FloatProperty(name = '', description = 'False time step', min = 0.001, max = 10, default = 0.005)
     etime: FloatProperty(name = '', description = 'Simulation end time', min = 1, max = 1000, default = 5)
@@ -2109,11 +2129,14 @@ class No_Flo_Case(Node, ViNodes):
     keoresid: FloatProperty(name = "", description = "k/e/o convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
     aval: FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     p_rghval: FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
-     
+    Gval: FloatProperty(name = "", description = "Field radiation value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
+    radmodel: EnumProperty(name = '', items = [('0', 'P1', 'P1 radiation model'), ('1', 'fvDOM', 'fvDOM radiation model')], description = 'Radiation model selection', default = '0', update = nodeupdate)
+    
     def init(self, context):
         self['exportstate'] = ''
         self.outputs.new('So_Flo_Case', 'Case out')
         nodecolour(self, 1)
+        context.scene.vi_params['flparams']['params'] = 'l'
     
     def draw_buttons(self, context, layout):    
         newrow(layout, 'Transience:', self, 'transience')
@@ -2124,6 +2147,9 @@ class No_Flo_Case(Node, ViNodes):
             if self.buoyancy:
                 newrow(layout, 'Buossinesq:', self, 'buossinesq')
                 newrow(layout, 'Radiation:', self, 'radiation')
+                if self.radiation:
+                    newrow(layout, 'Radiation:', self, 'radmodel')
+                    
             
         newrow(layout, 'Start time:', self, 'stime')
         newrow(layout, 'Time step:', self, 'dtime')
@@ -2132,9 +2158,9 @@ class No_Flo_Case(Node, ViNodes):
 #        newrow(layout, 'Pressure val:', self, 'pval')
         
         if not self.buoyancy:
-            newrow(layout, 'Pressure norm:', self, 'pabsval')
+            newrow(layout, 'Pressure rel:', self, 'pnormval')
         else:
-            newrow(layout, 'Pressure abs:', self, 'pnormval')
+            newrow(layout, 'Pressure abs:', self, 'pabsval')
             newrow(layout, 'p_rgh value:', self, 'p_rghval')
                 
         if self.turbulence != 'laminar':
@@ -2154,6 +2180,10 @@ class No_Flo_Case(Node, ViNodes):
         if self.buoyancy:
             newrow(layout, 'T value:', self, 'tval')
             
+            if self.radiation:
+                newrow(layout, 'Rad model:', self, 'radmodel')
+                newrow(layout, 'G value:', self, 'Gval')
+            
         newrow(layout, 'p Residual:', self, 'presid')
         newrow(layout, 'U Residual:', self, 'uresid')
         newrow(layout, 'k/e/o Residual:', self, 'keoresid')
@@ -2162,8 +2192,7 @@ class No_Flo_Case(Node, ViNodes):
         
     def post_case(self):
         self['exportstate'] = self.ret_params()
-        nodecolour(self, 0)
-        
+        nodecolour(self, 0)       
         
 class No_Flo_NG(Node, ViNodes):
     '''Netgen mesh export'''
@@ -2220,8 +2249,7 @@ class No_Flo_Bound(Node, ViNodes):
         nodecolour(self, 1)
     
     def draw_buttons(self, context, layout):         
-        if self.inputs and self.inputs['Mesh in'].links:
-            
+        if self.inputs and self.inputs['Mesh in'].links:            
             row = layout.row()
             row.operator("node.flovi_bound", text = "Generate")
             
