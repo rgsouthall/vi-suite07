@@ -48,7 +48,9 @@ else:
                 os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
         else:
             os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-        if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
+        if not os.environ.get('LD_LIBRARY_PATH'):
+            os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+        elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
             os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
             os.execv(sys.argv[0], sys.argv)
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform))  
