@@ -38,7 +38,7 @@ if "bpy" in locals():
     imp.reload(envi_mat)
 else:
     import sys, os, inspect, shlex
-    from subprocess import Popen
+    from subprocess import Popen, call
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
@@ -54,6 +54,7 @@ else:
             os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
             os.execv(sys.argv[0], sys.argv)
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform))  
+    
     try:
         from netgen.meshing import *
     except Exception as e:
@@ -557,7 +558,7 @@ def path_update():
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin') 
     ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin') 
     ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
-    ofedir = vi_prefs.ofetc if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles')
+    ofedir = vi_prefs.ofetc if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
 
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
@@ -577,7 +578,9 @@ def path_update():
             Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
         else:
             Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
-        
+    if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'setvars.bat')):
+        print(os.path.join(ofedir, 'setvars.bat'), vi_prefs.ofetc)
+        call(os.path.join(ofedir, 'setvars.bat')) 
 
 #def tupdate(self, context):
 #    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
