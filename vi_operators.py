@@ -2234,7 +2234,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         svp = scene.vi_params
         casenode = context.node# if context.node.bl_label == "FloVi BlockMesh" else context.node.inputs[0].links[0].from_node
 #        bmos = [o for o in scene.objects if o.vi_params.vi_type == '2']
-
+        casenode.pre_case(context)
         dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
         obs = dobs + gobs
@@ -2407,6 +2407,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         omats = [[s.material for s in ob.material_slots] for ob in obs]
         fomats = [item for sublist in omats for item in sublist]
         sizes = [m.vi_params.flovi_ng_max for m in fomats]
+        spes = [1, 0.01]
         i= 0
         
         for mis, mats in enumerate(omats):    
@@ -2422,6 +2423,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 
         for oi, o in enumerate(obs):
             mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading)
+            print(dir(mp))
             bm = bmesh.new()
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
@@ -2444,7 +2446,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             for v in bm.verts:
                 mp.RestrictH(x=v.co[0],y=v.co[1],z=v.co[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in v.link_faces])])
-             
+            
+            for e in bm.edges:
+                if e.calc_length() > 2* sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])]:
+                    segs = int(e.calc_length()/sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])]) + 1
+                    
+                    for s in range(1, segs):
+                        vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
+                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
+                    
             with ngcore.TaskManager():
                 m = geo.GenerateMesh(mp = mp)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
                 m.Refine()
@@ -2516,30 +2526,30 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         for file in os.listdir(svp['flparams']['ofcpfilebase']):
             shutil.copy(os.path.join(svp['flparams']['ofcpfilebase'], file), os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
         
-        with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
-            nf = []
-            ns = []
-            for line in bfile.readlines():
-                if 'nFaces' in line:
-                    nf.append(int(line.split()[1].strip(';')))
-                if 'startFace' in line:
-                    ns.append(int(line.split()[1].strip(';')))
+        # with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
+        #     nf = []
+        #     ns = []
+        #     for line in bfile.readlines():
+        #         if 'nFaces' in line:
+        #             nf.append(int(line.split()[1].strip(';')))
+        #         if 'startFace' in line:
+        #             ns.append(int(line.split()[1].strip(';')))
 
-        with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'w') as bfile:
-            bfile.write(ofheader) 
-            cl = 'polyBoundaryMesh' if expnode.bl_label == 'FloVi NetGen' else 'BoundaryMesh'
-            loc = 'constant/polyMesh' if expnode.bl_label == 'FloVi NetGen' else 'Mesh'
-            bfile.write(write_ffile(cl, loc, 'boundary'))
-            bfile.write('// **\n\n{}\n(\n'.format(len(ns)))
-            omi = 0
+        # with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'w') as bfile:
+        #     bfile.write(ofheader) 
+        #     cl = 'polyBoundaryMesh' if expnode.bl_label == 'FloVi NetGen' else 'BoundaryMesh'
+        #     loc = 'constant/polyMesh' if expnode.bl_label == 'FloVi NetGen' else 'Mesh'
+        #     bfile.write(write_ffile(cl, loc, 'boundary'))
+        #     bfile.write('// **\n\n{}\n(\n'.format(len(ns)))
+        #     omi = 0
             
-            for mi, mats in enumerate(omats):
-                for m in mats:
-                    if omi < len(ns):
-                        bfile.write(write_bound(obs[mi], m, ns[omi], nf[omi]))
-                        omi += 1
+        #     for mi, mats in enumerate(omats):
+        #         for m in mats:
+        #             if omi < len(ns):
+        #                 bfile.write(write_bound(obs[mi], m, ns[omi], nf[omi]))
+        #                 omi += 1
                     
-            bfile.write(')\n\n// **\n')
+        #     bfile.write(')\n\n// **\n')
             
         if expnode.poly:
             Popen(shlex.split('foamExec polyDualMesh -case {} -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()

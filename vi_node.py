@@ -2189,6 +2189,9 @@ class No_Flo_Case(Node, ViNodes):
         newrow(layout, 'k/e/o Residual:', self, 'keoresid')
         row = layout.row()
         row.operator("node.flovi_case", text = "Export")
+    
+    def pre_case(self, context):
+        self.nodeupdate(context)
         
     def post_case(self):
         self['exportstate'] = self.ret_params()

@@ -573,11 +573,9 @@ def path_update():
         else:
             os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
         os.environ["WM_PROJECT_DIR"] = ofedir
-    if sys.platform == 'linux':
-        if ofedir:
-            Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
-        else:
-            Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
+    if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
+        Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
+        Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
     if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'setvars.bat')):
         print(os.path.join(ofedir, 'setvars.bat'), vi_prefs.ofetc)
         call(os.path.join(ofedir, 'setvars.bat')) 
