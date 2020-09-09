@@ -26,7 +26,7 @@ import pyngcore as ngcore
 from ngsolve.solve import Draw
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16
+from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -111,6 +111,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
             me = bpy.data.meshes.new("{} mesh".format(basename))
             bm = bmesh.new()
             l = 0
+
             with open(file, 'r') as ascfile:
                 lines = ascfile.readlines()
                 
@@ -146,11 +147,12 @@ class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
             bm.to_mesh(me)
             bm.free()
             ob = bpy.data.objects.new(basename, me)
+
             if ob.name not in asccoll.objects:
                 asccoll.objects.link(ob)
                 if ob.name in scene.collection.objects:
                     scene.collection.objects.unlink(ob)
-#            bpy.context.view_layer.objects.link(ob)
+
             obs.append(ob)
 
         minstartx,  minstarty = min(startxs), min(startys)
@@ -191,6 +193,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         
         if viparams(self, scene):
             return {'CANCELLED'}
+
         if not plt:
             self.report({'ERROR'},"There is something wrong with your matplotlib installation")
             return {'FINISHED'}
@@ -2243,14 +2246,12 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             return {'CANCELLED'} 
         
         for f in os.listdir(svp['flparams']['of0filebase']):
-#            for f in files:
             try:
                 os.remove(os.path.join(svp['flparams']['of0filebase'], f))
             except:
                 pass
         
         for f in os.listdir(svp['flparams']['ofcfilebase']):
-#            for f in files:
             try:
                 os.remove(os.path.join(svp['flparams']['ofcfilebase'], f))
             except:
@@ -2266,13 +2267,14 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
 #            os.makedirs(os.path.join(svp['flparams']['offilebase'], node.stime))
 
         
-        # if len(bmos) != 1:
-        #     self.report({'ERROR'},"One and only one object with the CFD Domain property is allowed")
-        #     return {'CANCELLED'}
-        # elif [f.material_index for f in bmos[0].data.polygons if f.material_index + 1 > len(bmos[0].data.materials)]:
-        #     self.report({'ERROR'},"Not every domain face has a material attached")
-        #     logentry("Not every face has a material attached")
-        #     return {'CANCELLED'}
+        if len(dobs) != 1:
+            self.report({'ERROR'},"One, and only one object with the CFD Domain property is allowed")
+            return {'CANCELLED'}
+        elif [f.material_index for f in dobs[0].data.polygons if f.material_index + 1 > len(dobs[0].data.materials)]:
+            self.report({'ERROR'},"Not every domain face has a material attached")
+            logentry("Not every face has a material attached")
+            return {'CANCELLED'}
+
         if casenode.turbulence == 'laminar':
             svp['flparams']['solver'] = 'icoFoam' 
             svp['flparams']['solver_type'] = 'if'            
@@ -2402,12 +2404,18 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
         obs = dobs + gobs
+        omats = []
+        mns = [0]
         fds = []
-        mns = [0] + [len([ms for ms in o.material_slots if ms.material]) for o in obs]
-        omats = [[s.material for s in ob.material_slots] for ob in obs]
+
+        for ob in obs:
+            mis = empty(len(ob.data.polygons), dtype=uint8)
+            ob.data.polygons.foreach_get('material_index', mis)
+            omats.append([ob.material_slots[i].material for i in set(mis)])
+            mns.append(len(set(mis)))
+
         fomats = [item for sublist in omats for item in sublist]
         sizes = [m.vi_params.flovi_ng_max for m in fomats]
-        spes = [1, 0.01]
         i= 0
         
         for mis, mats in enumerate(omats):    
@@ -2423,7 +2431,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 
         for oi, o in enumerate(obs):
             mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading)
-            print(dir(mp))
             bm = bmesh.new()
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
@@ -2448,8 +2455,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 mp.RestrictH(x=v.co[0],y=v.co[1],z=v.co[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in v.link_faces])])
             
             for e in bm.edges:
-                if e.calc_length() > 2* sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])]:
-                    segs = int(e.calc_length()/sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])]) + 1
+                if e.calc_length() > 2 * max([sizes[f] for f in [f.material_index + sum(mns[:oi + 1]) for f in e.link_faces]]):
+                    segs = int(e.calc_length()/max([sizes[f] for f in [f.material_index + sum(mns[:oi + 1]) for f in e.link_faces]])) + 1
                     
                     for s in range(1, segs):
                         vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
@@ -2694,14 +2701,38 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             
             if self.pv:
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(context.scene.vi_params['flparams']['offilebase'])))
-                
+
+            if os.path.isdir(os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')):
+                probed = os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')
+                reslists = []
+                resdict = {'p': 'Pressure', 'U': 'Velocity', 'T': 'Temperature'}
+                for f in os.listdir(probed):
+                    with open(os.path.join(probed, f), 'r') as resfile:
+                        res = []
+                        for l in resfile.readlines():
+                            if l and l[0] != '#':
+                                if f in ('p', 'T'):
+                                    res.append(l.split())
+                                    resarray = array(res)
+                                    resarray = transpose(resarray)
+                                    
+                        for ri, r in enumerate(resarray[1:]):
+                            reslists.append(['All', 'Probe', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                                #elif f == 'U':
+                                    #resx = 0
+
+                reslists.append(['All', 'Probe', 'All', 'Times', ' '.join(['{}'.format(f) for f in resarray[0]])])
+#                ['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
+            self.simnode['reslists'] = reslists
+            self.simnode['year'] = 2020
+            print(reslists)
             return {'FINISHED'}
 
     def invoke(self, context, event):
         wm = context.window_manager
         scene = context.scene
         svp = scene.vi_params
-        simnode = context.node
+        self.simnode = context.node
         
         for root, dirs, files in os.walk(svp['flparams']['offilebase']):
             for d in dirs:
@@ -2711,11 +2742,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 except:
                     pass
                 
-        (self.convergence, self.econvergence, self.pconvergence, self.residuals, self.processes)  = (svp['flparams']['uresid'], svp['flparams']['keoresid'], svp['flparams']['presid'], svp['flparams']['residuals'], simnode.processes)
+        (self.convergence, self.econvergence, self.pconvergence, self.residuals, self.processes)  = (svp['flparams']['uresid'], svp['flparams']['keoresid'], svp['flparams']['presid'], svp['flparams']['residuals'], self.simnode.processes)
         self.fpfile = os.path.join(svp['viparams']['newdir'], 'floviprogress')
         self.pfile = fvprogressfile(svp['viparams']['newdir'])
         self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), str(self.residuals))
-        self.pv = simnode.pv
+        self.pv = self.simnode.pv
         
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:

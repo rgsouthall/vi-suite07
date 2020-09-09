@@ -745,13 +745,14 @@ def clearanim(scene, obs):
             bpy.ops.object.shape_key_remove(all=True)
             
 def clearfiles(filebase):
-    fileList = os.listdir(filebase)
-    
-    for fileName in fileList:
-        try:
-            os.remove(os.path.join(filebase, fileName))
-        except:
-            pass
+    if os.path.isdir(filebase):
+        fileList = os.listdir(filebase)
+        
+        for fileName in fileList:
+            try:
+                os.remove(os.path.join(filebase, fileName))
+            except:
+                pass
                     
 def clearscene(scene, op):
     svp = scene.vi_params

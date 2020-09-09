@@ -379,6 +379,10 @@ def retrmenus(innode, node, axis):
     powtype = [(metric, metric, "Plot " + metric) for metric in powtypes]
     powrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Power' and zrl[0][m] == frame]))
     powrtype = [(metric, metric, "Plot " + metric) for metric in powrtypes]
+    probetypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Probe' and zrl[0][m] == frame]))
+    probetype = [(metric, metric, "Plot " + metric) for metric in probetypes]
+    probertypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Probe' and zrl[0][m] == frame]))
+    probertype = [(metric, metric, "Plot " + metric) for metric in probertypes]
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
@@ -398,9 +402,10 @@ def retrmenus(innode, node, axis):
     camrmenu = bpy.props.EnumProperty(items=camrtype, name="", description="Camera result", default = camrtype[0][0]) if camtypes else ''
     powmenu = bpy.props.EnumProperty(items=powtype, name="", description="Power result", default = powtype[0][0]) if powtype else ''
     powrmenu = bpy.props.EnumProperty(items=powrtype, name="", description="Power result", default = powrtype[0][0]) if powrtype else ''
+    probemenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default = probertype[0][0]) if probertype else ''
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = -10000, max = 10000, default = 1)
     
-    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, multfactor)
+    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor)
 
 def processh(lines, znlist): 
     hdict = {}

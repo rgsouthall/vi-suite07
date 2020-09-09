@@ -312,8 +312,10 @@ def fvmat(self, mn, bound):
     if bound == 'p':
         val = 'uniform {}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
         pdict = {'0': self.flovi_bmbp_subtype, '1': self.flovi_bmbp_subtype, '2': 'symmetry', '3': 'empty'}
-        ptdict = {'zeroGradient': 'zeroGradient', 'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'calculated': 'calculated;\n    value    $internalField', 
-        'freestreamPressure': 'freestreamPressure', 'totalPressure': 'totalPressure;\n    p0      uniform {};\n    gamma    {};\n    value    {}'.format(self.flovi_bmbp_p0val, self.flovi_bmbp_gamma, val), 'symmetry': 'symmetry', 'empty': 'empty'}
+        ptdict = {'zeroGradient': 'zeroGradient', 'fixedValue': 'fixedValue;\n    value    {}'.format(val), 
+                'calculated': 'calculated;\n    value    $internalField', 
+                'freestreamPressure': 'freestreamPressure', 
+                'totalPressure': 'totalPressure;\n    p0      uniform {};\n    gamma    {};\n    value    {}'.format(self.flovi_bmbp_p0val, self.flovi_bmbp_gamma, val), 'symmetry': 'symmetry', 'empty': 'empty'}
 #        if pdict[self.flovi_bmb_type] == 'zeroGradient':
         entry = ptdict[pdict[self.flovi_bmb_type]]            
 #        return begin + entry + end 
@@ -511,20 +513,22 @@ def fvcdwrite(solver, st, dt, et):
     pw = 0 if solver == 'icoFoam' else 1
     ps = []
     
+
     for o in bpy.data.objects:
         if o.type == 'MESH' and o.vi_params.vi_type == '2':
             dom = o
         if o.type == 'EMPTY' and o.vi_params.flovi_probe:
             ps.append(o)
     if ps:
-        probe_vars = 'p T Ux'
+        bpy.context.scene.vi_params['flparams']['probes'] = [p.name for p in ps]
+        probe_vars = 'p U T'          
         probe_text = '''functions
 {{
     probes
     {{
         libs            ("libsampling.so");
         type            probes;
-        name            probes;
+        name            {2};
         writeControl    timeStep;
         writeInterval   1;
         fields          ({0});
@@ -533,10 +537,11 @@ def fvcdwrite(solver, st, dt, et):
             {1}
         );
     }}
-}}'''.format(probe_vars, ''.join(['( {0[0]} {0[1]} {0[2]} )\n'.format(p.location) for p in ps]))
-        print(probe_text)
+}}'''.format(probe_vars, ''.join(['( {0[0]} {0[1]} {0[2]} )\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name) for p in ps]))
+
     else:
         probe_text = ''
+        bpy.context.scene.vi_params['flparams']['probes'] = []
     return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
             'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {};\n'.format(solver, st, et, dt)+\
             'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\
@@ -546,8 +551,7 @@ def fvcdwrite(solver, st, dt, et):
 
 def fvsolwrite(node, solver):
     basedict = {'solvers': {}, }
-    print(node.solver)
-    
+ 
     if node.transience == '0' and node.turbulence != 'laminar':
         if not node.buoyancy:
             soldict = {'solvers': {'p': {'solver': 'GAMG', 'smoother': 'GaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}},

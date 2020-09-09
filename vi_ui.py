@@ -326,7 +326,7 @@ class VI_PT_Mat(bpy.types.Panel):
 #                if fvsimnode:
 #                    svp['flparams']['solver'] = fvsimnode.solver
     #            newrow(layout, "Type:", cm, "flovi_bmb_subtype")
-                if mvp.flovi_bmb_type in ('0', '1'):
+                if mvp.flovi_bmb_type in ('0', '1') and svp['flparams'].get('solver_type'):
                     newrow(layout, "p type:", mvp, "flovi_bmbp_subtype")
                     
                     if mvp.flovi_bmbp_subtype in ('fixedValue', 'totalPressure'):

@@ -1576,7 +1576,7 @@ class No_Vi_Chart(Node, ViNodes):
 #                    if innode['reslists']:
                     (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                      zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                     chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, multfactor) = retrmenus(innode, self, 'X-axis')
+                     chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'X-axis')
                         
             bpy.utils.register_class(ViEnRXIn)
     
@@ -1598,7 +1598,7 @@ class No_Vi_Chart(Node, ViNodes):
                         bl_label = 'Y-axis 1'
                         (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                          zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, multfactor) = retrmenus(innode, self, 'Y-axis 1')
+                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 1')
     
                     self.inputs['Y-axis 2'].hide = False
                 bpy.utils.register_class(ViEnRY1In)
@@ -1622,7 +1622,7 @@ class No_Vi_Chart(Node, ViNodes):
     
                         (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                          zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, multfactor) = retrmenus(innode, self, 'Y-axis 2')
+                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 2')
     
                     self.inputs['Y-axis 3'].hide = False
     
@@ -1644,7 +1644,7 @@ class No_Vi_Chart(Node, ViNodes):
     
                         (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                          zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, multfactor) = retrmenus(innode, self, 'Y-axis 3')
+                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 3')
     
                 bpy.utils.register_class(ViEnRY3In)
         except Exception as e:
