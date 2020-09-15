@@ -15,7 +15,8 @@ def llabel(dnode, metric, axis, variant):
              'Frames': 'Frames', 'Camera': dnode.inputs[axis].cammenu, 
              'Position': dnode.inputs[axis].posmenu, 
              'External': dnode.inputs[axis].enmenu,
-             'Power': dnode.inputs[axis].powmenu}
+             'Power': dnode.inputs[axis].powmenu,
+             'Probe': dnode.inputs[axis].probemenu }
     ldict = {'type': rdict[dnode.inputs[axis].rtypemenu], 'metric': metric, }
     return ldict[variant]
     
@@ -93,7 +94,9 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     ddata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Day']
     sdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'DOS']
     hdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Hour']
-    
+    tdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Steps']
+    print(tdata)
+
     if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
         si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"]  - bpy.context.scene.frame_start
     
@@ -114,6 +117,9 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         ddata = [int(d) for d in ddata[0]][si:ei + 1]
         sdata = [int(s) for s in sdata[0]][si:ei + 1]
     
+    elif rnx.bl_label == 'Flovi Simulation':
+        si, ei = 0, len(tdata)
+    
     else:
         si, ei = 0, -2
 
@@ -124,12 +130,15 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         if dnode.timemenu == '0':
             xdata = range(1, ei-si + 2)
             xlabel = 'Time (hours)'
-        if dnode.timemenu == '1':
+        elif dnode.timemenu == '1':
             xdata = range(dnode['Start'], dnode['End'] + 1)
             xlabel = 'Time (day of year)'
-        if dnode.timemenu == '2':
+        elif dnode.timemenu == '2':
             xdata = range(Sdate.month, Edate.month + 1)
-            xlabel = 'Time (months)'        
+            xlabel = 'Time (months)'  
+        if rnx.bl_label == 'FloVi Simulation':
+            xdata = [float(s) for s in tdata[0]][si:ei]
+            xlabel = 'False time'           
     else:
         menus = retmenu(dnode, 'X-axis', dnode.inputs['X-axis'].rtypemenu)        
         data = [rx[4].split()[si:ei + 1] for rx in rlx if rx[0] == framex and rx[1] == dnode.inputs['X-axis'].rtypemenu and rx[2] == menus[0] and rx[3] == menus[1]][0]

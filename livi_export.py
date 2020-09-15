@@ -69,7 +69,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
 
         
         if o.data.polygons and o.data.polygons[0].use_smooth:
-            vtext += ''.join(['vn {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n'.format(v.normal.normalized()) for v in bm.verts])
+            vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
             
         if not o.data.uv_layers:            
             if mfaces:
@@ -240,15 +240,16 @@ def radgexport(export_op, node, **kwargs):
                 ab_ies_path = bpy.path.abspath(ovp.ies_name)
                 iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
                 print('hi', bpy.path.abspath(ovp.ies_name), ovp.ies_name, iesname)
+
                 if os.path.isfile(ab_ies_path):
-                    iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
+                    iescmd = "ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
                     logentry('Running ies2rad with command: {}'.format(iescmd))
                     subprocess.call(shlex.split(iescmd))
     
                     if o.type == 'LIGHT':
                         if o.parent:
                             o = o.parent
-                        lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
+                        lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
     
                     elif o.type == 'MESH':
                         tm = o.to_mesh()
@@ -261,7 +262,7 @@ def radgexport(export_op, node, **kwargs):
                         
                         for f in bm.faces: 
                             lrot = mathutils.Vector.rotation_difference(mathutils.Vector((0, 0, -1)), f.normal).to_euler('XYZ')
-                            lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_bounds(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
+                            lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_bounds(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
                         bm.free()
 
                 elif iesname:

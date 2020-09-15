@@ -901,11 +901,12 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}-{}'.format(self.pmfile, frame), 'w')
-                pmcmd = 'mkpmap {8} -t 2 -e "{1}" {6} -fo+ -bv+ -apD 0.001 {0} -apg "{7}-{2}.gpm" {3} {4} {5} "{7}-{2}.oct"'.format(pportentry, '{}-{}'.format(self.pmfile, frame), frame, 
+                pmcmd = 'mkpmap {8} -t 2 -e "{1}" {6} -fo+ -bv+ -apD 0.1 {0} -apg "{7}-{2}.gpm" {3} {4} {5} "{7}-{2}.oct"'.format(pportentry, '{}-{}'.format(self.pmfile, frame), frame, 
                         self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], svp['viparams']['filebase'], self.simnode.pmapoptions)
                 logentry('Photon map command: {}'.format(pmcmd))
                 os.chdir(svp['viparams']['newdir'])
                 pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE)
+
                 for line in pmrun.stderr:
                     logentry('Photon mapping error: {}'.format(line.decode()))
                 
@@ -933,8 +934,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             logentry(line)
                             self.report({'ERROR'}, pmerrdict[line])
                             return {'CANCELLED'}
-                                        
-                                
+ 
                 if self.simnode.pmappreview:
                     with open("{0}-{1}pmd.oct".format(svp['viparams']['filebase'], frame), 'wb') as octfile:
                         occmd = 'oconv -i "{0}-{1}.oct" "!pmapdump {0}-{1}.gpm{2}"'.format(svp['viparams']['filebase'], frame, (' {}-{}.cpm'.format(svp['viparams']['filebase'], frame), '')[not self.simnode.pmapcno])
@@ -1058,7 +1058,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             else:
                 while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
                     with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
-                        self.rpruns.append(Popen(shlex.aplit(self.rpictcmds[self.frame - self.fs]), stdout=imfile, stderr = PIPE))
+                        self.rpruns.append(Popen(shlex.split(self.rpictcmds[self.frame - self.fs]), stdout=imfile, stderr = PIPE))
                 if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
                     self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
                     self.frame += 1
@@ -2256,6 +2256,14 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                 os.remove(os.path.join(svp['flparams']['ofcfilebase'], f))
             except:
                 pass
+        
+        for root, dirs, files in os.walk(os.path.join(svp['flparams']['offilebase'], 'postProcessing')):
+            for d in dirs:
+                try:
+#                    if float(d) != svp['flparams']['st']:
+                    shutil.rmtree(os.path.join(root, d))
+                except:
+                    pass
                 # try:
                 #     if float(d) != svp['flparams']['st']:
                 #         shutil.rmtree(os.path.join(root, d))
@@ -2705,26 +2713,28 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             if os.path.isdir(os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')):
                 probed = os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')
                 reslists = []
-                resdict = {'p': 'Pressure', 'U': 'Velocity', 'T': 'Temperature'}
+                resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity'}
+                
                 for f in os.listdir(probed):
-                    with open(os.path.join(probed, f), 'r') as resfile:
-                        res = []
-                        for l in resfile.readlines():
-                            if l and l[0] != '#':
-                                if f in ('p', 'T'):
+                    if f in ('p', 'T'):
+                        with open(os.path.join(probed, f), 'r') as resfile:
+                            res = []
+                            for l in resfile.readlines():
+                                if l and l[0] != '#':
                                     res.append(l.split())
-                                    resarray = array(res)
-                                    resarray = transpose(resarray)
+                            resarray = array(res)
+                            resarray = transpose(resarray)
                                     
                         for ri, r in enumerate(resarray[1:]):
-                            reslists.append(['All', 'Probe', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                            reslists.append([str(context.scene.frame_current), 'Probe', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
                                 #elif f == 'U':
                                     #resx = 0
 
-                reslists.append(['All', 'Probe', 'All', 'Times', ' '.join(['{}'.format(f) for f in resarray[0]])])
+                reslists.append([str(context.scene.frame_current), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
 #                ['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
             self.simnode['reslists'] = reslists
             self.simnode['year'] = 2020
+            self.simnode['frames'] = [context.scene.frame_current]
             print(reslists)
             return {'FINISHED'}
 
@@ -2741,7 +2751,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         shutil.rmtree(os.path.join(root, d))
                 except:
                     pass
-                
+               
         (self.convergence, self.econvergence, self.pconvergence, self.residuals, self.processes)  = (svp['flparams']['uresid'], svp['flparams']['keoresid'], svp['flparams']['presid'], svp['flparams']['residuals'], self.simnode.processes)
         self.fpfile = os.path.join(svp['viparams']['newdir'], 'floviprogress')
         self.pfile = fvprogressfile(svp['viparams']['newdir'])

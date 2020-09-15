@@ -696,6 +696,8 @@ class No_Li_Im(Node, ViNodes):
     pmap: BoolProperty(name = '', default = False, update = nodeupdate)
     pmapgno: IntProperty(name = '', default = 50000)
     pmapcno: IntProperty(name = '', default = 0)
+    pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
+    pmappreview: BoolProperty(name = '', default = 0, update = nodeupdate)
     x: IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y: IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
     basename: StringProperty(name="", description="Base name for image files", default="", update = nodeupdate)
@@ -783,8 +785,8 @@ class No_Li_Im(Node, ViNodes):
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
 #        self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
-        self['rpictparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rpictparams[k][int(self.simacc)+1]) for k in rpictparams])
-        self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)+1]) for k in rvuparams])       
+        self['rpictparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rpictparams[k][int(self.simacc)]) for k in rpictparams])
+        self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])       
         self['basename'] = self.basename if self.basename else 'image'
         
         for frame in self['frames']:
@@ -1576,7 +1578,7 @@ class No_Vi_Chart(Node, ViNodes):
 #                    if innode['reslists']:
                     (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                      zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                     chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'X-axis')
+                     chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'X-axis')
                         
             bpy.utils.register_class(ViEnRXIn)
     
@@ -1598,7 +1600,7 @@ class No_Vi_Chart(Node, ViNodes):
                         bl_label = 'Y-axis 1'
                         (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                          zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 1')
+                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 1')
     
                     self.inputs['Y-axis 2'].hide = False
                 bpy.utils.register_class(ViEnRY1In)
@@ -1622,7 +1624,7 @@ class No_Vi_Chart(Node, ViNodes):
     
                         (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                          zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 2')
+                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 2')
     
                     self.inputs['Y-axis 3'].hide = False
     
@@ -1644,7 +1646,7 @@ class No_Vi_Chart(Node, ViNodes):
     
                         (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                          zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 3')
+                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 3')
     
                 bpy.utils.register_class(ViEnRY3In)
         except Exception as e:
@@ -1682,7 +1684,7 @@ class No_Vi_Metrics(Node, ViNodes):
         else:
             return [('None', 'None', 'None')]
     
-    metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results")],
+    metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), ("2", "Flow", "Flow results")],
                 name="", description="Results type", default="0", update=zupdate)   
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
                 name="", description="Results metric", default="0", update=zupdate)
@@ -1742,7 +1744,8 @@ class No_Vi_Metrics(Node, ViNodes):
                         row = layout.row()
                         epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
                         row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
-        if self.metric == '1':
+                        
+        elif self.metric == '1':
             if self.light_menu == '2':
                 row = layout.row()
                 row.label(text = "Average DF: {:.2f}".format(self['res']['avDF']))
@@ -1759,13 +1762,12 @@ class No_Vi_Metrics(Node, ViNodes):
                     row.label(text = "sDA300 (%): {:.1f} | > (55, 75) | {}".format(self['res']['sda'], ('Pass', 'Fail')[self['res']['sda'] < 55]))
                     row = layout.row()
                     row.label(text = "Total credits: {}".format(self['res']['o1']))
-                     
-#                     row = layout.row()
-#                     row.label(text = "Option 2:")
-#                     row = layout.row()
-#                     row.label(text = "Morning (%): {:.1f}".format(self['res']['udiam']))
-#                     row = layout.row()
-#                     row.label(text = "Afternoon (%): {:.1f}".format(self['res']['udiae']))
+
+        elif self.metric == '2':
+            if self['res'] and self['res'].get('pressure'): 
+                row = layout.row()
+                row.label(text = "{}: {}".format(self.zone_menu, self['res']['pressure']))
+
     def update(self):
         self.ret_metrics()
         if self.inputs[0].links:
@@ -1869,7 +1871,25 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['o1'] = 2  
                         if self['res']['sda'] > 75:
                             self['res']['o1'] = 3
-                    
+
+            elif self.metric == '2':        
+                self['res']['pressure'] = 'N/A'
+                self['res']['speed'] = 'N/A'
+                self['res']['temperature'] = 'N/A'
+                self['res']['xvelocity'] = 'N/A'
+                self['res']['zvelocity'] = 'N/A'
+                self['res']['yvelocity'] = 'N/A'  
+                
+                for r in rl:
+                    if r[0] == self.frame_menu:
+                        if r[2] == self.zone_menu:
+                            if r[3] == 'Pressure':
+                                self['res']['pressure'] = [float(p) for p in r[4].split()][-1]
+                            elif r[3] == 'Temperature':
+                                self['res']['temperature'] = [float(p) for p in r[4].split()][-1]
+                            elif r[3] == 'Speed':
+                                self['res']['speed'] = [float(p) for p in r[4].split()][-1]
+
                     
     def ret_metrics(self):
         if self.inputs['Results in'].links:
@@ -2030,7 +2050,8 @@ class So_En_Res(NodeSocket):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), 
                     "Linkage":("linkmenu", "linkrmenu"), "External":("enmenu", "enrmenu"), 
                     "Chimney":("chimmenu", "chimrmenu"), "Position":("posmenu", "posrmenu"), 
-                    "Camera":("cammenu", "camrmenu"), "Power":("powmenu", "powrmenu")}
+                    "Camera":("cammenu", "camrmenu"), "Power":("powmenu", "powrmenu"),
+                    "Probe":("probemenu", "probermenu")}
         row = layout.row()
 
         if self.links and self.links[0].from_node.get('frames'):

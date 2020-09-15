@@ -396,16 +396,17 @@ def retrmenus(innode, node, axis):
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if entype else ''
     chimmenu = bpy.props.EnumProperty(items=chimtype, name="", description="External node result", default = chimtype[0][0]) if chimtype else ''
     chimrmenu = bpy.props.EnumProperty(items=chimrtype, name="", description="External node result", default = chimrtype[0][0]) if chimtype else ''
-    posmenu =  bpy.props.EnumProperty(items=ptype, name="", description="Position result", default = ptype[0][0]) if ptype else ''
+    posmenu = bpy.props.EnumProperty(items=ptype, name="", description="Position result", default = ptype[0][0]) if ptype else ''
     posrmenu = bpy.props.EnumProperty(items=prtype, name="", description="Position result", default = prtype[0][0]) if ptypes else ''
-    cammenu =  bpy.props.EnumProperty(items=camtype, name="", description="Camera result", default = camtype[0][0]) if camtype else ''
+    cammenu = bpy.props.EnumProperty(items=camtype, name="", description="Camera result", default = camtype[0][0]) if camtype else ''
     camrmenu = bpy.props.EnumProperty(items=camrtype, name="", description="Camera result", default = camrtype[0][0]) if camtypes else ''
     powmenu = bpy.props.EnumProperty(items=powtype, name="", description="Power result", default = powtype[0][0]) if powtype else ''
     powrmenu = bpy.props.EnumProperty(items=powrtype, name="", description="Power result", default = powrtype[0][0]) if powrtype else ''
-    probemenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default = probertype[0][0]) if probertype else ''
+    probemenu = bpy.props.EnumProperty(items=probetype, name="", description="Probe result", default = probetype[0][0]) if probetype else ''
+    probermenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default = probertype[0][0]) if probertype else ''
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = -10000, max = 10000, default = 1)
     
-    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probermenu, multfactor)
+    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor)
 
 def processh(lines, znlist): 
     hdict = {}
@@ -618,6 +619,8 @@ def retmenu(dnode, axis, mtype):
         return ['', 'Frames']
     elif mtype == 'Power':
         return [dnode.inputs[axis].powmenu, dnode.inputs[axis].powrmenu]
+    elif mtype == 'Probe':
+        return [dnode.inputs[axis].probemenu, dnode.inputs[axis].probermenu]
         
 def retdata(dnode, axis, mtype, resdict, frame):
     if mtype == 'Climate':
@@ -636,7 +639,9 @@ def retdata(dnode, axis, mtype, resdict, frame):
         return resdict[frame][mtype][dnode.inputs[axis].cammenu][dnode.inputs[axis].camrmenu]
     elif mtype == 'Power':
         return resdict[frame][mtype][dnode.inputs[axis].powmenu][dnode.inputs[axis].powrmenu]   
-    
+    elif mtype == 'Probe':
+        return resdict[frame][mtype][dnode.inputs[axis].probemenu][dnode.inputs[axis].probermenu] 
+
 def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
     frames = range(scene.frame_start, scene.frame_end)
     times = [datetime.datetime(2015, mdata[hi], ddata[hi], h - 1, 0) for hi, h in enumerate(hdata)]

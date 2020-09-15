@@ -316,6 +316,7 @@ class progressfile():
                 
         with open(self.pfile, 'w') as pfile:
             if curres:
+                print(curres)
                 dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
                 pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
             else:

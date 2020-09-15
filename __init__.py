@@ -560,7 +560,7 @@ def path_update():
     ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
     ofedir = vi_prefs.ofetc if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
-
+    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'RadFiles', 'lib'))
@@ -573,9 +573,9 @@ def path_update():
         else:
             os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
         os.environ["WM_PROJECT_DIR"] = ofedir
-    if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
-        Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
-        Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
+    # if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
+    #     Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
+    #     Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
     if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'setvars.bat')):
         print(os.path.join(ofedir, 'setvars.bat'), vi_prefs.ofetc)
         call(os.path.join(ofedir, 'setvars.bat')) 
