@@ -1684,6 +1684,17 @@ class No_Vi_Metrics(Node, ViNodes):
         else:
             return [('None', 'None', 'None')]
     
+    def probes(self, context):
+        if self.inputs[0].links:
+            rl = self.inputs[0].links[0].from_node['reslists']
+            try:
+                probes = set([z[3] for z in rl])
+                return [(m.lower(), m, 'Probe metric') for m in probes if m != 'Steps']
+            except:
+                return [('None', 'None', 'None')]
+        else:
+            return [('None', 'None', 'None')]
+    
     metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), ("2", "Flow", "Flow results")],
                 name="", description="Results type", default="0", update=zupdate)   
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
@@ -1697,6 +1708,8 @@ class No_Vi_Metrics(Node, ViNodes):
     frame_menu: EnumProperty(items=frames,
                 name="", description="Frame results", update=zupdate)
     mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
+    probe_menu = EnumProperty(items=probes,
+                name="", description="Frame results", update=zupdate)
     
     def init(self, context):
         self['res'] = {}
@@ -1710,6 +1723,9 @@ class No_Vi_Metrics(Node, ViNodes):
             newrow(layout, 'Metric:', self, "light_menu")
         newrow(layout, 'Frame', self, "frame_menu")
         newrow(layout, 'Zone', self, "zone_menu")
+
+        if self.metric == '2' and self.frame_menu == 'All': 
+            newrow(layout, 'Metric', self, "probe_menu")
         
         if self.metric == '0':
             if self.energy_menu == '0':
@@ -1744,7 +1760,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         row = layout.row()
                         epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
                         row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
-                        
+
         elif self.metric == '1':
             if self.light_menu == '2':
                 row = layout.row()
@@ -1764,9 +1780,16 @@ class No_Vi_Metrics(Node, ViNodes):
                     row.label(text = "Total credits: {}".format(self['res']['o1']))
 
         elif self.metric == '2':
-            if self['res'] and self['res'].get('pressure'): 
-                row = layout.row()
-                row.label(text = "{}: {}".format(self.zone_menu, self['res']['pressure']))
+            if self.zone_menu == 'All':
+                for z in self['res'][self.probe_menu]:
+                    row = layout.row()
+                    row.label(text = "{}: {}".format(z, self['res'][self.probe_menu][z]))
+            else:
+                if self['res']: 
+                    for m in self['res']:
+                        if self['res'][m].get(self.zone_menu):
+                            row = layout.row()
+                            row.label(text = "{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
     def update(self):
         self.ret_metrics()
@@ -1873,22 +1896,36 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['o1'] = 3
 
             elif self.metric == '2':        
-                self['res']['pressure'] = 'N/A'
-                self['res']['speed'] = 'N/A'
-                self['res']['temperature'] = 'N/A'
-                self['res']['xvelocity'] = 'N/A'
-                self['res']['zvelocity'] = 'N/A'
-                self['res']['yvelocity'] = 'N/A'  
-                
-                for r in rl:
-                    if r[0] == self.frame_menu:
-                        if r[2] == self.zone_menu:
+                self['res']['pressure'] = {}
+                self['res']['speed'] = {}
+                self['res']['temperature'] = {}
+                self['res']['xvelocity'] = {}
+                self['res']['zvelocity'] = {}
+                self['res']['yvelocity'] = {}
+
+#                if self.frame_menu == 'All':
+                znames = set([z[2] for z in rl if z[1] == 'Zone'])
+
+                for zn in znames:
+                    print(zn)
+                    for r in rl:
+                        if r[2] == zn:
                             if r[3] == 'Pressure':
-                                self['res']['pressure'] = [float(p) for p in r[4].split()][-1]
-                            elif r[3] == 'Temperature':
-                                self['res']['temperature'] = [float(p) for p in r[4].split()][-1]
+                                self['res']['pressure'][zn] = [float(p) for p in r[4].split()][-1]
                             elif r[3] == 'Speed':
-                                self['res']['speed'] = [float(p) for p in r[4].split()][-1]
+                                self['res']['speed'][zn] = [float(p) for p in r[4].split()][-1]
+                            elif r[3] == 'Temperature':
+                                self['res']['temperature'][zn] = [float(p) for p in r[4].split()][-1]
+
+                # for r in rl:
+                #     if r[0] == self.frame_menu:
+                #         if r[2] == self.zone_menu:
+                #             if r[3] == 'Pressure':
+                #                 self['res']['pressure'] = [float(p) for p in r[4].split()][-1]
+                #             elif r[3] == 'Temperature':
+                #                 self['res']['temperature'] = [float(p) for p in r[4].split()][-1]
+                #             elif r[3] == 'Speed':
+                #                 self['res']['speed'] = [float(p) for p in r[4].split()][-1]
 
                     
     def ret_metrics(self):

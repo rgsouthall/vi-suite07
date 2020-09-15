@@ -200,8 +200,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
 #        return self.id_data.frame_current
         return self.get('vi_frames', self['liparams']['fe'])
     
-    def set_frame(self, value):
-        
+    def set_frame(self, value): 
         if value > self['liparams']['fe']:
             self['vi_frames'] = self['liparams']['fe']
         elif value < self['liparams']['fs']:
@@ -209,8 +208,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         else:
             self.id_data.frame_set(value)
             self['vi_frames'] = value
-        
-            
+                    
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath) 
     vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)

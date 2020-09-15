@@ -2195,7 +2195,8 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         row.label(text="Specify the CSV export file with the file browser", icon='WORLD_DATA')
 
     def execute(self, context):
-        node = context.node
+        print(dir(context))
+        node = self.node
         resstring = ''
         resnode = node.inputs['Results in'].links[0].from_node
         rl = resnode['reslists']
@@ -2219,6 +2220,7 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
     def invoke(self,context,event):
+        self.node = context.node
         if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
             self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')            
         context.window_manager.fileselect_add(self)
@@ -2714,7 +2716,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 probed = os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')
                 reslists = []
                 resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity'}
-                
+
                 for f in os.listdir(probed):
                     if f in ('p', 'T'):
                         with open(os.path.join(probed, f), 'r') as resfile:
@@ -2726,7 +2728,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             resarray = transpose(resarray)
                                     
                         for ri, r in enumerate(resarray[1:]):
-                            reslists.append([str(context.scene.frame_current), 'Probe', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                            reslists.append([str(context.scene.frame_current), 'Zone', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
                                 #elif f == 'U':
                                     #resx = 0
 
