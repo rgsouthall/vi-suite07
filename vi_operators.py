@@ -51,7 +51,7 @@ from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwri
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 
 from .vi_func import windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
-from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll
 from .livi_func import retpmap
 #from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
 #from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
@@ -2404,6 +2404,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         vl = context.view_layer
         expnode = context.node
         meshcoll = create_coll(context, 'FloVi Mesh')
+        clear_coll(meshcoll)
         ngcore.SetNumThreads(int(svp['viparams']['nproc']))
         maxh = expnode.maxcs
         st = '0'
@@ -2734,10 +2735,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 reslists.append([str(context.scene.frame_current), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
 #                ['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
-            self.simnode['reslists'] = reslists
-            self.simnode['year'] = 2020
-            self.simnode['frames'] = [context.scene.frame_current]
-            print(reslists)
+                self.simnode['reslists'] = reslists
+                self.simnode['year'] = 2020
+                self.simnode['frames'] = [context.scene.frame_current]
+
             return {'FINISHED'}
 
     def invoke(self, context, event):

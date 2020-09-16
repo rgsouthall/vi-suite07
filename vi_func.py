@@ -101,7 +101,11 @@ def move_to_coll(context, coll, o):
         for c in bpy.data.collections:
             if c.name != coll and o.name in c.objects:
                 c.objects.unlink(o)
-                
+
+def clear_coll(coll):
+    for o in coll.objects:
+        coll.objects.unlink(o)
+        
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03, 
 2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02, 
 4.351000e-02, 7.763000e-02, 1.343800e-01, 2.147700e-01, 2.839000e-01, 

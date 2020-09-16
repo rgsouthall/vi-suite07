@@ -408,7 +408,7 @@ def fvvarwrite(scene, obs, node):
     '''Turbulence modelling: k and epsilon required for kEpsilon, k and omega required for kOmega, nutilda required for SpalartAllmaras, nut required for all
         Buoyancy modelling: T''' 
     svp = scene.vi_params
-    if not node.buoyancy or (node.buoyancy and not node.buossinesq):
+    if not node.buoyancy:# or (node.buoyancy and not node.buossinesq):
         pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('0', '2', '-2', '0', '{}'.format(node.pnormval))
     else:
         pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('1', '-1', '-2', '0', '{}'.format(node.pabsval))
@@ -694,13 +694,16 @@ def fvtppwrite(node, solver):
                        'thermoType': ('heRhoThermo', 'pureMixture', 'const', 'eConst', 'Boussinesq', 'specie', 'sensibleInternalEnergy')},
               'sf': {'names': ('solver', 'preconditioner', 'tolerance', 'relTol'), 
                      'p_rgh': ('PCG', 'DIC', '1e-8', '0.01'), '"(U|e|k|omega|epsilon)"': ('PBiCGStab', 'DILU;', '1e-7', '0.1')},
-              'bsf':{}}
+              'bsf':{'names': ('type', 'mixture', 'transport', 'thermo', 'equationOfState', 'specie', 'energy'), 
+                       'thermoType': ('heRhoThermo', 'pureMixture', 'const', 'hConst', 'perfectGas', 'specie', 'sensibleEnthalpy')}}
     
     specie = {'bbsf': {'names': ('molWeight',), 
-                       'specie': ('28.9',)},
+                       'specie': ('28.96',)},
               'sf': {'names': ('solver', 'preconditioner', 'tolerance', 'relTol'), 
                      'p_rgh': ('PCG', 'DIC', '1e-8', '0.01'), '"(U|e|k|omega|epsilon)"': ('PBiCGStab', 'DILU;', '1e-7', '0.1')},
-              'bsf':{}}
+              'bsf':{'names': ('molWeight',), 
+                       'specie': ('28.96',)}}
+
     eos = {'bbsf': {'names': ('rho0', 'T0', 'beta'), 
                     'equationOfState': ('1', '300', '3e-03')},
               'sf': {'names': ('solver', 'preconditioner', 'tolerance', 'relTol'), 
@@ -710,12 +713,14 @@ def fvtppwrite(node, solver):
                 'thermodynamics': ('712', '0')},
               'sf': {'names': ('solver', 'preconditioner', 'tolerance', 'relTol'), 
                      'p_rgh': ('PCG', 'DIC', '1e-8', '0.01'), '"(U|e|k|omega|epsilon)"': ('PBiCGStab', 'DILU;', '1e-7', '0.1')},
-              'bsf':{}}
+              'bsf':{'names': ('Cp', 'Hf'), 
+                'thermodynamics': ('1004.4', '0')}}
     trans = {'bbsf': {'names': ('mu', 'Pr'), 
                       'transport': ('1e-05', '0.7')},
               'sf': {'names': ('solver', 'preconditioner', 'tolerance', 'relTol'), 
                      'p_rgh': ('PCG', 'DIC', '1e-8', '0.01'), '"(U|e|k|omega|epsilon)"': ('PBiCGStab', 'DILU;', '1e-7', '0.1')},
-              'bsf':{}}
+              'bsf':{'names': ('mu', 'Pr'), 
+                      'transport': ('1e-05', '0.7')}}
     text = ofheader + write_ffile('dictionary', 'constant', 'thermophysicalProperties') + 'thermoType\n{\n'
     
     for sol in thermo[solver]:
@@ -755,7 +760,8 @@ def fvmtwrite(node, solver):
                     'RAS': ('kEpsilon', 'on', 'on')},
               'sf': {'names': ('solver', 'preconditioner', 'tolerance', 'relTol'), 
                      'p_rgh': ('PCG', 'DIC', '1e-8', '0.01'), '"(U|e|k|omega|epsilon)"': ('PBiCGStab', 'DILU;', '1e-7', '0.1')},
-              'bsf':{}}
+              'bsf':{'names': ('model', 'turbulence', 'printCoeffs'), 
+                    'RAS': ('kEpsilon', 'on', 'on')}}
     text = ofheader + write_ffile('dictionary', 'constant', 'momentumTransport') + '\nsimulationType RAS;\n\n'
 
     for sol in ras[solver]:
@@ -798,33 +804,52 @@ def fvrpwrite(node, solver):
     return text
     
 def fvschwrite(node, solver):  
+    print(solver)
     if node.transience == '0' and node.turbulence != 'laminar':
         schdict = {'ddtSchemes': {'default': 'steadyState'}, 
-                   'gradSchemes': {'default': 'Gauss linear', 'limited': 'cellLimited Gauss linear 1', 'grad(U)': '$limited'},
-                   'divSchemes': {'default': 'none', 'div(phi,U)': 'bounded Gauss upwind'},
-                   'laplacianSchemes': {'default': 'Gauss linear corrected'},
+                   'divSchemes': {'default': 'none'},
                    'interpolationSchemes': {'default': 'linear'},
-                   'snGradSchemes': {'default': 'corrected'},
                    'wallDist': {'method': 'meshWave'}}
         if node.turbulence == 'kEpsilon':
-            schdict['divSchemes']['div(phi,k)'] = 'bounded Gauss upwind'
-            schdict['divSchemes']['div(phi,epsilon)'] = 'bounded Gauss upwind'
+            if node.buoyancy:
+                if not node.buossinesq:
+                    schdict['divSchemes']['div(phi,k)'] = 'bounded Gauss limitedLinear 0.2'
+                    schdict['divSchemes']['div(phi,epsilon)'] = 'bounded Gauss limitedLinear 0.2'
+                else:
+                    schdict['divSchemes']['div(phi,k)'] = 'bounded Gauss upwind'
+                    schdict['divSchemes']['div(phi,epsilon)'] = 'bounded Gauss upwind'
 
-        elif node.turbulence == 'kOmega':    
-            schdict['divSchemes']['div(phi,k)'] = 'bounded Gauss upwind'
-            schdict['divSchemes']['div(phi,omega)'] = 'bounded Gauss upwind'
+        elif node.turbulence == 'kOmega': 
+            if node.buoyancy:
+                if not node.buossinesq:
+                    schdict['divSchemes']['div(phi,k)'] = 'bounded Gauss limitedLinear 0.2'
+                    schdict['divSchemes']['div(phi,omega)'] = 'bounded Gauss limitedLinear 0.2'
+            else:
+                schdict['divSchemes']['div(phi,k)'] = 'bounded Gauss upwind'
+                schdict['divSchemes']['div(phi,omega)'] = 'bounded Gauss upwind'
 
         elif node.turbulence == 'SpalartAllmaras':
             schdict['divSchemes']['div(phi,nuTilda)'] = 'bounded Gauss upwind'
 
         if node.buoyancy:
-            schdict['gradSchemes'] = {'default': 'Gauss linear'}
-            schdict['divSchemes']['div(((rho*nuEff)*dev2(T(grad(U)))))'] = 'Gauss linear'
-            schdict['divSchemes']['div(phi,Ekp)'] = 'bounded Gauss linear'
-            if node.buossinesq:
-                schdict['divSchemes']['div(phi,e)']= 'bounded Gauss upwind'
-            
+            if not node.buossinesq:
+                schdict['gradSchemes'] = {'default': 'Gauss linear'}
+                schdict['divSchemes']['div(((rho*nuEff)*dev2(T(grad(U)))))'] = 'Gauss linear'
+                schdict['divSchemes']['div(phi,Ekp)'] = 'bounded Gauss linear'
+                schdict['divSchemes']['div(phi,U)'] = 'bounded Gauss limitedLinear 0.2'
+                schdict['divSchemes']['div(phi,K)'] = 'bounded Gauss limitedLinear 0.2'
+                schdict['divSchemes']['div(phi,h)'] = 'bounded Gauss limitedLinear 0.2'
+                schdict['divSchemes']['laplacianSchemes'] = {'default': 'Gauss linear uncorrected'}
+                schdict['divSchemes']['snGradSchemes'] = {'default': 'uncorrected'}
+            else:
+                schdict['gradSchemes']['default'] = 'Gauss linear'
+                schdict['divSchemes']['div(phi,e)'] = 'bounded Gauss upwind'
+                schdict['divSchemes']['div(phi,U)'] = 'bounded Gauss upwind'
+                schdict['divSchemes']['div(((rho*nuEff)*dev2(T(grad(U)))))'] = 'Gauss linear'
+                schdict['laplacianSchemes'] = {'default': 'Gauss linear corrected'}
+                schdict['snGradSchemes'] = {'default': 'corrected'}
         else:
+            schdict['gradSchemes'] = {'default': 'Gauss linear', 'limited': 'cellLimited Gauss linear 1', 'grad(U)': '$limited'},
             schdict['divSchemes']['div((nuEff*dev2(T(grad(U)))))'] = 'Gauss linear'
 
     htext = ofheader + write_ffile('dictionary', 'system', 'fvSchemes') 
@@ -834,12 +859,14 @@ def fvschwrite(node, solver):
                     'ddtSchemes': ('steadyState',)},
               'sf': {'names': ('default',), 
                      'ddtSchemes': ('steadyState',)},
-              'bsf':{}}
+              'bsf':{'names': ('default',), 
+                    'ddtSchemes': ('steadyState',)}}
     grad = {'bbsf': {'names': ('default',), 
                     'gradSchemes': ('Gauss linear',)},
               'sf': {'names': ('default', 'limited', 'grad(U)', 'grad(k)', 'grad(epsilon)'), 
                      'gradSchemes': ('Gauss linear', 'cellLimited Gauss linear 1', '$limited', '$limited', '$limited')},
-              'bsf':{}}
+              'bsf':{'names': ('default',), 
+                    'gradSchemes': ('Gauss linear',)}}
     div = {'bbsf': {'names': ('default', 'div(phi,U)', 'div(phi,e)', 'div(phi,k)', 'div(phi,epsilon)', 'div(phi,Ekp)', 'div(((rho*nuEff)*dev2(T(grad(U)))))'), 
                     'divSchemes': ('none', 'bounded Gauss upwind', 'bounded Gauss upwind', 'bounded Gauss upwind', 'bounded Gauss upwind', 'bounded Gauss linear', 'Gauss linear')},
               'sf': {'names': ('default', 'div(phi,U)', 'turbulence', 'div(phi,k)', 'div(phi,epsilon)', 'div((nuEff*dev2(T(grad(U)))))'), 
@@ -849,17 +876,20 @@ def fvschwrite(node, solver):
                     'laplacianSchemes': ('Gauss linear limited corrected 0.33',)},
               'sf': {'names': ('default',), 
                      'laplacianSchemes': ('Gauss linear corrected',)},
-              'bsf':{}}
+              'bsf':{'names': ('default',), 
+                     'laplacianSchemes': ('Gauss linear uncorrected',)}}
     terp = {'bbsf': {'names': ('default',), 
                     'interpolationSchemes': ('linear',)},
               'sf': {'names': ('default',), 
                      'interpolationSchemes': ('linear',)},
-              'bsf':{}}
+              'bsf':{'names': ('default',), 
+                    'interpolationSchemes': ('linear',)}}
     sng = {'bbsf': {'names': ('default',), 
                     'snGradSchemes': ('limited corrected 0.33',)},
               'sf': {'names': ('default',), 
                      'snGradSchemes': ('corrected',)},
-              'bsf':{}}
+              'bsf':{'names': ('default',), 
+                     'snGradSchemes': ('uncorrected',)}}
 
     text = ofheader + write_ffile('dictionary', 'system', 'fvSchemes')
     for sol in ddt[solver]:

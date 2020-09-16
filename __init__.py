@@ -59,8 +59,6 @@ else:
         from netgen.meshing import *
     except Exception as e:
         print(e)
-#        os.execv(sys.argv[0], sys.argv)
-    print(sys.path)
          
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
