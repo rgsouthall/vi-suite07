@@ -1724,7 +1724,7 @@ class No_Vi_Metrics(Node, ViNodes):
         newrow(layout, 'Frame', self, "frame_menu")
         newrow(layout, 'Zone', self, "zone_menu")
 
-        if self.metric == '2' and self.frame_menu == 'All': 
+        if self.metric == '2' and self.zone_menu == 'All': 
             newrow(layout, 'Metric', self, "probe_menu")
         
         if self.metric == '0':
@@ -2131,7 +2131,7 @@ class No_Flo_Case(Node, ViNodes):
     bl_icon = 'FILE_FOLDER' 
     
     def ret_params(self):
-        return [str(x) for x in (self.solver, self.turbulence)]
+        return [str(x) for x in (self.transience, self.turbulence, self.buoyancy, self.buossinesq)]
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.turbulence)])
@@ -2148,14 +2148,14 @@ class No_Flo_Case(Node, ViNodes):
                     params+= 'f'
         if self.turbulence == 'laminar':
             params += 'l'
-        if self.turbulence == 'kEpsilon':
+        elif self.turbulence == 'kEpsilon':
             params += 'k'
-        if self.turbulence == 'kOmega':
+        elif self.turbulence == 'kOmega':
             params += 'o'
-        if self.turbulence == 'SpalartAllmaras':
+        elif self.turbulence == 'SpalartAllmaras':
             params += 's'
-            
-        context.scene.vi_params['flparams']['params'] = params
+        if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('solver_type'): 
+            context.scene.vi_params['flparams']['params'] = params
     
     solver: EnumProperty(name = '', items = [('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'simpleFoam')
     transience: EnumProperty(name = '', items = [('0', 'Steady', 'Steady state simulation'),
@@ -2196,11 +2196,18 @@ class No_Flo_Case(Node, ViNodes):
         nodecolour(self, 1)
         context.scene.vi_params['flparams']['params'] = 'l'
     
-    def draw_buttons(self, context, layout):    
-        newrow(layout, 'Transience:', self, 'transience')
-        newrow(layout, 'Turbulence:', self, 'turbulence')
+    def draw_buttons(self, context, layout):  
+        newrow(layout, 'Turbulence:', self, 'turbulence') 
+
+        if self.turbulence != 'laminar': 
+            newrow(layout, 'Transience:', self, 'transience')
         
-        if self.turbulence:
+        newrow(layout, 'Start time:', self, 'stime')
+        newrow(layout, 'Time step:', self, 'dtime')
+        newrow(layout, 'End time:', self, 'etime')
+        
+
+        if self.turbulence != 'laminar':
             newrow(layout, 'Buoyancy:', self, 'buoyancy')
             if self.buoyancy:
                 newrow(layout, 'Buossinesq:', self, 'buossinesq')
@@ -2208,43 +2215,39 @@ class No_Flo_Case(Node, ViNodes):
                 if self.radiation:
                     newrow(layout, 'Radiation:', self, 'radmodel')
                     
-            
-        newrow(layout, 'Start time:', self, 'stime')
-        newrow(layout, 'Time step:', self, 'dtime')
-        newrow(layout, 'End time:', self, 'etime')
-        newrow(layout, 'Velocity val:', self, 'uval')
-#        newrow(layout, 'Pressure val:', self, 'pval')
-        
-        if not self.buoyancy:
-            newrow(layout, 'Pressure rel:', self, 'pnormval')
-        else:
-            newrow(layout, 'Pressure abs:', self, 'pabsval')
-            newrow(layout, 'p_rgh value:', self, 'p_rghval')
+            if not self.buoyancy:
+                newrow(layout, 'Pressure rel:', self, 'pnormval')
+            else:
+                newrow(layout, 'Pressure abs:', self, 'pabsval')
+                newrow(layout, 'p_rgh value:', self, 'p_rghval')
                 
-        if self.turbulence != 'laminar':
+            if self.turbulence == 'kEpsilon':
+                newrow(layout, 'k value:', self, 'kval')
+                newrow(layout, 'Epsilon value:', self, 'epval') 
+                
+            elif self.turbulence == 'kOmega':
+                newrow(layout, 'k Value:', self, 'kval')
+                newrow(layout, 'Omega value:', self, 'oval') 
+                
+            elif self.turbulence == 'SpalartAllmaras':   
+                newrow(layout, 'NuTilda value:', self, 'nutildaval')
+            
+            if self.buoyancy:
+                newrow(layout, 'T value:', self, 'tval')
+                
+                if self.radiation:
+                    newrow(layout, 'Rad model:', self, 'radmodel')
+                    newrow(layout, 'G value:', self, 'Gval')
+
             newrow(layout, 'Nut Value:', self, 'nutval')
-                
-        if self.turbulence == 'kEpsilon':
-            newrow(layout, 'k value:', self, 'kval')
-            newrow(layout, 'Epsilon value:', self, 'epval') 
-            
-        elif self.turbulence == 'kOmega':
-            newrow(layout, 'k Value:', self, 'kval')
-            newrow(layout, 'Omega value:', self, 'oval') 
-            
-        elif self.turbulence == 'SpalartAllmaras':   
-            newrow(layout, 'NuTilda value:', self, 'nutildaval')
-        
-        if self.buoyancy:
-            newrow(layout, 'T value:', self, 'tval')
-            
-            if self.radiation:
-                newrow(layout, 'Rad model:', self, 'radmodel')
-                newrow(layout, 'G value:', self, 'Gval')
-            
+        newrow(layout, 'Pressure rel:', self, 'pnormval')     
+        newrow(layout, 'Velocity val:', self, 'uval')    
         newrow(layout, 'p Residual:', self, 'presid')
         newrow(layout, 'U Residual:', self, 'uresid')
-        newrow(layout, 'k/e/o Residual:', self, 'keoresid')
+
+        if self.turbulence != 'laminar':
+            newrow(layout, 'k/e/o Residual:', self, 'keoresid')
+
         row = layout.row()
         row.operator("node.flovi_case", text = "Export")
     
@@ -2265,7 +2268,6 @@ class No_Flo_NG(Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.poly, self.vtk, self.pcorr, self.acorr, self.maxcs, self.yang, self.processors, self.grading)])
     
     poly: BoolProperty(name = '', description = 'Create polygonal mesh', default = 0, update = nodeupdate)
-    pv: BoolProperty(name = '', description = 'Open Paraview', default = 0, update = nodeupdate)
     pcorr: FloatProperty(name = "m", description = "Maximum distance for position correspondance", min = 0, max = 1, default = 0.1, update = nodeupdate)
     acorr: FloatProperty(name = "", description = "Minimum cosine for angular correspondance", min = 0, max = 1, default = 0.9, update = nodeupdate)
     maxcs: FloatProperty(name = "m", description = "Max global cell size", min = 0, max = 100, default = 1, update = nodeupdate)
@@ -2288,7 +2290,6 @@ class No_Flo_NG(Node, ViNodes):
 #            newrow(layout, 'Processors:', self, 'processors')
             newrow(layout, 'Inflation:', self, 'grading')
             newrow(layout, 'Polygonal:', self, 'poly')
-            newrow(layout, 'Paraview:', self, 'pv')
             row = layout.row()
             row.operator("node.flovi_ng", text = "Generate")
     
@@ -2302,7 +2303,8 @@ class No_Flo_Bound(Node, ViNodes):
     bl_label = 'FloVi Boundary'
     bl_icon = 'MESH_ICOSPHERE' 
     
-   
+    pv: BoolProperty(name = '', description = 'Open Paraview', default = 0)
+
     def init(self, context):
         self['exportstate'] = ''
         self.inputs.new('So_Flo_Mesh', 'Mesh in')
@@ -2310,7 +2312,8 @@ class No_Flo_Bound(Node, ViNodes):
         nodecolour(self, 1)
     
     def draw_buttons(self, context, layout):         
-        if self.inputs and self.inputs['Mesh in'].links:            
+        if self.inputs and self.inputs['Mesh in'].links:      
+            newrow(layout, 'Paraview:', self, 'pv')      
             row = layout.row()
             row.operator("node.flovi_bound", text = "Generate")
             

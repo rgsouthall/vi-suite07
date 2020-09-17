@@ -105,6 +105,7 @@ def move_to_coll(context, coll, o):
 def clear_coll(coll):
     for o in coll.objects:
         coll.objects.unlink(o)
+        bpy.data.objects.remove(o)
         
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03, 
 2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02, 
@@ -559,12 +560,11 @@ def lividisplay(self, scene):
                                     
 def ret_vp_loc(context):
     return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
-          
-
-                       
+                            
 def viparams(op, scene):
     svp = scene.vi_params
     bdfp = bpy.data.filepath
+
     if not bdfp:
         op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'

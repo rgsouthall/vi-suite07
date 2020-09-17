@@ -208,6 +208,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
             self['vi_frames'] = value
                     
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath) 
+#    vi_params = {'flparams': {}, 'liparams': {}, 'enparams': {}}
     vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     solhour: bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
@@ -557,6 +558,7 @@ def path_update():
     ofedir = vi_prefs.ofetc if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
+    
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'RadFiles', 'lib'))
