@@ -77,7 +77,6 @@ else:
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update, ret_fvrad_menu
     #    from .vi_display import setcols
-
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
@@ -117,7 +116,7 @@ def abspath(self, context):
 def flovi_levels(self, context):
     if self.flovi_slmin > self.flovi_slmax:
        self.flovi_slmin -= 1 
-       
+
 def unititems(self, context):  
     try:
         scene = context.scene
@@ -194,8 +193,6 @@ def set_frame(self, value):
         
 class VI_Params_Scene(bpy.types.PropertyGroup): 
     def get_frame(self):
-#        if 
-#        return self.id_data.frame_current
         return self.get('vi_frames', self['liparams']['fe'])
     
     def set_frame(self, value): 
@@ -207,8 +204,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
             self.id_data.frame_set(value)
             self['vi_frames'] = value
                     
-    vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath) 
-#    vi_params = {'flparams': {}, 'liparams': {}, 'enparams': {}}
+    vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     solhour: bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
@@ -404,7 +400,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     respacemenu: eprop(respacetype, "", "Type of retail space", '0')
     lespacemenu: eprop(lespacetype, "", "Type of space", '0')
     BSDF: bprop("", "Flag to signify a BSDF material", False)
-    mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
+    mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
     envi_nodes: bpy.props.PointerProperty(type = bpy.types.NodeTree)
     envi_type: sprop("", "EnVi Material type", 64, "None")
     envi_shading: bprop("", "Flag to signify whether the material contains shading elements", False)
@@ -602,10 +598,6 @@ def path_update():
 #        script = bpy.data.texts[context.scene.script_file]
 #        exec(script.as_string())
         
-def flovi_levels(self, context):
-    if self.flovi_slmin > self.flovi_slmax:
-       self.flovi_slmin -= 1 
-
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPath, NODE_OT_TextUpdate, NODE_OT_FileSelect, NODE_OT_HdrSelect,
            VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, ViWRNode, ViSVFNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
            NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, ViSSNode, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,

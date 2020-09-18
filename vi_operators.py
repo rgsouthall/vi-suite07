@@ -50,7 +50,7 @@ from .envi_mat import envi_materials, envi_constructions
 
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
 
-from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvraswrite, fvmtwrite
+from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
 from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 
@@ -2342,23 +2342,23 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                 tpfile.write(fvtpwrite(casenode, svp['flparams']['solver_type']))     
         else:
             with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
-                mtfile.write(fvraswrite(casenode.turbulence))
+                mtfile.write(fvmtwrite(casenode, svp['flparams']['solver_type']))
 
             if casenode.buoyancy: 
                 with open(os.path.join(svp['flparams']['ofcfilebase'], 'pRef'), 'w') as pfile:
                     pfile.write(fvprefwrite(casenode, svp['flparams']['solver_type']))  
                 with open(os.path.join(svp['flparams']['ofcfilebase'], 'thermophysicalProperties'), 'w') as tppfile:    
                     tppfile.write(fvtppwrite(casenode, svp['flparams']['solver_type']))
-                with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
-                    mtfile.write(fvmtwrite(casenode, svp['flparams']['solver_type']))
+                # with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:    
+                #     mtfile.write(fvmtwrite(casenode, svp['flparams']['solver_type']))
                 with open(os.path.join(svp['flparams']['ofcfilebase'], 'g'), 'w') as gfile:    
                     gfile.write(fvgwrite())   
                 if casenode.radiation:    
                     with open(os.path.join(svp['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as rpfile:    
                         rpfile.write(fvrpwrite(casenode, svp['flparams']['solver_type']))
-            # else:
-            #     with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:    
-            #         tpfile.write(fvtpwrite(casenode, svp['flparams']['solver_type']))
+            else:
+                with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:    
+                    tpfile.write(fvtpwrite(casenode, svp['flparams']['solver_type']))
 #        fvsolvew(casenode, solver)
 #        with open(os.path.join(svp['flparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
 #            bmfile.write(fvbmwrite(bmos[0], expnode))
