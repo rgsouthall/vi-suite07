@@ -2131,10 +2131,13 @@ class No_Flo_Case(Node, ViNodes):
     bl_icon = 'FILE_FOLDER' 
     
     def ret_params(self):
-        return [str(x) for x in (self.transience, self.turbulence, self.buoyancy, self.buossinesq)]
+        return [str(x) for x in (self.transience, self.turbulence, self.buoyancy, self.buossinesq,
+        self.dtime, self.etime, self.pnormval, self.pabsval, self.uval, self.tval, self.nutval, self.nutildaval, 
+        self.kval, self.epval, self.oval, self.presid, self.uresid, self.keoresid, self.aval, self.p_rghval,
+        self.Gval, self.radmodel, self.solar, self.sun)]
     
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.turbulence)])
+        nodecolour(self, self['exportstate'] != self.ret_params())
         params = ''
     
         if self.buoyancy:
@@ -2154,12 +2157,13 @@ class No_Flo_Case(Node, ViNodes):
             params += 'o'
         elif self.turbulence == 'SpalartAllmaras':
             params += 's'
+
         if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('solver_type'): 
             context.scene.vi_params['flparams']['params'] = params
     
     solver: EnumProperty(name = '', items = [('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'simpleFoam')
     transience: EnumProperty(name = '', items = [('0', 'Steady', 'Steady state simulation'),
-                                                 ('1', 'Transient', 'Transient simulation')], description = 'Transience selection', default = '0')
+                                                 ('1', 'Transient', 'Transient simulation')], description = 'Transience selection', default = '0', update = nodeupdate)
     
     turbulence: EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
                                       ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
@@ -2168,14 +2172,16 @@ class No_Flo_Case(Node, ViNodes):
                              default = 'kEpsilon', update = nodeupdate)
     buoyancy: BoolProperty(name = '', description = 'Thermal', default = 0, update = nodeupdate)
     radiation: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
+    solar: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
+    sun: StringProperty(name="", description="Sun for solar radiation analysis", default="", update = nodeupdate)
     buossinesq: BoolProperty(name = '', description = 'Buossinesq approximation', default = 0, update = nodeupdate)
     stime: FloatProperty(name = '', description = 'Simulation start time', min = 0, max = 10, default = 0)
-    dtime: FloatProperty(name = '', description = 'False time step', min = 0.001, max = 10, default = 0.005)
-    etime: FloatProperty(name = '', description = 'Simulation end time', min = 1, max = 1000, default = 5)
+    dtime: FloatProperty(name = '', description = 'False time step', min = 0.001, max = 10, default = 0.005, update = nodeupdate)
+    etime: FloatProperty(name = '', description = 'Simulation end time', min = 1, max = 1000, default = 5, update = nodeupdate)
     pval: FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)
     pnormval: FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate) 
     pabsval: IntProperty(name = "", description = "Simulation delta T", min = 0, max = 10000000, default = 100000, update = nodeupdate) 
-    uval: FloatVectorProperty(size = 3, name = '', attr = 'Velocity', default = [0, 0, 0], unit = 'VELOCITY', subtype = 'VELOCITY', min = -100, max = 100)
+    uval: FloatVectorProperty(size = 3, name = '', attr = 'Velocity', default = [0, 0, 0], unit = 'VELOCITY', subtype = 'VELOCITY', min = -100, max = 100, update = nodeupdate)
     tval: FloatProperty(name = "K", description = "Field Temperature (K)", min = 0.0, max = 500, default = 293.14, update = nodeupdate)
     nutval: FloatProperty(name = "", description = "Nut domain value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
     nutildaval: FloatProperty(name = "", description = "NuTilda domain value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
@@ -2194,7 +2200,8 @@ class No_Flo_Case(Node, ViNodes):
         self['exportstate'] = ''
         self.outputs.new('So_Flo_Case', 'Case out')
         nodecolour(self, 1)
-        context.scene.vi_params['flparams']['params'] = 'l'
+        if context:
+            context.scene.vi_params['flparams']['params'] = 'l'
     
     def draw_buttons(self, context, layout):  
         newrow(layout, 'Turbulence:', self, 'turbulence') 
@@ -2202,7 +2209,7 @@ class No_Flo_Case(Node, ViNodes):
         if self.turbulence != 'laminar': 
             newrow(layout, 'Transience:', self, 'transience')
         
-        newrow(layout, 'Start time:', self, 'stime')
+#        newrow(layout, 'Start time:', self, 'stime')
         newrow(layout, 'Time step:', self, 'dtime')
         newrow(layout, 'End time:', self, 'etime')
         
@@ -2212,9 +2219,7 @@ class No_Flo_Case(Node, ViNodes):
             if self.buoyancy:
                 newrow(layout, 'Buossinesq:', self, 'buossinesq')
                 newrow(layout, 'Radiation:', self, 'radiation')
-                if self.radiation:
-                    newrow(layout, 'Radiation:', self, 'radmodel')
-                    
+                  
             if not self.buoyancy:
                 newrow(layout, 'Pressure rel:', self, 'pnormval')
             else:
@@ -2236,6 +2241,9 @@ class No_Flo_Case(Node, ViNodes):
                 newrow(layout, 'T value:', self, 'tval')
                 
                 if self.radiation:
+                    newrow(layout, 'Solar:', self, 'solar')
+                    if self.solar:
+                        layout.prop_search(self, 'sun', bpy.data, 'lights', text='SUn*', icon='NONE')
                     newrow(layout, 'Rad model:', self, 'radmodel')
                     newrow(layout, 'G value:', self, 'Gval')
 
@@ -2250,6 +2258,10 @@ class No_Flo_Case(Node, ViNodes):
 
         row = layout.row()
         row.operator("node.flovi_case", text = "Export")
+
+    def update(self):
+        if self.outputs.get('Case out'):
+            socklink(self.outputs['Case out'], self.id_data.name) 
     
     def pre_case(self, context):
         self.nodeupdate(context)
@@ -2264,8 +2276,11 @@ class No_Flo_NG(Node, ViNodes):
     bl_label = 'FloVi NetGen'
     bl_icon = 'MESH_ICOSPHERE' 
     
+    def ret_params(self):
+        return [str(x) for x in (self.poly, self.pcorr, self.acorr, self.maxcs, self.yang, self.grading)]
+
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.poly, self.vtk, self.pcorr, self.acorr, self.maxcs, self.yang, self.processors, self.grading)])
+        nodecolour(self, self['exportstate'] != self.ret_params())
     
     poly: BoolProperty(name = '', description = 'Create polygonal mesh', default = 0, update = nodeupdate)
     pcorr: FloatProperty(name = "m", description = "Maximum distance for position correspondance", min = 0, max = 1, default = 0.1, update = nodeupdate)
@@ -2293,17 +2308,24 @@ class No_Flo_NG(Node, ViNodes):
             row = layout.row()
             row.operator("node.flovi_ng", text = "Generate")
     
+    def update(self):
+        if self.outputs.get('Mesh out'):
+            socklink(self.outputs['Mesh out'], self.id_data.name) 
+
     def post_export(self):
-        self['exportstate'] = [str(x) for x in (self.poly, self.vtk, self.pcorr, self.acorr, self.maxcs, self.yang, self.processors, self.grading)]
-        
+        self['exportstate'] = self.ret_params()
+        nodecolour(self, 0)
             
 class No_Flo_Bound(Node, ViNodes):
     '''Openfoam boundary export'''
     bl_idname = 'No_Flo_Bound'
     bl_label = 'FloVi Boundary'
     bl_icon = 'MESH_ICOSPHERE' 
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(self.pv)])
     
-    pv: BoolProperty(name = '', description = 'Open Paraview', default = 0)
+    pv: BoolProperty(name = '', description = 'Open Paraview', default = 0, update = nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -2316,7 +2338,15 @@ class No_Flo_Bound(Node, ViNodes):
             newrow(layout, 'Paraview:', self, 'pv')      
             row = layout.row()
             row.operator("node.flovi_bound", text = "Generate")
-            
+    
+    def update(self):
+        if self.outputs.get('Context out'):
+            socklink(self.outputs['Context out'], self.id_data.name)  
+
+    def post_export(self):
+        self['exportstate'] = [str(self.pv)]
+        nodecolour(self, 0)
+
 class So_Flo_Con(NodeSocket):
     '''FloVi context socket'''
     bl_idname = 'So_Flo_Con'
@@ -2433,6 +2463,10 @@ class No_Flo_Sim(Node, ViNodes):
         row = layout.row()
         row.operator("node.flovi_sim", text = "Calculate")
     
+    def update(self):
+        if self.outputs.get('Results out'):
+            socklink(self.outputs['Results out'], self.id_data.name) 
+
     def presim(self):
         expnode = self.inputs['Context in'].links[0].from_node
         return (expnode.convergence, expnode.econvergence, expnode['residuals'], expnode.processes, expnode.solver)
@@ -2441,8 +2475,8 @@ class No_Flo_Sim(Node, ViNodes):
 
 vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), NodeItem("No_Li_Sen", label="LiVi Sense"), 
               NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_Case", label="FloVi Case"),
-              NodeItem("No_Flo_NG", label="FloVi NetGen"), NodeItem("No_Flo_BMesh", label="FloVi Blockmesh"), NodeItem("No_Flo_Bound", label="FloVi Boundary")]
-                
+              NodeItem("No_Flo_NG", label="FloVi NetGen"), NodeItem("No_Flo_Bound", label="FloVi Boundary")]
+# , NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")                
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
 vi_analysis = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose"), 
              NodeItem("ViSVFNode", label="Sky View"), NodeItem("ViSSNode", label="Shadow map"),

@@ -19,20 +19,22 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
 try:
     import netgen
-    from netgen.meshing import *
+    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
     from netgen.csg import *
-    from netgen.stl import *
+    from netgen.stl import STLGeometry
     import ngsolve
-    import pyngcore as ngcore
+ #   import pyngcore as ngcore
+    from pyngcore import SetNumThreads, TaskManager
     from ngsolve.solve import Draw
     ng = 1
-except:
+except Exception as e:
+    print(e)
     ng = 0
 import subprocess
 import numpy
 from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose
 from bpy_extras.io_utils import ExportHelper, ImportHelper
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, radians
@@ -2199,7 +2201,6 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         row.label(text="Specify the CSV export file with the file browser", icon='WORLD_DATA')
 
     def execute(self, context):
-        print(dir(context))
         node = self.node
         resstring = ''
         resnode = node.inputs['Results in'].links[0].from_node
@@ -2223,7 +2224,7 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
             csvfile.write(resstring)
         return {'FINISHED'}
 
-    def invoke(self,context,event):
+    def invoke(self, context, event):
         self.node = context.node
         if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
             self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')            
@@ -2324,7 +2325,6 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                 svp['flparams']['solver'] = 'pimpleFoam' 
                 svp['flparams']['solver_type'] = 'pf'
         
-
         svp['flparams']['st'] = casenode.stime
         svp['flparams']['presid'] = casenode.presid
         svp['flparams']['uresid'] = casenode.uresid
@@ -2366,7 +2366,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
 #        call(("blockMesh", "-case", "{}".format(scene['flparams']['offilebase'])))
 #        fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['flparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
 #        expnode.export()
-
+        casenode.post_case()
         return {'FINISHED'}
 
 class NODE_OT_Flo_BM(bpy.types.Operator):
@@ -2420,7 +2420,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         expnode = context.node
         meshcoll = create_coll(context, 'FloVi Mesh')
         clear_coll(meshcoll)
-        ngcore.SetNumThreads(int(svp['viparams']['nproc']))
+        SetNumThreads(int(svp['viparams']['nproc']))
         maxh = expnode.maxcs
         st = '0'
         totmesh = Mesh()  
@@ -2488,7 +2488,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
                         mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
                     
-            with ngcore.TaskManager():
+            with TaskManager():
                 m = geo.GenerateMesh(mp = mp)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
                 m.Refine()
                 
@@ -2517,7 +2517,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
         try:
-            with ngcore.TaskManager():    
+            with TaskManager():    
                 totmesh.GenerateVolumeMesh()
         except:
             logentry("Didn't work")
@@ -2660,7 +2660,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
    
         # if expnode.pv:
         #     subprocess.Popen(shlex.split('foamExec paraFoam -builtin -case {}'.format(svp['flparams']['offilebase'])))
-
+        expnode.post_export()
         return {'FINISHED'}
     
 class NODE_OT_Flo_Bound(bpy.types.Operator):
@@ -2672,6 +2672,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
     
     def execute(self, context):
         scene = context.scene
+        svp = scene.vi_params
         dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
         obs = dobs + gobs
@@ -2682,7 +2683,8 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
 
         if boundnode.pv:
             subprocess.Popen(shlex.split('foamExec paraFoam -builtin -case {}'.format(svp['flparams']['offilebase'])))
-
+            
+        boundnode.post_export()
         return {'FINISHED'}
     
 class NODE_OT_Flo_Sim(bpy.types.Operator):

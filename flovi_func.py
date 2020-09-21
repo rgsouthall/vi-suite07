@@ -572,6 +572,10 @@ def fvsolwrite(node, solver):
                                     '"(U|e|k|epsilon|omega)"': {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}},
                         'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'residualControl': {'p_rgh': '1e-4', 'U': '1e-4', 'e': '1e-2', '"(k|epsilon|omega)"': '1e-4'}},
                         'relaxationFactors': {'fields': {'p_rgh': '0.7'}, 'equations':{'U': '0.2', 'e': '0.1', '"(k|epsilon|R|omega)"': '0.7'}}}}
+    
+    if node.buoyancy and node.radiation:
+        soldict[solver]['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}
+    
     return write_fvdict(htext, soldict[solver])
 
  
@@ -580,16 +584,16 @@ def fvtppwrite(node, solver):
     tppdict = {'bsf':{'thermoType': {'type': 'heRhoThermo', 'mixture': 'pureMixture', 
                     'transport': 'const', 'thermo': 'hConst', 'equationOfState': 'perfectGas', 
                     'specie': 'specie', 'energy': 'sensibleEnthalpy'},
-                    'specie': {'molWeight': '28.96'},
+                    'mixture': {'specie': {'molWeight': '28.96'},
                     'thermodynamics': {'Cp': '1004.4', 'Hf': '0'},
-                    'transport': {'mu': '1e-05', 'Pr': '0.7'}},
+                    'transport': {'mu': '1e-05', 'Pr': '0.7'}}},
                 'bbsf': {'thermoType': {'type': 'heRhoThermo', 'mixture': 'pureMixture', 
                     'transport': 'const', 'thermo': 'eConst', 'equationOfState': 'Boussinesq', 
                     'specie': 'specie', 'energy': 'sensibleInternalEnergy'},
-                    'specie': {'molWeight': '28.96'},
+                    'mixture': {'specie': {'molWeight': '28.96'},
                     'equationOfState': {'rho0': '1', 'T0': '300', 'beta': '3e-03'},
                     'thermodynamics': {'Cv': '712', 'Hf': '0'},
-                    'transport': {'mu': '1e-05', 'Pr': '0.7'}}}
+                    'transport': {'mu': '1e-05', 'Pr': '0.7'}}}}
     return write_fvdict(htext, tppdict[solver])
 
  
@@ -628,6 +632,13 @@ def fvrpwrite(node, solver):
                 'solverFreq':'10', 'absorptionEmissionModel':'constant', 
                 'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'}, 
                 'scatterModel': 'none', 'sootModel': 'none'}}
+    if node.solar:
+        raddict[node.radmodel]['SolarLoadCoeffs'] = {'sunDirectionModel': 'sunDirConstant', 
+        'sunDirection': '({0[0]} {0[1]} {0[2]})'.format(-bpy.data.objects[node.sun].location), 'gridUp': '(0 0 1)', 'gridEast': '(1 0 0)',
+        'sunLoadModel': 'sunLoadFairWeatherConditions', 'skyCloudCoverFraction': '0', 'A': '1088', 'B': '0.205', 'groundReflectivity': '0.2', 
+        'C': '0.134', 'useReflectedRays': 'true', 'reflecting': {'nPhi': '10', 'nTheta': '10'}, 'absorptionEmissionModel': 'none',
+	    'scatterModel': 'none', 'sootModel': 'none'}
+#    soldict = {'SolarLoadCoeffs': {'sunDirectionModel': 'sunDirConstant', 'sunDirection': '({0[0]} {0[1]} {0[2]})'.format(-bpy.data.lights[node.sun].location)}}
     
     return (write_fvdict(htext, raddict[node.radmodel]))
     # raddict = p1dict if node.radmodel == '0' else fvdomdict
@@ -645,6 +656,7 @@ def fvrpwrite(node, solver):
     # return text
     
 def fvschwrite(node, solver): 
+    print(solver)
     htext = ofheader + write_ffile('dictionary', 'system', 'fvSchemes') 
     scdict = {'if': {'ddtSchemes': {'default': 'Euler'}, 
                     'gradSchemes': {'default': 'Gauss linear', 'grad(p)': 'Gauss linear'},
@@ -667,6 +679,7 @@ def fvschwrite(node, solver):
                         'div(((rho*nuEff)*dev2(T(grad(U)))))': 'Gauss linear',
                         'div(phi,U)': 'bounded Gauss limitedLinear 0.2', 'div(phi,K)': 'bounded Gauss limitedLinear 0.2',
                         'div(phi,h)': 'bounded Gauss limitedLinear 0.2'},
+                    'laplacianSchemes': {'default': 'Gauss linear uncorrected'},
                     'interpolationSchemes': {'default': 'linear'},
                     'snGradSchemes': {'default': 'corrected'}},   
                 'bbsf': {'ddtSchemes': {'default': 'steadyState'},
@@ -683,16 +696,19 @@ def fvschwrite(node, solver):
     if node.turbulence == 'kEpsilon':
         scdict[solver]['divSchemes']['div(phi,k)'] = '$turbulence'
         scdict[solver]['divSchemes']['div(phi,epsilon)'] = '$turbulence'  
-        scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
-        scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'  
+        if solver == 'sf':
+            scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
+            scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'  
     elif node.turbulence == 'kOmega':
         scdict[solver]['divSchemes']['div(phi,k)'] = '$turbulence'
         scdict[solver]['divSchemes']['div(phi,omega)'] = '$turbulence' 
-        scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
-        scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'
+        if solver == 'sf':
+            scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
+            scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'
     elif node.turbulence == 'SpalartAllmaras':
         scdict['divSchemes']['div(phi,nuTilda)'] = '$turbulence'  
-        scdict[solver]['gradSchemes']['grad(nuTilda)'] = '$limited'
+        if solver == 'sf':
+            scdict[solver]['gradSchemes']['grad(nuTilda)'] = '$limited'
  
     return write_fvdict(htext, scdict[solver])
 
