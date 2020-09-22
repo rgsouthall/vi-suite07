@@ -48,11 +48,13 @@ else:
                 os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
         else:
             os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-        if not os.environ.get('LD_LIBRARY_PATH'):
-            os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
-        elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
-            os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
-            os.execv(sys.argv[0], sys.argv)
+        
+        if sys.platform =='linux':
+            if not os.environ.get('LD_LIBRARY_PATH'):
+                os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+            elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
+                os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
+                os.execv(sys.argv[0], sys.argv)
         sys.path.append(os.path.join(addonpath, 'Python', sys.platform)) 
         
         if os.environ.get('PATH'):
@@ -566,14 +568,19 @@ def path_update():
 #    if vi_prefs and os.path.isdir(vi_prefs.ofbin):
 #        print('PATH')
 #        os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.abspath(ofbdir))
-    print('updating path')
+
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'RadFiles', 'lib'))
         else:
             os.environ["RAYPATH"] = radldir
-           
-        os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}{0}{4}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
+        if radbdir not in os.environ["PATH"]:
+            native_path = os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin')
+            if native_path in os.environ["PATH"]:
+                os.environ["PATH"].replace(native_path, radbdir)
+            else:
+               os.environ["PATH"] += '{0}{1}'.format(evsep[str(sys.platform)], radbdir)
+        os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
         sys.path.append(ofbdir)
         
         # if not os.environ.get("LD_LIBRARY_PATH"):
