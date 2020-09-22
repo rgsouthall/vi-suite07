@@ -53,10 +53,16 @@ else:
         elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
             os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
             os.execv(sys.argv[0], sys.argv)
-        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))  
+        sys.path.append(os.path.join(addonpath, 'Python', sys.platform)) 
+        
+        if os.environ.get('PATH'):
+            if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
+                os.environ['PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform, 'bin')
+        else:
+            os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
     
     try:
-        from netgen.meshing import *
+        from netgen.meshing import Mesh
     except Exception as e:
         print(e)
          
@@ -94,8 +100,7 @@ from bpy.app.handlers import persistent
 from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import AddonPreferences
 
-def return_preferences():
-    return bpy.context.preferences.addons[__name__].preferences
+
     
 def abspath(self, context):
     if self.radbin != bpy.path.abspath(self.radbin):
@@ -112,7 +117,8 @@ def abspath(self, context):
         self.oflib = bpy.path.abspath(self.oflib)  
     if self.ofetc != bpy.path.abspath(self.ofetc):
         self.ofetc = bpy.path.abspath(self.ofetc)
-
+    path_update()
+    
 def flovi_levels(self, context):
     if self.flovi_slmin > self.flovi_slmax:
        self.flovi_slmin -= 1 
@@ -170,15 +176,18 @@ class VIPreferences(AddonPreferences):
     oflib: StringProperty(name = '', description = 'OpenFOAM library directory location', default = '', subtype='DIR_PATH', update=abspath)
     ofetc: StringProperty(name = '', description = 'OpenFOAM etc directory location', default = '', subtype='DIR_PATH', update=abspath)
     ui_dict = {"Radiance bin directory:": 'radbin', "Radiance lib directory:": 'radlib', "EnergyPlus bin directory:": 'epbin',
-               "EnergyPlus weather directory:": 'epweath', 'OpenFOAM bin directory': 'ofbin', 'OpenFOAM lib directory': 'oflib', 'OpenFOAM etc directory': 'ofetc'}
+               "EnergyPlus weather directory:": 'epweath', 'OpenFOAM bin directory': 'ofbin'}
 
     def draw(self, context):
         layout = self.layout 
         
         for entry in self.ui_dict:
-            row = layout.row()
-            row.label(text=entry)   
-            row.prop(self, self.ui_dict[entry])
+            if entry == 'OpenFOAM bin directory' and sys.platform != 'linux':
+                pass
+            else:
+                row = layout.row()
+                row.label(text=entry)   
+                row.prop(self, self.ui_dict[entry])
 
 def get_frame(self):
     return self.vi_frames
@@ -203,7 +212,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         else:
             self.id_data.frame_set(value)
             self['vi_frames'] = value
-                    
+            
+    vi_name =  sprop("", "VI-Suite addon directory name", 1024, "")               
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
@@ -542,37 +552,42 @@ def getEnViMaterialSpaces():
         return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViMatN"]
     else:
         return []
-        
 
 def path_update():
     vi_prefs = bpy.context.preferences.addons[__name__].preferences
     epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', str(sys.platform))
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin') 
-    ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin') 
-    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
-    ofedir = vi_prefs.ofetc if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
-    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
-    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
-    
-    if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
+    ofbdir = os.path.abspath(vi_prefs.ofbin) if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin') 
+#    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
+#    ofedir = os.path.abspath(vi_prefs.ofetc) if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
+#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
+#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
+#    if vi_prefs and os.path.isdir(vi_prefs.ofbin):
+#        print('PATH')
+#        os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.abspath(ofbdir))
+    print('updating path')
+    if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'RadFiles', 'lib'))
         else:
             os.environ["RAYPATH"] = radldir
            
         os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}{0}{4}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
-        if not os.environ.get("LD_LIBRARY_PATH"):
-            os.environ["LD_LIBRARY_PATH"] = "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
-        else:
-            os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
-        os.environ["WM_PROJECT_DIR"] = ofedir
+        sys.path.append(ofbdir)
+        
+        # if not os.environ.get("LD_LIBRARY_PATH"):
+        #     os.environ["LD_LIBRARY_PATH"] = "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
+        # else:
+        #     os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
+#        os.environ["WM_PROJECT_DIR"] = ofedir
     # if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
     #     Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
     #     Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
-    if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'setvars.bat')):
-        print(os.path.join(ofedir, 'setvars.bat'), vi_prefs.ofetc)
-        call(os.path.join(ofedir, 'setvars.bat')) 
+    # if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'batchrc.bat')):
+    #     print(os.path.join(ofedir, 'batchrc.bat'))
+    #     call(os.path.join(ofedir, 'batchrc.bat')) 
+        
 
 #def tupdate(self, context):
 #    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:

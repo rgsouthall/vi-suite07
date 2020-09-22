@@ -458,7 +458,7 @@ def pregeo(context, op):
         c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c.vi_params.envi_hab = 1 if any([o.vi_params.envi_hab == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
-        print(c.name, c.vi_params.envi_zone)
+
         if c.vi_params.envi_zone:
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
             for o in c.objects:

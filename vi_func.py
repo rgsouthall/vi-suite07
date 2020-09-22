@@ -47,7 +47,10 @@ materials_from_group = set()
 #            return ''
 
 #sys.path.append(py_path())
-    
+
+# def return_preferences(svp):
+#     return bpy.context.preferences.addons[svp['viparams']['vi_name']].preferences
+# prefs = return_preferences()    
 def ret_plt():
     try:
         import matplotlib
