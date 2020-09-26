@@ -17,20 +17,6 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
-try:
-    import netgen
-    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
-    from netgen.csg import *
-    from netgen.stl import STLGeometry
-    import ngsolve
- #   import pyngcore as ngcore
-    from pyngcore import SetNumThreads, TaskManager
-    from ngsolve.solve import Draw
-    ng = 1
-except Exception as e:
-    print(e)
-    ng = 0
-    
 import subprocess
 import numpy
 from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose
@@ -42,10 +28,6 @@ from math import cos, sin, pi, ceil, tan, radians
 from time import sleep
 from mathutils import Euler, Vector
 from xml.dom.minidom import parse, parseString
-#from gpu_extras.batch import batch_for_shader
-#from bpy_extras import view3d_utils
-
-#from multiprocessing import Pool
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
@@ -67,6 +49,16 @@ from .vi_dicts import rvuerrdict, pmerrdict
 
 #from .vi_display import wr_legend, results_bar, wr_table, wr_scatter, svf_legend
 #from .vi_display import li_display, linumdisplay, ss_legend, ss_scatter, livi_legend#, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
+
+try:
+    import netgen
+    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+    from netgen.stl import STLGeometry
+    from pyngcore import SetNumThreads, TaskManager
+
+except Exception as e:
+    print(e)
+
 
 try:    
     import matplotlib
@@ -2418,9 +2410,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        if not ng:
-            logentry('Netgen installation not found')
-            return {'CANCELLED'}
         vi_prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         scene = context.scene
         svp = scene.vi_params
@@ -2464,7 +2453,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 i += 1
                 
         for oi, o in enumerate(obs):
-            mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading)
+            mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading, 
+            optsteps2d = expnode.optimisations, optsteps3d = expnode.optimisations, delaunay = True)
+#            help(mp)
             bm = bmesh.new()
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
@@ -2494,11 +2485,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     
                     for s in range(1, segs):
                         vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
-                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
+                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[min([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
                     
             with TaskManager():
                 m = geo.GenerateMesh(mp = mp)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
-                m.Refine()
+ #               help(m)
+ #               for i in range(expnode.optimisations):
+ #                   m.OptimizeMesh2d()
+#                    m.Refine()
                 
                 for el in m.Elements2D():
                     fpoint = [sum(m[v].p[x]/3 for v in el.vertices) for x in (0, 1, 2)]
@@ -2524,6 +2518,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         pmap1[v] = totmesh.Add(m[v])
                 totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
+
         try:
             with TaskManager():    
                 totmesh.GenerateVolumeMesh()
@@ -2535,13 +2530,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
         totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
 
-        if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
-            
+        if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):           
             subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
     
             if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
                 os.makedirs(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
-            
+        
+        if os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary')): 
             with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
                 nf = []
                 ns = []
@@ -2595,12 +2590,18 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         
             #     bfile.write(')\n\n// **\n')
                 
-            if expnode.poly:
+            if expnode.poly and sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
                 Popen(shlex.split('foamExec polyDualMesh -case {} -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
                 Popen(shlex.split('foamExec combinePatchFaces -overwrite -case {} {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
+                cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(svp['flparams']['offilebase'])), stdout = PIPE)
+
+                for line in cm.stdout:
+                    if '***Error' in line.decode():
+                        logentry('Mesh errors: {}'.format(line))
                 
-                for file in os.listdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
-                    shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', file), os.path.join(svp['flparams']['ofcpfilebase']))
+                for entry in os.scandir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
+                    if entry.is_file():
+                        shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', entry.name), os.path.join(svp['flparams']['ofcpfilebase']))
                 
                 with open(os.path.join(svp['flparams']['offilebase'], '0', 'polyMesh', 'boundary'), 'r') as bfile:
                     nf = []
@@ -2770,7 +2771,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 self.simnode['reslists'] = reslists
                 self.simnode['year'] = 2020
                 self.simnode['frames'] = [context.scene.frame_current]
-
+            
+            self.simnode.post_sim()
             return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -2797,16 +2799,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             if self.processes > 1:
                 with open(os.path.join(svp['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
                     fvdcpfile.write(fvdcpwrite(self.processes))
+
                 Popen(shlex.split("foamExec decomposePar -force -case {}".format(svp['flparams']['offilebase']))).wait()
                 self.run = Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], svp['flparams']['offilebase'])), stdout = fvprogress)
             else:
-                print(svp['flparams']['solver'], "-case", "{}".format(svp['flparams']['offilebase']))
                 self.run = Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", svp['flparams']['offilebase'])), stdout = fvprogress)
-        
 
-#        self.pv = simnode.pv
-            
-#        simnode.postsim()
         self._timer = wm.event_timer_add(5, window = context.window)
         wm.modal_handler_add(self)        
         return {'RUNNING_MODAL'}

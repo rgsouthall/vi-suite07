@@ -32,6 +32,16 @@ from .envi_mat import envi_materials, envi_constructions, envi_layer, envi_layer
 from numpy import where, sort, median, array
 from .vi_dicts import rpictparams, rvuparams
 
+try:
+    import netgen
+    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+    from netgen.stl import STLGeometry
+    from pyngcore import SetNumThreads, TaskManager
+    ng = 1
+except Exception as e:
+    print(e)
+    ng = 0
+
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
@@ -156,7 +166,7 @@ class No_Loc(Node, ViNodes):
 class No_ASC_Import(Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
     bl_idname = 'No_ASC_Import'
-    bl_label = 'Vi ASC Import'
+    bl_label = 'VI ASC Import'
     bl_icon = 'GRID'
 
     single: BoolProperty(name = '', default = False)
@@ -1049,9 +1059,9 @@ class No_Li_Sim(Node, ViNodes):
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
         
-class ViSPNode(Node, ViNodes):
+class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
-    bl_idname = 'ViSPNode'
+    bl_idname = 'No_Vi_SP'
     bl_label = 'VI Sun Path'
     
     def nodeupdate(self, context):
@@ -1082,9 +1092,9 @@ class ViSPNode(Node, ViNodes):
     def update(self):
         pass
 
-class ViWRNode(Node, ViNodes):
+class No_Vi_WR(Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
-    bl_idname = 'ViWRNode'
+    bl_idname = 'No_Vi_WR'
     bl_label = 'VI Wind Rose'
     bl_icon = 'FORCE_WIND'
 
@@ -1125,9 +1135,9 @@ class ViWRNode(Node, ViNodes):
     def update(self):
         pass
 
-class ViSVFNode(Node, ViNodes):
+class No_Vi_SVF(Node, ViNodes):
     '''Node for sky view factor analysis'''
-    bl_idname = 'ViSVFNode'
+    bl_idname = 'No_Vi_SVF'
     bl_label = 'VI SVF'
     bl_icon = 'MOD_SOFT'
     
@@ -1177,9 +1187,9 @@ class ViSVFNode(Node, ViNodes):
         if self.outputs.get('Results out'):
             socklink(self.outputs['Results out'], self.id_data.name)
         
-class ViSSNode(Node, ViNodes):
+class No_Vi_SS(Node, ViNodes):
     '''Node to create a VI-Suite shadow map'''
-    bl_idname = 'ViSSNode'
+    bl_idname = 'No_Vi_SS'
     bl_label = 'VI Shadow Map'
 
     def nodeupdate(self, context):
@@ -2204,60 +2214,59 @@ class No_Flo_Case(Node, ViNodes):
             context.scene.vi_params['flparams']['params'] = 'l'
     
     def draw_buttons(self, context, layout):  
-        newrow(layout, 'Turbulence:', self, 'turbulence') 
+        newrow(layout, 'Transience:', self, 'transience')
 
-        if self.turbulence != 'laminar': 
-            newrow(layout, 'Transience:', self, 'transience')
-        
+        if self.transience == '0':
+            newrow(layout, 'Turbulence:', self, 'turbulence') 
+                    
 #        newrow(layout, 'Start time:', self, 'stime')
-        newrow(layout, 'Time step:', self, 'dtime')
-        newrow(layout, 'End time:', self, 'etime')
-        
+            newrow(layout, 'Time step:', self, 'dtime')
+            newrow(layout, 'End time:', self, 'etime')    
+            newrow(layout, 'Velocity val:', self, 'uval') 
 
-        if self.turbulence != 'laminar':
-            newrow(layout, 'Buoyancy:', self, 'buoyancy')
-            if self.buoyancy:
-                newrow(layout, 'Buossinesq:', self, 'buossinesq')
-                newrow(layout, 'Radiation:', self, 'radiation')
-                  
-            if not self.buoyancy:
-                newrow(layout, 'Pressure rel:', self, 'pnormval')
-            else:
-                newrow(layout, 'Pressure abs:', self, 'pabsval')
-                newrow(layout, 'p_rgh value:', self, 'p_rghval')
+            if self.turbulence != 'laminar':
+                newrow(layout, 'Buoyancy:', self, 'buoyancy')
+
+                if self.buoyancy:
+                    newrow(layout, 'Buossinesq:', self, 'buossinesq')
+                    newrow(layout, 'Pressure abs:', self, 'pabsval')
+                    newrow(layout, 'p_rgh value:', self, 'p_rghval')
+                else:
+                    newrow(layout, 'Pressure rel:', self, 'pnormval')
+    
+                if self.turbulence == 'kEpsilon':
+                    newrow(layout, 'k value:', self, 'kval')
+                    newrow(layout, 'Epsilon value:', self, 'epval') 
+                    
+                elif self.turbulence == 'kOmega':
+                    newrow(layout, 'k Value:', self, 'kval')
+                    newrow(layout, 'Omega value:', self, 'oval') 
+                    
+                elif self.turbulence == 'SpalartAllmaras':   
+                    newrow(layout, 'NuTilda value:', self, 'nutildaval')
                 
-            if self.turbulence == 'kEpsilon':
-                newrow(layout, 'k value:', self, 'kval')
-                newrow(layout, 'Epsilon value:', self, 'epval') 
-                
-            elif self.turbulence == 'kOmega':
-                newrow(layout, 'k Value:', self, 'kval')
-                newrow(layout, 'Omega value:', self, 'oval') 
-                
-            elif self.turbulence == 'SpalartAllmaras':   
-                newrow(layout, 'NuTilda value:', self, 'nutildaval')
+                newrow(layout, 'Nut Value:', self, 'nutval')
+
+                if self.buoyancy:
+                    newrow(layout, 'T value:', self, 'tval')
+                    newrow(layout, 'Radiation:', self, 'radiation')
+
+                    if self.radiation:
+                        newrow(layout, 'Rad model:', self, 'radmodel')
+                        newrow(layout, 'G value:', self, 'Gval')
+                        newrow(layout, 'Solar:', self, 'solar')
+
+                        if self.solar:
+                            layout.prop_search(self, 'sun', bpy.data, 'lights', text='Sun', icon='NONE')
             
-            if self.buoyancy:
-                newrow(layout, 'T value:', self, 'tval')
-                
-                if self.radiation:
-                    newrow(layout, 'Solar:', self, 'solar')
-                    if self.solar:
-                        layout.prop_search(self, 'sun', bpy.data, 'lights', text='SUn*', icon='NONE')
-                    newrow(layout, 'Rad model:', self, 'radmodel')
-                    newrow(layout, 'G value:', self, 'Gval')
+            newrow(layout, 'p Residual:', self, 'presid')
+            newrow(layout, 'U Residual:', self, 'uresid')
 
-            newrow(layout, 'Nut Value:', self, 'nutval')
-        newrow(layout, 'Pressure rel:', self, 'pnormval')     
-        newrow(layout, 'Velocity val:', self, 'uval')    
-        newrow(layout, 'p Residual:', self, 'presid')
-        newrow(layout, 'U Residual:', self, 'uresid')
+            if self.turbulence != 'laminar':
+                newrow(layout, 'k/e/o Residual:', self, 'keoresid')
 
-        if self.turbulence != 'laminar':
-            newrow(layout, 'k/e/o Residual:', self, 'keoresid')
-
-        row = layout.row()
-        row.operator("node.flovi_case", text = "Export")
+            row = layout.row()
+            row.operator("node.flovi_case", text = "Export")
 
     def update(self):
         if self.outputs.get('Case out'):
@@ -2277,7 +2286,7 @@ class No_Flo_NG(Node, ViNodes):
     bl_icon = 'MESH_ICOSPHERE' 
     
     def ret_params(self):
-        return [str(x) for x in (self.poly, self.pcorr, self.acorr, self.maxcs, self.yang, self.grading)]
+        return [str(x) for x in (self.poly, self.pcorr, self.acorr, self.maxcs, self.yang, self.grading, self.optimisations, self.fang)]
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
@@ -2289,7 +2298,9 @@ class No_Flo_NG(Node, ViNodes):
     yang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 1, update = nodeupdate)
     grading: FloatProperty(name = "", description = "Small to large cell inflation", min = 0, max = 5, default = 0.3, update = nodeupdate)
     processors: IntProperty(name = "", description = "Number of processers", min = 0, max = 32, default = 1, update = nodeupdate)
-    
+    optimisations: IntProperty(name = "", description = "Number of optimisation steps", min = 0, max = 32, default = 3, update = nodeupdate)
+    fang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 30, update = nodeupdate)
+
     def init(self, context):
         self['exportstate'] = ''
         self.inputs.new('So_Flo_Case', 'Case in')
@@ -2298,15 +2309,22 @@ class No_Flo_NG(Node, ViNodes):
     
     def draw_buttons(self, context, layout): 
         if self.inputs and self.inputs['Case in'].links:
-            newrow(layout, 'Cell size:', self, 'maxcs')
-            newrow(layout, 'Position corr:', self, 'pcorr')
-            newrow(layout, 'Angular corr:', self, 'acorr')
-            newrow(layout, 'Distinction angle:', self, 'yang')
-#            newrow(layout, 'Processors:', self, 'processors')
-            newrow(layout, 'Inflation:', self, 'grading')
-            newrow(layout, 'Polygonal:', self, 'poly')
-            row = layout.row()
-            row.operator("node.flovi_ng", text = "Generate")
+            if ng:
+                newrow(layout, 'Cell size:', self, 'maxcs')
+                newrow(layout, 'Position corr:', self, 'pcorr')
+                newrow(layout, 'Angular corr:', self, 'acorr')
+                newrow(layout, 'Distinction angle:', self, 'yang')
+    #            newrow(layout, 'Processors:', self, 'processors')
+                newrow(layout, 'Inflation:', self, 'grading')
+                newrow(layout, 'Optimisations:', self, 'optimisations')
+                newrow(layout, 'Polygonal:', self, 'poly')
+    #            if self.poly:
+    #                newrow(layout, 'Feature angle:', self, 'fang')
+                row = layout.row()
+                row.operator("node.flovi_ng", text = "Generate")
+            else:
+                row = layout.row()
+                row.label(text = 'No Netgen')
     
     def update(self):
         if self.outputs.get('Mesh out'):
@@ -2342,7 +2360,7 @@ class No_Flo_Bound(Node, ViNodes):
     def update(self):
         if self.outputs.get('Context out'):
             socklink(self.outputs['Context out'], self.id_data.name)  
-
+        
     def post_export(self):
         self['exportstate'] = [str(self.pv)]
         nodecolour(self, 0)
@@ -2470,6 +2488,10 @@ class No_Flo_Sim(Node, ViNodes):
     def presim(self):
         expnode = self.inputs['Context in'].links[0].from_node
         return (expnode.convergence, expnode.econvergence, expnode['residuals'], expnode.processes, expnode.solver)
+    
+    def post_sim(self):
+        self['exportstate'] = [str(x) for x in (self.processes, self.pv)]
+        nodecolour(self, 0)
         
 ####################### Vi Nodes Categories ##############################
 
@@ -2478,8 +2500,8 @@ vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con"
               NodeItem("No_Flo_NG", label="FloVi NetGen"), NodeItem("No_Flo_Bound", label="FloVi Boundary")]
 # , NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")                
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
-vi_analysis = [NodeItem("ViSPNode", label="Sun Path"), NodeItem("ViWRNode", label="Wind Rose"), 
-             NodeItem("ViSVFNode", label="Sky View"), NodeItem("ViSSNode", label="Shadow map"),
+vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", label="Wind Rose"), 
+             NodeItem("No_Vi_SVF", label="Sky View"), NodeItem("No_Vi_SS", label="Shadow map"),
              NodeItem("No_Li_Sim", label="LiVi Simulation"), NodeItem("No_En_Sim", label="EnVi Simulation"), 
              NodeItem("No_Flo_Sim", label="FloVi Simulation")]
 

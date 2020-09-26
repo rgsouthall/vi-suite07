@@ -539,8 +539,8 @@ def fvcdwrite(solver, st, dt, et):
         probe_text = ''
         bpy.context.scene.vi_params['flparams']['probes'] = []
     return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
-            'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {};\n'.format(solver, st, et, dt)+\
-            'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\
+            'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {:.5f};\n'.format(solver, st, et, dt)+\
+            'deltaT          {:.5f};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\
             'writeCompression off;\ntimeFormat      general;\ntimePrecision   6;\nrunTimeModifiable true;\n\n' + probe_text
 
 def fvprefwrite(node, solver):
