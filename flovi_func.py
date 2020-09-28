@@ -560,21 +560,25 @@ def fvsolwrite(node, solver):
                                    'U': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'},
                                     '"k|epsilon|omega"': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}}, 
                         'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0', 
-                               'residualControl': {'p': '1e-4', 'U': '1e-4', '"(k|epsilon|omega)"': '1e-4'}},
+                               'residualControl': {'p': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
                                'potentialFlow': {'nNonOrthogonalCorrectors': '10'},
                                'relaxationFactors': {'fields': {'p': '0.3'}, 'equations': {'U': '0.7', '"(k|epsilon|omega)"': '0.7'}}},
                 'bsf': {'solvers': {'p_rgh': {'solver': 'GAMG', 'smoother': 'DICGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.01'},
                                     '"(U|h|k|epsilon|omega)"': {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.01'}},
                         'SIMPLE': {'momentumPredictor': 'no', 'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0',
-                        'residualControl': {'p_rgh': '1e-3', 'U': '1e-4', 'h': '1e-4', '"(k|epsilon|omega)"': '1e-4'}},
+                        'residualControl': {'p_rgh': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), 'h': '{:.5f}'.format(node.enresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
                         'relaxationFactors': {'rho': '1', 'p_rgh': '0.7', 'U': '0.3', 'h': '0.7', '"(k|epsilon|omega)"': '0.3'}},
                 'bbsf': {'solvers': {'p_rgh': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-06', 'relTol': '0.01'},
                                     '"(U|e|k|epsilon|omega)"': {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}},
-                        'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'residualControl': {'p_rgh': '1e-4', 'U': '1e-4', 'e': '1e-2', '"(k|epsilon|omega)"': '1e-4'}},
+                        'SIMPLE': {'nNonOrthogonalCorrectors': '0', 
+                        'residualControl': {'p_rgh': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), 'e': '{:.5f}'.format(node.enresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
                         'relaxationFactors': {'fields': {'p_rgh': '0.7'}, 'equations':{'U': '0.2', 'e': '0.1', '"(k|epsilon|R|omega)"': '0.7'}}}}
     
     if node.buoyancy and node.radiation:
         soldict[solver]['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}
+        soldict[solver]['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance' : '1e-06', 'relTol': '0.01'}
+        soldict[solver]['SIMPLE']['residualControl']['G'] = '1e-3'
+        soldict[solver]['relaxationFactors']= {'fields': {'rho': '1.0', 'p_rgh': '0.7'}, 'equations': {'U': '0.2', 'h': '0.2', '"(k|epsilon|omega|R)"': '0.5', 'G': '0.7'}}
     
     return write_fvdict(htext, soldict[solver])
 

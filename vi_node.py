@@ -1708,8 +1708,9 @@ class No_Vi_Metrics(Node, ViNodes):
     frame_menu: EnumProperty(items=frames,
                 name="", description="Frame results", update=zupdate)
     mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
-    probe_menu = EnumProperty(items=probes,
+    probe_menu: EnumProperty(items=probes,
                 name="", description="Frame results", update=zupdate)
+    ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
     
     def init(self, context):
         self['res'] = {}
@@ -1725,6 +1726,7 @@ class No_Vi_Metrics(Node, ViNodes):
         newrow(layout, 'Zone', self, "zone_menu")
 
         if self.metric == '2' and self.zone_menu == 'All': 
+            newrow(layout, 'Wind speed', self, "ws")
             newrow(layout, 'Metric', self, "probe_menu")
         
         if self.metric == '0':
@@ -1902,16 +1904,17 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['xvelocity'] = {}
                 self['res']['zvelocity'] = {}
                 self['res']['yvelocity'] = {}
+                self['res']['wpc'] = {}
 
 #                if self.frame_menu == 'All':
                 znames = set([z[2] for z in rl if z[1] == 'Zone'])
 
                 for zn in znames:
-                    print(zn)
                     for r in rl:
                         if r[2] == zn:
                             if r[3] == 'Pressure':
                                 self['res']['pressure'][zn] = [float(p) for p in r[4].split()][-1]
+                                self['res']['wpc'][zn] = ([float(p) for p in r[4].split()][-1] - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*0.1225*self.ws**2)
                             elif r[3] == 'Speed':
                                 self['res']['speed'][zn] = [float(p) for p in r[4].split()][-1]
                             elif r[3] == 'Temperature':
@@ -2188,9 +2191,12 @@ class No_Flo_Case(Node, ViNodes):
     kval: FloatProperty(name = "", description = "k domain value", min = 0.001, max = 500, default = 0.6, update = nodeupdate)
     epval: FloatProperty(name = "", description = "Epsilon domain value", min = 0.001, max = 500, default = 0.03, update = nodeupdate)
     oval: FloatProperty(name = "", description = "Omega domain value", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+#    hval: FloatProperty(name = "", description = "Enthalpy domain value", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+    enval: FloatProperty(name = "", description = "Enthalpy domain value", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     presid: FloatProperty(name = "", description = "p convergence criteria", precision = 6, min = 0.000001, max = 0.01, default = 0.0001, update = nodeupdate)
     uresid: FloatProperty(name = "", description = "U convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
     keoresid: FloatProperty(name = "", description = "k/e/o convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
+    enresid: FloatProperty(name = "", description = "Enthalpy convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
     aval: FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     p_rghval: FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
     Gval: FloatProperty(name = "", description = "Field radiation value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
@@ -2239,6 +2245,10 @@ class No_Flo_Case(Node, ViNodes):
             
             if self.buoyancy:
                 newrow(layout, 'T value:', self, 'tval')
+                if self.buossinesq:
+                    newrow(layout, 'e value:', self, 'enval')
+                else:
+                    newrow(layout, 'h value:', self, 'enval')
                 
                 if self.radiation:
                     newrow(layout, 'Solar:', self, 'solar')
@@ -2248,13 +2258,18 @@ class No_Flo_Case(Node, ViNodes):
                     newrow(layout, 'G value:', self, 'Gval')
 
             newrow(layout, 'Nut Value:', self, 'nutval')
-        newrow(layout, 'Pressure rel:', self, 'pnormval')     
+#        newrow(layout, 'Pressure rel:', self, 'pnormval')     
         newrow(layout, 'Velocity val:', self, 'uval')    
         newrow(layout, 'p Residual:', self, 'presid')
         newrow(layout, 'U Residual:', self, 'uresid')
 
         if self.turbulence != 'laminar':
             newrow(layout, 'k/e/o Residual:', self, 'keoresid')
+            if self.buoyancy:
+                if self.buossinesq:
+                    newrow(layout, 'e residual:', self, 'enresid')
+                else:
+                    newrow(layout, 'h residual:', self, 'enresid')
 
         row = layout.row()
         row.operator("node.flovi_case", text = "Export")
