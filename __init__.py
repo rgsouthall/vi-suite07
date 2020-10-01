@@ -101,9 +101,7 @@ import bpy, nodeitems_utils
 from bpy.app.handlers import persistent
 from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import AddonPreferences
-
-
-    
+   
 def abspath(self, context):
     if self.radbin != bpy.path.abspath(self.radbin):
         self.radbin = bpy.path.abspath(self.radbin)
@@ -457,8 +455,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_e_field: bprop("", "Take boundary epsilon from the field epsilon", False)
 
     flovi_bmbo_subtype: EnumProperty(items = ret_fvbomega_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbo_val = fprop("", "Omega value", -1000, 1000, 0.0)
-    flovi_o_field = bprop("", "Take boundary omega from the field omega", False)
+    flovi_bmbo_val: fprop("", "Omega value", -1000, 1000, 0.0)
+    flovi_o_field: bprop("", "Take boundary omega from the field omega", False)
 
     flovi_bmbnutilda_subtype: EnumProperty(items = ret_fvbnutilda_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbnutilda_val: fprop("", "NuTilda value", -1000, 1000, 0.0)
@@ -484,6 +482,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_rad_em: eprop([('lookup', 'Lookup', 'Lookup emissivity')], "", "Emissivity mode", 'lookup')
     flovi_rad_e: fprop("", "Emissivity value", 0, 1, 0.5)
     flovi_rad_val: fprop("", "Radiation value", 0, 10000, 0)
+    flovi_probe: bprop("", "Turn on pressure monitoring", False)
         
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 

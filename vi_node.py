@@ -1689,7 +1689,7 @@ class No_Vi_Metrics(Node, ViNodes):
             rl = self.inputs[0].links[0].from_node['reslists']
             try:
                 probes = set([z[3] for z in rl])
-                return [(m.lower(), m, 'Probe metric') for m in probes if m != 'Steps']
+                return [(m.lower(), m, 'Probe metric') for m in probes if m != 'Steps'] + [('wpc', 'WPC', 'Probe menu')]
             except:
                 return [('None', 'None', 'None')]
         else:
@@ -1709,7 +1709,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 name="", description="Frame results", update=zupdate)
     mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
     probe_menu: EnumProperty(items=probes,
-                name="", description="Frame results", update=zupdate)
+                name="", description="Probe results", update=zupdate)
     ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
     
     def init(self, context):
@@ -1718,17 +1718,15 @@ class No_Vi_Metrics(Node, ViNodes):
         
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "metric")
+
         if self.metric == '0':
             newrow(layout, 'Metric:', self, "energy_menu")
-        else:
+        elif self.metric == '0':
             newrow(layout, 'Metric:', self, "light_menu")
+
         newrow(layout, 'Frame', self, "frame_menu")
         newrow(layout, 'Zone', self, "zone_menu")
 
-        if self.metric == '2' and self.zone_menu == 'All': 
-            newrow(layout, 'Wind speed', self, "ws")
-            newrow(layout, 'Metric', self, "probe_menu")
-        
         if self.metric == '0':
             if self.energy_menu == '0':
                 if self['res'] and self['res'].get('hkwh'):
@@ -1782,6 +1780,11 @@ class No_Vi_Metrics(Node, ViNodes):
                     row.label(text = "Total credits: {}".format(self['res']['o1']))
 
         elif self.metric == '2':
+            newrow(layout, 'Wind speed', self, "ws")
+
+            if self.zone_menu == 'All':
+                newrow(layout, 'Metric', self, "probe_menu")
+
             if self.zone_menu == 'All':
                 for z in self['res'][self.probe_menu]:
                     row = layout.row()
@@ -1795,6 +1798,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
     def update(self):
         self.ret_metrics()
+
         if self.inputs[0].links:
             rl = self.inputs[0].links[0].from_node['reslists']
             
@@ -1840,6 +1844,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     break                        
                         else:
                             self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
+
                             if r[2] == self.zone_menu:
                                 if r[3] == 'Heating (W)':
                                     self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
@@ -1869,7 +1874,8 @@ class No_Vi_Metrics(Node, ViNodes):
                         self['res']['avDF'] = sum(df * dfareas)/sum(dfareas)
                         self['res']['ratioDF'] = min(df)/self['res']['avDF']
                     except:
-                        pass                                            
+                        pass    
+
                 elif self.light_menu == '1':
                     self['res']['ase'] = 0
                     self['res']['sda'] = 0
@@ -1891,6 +1897,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
                                     self['res']['udiam'] = udiaareas[im]
                                     self['res']['udiae'] = udiaareas[ie]
+
                     if self['res']['ase'] < 250:
                         if self['res']['sda'] > 55:
                             self['res']['o1'] = 2  
@@ -1913,12 +1920,12 @@ class No_Vi_Metrics(Node, ViNodes):
                     for r in rl:
                         if r[2] == zn:
                             if r[3] == 'Pressure':
-                                self['res']['pressure'][zn] = [float(p) for p in r[4].split()][-1]
-                                self['res']['wpc'][zn] = ([float(p) for p in r[4].split()][-1] - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*0.1225*self.ws**2)
+                                self['res']['pressure'][zn] = float(r[4].split()[-1])
+                                self['res']['wpc'][zn] = round((float(r[4].split()[-1]) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2)), 3)
                             elif r[3] == 'Speed':
-                                self['res']['speed'][zn] = [float(p) for p in r[4].split()][-1]
+                                self['res']['speed'][zn] = float(r[4].split()[-1])
                             elif r[3] == 'Temperature':
-                                self['res']['temperature'][zn] = [float(p) for p in r[4].split()][-1]
+                                self['res']['temperature'][zn] = float(r[4].split()[-1])
 
                 # for r in rl:
                 #     if r[0] == self.frame_menu:
@@ -1949,8 +1956,10 @@ class No_CSV(Node, ViNodes):
         try:
             rl = self.inputs['Results in'].links[0].from_node['reslists']
             zrl = list(zip(*rl))
+
             if len(set(zrl[0])) > 1:
                 newrow(layout, 'Animated:', self, 'animated')
+
             row = layout.row()
             row.operator('node.csvexport', text = 'Export CSV file')
         except:
@@ -2206,6 +2215,7 @@ class No_Flo_Case(Node, ViNodes):
         self['exportstate'] = ''
         self.outputs.new('So_Flo_Case', 'Case out')
         nodecolour(self, 1)
+
         if context:
             context.scene.vi_params['flparams']['params'] = 'l'
     
@@ -2219,7 +2229,6 @@ class No_Flo_Case(Node, ViNodes):
         newrow(layout, 'Time step:', self, 'dtime')
         newrow(layout, 'End time:', self, 'etime')
         
-
         if self.turbulence != 'laminar':
             newrow(layout, 'Buoyancy:', self, 'buoyancy')
             if self.buoyancy:

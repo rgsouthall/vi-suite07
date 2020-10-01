@@ -507,17 +507,32 @@ def fvmattype(mat, var):
     
 def fvcdwrite(solver, st, dt, et):
     pw = 0 if solver == 'icoFoam' else 1
-    ps = []
-    
+    ps, ss, bs = [], [], []
+    htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
+    cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '{}'.format(st), 'stopAt': 'endTime', 
+            'endTime': '{}'.format(et), 'deltaT': '{:.5f}'.format(dt), 'writeControl': 'timeStep', 'writeInterval': '1', 
+            'purgeWrite': '{}'.format(pw), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
+            'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}}
 
     for o in bpy.data.objects:
-        if o.type == 'MESH' and o.vi_params.vi_type == '2':
+        ovp = o.vi_params
+        if o.type == 'MESH' and ovp.vi_type == '2':
             dom = o
-        if o.type == 'EMPTY' and o.vi_params.flovi_probe:
+        elif o.type == 'EMPTY' and ovp.flovi_probe:
             ps.append(o)
+        elif o.type == 'MESH' and ovp.flovi_probe and len(o.data.polygons) == 1:
+            ss.append(o)
+        if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
+            for mat in o.data.materials:
+                if mat.vi_params.flovi_probe:
+                    bs.append('{}_{}'.format(o.name, mat.name))
     if ps:
         bpy.context.scene.vi_params['flparams']['probes'] = [p.name for p in ps]
-        probe_vars = 'p U T'          
+        probe_vars = 'p U T'  
+        for p in ps:
+            cdict['functions'][p.name] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name), 'writeControl': 'timeStep',
+        'writeInterval': '1', 'fields': '({0})'.format(probe_vars), 'probeLocations\n(\n{}\n)'.format('( {0[0]} {0[1]} {0[2]} )'.format(p.location)): ''}        
+
         probe_text = '''functions
 {{
     probes
@@ -538,6 +553,23 @@ def fvcdwrite(solver, st, dt, et):
     else:
         probe_text = ''
         bpy.context.scene.vi_params['flparams']['probes'] = []
+    
+    if ss:
+        bpy.context.scene.vi_params['flparams']['s_probes'] = [s.name for s in ss]
+        # for o in ss:
+        #     cdict['functions'][o.name] = {'name': o.name, 'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")',
+        #         'writeControl': 'timeStep', 'writeInterval': '1', 'writeFields': 'false', 'log': 'true', 'operation': 'average',
+        #         'fields': '(U)', 'operation': 'areaNormalIntegrate', 'regionType': 'sampledSurface', 'surfaceFormat': 'stl',
+        #         'sampledSurfaceDict': {'type': 'triSurfaceMesh', 'surface': '{}.stl'.format(o.name), 'source': 'cells', 'interpolate': 'true'}}
+        
+
+    if bs:
+        bpy.context.scene.vi_params['flparams']['b_probes'] = bs
+        for b in bs:
+            cdict['functions'][b] = {'type':'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'writeTime',
+            'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b), 'operation': 'none',
+            'fields    (      p    )': ''}
+    return write_fvdict(htext, cdict)
     return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
             'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {};\n'.format(solver, st, et, dt)+\
             'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\

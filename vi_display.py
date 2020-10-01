@@ -2202,10 +2202,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
 #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
         bgl.glLineWidth(context.scene.vi_params.sp_line_width)
         bgl.glPointSize(context.scene.vi_params.sp_sun_size)
+
         try:
             self.sp_shader.bind()
         except:
             self.create_batch(context.scene, node)
+
         matrix = bpy.context.region_data.perspective_matrix
         sp_matrix = context.scene.objects['SPathMesh'].matrix_world
         sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
@@ -2743,7 +2745,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
              svp.vi_scatt_max_val, svp.vi_scatt_min_val)
         
-        if self.cao and self.cao != context.active_object and context.active_object.vi_params.get(('ws', 'wd')[int(svp.wind_type)]):
+        if self.cao and context.active_object and self.cao != context.active_object and context.active_object.vi_params.get(('ws', 'wd')[int(svp.wind_type)]):
             self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
             self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
@@ -2828,6 +2830,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         
         except Exception as e:
             print(e)
+            svp.vi_display == 0
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
         
 class VIEW3D_OT_SVFDisplay(bpy.types.Operator):

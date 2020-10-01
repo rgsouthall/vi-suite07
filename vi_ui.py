@@ -410,6 +410,7 @@ class VI_PT_Mat(bpy.types.Panel):
                                     newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em") 
                                     newrow(layout, "Emissivity value:", mvp, "flovi_rad_e") 
                                     newrow(layout, "radiation value:", mvp, "flovi_rad_val") 
+                newrow(layout, "Probe:", mvp, "flovi_probe")
 #                    newrow(layout, "Pressure type:", mvp, "flovi_bmwp_type")
 #                    if cm.flovi_bmwp_type == 'fixedValue':
 #                        newrow(layout, "Pressure value:", cm, "flovi_b_sval")
@@ -501,8 +502,8 @@ class VI_PT_Ob(bpy.types.Panel):
         ovp = obj.vi_params
         layout = self.layout
         
-        if obj.type == 'EMPTY':
-            newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
+        
+        # elif obj.type == 'MESH' and len(obj.data.polygons) == 1:
 
         if obj.type == 'MESH':
             row = layout.row()
@@ -574,6 +575,9 @@ class VI_PT_Ob(bpy.types.Panel):
             else:
                 row = layout.row()
                 row.label(text = 'No BSDF material applied')
+
+        if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
+            newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
 
 # class VI_PT_Ob(bpy.types.Panel):
 #     bl_label = "VI-Suite Empty Definition"
