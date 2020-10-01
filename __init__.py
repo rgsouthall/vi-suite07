@@ -37,38 +37,46 @@ if "bpy" in locals():
     imp.reload(vi_node)
     imp.reload(envi_mat)
 else:
-    import sys, os, inspect, shlex
+    import sys, os, inspect, shlex, bpy
     from subprocess import Popen, call
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-
-    if sys.platform in ('darwin', 'linux', 'win32'):      
-        if os.environ.get('PYTHONPATH'):
-            if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
-                os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
-        else:
-            os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-        
-        if sys.platform =='linux':
-            if not os.environ.get('LD_LIBRARY_PATH'):
-                os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
-            elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
-                os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)   
-                os.execv(sys.argv[0], sys.argv)
-        sys.path.append(os.path.join(addonpath, 'Python', sys.platform)) 
-        
-        if os.environ.get('PATH'):
-            if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
-                os.environ['PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform, 'bin')
-        else:
-            os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
-    
     try:
-        from netgen.meshing import Mesh
-    except Exception as e:
-        print(e)
+        import matplotlib.pyplot as plt
+        from kivy.app import App
+    except:
+        print(sys.version_info[1])
+        if sys.version_info[1] == 7:
+            
+#    if sys.platform in ('darwin', 'linux', 'win32'):      
+            if os.environ.get('PYTHONPATH'):
+                if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
+                    os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
+            else:
+                os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
+            
+            if sys.platform =='linux':
+                if not os.environ.get('LD_LIBRARY_PATH'):
+                    os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+                elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
+                    os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)  
+                    sys.argv = [bpy.app.binary_path] 
+                    os.execv(sys.argv[0], sys.argv)
+            sys.path.append(os.path.join(addonpath, 'Python', sys.platform)) 
+            
+            if os.environ.get('PATH'):
+                if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
+                    os.environ['PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform, 'bin')
+            else:
+                os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
+    
+    # try:
+    #     from netgen.meshing import Mesh
+    # except Exception as e:
+    #     print(e)
          
-    from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, ViWRNode, ViSVFNode, So_Vi_Res, ViSSNode
+    from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc 
+    from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
     from .vi_node import No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc 
     from .vi_node import No_Li_Sim, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh
@@ -97,7 +105,7 @@ else:
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
     from .vi_dicts import colours
 
-import bpy, nodeitems_utils
+import nodeitems_utils
 from bpy.app.handlers import persistent
 from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
 from bpy.types import AddonPreferences
@@ -619,9 +627,9 @@ def path_update():
 #        script = bpy.data.texts[context.scene.script_file]
 #        exec(script.as_string())
         
-classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, ViSPNode, NODE_OT_SunPath, NODE_OT_TextUpdate, NODE_OT_FileSelect, NODE_OT_HdrSelect,
-           VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, ViWRNode, ViSVFNode, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
-           NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, ViSSNode, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
+classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPath, NODE_OT_TextUpdate, NODE_OT_FileSelect, NODE_OT_HdrSelect,
+           VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, No_Vi_WR, No_Vi_SVF, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
+           NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, No_Vi_SS, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
            No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, NODE_OT_Li_Geo, So_Li_Con, NODE_OT_Li_Con, No_Text, So_Text,
            No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,

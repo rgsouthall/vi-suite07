@@ -1524,7 +1524,7 @@ def sunpath(scene):
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
 #    spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
 
-    if svp['spparams']['suns'] == '0':        
+    if svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':        
         skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
 
         if suns:# and 0 in (suns[0]['solhour'] == svp.sp_sh, suns[0]['solday'] == svp.sp_sd):                          

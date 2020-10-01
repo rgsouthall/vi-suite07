@@ -17,20 +17,6 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
-try:
-    import netgen
-    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
-    from netgen.csg import *
-    from netgen.stl import STLGeometry
-    import ngsolve
- #   import pyngcore as ngcore
-    from pyngcore import SetNumThreads, TaskManager
-    from ngsolve.solve import Draw
-    ng = 1
-except Exception as e:
-    print(e)
-    ng = 0
-    
 import subprocess
 import numpy
 from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose
@@ -42,10 +28,6 @@ from math import cos, sin, pi, ceil, tan, radians
 from time import sleep
 from mathutils import Euler, Vector
 from xml.dom.minidom import parse, parseString
-#from gpu_extras.batch import batch_for_shader
-#from bpy_extras import view3d_utils
-
-#from multiprocessing import Pool
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
@@ -67,6 +49,16 @@ from .vi_dicts import rvuerrdict, pmerrdict
 
 #from .vi_display import wr_legend, results_bar, wr_table, wr_scatter, svf_legend
 #from .vi_display import li_display, linumdisplay, ss_legend, ss_scatter, livi_legend#, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
+
+try:
+    import netgen
+    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+    from netgen.stl import STLGeometry
+    from pyngcore import SetNumThreads, TaskManager
+
+except Exception as e:
+    print(e)
+
 
 try:    
     import matplotlib
@@ -2427,9 +2419,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        if not ng:
-            logentry('Netgen installation not found')
-            return {'CANCELLED'}
         vi_prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         scene = context.scene
         svp = scene.vi_params
@@ -2473,7 +2462,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 i += 1
                 
         for oi, o in enumerate(obs):
-            mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading)
+            mp = MeshingParameters(maxh=maxh, yangle = expnode.yang, grading = expnode.grading, 
+            optsteps2d = expnode.optimisations, optsteps3d = expnode.optimisations, delaunay = True)
+#            help(mp)
             bm = bmesh.new()
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
@@ -2503,11 +2494,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     
                     for s in range(1, segs):
                         vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
-                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
+                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[min([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
                     
             with TaskManager():
                 m = geo.GenerateMesh(mp = mp)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
-                m.Refine()
+ #               help(m)
+ #               for i in range(expnode.optimisations):
+ #                   m.OptimizeMesh2d()
+#                    m.Refine()
                 
                 for el in m.Elements2D():
                     fpoint = [sum(m[v].p[x]/3 for v in el.vertices) for x in (0, 1, 2)]
@@ -2533,6 +2527,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         pmap1[v] = totmesh.Add(m[v])
                 totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
+
         try:
             with TaskManager():    
                 totmesh.GenerateVolumeMesh()
@@ -2543,12 +2538,18 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
             totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
 
-            if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
+            # if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
+            #     subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
+        
+            #     if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
+            #         os.makedirs(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
+            if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):           
                 subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
         
                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
                     os.makedirs(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
-                
+            
+            if os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary')): 
                 with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
                     nf = []
                     ns = []
@@ -2602,81 +2603,147 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             
                 #     bfile.write(')\n\n// **\n')
                     
-                if expnode.poly:
+                if expnode.poly and sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
                     Popen(shlex.split('foamExec polyDualMesh -case {} -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
                     Popen(shlex.split('foamExec combinePatchFaces -overwrite -case {} {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
+                    cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(svp['flparams']['offilebase'])), stdout = PIPE)
+
+                    for line in cm.stdout:
+                        if '***Error' in line.decode():
+                            logentry('Mesh errors: {}'.format(line))
                     
-                    for file in os.listdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
-                        shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', file), os.path.join(svp['flparams']['ofcpfilebase']))
+                    for entry in os.scandir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
+                        if entry.is_file():
+                            shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', entry.name), os.path.join(svp['flparams']['ofcpfilebase']))
                     
-                    with open(os.path.join(svp['flparams']['offilebase'], '0', 'polyMesh', 'boundary'), 'r') as bfile:
+                    with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
                         nf = []
                         ns = []
+            
                         for line in bfile.readlines():
                             if 'nFaces' in line:
                                 nf.append(int(line.split()[1].strip(';')))
                             if 'startFace' in line:
                                 ns.append(int(line.split()[1].strip(';')))
-                
-                mesh = bpy.data.meshes.new("mesh") 
-                vcoords = []
-                findices = []
-                fi = []
-                fn = 0
-                prevline = ''    
+            
+                    with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'w') as bfile:
+                        bfile.write(ofheader) 
+                        cl = 'polyBoundaryMesh' if expnode.bl_label == 'FloVi NetGen' else 'BoundaryMesh'
+                        loc = 'constant/polyMesh' if expnode.bl_label == 'FloVi NetGen' else 'Mesh'
+                        bfile.write(write_ffile(cl, loc, 'boundary'))
+                        bfile.write('// **\n\n{}\n(\n'.format(len(ns)))
+                        omi = 0
+                        
+                        for mi, mats in enumerate(omats):
+                            for m in mats:
+                                if omi < len(ns):
+                                    bfile.write(write_bound(obs[mi], m, ns[omi], nf[omi]))
+                                    omi += 1
+                        bfile.write(')\n\n// **\n')
+                        
+                    for file in os.listdir(svp['flparams']['ofcpfilebase']):
+                        shutil.copy(os.path.join(svp['flparams']['ofcpfilebase'], file), os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
                     
-                with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'points'), 'r') as mfile:
-                    for li, line in enumerate(mfile.readlines()):
-                        if '(' in line and ')' in line:
-                            vcoords.append([float(x) for x in line.split('(')[1].split(')')[0].split()])
-                            
-                with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'faces'), 'r') as mfile:
-                    for li, line in enumerate(mfile.readlines()):
-                        if line:
-                            if fn:
-                                try:
-                                    fi.append(int(line))
-                                    fn -= 1
-                                except:
-                                    pass
-                                    
-                            if not fn and fi:
-                                findices.append(fi) 
-                                fi = []  
-                                fn = 0
-                            elif '(' in line and ')' in line:
-                                findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
+                    # with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
+                    #     nf = []
+                    #     ns = []
+                    #     for line in bfile.readlines():
+                    #         if 'nFaces' in line:
+                    #             nf.append(int(line.split()[1].strip(';')))
+                    #         if 'startFace' in line:
+                    #             ns.append(int(line.split()[1].strip(';')))
+            
+                    # with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'w') as bfile:
+                    #     bfile.write(ofheader) 
+                    #     cl = 'polyBoundaryMesh' if expnode.bl_label == 'FloVi NetGen' else 'BoundaryMesh'
+                    #     loc = 'constant/polyMesh' if expnode.bl_label == 'FloVi NetGen' else 'Mesh'
+                    #     bfile.write(write_ffile(cl, loc, 'boundary'))
+                    #     bfile.write('// **\n\n{}\n(\n'.format(len(ns)))
+                    #     omi = 0
+                        
+                    #     for mi, mats in enumerate(omats):
+                    #         for m in mats:
+                    #             if omi < len(ns):
+                    #                 bfile.write(write_bound(obs[mi], m, ns[omi], nf[omi]))
+                    #                 omi += 1
                                 
-                            else:
-                                try:
-                                    if prevline == '\n' and int(line) < 100:
-                                        fn = int(line)
-                                except:
-                                    fn = 0
-                        prevline = line
-                
-                mesh.from_pydata(vcoords, [], findices)
-                o = bpy.data.objects.new('Mesh', mesh)
-                bpy.context.view_layer.active_layer_collection.collection.objects.link(o)
-                selobj(vl, o)
-                
-                for mat in fomats:
-                    bpy.ops.object.material_slot_add()
-                    o.material_slots[-1].material = mat
+                    #     bfile.write(')\n\n// **\n')
+                        
+                    if expnode.poly:
+                        Popen(shlex.split('foamExec polyDualMesh -case {} -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
+                        Popen(shlex.split('foamExec combinePatchFaces -overwrite -case {} {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
+                        
+                        for file in os.listdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
+                            shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', file), os.path.join(svp['flparams']['ofcpfilebase']))
+                        
+                        with open(os.path.join(svp['flparams']['offilebase'], '0', 'polyMesh', 'boundary'), 'r') as bfile:
+                            nf = []
+                            ns = []
+                            for line in bfile.readlines():
+                                if 'nFaces' in line:
+                                    nf.append(int(line.split()[1].strip(';')))
+                                if 'startFace' in line:
+                                    ns.append(int(line.split()[1].strip(';')))
                     
-                bpy.ops.object.material_slot_add()
-                o.material_slots[-1].material = bpy.data.materials.new("Volume") if 'Volume' not in [m.name for m in bpy.data.materials] else bpy.data.materials["Volume"]
-                
-                for face in o.data.polygons:
-                    mi = 0
-                    for ni, n in enumerate(ns):
-                        if face.index >= n and face.index <= n + nf[ni]:
-                            face.material_index = ni
-                            mi = 1
-                    if not mi:
-                        face.material_index = len(ns)
+                    mesh = bpy.data.meshes.new("mesh") 
+                    vcoords = []
+                    findices = []
+                    fi = []
+                    fn = 0
+                    prevline = ''    
+                        
+                    with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'points'), 'r') as mfile:
+                        for li, line in enumerate(mfile.readlines()):
+                            if '(' in line and ')' in line:
+                                vcoords.append([float(x) for x in line.split('(')[1].split(')')[0].split()])
+                                
+                    with open(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'faces'), 'r') as mfile:
+                        for li, line in enumerate(mfile.readlines()):
+                            if line:
+                                if fn:
+                                    try:
+                                        fi.append(int(line))
+                                        fn -= 1
+                                    except:
+                                        pass
+                                        
+                                if not fn and fi:
+                                    findices.append(fi) 
+                                    fi = []  
+                                    fn = 0
+                                elif '(' in line and ')' in line:
+                                    findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
+                                    
+                                else:
+                                    try:
+                                        if prevline == '\n' and int(line) < 100:
+                                            fn = int(line)
+                                    except:
+                                        fn = 0
+                            prevline = line
+                    
+                    mesh.from_pydata(vcoords, [], findices)
+                    o = bpy.data.objects.new('Mesh', mesh)
+                    bpy.context.view_layer.active_layer_collection.collection.objects.link(o)
+                    selobj(vl, o)
+                    
+                    for mat in fomats:
+                        bpy.ops.object.material_slot_add()
+                        o.material_slots[-1].material = mat
+                        
+                    bpy.ops.object.material_slot_add()
+                    o.material_slots[-1].material = bpy.data.materials.new("Volume") if 'Volume' not in [m.name for m in bpy.data.materials] else bpy.data.materials["Volume"]
+                    
+                    for face in o.data.polygons:
+                        mi = 0
+                        for ni, n in enumerate(ns):
+                            if face.index >= n and face.index <= n + nf[ni]:
+                                face.material_index = ni
+                                mi = 1
+                        if not mi:
+                            face.material_index = len(ns)
 
-                expnode.post_export()
+                    expnode.post_export()
         except Exception as e:
             logentry("Netgen error: {}".format(e))
             return {'CANCELLED'}
@@ -2773,11 +2840,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             reslists.append([str(context.scene.frame_current), 'Zone', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
                 reslists.append([str(context.scene.frame_current), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
-
-            self.simnode['reslists'] = reslists
-            self.simnode['year'] = 2020
-            self.simnode['frames'] = [context.scene.frame_current]
-
+                self.simnode['reslists'] = reslists
+                self.simnode['year'] = 2020
+                self.simnode['frames'] = [context.scene.frame_current]
+            
+            self.simnode.post_sim()
             return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -2804,6 +2871,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             if self.processes > 1:
                 with open(os.path.join(svp['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
                     fvdcpfile.write(fvdcpwrite(self.processes))
+
                 Popen(shlex.split("foamExec decomposePar -force -case {}".format(svp['flparams']['offilebase']))).wait()
                 self.run = Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], svp['flparams']['offilebase'])), stdout = fvprogress)
             else:
