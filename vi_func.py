@@ -1562,7 +1562,7 @@ def sunpath(scene):
                 suns[0].children[0].hide_viewport = True if alt <= 0 else False
             return
 
-    elif svp['spparams']['suns'] == '1':
+    elif svp['spparams'].get('suns') and svp['spparams']['suns'] == '1':
         all_alts = [solarPosition(d, svp.sp_sh, svp.latitude, svp.longitude)[0] for d in (20, 50, 80, 110, 140, 171, 201, 231, 261, 292, 323, 354)]
         valid_suns = len([aa for aa in all_alts if aa > 0])
 
@@ -1586,7 +1586,7 @@ def sunpath(scene):
                         
                 suns[d].data.angle = svp.sp_sun_angle
     
-    elif scene.vi_params['spparams']['suns'] == '2':
+    elif svp['spparams'].get('suns') and svp['spparams']['suns'] == '2':
         all_alts = [solarPosition(svp.sp_sd, h, svp.latitude, svp.longitude)[0] for h in range(24)]
         valid_suns = len([aa for aa in all_alts if aa > 0])
 

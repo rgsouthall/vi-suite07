@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, datetime
+import bpy, os, datetime, shlex
 from subprocess import Popen, PIPE
 from time import sleep
 from . import livi_export
@@ -70,10 +70,10 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                         if '%' in line:
                             curres = float(line.split()[6][:-2])/len(frames)
                             break
-                if curres:                                
-                    if pfile.check(curres) == 'CANCELLED': 
-                        pmrun.kill()                                   
-                        return 'CANCELLED'
+ #               if curres:                                
+                if pfile.check(curres) == 'CANCELLED': 
+                    pmrun.kill()                                   
+                    return 'CANCELLED'
             
             if kivyrun.poll() is None:
                 kivyrun.kill()

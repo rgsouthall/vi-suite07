@@ -2697,7 +2697,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.legend = wr_legend(context, 'Speed (m/s)', [305, r2h - 80], r2w, r2h, 125, 300)
         self.table = wr_table(context, [355, r2h - 80], r2w, r2h, 400, 60) 
         scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 2)[0]
-        self.cao = 0
+        self.cao = 1
         self.image = 'wr_scatter.png'
         self.zdata = array([])
         self.xtitle = 'Days'
@@ -2738,12 +2738,16 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         if (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) != \
             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
              svp.vi_scatt_max_val, svp.vi_scatt_min_val):
-            updates[2] = 1
-            self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
-            self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
             (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) = \
             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
              svp.vi_scatt_max_val, svp.vi_scatt_min_val)
+            updates[2] = 1
+            self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
+            self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
+            self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
+            self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
+            self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
+            print(self.zdata)
         
         if self.cao and context.active_object and self.cao != context.active_object and context.active_object.vi_params.get(('ws', 'wd')[int(svp.wind_type)]):
             self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
@@ -2752,7 +2756,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             self.xdata = context.active_object.vi_params['days']
             self.ydata = context.active_object.vi_params['hours']                   
             updates[2] = 1
-
         self.cao = context.active_object 
         
         if updates[2] and self.zdata.any():
@@ -2819,6 +2822,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}            
     
     def draw_wrnum(self, context):
+        svp = context.scene.vi_params
         r2h = context.area.regions[2].height
         r2w = context.area.regions[2].width 
 
@@ -2831,7 +2835,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         except Exception as e:
             print(e)
             svp.vi_display == 0
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
+ #           bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
         
 class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''

@@ -278,8 +278,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
                                             name = "", description = "Set maximum value", default = '0')
     vi_scatt_min: EnumProperty(items = [('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')], 
                                             name = "", description = "Set minimum value", default = '0')
-    vi_scatt_max_val: fprop("",'Maximum value', 1, 30, 20)
-    vi_scatt_min_val: fprop("",'Minimum value', 0, 10, 0)
+    vi_scatt_max_val: fprop("",'Maximum value', 1, 3000, 20)
+    vi_scatt_min_val: fprop("",'Minimum value', 0, 1000, 0)
     vi_scatt_col: EnumProperty(items = colours, name = "", description = "Scatter colour", default = 'rainbow')
     vi_disp_refresh: bprop("", "Refresh display",  False)
     vi_res_mod: sprop("", "Result modifier", 1024, "")
