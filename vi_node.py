@@ -1482,6 +1482,90 @@ class No_En_Sim(Node, ViNodes):
         if condition == 'FINISHED':
             processf(sim_op, self)
 
+class No_En_IF(Node, ViNodes):
+    '''Node for EnergyPlus input file selection'''
+    bl_idname = 'ViEnInNode'
+    bl_label = 'EnVi Input File'
+    
+    def nodeupdate(self, context):
+        context.scene['enparams']['fs'] = context.scene['enparams']['fe'] = context.scene.frame_current            
+        shutil.copyfile(self.idffilename, os.path.join(context.scene['viparams']['newdir'], 'in{}.idf'.format(context.scene.frame_current)))
+        locnode = self.inputs['Location in'].links[0].from_node
+        self['year'] = locnode['year']
+        shutil.copyfile(locnode.weather, os.path.join(context.scene['viparams']['newdir'], 'in{}.epw'.format(context.scene.frame_current)))
+
+        with open(self.idffilename, 'r', errors='ignore') as idff:
+            idfflines = idff.readlines()
+            for l, line in enumerate(idfflines):
+                if line.split(',')[0].lstrip(' ').upper() == 'RUNPERIOD':
+                    self.sdoy = datetime.datetime(self['year'], int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                    self.edoy = datetime.datetime(self['year'], int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                    self.outputs['Context out'].hide = False
+                    break
+            nodecolour(self, 0)
+
+    idfname = StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
+    sdoy = IntProperty(name = '', default = 1, min = 1, max = 365)
+    edoy = IntProperty(name = '', default = 365, min = 1, max = 365)
+    newdir = StringProperty()
+
+    def init(self, context):
+        self.inputs.new('ViLoc', 'Location in')
+        self.outputs.new('ViEnC', 'Context out')
+        self.outputs['Context out'].hide = True
+        self['nodeid'] = nodeid(self)
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        
+        if self.inputs['Location in'].links: 
+            row = layout.row()
+            row.operator('node.idfselect', text = 'IDF select').nodeid = self['nodeid']
+            row.prop(self, 'idfname')
+        else:
+            row.label('Connect Location node')
+
+    def update(self):
+        if self.outputs.get('Context out'):
+            (self.outputs['Context out'], self['nodeid'].split('@')[1])
+        if not self.inputs['Location in'].links:
+            nodecolour(self, 1)
+
+class No_En_RF(Node, ViNodes):
+    '''Node for EnergyPlus results file selection'''
+    bl_idname = 'ViEnRFNode'
+    bl_label = 'EnVi Results File'
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [self.resfilename])
+        self['frames'] = [context.scene.frame_current]
+        
+    esoname = StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
+    filebase = StringProperty(name="", description="Name of the EnVi results file", default="")
+    dsdoy, dedoy = IntProperty(), IntProperty()
+    
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.outputs.new('ViR', 'Results out')
+        self['exportstate'] = ''
+        self['year'] = 2015        
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator('node.esoselect', text = 'ESO select').nodeid = self['nodeid']
+        row.prop(self, 'esoname')
+        row = layout.row()
+        row.operator("node.fileprocess", text = 'Process file').nodeid = self['nodeid']
+
+    def update(self):
+        socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
+
+    def export(self):
+        self['exportstate'] = [self.resfilename]
+        nodecolour(self, 0)
+
 class No_Vi_Chart(Node, ViNodes):
     '''Node for 2D results plotting'''
     bl_idname = 'No_Vi_Chart'
@@ -2013,7 +2097,7 @@ class So_Li_Geo(NodeSocket):
         return (0.3, 0.17, 0.07, 0.75)
 
 class So_Li_Con(NodeSocket):
-    '''Lighting context in socket'''
+    '''Lighting context socket'''
     bl_idname = 'So_Li_Con'
     bl_label = 'Context'
 
@@ -2896,7 +2980,7 @@ class No_En_Net_Zone(Node, EnViNodes):
     alllinked: BoolProperty(default = 0, name = "")
     envi_oca: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "TARP", "Use the detailed convection algorithm"), ("3", "DOE-2", "Use the Trombe wall convection algorithm"), ("4", "MoWitt", "Use the adaptive convection algorithm"), ("5", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone outside convection algorithm", "0")
     envi_ica: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "Detailed", "Use the detailed convection algorithm"), ("3", "Trombe", "Use the Trombe wall convection algorithm"), ("4", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone inside convection algorithm", "0")
-    envi_hab: BoolProperty(default = 0, name = "")
+#    envi_hab: BoolProperty(default = 0, name = "")
 #    zone = StringProperty(name = '', default = "en_Chimney")
 #    tcsched = EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
 #    waw = FloatProperty(name = '', min = 0.001, default = 1)
@@ -2979,7 +3063,7 @@ class No_En_Net_Zone(Node, EnViNodes):
         newrow(layout, 'Zone:', self, 'zone')
         if bpy.data.collections.get(self.zone):
 #            cvp = bpy.data.collections[self.zone].vi_params
-            newrow(layout, "Habitable:", self, 'envi_hab')
+#            newrow(layout, "Habitable:", self, 'envi_hab')
             newrow(layout, "Inside convection:", self, 'envi_ica')
             newrow(layout, "Outside convection:", self, 'envi_oca')
         yesno = (1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
@@ -5060,7 +5144,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         
     def draw_buttons(self, context, layout):
         newrow(layout, "Type:", self, "materialtype")
-        newrow(layout, "Class:", self, "layer")
+        newrow(layout, "Specification:", self, "layer")
+
         if self.layer == '0':
             newrow(layout, "Material:", self, "material")
             newrow(layout, "Thickness:", self, "thi") 
@@ -5079,8 +5164,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                 newrow(layout, "Temps:Emps", self, "tempemps")
                 newrow(layout, "TCTC:", self, "tctc")
             
-            row = layout.row()
-            row.operator('node.lay_save', text = "Layer Save")
+            if self.lay_name:
+                row = layout.row()
+                row.operator('node.lay_save', text = "Layer Save")
     
     def ret_resist(self):
         if self.layer == '0':
@@ -5202,7 +5288,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         self.inputs.new('So_En_Mat_Gas', 'Layer')
         
     def draw_buttons(self, context, layout):        
-        newrow(layout, "Class:", self, "layer")
+        newrow(layout, "Specification:", self, "layer")
         if self.layer == '0':
             newrow(layout, "Material:", self, "material")
             newrow(layout, "Thickness:", self, "thi") 
@@ -5322,11 +5408,11 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
                 newrow(layout, "Coeff B:", self, "ccB")
                 newrow(layout, "Coeff C:", self, "ccC")
                 newrow(layout, "Viscosity A:", self, "vcA")
-                newrow(layout, "Viscosity A:", self, "vcB")
-                newrow(layout, "Viscosity A:", self, "vcC")
+                newrow(layout, "Viscosity B:", self, "vcB")
+                newrow(layout, "Viscosity C:", self, "vcC")
                 newrow(layout, "SHC A:", self, "shcA")
-                newrow(layout, "SHC A:", self, "shcB")
-                newrow(layout, "SHC A:", self, "shcC")
+                newrow(layout, "SHC B:", self, "shcB")
+                newrow(layout, "SHC C:", self, "shcC")
                 newrow(layout, "Mol Weight:", self, "mw")
                 newrow(layout, "SHR:", self, "shr")
 

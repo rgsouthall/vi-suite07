@@ -109,7 +109,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 znode.update()
                 
                 cvp = coll.vi_params
-                cvp['enparams']['floorarea'] = sum(o.vi_params['enparams']['floorarea'] for o in coll.objects) if znode.envi_hab else 0
+                cvp['enparams']['floorarea'] = sum([o.vi_params['enparams']['floorarea'] for o in coll.objects if o.vi_params.envi_type == '0'])
     
     #        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
                 if coll.objects[0].vi_params.envi_type in ('0', '2'):
@@ -456,12 +456,13 @@ def pregeo(context, op):
                 
     for c in [c for c in bpy.data.collections if c.name != 'EnVi Geometry' and c.name not in [c.name for c in bpy.data.collections['EnVi Geometry'].children]]:
         c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
-        c.vi_params.envi_hab = 1 if any([o.vi_params.envi_hab == '1' for o in c.objects]) else 0
+#        c.vi_params.envi_hab = 1 if any([o.vi_params.envi_hab == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
+        cobs = [o for o in c.objects if o.visible_get()]
 
         if c.vi_params.envi_zone:
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
-            for o in c.objects:
+            for o in cobs:
                 if o.type == 'MESH' and o.vi_params.envi_type in ('0', '1'):
                     if [f for f in o.data.polygons if o.material_slots and \
                         o.material_slots[f.material_index].material and \
