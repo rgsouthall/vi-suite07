@@ -1578,9 +1578,9 @@ class No_Vi_Chart(Node, ViNodes):
         return [tuple(p) for p in self['pmitems']]
 
     ctypes = [("0", "Line/Scatter", "Line/Scatter Plot")]
-    charttype: EnumProperty(items = ctypes, name = "Chart Type", default = "0")
+    charttype: EnumProperty(items = ctypes, name = "", default = "0")
     timemenu: EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
-                name="Period", description="Results frequency", default="0")
+                name="", description="Results frequency", default="0")
     parametricmenu: EnumProperty(items=pmitems, name="", description="Parametric result display", update=aupdate)    
     bl_width_max = 800
     dpi: IntProperty(name = 'DPI', description = "DPI of the shown figure", default = 92, min = 92)
@@ -1616,6 +1616,7 @@ class No_Vi_Chart(Node, ViNodes):
                     
                 if self.parametricmenu == '0':
                     row = layout.row()
+                    row.label(text = "Chart type:")
                     row.prop(self, "charttype")
                     row.prop(self, "timemenu")
                     row.prop(self, "dpi")
@@ -1791,7 +1792,8 @@ class No_Vi_Metrics(Node, ViNodes):
     
     metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), ("2", "Flow", "Flow results")],
                 name="", description="Results type", default="0", update=zupdate)   
-    energy_menu: EnumProperty(items=[("0", "SAP", "SAP results")],
+    energy_menu: EnumProperty(items=[("0", "SAP", "SAP results"),
+                                    ("1", "RIBA 2030", "RIBA 2030 results")],
                 name="", description="Results metric", default="0", update=zupdate)
     light_menu: EnumProperty(items=[("0", "BREEAM", "BREEAM HEA1 results"),
                                     ("1", "LEED", "LEED v4 results"),
@@ -1815,7 +1817,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
         if self.metric == '0':
             newrow(layout, 'Metric:', self, "energy_menu")
-        elif self.metric == '0':
+        elif self.metric == '1':
             newrow(layout, 'Metric:', self, "light_menu")
 
         newrow(layout, 'Frame', self, "frame_menu")
@@ -1857,10 +1859,12 @@ class No_Vi_Metrics(Node, ViNodes):
 
         elif self.metric == '1':
             if self.light_menu == '2':
+                dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
+                udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
                 row = layout.row()
-                row.label(text = "Average DF: {:.2f}".format(self['res']['avDF']))
+                row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
                 row = layout.row()
-                row.label(text = "Ratio: {:.2f}".format(self['res']['ratioDF']))
+                row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
                 
             if self.light_menu == '1':
                 if self['res'] and self['res'].get('ase'): 
@@ -1957,6 +1961,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 
                 if self.light_menu == '2':
                     for r in rl:
+                        print(r[0], r[2], r[3], self.frame_menu, self.zone_menu)
                         if r[0] == self.frame_menu:
                             if r[2] == self.zone_menu:
                                 if r[3] == 'Areas (m2)':
@@ -1965,8 +1970,8 @@ class No_Vi_Metrics(Node, ViNodes):
                                     df = array([float(p) for p in r[4].split()])
 
                     try:
-                        self['res']['avDF'] = sum(df * dfareas)/sum(dfareas)
-                        self['res']['ratioDF'] = min(df)/self['res']['avDF']
+                        self['res']['avDF'] = round(sum(df * dfareas)/sum(dfareas), 2)
+                        self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
                     except:
                         pass    
 

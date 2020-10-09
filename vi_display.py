@@ -193,10 +193,12 @@ def li_display(disp_op, simnode):
     svp = scene.vi_params
     svp['liparams']['livir'] = []
     setscenelivivals(scene)
+
     try:
         scene.display_settings.display_device = 'None'
     except:
         pass
+
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 
     for geo in scene.objects:
@@ -384,22 +386,26 @@ class linumdisplay():
            
     def update(self, context):
         scene = context.scene
+        
         vl = context.view_layer
         svp = scene.vi_params
         self.allpcs, self.alldepths, self.allres = array([]), array([]), array([])
 
         for ob in self.obd:
+            res = []
+
             if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
                 ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(self.fn))
-
-            omw = ob.matrix_world
+                
+            dp = context.evaluated_depsgraph_get()
             bm = bmesh.new()
-            tempmesh = ob.to_mesh()
+            tempmesh = ob.evaluated_get(dp).to_mesh()
             bm.from_mesh(tempmesh)
+            bm.transform(ob.matrix_world)
+            bm.normal_update() 
             ob.to_mesh_clear()
+
 #                    bpy.data.meshes.remove(tempmesh)
-            bm.transform(omw)
-            bm.normal_update()
             var = svp.li_disp_menu
             geom = bm.faces if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) else bm.verts
             geom.ensure_lookup_table()
@@ -418,12 +424,16 @@ class linumdisplay():
                     fcos = [f.calc_center_median_weighted() + svp.vi_display_rp_off * f.normal.normalized() for f in faces]
                     direcs = [self.view_location - f for f in fcos]
                     
-                    (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl, fcos[i], direcs[i], distance=distances[i])[0]]))
+                    try:
+                        (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl, fcos[i], direcs[i], distance=distances[i])[0]]))
+                    except:
+                        (faces, distances) = ([], [])
 
-                face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
-                (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
-                res = [f[livires] for f in faces] 
-                res = ret_res_vals(svp, res)
+                if faces:
+                    face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
+                    (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
+                    res = [f[livires] for f in faces] 
+                    res = ret_res_vals(svp, res)
                 
             elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):                        
                 verts = [v for v in geom if not v.hide and v.select and (context.space_data.region_3d.view_location - self.view_location).dot(v.co + svp.vi_display_rp_off * v.normal.normalized() - self.view_location)/((context.space_data.region_3d.view_location-self.view_location).length * (v.co + svp.vi_display_rp_off * v.normal.normalized() - self.view_location).length) > 0]
@@ -442,15 +452,14 @@ class linumdisplay():
                     vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
                     (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
                     res = [v[livires] for v in verts] if not svp.vi_res_mod else [eval('{}{}'.format(v[livires], svp.vi_res_mod)) for v in verts]
-                    self.allpcs = nappend(self.allpcs, array(pcs))
-                    self.alldepths = nappend(self.alldepths, array(depths))
-                    self.allres = nappend(self.allres, array(res))
-                    self.alldepths = self.alldepths/nmin(self.alldepths)        
-                    draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
+            
+            if res:
+                self.allpcs = nappend(self.allpcs, array(pcs))
+                self.alldepths = nappend(self.alldepths, array(depths))
+                self.allres = nappend(self.allres, array(res))
+                self.alldepths = self.alldepths/nmin(self.alldepths)        
+                draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
             bm.free()
-            
-
-            
         
 class Base_Display():
     def __init__(self, ipos, width, height, xdiff, ydiff):
@@ -2753,7 +2762,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
             self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-            print(self.zdata)
         
         if self.cao and context.active_object and self.cao != context.active_object and context.active_object.vi_params.get(('ws', 'wd')[int(svp.wind_type)]):
             self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
