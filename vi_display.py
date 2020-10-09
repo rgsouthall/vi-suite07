@@ -433,19 +433,24 @@ class linumdisplay():
                     vcos = [v.co + svp.vi_display_rp_off * v.normal.normalized() for v in verts]
                     direcs = [self.view_location - v for v in vcos]
                     # Something wrong here
-                    (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vl, vcos[i], direcs[i], distance=distances[i])[0]]))
-                    
-                vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
-                (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
-                res = [v[livires] for v in verts] if not svp.vi_res_mod else [eval('{}{}'.format(v[livires], svp.vi_res_mod)) for v in verts]
-                
+                    try:
+                        (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vl, vcos[i], direcs[i], distance=distances[i])[0]]))
+                    except:
+                        (verts, distances) = ([], [])
+                        
+                if verts:
+                    vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
+                    (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
+                    res = [v[livires] for v in verts] if not svp.vi_res_mod else [eval('{}{}'.format(v[livires], svp.vi_res_mod)) for v in verts]
+                    self.allpcs = nappend(self.allpcs, array(pcs))
+                    self.alldepths = nappend(self.alldepths, array(depths))
+                    self.allres = nappend(self.allres, array(res))
+                    self.alldepths = self.alldepths/nmin(self.alldepths)        
+                    draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
             bm.free()
-            self.allpcs = nappend(self.allpcs, array(pcs))
-            self.alldepths = nappend(self.alldepths, array(depths))
-            self.allres = nappend(self.allres, array(res))
+            
 
-        self.alldepths = self.alldepths/nmin(self.alldepths)        
-        draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)    
+            
         
 class Base_Display():
     def __init__(self, ipos, width, height, xdiff, ydiff):
