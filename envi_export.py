@@ -462,6 +462,7 @@ def pregeo(context, op):
 
         if c.vi_params.envi_zone:
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
+            
             for o in cobs:
                 if o.type == 'MESH' and o.vi_params.envi_type in ('0', '1'):
                     if [f for f in o.data.polygons if o.material_slots and \

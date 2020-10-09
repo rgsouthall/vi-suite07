@@ -384,6 +384,7 @@ class linumdisplay():
            
     def update(self, context):
         scene = context.scene
+        vl = context.view_layer
         svp = scene.vi_params
         self.allpcs, self.alldepths, self.allres = array([]), array([]), array([])
 
@@ -417,7 +418,7 @@ class linumdisplay():
                     fcos = [f.calc_center_median_weighted() + svp.vi_display_rp_off * f.normal.normalized() for f in faces]
                     direcs = [self.view_location - f for f in fcos]
                     
-                    (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(context.view_layer, fcos[i], direcs[i], distance=distances[i])[0]]))
+                    (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl, fcos[i], direcs[i], distance=distances[i])[0]]))
 
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
                 (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
@@ -432,7 +433,7 @@ class linumdisplay():
                     vcos = [v.co + svp.vi_display_rp_off * v.normal.normalized() for v in verts]
                     direcs = [self.view_location - v for v in vcos]
                     # Something wrong here
-                    (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
+                    (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vl, vcos[i], direcs[i], distance=distances[i])[0]]))
                     
                 vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
                 (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))

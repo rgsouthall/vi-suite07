@@ -304,7 +304,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
-    totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if self['cpoint'] == '0' else sum([vertarea(bm, gp) for gp in geom])
+    totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if svp['liparams']['cp'] == '0' else sum([vertarea(bm, gp) for gp in geom])
     
     for f, frame in enumerate(frames):
         self['res{}'.format(frame)] = {}
@@ -336,20 +336,21 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             logentry('Running rtrace: {}'.format(rtcmds[f]))
             rtrun = Popen(shlex.split(rtcmds[f]), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
-            print(xyzirrad)
+
             if svp['liparams']['unit'] == 'W/m2 (f)':
                 firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)                
             elif svp['liparams']['unit'] == 'Lux':
                 virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
                 illu = virradm2 * 179
             
-            for gi, gp in enumerate(chunk):                
+            for gi, gp in enumerate(chunk):  
+                gparea = gp.calc_area() if svp['liparams']['cp'] == '0' else vertarea(bm, gp)        
                 if svp['liparams']['unit'] == 'W/m2 (f)':
                     gp[firradm2res] = firradm2[gi].astype(float32)
-                    gp[firradres] = (firradm2[gi] * gp.calc_area()).astype(float32)
+                    gp[firradres] = (firradm2[gi] * gparea).astype(float32)
                 elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):   
                     gp[virradm2res] = virradm2[gi].astype(float32)
-                    gp[virradres] = (virradm2[gi] * gp.calc_area()).astype(float32)
+                    gp[virradres] = (virradm2[gi] * gparea).astype(float32)
                     gp[illures] = illu[gi].astype(float32)                    
                 
             curres += len(chunk)
