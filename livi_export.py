@@ -239,7 +239,7 @@ def radgexport(export_op, node, **kwargs):
             else:
                 ab_ies_path = bpy.path.abspath(ovp.ies_name)
                 iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
-                print('hi', bpy.path.abspath(ovp.ies_name), ovp.ies_name, iesname)
+#                print('hi', bpy.path.abspath(ovp.ies_name), ovp.ies_name, iesname)
 
                 if os.path.isfile(ab_ies_path):
                     iescmd = "ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)

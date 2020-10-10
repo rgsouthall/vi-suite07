@@ -1799,6 +1799,9 @@ class No_Vi_Metrics(Node, ViNodes):
                                     ("1", "LEED", "LEED v4 results"),
                                     ("2", "RIBA 2030", "RIBA 2030 results")],
                 name="", description="Results metric", default="0", update=zupdate)
+    riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
+                                    ("1", "Non-domestic", "Non-domestic scenario")],
+                name="", description="Results metric", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
     frame_menu: EnumProperty(items=frames,
@@ -1856,6 +1859,17 @@ class No_Vi_Metrics(Node, ViNodes):
                         row = layout.row()
                         epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
                         row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
+            
+            elif self.energy_menu == '1':
+                if self['res'] and self['res'].get('totkwh'):
+                    newrow(layout, 'Type', self, 'riba_menu')
+                    if self.riba_menu == '0':
+                        tar = 35
+                    else:
+                        tar = 55
+                    epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
+                    row = layout.row()
+                    row.label(text = "Operational: {} {}".format(self['res']['totkwh'], epass))
 
         elif self.metric == '1':
             if self.light_menu == '2':
@@ -1940,6 +1954,29 @@ class No_Vi_Metrics(Node, ViNodes):
                                 if self['res']['EPC'] > en:
                                     self['res']['EPCL'] = epcletts[ei]
                                     break                        
+                        else:
+                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
+
+                            if r[2] == self.zone_menu:
+                                if r[3] == 'Heating (W)':
+                                    self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
+                                elif r[3] == 'Cooling (W)':        
+                                    self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
+                                    self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                
+                elif self.energy_menu == '1':
+                    for r in rl:
+                        if self.zone_menu == 'All':
+                            if r[3] == 'PV Power (W)':
+                                self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[3] == 'Heating (W)':
+                                self['res']['hkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[3] == 'Air heating (W)':
+                                self['res']['ahkwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[3] == 'Cooling (W)':
+                                self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
+                            self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self['res']['wkwh'] - self['res']['pvkwh']
                         else:
                             self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
 

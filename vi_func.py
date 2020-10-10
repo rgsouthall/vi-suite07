@@ -1469,7 +1469,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             alldata = zip(nres, fsdist, xposis, yposis)
             ysize = int(0.5 * blf.dimensions(0, nres[0])[1])
 
-            for ad in alldata:                
+            for ad in alldata:             
                 blf.size(0, ad[1], dpi)
                 blf.position(0, ad[2] - int(0.5*blf.dimensions(0, ad[0])[0]), ad[3] - ysize, 10)
                 blf.draw(0, ad[0])

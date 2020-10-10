@@ -194,7 +194,7 @@ def cbdmmtx(self, scene, locnode, export_op):
                 
         gdmcmd = ("gendaymtx -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']], 
                   "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
-        print(gdmcmd)
+#        print(gdmcmd)
         with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
             Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
@@ -322,7 +322,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             firradm2res = geom.layers.float['firradm2{}'.format(frame)]
 
         geom.layers.float.new('res{}'.format(frame))
-        res =  geom.layers.float['res{}'.format(frame)]
+        res = geom.layers.float['res{}'.format(frame)]
         
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
@@ -330,7 +330,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
             rtframe = max(kints) if frame > max(kints) else min(kints)
         
-        rt =  geom.layers.string['rt{}'.format(rtframe)]
+        rt = geom.layers.string['rt{}'.format(rtframe)]
             
         for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):
             logentry('Running rtrace: {}'.format(rtcmds[f]))
@@ -822,7 +822,6 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     return (pfs, epfs, reslists)
     
 def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
-    print(rccmds)
     svp = scene.vi_params
     self['livires'] = {}
     self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
@@ -878,9 +877,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
-            print(shlex.split(rccmds[f]))
-            for line in sensrun[1]:
-                print(line)
+
+#            for line in sensrun[1]:
+#                print(line)
 #            resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3).astype(float32)
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if self['cpoint'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
