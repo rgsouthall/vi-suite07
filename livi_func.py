@@ -402,7 +402,8 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 vals = [1 for gp in geom]
                         
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
-        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
+        posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 0]
+        print(posis)
 #        illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
         bins = array([increment * i for i in range(1, ll)])
         
