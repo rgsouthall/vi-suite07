@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, itertools
 import subprocess
 import numpy
 from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose
@@ -2209,7 +2209,7 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
 
         else:
             resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
-            metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All']))
+            metriclist = list(itertools.zip_longest(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All'], fillvalue = ''))
 
         for ml in metriclist:
             resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'

@@ -194,7 +194,7 @@ def cbdmmtx(self, scene, locnode, export_op):
                 
         gdmcmd = ("gendaymtx -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']], 
                   "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
-#        print(gdmcmd)
+
         with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
             Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
@@ -225,12 +225,14 @@ def cbdmhdr(node, scene):
 
         vwrun = Popen(shlex.split(vwcmd), stdout = PIPE)
         rcrun = Popen(shlex.split(rcontribcmd), stderr = PIPE, stdin = vwrun.stdout)
+
         for line in rcrun.stderr:
             logentry('HDR generation error: {}'.format(line))
     
         for j in range(patches):
             with open(os.path.join(svp['viparams']['newdir'], "ps{}.hdr".format(j)), 'w') as psfile:
                 Popen('pcomb -s {} "{}"'.format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j))).split(), stdout = psfile).wait()
+        
         with open(targethdr, 'w') as epwhdr:
             Popen('pcomb -h {}'.format(pcombfiles).split(), stdout = epwhdr).wait()
         
@@ -241,14 +243,17 @@ def cbdmhdr(node, scene):
         if node.hdr:
             with open('{}.oct'.format(os.path.join(svp['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
                 Popen(shlex.split('oconv -w - '), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode(sys.getfilesystemencoding()))
+
             cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
             rccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
             logentry('Running rcalc: {}'.format(rccmd))
             rcalcrun = Popen(shlex.split(rccmd), stdin = cntrun.stdout, stdout = PIPE)
+
             with open(latlonghdr, 'w') as panohdr:
                 rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}.oct"'.format(svp['viparams']['nproc'], os.path.join(svp['viparams']['newdir'], node['epwbase'][0]))
                 logentry('Running rtrace: {}'.format(rtcmd))
                 Popen(rtcmd.split(), stdin = rcalcrun.stdout, stdout = panohdr)
+                
     return skyentry
 
 def mtx2vals(mtxlines, fwd, node, times):    
@@ -392,10 +397,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['oave']['virrad{}'.format(frame)] = aveoirrad
             self['oave']['virradm2{}'.format(frame)] = aveoirradm2
             self['omin']['illu{}'.format(frame)] = minoirradm2 * 179
-#            if simnode['coptions']['sp'] == '0' and simnode['coptions']['sm'] == '3':
-#                self['oave']['virrad{}'.format(frame)] = aveoirrad
-#                self['oave']['virradm2{}'.format(frame)] = aveoirradm2
-#                self['omin']['illu{}'.format(frame)] = minoirradm2 * 179
+
             if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
                 vals = [(gp[res] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]
             else:
@@ -403,14 +405,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                         
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
         posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 0]
-        print(posis)
-#        illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
         bins = array([increment * i for i in range(1, ll)])
-        
-#        if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
-#            vals = [(gp[res] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
-        
-            
         ais = digitize(vals, bins)
         rgeom = [g for g in geom if g[cindex] > 0]
         rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
@@ -420,7 +415,6 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai])
                 
         self['livires']['areabins'] = sareas
-        
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
@@ -443,9 +437,6 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
 
             if simnode['coptions']['sp'] == '0' and simnode['coptions']['sm'] == '3': 
-#                dfbinvals = [self['omin']['df{}'.format(frame)] + (self['omax']['df{}'.format(frame)] - self['omin']['df{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
-#                self['livires']['valbins'] = dfbinvals
-#                self['tabledf{}'.format(frame)] = array(tableheaders + [['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
                 reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[illures]/100) for g in rgeom])])
 
     if len(frames) > 1:
