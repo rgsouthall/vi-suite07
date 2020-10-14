@@ -324,7 +324,6 @@ class progressfile():
                 
         with open(self.pfile, 'w') as pfile:
             if curres:
-                print(curres)
                 dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
                 pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
             else:
@@ -493,8 +492,6 @@ def chunks(l, n):
 def ret_res_vals(svp, reslist): 
     if svp.vi_res_process == '2' and svp.script_file:
         try:
-            print(reslist)
-            print(bpy.app.driver_namespace['resmod'](reslist))
             return bpy.app.driver_namespace['resmod'](reslist)
         except Exception as e:
             logentry('User script error {}. Check console'.format(e))
@@ -530,36 +527,39 @@ def lividisplay(self, scene):
             bm = bmesh.new()
             bm.from_mesh(self.id_data.data)
             geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces  
-            livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
-            res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
-            oreslist = [g[livires] for g in geom]
-            self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-            smaxres, sminres =  max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
-            
-            if smaxres > sminres:        
-                vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
-                    (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
-            else:
-                vals = array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])
-        
-            if livires != res:
-                for g in geom:
-                    g[res] = g[livires]  
-                    
-            if svp['liparams']['unit'] == 'Sky View':
-                nmatis = [(0, ll - 1)[v == 1] for v in vals]
-            else:
-                bins = array([increment * i for i in range(ll + 1)])
-                nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None) + 1
+            sf = str(frame)
+
+            if geom.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
+                livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+                res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+                oreslist = [g[livires] for g in geom]
+                self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+                smaxres, sminres =  max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
                 
-            bm.to_mesh(self.id_data.data)
-            bm.free()
+                if smaxres > sminres:        
+                    vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
+                        (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
+                else:
+                    vals = array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])
             
-            if len(frames) == 1:
-                self.id_data.data.polygons.foreach_set('material_index', nmatis)
-            elif len(frames) > 1:
-                for fii, fi in enumerate(fis):
-                    lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
+                if livires != res:
+                    for g in geom:
+                        g[res] = g[livires]  
+                        
+                if svp['liparams']['unit'] == 'Sky View':
+                    nmatis = [(0, ll - 1)[v == 1] for v in vals]
+                else:
+                    bins = array([increment * i for i in range(ll + 1)])
+                    nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None) + 1
+                    
+                bm.to_mesh(self.id_data.data)
+                bm.free()
+                
+                if len(frames) == 1:
+                    self.id_data.data.polygons.foreach_set('material_index', nmatis)
+                elif len(frames) > 1:
+                    for fii, fi in enumerate(fis):
+                        lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
                                     
 def ret_vp_loc(context):
     return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
@@ -965,13 +965,11 @@ def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     return ((wrbo, wro), scale)
     
 def compass(loc, scale, platmat, basemat, greymat):
-    print(bpy.ops.wm.append(filepath="sp.blend",directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), 
-                    'Images/sp.blend', 'Object'),filename="SPathMesh", autoselect = True))
+    bpy.ops.wm.append(filepath="sp.blend",directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                    'Images/sp.blend', 'Object'),filename="SPathMesh", autoselect = True)
     
     coo = bpy.data.objects['SPathMesh']
-    print([o.name for o in bpy.data.objects])
     bpy.context.view_layer.objects.active = coo
-    print(coo.name)
 #    txts = []
 #    come = bpy.data.meshes.new("Compass")   
 #    coo = bpy.data.objects.new('Compass', come)

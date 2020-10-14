@@ -95,7 +95,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     sdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'DOS']
     hdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Hour']
     tdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Steps']
-    print(tdata)
+    print(mdata, ddata, dnode.parametricmenu, len(set(rzlx[0])))
 
     if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
         si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"]  - bpy.context.scene.frame_start
@@ -144,18 +144,20 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         data = [rx[4].split()[si:ei + 1] for rx in rlx if rx[0] == framex and rx[1] == dnode.inputs['X-axis'].rtypemenu and rx[2] == menus[0] and rx[3] == menus[1]][0]
         xdata = timedata([dnode.inputs['X-axis'].multfactor * float(xd) for xd in data], dnode.timemenu, dnode.inputs['X-axis'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
         xlabel = label(dnode, menus[1], 'X-axis', variant)
-                    
+              
     rny1 = dnode.inputs['Y-axis 1'].links[0].from_node
-    rly1 = rny1['reslists']
-    rzly1 = list(zip(*rly1))
+    rly1 = rny1['reslists']    
+    rzly1 = list(zip(*rly1))    
     framey1 = retframe('Y-axis 1', dnode, rzly1[0])
     menusy1 = retmenu(dnode, 'Y-axis 1', dnode.inputs['Y-axis 1'].rtypemenu)
+    
     try:
         y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].rtypemenu and ry1[2] == menusy1[0] and ry1[3] == menusy1[1]][0]
     except Exception as e:
         chart_op.report({'ERROR'}, 'Invalid data on the y1 axis: {}'.format(e))
         return
     y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
+    
     ylabel = label(dnode, menusy1[1], 'Y-axis 1', variant)
     drange = checkdata(chart_op, xdata, y1data)        
     line, = ax.plot(xdata[:drange], y1data[:drange], color=colors[0], ls = linestyles[0], linewidth = 1, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    

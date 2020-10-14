@@ -70,7 +70,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                         if '%' in line:
                             curres = float(line.split()[6][:-2])/len(frames)
                             break
- #               if curres:                                
+                                
                 if pfile.check(curres) == 'CANCELLED': 
                     pmrun.kill()                                   
                     return 'CANCELLED'
@@ -92,7 +92,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                     calc_op.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
                     return 'CANCELLED'
                 
-        if context == 'Basic' or (context == 'CBDM' and subcontext == '0') or (context == 'Compliance' and int(subcontext) < 3):
+        if context == 'Basic' or (context == 'CBDM' and subcontext == '0'):# or (context == 'Compliance' and int(subcontext) < 3):
             if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
             if simnode.pmap:
@@ -114,7 +114,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
 
     for oi, o in enumerate(obs):
         ovp = o.vi_params
-        curres = sum(tpoints[:oi])
+        curres = sum(tpoints[:oi] * len(frames))
         selobj(vl, o)
         ovp['omax'], ovp['omin'], ovp['oave']  = {}, {}, {}
         
@@ -132,61 +132,62 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             else:
                 reslists += lhout
         
-        elif (context == 'CBDM' and subcontext in ('1', '2')) or (context == 'Compliance' and subcontext == '3'):
-            reslists = ovp.udidacalcapply(scene, frames, rccmds, simnode, curres, pfile)
-            if reslists == 'CANCELLED':
-                return 'CANCELLED'
-
-        elif context == 'Compliance':
-            compout = ovp.compcalcapply(scene, frames, rtcmds, simnode, curres, pfile)  
-            if compout == 'CANCELLED':
+        elif (context == 'CBDM' and subcontext in ('1', '2')):# or (context == 'Compliance' and subcontext == '3'):
+            cbdmout = ovp.udidacalcapply(scene, frames, rccmds, simnode, curres, pfile)
+            if cbdmout == 'CANCELLED':
                 return 'CANCELLED'
             else:
-                reslists += compout[2]
-                pfs.append(compout[0])
-                epfs.append(compout[1])      
+                reslists += cbdmout
+        # elif context == 'Compliance':
+        #     compout = ovp.compcalcapply(scene, frames, rtcmds, simnode, curres, pfile)  
+        #     if compout == 'CANCELLED':
+        #         return 'CANCELLED'
+        #     else:
+        #         reslists += compout[2]
+        #         pfs.append(compout[0])
+        #         epfs.append(compout[1])      
     
-    for f, frame in enumerate(frames):
-        if context == 'Compliance':
-            tpf = 'FAIL' if ['FAIL'] in list(zip(*pfs))[f] or ['FAIL*'] in list(zip(*pfs))[f] else 'PASS'
+    # for f, frame in enumerate(frames):
+    #     if context == 'Compliance':
+    #         tpf = 'FAIL' if ['FAIL'] in list(zip(*pfs))[f] or ['FAIL*'] in list(zip(*pfs))[f] else 'PASS'
 
-            if simnode['coptions']['canalysis'] == '0': 
-                tpf = 'EXEMPLARY' if tpf == 'PASS' and (['FAIL'] not in list(zip(*epfs))[f] and ['FAIL*'] not in list(zip(*epfs))[f]) else tpf
-                cred = '0' if tpf == 'FAIL' else ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['buildtype'])]
-                ecred = '1' if tpf == 'EXEMPLARY' else '0'
-                simnode['tablecomp{}'.format(frame)] = [['Standard: BREEAM HEA1'], 
-                        ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: ' + cred], 
-                         ['Exemplary credits: '+ ecred]]
-                for o in obs:
-                    ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Standard credits: ' + cred, 'Exemplary credits: '+ ecred, '']]
+    #         if simnode['coptions']['canalysis'] == '0': 
+    #             tpf = 'EXEMPLARY' if tpf == 'PASS' and (['FAIL'] not in list(zip(*epfs))[f] and ['FAIL*'] not in list(zip(*epfs))[f]) else tpf
+    #             cred = '0' if tpf == 'FAIL' else ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['buildtype'])]
+    #             ecred = '1' if tpf == 'EXEMPLARY' else '0'
+    #             simnode['tablecomp{}'.format(frame)] = [['Standard: BREEAM HEA1'], 
+    #                     ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: ' + cred], 
+    #                      ['Exemplary credits: '+ ecred]]
+    #             for o in obs:
+    #                 ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Standard credits: ' + cred, 'Exemplary credits: '+ ecred, '']]
             
-            elif simnode['coptions']['canalysis'] == '1':
-                cfshcred = 0
-                for pf in pfs[f]:
-                    for stype in [0, 1, 2]:
-                        if all([p[1] == 'Pass' for p in pf if p[0] == stype]) and [p for p in pf if p[0] == stype]:
-                            cfshcred += 1
-                simnode['tablecomp{}'.format(frame)] = [['Standard: CfSH'], 
-                        ['Build type: Residential'], [''], ['Standard credits: {}'.format(cfshcred)]]
-                for o in obs:
-                    ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: Residential', 'Standard credits: {}'.format(cfshcred), '', '']]
+    #         elif simnode['coptions']['canalysis'] == '1':
+    #             cfshcred = 0
+    #             for pf in pfs[f]:
+    #                 for stype in [0, 1, 2]:
+    #                     if all([p[1] == 'Pass' for p in pf if p[0] == stype]) and [p for p in pf if p[0] == stype]:
+    #                         cfshcred += 1
+    #             simnode['tablecomp{}'.format(frame)] = [['Standard: CfSH'], 
+    #                     ['Build type: Residential'], [''], ['Standard credits: {}'.format(cfshcred)]]
+    #             for o in obs:
+    #                 ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: Residential', 'Standard credits: {}'.format(cfshcred), '', '']]
             
-            elif simnode['coptions']['canalysis'] == '2':
-                gscred = max(len(p) for p in pfs[f]) - max([sum([(0, 1)[p == 'Fail'] for p in pf]) for pf in pfs[f]])
-                simnode['tablecomp{}'.format(frame)] = [['Standard: Green Star'], 
-                            ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: {}'.format(gscred)]]
-                for o in obs:
-                    ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Standard credits: {}'.format(gscred), '', '']]
+    #         elif simnode['coptions']['canalysis'] == '2':
+    #             gscred = max(len(p) for p in pfs[f]) - max([sum([(0, 1)[p == 'Fail'] for p in pf]) for pf in pfs[f]])
+    #             simnode['tablecomp{}'.format(frame)] = [['Standard: Green Star'], 
+    #                         ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: {}'.format(gscred)]]
+    #             for o in obs:
+    #                 ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Standard credits: {}'.format(gscred), '', '']]
             
-            elif simnode['coptions']['canalysis'] == '3':
-                cred = 0
-                for z in list(zip(pfs[f], epfs[f])):
-                    if all([pf == 'Pass' for pf in z[:-1]]):
-                        cred += int(z[-1])
-                simnode['tablecomp{}'.format(frame)] = [['Standard: LEEDv4'], 
-                        ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Credits: {}'.format(cred)]]
-                for o in obs:
-                    ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Credits: {}'.format(cred), '', '']]
+    #         elif simnode['coptions']['canalysis'] == '3':
+    #             cred = 0
+    #             for z in list(zip(pfs[f], epfs[f])):
+    #                 if all([pf == 'Pass' for pf in z[:-1]]):
+    #                     cred += int(z[-1])
+    #             simnode['tablecomp{}'.format(frame)] = [['Standard: LEEDv4'], 
+    #                     ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Credits: {}'.format(cred)]]
+    #             for o in obs:
+    #                 ovp['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Credits: {}'.format(cred), '', '']]
             
     if kivyrun.poll() is None:
         kivyrun.kill()

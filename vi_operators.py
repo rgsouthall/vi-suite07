@@ -1058,7 +1058,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                 while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
                     with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
                         self.rpruns.append(Popen(shlex.split(self.rpictcmds[self.frame - self.fs]), stdout=imfile, stderr = PIPE))
-                print(self.frame, self.fs, self.rpruns)
+
                 if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
                     self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
                     self.frame += 1
@@ -1526,6 +1526,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                     else:
                         logentry('There was an error in the EnVi simulation. Check the error log in the text editor') 
                         return {self.terminate('CANCELLED', context)}
+                
                 self.report({'INFO'}, "Calculation is finished.") 
                 return {self.terminate('FINISHED', context)}
             else:
@@ -1560,7 +1561,6 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
         os.chdir(svp['viparams']['newdir'])
         self.esimcmds = ["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames] 
-        print(["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames])
         self.esimruns = []
         self.simnode.run = 1
         self.processors = self.simnode.processors if self.simnode.mp else 1
@@ -2222,8 +2222,10 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
 
     def invoke(self, context, event):
         self.node = context.node
+
         if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
-            self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')            
+            self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')   
+
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}   
     
