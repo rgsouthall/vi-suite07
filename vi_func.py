@@ -845,8 +845,10 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
 def vertarea(mesh, vert):
     area = 0
     faces = [face for face in vert.link_faces] 
+
     if hasattr(mesh.verts, "ensure_lookup_table"):
         mesh.verts.ensure_lookup_table()
+
     if len(faces) > 1:
         for f, face in enumerate(faces):
             ovs, oes = [], []
@@ -865,6 +867,7 @@ def vertarea(mesh, vert):
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[i].calc_center_median(), ovs[i][0].co, ovs[i][1].co)[1] for i in range(2)]
             else:
                return 0
+               
             area += mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(face.calc_center_median(), *eps)
 
     elif len(faces) == 1:
