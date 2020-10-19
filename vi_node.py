@@ -688,7 +688,7 @@ class No_Li_Con(Node, ViNodes):
 class No_Li_Im(Node, ViNodes):
     '''Node describing a LiVi image generation'''
     bl_idname = 'No_Li_Im'
-    bl_label = 'LiVi Im'
+    bl_label = 'LiVi Image'
     
     def nodeupdate(self, context):
         self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene.vi_params['viparams']['nproc']), "name": ""}}
@@ -744,25 +744,25 @@ class No_Li_Im(Node, ViNodes):
         sf, ef = self.retframes()
         row = layout.row()
         row.label(text = 'Frames: {} - {}'.format(sf, ef))
-        layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
+        layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera', icon='NONE')
         
         if all([sock.links for sock in self.inputs]) and self.camera:
             newrow(layout, 'Base name:', self, 'basename')        
-            newrow(layout, 'Illuminance*:', self, 'illu')
-            newrow(layout, 'Fisheye*:', self, 'fisheye')
+            newrow(layout, 'Illuminance:', self, 'illu')
+            newrow(layout, 'Fisheye:', self, 'fisheye')
     
             if self.fisheye:
-                newrow(layout, 'FoV*:', self, 'fov')
+                newrow(layout, 'FoV:', self, 'fov')
             
             newrow(layout, 'Accuracy:', self, 'simacc')
     
             if self.simacc == '3':
                 newrow(layout, "Radiance parameters:", self, 'cusacc')
-            newrow(layout, 'Photon map*:', self, 'pmap')
+            newrow(layout, 'Photon map:', self, 'pmap')
     
             if self.pmap:
-               newrow(layout, 'Global photons*:', self, 'pmapgno')
-               newrow(layout, 'Caustic photons*:', self, 'pmapcno')
+               newrow(layout, 'Global photons:', self, 'pmapgno')
+               newrow(layout, 'Caustic photons:', self, 'pmapcno')
                newrow(layout, 'Photons options:', self, 'pmapoptions')
                newrow(layout, 'Preview photons:', self, 'pmappreview')
 
@@ -770,8 +770,8 @@ class No_Li_Im(Node, ViNodes):
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview') 
-            newrow(layout, 'X resolution*:', self, 'x')
-            newrow(layout, 'Y resolution*:', self, 'y')            
+            newrow(layout, 'X resolution:', self, 'x')
+            newrow(layout, 'Y resolution:', self, 'y')            
             
             if sys.platform != 'win32':
                 newrow(layout, 'Multi-thread:', self, 'mp')
@@ -779,6 +779,7 @@ class No_Li_Im(Node, ViNodes):
                     row = layout.row()
                     row.prop(self, '["Processors"]')
                     newrow(layout, 'Processes:', self, 'processes')
+
             if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image')
@@ -847,10 +848,10 @@ class No_Li_Im(Node, ViNodes):
 class No_Li_Gl(Node, ViNodes):
     '''Node describing a LiVi glare analysis'''
     bl_idname = 'No_Li_Gl'
-    bl_label = 'LiVi Glare analysis' 
+    bl_label = 'LiVi Glare' 
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.rand, self.gc)])
 
     hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update = nodeupdate)    
     gc: FloatVectorProperty(size = 3, name = '', attr = 'Color', default = [1, 0, 0], subtype = 'COLOR', update = nodeupdate)
@@ -878,14 +879,13 @@ class No_Li_Gl(Node, ViNodes):
                 Popen('evalglare {}'.format(im), stdout = glfile)
 
     def postsim(self):
-        self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
-                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
+        self['exportstate'] = [str(x) for x in (self.hdrname, self.rand, self.gc)]
         nodecolour(self, 0)
 
 class No_Li_Fc(Node, ViNodes):
     '''Node describing a LiVi false colour image generation'''
     bl_idname = 'No_Li_Fc'
-    bl_label = 'LiVi False Colour Image' 
+    bl_label = 'LiVi False Colour' 
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
@@ -900,8 +900,8 @@ class No_Li_Fc(Node, ViNodes):
     nscale: EnumProperty(items=[("0", "Linear", "Linear mapping"),("1", "Log", "Logarithmic mapping")],
             name="", description="Scale", default="0", update = nodeupdate)
     decades: IntProperty(name = '', min = 1, max = 5, default = 2, update = nodeupdate)
-    unitdict = {'0': 'Lux', '1': 'cd/m2', '2': 'DF', '3': 'W/m2'}
-    unitmult = {'0': 179, '1': 179, '2': 1.79, '3': 1}
+    unitdict = {'0': 'Lux', '1': 'cd/m2', '2': 'DF', '3': 'W/m2', '4': 'W/m2.sr'}
+    unitmult = {'0': 179, '1': 179, '2': 1.79, '3': 1, '4': 1}
     legend: BoolProperty(name = '', default = True, update = nodeupdate)
     lw: IntProperty(name = '', min = 1, max = 1000, default = 100, update = nodeupdate)
     lh: IntProperty(name = '', min = 1, max = 1000, default = 200, update = nodeupdate)
@@ -912,6 +912,8 @@ class No_Li_Fc(Node, ViNodes):
     divisions: IntProperty(name = '', min = 1, max = 50, default = 8, update = nodeupdate)
     ofile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
     hdrfile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
+    unit_name: StringProperty(name="", description="Legend unit", default="", update = nodeupdate)
+    multiplier: StringProperty(name="", description="Unit multiplier", default="", update = nodeupdate)
     disp: FloatProperty(name = '', min = 0.0001, max = 10, default = 1, precision = 4, update = nodeupdate)
     
     def init(self, context):
@@ -922,9 +924,11 @@ class No_Li_Fc(Node, ViNodes):
         if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
             row = layout.row()
             row.prop(self, 'hdrfile')
+
         if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(self.hdrfile): 
             newrow(layout, 'Base name:', self, 'basename')
-            newrow(layout, 'Unit:', self, 'unit')
+            newrow(layout, 'Unit:', self, 'unit_name')
+            newrow(layout, 'Multiplier:', self, 'multiplier')
             newrow(layout, 'Colour:', self, 'colour')
             newrow(layout, 'Divisions:', self, 'divisions')
             newrow(layout, 'Legend:', self, 'legend')

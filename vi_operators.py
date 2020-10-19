@@ -1231,13 +1231,18 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
             egcmd = 'evalglare {} -c {}'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
 
             with open(im, 'r') as hdrfile:
-                egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE)
+                egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE, stderr = PIPE)
 
             time = datetime.datetime(2014, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
                 datetime.datetime(2014, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
                                   seconds = int(60*(imnode['coptions']['interval']*i - int(imnode['coptions']['interval']*i))))
             
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "w") as glaretf:
+                for line in egrun.stderr:
+                    if 'perspective' in line.decode():
+                        self.report({'ERROR'}, 'Images are not in fisheye format')
+                        return {'CANCELLED'}
+                
                 for line in egrun.stdout:
                     if line.decode().split(",")[0] == 'dgp':                            
                         glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
@@ -1265,7 +1270,8 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
             with open("{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs'])))), 'w') as ghdr:
                 Popen(pcompcmd.split(), stdin = psignrun.stdout, stdout = ghdr).communicate()
 
-            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'.format(i + svp['liparams']['fs'])))                               
+            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'.format(i + svp['liparams']['fs'])))  
+            glnode.postsim()                             
         return {'FINISHED'}
 
 class NODE_OT_Li_Fc(bpy.types.Operator):            
@@ -1283,8 +1289,8 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
         imnode = fcnode.inputs['Image'].links[0].from_node 
         lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
         scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades) 
-        mult = '-m {}'.format(fcnode.unitmult[fcnode.unit]) 
-        legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unitdict[fcnode.unit], fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
+        mult = '-m {}'.format(eval('{}{}'.format(1, fcnode.multiplier))) if fcnode.multiplier else ''
+        legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unit_name, fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
         bands = '-cb' if fcnode.bands else ''
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
         divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
