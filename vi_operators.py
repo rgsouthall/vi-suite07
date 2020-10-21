@@ -2212,7 +2212,6 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         if len(set(zrl[0])) > 1 and node.animated:
             resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
             metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
-
         else:
             resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
             metriclist = list(itertools.zip_longest(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All'], fillvalue = ''))
@@ -2224,13 +2223,15 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
 
         with open(self.filepath, 'w') as csvfile:
             csvfile.write(resstring)
+            
         return {'FINISHED'}
 
     def invoke(self, context, event):
         self.node = context.node
+        svp = context.scene.vi_params
 
         if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
-            self.filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], context.scene.vi_params['viparams']['filebase'] + '.csv')   
+            self.filepath = os.path.join(svp['viparams']['newdir'], svp['viparams']['filebase'] + '.csv')   
 
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}   

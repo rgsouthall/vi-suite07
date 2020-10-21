@@ -3011,7 +3011,10 @@ class No_En_Net_Zone(Node, EnViNodes):
                 except:
                     pass
         self.vol_update(context)
-        
+        self['nbound'] = len(bsocklist)
+        self['nsflow'] = len(ssocklist)
+        self['nssflow'] = len(sssocklist)
+
     def vol_update(self, context):
         coll = bpy.data.collections[self.zone] 
         
@@ -3045,6 +3048,9 @@ class No_En_Net_Zone(Node, EnViNodes):
 #    odc = FloatProperty(name = '', min = 0.001, default = 0.6)
     
     def init(self, context):
+        self['nbound'] = 0
+        self['nsflow'] = 0
+        self['nssflow'] = 0
         self['tsps'] = 1
         self['volume'] = 10
         self.inputs.new('So_En_Net_Hvac', 'HVAC')
@@ -3058,44 +3064,37 @@ class No_En_Net_Zone(Node, EnViNodes):
         sflowdict = {'So_En_Net_SFlow': 'Envi surface flow', 'So_En_Net_SSFlow': 'Envi sub-surface flow'}
         [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
                 
-#        try:            
-        for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-            self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
+        if self.get('nssflow') and len(self.outputs) == self['nbound'] + self['nsflow'] + self['nssflow']:          
+            for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+                self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
-        for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-            if self.inputs.get(outp.name):
-                self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+            for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+                if self.inputs.get(outp.name):
+                    self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
 
-        for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-            if inp.bl_idname == 'So_En_Bound' and not inp.hide and not inp.links:
-                bi = 0
-            elif inp.bl_idname in sflowdict:
-                if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != sflowdict[inp.bl_idname]):
-#                    print('hii', inp.links[0].to_node.bl_label, sflowdict[inp.bl_idname])
-                    si = 0
-                    if inp.links:
-                        remlink(self.id_data, [inp.links[0]])    
-        
-        for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
-            if outp.bl_idname == 'So_En_Bound' and not outp.hide and not outp.links:
-                bo = 0
-            elif outp.bl_idname in sflowdict:
-                if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != sflowdict[outp.bl_idname]):
-#                    if outp.links:
-#                        print('hi', outp.links[0].to_node.bl_label, sflowdict[outp.bl_idname])
-                    so = 0
-                    if outp.links:
-#                        pass
-                        remlink(self.id_data, [outp.links[0]])
-
-#        except Exception as e:
-#            logentry("There was a problem an EnVi Zone {} node socket change: {}".format(self.zone, e))
-        
-        for sock in self.outputs:
-            socklink2(sock, self.id_data)
+            for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+                if inp.bl_idname == 'So_En_Bound' and not inp.hide and not inp.links:
+                    bi = 0
+                elif inp.bl_idname in sflowdict:
+                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != sflowdict[inp.bl_idname]):
+                        si = 0
+                        if inp.links:
+                            remlink(self.id_data, [inp.links[0]])    
             
-        self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
-        nodecolour(self, self.errorcode())
+            for outp in [outp for outp in self.outputs if outp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+                if outp.bl_idname == 'So_En_Bound' and not outp.hide and not outp.links:
+                    bo = 0
+                elif outp.bl_idname in sflowdict:
+                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != sflowdict[outp.bl_idname]):
+                        so = 0
+                        if outp.links:
+                            remlink(self.id_data, [outp.links[0]])
+  
+            for sock in self.outputs:
+                socklink2(sock, self.id_data)
+                
+            self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
+            nodecolour(self, self.errorcode())
         
     def uvsockupdate(self):
         for sock in self.outputs:
@@ -3887,8 +3886,8 @@ class No_En_Net_SSFlow(Node, EnViNodes):
 class No_En_Net_Ext(Node, EnViNodes):
     '''Node describing an EnVi external node'''
     bl_idname = 'No_En_Net_Ext'
-    bl_label = 'Envi External Node'
-    bl_icon = 'SOUND'
+    bl_label = 'Envi External'
+    bl_icon = 'FORCE_WIND'
 
     height: FloatProperty(default = 1.0)
     (wpc1, wpc2, wpc3, wpc4, wpc5, wpc6, wpc7, wpc8, wpc9, wpc10, wpc11, wpc12) = [FloatProperty(name = '', default = 0, min = -1, max = 1) for x in range(12)]
@@ -3904,7 +3903,7 @@ class No_En_Net_Ext(Node, EnViNodes):
         layout.prop(self, 'height')
         row= layout.row()
         row.label(text = 'WPC Values')
-        
+        direcs = ('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW')
         for w in range(1, 13):
             row = layout.row()
             row.prop(self, 'wpc{}'.format(w))
@@ -4046,7 +4045,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
 class No_En_Net_ACon(Node, EnViNodes):
     '''Node defining the overall airflow network simulation'''
     bl_idname = 'No_En_Net_ACon'
-    bl_label = 'AFN Control'
+    bl_label = 'EnVi AFN'
     bl_icon = 'FORCE_WIND'
 
     def wpcupdate(self, context):
@@ -4128,7 +4127,38 @@ class No_En_Net_ACon(Node, EnViNodes):
                 node.legal()
         except:
             pass
-        
+
+class No_En_Net_WPC(Node, EnViNodes):
+    '''Node describing Wind Pressure Coefficient array'''
+    bl_idname = 'No_En_Net_WPC'
+    bl_label = 'EnVi WPC'
+    bl_icon = 'FORCE_WIND'
+
+    (ang1, ang2, ang3, ang4, ang5, ang6, ang7, ang8, ang9, ang10, ang11, ang12) = [IntProperty(name = '', default = 0, min = 0, max = 360) for x in range(12)]
+
+    def init(self, context):
+        self.outputs.new('So_En_Net_WPC', 'WPC values')
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label(text = 'WPC Angles')
+
+        for w in range(1, 13):
+            row = layout.row()
+            row.prop(self, 'ang{}'.format(w))
+
+    def update(self):
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+            
+        self.id_data.interface_update(bpy.context)
+
+    def epwrite(self):
+        angs = (self.ang1,self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12)
+        aparamvs = ['WPC Array'] + [wd for w, wd in enumerate(angs) if wd not in angs[:w]]
+        aparams = ['Name'] + ['Wind Direction {} (deg)'.format(w + 1) for w in range(len(aparamvs) - 1)]
+        return (epentry('AirflowNetwork:MultiZone:WindPressureCoefficientArray', aparams, aparamvs), len(aparamvs) - 1)  
+
 class No_En_Net_Sched(Node, EnViNodes):
     '''Node describing a schedule'''
     bl_idname = 'No_En_Net_Sched'
@@ -4418,7 +4448,7 @@ envi_zone = [NodeItem("No_En_Net_Zone", label="Zone"), NodeItem("No_En_Net_Occ",
              NodeItem("No_En_Net_Inf", label="Infiltration"), NodeItem("No_En_Net_TC", label="Thermal Chimney")]
 envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule Net")]
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
-                NodeItem("No_En_Net_Ext", label="External Air")]
+                NodeItem("No_En_Net_Ext", label="External Air"), NodeItem("No_En_Net_WPC", label="WPC")]
 envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program")]
 
 envinode_categories = [EnViNodeCategory("Zone", "Zone Nodes", items=envi_zone), 

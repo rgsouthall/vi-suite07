@@ -87,7 +87,7 @@ else:
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
-    from .vi_node import No_En_IF, No_En_RF
+    from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, radbsdf, retsv
@@ -448,8 +448,11 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     
     flovi_bmbu_subtype: EnumProperty(items = ret_fvbu_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbu_val: fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
+    flovi_u_type: eprop([("0", "Vector", "Speficy velocity as a vector"), ("1", 'Azimuth', "Specify velocity as an azimuth and speed")], "", "Velocity type", "0")
     flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
-    
+    flovi_u_azi: fprop("deg.", "Pressure value", 0, 360, 0)
+    flovi_u_speed: fprop("m/s", "Pressure value", 0, 1000, 1)
+
     flovi_bmbnut_subtype: EnumProperty(items = ret_fvbnut_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbnut_val: fprop("", "Nut value", -1000, 1000, 0.0)
     flovi_nut_field: bprop("", "Take boundary nut from the field nut", False)
@@ -645,7 +648,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
-           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF)
+           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC)
                      
 def register():
     for cl in classes:

@@ -18,6 +18,7 @@
 
 import bpy, bmesh, os, mathutils
 from .vi_func import selobj
+from math import cos, sin, pi
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
@@ -313,7 +314,11 @@ def fvmat(self, mn, bound):
 #        return begin + entry + end 
     
     elif bound == 'U':
-        val = 'uniform ({} {} {})'.format(*self.flovi_bmbu_val) if not self.flovi_u_field else '$internalField'
+        if self.flovi_u_type == '0':
+            val = 'uniform ({} {} {})'.format(*self.flovi_bmbu_val) if not self.flovi_u_field else '$internalField'
+        else:
+            val = 'uniform ({} {} {})'.format(self.flovi_u_speed * sin(pi*self.flovi_u_azi/180), 
+            self.flovi_u_speed * cos(pi*self.flovi_u_speed/180), 0) if not self.flovi_u_field else '$internalField'
         Udict = {'0': self.flovi_bmbu_subtype, '1': self.flovi_bmbu_subtype, '2': 'symmetryPlane', '3': 'empty'}
         Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip', 
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',

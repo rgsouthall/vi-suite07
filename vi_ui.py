@@ -345,8 +345,12 @@ class VI_PT_Mat(bpy.types.Panel):
                     if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet'):
                         newrow(layout, "Field value:", mvp, "flovi_u_field")
                         if not mvp.flovi_u_field:
-                            newrow(layout, "Velocity value:", mvp, "flovi_bmbu_val")
-                    
+                            newrow(layout, "Velocity value:", mvp, "flovi_u_type")
+                            if mvp.flovi_u_type == '0':
+                                newrow(layout, "Velocity value:", mvp, "flovi_bmbu_val")
+                            else:
+                                newrow(layout, "Azimuth:", mvp, "flovi_u_azi")
+                                newrow(layout, "Speed:", mvp, "flovi_u_speed")
                     if svp.get('flparams') and svp['flparams'].get('params'):                       
                         if 'l' not in svp['flparams']['params']:    
                             newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
@@ -638,11 +642,7 @@ class VI_PT_Gridify(bpy.types.Panel):
     bl_category = "VI-Suite"
       
     def draw(self, context):         
-#        scene = context.scene
         layout = self.layout
-#        newrow(layout, 'Rotation:', scene, 'vi_gridify_rot')
-#        newrow(layout, 'Size 1:', scene, 'vi_gridify_us')
-#        newrow(layout, 'Size 2:', scene, 'vi_gridify_as')
         row = layout.row()
         row.operator("object.vi_gridify2", text="Grid the object")
         
@@ -658,9 +658,9 @@ class TREE_PT_vi(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-
         col = layout.column(align=True)
         visuite_groups = [g for g in bpy.data.node_groups if g.bl_idname == 'ViN']
+
 #        comp_groups = []
 #        for g in bpy.data.node_groups:
 #            if g.bl_idname == 'ViN':

@@ -162,8 +162,8 @@ def e_update(self, context):
 def t_update(self, context):
     for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide_viewport == False and o.get('lires')]:
         o.show_transparent = 1
-    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_leg_levels + 1)]:
-        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_params.vi_disp_trans
+    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_params.vi_leg_levels + 1)]:
+        mat.blend_method, mat.diffuse_color[3] = 'BLEND', context.scene.vi_params.vi_disp_trans
     cmap(self)
                 
 def w_update(self, context):

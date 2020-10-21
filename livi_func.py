@@ -51,8 +51,10 @@ def rtpoints(self, bm, offset, frame):
     geom = bm.verts if self['cpoint'] == '1' else bm.faces 
     cindex = geom.layers.int['cindex']
     rt = geom.layers.string['rt{}'.format(frame)]
+
     for gp in geom:
         gp[cindex] = 0 
+        
     geom.ensure_lookup_table()
     resfaces = [face for face in bm.faces if self.id_data.data.materials[face.material_index].vi_params.mattype == '1']
     self['cfaces'] = [face.index for face in resfaces]

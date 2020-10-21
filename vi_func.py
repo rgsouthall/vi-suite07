@@ -98,13 +98,17 @@ def create_empty_coll(c, name):
     return coll
 
 def move_to_coll(context, coll, o):
+    if o.parent:
+        o.parent = None
     collection = create_coll(context, coll)
     if o.name not in collection.objects:
         collection.objects.link(o)
         for c in bpy.data.collections:
             if c.name != coll and o.name in c.objects:
                 c.objects.unlink(o)
-
+        if o.name in context.scene.collection.objects:
+            context.scene.collection.objects.unlink(o)
+        
 def clear_coll(coll):
     for o in coll.objects:
         coll.objects.unlink(o)
@@ -859,11 +863,17 @@ def vertarea(mesh, vert):
                 oes.append([e for e in face.edges if e in oface.edges])                
                 ovs.append([i for i in face.verts if i in oface.verts])
             
-            if len(ovs) == 1:                
+            if len(ovs) == 1:                          
                 sedgevs = (vert.index, [v.index for v in fvs if v not in ovs][0])
                 sedgemp = mathutils.Vector([((mesh.verts[sedgevs[0]].co)[i] + (mesh.verts[sedgevs[1]].co)[i])/2 for i in range(3)])
+
+                if not mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[0].calc_center_median(), ovs[0][0].co, ovs[0][1].co):
+                    return 0
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[0].calc_center_median(), ovs[0][0].co, ovs[0][1].co)[1]] + [sedgemp]
+
             elif len(ovs) == 2:
+                if None in [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[i].calc_center_median(), ovs[i][0].co, ovs[i][1].co) for i in range(2)]:
+                    return 0
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[i].calc_center_median(), ovs[i][0].co, ovs[i][1].co)[1] for i in range(2)]
             else:
                return 0
