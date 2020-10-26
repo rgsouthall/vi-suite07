@@ -30,27 +30,7 @@ from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, 
 from .vi_dicts import unit2res
 checked_groups_names_list = []
 materials_from_group = set()
-
-#def py_path():
-#    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-     
-    # if sys.platform in ('darwin', 'win32'):
-    #     if os.path.join(addonpath, 'Python') not in sys.path:
-    #         return os.path.join(addonpath, 'Python')         
-    #     else:
-    #         return ''
-        
-#    elif sys.platform == 'win32':
-#        if os.path.join(addonpath, 'Python', 'Win') not in sys.path:
-#            return os.path.join(addonpath, 'Python', 'Win')
-#        else:
-#            return ''
-
-#sys.path.append(py_path())
-
-# def return_preferences(svp):
-#     return bpy.context.preferences.addons[svp['viparams']['vi_name']].preferences
-# prefs = return_preferences()    
+   
 def ret_plt():
     try:
         import matplotlib
@@ -71,11 +51,6 @@ def ret_mcm():
         return 0   
     
 dtdf = datetime.date.fromordinal
-#unitdict = {'Lux': 'illu', 'W/m2 (f)': 'firrad', 'W/m2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
-#            'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', 'kWh/m2 (f)': 'firradm2', 'kWh/m2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
-#            'Avg lux': 'illu', 'Min lux': 'illu'}
-
-
 
 def create_coll(c, name):
     if bpy.data.collections.get(name):
@@ -93,7 +68,8 @@ def create_empty_coll(c, name):
     coll = create_coll(c, name)
     
     for o in coll.objects:
-        bpy.data.objects.remove(o)
+        if name == 'LiVi Results' and o.vi_params.vi_type_string == 'LiVi Res':
+            bpy.data.objects.remove(o)
     
     return coll
 
@@ -111,8 +87,11 @@ def move_to_coll(context, coll, o):
         
 def clear_coll(coll):
     for o in coll.objects:
-        coll.objects.unlink(o)
-        bpy.data.objects.remove(o)
+        if coll.name == 'LiVi Results' and o.vi_params.vi_string_type != 'LiVi Res':
+            pass
+        else:
+            coll.objects.unlink(o)
+            bpy.data.objects.remove(o)
         
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03, 
 2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02, 
@@ -226,7 +205,8 @@ def retcols(cmap, levels):
 
 def cmap(svp):
     cols = [(0.0, 0.0, 0.0, 1.0)] + retcols(ret_mcm().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
-    
+    cols = [[col[0], col[1], col[2], svp.vi_disp_trans] for col in cols]
+
     for i in range(svp.vi_leg_levels + 1):   
         matname = '{}#{}'.format('vi-suite', i)
         
@@ -244,7 +224,8 @@ def cmap(svp):
         
         if svp.vi_disp_trans < 1:
             # create transparency node
-            node_material = nodes.new(type='ShaderNodeBsdfTransparent')            
+            node_material = nodes.new(type='ShaderNodeBsdfTransparent')    
+            node_material.inputs[0].default_value[3] = svp.vi_disp_trans       
         elif svp.vi_disp_mat:
             # create emission node
             node_material = nodes.new(type='ShaderNodeEmission') 
@@ -254,7 +235,7 @@ def cmap(svp):
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
             node_material.inputs[1].default_value = 0.5
 
-        node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
+        node_material.inputs[0].default_value = (cols[i][0:4])  # green RGBA
         node_material.location = 0,0
                 
         # create output node
@@ -293,12 +274,12 @@ def retvpvloc(context):
     
 def rettree(scene, obs, ignore):
     bmob = bmesh.new()
+    dp = bpy.context.evaluated_depsgraph_get()
+
     for soi, so in enumerate(obs):
         btemp = bpy.data.meshes.new("temp")
         bmtemp = bmesh.new()
-        tempmesh = so.to_mesh()
-        bmtemp.from_mesh(tempmesh)
-        so.to_mesh_clear()
+        bmtemp.from_object(so, dp)
         bmtemp.transform(so.matrix_world)
         delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].vi_params.mattype == ignore]
         bmesh.ops.delete(bmtemp, geom = delfaces, context = 'FACES')
@@ -751,7 +732,8 @@ def clearanim(scene, obs):
     for o in obs:
         selobj(scene, o)
         o.animation_data_clear()
-        o.data.animation_data_clear()        
+        o.data.animation_data_clear()   
+
         while o.data.shape_keys:
             bpy.context.object.active_shape_key_index = 0
             bpy.ops.object.shape_key_remove(all=True)
@@ -811,6 +793,7 @@ def clearscene(scene, op):
         if sk.users == 0:
             for keys in sk.keys():
                 keys.animation_data_clear()
+
     scene.vi_params['liparams']['livir'] = []
         
 def rtupdate(self, context):
@@ -1108,6 +1091,7 @@ def windnum(maxws, loc, scale, wr):
     txts = []
     matrot = Matrix.Rotation(-pi*0.05, 4, 'Z')
     direc = Vector((0, 1, 0))
+
     for i in range(2, 6):
         bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=((i**2)/25)*scale*(matrot@direc))
         txt = bpy.context.active_object
@@ -1116,6 +1100,7 @@ def windnum(maxws, loc, scale, wr):
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = bpy.data.materials['wr-000000']
         txts.append(txt)
+
     joinobj(bpy.context.view_layer, txts + [wr]).name = 'Wind Rose'
     bpy.context.active_object.cycles_visibility.shadow = False
     bpy.context.active_object.display.show_shadows = False
@@ -1372,10 +1357,27 @@ def ret_camera_menu(self, context):
     else:
         return [('None', 'None', 'None')]
 
+def retrobjs(obs):
+    robjs = []
+    if bpy.data.collections.get('LiVi Res'):
+        for o in bpy.data.collections['LiVi Res'].objects:
+            robjs.append(o)
+    if bpy.data.collections.get('EnVi Geometry'):
+        for o in bpy.data.collections['EnVi Geometry'].objects:
+            robjs.append(o)       
+    if bpy.data.collections.get('FloVi Mesh'):
+        for o in bpy.data.collections['FloVi Mesh'].objects:
+            robjs.append(o) 
+    if bpy.data.collections.get('SunPath'):
+        for o in bpy.data.collections['SunPath'].objects:
+            robjs.append(o) 
+    return robjs
+
 def retobjs(otypes):
     scene = bpy.context.scene
     svp = scene.vi_params
-    validobs = [o for o in scene.objects if o.visible_get() and '/' not in o.name]
+    validobs = [o for o in scene.objects if o.visible_get() and '/' not in o.name and o not in retrobjs(scene.objects)]
+
     for o in scene.objects:
         if '/' in o.name:
             logentry('Object {} has a "/" in the name and will not be exported'.format(o.name))
@@ -1525,20 +1527,18 @@ def edgelen(ob, edge):
     mathutils.Vector(vdiff).length
 
 def sunpath1(self, context):   
-    sunpath(context.scene)
+    sunpath(bpy.context)
 
-def sunpath2(scene):
-    sunpath(scene)
+def sunpath2():
+    sunpath(bpy.context)
 
-def sunpath(scene):
+def sunpath(context):
+    scene = context.scene
     svp = scene.vi_params
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
-#    spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
 
     if svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':        
-        skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
-
-        if suns:# and 0 in (suns[0]['solhour'] == svp.sp_sh, suns[0]['solday'] == svp.sp_sd):                          
+        if suns:                          
             alt, azi, beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)
             suns[0].location.z = 100 * sin(beta)
             suns[0].location.x = -(100**2 - (suns[0].location.z)**2)**0.5 * sin(phi)
@@ -1546,7 +1546,7 @@ def sunpath(scene):
             suns[0].data.energy = svp.sp_sun_strength
             suns[0].data.angle = svp.sp_sun_angle
             suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
-            bpy.context.scene.display.light_direction = (-sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta)) 
+            scene.display.light_direction = (-sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta)) 
 
             if scene.render.engine == 'CYCLES':
                 if scene.world.node_tree:
@@ -1559,13 +1559,9 @@ def sunpath(scene):
                         blnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
                     for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
-#                if sunobs and sunobs[0].data.materials[0].node_tree:
-#                    for smblnode in [node for node in sunobs[0].data.materials[0].node_tree.nodes if sunobs[0].data.materials and node.bl_label == 'Blackbody']:
-#                        smblnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
-                if skyspheres and not skyspheres[0].hide_viewport and skyspheres[0].data.materials[0].node_tree:
-                    for stnode in [no for no in skyspheres[0].data.materials[0].node_tree.nodes if no.bl_label == 'Sky Texture']:
-                        stnode.sun_direction = -sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta) 
-    
+
+            v3d = [a.spaces[0] for a in context.screen.areas if a.type == 'VIEW_3D'][0]
+            v3d.shading.shadow_intensity = svp.sp_sun_strength * 0.2
             suns[0]['solhour'], suns[0]['solday'] = svp.sp_sh, svp.sp_sd
             suns[0].hide_viewport = True if alt <= 0 else False
             

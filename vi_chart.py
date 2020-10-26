@@ -95,11 +95,11 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     sdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'DOS']
     hdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Hour']
     tdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Steps']
-    print(mdata, ddata, dnode.parametricmenu, len(set(rzlx[0])))
+    
 
     if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
         si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"]  - bpy.context.scene.frame_start
-    
+        print(si, ei)
     elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation'):        
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day  
         (dm, dd) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]])

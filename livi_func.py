@@ -61,7 +61,7 @@ def rtpoints(self, bm, offset, frame):
        
     if self['cpoint'] == '0': 
         gpoints = resfaces
-        gpcos =  [gp.calc_center_median_weighted() for gp in gpoints]
+        gpcos =  [gp.calc_center_median() for gp in gpoints]
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
     elif self['cpoint'] == '1': 
@@ -86,7 +86,7 @@ def setscenelivivals(scene):
         res = unit2res[svp['liparams']['unit']]
 
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
-    
+    print(olist)
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
@@ -411,7 +411,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 vals = [1 for gp in geom]
                         
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
-        posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 0]
+        posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 0]
         bins = array([increment * i for i in range(1, ll)])
         ais = digitize(vals, bins)
         rgeom = [g for g in geom if g[cindex] > 0]
@@ -588,7 +588,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                  ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradh{}'.format(frame)])]])
             
-        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
+        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Y', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Z', ' '.join([str(p[0]) for p in posis])])
@@ -669,7 +669,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             ['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
         self['tablesv{}'.format(frame)] = array([['', '% area with', '% area without'], ['Sky View', '{:.1f}'.format(100 * nsum(ressv)/len(ressv)), '{:.1f}'.format(100 - 100 * nsum(ressv)/(len(ressv)))]])
 
-        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
+        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.name, 'Y', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.name, 'Z', ' '.join([str(p[0]) for p in posis])])

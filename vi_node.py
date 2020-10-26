@@ -1232,12 +1232,14 @@ class No_Vi_SS(Node, ViNodes):
             (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
             newrow(layout, 'Ignore sensor:', self, "signore")
             newrow(layout, 'Animation:', self, "animmenu")
+
             if self.animmenu != 'Static':            
                 row = layout.row(align=True)
                 row.alignment = 'EXPAND'
                 row.label(text = 'Frames:')
                 row.prop(self, 'startframe')
                 row.prop(self, 'endframe')
+
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Start hour:', self, "starthour")
@@ -1768,9 +1770,17 @@ class No_Vi_Metrics(Node, ViNodes):
     def zitems(self, context):
         if self.inputs[0].links:
             rl = self.inputs[0].links[0].from_node['reslists']
-#            zrl = list(zip(*rl))
+
             try:
                 znames = set([z[2] for z in rl if z[1] == 'Zone'])
+                if znames:
+                    return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+                else:
+#                    if self.zone_menu != 'None':
+#                    print(self.zone_menu)
+#                        self.zone_menu = 'None'
+                    return [('None', 'None', 'None')]
+
                 return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
             except:
                 return [('None', 'None', 'None')]
@@ -1780,10 +1790,13 @@ class No_Vi_Metrics(Node, ViNodes):
     def frames(self, context):
         if self.inputs[0].links:
             rl = self.inputs[0].links[0].from_node['reslists']
-#            zrl = list(zip(*rl))
+
             try:
                 frames = set([z[0] for z in rl])
-                return [(f, f, 'Frame') for f in frames]
+                if frames:
+                    return [(f, f, 'Frame') for f in frames]
+                else:
+                    return [('None', 'None', 'None')]
             except:
                 return [('None', 'None', 'None')]
         else:
@@ -1799,6 +1812,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 return [('None', 'None', 'None')]
         else:
             return [('None', 'None', 'None')]
+        
     
     metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), ("2", "Flow", "Flow results")],
                 name="", description="Results type", default="0", update=zupdate)   
@@ -2066,6 +2080,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
 #                if self.frame_menu == 'All':
                 znames = set([z[2] for z in rl if z[1] == 'Zone'])
+#                print('zname', znames)
 
                 for zn in znames:
                     for r in rl:
@@ -2324,6 +2339,9 @@ class No_Flo_Case(Node, ViNodes):
         if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('solver_type'): 
             context.scene.vi_params['flparams']['params'] = params
     
+    parametric: BoolProperty(name = '', description = 'Parametric simulation', default = 0, update = nodeupdate)
+    frame_start: IntProperty(name = "", description = "Start frame", min = 0, default = 0, update = nodeupdate)
+    frame_end: IntProperty(name = "", description = "End frame", min = 0, default = 0, update = nodeupdate)
     solver: EnumProperty(name = '', items = [('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'simpleFoam')
     transience: EnumProperty(name = '', items = [('0', 'Steady', 'Steady state simulation'),
                                                  ('1', 'Transient', 'Transient simulation')], description = 'Transience selection', default = '0', update = nodeupdate)
@@ -2371,6 +2389,16 @@ class No_Flo_Case(Node, ViNodes):
             context.scene.vi_params['flparams']['params'] = 'l'
     
     def draw_buttons(self, context, layout):  
+        # newrow(layout, 'Parametric:', self, 'parametric')
+
+        # if self.parametric:
+        #     row = layout.row()
+        #     row.label(text = 'Frames:')
+        #     col = row.column()
+        #     subrow = col.row(align=True)
+        #     subrow.prop(self, 'frame_start')
+        #     subrow.prop(self, 'frame_end')
+
         newrow(layout, 'Transience:', self, 'transience')
 
         if self.transience == '0':
@@ -2436,6 +2464,7 @@ class No_Flo_Case(Node, ViNodes):
 
         if self.turbulence != 'laminar':
             newrow(layout, 'k/e/o Residual:', self, 'keoresid')
+            
             if self.buoyancy:
                 if self.buossinesq:
                     newrow(layout, 'e residual:', self, 'enresid')

@@ -5,7 +5,7 @@ from bpy_extras import view3d_utils
 from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, drawloop, drawpoly, retdp
 from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
-from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath
+from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
 from .livi_func import setscenelivivals
 from .livi_export import spfc
 from .vi_dicts import res2unit, unit2res
@@ -18,6 +18,7 @@ from numpy import sum as nsum
 from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
+from bpy.app.handlers import persistent
 
 try:
     import matplotlib
@@ -160,10 +161,10 @@ def e_update(self, context):
                 bm.free()
 
 def t_update(self, context):
-    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide_viewport == False and o.get('lires')]:
+    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide_viewport == False and o.vi_params.vi_type_string == 'LiVi Res']:
         o.show_transparent = 1
-    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_params.vi_leg_levels + 1)]:
-        mat.blend_method, mat.diffuse_color[3] = 'BLEND', context.scene.vi_params.vi_disp_trans
+    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_params.vi_leg_levels + 1)]:     
+        mat.blend_method = 'BLEND'
     cmap(self)
                 
 def w_update(self, context):
@@ -257,7 +258,7 @@ def li_display(disp_op, simnode):
             return 'CANCELLED'
             
         ores = bpy.context.active_object
-        ores.name, ores.show_wire, ores.display_type, orvp = o.name+"res", 1, 'SOLID', ores.vi_params
+        ores.name, ores.show_wire, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 'SOLID', ores.vi_params, 'LiVi Res'
         move_to_coll(bpy.context, 'LiVi Results', ores)
         
         while ores.material_slots:
@@ -319,6 +320,7 @@ class linumdisplay():
         self.fs = svp.vi_display_rp_fs
         self.fontmult = 1
         self.obreslist = [ob for ob in scene.objects if ob.name in svp['liparams']['livir']]
+        self.obreslist = [ob for ob in scene.objects if ob.vi_params.vi_type_string == 'LiVi Res']
 
         if svp.vi_display_sel_only == False:
             self.obd = self.obreslist
@@ -640,15 +642,12 @@ class draw_bsdf(Base_Display):
     def get_data(self, context):
         self.mat = context.active_object.active_material
         bsdf = parseString(self.mat.vi_params['bsdf']['xml'])
-#        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
-#        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
         self.radtype = [path.firstChild.data for path in bsdf.getElementsByTagName('Wavelength')]
         self.rad_select = self.radtype[0]
         self.dattype = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
         self.direc = self.dattype[0]
         self.type_select = self.dattype[0].split()[0]
         self.dir_select = self.dattype[0].split()[1]
-#        lthetas = [path.firstChild.data for path in bsdf.getElementsByTagName('LowerTheta')]
         self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
         self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
         self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
@@ -712,10 +711,9 @@ class draw_bsdf(Base_Display):
         mp2im(self.fig, self.image)
 
     def ret_coords(self): 
-        if True:#self.type == 'Klems':
+        if self.type == 'Klems':
             vl_coords, f_indices = [], []
             v_coords = [(0, 0)]
-    #        steps = 720/self.segments[self.sr]
             
             if self.sseg == 1:
                 va_coords = [(0, 0)]
@@ -723,8 +721,6 @@ class draw_bsdf(Base_Display):
                               self.radii[self.sr] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(720)]
                 fa_indices = [(0, x + (1, -719)[x > 0 and not x%720], x) for x in range(1, 720 + 1)]
             else:
-#                va_coords = [(self.radii[cr - 1] * cos((x*0.5 - 360/(2 * self.segments[cr]))*pi/180), 
-#                              self.radii[cr - 1] * sin((x*0.5 - 360/(2 * self.segments[cr]))*pi/180)) for x in range(int(rs/2 * self.segments[cr]*720), int((rs)/2 * self.segments[cr]*720) + 1)]
                 va_coords = [(-self.radii[self.sr - 1] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180), 
                               self.radii[self.sr - 1] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(int((self.srs - 1) * 720/self.segments[self.sr]), int((self.srs) * 720/self.segments[self.sr]) + 1)]
                 va_coords += [(-self.radii[self.sr] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180), 
@@ -737,7 +733,6 @@ class draw_bsdf(Base_Display):
             for ri, radius in enumerate(self.radii):                                          
                 if ri < 8:
                     for si, s in enumerate(range(self.segments[ri + 1])):
-#                        f_colours += [(1, 1, 1, 1)] * int(720/segments[ri + 1])
                         vl_coords += [(radius * cos((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180), 
                                       radius * sin((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180)), 
                                       (self.radii[ri +1] * cos((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180), 
@@ -881,28 +876,15 @@ class draw_bsdf(Base_Display):
             b_indices = [(0, 1, 3), (1, 2, 3)]
             b_colours = [(1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1)]
             self.back_shader =  gpu.types.GPUShader(arc_vertex_shader, arc_fragment_shader) 
-#            bgl.linewidth
             self.arcline_shader = gpu.types.GPUShader(line_vertex_shader, line_fragment_shader) 
             self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
             self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
             self.iimage_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
-            self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
-#        f_colours = [(random.random(), 0, 0, 1) for x in range(len(v_coords))]
-#        f_colours = [item for item in f_colours for i in range(3)]
-            
+            self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})            
             self.back_batch = batch_for_shader(self.back_shader, 'TRIS', {"position": b_coords, "colour": b_colours}, indices = b_indices)
-            
-#            self.arcline_batch = batch_for_shader(self.arcline_shader, 'LINES', {"position": vl_coords})
-#            self.arcline_shader.bind()
-##            self.arcline_shader.uniform_float("uBlendFactor", 2.0)
-#            self.arcline_shader.uniform_float("size", (0.8, 0.8))
-#            self.arcline_shader.uniform_float("spos", (self.lspos[0] + 175, self.ah - 450))
-#            self.arcline_shader.uniform_float("colour", (0.2, 0.2, 0.2, 1))            
-#            self.arcline_shader.uniform_float("uLineWidth", 2.0)
+
         self.arc_shader = gpu.types.GPUShader(arc_vertex_shader, arc_fragment_shader)
         self.arc_batch = batch_for_shader(self.arc_shader, 'TRIS', {"position": va_coords, "colour": fa_colours}, indices = fa_indices)
-#        print(va_coords)
-#        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
     
     def draw(self, context):
         if self.expand:
@@ -914,24 +896,7 @@ class draw_bsdf(Base_Display):
             self.back_batch.draw(self.back_shader)             
             bgl.glEnable(bgl.GL_DEPTH_TEST)
             bgl.glDepthFunc(bgl.GL_LESS)
-            
-#            bgl.glEnable(bgl.GL_LINE_SMOOTH)
-#            bgl.glEnable(bgl.GL_BLEND)
-#            bgl.glDepthMask(bgl.GL_FALSE)
-    #        bgl.glEnable(bgl.GL_BLEND)
-    #        bgl.glDepthMask(False)
-#            bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA);
-#            bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_DONT_CARE);
             bgl.glLineWidth(1)
-    #        bgl.glEnable(bgl.GL_BLEND)
-#            bgl.glEnable(bgl.GL_LINE_SMOOTH)
-#            bgl.glEnable(bgl.GL_MULTISAMPLE)
-#            bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-#            self.arcline_batch.draw(self.arcline_shader)
-#            bgl.glDepthMask(bgl.GL_TRUE)
-    
-#            bgl.glDisable(bgl.GL_LINE_SMOOTH)
-#            bgl.glDisable(bgl.GL_BLEND)
             self.image_shader.bind()
             self.image_shader.uniform_float("size", self.isize)
             self.image_shader.uniform_float("spos", self.lspos)             
@@ -960,17 +925,7 @@ class draw_bsdf(Base_Display):
             self.arc_shader.bind()
             self.arc_shader.uniform_float("size", (1,1))
             self.arc_shader.uniform_float("spos", (self.lspos[0] + 50 + 125, self.lepos[1] - 155))
-    #        self.arc_shader.uniform_float("colour", (1, 1, 1, 1)) 
             self.arc_batch.draw(self.arc_shader)
-#            blf.enable(0, 4)
-#            blf.enable(0, 8)
-#            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-#            blf.size(self.font_id, 8, 144)
-#            blf.position(self.font_id, self.lspos[0] + 175 - blf.dimensions(self.font_id, 'Incoming')[0]*0.5, self.lepos[1] - blf.dimensions(self.font_id, 'Incoming')[1], 0) 
-#            blf.color(self.font_id, 0, 0, 0, 1)      
-#            blf.draw(self.font_id, 'Incoming')
-#            blf.disable(0, 8)  
-#            blf.disable(0, 4)
         
 class svf_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
@@ -1179,11 +1134,8 @@ class wr_legend(Base_Display):
             svp.vi_display = 0
             return
         
-#        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
         self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-        self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"
-#        self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]
-        
+        self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"        
         blf.size(self.font_id, 12, self.dpi)        
         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
@@ -1413,23 +1365,16 @@ class wr_table(Base_Display):
             blf.size(fid, 24, 300)
             rcshape = self.rcarray.shape
             [rowno, colno] = self.rcarray.shape            
-#            colpos = [int(0.01 * self.xdiff)]
             ctws = array([int(max([blf.dimensions(fid, '{}'.format(e))[0] for e in entry])) for entry in self.rcarray.T])
             ctws = self.xdiff * ctws/sum(ctws) 
             ctws = [sum(ctws[:i]) for i in range(4)] + [self.xdiff]
             ctws = [sum(ctws[i:i+2])/2 for i in range(4)]            
             coltextwidths = array([int(max([blf.dimensions(fid, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
-            colscale = sum(coltextwidths)/(self.xdiff * 0.98)
-#            colwidths = (coltextwidths/colscale).astype(int)
-           
-#            for cw in colwidths:
-#                colpos.append(cw + colpos[-1])
-        
+            colscale = sum(coltextwidths)/(self.xdiff * 0.98)        
             maxrowtextheight = max([max([blf.dimensions(fid, '{}'.format(e))[1] for e in entry if e])  for entry in self.rcarray.T])
             rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
             rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
             rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
-        #    rowoffset = 0.5 * maxrowtextheight
             rowtops = [int(self.lepos[1]  - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
             rowbots = [int(self.lepos[1]  - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
             rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
@@ -1461,32 +1406,15 @@ class draw_scatter(Base_Display):
         self.vi_coords = [(0.02, 0.02), (0.02, 0.98), (0.98, 0.98), (0.98, 0.02)] 
         self.f_indices = ((0, 1, 2), (2, 3, 0))
         self.tex_coords = ((0, 0), (0, 1), (1, 1), (1, 0))
-#        self.update(op)
         self.create_batch()
         self.line_shader.bind()
         self.line_shader.uniform_float("colour", (0, 0, 0, 1)) 
         self.image = op.image
                 
     def update(self, op):
-#        self.cao = context.active_object
-        
-                
-#        if self.cao and self.cao.get('vi_params') and self.cao.vi_params.get('dhres{}'.format(scene.frame_current)) or self.res_type == 'ss':
-#            if self.res_type == 'ss':
-#                (title, cbtitle) = ('Area Sunlit', 'Area sunlit (%)')
-#            
-#            if self.res_type == 'wr':
-#                (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if svp.wind_type == '0' else ('Wind Direction', u'Direction (\u00B0)')
-
-#            self.unit = svp.wind_type 
-#            zdata = array(self.cao.vi_params['{}{}'.format(self.res_type, scene.frame_current)])
-#        if op.zdata: 
-#            self.col = op.scattcol
         self.plt = plt
         draw_dhscatter(self, op.xdata, op.ydata, op.zdata, op.title, op.xtitle, op.ytitle, op.scatt_legend, op.zmin, op.zmax, op.scattcol)  
-#            save_plot(self, scene, self.image)
-        mp2im(self.fig, op.image)
-        
+        mp2im(self.fig, op.image)        
             
     def create_batch(self):
         base_vertex_shader = '''
@@ -2460,6 +2388,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
     def invoke(self, context, event):        
         scene = context.scene
+        objmode()
         node = context.node
         scene.display.shadow_focus = 1
         svp = scene.vi_params
@@ -2522,7 +2451,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if any(ob.get('VIType') == "SPathMesh" for ob in context.scene.objects):
             spathob = [ob for ob in context.scene.objects if ob.get('VIType') == "SPathMesh"][0]
         else:
-#            bpy.ops.object.add(type = "MESH")
             spathob = compass((0,0,0.01), sd, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'], bpy.data.materials['SPGrey'])
         
             if spathob.name not in spcoll.objects:
@@ -2532,7 +2460,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
     
             spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
             selobj(context.view_layer, spathob)
-#            compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'])
             joinobj(context.view_layer, [spathob])
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission, spathob.cycles_visibility.scatter = [False] * 5
             spathob.show_transparent = True
@@ -2548,12 +2475,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sun.name = sun.data.name ='Sun{}'.format(s)
             sun.parent = spathob
 
-        if spfc not in bpy.app.handlers.frame_change_post:
-            bpy.app.handlers.frame_change_post.append(spfc)
+        if sunpath1 not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(sunpath1)
 
         svp['viparams']['vidisp'] = 'sp'
         svp['viparams']['visimcontext'] = 'SunPath'
-        sunpath(scene)
+        sunpath(context)
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
         self.latitude = svp.latitude
@@ -2692,8 +2619,10 @@ class wr_scatter(Base_Display):
             self.image_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.image_shader.uniform_float("spos", self.lspos) 
             im = bpy.data.images[self.image]
+
             if im.gl_load():
                 raise Exception()
+
             bgl.glActiveTexture(bgl.GL_TEXTURE0)
             bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
             self.image_shader.uniform_int("image", 0)
@@ -2713,7 +2642,8 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     def execute(self, context):  
         r2h = context.area.regions[2].height
         r2w = context.area.regions[2].width
-        svp = context.scene.vi_params
+        scene = context.scene
+        svp = scene.vi_params
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'wr'
         self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_scatt_col
@@ -2722,29 +2652,28 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.legend = wr_legend(context, 'Speed (m/s)', [305, r2h - 80], r2w, r2h, 125, 300)
         self.table = wr_table(context, [355, r2h - 80], r2w, r2h, 400, 60) 
         scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 2)[0]
-        self.cao = 1
+        self.cao = [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"][0] if [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"] else 0
+
+        if not self.cao:
+            return{'CANCELLED'}
+        else:
+            self.zdata = array(self.cao.vi_params[('ws', 'wd')[int(svp.wind_type)]])
+            self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
+            self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
+            self.xdata = self.cao.vi_params['days']
+            self.ydata = self.cao.vi_params['hours']
+            self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
+            self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
+            self.xtitle = 'Days'
+            self.ytitle = 'Hours'
+
         self.image = 'wr_scatter.png'
         self.zdata = array([])
         self.xtitle = 'Days'
-        self.ytitle = 'Hours'
-        
-#        if self.cao and self.cao.vi_params.get(('ws', 'wd')[int(svp.wind_type)]):            
-#            self.zdata = array(self.cao.vi_params[('ws', 'wd')[int(svp.wind_type)]])
-#            self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
-#            self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-#            self.xdata = self.cao.vi_params['days']
-#            self.ydata = self.cao.vi_params['hours']
-#            self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
-#            self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
-#            self.xtitle = 'Days'
-#            self.ytitle = 'Hours'
-#        else:
-#            self.zdata = 0
-            
+        self.ytitle = 'Hours'            
         self.dhscatter = draw_scatter(context, scatter_icon_pos, r2w, r2h, 600, 200, self)
         self.height = r2h
-        self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
-        
+        self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')        
         context.area.tag_redraw()
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
@@ -2759,7 +2688,13 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}
-        
+
+        if self.cao != context.active_object:            
+            if context.active_object and context.active_object.vi_params.get('VIType') == 'Wind_Plane':
+                self.cao = context.active_object
+                self.table.update(context)
+                updates[2] = 1
+
         if (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) != \
             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
              svp.vi_scatt_max_val, svp.vi_scatt_min_val):
@@ -2767,22 +2702,15 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
              svp.vi_scatt_max_val, svp.vi_scatt_min_val)
             updates[2] = 1
+        
+        if updates[2]:
             self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
             self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
-            self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
+            self.zdata = array(self.cao.vi_params[('ws', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
             self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-        
-        if self.cao and context.active_object and self.cao != context.active_object and context.active_object.vi_params.get(('ws', 'wd')[int(svp.wind_type)]):
-            self.zdata = array(context.active_object.vi_params[('ws', 'wd')[int(svp.wind_type)]])
-            self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
-            self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-            self.xdata = context.active_object.vi_params['days']
-            self.ydata = context.active_object.vi_params['hours']                   
-            updates[2] = 1
-        self.cao = context.active_object 
-        
-        if updates[2] and self.zdata.any():
+            self.xdata = self.cao.vi_params['days']
+            self.ydata = self.cao.vi_params['hours']                   
             self.dhscatter.update(self)
             redraw = 1
             
@@ -2901,9 +2829,13 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         r2 = context.area.regions[2]
         r2h = r2.height
         r2w = r2.width
-        self.results_bar.draw(r2w, r2h)
-        self.legend.draw(context)
-        self.legend_num.draw(context)
+        try:
+            self.results_bar.draw(r2w, r2h)
+            self.legend.draw(context)
+            self.legend_num.draw(context)
+        except:
+            pass
+#            bpy.types.SpaceView3D.draw_handler_remove(self.draw_svfnum, 'WINDOW')
         
     def modal(self, context, event):    
         scene = context.scene
@@ -3028,7 +2960,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']]:
             bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
-            context.area.tag_redraw()
+            try:
+                context.area.tag_redraw()
+            except:
+                pass
             return {'CANCELLED'}   
         
         if self.scattcol != svp.vi_leg_col or self.cao != context.active_object or self.frame != svp.vi_frames:
@@ -3112,10 +3047,14 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         r2 = area.regions[2]
         r2h = r2.height
         r2w = r2.width
-        self.results_bar.draw(r2w, r2h)
-        self.legend.draw(context)
-        self.dhscatter.draw(context)
-        self.num_display.draw(context)
+        try:
+            self.results_bar.draw(r2w, r2h)
+            self.legend.draw(context)
+            self.dhscatter.draw(context)
+            self.num_display.draw(context)
+        except:
+            pass
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ssnum, 'WINDOW')
         
 class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     bl_idname = "view3d.bsdf_display"
@@ -3226,7 +3165,6 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             self.images = ['bsdf.png']
             self.results_bar = results_bar(self.images, area.regions[2].width + 10, area.regions[2])
             self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r2h, 0)[0], region.width, r2h, 400, 650)
-#            context, 'Sky View (%)', self.results_bar.ret_coords(0)[0], region.width, region.height, 100, 400, 20
             svp.vi_display = 1
             self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
             context.window_manager.modal_handler_add(self)

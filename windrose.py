@@ -166,7 +166,7 @@ class WindroseAxes(PolarAxes):
         #Sets the colors table based on the colormap or the "colors" argument
         colors = kwargs.pop('colors', None)
         cmap = kwargs.pop('cmap', None)
-        print(cmap)
+
         if colors is not None:
             if isinstance(colors, str):
                 colors = [colors]*nbins

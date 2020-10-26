@@ -45,7 +45,6 @@ else:
         import matplotlib.pyplot as plt
         from kivy.app import App
     except:
-        print(sys.version_info[1])
         if sys.version_info[1] == 7:
             
 #    if sys.platform in ('darwin', 'linux', 'win32'):      
@@ -69,7 +68,9 @@ else:
                     os.environ['PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform, 'bin')
             else:
                 os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
-    
+        
+        elif sys.version_info[1] >= 8:
+            os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
     # try:
     #     from netgen.meshing import Mesh
     # except Exception as e:
@@ -320,6 +321,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     
 class VI_Params_Object(bpy.types.PropertyGroup): 
     # VI-Suite object definitions
+    vi_type_string: sprop("", "VI Suite object type", 1024, "")
     vi_type: eprop([("0", "None", "Not a VI-Suite specific object"), 
                     ("1", "EnVi Surface", "Designates an EnVi surface"), 
                     ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), 
@@ -547,6 +549,18 @@ def select_nodetree(dummy):
             print(e)
         
 bpy.app.handlers.depsgraph_update_post.append(select_nodetree)
+
+@persistent
+def clear_modals(dummy):
+    if bpy.context.scene.vi_params.vi_display:
+        bpy.context.scene.vi_params.vi_display = 0
+        bpy.context.area.tag_redraw()
+#        time.sleep(1)
+#    for mod in bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
+        print("Turning off display")
+
+
+bpy.app.handlers.load_pre.append(clear_modals)
         
 def getViEditorSpaces():
     if bpy.context.screen:
@@ -667,8 +681,8 @@ def register():
     if update_chart_node not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_chart_node)
         
-    if display_off not in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.append(display_off)
+    if display_off not in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.append(display_off)
         
     if update_dir not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_dir)

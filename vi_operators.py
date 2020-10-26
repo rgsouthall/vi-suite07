@@ -196,7 +196,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         if not plt:
             self.report({'ERROR'},"There is something wrong with your matplotlib installation")
             return {'FINISHED'}
-
+        
         simnode.export()
         locnode = simnode.inputs['Location in'].links[0].from_node
         svp['viparams']['resnode'], svp['viparams']['restree'] = simnode.name, simnode.id_data.name
@@ -222,7 +222,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         dfreq = histogram(awd, bins=dbinvals)[0]
         adfreq = histogram(cwd, bins=dbinvals)[0]
         dfreq[0] = dfreq[0] + dfreq[-1]
-        dfreq = dfreq[:-1]
+        dfreq = dfreq[:-1]        
         
         if simnode.wrtype == '0':
             ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(svp.vi_leg_col))
@@ -233,8 +233,10 @@ class NODE_OT_WindRose(bpy.types.Operator):
         
         if simnode.max_freq == '1':
             ax.set_rmax(simnode.max_freq_val)
-            
-        plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg')
+        else:
+            ax.set_rmax(100*numpy.max(dfreq)/len(awd))
+          
+        plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg') 
         wrme = bpy.data.meshes.new("Wind_rose")   
         wro = bpy.data.objects.new('Wind_rose', wrme) 
         
@@ -243,16 +245,16 @@ class NODE_OT_WindRose(bpy.types.Operator):
             if wro.name in scene.collection.objects:
                 scene.collection.objects.unlink(wro)
                 
-        selobj(context.view_layer, wro)       
+        selobj(context.view_layer, wro)    
+            
         (wro, scale) = wind_rose(wro, simnode['maxres'], svp['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
+        
         wro = joinobj(context.view_layer, wro)  
         ovp = wro.vi_params
         ovp['maxres'], ovp['minres'], ovp['avres'], ovp['nbins'], ovp['VIType'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals), 'Wind_Plane'
-        simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)
         simnode['maxfreq'] = 100*numpy.max(adfreq)/len(vawd) if simnode.max_freq == '0' else simnode.max_freq_val
-
-        windnum(simnode['maxfreq'], (0,0,0), scale, wind_compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
-        plt.close()
+        windnum(100*numpy.max(dfreq)/len(awd), (0,0,0), scale, wind_compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))        
+        plt.close()        
         ovp['table'] = array([["", 'Minimum', 'Average', 'Maximum'], 
                              ['Speed (m/s)', ovp['minres'], '{:.1f}'.format(ovp['avres']), ovp['maxres']], 
                              ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
@@ -265,7 +267,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
         simnode['ws'] = array(cws).reshape(365, 24).T.tolist()
         simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()        
         simnode['days'] = arange(1, 366, dtype = float)
-        simnode['hours'] = arange(1, 25, dtype = float)        
+        simnode['hours'] = arange(1, 25, dtype = float)    
+           
         return {'FINISHED'}
     
 class NODE_OT_SVF(bpy.types.Operator):
@@ -369,7 +372,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                 shadres = geom.layers.float['svf{}'.format(frame)]
                                     
                 if gpoints:
-                    posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
+                    posis = [gp.calc_center_median() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                  
                     for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
@@ -422,6 +425,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene 
         svp = scene.vi_params
+        dp = bpy.context.evaluated_depsgraph_get()
         svp.vi_display = 0
 
         if viparams(self, scene):            
@@ -441,12 +445,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
         
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
-        
-        clearscene(scene, self)
-        
+        clearscene(scene, self)        
         svp['viparams']['visimcontext'] = 'Shadow'
+
         if not svp.get('liparams'):
            svp['liparams'] = {}
+
         svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
         simnode.preexport()
         (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
@@ -463,8 +467,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
         y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
         endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
-        interval = datetime.timedelta(hours = 1/simnode.interval)
-        
+        interval = datetime.timedelta(hours = 1/simnode.interval)        
         times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour - 1 <= (time + interval*t).hour <= simnode.endhour  - 1]
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, svp.latitude, svp.longitude)[2:] for t in times]
         valmask = array([sp[0] > 0 for sp in sps], dtype = int8)
@@ -472,7 +475,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         valdirecs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]  
         lvaldirecs = len(valdirecs)
         ilvaldirecs = 1/lvaldirecs
-        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects[on] for on in svp['liparams']['shadc']])
+        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects.get(on) for on in svp['liparams']['shadc']])
         curres, reslists = 0, []
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
         kivyrun = progressbar(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'), 'Shadow Map')
@@ -496,7 +499,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 
             ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
             bm = bmesh.new()
-            bm.from_mesh(o.data)
+            bm.from_object(o, dp)
+#            bm.from_mesh(o.data)
             clearlayers(bm, 'a')
             bm.transform(o.matrix_world)
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
@@ -521,12 +525,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 shadres = geom.layers.float['sm{}'.format(frame)]
                                   
                 if gpoints:
-                    posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
+                    posis = [gp.calc_center_median() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                     allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
                     
                     for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
-
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
                             numpy.place(allpoints[g], valmask == 1, pointres)
                             gp[shadres] = (100 * (numpy.sum(pointres) * ilvaldirecs)).astype(float16)
@@ -1611,6 +1614,7 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
     def execute(self, context):
         self.o = bpy.context.active_object
         mesh = bmesh.from_edit_mesh(self.o.data)
+        mesh.transform(self.o.matrix_world)
         mesh.faces.ensure_lookup_table()
         mesh.verts.ensure_lookup_table()
         fs = [f for f in mesh.faces[:] if f.select]
@@ -1643,7 +1647,9 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
             res2 = res['geom_cut']
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs2 += gs2
+        mesh.transform(self.o.matrix_world.inverted())
         bmesh.update_edit_mesh(self.o.data)
+        mesh.free()
         return {'FINISHED'}
     
 class OBJECT_OT_GOct(bpy.types.Operator):
@@ -1695,7 +1701,6 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     bl_label = "EnVi display"
     bl_description = "Display the EnVi results"
     bl_options = {'REGISTER'}
-#    bl_undo = True
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
     
@@ -1848,7 +1853,6 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         self.i = 0
         scene = context.scene
         scene.en_frame = scene.frame_current
-#        (resnode, restree) = scene['viparams']['resnode'].split('@')
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
@@ -2258,9 +2262,9 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
         obs = dobs + gobs
 
-        for f in os.listdir(svp['flparams']['of0filebase']):
+        for f in os.listdir(svp['flparams']['offilebase']):
             try:
-                os.remove(os.path.join(svp['flparams']['of0filebase'], f))
+                os.remove(os.path.join(svp['flparams']['offilebase'], f))
             except:
                 pass
         
@@ -2344,6 +2348,18 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         svp['flparams']['uresid'] = casenode.uresid
         svp['flparams']['keoresid'] = casenode.keoresid
         
+        if casenode.parametric:
+            frames = range(casenode.frame_start, casenode.frame_end + 1)    
+        else:
+            frames = [scene.frame_current]
+
+        svp['flparams']['start_frame'] = frames[0]
+        svp['flparams']['end_frame'] = frames[-1]
+        
+        # for frame in frames:
+        #     frame_dir = os.path.join(svp['flparams']['offilebase'], str(frame))
+        #     frame_system_dir
+        #     os.makedirs(frame_dir)
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
             cdfile.write(fvcdwrite(casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
@@ -2452,7 +2468,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         for ob in obs:
             mis = empty(len(ob.data.polygons), dtype=uint8)
             ob.data.polygons.foreach_get('material_index', mis)
-            omats.append([ob.material_slots[i].material for i in set(mis)])
+            try:
+                omats.append([ob.material_slots[i].material for i in set(mis)])
+            except:
+                logentry('FloVi error: {} has missing materials'.format(ob.name))
+                self.report({'ERROR'},'FloVi error: {} has missing materials'.format(ob.name))
+                return {'CANCELLED'}
+#                return{'ERROR'}
             mns.append(len(set(mis)))
 
         fomats = [item for sublist in omats for item in sublist]
@@ -2518,7 +2540,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     intersect = 0
                     
                     for face in bm.faces:
-                        if bmesh.geometry.intersect_face_point(face, fpoint) and abs(mathutils.geometry.distance_point_to_plane(fpoint, face.calc_center_bounds(), face.normal)) < expnode.pcorr and abs(fnorm.dot(face.normal)) > expnode.acorr:
+                        if bmesh.geometry.intersect_face_point(face, fpoint) and abs(mathutils.geometry.distance_point_to_plane(fpoint, face.calc_center_median(), face.normal)) < expnode.pcorr and abs(fnorm.dot(face.normal)) > expnode.acorr:
                             el.index = face.material_index + 1 + sum(mns[:oi + 1]) 
                             intersect = 1
                             break
@@ -2543,7 +2565,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             logentry("Netgen mesh generated")    
         
 
-#        totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')
+    #        totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
             totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
 
@@ -2683,7 +2705,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         Popen(shlex.split('foamExec combinePatchFaces -overwrite -case {} {}'.format(svp['flparams']['offilebase'], expnode.yang))).wait()
                         
                         for file in os.listdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
-                            shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', file), os.path.join(svp['flparams']['ofcpfilebase']))
+                            if os.path.isfile(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', 'file')):
+                                shutil.copy(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh', file), os.path.join(svp['flparams']['ofcpfilebase']))
                         
                         with open(os.path.join(svp['flparams']['offilebase'], '0', 'polyMesh', 'boundary'), 'r') as bfile:
                             nf = []
@@ -2754,8 +2777,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                     expnode.post_export()
         except Exception as e:
-            logentry("Netgen error: {}".format(e))
-            return {'CANCELLED'}
+           logentry("Netgen error: {}".format(e))
+           return {'CANCELLED'}
         return {'FINISHED'}
     
 class NODE_OT_Flo_Bound(bpy.types.Operator):

@@ -19,7 +19,7 @@
 import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex
 from math import sin, cos, pi
 from subprocess import PIPE, Popen, TimeoutExpired
-from .vi_func import clearscene, solarPosition, retobjs, clearlayers, viparams, ct2RGB, logentry
+from .vi_func import clearscene, solarPosition, retobjs, clearlayers, viparams, ct2RGB, logentry, sunpath2
 from .livi_func import face_bsdf
 from numpy import array, where, in1d
 
@@ -167,8 +167,9 @@ def radgexport(export_op, node, **kwargs):
         for o in eolist:
             ovp = o.vi_params
             bm = bmesh.new()
-            tempmesh = o.evaluated_get(dp).to_mesh()
-            bm.from_mesh(tempmesh)
+            bm.from_object(o, dp)
+#            tempmesh = o.evaluated_get(dp).to_mesh()
+#            bm.from_mesh(tempmesh)
             bm.transform(o.matrix_world)
             bm.normal_update() 
             o.to_mesh_clear()
@@ -228,8 +229,7 @@ def radgexport(export_op, node, **kwargs):
 
                 o.particle_systems[0].settings.hair_length = hl
 
-    # Lights export routine
-        
+    # Lights export routine        
         for o in lightlist:
             ovp = o.vi_params
             
@@ -239,7 +239,6 @@ def radgexport(export_op, node, **kwargs):
             else:
                 ab_ies_path = bpy.path.abspath(ovp.ies_name)
                 iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
-#                print('hi', bpy.path.abspath(ovp.ies_name), ovp.ies_name, iesname)
 
                 if os.path.isfile(ab_ies_path):
                     iescmd = "ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
@@ -262,7 +261,7 @@ def radgexport(export_op, node, **kwargs):
                         
                         for f in bm.faces: 
                             lrot = mathutils.Vector.rotation_difference(mathutils.Vector((0, 0, -1)), f.normal).to_euler('XYZ')
-                            lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_bounds(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
+                            lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_median(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
                         bm.free()
 
                 elif iesname:
@@ -415,46 +414,47 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
         return 'CANCELLED'
 
 def spfc(self):
-    scene = bpy.context.scene
-    svp = scene.vi_params
+    sunpath2()
+    # scene = bpy.context.scene
+    # svp = scene.vi_params
 
-    if not svp['viparams'].get('newframe'):
-        svp['viparams']['newframe'] = 1
-    else:
-        svp['viparams']['newframe'] = 0
-        scene.frame_set(scene.frame_current)
+    # if not svp['viparams'].get('newframe'):
+    #     svp['viparams']['newframe'] = 1
+    # else:
+    #     svp['viparams']['newframe'] = 0
+    #     scene.frame_set(scene.frame_current)
         
-    if svp['viparams']['resnode'] == 'VI Sun Path':
-        spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
-        beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)[2:]
+    # if svp['viparams']['resnode'] == 'VI Sun Path':
+    #     spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
+    #     beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)[2:]
+    #     print(beta, phi)
+    #     if scene.world.use_nodes == False:
+    #         scene.world.use_nodes = True
+    #     nt = bpy.data.worlds[0].node_tree
 
-        if scene.world.use_nodes == False:
-            scene.world.use_nodes = True
-        nt = bpy.data.worlds[0].node_tree
+    #     if nt and nt.nodes.get('Sky Texture'):
+    #         scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
 
-        if nt and nt.nodes.get('Sky Texture'):
-            scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
-
-        for ob in scene.objects:
-            if ob.get('VIType') == 'Sun':
-                ob.rotation_euler = pi * 0.5 - beta, 0, -phi 
-                ob.location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)                
-                ob.location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
-                ob.location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
+    #     for ob in scene.objects:
+    #         if ob.get('VIType') == 'Sun':
+    #             ob.rotation_euler = pi * 0.5 - beta, 0, -phi 
+    #             ob.location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)                
+    #             ob.location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
+    #             ob.location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
                 
-                if ob.data.node_tree:
-                    for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
-                        blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
-                    for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = 10 * sin(beta)
+    #             if ob.data.node_tree:
+    #                 for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
+    #                     blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
+    #                 for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
+    #                     emnode.inputs[1].default_value = 10 * sin(beta)
 
-            elif ob.get('VIType') == 'SunMesh':
-                ob.location = (0, 0, 0)
-                if ob.data.materials[0].node_tree:
-                    for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
-                        smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
-    else:
-        return
+    #         elif ob.get('VIType') == 'SunMesh':
+    #             ob.location = (0, 0, 0)
+    #             if ob.data.materials[0].node_tree:
+    #                 for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
+    #                     smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
+    # else:
+    #     return
     
 def cyfc1(self):
     scene = bpy.context.scene  
