@@ -1,5 +1,8 @@
 {
 Normal map conversion
+Lu, Lx are the UVMap coordinates
+Nx, Ny, Nz is the surface normal
+Px, Py, Pz is the surface intersect
 }
 
 mod = if(Rdot,1,-1);

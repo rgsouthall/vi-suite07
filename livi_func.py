@@ -1,3 +1,21 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
 import bpy, bmesh, os, datetime, shlex, sys, math, pickle
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
@@ -116,7 +134,7 @@ def radmat(self, scene):
     
     if self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
         try:
-            teximage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Base Color'].links[0].from_node.image
+            teximage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Color'].links[0].from_node.image
             teximageloc = os.path.join(svp['liparams']['texfilebase'],'{}.hdr'.format(radname))
             off = scene.render.image_settings.file_format 
             scene.render.image_settings.file_format = 'HDR'
@@ -137,13 +155,13 @@ def radmat(self, scene):
                     xdat = -1 + 2 * normpixels[:][0::4].reshape(normimage.size[0], normimage.size[1])
                     ydat = -1 + 2 * normpixels[:][1::4].reshape(normimage.size[0], normimage.size[1])# if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header = header, comments='')
-                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')                    
+                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')                  
                     radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname, 
                                os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], normmapnode.inputs[0].default_value, self.nu, self.nside)
                     mod = '{}_norm'.format(radname)
                     
             except Exception as e:
-                print('Problem with normal export {}'.format(e))
+                logentry('Problem with normal export {}'.format(e))
                 
         except Exception as e:
             print('Problem with texture export {}'.format(e))

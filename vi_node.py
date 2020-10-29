@@ -195,7 +195,7 @@ class No_Li_Geo(Node, ViNodes):
 
     cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min = 0.001, max = 1, default = 0.01, update = nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min = 0.001, max = 1, default = 0.01, precision = 3, update = nodeupdate)
     animated: BoolProperty(name="", description="Animated analysis", default = 0, update = nodeupdate)
     startframe: IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
@@ -630,37 +630,7 @@ class No_Li_Con(Node, ViNodes):
                         self['Options']['MTX'] = mtxfile.read()
                 if self.hdr:
                     cbdmhdr(self, scene)
-
-#        elif self.contextmenu == "Compliance":
-#            if self.canalysismenu in ('0', '1', '2'):            
-#                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
-#                skyentry = livi_sun(scene, self, 0) + livi_sky(3)
-#                
-#                if self.canalysismenu in ('0', '1'):
-#                    self.starttime = datetime.datetime(2015, 1, 1, 12)
-#                    self['preview'] = 1
-#                    if self.hdr:
-#                        hdrexport(scene, 0, scene.frame_current, self, skyentry)
-#                else:
-#                    self.starttime = datetime.datetime(2015, 9, 11, 9)
-#                self['Text'][str(scene.frame_current)] = skyentry
-#            else:
-#                if self.sourcemenu2 == '0':
-#                    self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
-#                elif self.sourcemenu2 == '1':
-#                    self['mtxfile'] = self.mtxname
-#                
-#                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-#
-#                if self.sourcemenu2 == '0':
-#                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
-#                        self['Options']['MTX'] = mtxfile.read()
-#                else:
-#                    with open(self.mtxname, 'r') as mtxfile:
-#                        self['Options']['MTX'] = mtxfile.read()
-#                if self.hdr:
-#                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
-                
+               
     def postexport(self):  
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)  
         (sdoy, edoy) =  (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
@@ -928,31 +898,35 @@ class No_Li_Fc(Node, ViNodes):
         if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(self.hdrfile): 
             newrow(layout, 'Base name:', self, 'basename')
             newrow(layout, 'Unit:', self, 'unit_name')
-            newrow(layout, 'Multiplier:', self, 'multiplier')
-            newrow(layout, 'Colour:', self, 'colour')
-            newrow(layout, 'Divisions:', self, 'divisions')
-            newrow(layout, 'Legend:', self, 'legend')
-            
-            if self.legend:
-                newrow(layout, 'Scale:', self, 'nscale')
-                if self.nscale == '1':
-                    newrow(layout, 'Decades:', self, 'decades')
-                newrow(layout, 'Legend max:', self, 'lmax')
-                newrow(layout, 'Legend width:', self, 'lw')
-                newrow(layout, 'Legend height:', self, 'lh')
-            
-            newrow(layout, 'Contour:', self, 'contour')
-            
-            if self.contour:
-               newrow(layout, 'Overlay:', self, 'overlay') 
-               if self.overlay:
-                   newrow(layout, 'Overlay file:', self, 'ofile') 
-                   newrow(layout, 'Overlay exposure:', self, 'disp')
-               newrow(layout, 'Bands:', self, 'bands') 
-   
-            if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
-                row = layout.row()
-                row.operator("node.livifc", text = 'Process')
+
+            if self.unit_name:
+                newrow(layout, 'Multiplier:', self, 'multiplier')
+                newrow(layout, 'Colour:', self, 'colour')
+                newrow(layout, 'Divisions:', self, 'divisions')
+                newrow(layout, 'Legend:', self, 'legend')
+                
+                if self.legend:
+                    newrow(layout, 'Scale:', self, 'nscale')
+
+                    if self.nscale == '1':
+                        newrow(layout, 'Decades:', self, 'decades')
+
+                    newrow(layout, 'Legend max:', self, 'lmax')
+                    newrow(layout, 'Legend width:', self, 'lw')
+                    newrow(layout, 'Legend height:', self, 'lh')
+                
+                newrow(layout, 'Contour:', self, 'contour')
+                
+                if self.contour:
+                    newrow(layout, 'Overlay:', self, 'overlay') 
+                    if self.overlay:
+                        newrow(layout, 'Overlay file:', self, 'ofile') 
+                        newrow(layout, 'Overlay exposure:', self, 'disp')
+                    newrow(layout, 'Bands:', self, 'bands') 
+    
+                if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
+                    row = layout.row()
+                    row.operator("node.livifc", text = 'Process')
             
     def presim(self):
         self['basename'] = self.basename if self.basename else 'fc'
@@ -1887,10 +1861,7 @@ class No_Vi_Metrics(Node, ViNodes):
             elif self.energy_menu == '1':
                 if self['res'] and self['res'].get('totkwh'):
                     newrow(layout, 'Type', self, 'riba_menu')
-                    if self.riba_menu == '0':
-                        tar = 35
-                    else:
-                        tar = 55
+                    tar = 35 if self.riba_menu == '0' else 55
                     epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
                     row = layout.row()
                     row.label(text = "Operational: {} {}".format(self['res']['totkwh'], epass))
@@ -2523,17 +2494,14 @@ class No_Flo_NG(Node, ViNodes):
                 newrow(layout, 'Position corr:', self, 'pcorr')
                 newrow(layout, 'Angular corr:', self, 'acorr')
                 newrow(layout, 'Distinction angle:', self, 'yang')
-    #            newrow(layout, 'Processors:', self, 'processors')
                 newrow(layout, 'Inflation:', self, 'grading')
                 newrow(layout, 'Optimisations:', self, 'optimisations')
                 newrow(layout, 'Polygonal:', self, 'poly')
-    #            if self.poly:
-    #                newrow(layout, 'Feature angle:', self, 'fang')
                 row = layout.row()
                 row.operator("node.flovi_ng", text = "Generate")
             else:
                 row = layout.row()
-                row.label(text = 'No Netgen')
+                row.label(text = 'Netgen not found')
     
     def update(self):
         if self.outputs.get('Mesh out'):
@@ -2681,7 +2649,6 @@ class No_Flo_Sim(Node, ViNodes):
         self['exportstate'] = ''
         self.inputs.new('So_Flo_Con', 'Context in')
         self.outputs.new('So_Vi_Res', 'Results out')
-#        self['Processors'] = 1
         nodecolour(self, 1)
     
     def draw_buttons(self, context, layout):
@@ -2704,7 +2671,7 @@ class No_Flo_Sim(Node, ViNodes):
         
 ####################### Vi Nodes Categories ##############################
 
-vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), NodeItem("No_Li_Sen", label="LiVi Sense"), 
+vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), 
               NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_Case", label="FloVi Case"),
               NodeItem("No_Flo_NG", label="FloVi NetGen"), NodeItem("No_Flo_Bound", label="FloVi Boundary")]
 # , NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")                
@@ -2992,7 +2959,7 @@ class So_En_Net_Sense(NodeSocket):
 class No_En_Net_Zone(Node, EnViNodes):
     '''Node describing a simulation zone'''
     bl_idname = 'No_En_Net_Zone'
-    bl_label = 'Zone'
+    bl_label = 'EnVi Zone'
     bl_icon = 'CUBE'
 
     def zupdate(self, context):
@@ -3093,7 +3060,7 @@ class No_En_Net_Zone(Node, EnViNodes):
         sflowdict = {'So_En_Net_SFlow': 'Envi surface flow', 'So_En_Net_SSFlow': 'Envi sub-surface flow'}
         [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
                 
-        if self.get('nssflow') and len(self.outputs) == self['nbound'] + self['nsflow'] + self['nssflow']:          
+        if len(self.inputs) > 5 and len(self.outputs) == self['nbound'] + self['nsflow'] + self['nssflow']:          
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
                 self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
@@ -3146,11 +3113,13 @@ class No_En_Net_Zone(Node, EnViNodes):
             row = layout.row()
             row.label(text = 'Error - {}'.format(self.errorcode()))
         newrow(layout, 'Zone:', self, 'zone')
+
         if bpy.data.collections.get(self.zone):
 #            cvp = bpy.data.collections[self.zone].vi_params
 #            newrow(layout, "Habitable:", self, 'envi_hab')
             newrow(layout, "Inside convection:", self, 'envi_ica')
             newrow(layout, "Outside convection:", self, 'envi_oca')
+
         yesno = (1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
         vals = (("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         newrow(layout, 'Volume calc:', self, 'volcalc')
@@ -6486,3 +6455,33 @@ envimatnode_categories = [
 #                                newrow(layout, "Test Insolation:", self, "inoct")
 #                                newrow(layout, "Heat loss coeff.:", self, "hlc")
 #                                newrow(layout, "Heat capacity:", self, "thc")
+
+#        elif self.contextmenu == "Compliance":
+#            if self.canalysismenu in ('0', '1', '2'):            
+#                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
+#                skyentry = livi_sun(scene, self, 0) + livi_sky(3)
+#                
+#                if self.canalysismenu in ('0', '1'):
+#                    self.starttime = datetime.datetime(2015, 1, 1, 12)
+#                    self['preview'] = 1
+#                    if self.hdr:
+#                        hdrexport(scene, 0, scene.frame_current, self, skyentry)
+#                else:
+#                    self.starttime = datetime.datetime(2015, 9, 11, 9)
+#                self['Text'][str(scene.frame_current)] = skyentry
+#            else:
+#                if self.sourcemenu2 == '0':
+#                    self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
+#                elif self.sourcemenu2 == '1':
+#                    self['mtxfile'] = self.mtxname
+#                
+#                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+#
+#                if self.sourcemenu2 == '0':
+#                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
+#                        self['Options']['MTX'] = mtxfile.read()
+#                else:
+#                    with open(self.mtxname, 'r') as mtxfile:
+#                        self['Options']['MTX'] = mtxfile.read()
+#                if self.hdr:
+#                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)

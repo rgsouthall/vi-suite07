@@ -31,16 +31,16 @@ class VI_PT_3D(bpy.types.Panel):
         scene = context.scene
         svp = scene.vi_params
         cao = context.active_object
+        layout = self.layout
 
         if cao:
             covp = cao.vi_params
-
-        layout = self.layout
 
         try:
             if cao and cao.active_material and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':                
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display") 
+
                 if svp['viparams']['vidisp'] == 'bsdf_panel':
                     newrow(layout, 'Direction:', svp, "vi_bsdf_direc")
                     newrow(layout, 'BSDF max:', svp, "vi_bsdfleg_max")
@@ -338,7 +338,7 @@ class VI_PT_Ob(bpy.types.Panel):
         if obj.type == 'MESH':
             row = layout.row()
             row.prop(ovp, 'vi_type')
-            
+
             if ovp.vi_type == '0':
                 row = layout.row()
                 row.label(text = '-- Octree generation --')
@@ -346,19 +346,22 @@ class VI_PT_Ob(bpy.types.Panel):
                 newrow(layout, 'Fallback:', ovp, 'fallback')
                 row = layout.row()  
                 row.operator('object.vi_genoct', text = "Generate Octree")
-                
+
             elif ovp.vi_type == '1':
                 newrow(layout, "Type:", ovp, 'envi_type')
 
+                if ovp.envi_type == '0':
+                    newrow(layout, "Habitable:", ovp, 'envi_hab')
+
             elif ovp.vi_type == '2': 
                 pass
-                
+
         if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
             newrow(layout, 'IES file:', ovp, "ies_name")
             newrow(layout, 'IES Dimension:', ovp, "ies_unit")
             newrow(layout, 'IES Strength:', ovp, "ies_strength")
             newrow(layout, 'IES Colour:', ovp, "ies_colmenu")
-            
+
             if ovp.ies_colmenu == '0':
                 newrow(layout, 'IES RGB:', ovp, "ies_rgb")
             else:
@@ -369,14 +372,14 @@ class VI_PT_Ob(bpy.types.Panel):
                 newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
                 newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
                 newrow(layout, 'Klems/Tensor:', ovp, 'li_bsdf_tensor')
-                
+
                 if ovp.li_bsdf_tensor != ' ':
                     newrow(layout, 'resolution:', ovp, 'li_bsdf_res')
                     newrow(layout, 'Samples:', ovp, 'li_bsdf_tsamp')
                 else:
                     newrow(layout, 'Samples:', ovp, 'li_bsdf_ksamp')
                 newrow(layout, 'RC params:', ovp, 'li_bsdf_rcparam')
-          
+
                 if not ovp.bsdf_running:
                     row = layout.row()
                     row.operator("object.gen_bsdf", text="Generate BSDF")
@@ -386,7 +389,7 @@ class VI_PT_Ob(bpy.types.Panel):
 
         if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
             newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
-        
+
 def rmmenu(layout, cm):
     mvp = cm.vi_params
     row = layout.row()
@@ -418,7 +421,7 @@ def rmmenu(layout, cm):
         if mvp.radtex:
             newrow(layout, 'Normal map:', mvp, 'radnorm')
             if mvp.radnorm:
-                newrow(layout, 'Strength:', mvp, 'ns')
+                # newrow(layout, 'Strength:', mvp, 'ns')
                 newrow(layout, 'Image green vector:', mvp, 'nu')
                 newrow(layout, 'Image red vector:', mvp, 'nside')
 

@@ -45,11 +45,12 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 #        enng = node.id_data
         enng['enviparams']['afn'] = 0
         badnodes = [node for node in enng.nodes if node.use_custom_color]
-        
+
         for node in badnodes:
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
             return
+
         if any([node.bl_idname in ('No_En_Net_SSFlow', 'No_En_Net_SFlow') for node in enng.nodes]):
             enng['enviparams']['afn'] = 1
 

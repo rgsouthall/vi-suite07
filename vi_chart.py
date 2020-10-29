@@ -1,3 +1,21 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
 import sys, bpy
 from .envi_func import retmenu
 
@@ -96,10 +114,9 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     hdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Hour']
     tdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Steps']
     
-
     if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
         si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"]  - bpy.context.scene.frame_start
-        print(si, ei)
+
     elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation'):        
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day  
         (dm, dd) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]])

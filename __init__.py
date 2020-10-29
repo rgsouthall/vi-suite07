@@ -393,7 +393,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
     radnorm: bprop("", "Flag to signify whether the material has a normal map associated with it", False)
-    ns: fprop("", "Strength of normal effect", 0, 5, 1)
+    # ns: fprop("", "Strength of normal effect", 0, 5, 1)
     nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'XYZ', -1, 1)
     nside: fvprop(3, '', 'Image side vector', [-1, 0, 0], 'XYZ', -1, 1)
     radcolour: fvprop(3, "Material Reflectance",'Material Reflectance', [0.8, 0.8, 0.8], 'COLOR', 0, 1)

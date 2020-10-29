@@ -71,42 +71,6 @@ flovi_prgh_bounds = {'buoyantSimpleFoam': {'0': ('fixedFluxPressure', 'prghTotal
 flovi_a_bounds = {'buoyantSimpleFoam': {'0': ('calculated',), '1': ('compressible::alphatJayatillekeWallFunction',), '2': ['None']}}
 flovi_rad_bounds = {'buoyantSimpleFoam': {'0': ('MarshakRadiation',), '1': ('MarshakRadiation',), '2': ['None']}}
 
-#flovi_p_dimens
-
-
-#ico_p_bounds = {'p': ('zeroGradient', 'fixedValue'), 
-#              'U': ('zeroGradient','noSlip', 'fixedValue')}
-#ico_w_bounds = {'p': ('zeroGradient', 'fixedValue'), 
-#              'U': ('zeroGradient', 'noSlip', 'fixedValue')}
-#sim_p_bounds = {'p': ('zeroGradient', 'fixedValue', 'freestreamPressure'), 
-#              'U': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'),
-#              'nut':('nutkWallFunction', 'calculated'),
-#              'nuTilda': ('zeroGradient', 'fixedValue'),
-#              'k': ('fixedValue', 'inletOutlet'),
-#              'epsilon': ('fixedValue', 'inletOutlet'),
-#              'omega': ('zeroGradient', 'fixedValue')}
-#sim_w_bounds = {'p': ['zeroGradient'], 
-#              'U': ('noSlip', 'fixedValue', 'slip'),
-#              'nut':('nutkWallFunction'),
-#              'nuTilda': ('zeroGradient', 'fixedValue'),
-#              'k': ('kqRWallFunction'),
-#              'epsilon': ('epsilonWallFunction'),
-#              'omega': ('omegaWallFunction')}
-#bsim_p_bounds = {'T': ('zeroGradient', 'fixedValue', 'inletOutlet'),
-#                'p_rgh': ('fixedFluxPressure', 'prghTotalHydrostaticPressure'),
-#                'alphat': ('calculated', 'compressible::alphatWallFunction')}
-#bsim_w_bounds = {'T': ('zeroGradient', 'fixedValue'),
-#                'p_rgh': ('fixedFluxPressure', 'fixedValue'),
-#                'alphat': ('calculated', 'compressible::alphatWallFunction')}
-#rbsimbounddict = {'G': 'MarshakRadiation'}
-#fvrbsimbounddict = {'IDefault': ('greyDiffusiveRadiation', 'calculated')}
-
-#bound_dict = {'icoFoam': (ico_p_bounds, ico_w_bounds), 'simpleFoam': (sim_p_bounds, sim_w_bounds), 'boussinesc': (bsim_p_bounds, bsim_w_bounds)}
-
-#def ret_fvb_menu(mat, context):
-#    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in bound_dict[context.scene['flparams']['solver']][int(mat.flovi_bmb_type)]]
-# 
-
 def ret_fvbp_menu(mat, context): 
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -1465,3 +1429,39 @@ def fvobjwrite(scene, fvos, bmo):
      
 #     ntext = write_fvdict(htext, soldict)
 #     return ntext
+
+#flovi_p_dimens
+
+
+#ico_p_bounds = {'p': ('zeroGradient', 'fixedValue'), 
+#              'U': ('zeroGradient','noSlip', 'fixedValue')}
+#ico_w_bounds = {'p': ('zeroGradient', 'fixedValue'), 
+#              'U': ('zeroGradient', 'noSlip', 'fixedValue')}
+#sim_p_bounds = {'p': ('zeroGradient', 'fixedValue', 'freestreamPressure'), 
+#              'U': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'),
+#              'nut':('nutkWallFunction', 'calculated'),
+#              'nuTilda': ('zeroGradient', 'fixedValue'),
+#              'k': ('fixedValue', 'inletOutlet'),
+#              'epsilon': ('fixedValue', 'inletOutlet'),
+#              'omega': ('zeroGradient', 'fixedValue')}
+#sim_w_bounds = {'p': ['zeroGradient'], 
+#              'U': ('noSlip', 'fixedValue', 'slip'),
+#              'nut':('nutkWallFunction'),
+#              'nuTilda': ('zeroGradient', 'fixedValue'),
+#              'k': ('kqRWallFunction'),
+#              'epsilon': ('epsilonWallFunction'),
+#              'omega': ('omegaWallFunction')}
+#bsim_p_bounds = {'T': ('zeroGradient', 'fixedValue', 'inletOutlet'),
+#                'p_rgh': ('fixedFluxPressure', 'prghTotalHydrostaticPressure'),
+#                'alphat': ('calculated', 'compressible::alphatWallFunction')}
+#bsim_w_bounds = {'T': ('zeroGradient', 'fixedValue'),
+#                'p_rgh': ('fixedFluxPressure', 'fixedValue'),
+#                'alphat': ('calculated', 'compressible::alphatWallFunction')}
+#rbsimbounddict = {'G': 'MarshakRadiation'}
+#fvrbsimbounddict = {'IDefault': ('greyDiffusiveRadiation', 'calculated')}
+
+#bound_dict = {'icoFoam': (ico_p_bounds, ico_w_bounds), 'simpleFoam': (sim_p_bounds, sim_w_bounds), 'boussinesc': (bsim_p_bounds, bsim_w_bounds)}
+
+#def ret_fvb_menu(mat, context):
+#    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in bound_dict[context.scene['flparams']['solver']][int(mat.flovi_bmb_type)]]
+# 
