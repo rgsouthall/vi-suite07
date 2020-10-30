@@ -350,8 +350,8 @@ class VI_PT_Ob(bpy.types.Panel):
             elif ovp.vi_type == '1':
                 newrow(layout, "Type:", ovp, 'envi_type')
 
-                if ovp.envi_type == '0':
-                    newrow(layout, "Habitable:", ovp, 'envi_hab')
+#                if ovp.envi_type == '0':
+#                    newrow(layout, "Habitable:", ovp, 'envi_hab')
 
             elif ovp.vi_type == '2': 
                 pass
