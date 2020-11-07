@@ -81,27 +81,7 @@ def retframe(axis, dnode, frames):
         return frames[0]
     
 def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
-    plt.close('all')
-    
-# Failed attempt to improve display with qt scaling. QT_AUTO_SCREEN_SCALE_FACTOR=1 before blende command works 
-    # but increases interface size 
-    
-#    if plt.get_backend() == 'Qt5Agg':
-#        from matplotlib.backends.qt_compat import QtWidgets, QtCore
-#        if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-#            QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_DisableHighDpiScaling, True)
-#        
-#        if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-#            QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-#        
-#        print(dir(QtCore.Qt))
-##        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-##        qApp = QtWidgets.QApplication(sys.argv)
-##        qApp.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-###        if hasattr(QStyleFactory, 'AA_UseHighDpiPixmaps'):
-##        qApp.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
-###        plt.matplotlib.rcParams['figure.dpi'] = qApp.desktop().physicalDpiX()
-        
+    plt.close('all')    
     fig, ax = plt.subplots(dpi=dnode.dpi)
     variant = rvariant(dnode)
     rnx = dnode.inputs['X-axis'].links[0].from_node
@@ -119,21 +99,24 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation'):        
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day  
-        (dm, dd) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]])
+        if mdata:
+            (dm, dd) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]])
         
-        for i in range(len(hdata[0])):
-            if sm == dm[i] and sd == dd[i]:# and sh == dh[i] - 1:
-                si = i
-                break
-        for i in range(len(hdata[0])):
-            if em == dm[i] and ed == dd[i]:# and eh == dh[i] - 1:
-                ei = i
-                break
-                
-        mdata = [int(m) for m in mdata[0]][si:ei + 1]
-        ddata = [int(d) for d in ddata[0]][si:ei + 1]
-        sdata = [int(s) for s in sdata[0]][si:ei + 1]
-    
+            for i in range(len(hdata[0])):
+                if sm == dm[i] and sd == dd[i]:# and sh == dh[i] - 1:
+                    si = i
+                    break
+            for i in range(len(hdata[0])):
+                if em == dm[i] and ed == dd[i]:# and eh == dh[i] - 1:
+                    ei = i
+                    break
+                    
+            mdata = [int(m) for m in mdata[0]][si:ei + 1]
+            ddata = [int(d) for d in ddata[0]][si:ei + 1]
+            sdata = [int(s) for s in sdata[0]][si:ei + 1]
+        else:
+            si, ei = 0, -2
+            
     elif rnx.bl_label == 'Flovi Simulation':
         si, ei = 0, len(tdata)
     

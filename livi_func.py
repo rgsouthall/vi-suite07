@@ -104,7 +104,7 @@ def setscenelivivals(scene):
         res = unit2res[svp['liparams']['unit']]
 
     olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
-    print(olist)
+
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
@@ -132,7 +132,7 @@ def radmat(self, scene):
     radtex = ''
     mod = 'void' 
     
-    if self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
+    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
         try:
             teximage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Color'].links[0].from_node.image
             teximageloc = os.path.join(svp['liparams']['texfilebase'],'{}.hdr'.format(radname))
@@ -164,7 +164,7 @@ def radmat(self, scene):
                 logentry('Problem with normal export {}'.format(e))
                 
         except Exception as e:
-            print('Problem with texture export {}'.format(e))
+            logentry('Problem with texture export {}'.format(e))
          
     radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
             '{} {} {}\n'.format(mod, ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) + \
@@ -403,6 +403,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['omax']['firradm2{}'.format(frame)] = maxoirradm2
             self['oave']['firradm2{}'.format(frame)] = aveoirradm2            
             self['omin']['firradm2{}'.format(frame)] = minoirradm2
+
             if self['omax']['firradm2{}'.format(frame)] > self['omin']['firradm2{}'.format(frame)]:
                 vals = [(gp[res] - self['omin']['firradm2{}'.format(frame)])/(self['omax']['firradm2{}'.format(frame)] - self['omin']['firradm2{}'.format(frame)]) for gp in geom]
             else:
@@ -437,7 +438,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         sareas = zeros(ll)
         
         for ai in range(ll):
-            sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai])
+            sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai]) if totarea else 0
                 
         self['livires']['areabins'] = sareas
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])

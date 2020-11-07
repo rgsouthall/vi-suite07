@@ -9,6 +9,9 @@ class envi_materials(object):
     Solar Absorbtance, Visible Absorbtance, Default thickness)'''
 
     def __init__(self):
+        self.update()
+
+    def update(self):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'r') as mat_jfile:
             mat_dict = json.loads(mat_jfile.read())
             
@@ -49,13 +52,6 @@ class envi_materials(object):
         for dat in (self.brick_dat, self.cladding_dat, self.concrete_dat, self.gas_dat, self.insulation_dat, self.metal_dat, 
                     self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat, self.pcm_dat, self.pv_dat, self.plastic_dat):
             self.matdat.update(dat)
-#        matdict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
-#                   'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
-#                   'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd}    
-#        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'w') as mat_jfile:
-#            mat_jfile.write(json.dumps(matdict))
-#        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'r') as mat_jfile:
-#            mat_jfile.write(json.dumps(matdict))
             
     def get_dat(self, mat_type):
         mat_dict = {'Glass': self.glass_datd, '3': self.metal_datd, '0': self.brick_datd, '1': self.cladding_datd,
@@ -69,6 +65,7 @@ class envi_materials(object):
                    'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}    
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'w') as mat_jfile:
             mat_jfile.write(json.dumps(mat_dict))
+        self.update()
         
     def omat_write(self, idf_file, name, stringmat, thickness):
         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
@@ -108,6 +105,9 @@ class envi_materials(object):
 
 class envi_constructions(object):    
     def __init__(self):
+        self.update()
+
+    def update(self):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'r') as con_jfile:
             con_dict = json.loads(con_jfile.read())
             
@@ -119,45 +119,20 @@ class envi_constructions(object):
         self.roof_cond = con_dict['Roof']
         self.door_cond = con_dict['Door']
         self.glaze_cond = con_dict['Glazing']
-#        self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block'), 'Kingston PH 1': ('Plywood', 'EPS', 'Plywood'),
-#        'SIP': ('OSB', 'EPS', 'OSB')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
-        
-#        self.iwall_cond = {'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board')}
         self.iwall_con = OrderedDict(sorted(self.iwall_cond.items()))
-        
-#        self.ceil_cond = {'Ceiling 1': ('Chipboard', 'EPS', 'Plaster board')}
         self.ceil_con = OrderedDict(sorted(self.ceil_cond.items()))
-        
-#        self.ifloor_cond = {'Internal floor 1': ('Plaster board', 'EPS', 'Chipboard')}
         self.ifloor_con = OrderedDict(sorted(self.ifloor_cond.items()))
-        
-#        self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard'),
-#                           'Kingston PH 1': ('Common earth', 'Gravel', 'EPS', 'Heavy mix concrete')}
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
-        
-#        self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
-
-#        self.door_cond = {'Internal Door 1': ('Chipboard', 'Hardwood', 'Chipboard')}
-        self.door_con = OrderedDict(sorted(self.door_cond.items()))
-        
+        self.door_con = OrderedDict(sorted(self.door_cond.items()))        
         self.pv_cond = {'Simple PV': ['Default PV']}
         self.pv_con = OrderedDict(sorted(self.pv_cond.items()))
-        
-#        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm Hard LoE'), 
-#                           'PassivHaus': ('Clear 3mm', 'Argon', 'Clear 3mm Soft LoE', 'Argon', 'Clear 3mm Soft LoE'), 'Velfac 200 Double': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE'),
-#                           'Velfac 200 Triple': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE', 'Argon', 'Clear 4mm Soft LoE')}
-        self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
-        
+        self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))    
         self.p = 0
         self.propdict = {'Wall': self.wall_con, 'Floor': self.floor_con, 'Roof': self.roof_con, 'Ceiling': self.ceil_con, 'Door': self.door_con, 
                                 'Window': self.glaze_con, 'PV': self.pv_con, 'Internal floor': self.ifloor_con, 'Internal wall': self.iwall_con} 
-#        condict = {'Wall': self.wall_cond, 'Party wall': self.iwall_cond, 'Ceiling': self.ceil_cond, 'Internal floor': self.ifloor_cond,
-#                   'Floor': self.floor_cond, 'Roof': self.roof_cond, 'Door': self.door_cond, 'Glazing': self.glaze_cond}
-#
-#        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'w') as con_jfile:
-#            con_jfile.write(json.dumps(condict))
+
             
     def con_write(self, idf_file, contype, name, nl, mn, cln):
         params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]        
@@ -178,7 +153,9 @@ class envi_constructions(object):
                     'Door': self.door_cond, 'Glazing': self.glaze_cond, 'Roof': self.roof_cond}    
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'w') as con_jfile:
             con_jfile.write(json.dumps(con_dict))
-        
+        self.update()
+
+
 def retmatdict(ect, t, l): 
     if ect in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):
         typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), 

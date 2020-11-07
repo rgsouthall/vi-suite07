@@ -109,7 +109,7 @@ else:
 
 import nodeitems_utils
 from bpy.app.handlers import persistent
-from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty
+from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
 from bpy.types import AddonPreferences
    
 def abspath(self, context):
@@ -209,7 +209,18 @@ def set_frame(self, value):
         self.vi_frames =  self['liparams']['fs']
     else:
         self.vi_frames = value
-        
+
+def d_update(self, context):
+    if not self.vi_display:
+        dns = bpy.app.driver_namespace
+        for d in context.scene.vi_params['viparams']['drivers']:
+            if d in dns:
+                try:
+                    bpy.types.SpaceView3D.draw_handler_remove(dns[d], 'WINDOW')
+                except:
+                    pass
+        context.scene.vi_params['viparams']['drivers'] = []
+      
 class VI_Params_Scene(bpy.types.PropertyGroup): 
     def get_frame(self):
         return self.get('vi_frames', self['liparams']['fe'])
@@ -263,19 +274,19 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_display_rp_fs: iprop("", "Point result font size", 4, 24, 24)
     vi_display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_sh: bprop("", "Toggle for font shadow display",  False)
-    vi_display: bprop("", "Toggle result display",  False)
+    vi_display: BoolProperty(name = "", description = "Toggle results display", default = 0, update=d_update)
     vi_disp_3d: bprop("VI 3D display", "Boolean for 3D results display",  False)
     vi_leg_unit: sprop("", "Legend unit", 1024, "")
-    vi_leg_max: bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=leg_update)
-    vi_leg_min: bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=leg_update)
+    vi_leg_max: FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=leg_update)
+    vi_leg_min: FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=leg_update)
     vi_leg_col: EnumProperty(items = colours, name = "", description = "Legend scale", default = 'rainbow', update=col_update)
     vi_leg_levels: IntProperty(name = "", description = "Day of year", min = 2, max = 100, default = 20, update=leg_update)
     vi_leg_scale: EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=leg_update)    
     wind_type: eprop([("0", "Speed", "Wind Speed (m/s)"), ("1", "Direction", "Wind Direction (deg. from North)")], "", "Wind metric", "0")
-    vi_disp_trans: bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = t_update)
-    vi_disp_wire: bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=w_update)
-    vi_disp_mat: bpy.props.BoolProperty(name = "", description = "Turn on/off result material emission", default = 0, update=col_update)
-    vi_disp_ems: bpy.props.FloatProperty(name = "", description = "Emissive strength", default = 1, min = 0, update=col_update)
+    vi_disp_trans: FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = t_update)
+    vi_disp_wire: BoolProperty(name = "", description = "Draw wire frame", default = 0, update=w_update)
+    vi_disp_mat: BoolProperty(name = "", description = "Turn on/off result material emission", default = 0, update=col_update)
+    vi_disp_ems: FloatProperty(name = "", description = "Emissive strength", default = 1, min = 0, update=col_update)
     vi_scatt_max: EnumProperty(items = [('0', 'Data', 'Get maximum from data'), ('1', 'Value', 'Specify maximum value')], 
                                             name = "", description = "Set maximum value", default = '0')
     vi_scatt_min: EnumProperty(items = [('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')], 
@@ -294,8 +305,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_display_vis_only: bprop("", "", False)
     vi_disp_3dlevel: FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = e_update)
     vi_bsdf_direc: EnumProperty(items = bsdf_direcs, name = "", description = "BSDf display direction") 
-    vi_bsdfleg_max: bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
-    vi_bsdfleg_min: bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
+    vi_bsdfleg_max: FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
+    vi_bsdfleg_min: FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
     vi_bsdfleg_scale: EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0')    
     en_disp_type: EnumProperty(items = enparametric, name = "", description = "Type of EnVi display") 
     resas_disp: bprop("", "", False) 
@@ -501,7 +512,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
-    envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
+#    envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
     
 @persistent
 def update_chart_node(dummy):

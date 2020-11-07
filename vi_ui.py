@@ -20,6 +20,18 @@ import bpy
 from collections import OrderedDict
 from .vi_func import newrow, retdates, logentry, get_materials
 
+try:
+    import matplotlib
+    matplotlib.use('qt5agg', force = True)
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as mcm  
+    import matplotlib.colors as mcolors
+    from matplotlib.patches import Rectangle
+    from matplotlib.collections import PatchCollection
+    mp = 1
+except:
+    mp = 0
+
 class VI_PT_3D(bpy.types.Panel):
     '''VI-Suite 3D view panel'''
     bl_label = "VI Display"
@@ -33,6 +45,11 @@ class VI_PT_3D(bpy.types.Panel):
         cao = context.active_object
         layout = self.layout
 
+        if not mp:
+            row = layout.row()
+            row.label(text = "No matplotlib install")
+            return
+            
         if cao:
             covp = cao.vi_params
 
@@ -175,8 +192,7 @@ class VI_PT_3D(bpy.types.Panel):
                                             
             if svp.vi_display:            
                 newrow(layout, 'Display active', svp, 'vi_display')
-        
-            
+                    
 class VI_PT_Mat(bpy.types.Panel):
     bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
@@ -197,33 +213,6 @@ class VI_PT_Mat(bpy.types.Panel):
                 if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):# in bpy.data.node_groups:
                     row = layout.row()
                     row.operator("material.envi_node", text = "Create EnVi Nodes")
-            
-            elif mvp.mattype == '1': 
-                pass 
-    #             if svp.get('viparams') and svp['viparams'].get('viexpcontext') and svp['viparams']['viexpcontext'] == 'LiVi Compliance':
-    #                 connode = bpy.data.node_groups[svp['viparams']['connode'].split('@')[1]].nodes[svp['viparams']['connode'].split('@')[0]]
-    #                 coptions = connode['Options']
-    
-    #                 if coptions['canalysis'] == '0':
-    #                     if coptions['bambuild'] == '2':
-    #                         newrow(layout, "Space type:", mvp, 'hspacemenu')
-    #                     elif coptions['bambuild'] == '3':
-    #                         newrow(layout, "Space type:", mvp, 'brspacemenu')
-    #                         if cm.brspacemenu == '2':
-    #                             row = layout.row()
-    #                             row.prop(cm, 'gl_roof')
-    #                     elif coptions['bambuild'] == '4':
-    #                         newrow(layout, "Space type:", mvp, 'respacemenu')
-    #                 elif coptions['canalysis'] == '1':
-    #                     newrow(layout, "Space type:", mvp, 'crspacemenu')
-    #                 elif coptions['canalysis'] == '2':
-    #                     if coptions['bambuild'] == '2':
-    #                         newrow(layout, "Space type:", mvp, 'hspacemenu')
-    #                     if coptions['bambuild'] == '3':
-    #                         newrow(layout, "Space type:", mvp, 'brspacemenu')
-    # #                    elif coptions['canalysis'] == '3':
-    # #                        newrow(layout, "Space type:", cm, 'lespacemenu')                   
-    #            rmmenu(layout, cm)
             
             elif mvp.mattype == '2':
                 newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")

@@ -59,7 +59,6 @@ try:
 except Exception as e:
     print(e)
 
-
 try:    
     import matplotlib
     matplotlib.use('qt5agg', force = True)
@@ -67,8 +66,6 @@ try:
     import matplotlib.colors as mcolors
     mp = 1    
 except Exception as e:
-#    logentry('Matplotlib error: {}'.format(e))   
-    print(e)
     mp = 0
 
 if mp:

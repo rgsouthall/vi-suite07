@@ -477,7 +477,11 @@ def chunks(l, n):
 def ret_res_vals(svp, reslist): 
     if svp.vi_res_process == '2' and svp.script_file:
         try:
-            return bpy.app.driver_namespace['resmod'](reslist)
+            if svp.vi_leg_levels == len(bpy.app.driver_namespace['restext']()):
+                return bpy.app.driver_namespace['resmod'](reslist)
+            else:
+                logentry('Set legend levels to the same number as result bands')
+                return reslist
         except Exception as e:
             logentry('User script error {}. Check console'.format(e))
             return reslist
@@ -605,6 +609,7 @@ def viparams(op, scene):
     svp['viparams']['filedir'] = fd
     svp['viparams']['newdir'] = nd 
     svp['viparams']['filebase'] = fb
+    svp['viparams']['drivers'] = []
     
     if not svp.get('spparams'):
         svp['spparams'] = {}
@@ -1508,6 +1513,7 @@ def blf_props(scene, width, height):
     svp = scene.vi_params
     blf.enable(0, 2)
     blf.clipping(0, 0, 0, width, height)
+    
     if svp.vi_display_rp_sh:
         blf.enable(0, 4)
         blf.shadow(0, 3, *svp.vi_display_rp_fsh)
@@ -1554,14 +1560,18 @@ def sunpath(context):
                         stnode.sun_direction = -sin(phi), -cos(phi), sin(beta)
                         for bnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Background']:
                             bnode.inputs[1].default_value = 1.5 + sin(beta) * 0.5
+
                 if suns[0].data.node_tree:
                     for blnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Blackbody']:
                         blnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
                     for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
 
-            v3d = [a.spaces[0] for a in context.screen.areas if a.type == 'VIEW_3D'][0]
-            v3d.shading.shadow_intensity = svp.sp_sun_strength * 0.2
+            v3ds = [a.spaces[0] for a in context.screen.areas if context.screen and a.type == 'VIEW_3D']
+
+            for v3d in v3ds:
+                v3d.shading.shadow_intensity = svp.sp_sun_strength * 0.2
+
             suns[0]['solhour'], suns[0]['solday'] = svp.sp_sh, svp.sp_sd
             suns[0].hide_viewport = True if alt <= 0 else False
             

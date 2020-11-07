@@ -129,7 +129,7 @@ def leg_min_max(svp):
         else:
             return (svp.vi_leg_min, svp.vi_leg_max)
     except Exception as e:
-        logentry(e)
+        logentry('Error setting legen values: {}'.format(e))
         return (svp.vi_leg_min, svp.vi_leg_max)
 
 def e_update(self, context):
@@ -614,7 +614,7 @@ def spnumdisplay(disp_op, context):
                                    svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                         
                 except Exception as e:
-                    print(e)
+                    logentry("Something went wrong with sun path number display: {}".format(e))
         blf.disable(0, 4)
     else:
         return
@@ -2154,97 +2154,100 @@ class NODE_OT_SunPath(bpy.types.Operator):
         self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})
         
     def draw_sp(self, op, context, node):
-#        context.scene.vi_params.latitude = context.scene.vi_params.latitude
-        # Draw lines
-        bgl.glEnable(bgl.GL_DEPTH_TEST)
-        bgl.glDepthFunc(bgl.GL_LESS)
-        bgl.glDepthMask(bgl.GL_FALSE)
-        bgl.glEnable(bgl.GL_BLEND)
-        
-        
-#        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-#        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-#        bgl.glBlendFunc(bgl.GL_SRC_ALPHA,bgl.GL_SRC_ALPHA)
-#        bgl.glBlendFuncSeparate(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA, bgl.GL_SRC_ALPHA, bgl.GL_DST_ALPHA )
-#        bgl.glEnable(bgl.GL_MULTISAMPLE)
-#        bgl.glEnable(bgl.GL_LINE_SMOOTH)
-#        bgl.glEnable(bgl.GL_CULL_FACE)
-#        bgl.glCullFace(bgl.GL_BACK)
-#        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
-#        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
-        bgl.glLineWidth(context.scene.vi_params.sp_line_width)
-        bgl.glPointSize(context.scene.vi_params.sp_sun_size)
-
         try:
-            self.sp_shader.bind()
-        except:
-            self.create_batch(context.scene, node)
-
-        matrix = bpy.context.region_data.perspective_matrix
-        sp_matrix = context.scene.objects['SPathMesh'].matrix_world
-        sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
-        self.sp_shader.uniform_float("viewProjectionMatrix", matrix)
-        self.sp_shader.uniform_float("sp_matrix", sp_matrix)
-        self.sp_shader.uniform_float("colour1", context.scene.vi_params.sp_hour_dash)
-        self.sp_shader.uniform_float("colour2", context.scene.vi_params.sp_hour_main)
-        self.sp_shader.uniform_float("colour3", context.scene.vi_params.sp_season_main)
-        self.sp_shader.uniform_float("dash_ratio", context.scene.vi_params.sp_hour_dash_ratio)
-        self.sp_shader.uniform_float("dash_density", context.scene.vi_params.sp_hour_dash_density) 
-        self.sun_shader.bind()
-        self.sun_shader.uniform_float("viewProjectionMatrix", matrix)
-        self.sun_shader.uniform_float("sp_matrix", sp_matrix)
-        self.sun_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour) 
-        self.globe_shader.bind()
-        self.globe_shader.uniform_float("viewProjectionMatrix", matrix)
-        self.globe_shader.uniform_float("sp_matrix", sp_matrix)
-        self.globe_shader.uniform_float("colour", context.scene.vi_params.sp_globe_colour) 
-        self.range_shader.bind()
-        self.range_shader.uniform_float("viewProjectionMatrix", matrix)
-        self.range_shader.uniform_float("sp_matrix", sp_matrix)
-        
-        if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude or \
-            self.sd != context.scene.vi_params.sp_sd or self.sh != context.scene.vi_params.sp_sh or self.ss != context.scene.vi_params.sp_sun_size:
-            (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)        
-            self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
-            sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
-            self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
-            globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)            
-            self.globe_batch = batch_for_shader(self.globe_shader, 'TRIS', {"position": globe_v_coords}, indices=globe_f_indices)
-            range_v_coords, range_f_indices, range_col_indices = self.ret_range_geometry(self.latitude, self.longitude)
-            self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})#, indices=range_f_indices)
-            self.latitude = context.scene.vi_params.latitude
-            self.longitude = context.scene.vi_params.longitude
-            self.sd = context.scene.vi_params.sp_sd
-            self.sh = context.scene.vi_params.sp_sh
-            self.ss = context.scene.vi_params.sp_sun_size
+        # Draw lines
+            bgl.glEnable(bgl.GL_DEPTH_TEST)
+            bgl.glDepthFunc(bgl.GL_LESS)
+            bgl.glDepthMask(bgl.GL_FALSE)
+            bgl.glEnable(bgl.GL_BLEND)
             
-        self.range_batch.draw(self.range_shader)    
-        self.globe_batch.draw(self.globe_shader)
-        bgl.glEnable(bgl.GL_LINE_SMOOTH)
-        bgl.glEnable(bgl.GL_MULTISAMPLE)
-        self.sun_batch.draw(self.sun_shader)
-        self.sp_batch.draw(self.sp_shader)
-        bgl.glDisable(bgl.GL_MULTISAMPLE)
-        bgl.glDisable(bgl.GL_LINE_SMOOTH)
-        
-        bgl.glDisable(bgl.GL_BLEND)
-        bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
-        bgl.glDisable(bgl.GL_DEPTH_TEST) 
-        bgl.glDepthMask(bgl.GL_TRUE)
-        
-        
-#        bgl.glEnable(bgl.GL_LINE_SMOOTH)
-#        bgl.glEnable(bgl.GL_MULTISAMPLE)
-#        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
-#        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
-#        bgl.glDisable(bgl.GL_CULL_FACE)
-        
-#        bgl.glDisable(bgl.GL_LINE_SMOOTH)
-#        bgl.glEnable(bgl.GL_BLEND)
-        
-#        bgl.glDisable(bgl.GL_BLEND)
-#        bgl.glDisable(bgl.GL_POLYGON_SMOOTH)
-        bgl.glPointSize(1)
+            
+    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA,bgl.GL_SRC_ALPHA)
+    #        bgl.glBlendFuncSeparate(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA, bgl.GL_SRC_ALPHA, bgl.GL_DST_ALPHA )
+    #        bgl.glEnable(bgl.GL_MULTISAMPLE)
+    #        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    #        bgl.glEnable(bgl.GL_CULL_FACE)
+    #        bgl.glCullFace(bgl.GL_BACK)
+    #        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
+    #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
+            bgl.glLineWidth(context.scene.vi_params.sp_line_width)
+            bgl.glPointSize(context.scene.vi_params.sp_sun_size)
+
+            try:
+                self.sp_shader.bind()
+            except:
+                self.create_batch(context.scene, node)
+
+            matrix = bpy.context.region_data.perspective_matrix
+            sp_matrix = context.scene.objects['SPathMesh'].matrix_world
+            sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
+            self.sp_shader.uniform_float("viewProjectionMatrix", matrix)
+            self.sp_shader.uniform_float("sp_matrix", sp_matrix)
+            self.sp_shader.uniform_float("colour1", context.scene.vi_params.sp_hour_dash)
+            self.sp_shader.uniform_float("colour2", context.scene.vi_params.sp_hour_main)
+            self.sp_shader.uniform_float("colour3", context.scene.vi_params.sp_season_main)
+            self.sp_shader.uniform_float("dash_ratio", context.scene.vi_params.sp_hour_dash_ratio)
+            self.sp_shader.uniform_float("dash_density", context.scene.vi_params.sp_hour_dash_density) 
+            self.sun_shader.bind()
+            self.sun_shader.uniform_float("viewProjectionMatrix", matrix)
+            self.sun_shader.uniform_float("sp_matrix", sp_matrix)
+            self.sun_shader.uniform_float("sun_colour", context.scene.vi_params.sp_sun_colour) 
+            self.globe_shader.bind()
+            self.globe_shader.uniform_float("viewProjectionMatrix", matrix)
+            self.globe_shader.uniform_float("sp_matrix", sp_matrix)
+            self.globe_shader.uniform_float("colour", context.scene.vi_params.sp_globe_colour) 
+            self.range_shader.bind()
+            self.range_shader.uniform_float("viewProjectionMatrix", matrix)
+            self.range_shader.uniform_float("sp_matrix", sp_matrix)
+            
+            if self.latitude != context.scene.vi_params.latitude or self.longitude != context.scene.vi_params.longitude or \
+                self.sd != context.scene.vi_params.sp_sd or self.sh != context.scene.vi_params.sp_sh or self.ss != context.scene.vi_params.sp_sun_size:
+                (coords, line_lengths, breaks) = self.ret_coords(context.scene, node)        
+                self.sp_batch = batch_for_shader(self.sp_shader, 'LINE_STRIP', {"position": coords, "arcLength": line_lengths, "line_break": breaks})
+                sun_pos = [so.location[:] for so in context.scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
+                self.sun_batch = batch_for_shader(self.sun_shader, 'POINTS', {"position": sun_pos})
+                globe_v_coords, globe_f_indices = self.ret_globe_geometry(self.latitude, self.longitude)            
+                self.globe_batch = batch_for_shader(self.globe_shader, 'TRIS', {"position": globe_v_coords}, indices=globe_f_indices)
+                range_v_coords, range_f_indices, range_col_indices = self.ret_range_geometry(self.latitude, self.longitude)
+                self.range_batch = batch_for_shader(self.range_shader, 'TRIS', {"position": range_v_coords, "colour": range_col_indices})#, indices=range_f_indices)
+                self.latitude = context.scene.vi_params.latitude
+                self.longitude = context.scene.vi_params.longitude
+                self.sd = context.scene.vi_params.sp_sd
+                self.sh = context.scene.vi_params.sp_sh
+                self.ss = context.scene.vi_params.sp_sun_size
+                
+            self.range_batch.draw(self.range_shader)    
+            self.globe_batch.draw(self.globe_shader)
+            bgl.glEnable(bgl.GL_LINE_SMOOTH)
+            bgl.glEnable(bgl.GL_MULTISAMPLE)
+            self.sun_batch.draw(self.sun_shader)
+            self.sp_batch.draw(self.sp_shader)
+            bgl.glDisable(bgl.GL_MULTISAMPLE)
+            bgl.glDisable(bgl.GL_LINE_SMOOTH)
+            
+            bgl.glDisable(bgl.GL_BLEND)
+            bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
+            bgl.glDisable(bgl.GL_DEPTH_TEST) 
+            bgl.glDepthMask(bgl.GL_TRUE)
+            
+            
+    #        bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    #        bgl.glEnable(bgl.GL_MULTISAMPLE)
+    #        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
+    #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
+    #        bgl.glDisable(bgl.GL_CULL_FACE)
+            
+    #        bgl.glDisable(bgl.GL_LINE_SMOOTH)
+    #        bgl.glEnable(bgl.GL_BLEND)
+            
+    #        bgl.glDisable(bgl.GL_BLEND)
+    #        bgl.glDisable(bgl.GL_POLYGON_SMOOTH)
+            bgl.glPointSize(1)
+
+        except:
+            context.scene.vi_params.vi_display = 0
         
     def draw_spnum(self, op, context):
         scene = context.scene
@@ -2297,7 +2300,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                                       svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                             
                     except Exception as e:
-                        print(e)
+                        print("Somthing went wrong with sun path display : {}".format(e))
             blf.disable(0, 4)
         else:
             return
@@ -2309,9 +2312,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if context.area:
             context.area.tag_redraw()
             
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp':
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp' or not context.scene.objects.get('SPathMesh'):
+            svp.vi_display = 0
+            #bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
+            #bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
             svp['viparams']['vidisp'] = ''
             
             for h in bpy.app.handlers.frame_change_post:
@@ -2434,14 +2438,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
             for n in nodes:
                 nodes.remove(n)
-#            if mat == 'SPPlat':
+
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
             node_material.inputs[0].default_value = matdict[mat]
-#            else:
-#                node_material = nodes.new(type='ShaderNodeEmission')
-#                node_material.inputs[1].default_value = 1.0
-#                node_material.inputs[0].default_value = matdict[mat]
-                
             node_material.location = 0,0
             node_output = nodes.new(type='ShaderNodeOutputMaterial')   
             node_output.location = 400,0            
@@ -2510,6 +2509,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         self.create_batch(scene, node)
         self.draw_handle_sp = bpy.types.SpaceView3D.draw_handler_add(self.draw_sp, (self, context, node), "WINDOW", "POST_VIEW")
         self.draw_handle_spnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_spnum, (self, context), 'WINDOW', 'POST_PIXEL')
+        bpy.app.driver_namespace["sp"] = self.draw_handle_sp
+        bpy.app.driver_namespace["spnum"] = self.draw_handle_spnum
+        svp['viparams']['drivers'] = ['sp', 'spnum']
         context.window_manager.modal_handler_add(self)
         svp.vi_display = 1
         return {'RUNNING_MODAL'}
@@ -2693,6 +2695,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.dhscatter = draw_scatter(context, scatter_icon_pos, r2w, r2h, 600, 200, self)
         self.height = r2h
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')        
+        bpy.app.driver_namespace["wr"] = self.draw_handle_wrnum
         context.area.tag_redraw()
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
@@ -2704,7 +2707,8 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         updates = [0 for i in self.images]
         
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or event.type == 'ESC':
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
+            svp.vi_display = 0
+#            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}
 
@@ -2804,7 +2808,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             self.dhscatter.draw(context)
         
         except Exception as e:
-            print(e)
+            logentry("Something went wrong with wind rose display: {}".format(e))
             svp.vi_display == 0
  #           bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
         
@@ -2823,14 +2827,9 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         r2w = r2.width
         svp = context.scene.vi_params
         create_empty_coll(context, 'LiVi Results')
-        
-        try:
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_svfnum, 'WINDOW')
-        except:
-            pass
-        
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'svf'
+        svp['viparams']['drivers'] = ['svf']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(self, self.simnode)
         self.results_bar = results_bar(('legend.png',))
@@ -2839,6 +2838,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.legend_num = linumdisplay(self, context)
         self.height = r2h
         self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
+        bpy.app.driver_namespace["svf"] = self.draw_handle_svfnum
         self.cao = context.active_object
         context.region.tag_redraw()
         context.window_manager.modal_handler_add(self)
@@ -2848,13 +2848,13 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         r2 = context.area.regions[2]
         r2h = r2.height
         r2w = r2.width
+
         try:
             self.results_bar.draw(r2w, r2h)
             self.legend.draw(context)
             self.legend_num.draw(context)
         except:
-            pass
-#            bpy.types.SpaceView3D.draw_handler_remove(self.draw_svfnum, 'WINDOW')
+            context.scene.vi_params.vi_display = 0
         
     def modal(self, context, event):    
         scene = context.scene
@@ -2863,7 +2863,6 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
            
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or event.type == 'ESC':
             svp.vi_display = 0
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_svfnum, 'WINDOW')
             context.area.tag_redraw()
             return {'CANCELLED'}
 
@@ -2874,6 +2873,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
             if self.results_bar.ipos[0][0][0] < mx < self.results_bar.ipos[0][1][0] and self.results_bar.ipos[0][0][1] < my < self.results_bar.ipos[0][2][1]:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
                 redraw = 1
+
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'RELEASE':
                         self.legend.expand = 0 if self.legend.expand else 1
@@ -2881,6 +2881,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
             elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
                 redraw = 1   
+
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.legend.move = 1
@@ -2939,8 +2940,8 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.width = region.width
         svp = context.scene.vi_params
         svp['viparams']['vidisp'] = 'ss' 
+        svp['viparams']['drivers'] = ['ss']
         create_empty_coll(context, 'LiVi Results')
-        svp.vi_display = 1
         self.cao = context.active_object
         self.image = 'ss_scatter.png'
         self.frame = self.scene.frame_current
@@ -2950,13 +2951,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.title = 'Total Area Sunlit'
         self.scatt_legend = 'Area (%)'
         self.xtitle = 'Days'
-        self.ytitle = 'Hours'
-        
-        try:
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
-        except:
-            pass
-                
+        self.ytitle = 'Hours'                
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(self, self.simnode)
         self.images = ('legend.png', 'scatter.png')
@@ -2967,8 +2962,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]                    
         self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)
         svp.vi_disp_wire = 1
-        self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')        
+        self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')  
+        bpy.app.driver_namespace["ss"] = self.draw_handle_ssnum
         context.window_manager.modal_handler_add(self)
+        svp.vi_display = 1
         return {'RUNNING_MODAL'}
     
     def modal(self, context, event): 
@@ -2978,11 +2975,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         updates = [0 for i in self.images]
         
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']]:
-            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
-            try:
-                context.area.tag_redraw()
-            except:
-                pass
+            svp.vi_display = 0
             return {'CANCELLED'}   
         
         if self.scattcol != svp.vi_leg_col or self.cao != context.active_object or self.frame != svp.vi_frames:
@@ -3072,8 +3065,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
             self.dhscatter.draw(context)
             self.num_display.draw(context)
         except:
-            pass
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ssnum, 'WINDOW')
+            context.scene.vi_params.vi_display = 0
         
 class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     bl_idname = "view3d.bsdf_display"
@@ -3182,10 +3174,11 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             bsdf = parseString(cao.active_material.vi_params['bsdf']['xml'])
             svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
             self.images = ['bsdf.png']
-            self.results_bar = results_bar(self.images, area.regions[2].width + 10, area.regions[2])
+            self.results_bar = results_bar(self.images)
             self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r2h, 0)[0], region.width, r2h, 400, 650)
             svp.vi_display = 1
             self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
+            bpy.app.driver_namespace["bsdf"] = self.draw_handle_bsdfnum
             context.window_manager.modal_handler_add(self)
             svp['viparams']['vidisp'] = 'bsdf_panel'
             context.area.tag_redraw()  
@@ -3224,7 +3217,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             r2w = r2.width
     
             if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
-                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
+#                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
                 if context.area:
                     context.area.tag_redraw()
                 else:
@@ -3303,6 +3296,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         svp.vi_display, svp.vi_disp_wire = 1, 1        
         clearscene(self.scene, self)
         svp['viparams']['vidisp'] = 'li' 
+        svp['viparams']['drivers'] = ['li']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]        
         self.images = ['legend.png']
         self.results_bar = results_bar(self.images)
@@ -3313,18 +3307,21 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r2h, 0)[0], r2w, r2h, 125, 400, 20)
         self.legend_num = linumdisplay(self, context)
-        self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')             
+        self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')   
+        bpy.app.driver_namespace["li"] = self.draw_handle_linum  
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
     def draw_linum(self, context):  
-        r2 = context.area.regions[2]         
-        self.results_bar.draw(r2.width, r2.height)
-        self.legend.draw(context)
-        self.legend_num.draw(context)
-        
-        
-        
+        r2 = context.area.regions[2]  
+
+        try:       
+            self.results_bar.draw(r2.width, r2.height)
+            self.legend.draw(context)
+            self.legend_num.draw(context)
+        except:
+            context.scene.vi_params.vi_display = 0
+
         
 #        self.dhscatter.draw(context, area.width)
 #        self.num_display.draw(context)

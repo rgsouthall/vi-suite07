@@ -754,7 +754,9 @@ class No_Li_Im(Node, ViNodes):
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image')
         
-    def update(self):        
+    def update(self):  
+        if self.outputs.get('Image'):
+            socklink(self.outputs['Image'], self.id_data.name)      
         self.run = 0
         
     def presim(self):
@@ -1586,19 +1588,22 @@ class No_Vi_Chart(Node, ViNodes):
     def draw_buttons(self, context, layout):
         if self.inputs['X-axis'].links:
             innode = self.inputs['X-axis'].links[0].from_node
+
             if innode.get('reslists'):
                 newrow(layout, 'Animated:', self, 'parametricmenu')
+
                 if self.parametricmenu == '0':                
                     (sdate, edate) = retdates(self['Start'], self['End'], innode['year']) 
                     label = "Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month)
                 else:
                     row = layout.row()
                     label = "Frame"
-     
-                row = layout.row()    
-                row.label(text = label)
-                row.prop(self, '["Start"]')
-                row.prop(self, '["End"]')
+                    
+                if self.parametricmenu != '0' or 'Time' in [r[1] for r in innode['reslists']]:
+                    row = layout.row()    
+                    row.label(text = label)
+                    row.prop(self, '["Start"]')
+                    row.prop(self, '["End"]')
                     
                 if self.parametricmenu == '0':
                     row = layout.row()
@@ -2692,7 +2697,6 @@ vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out),
                      ViNodeCategory("Edit", "Edit Nodes", items=vi_edit), 
                      ViNodeCategory("Image", "Image Nodes", items=vi_image), 
                      ViNodeCategory("Display", "Display Nodes", items=vi_display), 
-                     ViNodeCategory("Generative", "Generative Nodes", items=vi_gen), 
                      ViNodeCategory("Analysis", "Analysis Nodes", items=vi_analysis), 
                      ViNodeCategory("Process", "Process Nodes", items=vi_process), 
                      ViNodeCategory("Input", "Input Nodes", items=vi_input)]
@@ -4651,9 +4655,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     
     def con_update(self, context):
         if len(self.inputs) == 3:
-#            if not self.pv:
-#                remlink(self, self.inputs['PV'].links)
-#                self.inputs['PV'].hide = True
             if self.envi_con_type == 'Shading':
                 self.inputs['Schedule'].hide = False
             else:
@@ -4667,28 +4668,12 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 self.inputs['Outer layer'].hide = True                
             else:
                 self.inputs['Outer layer'].hide = False
-#            else:
-#                self.inputs['Outer layer'].hide = False
-#                if self.pp != '0':
-#                    remlink(self.id_data, self.inputs['PV'].links)
-#                    self.inputs['PV'].hide = True
-#                else:
-#                    self.inputs[''].hide = False
                 
             [link.from_node.update() for link in self.inputs['Outer layer'].links]
             get_mat(self, 0).vi_params.envi_type = self.envi_con_type   
             self.pv_update()
             self.update()
-    
-#    def frame_update(self, context):
-#        if self.fclass in ("0", "1"):
-#            for link in self.inputs['Outer frame layer'].links:
-#                self.id_data.links.remove(link)
-#            self.inputs['Outer frame layer'].hide = True
-#        else:
-#            self.inputs['Outer frame layer'].hide = False
-#
-#        self.update()
+        
     def pv_update(self):
         if (self.envi_con_type in ('Wall', 'Roof') and self.envi_con_con != 'Thermal mass') or self.envi_con_type == 'Shading':
             self.inputs['PV'].hide = False
@@ -4826,8 +4811,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         self.inputs['Outer layer'].hide = True
         self.inputs.new('So_En_Sched', 'Schedule')
         self.inputs['Schedule'].hide = True
-#        self.inputs.new('SO_EN_Mat_Fr', 'Outer frame layer')
-#        self.inputs['Outer frame layer'].hide = True
         
     def draw_buttons(self, context, layout):
         newrow(layout, 'Active:', self, 'active')
@@ -4933,11 +4916,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             if self.con_name and self.inputs['Outer layer'].links:
                 row = layout.row()
                 row.operator('node.con_save', text = "Save")
-#            elif self.envi_con_type == 'PV' and self.envi_con_makeup == '0':
-#                newrow(layout, "Series in parallel:", self, "ssp")
-#                newrow(layout, "Modules in series:", self, "mis")
-#                newrow(layout, "Area:", self, "fsa")
-#                newrow(layout, "Efficiency:", self, "eff")
         
     def update(self):
         if len(self.inputs) == 3:
@@ -5417,7 +5395,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                   'Dirt Correction Factor for Solar and Visible Transmittance', 'Solar Diffusing'''
 
         envi_mats.get_dat('Glass')[self.lay_name] = ['Glazing', 'SpectralAverage', '', '{:.4f}'.format(self.thi * 0.001), '{:.4f}'.format(self.stn), '{:.4f}'.format(self.fsn), '{:.4f}'.format(self.bsn), '{:.4f}'.format(self.vtn), 
-                         '{:.4f}'.format(self.fvrn), '{:.4f}'.format(self.bvrn), '{:.4f}'.format(self.itn), '{:.4f}'.format(self.fie), '{:.4f}'.format(self.bie), '{:.4f}'.format(self.diff)]       
+                         '{:.4f}'.format(self.fvrn), '{:.4f}'.format(self.bvrn), '{:.4f}'.format(self.itn), '{:.4f}'.format(self.fie), '{:.4f}'.format(self.bie), int(self.diff)]       
         envi_mats.lay_save()
 
     def ret_resist(self):
