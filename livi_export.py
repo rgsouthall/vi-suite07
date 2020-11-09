@@ -35,7 +35,7 @@ def radpoints(o, faces, sks):
         fmi = face.material_index
         m = o.data.materials[fmi]
         mname = mns[fmi] if not m.vi_params.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
-        mentry = face_bsdf(o, m, mname, mns[fmi], m.vi_params.li_bsdf_up, face.index)
+        mentry = face_bsdf(o, m, mname, m.vi_params.li_bsdf_up, face)
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
         
         if sks:
@@ -116,6 +116,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
                     logentry('Obj2mesh error: {}. Using geometry export fallback on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
     
                 gradfile += radpoints(o, mfaces, 0)
+    print(gradfile)
            
     bm.free()       
     return gradfile
@@ -467,52 +468,54 @@ def cyfc1(self):
             except Exception as e:
                 print(e, 'Something wrong with changing the material attribute name')    
         
-def genbsdf(scene, export_op, o):     
-    if viparams(export_op, scene):
-        return
+# def genbsdf(scene, export_op, o):     
+#     if viparams(export_op, scene):
+#         return
     
-    svp = scene.vi_params
-    bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
+#     svp = scene.vi_params
+#     bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
 
-    if bsdfmats:
-        mat = bsdfmats[0]
-        mat['bsdf'] = {} 
-    else:
-        export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
+#     if bsdfmats:
+#         mat = bsdfmats[0]
+#         mat['bsdf'] = {} 
+#     else:
+#         export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
     
-    tm = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
-    bm = bmesh.new()    
-    bm.from_mesh(tm) 
-    bpy.data.meshes.remove(tm)
-    bm.transform(o.matrix_world)
-    bm.normal_update()
-    bsdffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu == '8']    
+#     tm = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+#     bm = bmesh.new()    
+#     bm.from_mesh(tm) 
+#     bpy.data.meshes.remove(tm)
+#     bm.transform(o.matrix_world)
+#     bm.normal_update()
+#     bsdffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu == '8']    
     
-    if bsdffaces:
-        fvec = bsdffaces[0].normal
-        mat['bsdf']['normal'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
-    else:
-        export_op.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(o.name))
-        return
+#     if bsdffaces:
+#         fvec = bsdffaces[0].normal
+#         mat['bsdf']['normal'] = '{0[0]:.5f} {0[1]:.5f} {0[2]:.5f}'.format(fvec)
+#         mat['bsdf']['pos'] == '{0[0]:.5f} {0[1]:.5f} {0[2]:.5f}'.format(bsdffaces[0].calc_centre_median())
+#     else:
+#         export_op.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(o.name))
+#         return
     
-    zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
-    svec = mathutils.Vector.cross(fvec, zvec)
-    bm.faces.ensure_lookup_table()
-    bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
-    bm.transform(bsdfrotz)
-    bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
-    bm.transform(bsdfrotx)
-    vposis = list(zip(*[v.co[:] for v in bm.verts]))
-    (maxx, maxy, maxz) = [max(p) for p in vposis]
-    (minx, miny, minz) = [min(p) for p in vposis]
-    bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
-    bm.transform(bsdftrans)
-    mradfile = ''.join([m.radmat(scene) for m in o.data.materials if m.radmatmenu != '8'])                  
-    gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
-    bm.free()  
-    bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
-    gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(o.li_bsdf_rcparam,  o.li_bsdf_tensor, (o.li_bsdf_res, ' ')[o.li_bsdf_tensor == ' '], bsdfsamp, o.li_bsdf_direc, svp['viparams']['nproc'])
-    mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
-    svp['viparams']['vidisp'] = 'bsdf'
-    mat['bsdf']['type'] = o.li_bsdf_tensor
+#     zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
+#     svec = mathutils.Vector.cross(fvec, zvec)
+#     bm.faces.ensure_lookup_table()
+#     bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
+#     bm.transform(bsdfrotz)
+#     bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
+#     bm.transform(bsdfrotx)
+#     vposis = list(zip(*[v.co[:] for v in bm.verts]))
+#     (maxx, maxy, maxz) = [max(p) for p in vposis]
+#     (minx, miny, minz) = [min(p) for p in vposis]
+#     bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
+#     bm.transform(bsdftrans)
+#     mradfile = ''.join([m.radmat(scene) for m in o.data.materials if m.radmatmenu != '8'])                  
+#     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
+#     bm.free()  
+#     bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
+#     gbcmd = "genBSDF +geom {} -r '{}' {} {} -c {} {} -n {}".format(o.li_bsdf_dimen,  o.li_bsdf_rcparam,  o.li_bsdf_tensor, (o.li_bsdf_res, ' ')[o.li_bsdf_tensor == ' '], bsdfsamp, o.li_bsdf_direc, svp['viparams']['nproc'])
+#     mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
+#     svp['viparams']['vidisp'] = 'bsdf'
+#     mat['bsdf']['type'] = o.li_bsdf_tensor
+    
         

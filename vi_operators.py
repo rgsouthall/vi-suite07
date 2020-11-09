@@ -577,6 +577,7 @@ class NODE_OT_Li_Geo(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         svp = scene.vi_params
+        svp.vi_display = 0
         if viparams(self, scene):
             return {'CANCELLED'}
         svp['viparams']['vidisp'] = ''
@@ -600,6 +601,7 @@ class NODE_OT_Li_Con(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         scene = context.scene
         self.svp = scene.vi_params
+        self.svp.vi_display = 0
         
         if viparams(self, scene):
             return {'CANCELLED'}
@@ -692,10 +694,6 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
             if self.kivyrun.poll() is None:
                 self.kivyrun.kill() 
             
-            if self.o.vi_params.li_bsdf_proxy:
-                self.pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)))), stdin = PIPE, stdout = PIPE)
-                self.mat.vi_params['radentry'] = ''.join([line.decode() for line in self.pkgbsdfrun.stdout])
-
             with open(filepath, 'r') as bsdffile:               
                 self.mat.vi_params['bsdf']['xml'] = bsdffile.read()
                 bsdf = parseString(self.mat.vi_params['bsdf']['xml'])
@@ -758,9 +756,10 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         bm.transform(bsdftrans)
         mradfile = ''.join([m.vi_params.radmat(scene) for m in self.o.data.materials if m.vi_params.radmatmenu != '8'])                  
         gradfile = radpoints(self.o, [face for face in bm.faces if self.o.material_slots and face.material_index < len(self.o.material_slots) and self.o.material_slots[face.material_index].material.vi_params.radmatmenu != '8'], 0)
+        mvp['bsdf']['pos'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(bsdffaces[0].calc_center_median())
         bm.free()  
         bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp)         
-        gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
+        gbcmd = "genBSDF +geom {} -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_dimen,  ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
         logentry('genBSDF running with command: {}'.format(gbcmd))
         
         with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'w') as mgfile:

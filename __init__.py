@@ -90,8 +90,8 @@ else:
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
-    from .vi_func import lividisplay
-    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, radbsdf, retsv
+    from .vi_func import lividisplay, logentry
+    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update, ret_fvrad_menu
     #    from .vi_display import setcols
@@ -168,6 +168,7 @@ def unititems(self, context):
         else:
             return [('None', 'None','None' )]
     except:
+        logentry('Check the LiVi Result Type menu')
         return [('None', 'None','None' )]   
     
 def bsdf_direcs(self, context):
@@ -217,6 +218,7 @@ def d_update(self, context):
             if d in dns:
                 try:
                     bpy.types.SpaceView3D.draw_handler_remove(dns[d], 'WINDOW')
+                    logentry('Stopping {} display'.format(d))
                 except:
                     pass
         context.scene.vi_params['viparams']['drivers'] = []
@@ -363,6 +365,11 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                                          ('+f -b', 'Forwards', 'Forwards BSDF'), 
                                          ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b -f')
     li_bsdf_proxy: bprop("", "Include proxy geometry in the BSDF", False)
+    li_bsdf_dimen: EnumProperty(items = [('meter', 'Meters', 'BSDF length unit'), 
+                                         ('millimeter', 'Millimeters', 'BSDF length unit'), 
+                                         ('centimeter', 'Centimeters', 'BSDF length unit'), 
+                                         ('foot', 'Feet', 'BSDF length unit'),
+                                         ('inch', 'Inches', 'BSDF length unit')], name = '', description = 'BSDF length unit', default = 'meter')
     li_bsdf_tensor: EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), 
                                           ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), 
                                           ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
@@ -377,7 +384,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 2000)
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
     bsdf_running: bprop("", "Running BSDF calculation", False)
-    radbsdf = radbsdf
+#    radbsdf = radbsdf
     retsv = retsv
     envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney")], "", "Specify the EnVi surface type", "0")
 #    envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)

@@ -53,8 +53,10 @@ class VI_PT_3D(bpy.types.Panel):
         if cao:
             covp = cao.vi_params
 
-        try:
-            if cao and cao.active_material and cao.active_material.vi_params.get('bsdf') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':                
+#        try:
+#        print(cao.active_material.vi_params.get('bsdf'), cao.active_material.vi_params['bsdf']['type'], covp.vi_type)
+        if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
+            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':                
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display") 
 
@@ -65,8 +67,8 @@ class VI_PT_3D(bpy.types.Panel):
                     newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
         
-        except Exception as e:
-            logentry("Problem with BSDF panel display: {}".format(e))
+#        except Exception as e:
+#            logentry("Problem with BSDF panel display: {}".format(e))
 
         if svp.get('viparams') and svp['viparams'].get('vidisp'): 
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
@@ -208,7 +210,7 @@ class VI_PT_Mat(bpy.types.Panel):
             layout = self.layout
             newrow(layout, 'Material type', mvp, "mattype")
 
-            if mvp.mattype == '0':
+            if mvp.mattype in ('0', '1'):
                 rmmenu(layout, cm)
                 if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):# in bpy.data.node_groups:
                     row = layout.row()
@@ -360,6 +362,10 @@ class VI_PT_Ob(bpy.types.Panel):
             if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):              
                 newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
                 newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
+
+                if ovp.li_bsdf_proxy:
+                    newrow(layout, 'Length unit:', ovp, 'li_bsdf_dimen')
+
                 newrow(layout, 'Klems/Tensor:', ovp, 'li_bsdf_tensor')
 
                 if ovp.li_bsdf_tensor != ' ':

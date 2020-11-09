@@ -49,21 +49,39 @@ def sunposlivi(scene, skynode, frames, sun, stime):
     values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
     
-def face_bsdf(o, m, mname, fname, fi, findex):
-    if m.vi_params.get('bsdf') and m.vi_params.li_bsdf_up != Vector((0.0, 0.0, 1.0)):
-        return 'void BSDF {0}\n6 0.0000 {1} {2[0]} {2[1]} {2[2]} .\n0\n0\n\n'.format(mname,  
+def face_bsdf(o, m, mname, uv, f):  
+    if m.vi_params.get('bsdf'):
+        if m.vi_params.li_bsdf_proxy_depth:
+            trans = f.calc_center_median() - Vector([float(p) for p in m.vi_params['bsdf']['pos'].split()])
+            rot = f.normal.rotation_difference(Vector((0, 0, 1))).to_euler()
+            rot_deg = [180*r/math.pi for r in (rot.x, rot.y, rot.z)]
+            rot_deg2 = f.normal.rotation_difference(Vector((0, 1, 0))).to_euler() 
+            pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name)))), stdout = PIPE)
+            xformrun = Popen(shlex.split("xform -rx {0[0]} -ry {0[1]} -rz {0[2]} -t {1[0]} {1[1]} {1[2]}".format(rot_deg, trans)), stdin = pkgbsdfrun.stdout, stdout = PIPE)
+            radentry = ''.join([line.decode() for line in xformrun.stdout])
+            radentry = radentry.replace('m_{}_f'.format(m.name), mname)
+            radentry = radentry.replace(' {}.xml '.format(m.name), ' {} '.format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name))))
+        else:
+            radentry = 'void BSDF {0}\n6 0.0000 {1} {2[0]} {2[1]} {2[2]} .\n0\n0\n\n'.format(mname,  
                 os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', 
-                '{}.xml'.format(fname)), fi)
+                '{}.xml'.format(m.name)), uv)
+        return radentry
     else:
         return ''
 
-def radbsdf(self, radname, fi, rot, trans):
-    fmat = self.data.materials[self.data.polygons[fi].material_index]
-    pdepth = fmat['bsdf']['proxy_depth'] if self.bsdf_proxy else 0 
-    bsdfxml = self.data.materials[self.data.polygons[fi].material_index]['bsdf']['xml']
-    radname = '{}_{}_{}'.format(fmat.name, self.name, fi)
-    radentry = 'void BSDF {0}\n16 {4:.4f} {1} 0 0 1 . -rx {2[0]:.4f} -ry {2[1]:.4f} -rz {2[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f}\n0\n0\n\n'.format(radname, bsdfxml, rot, trans, pdepth)
-    return radentry
+# def radbsdf(self, radname, fi, rot, trans):
+#     fmat = self.data.materials[self.data.polygons[fi].material_index]
+#     pdepth = fmat['bsdf']['proxy_depth'] if self.bsdf_proxy else 0 
+#     bsdfxml = self.data.materials[self.data.polygons[fi].material_index]['bsdf']['xml']
+#     radname = '{}_{}_{}'.format(fmat.name, self.name, fi)
+#     if self.vi_params.li_bsdf_proxy:
+#         pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)))), stdin = PIPE, stdout = PIPE)
+#         xformrun = Popen(shlex.split("xform -rx {} -ry {} -rz {} -tx {} -ty {} -tz {}",format(1, 1, 1, 1, 1, 5)), stdin = pkgbsdfrun.stdout, stdout = PIPE)
+#         radentry = ''.join([line.decode() for line in xformrun.stdout])
+#         print(radentry)
+#     else:
+#         radentry = 'void BSDF {0}\n16 {4:.4f} {1} 0 0 1 . -rx {2[0]:.4f} -ry {2[1]:.4f} -rz {2[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f}\n0\n0\n\n'.format(radname, bsdfxml, rot, trans, 0)
+#     return radentry
            
 def rtpoints(self, bm, offset, frame):    
     geom = bm.verts if self['cpoint'] == '1' else bm.faces 
@@ -176,14 +194,19 @@ def radmat(self, scene):
             '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in (self.radcolour, ct2RGB(self.radct))[self.radcolmenu == '1']]), 
             '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
-
-    if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
-        bsdfxml = os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
+    if self.radmatmenu == '8':
+        radentry = ''
+    # if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
+    #     bsdfxml = os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
                 
-        with open(bsdfxml, 'w') as bsdffile:
-            bsdffile.write(self['bsdf']['xml'])
-        radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self.li_bsdf_proxy_depth, bsdfxml)
-        
+    #     with open(bsdfxml, 'w') as bsdffile:
+    #         bsdffile.write(self['bsdf']['xml'])
+
+    #     if not self.id_data.vi_params.li_bsdf_proxy_depth:
+    #         radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self.li_bsdf_proxy_depth, bsdfxml)
+    #     else:
+    #         radentry = self.id_data.vi_params['radentry']
+
     elif self.radmatmenu == '9':
         radentry = bpy.data.texts[self.radfile].as_string()+'\n\n' if self.radfile in [t.name for t in bpy.data.texts] else '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
                         

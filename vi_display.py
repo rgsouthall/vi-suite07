@@ -643,6 +643,7 @@ class draw_bsdf(Base_Display):
         self.isize = (self.xdiff, self.xdiff - 50)
         self.iimage = 'bsdf_empty.png'
         self.iisize = (250, 270)
+        self.type = context.active_object.active_material.vi_params['bsdf']['type']
                 
         if self.iimage not in [im.name for im in bpy.data.images]:
             bpy.data.images.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Images', 'bsdf_empty.png'))
@@ -730,7 +731,7 @@ class draw_bsdf(Base_Display):
         mp2im(self.fig, self.image)
 
     def ret_coords(self): 
-        if self.type == 'Klems':
+        if self.type == 'LBNL/Klems Full':
             vl_coords, f_indices = [], []
             v_coords = [(0, 0)]
             
@@ -1554,38 +1555,40 @@ class draw_legend(Base_Display):
         self.update(context)
         self.create_batch()
                                 
-    def update(self, context):        
+    def update(self, context):      
         scene = context.scene
         svp = scene.vi_params
-        self.levels = svp.vi_leg_levels
-        self.lh = 1/(self.levels + 1.25)
-        self.cao = context.active_object        
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-        (self.minres, self.maxres) = leg_min_max(svp)
-        self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
-        self.unit = res2unit[svp.li_disp_menu] if not svp.vi_leg_unit else svp.vi_leg_unit
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-        resdiff = self.maxres - self.minres
-        
-        if not svp.get('liparams'):
-            svp.vi_display = 0
-            return
-        
-        dplaces = retdp(self.maxres, 1)
-        resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
-                        [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
 
-        
-        if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
-            self.resvals = bpy.app.driver_namespace.get('restext')()
-        else:
-            self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+        if svp.li_disp_menu != 'None':  
+            self.levels = svp.vi_leg_levels
+            self.lh = 1/(self.levels + 1.25)
+            self.cao = context.active_object        
+            self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+            (self.minres, self.maxres) = leg_min_max(svp)
+            self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
+            self.unit = res2unit[svp.li_disp_menu] if not svp.vi_leg_unit else svp.vi_leg_unit
+            self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+            resdiff = self.maxres - self.minres
             
-        self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
-        blf.size(self.font_id, 12, self.dpi)        
-        self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
-        self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
-        self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
+            if not svp.get('liparams'):
+                svp.vi_display = 0
+                return
+            
+            dplaces = retdp(self.maxres, 1)
+            resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
+                            [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
+
+            
+            if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
+                self.resvals = bpy.app.driver_namespace.get('restext')()
+            else:
+                self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+                
+            self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
+            blf.size(self.font_id, 12, self.dpi)        
+            self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
+            self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
+            self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
 
     def ret_coords(self):      
         lh = 1/(self.levels + 1.25) 
@@ -3085,7 +3088,8 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or event.type == 'ESC':
             svp['viparams']['vidisp'] = 'bsdf'
             svp.vi_display = 0
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_bsdfnum, 'WINDOW')
+            self.bsdf.plt.close()
             context.area.tag_redraw()
             return {'CANCELLED'}
 
@@ -3177,27 +3181,31 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             self.results_bar = results_bar(self.images)
             self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r2h, 0)[0], region.width, r2h, 400, 650)
             svp.vi_display = 1
-            self._handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
+            self.draw_handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
             bpy.app.driver_namespace["bsdf"] = self.draw_handle_bsdfnum
             context.window_manager.modal_handler_add(self)
             svp['viparams']['vidisp'] = 'bsdf_panel'
+            svp['viparams']['drivers'] = ['bsdf']
             context.area.tag_redraw()  
             return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'},"Selected material contains no BSDF information or contains the wrong BSDF type (only Klems is supported)")
             return {'CANCELLED'}
             
-    def remove(self, context):
-        self.bsdf.plt.close()
-        bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
-        context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
-        bpy.data.images.remove(self.bsdf.gimage)
-        context.area.tag_redraw()
+    # def remove(self, context):
+    #     self.bsdf.plt.close()
+    #     bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
+    #     context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
+    #     bpy.data.images.remove(self.bsdf.gimage)
+    #     context.area.tag_redraw()
     
     def draw_bsdfnum(self, context):
-        r2 = context.area.regions[2]
-        self.results_bar.draw(r2.width, r2.height)
-        self.bsdf.draw(context)
+        try:
+            r2 = context.area.regions[2]
+            self.results_bar.draw(r2.width, r2.height)
+            self.bsdf.draw(context)
+        except:
+            context.scene.vi_params.vi_display = 0
 
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
@@ -3215,13 +3223,13 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             r2 = context.area.regions[2]
             r2h = r2.height
             r2w = r2.width
-    
+
             if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
-#                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_linum, 'WINDOW')
                 if context.area:
                     context.area.tag_redraw()
                 else:
                     logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
+
                 return {'CANCELLED'}        
             
             if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
@@ -3319,8 +3327,9 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             self.results_bar.draw(r2.width, r2.height)
             self.legend.draw(context)
             self.legend_num.draw(context)
-        except:
-            context.scene.vi_params.vi_display = 0
+        except Exception as e:
+            logentry('Quitting LiVi display {}'.format(e))
+
 
         
 #        self.dhscatter.draw(context, area.width)
