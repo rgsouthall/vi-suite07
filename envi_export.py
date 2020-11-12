@@ -370,9 +370,15 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: EMS ===========\n\n")   
         emsprognodes = [pn for pn in enng.nodes if pn.bl_idname == 'No_En_Net_Prog' and not pn.use_custom_color and pn.text_file]
+        
         for prognode in emsprognodes:
             en_idf.write(prognode.epwrite())
         
+        emspynodes = [pn for pn in enng.nodes if pn.bl_idname == 'No_En_Net_EMSPy' and not pn.use_custom_color and pn.py_mod and pn.py_class]
+        
+        for pynode in emspynodes:
+            en_idf.write(pynode.epwrite())
+
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
         epentrydict = {"Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt, "Output:Variable,*,Zone Other Equipment Total Heating Rate,hourly;\n": node.resoeg,
                        "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,

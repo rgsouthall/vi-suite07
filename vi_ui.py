@@ -361,10 +361,10 @@ class VI_PT_Ob(bpy.types.Panel):
         elif ovp.vi_type == '5':  
             if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):              
                 newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
-                newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
+#                newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
 
-                if ovp.li_bsdf_proxy:
-                    newrow(layout, 'Length unit:', ovp, 'li_bsdf_dimen')
+#                if ovp.li_bsdf_proxy:
+#                    newrow(layout, 'Length unit:', ovp, 'li_bsdf_dimen')
 
                 newrow(layout, 'Klems/Tensor:', ovp, 'li_bsdf_tensor')
 

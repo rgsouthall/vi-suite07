@@ -1466,7 +1466,7 @@ class No_En_Sim(Node, ViNodes):
     def postsim(self, sim_op, condition):
         nodecolour(self, 0)
         self.run = -1
-        print(condition)
+
         if condition == 'FINISHED':
             processf(sim_op, self)
 
@@ -4439,7 +4439,28 @@ class No_En_Net_EMSZone(Node, EnViNodes):
             newrow(layout, 'Sensor', self, 'sensortype')
         if len(self.inputs) > 1:
             newrow(layout, 'Actuator', self, 'acttype')
-    
+
+class No_En_Net_EMSPy(Node, EnViNodes):
+    '''Node identifying a Python interface to the EMS'''
+    bl_idname = 'No_En_Net_EMSPy'
+    bl_label = 'EMS Zone'
+    bl_icon = 'FILE_TEXT'
+
+    py_mod: StringProperty(description="Textfile to show")
+    py_class: StringProperty(name = '', description="Textfile to show")
+
+    def draw_buttons(self, context, layout):
+        layout.prop_search(self, 'py_mod', bpy.data, 'texts', text='Module', icon='TEXT')
+        newrow(layout, "Class:", self, 'py_class')
+
+    def epwrite(self):
+        if self.py_mod and self.py_class:
+            pyparams = ('Name', 'Run During Warmup Days', 'Python Module Name', 'Plugin Class Name')
+            pyparamvs = ('Apply Discrete Package Sizes to Air System Sizing', 'Yes', self.py_mod, self.py_class)
+            return epentry('PythonPlugin:Instance', pyparams, pyparamvs)
+        else:
+            return ''
+        
 class EnViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -4451,7 +4472,8 @@ envi_zone = [NodeItem("No_En_Net_Zone", label="Zone"), NodeItem("No_En_Net_Occ",
 envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule Net")]
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
                 NodeItem("No_En_Net_Ext", label="External Air"), NodeItem("No_En_Net_WPC", label="WPC")]
-envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program")]
+envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program"),
+            NodeItem("No_En_Net_EMSPy", label="EMS Python")]
 
 envinode_categories = [EnViNodeCategory("Zone", "Zone Nodes", items=envi_zone), 
                        EnViNodeCategory("Schedule_Net", "Schedule Nodes", items=envi_sched),

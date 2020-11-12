@@ -733,14 +733,14 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         
         if bsdffaces:
             fvec = bsdffaces[0].normal
-            mvp['bsdf']['up'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
+    #        mvp['bsdf']['up'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
         else:
             self.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(self.o.name))
             return
         
         self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'BSDF')
-        zvec, xvec, yvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0)), mathutils.Vector((0, 1, 0))
+        zvec, xvec, yvec = mvp.li_bsdf_up, mathutils.Vector((1, 0, 0)), mathutils.Vector((0, 1, 0))
         svec = mathutils.Vector.cross(fvec, zvec)
         bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
         bm.transform(bsdfrotz)
@@ -755,7 +755,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         except Exception as e:
             logentry('Transform unneccesary')
 
-        mvp['bsdf']['up'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(bsdffaces[0].normal)
+#        mvp['bsdf']['up'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(mvp.li_bsdf_up)
         vposis = list(zip(*[v.co[:] for v in bm.verts]))
         (maxx, maxy, maxz) = [max(p) for p in vposis]
         (minx, miny, minz) = [min(p) for p in vposis]
@@ -776,7 +776,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'r') as mgfile: 
             with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'w') as bsdffile:
                 self.bsdfrun = Popen(shlex.split(gbcmd), stdin = mgfile, stdout = bsdffile)
-                
+        mvp['bsdf']['type'] = 'LBNL/Klems Full' if  ovp.li_bsdf_tensor == ' ' else 'Tensor'      
         vl.objects.active = self.o
         wm = context.window_manager
         self._timer = wm.event_timer_add(1, window = context.window)
