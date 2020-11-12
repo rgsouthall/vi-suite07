@@ -34,8 +34,9 @@ def radpoints(o, faces, sks):
     for f, face in enumerate(faces):
         fmi = face.material_index
         m = o.data.materials[fmi]
-        mname = mns[fmi] if not m.vi_params.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
-        mentry = face_bsdf(o, m, mname, m.vi_params.li_bsdf_up, face)
+        mvp = m.vi_params
+        mname = mns[fmi] if not mvp.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
+        mentry = face_bsdf(o, m, mname, face)
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
         
         if sks:
@@ -116,7 +117,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
                     logentry('Obj2mesh error: {}. Using geometry export fallback on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
     
                 gradfile += radpoints(o, mfaces, 0)
-    print(gradfile)
+#    print(gradfile)
            
     bm.free()       
     return gradfile

@@ -404,7 +404,7 @@ def rmmenu(layout, cm):
         row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
     elif mvp.radmatmenu == '9':
-        layout.prop_search(cm, 'radfile', bpy.data, 'texts', text='File', icon='TEXT')
+        layout.prop_search(mvp, 'radfile', bpy.data, 'texts', text='File', icon='TEXT')
     if mvp.get('bsdf'):
         row.operator("material.del_bsdf", text="Delete BSDF")
         row = layout.row()

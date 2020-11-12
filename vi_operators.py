@@ -700,6 +700,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
                 self.mat.vi_params['bsdf']['direcs'] = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
                 self.mat.vi_params['bsdf']['type'] = [path.firstChild.data for path in bsdf.getElementsByTagName('AngleBasisName')][0]
                 self.mat.vi_params['bsdf']['filepath'] = filepath
+                self.mat.vi_params['bsdf']['proxied'] = self.o.vi_params.li_bsdf_proxy
 
             context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
             return {'FINISHED'}
@@ -707,11 +708,10 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         svp = scene.vi_params
-        depsgraph = bpy.context.evaluated_depsgraph_get()
+        dp = bpy.context.evaluated_depsgraph_get()
         vl = context.view_layer
         self.o = context.object
         ovp = self.o.vi_params
-        ovp.bsdf_running = 1
         vl.objects.active = None
         
         if viparams(self, scene):
@@ -724,31 +724,38 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
             mvp['bsdf'] = {} 
         else:
             self.report({'ERROR'}, '{} does not have a BSDF material attached'.format(self.o.name))
-        
-        tm = self.o.evaluated_get(depsgraph).to_mesh()
+
         bm = bmesh.new()    
-        bm.from_mesh(tm) 
-        self.o.evaluated_get(depsgraph).to_mesh_clear()
+        bm.from_object(self.o, dp)
         bm.transform(self.o.matrix_world)
         bm.normal_update()
         bsdffaces = [face for face in bm.faces if self.o.material_slots[face.material_index].material.vi_params.radmatmenu == '8']    
         
         if bsdffaces:
             fvec = bsdffaces[0].normal
-            mvp['bsdf']['normal'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
+            mvp['bsdf']['up'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
         else:
             self.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(self.o.name))
             return
         
         self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'BSDF')
-        zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
+        zvec, xvec, yvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0)), mathutils.Vector((0, 1, 0))
         svec = mathutils.Vector.cross(fvec, zvec)
-        bm.faces.ensure_lookup_table()
         bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
         bm.transform(bsdfrotz)
-        bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
-        bm.transform(bsdfrotx)
+        bm.normal_update()
+        zvec.rotate(bsdfrotz.to_euler())
+
+        try:
+            bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(zvec, yvec), 4, mathutils.Vector((0, 0, -1)))
+            bm.transform(bsdfrotz)
+            bm.normal_update()
+            zvec.rotate(bsdfrotz.to_euler())
+        except Exception as e:
+            logentry('Transform unneccesary')
+
+        mvp['bsdf']['up'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(bsdffaces[0].normal)
         vposis = list(zip(*[v.co[:] for v in bm.verts]))
         (maxx, maxy, maxz) = [max(p) for p in vposis]
         (minx, miny, minz) = [min(p) for p in vposis]
@@ -756,9 +763,10 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         bm.transform(bsdftrans)
         mradfile = ''.join([m.vi_params.radmat(scene) for m in self.o.data.materials if m.vi_params.radmatmenu != '8'])                  
         gradfile = radpoints(self.o, [face for face in bm.faces if self.o.material_slots and face.material_index < len(self.o.material_slots) and self.o.material_slots[face.material_index].material.vi_params.radmatmenu != '8'], 0)
-        mvp['bsdf']['pos'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(bsdffaces[0].calc_center_median())
         bm.free()  
-        bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp)         
+        bsdfsamp = ovp.li_bsdf_ksamp if ovp.li_bsdf_tensor == ' ' else 2**(int(ovp.li_bsdf_res) * 2) * int(ovp.li_bsdf_tsamp)    
+#        gbcmd = "genBSDF -geom {} -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_dimen,  ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
+        # Adding MGF geometry does not work (black inner face)
         gbcmd = "genBSDF +geom {} -r '{}' {} {} -c {} {} -n {}".format(ovp.li_bsdf_dimen,  ovp.li_bsdf_rcparam,  ovp.li_bsdf_tensor, (ovp.li_bsdf_res, ' ')[ovp.li_bsdf_tensor == ' '], bsdfsamp, ovp.li_bsdf_direc, svp['viparams']['nproc'])
         logentry('genBSDF running with command: {}'.format(gbcmd))
         
@@ -772,7 +780,8 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         vl.objects.active = self.o
         wm = context.window_manager
         self._timer = wm.event_timer_add(1, window = context.window)
-        wm.modal_handler_add(self)        
+        wm.modal_handler_add(self) 
+        ovp.bsdf_running = 1       
         return {'RUNNING_MODAL'}
         
 class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
@@ -1483,9 +1492,9 @@ class NODE_OT_En_Sim(bpy.types.Operator):
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr = PIPE))
             errtext =  self.esimruns[-1].stderr.read().decode()
             
-            if errtext:
+            if 'EnergyPlus Completed Successfully' not in errtext:
                 logentry('Energyplus error: {}'.format(errtext))
-#                return {self.terminate('CANCELLED', context)}
+                return {self.terminate('CANCELLED', context)}
             self.e += 1
     
         if event.type == 'TIMER':

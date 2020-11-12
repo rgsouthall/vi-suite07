@@ -541,7 +541,6 @@ def pregeo(context, op):
     enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
     enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0, 'pcm':0}
-#    print([scene.objects[node.zone].vi_params.envi_type for node in enng.nodes if hasattr(node, 'zone')])
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]
          
     dcdict = {'Wall':(1, 1, 1, 1), 'Partition':(1, 1, 0, 1), 'Window':(0, 1, 1, 1), 'Roof':(0, 1, 0, 1), 'Ceiling':(1, 1, 0, 1), 'Floor':(0.44,0.185,0.07, 1), 'Shading':(1, 0, 0, 1)}
@@ -552,7 +551,6 @@ def pregeo(context, op):
     for coll in eg.children:
         cvp = coll.vi_params
         cvp['enparams'] = {}
-#        cvp['enparams']['floorarea'] = 0.0
         
         if coll.objects:
             for oi, obj in enumerate(coll.objects):

@@ -49,22 +49,33 @@ def sunposlivi(scene, skynode, frames, sun, stime):
     values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
     
-def face_bsdf(o, m, mname, uv, f):  
+def face_bsdf(o, m, mname, f):  
     if m.vi_params.get('bsdf'):
-        if m.vi_params.li_bsdf_proxy_depth:
-            trans = f.calc_center_median() - Vector([float(p) for p in m.vi_params['bsdf']['pos'].split()])
-            rot = f.normal.rotation_difference(Vector((0, 0, 1))).to_euler()
-            rot_deg = [180*r/math.pi for r in (rot.x, rot.y, rot.z)]
-            rot_deg2 = f.normal.rotation_difference(Vector((0, 1, 0))).to_euler() 
-            pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name)))), stdout = PIPE)
-            xformrun = Popen(shlex.split("xform -rx {0[0]} -ry {0[1]} -rz {0[2]} -t {1[0]} {1[1]} {1[2]}".format(rot_deg, trans)), stdin = pkgbsdfrun.stdout, stdout = PIPE)
-            radentry = ''.join([line.decode() for line in xformrun.stdout])
-            radentry = radentry.replace('m_{}_f'.format(m.name), mname)
-            radentry = radentry.replace(' {}.xml '.format(m.name), ' {} '.format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name))))
-        else:
-            radentry = 'void BSDF {0}\n6 0.0000 {1} {2[0]} {2[1]} {2[2]} .\n0\n0\n\n'.format(mname,  
-                os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', 
-                '{}.xml'.format(m.name)), uv)
+        uv = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(m.vi_params.li_bsdf_up)
+        #MGF geometry does not work (black inner face)
+        # if m.vi_params.li_bsdf_proxy_depth and m.vi_params['bsdf'].get('proxied'):
+        #     trans = f.calc_center_median() - Vector([float(p) for p in m.vi_params['bsdf']['pos'].split()])
+        #     rot = f.normal.rotation_difference(Vector((0, 0, 1))).to_euler()
+        #     rot_deg = [180*r/math.pi for r in (rot.x, rot.y, rot.z)]
+        #     print(rot_deg)
+        #     upv = Vector((0, 1, 0))
+        #     upv.rotate(rot)
+        #     rot2 = upv.rotation_difference(Vector((0, 0, 1))).to_euler() 
+        #     rot2_deg = [180*r/math.pi for r in (rot2.x, rot2.y, rot2.z)]
+        #     print('rot2', upv, rot2_deg)
+        #     rot3 = f.normal.rotation_difference(Vector([-float(p) for p in m.vi_params['bsdf']['normal'].split()])).to_euler()
+        #     rot3_deg = [180*r/math.pi for r in (rot3.x, rot3.y, rot3.z)]
+        #     print(f.normal, m.vi_params['bsdf']['normal'])
+        #     print(rot3_deg)
+        #     pkgbsdfrun = Popen(shlex.split("pkgBSDF -s {}".format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name)))), stdout = PIPE)
+        #     xformrun = Popen(shlex.split("xform -rx {0[0]} -ry {0[1]} -rz {0[2]} -t {1[0]} {1[1]} {1[2]}".format(rot_deg, trans)), stdin = pkgbsdfrun.stdout, stdout = PIPE)
+        #     radentry = ''.join([line.decode() for line in xformrun.stdout])
+        #     radentry = radentry.replace('m_{}_f'.format(m.name), mname)
+        #     radentry = radentry.replace(' {}.xml '.format(m.name), ' {} '.format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name))))
+        # else:
+        radentry = 'void BSDF {0}\n6 {3} {1} {2} .\n0\n0\n\n'.format(mname,  
+            os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', 
+            '{}.xml'.format(m.name)), uv, m.vi_params.li_bsdf_proxy_depth)
         return radentry
     else:
         return ''

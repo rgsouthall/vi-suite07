@@ -31,7 +31,6 @@ def get_mat(node, ee):
 
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
-#        print('names', mvp.envi_nodes.name, print(mvp.id_data.name))
         ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
         
@@ -98,7 +97,6 @@ def boundpoly(obj, emnode, poly, enng):
                     return(("Surface", outsock.links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
                 
             else:
-#                print('adaibatic')
                 return(("Adiabatic", "", "NoSun", "NoWind"))
 
     elif emnode.envi_con_con == 'Thermal mass':
@@ -439,11 +437,10 @@ def processh(lines, znlist):
                 hdict[linesplit[0]] = ['Zone',  retzonename(linesplit[2]),  zresdict[linesplit[3]]]
             elif linesplit[3] in enresdict and 'ExtNode' in linesplit[2]:
                 hdict[linesplit[0]] = ['External',  linesplit[2],  enresdict[linesplit[3]]]
-            elif linesplit[3] in lresdict:
+            elif linesplit[3] in lresdict:                
                 hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
             elif linesplit[3] in presdict:  
                 hdict[linesplit[0]] = ['Power',  linesplit[2],  presdict[linesplit[3]]]
-#            print(hdict)
         if line == 'End of Data Dictionary\n':
             break
     return hdict,  l + 1
@@ -488,8 +485,14 @@ def processf(pro_op, node):
         
     rls = reslists
     zrls = list(zip(*rls))
-    svp['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
-    svp['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone' and zrls[0][zri] == str(node["AStart"])]))
+    try:
+        svp['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
+    except:
+        svp['enparams']['lmetrics'] = []
+    try:
+        svp['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone' and zrls[0][zri] == str(node["AStart"])]))
+    except:
+        svp['enparams']['zmetrics'] = []
 
     for frame in frames:
         zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone' and zonerl[0] == str(frame)]

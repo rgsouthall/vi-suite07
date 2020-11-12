@@ -1466,7 +1466,7 @@ class No_En_Sim(Node, ViNodes):
     def postsim(self, sim_op, condition):
         nodecolour(self, 0)
         self.run = -1
-        
+        print(condition)
         if condition == 'FINISHED':
             processf(sim_op, self)
 
