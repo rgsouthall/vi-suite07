@@ -393,34 +393,41 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             rtframe = max(kints) if frame > max(kints) else min(kints)
         
         rt = geom.layers.string['rt{}'.format(rtframe)]
-            
-        for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):
-            logentry('Running rtrace: {}'.format(rtcmds[f]))
-            rtrun = Popen(shlex.split(rtcmds[f]), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
-            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
+        logentry('Running rtrace: {}'.format(rtcmds[f]))
 
-            if svp['liparams']['unit'] == 'W/m2 (f)':
-                firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)                
-            elif svp['liparams']['unit'] == 'Lux':
-                virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
-                illu = virradm2 * 179
-            
-            for gi, gp in enumerate(chunk):  
-                gparea = gp.calc_area() if svp['liparams']['cp'] == '0' else vertarea(bm, gp) 
+        for chunk in chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 500):            
+            rtrun = Popen(shlex.split(rtcmds[f]), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
+
+            if rtrun[1]:
+                logentry('rtrun error: {}'.format(rtrun[1]))
+                pfile.check('CANCELLED')
+                bm.free() 
+                return 'CANCELLED'
+            else:
+                xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
 
                 if svp['liparams']['unit'] == 'W/m2 (f)':
-                    gp[firradm2res] = firradm2[gi].astype(float32)
-                    gp[firradres] = (firradm2[gi] * gparea).astype(float32)
-                elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):   
-                    gp[virradm2res] = virradm2[gi].astype(float32)
-                    gp[virradres] = (virradm2[gi] * gparea).astype(float32)
-                    gp[illures] = illu[gi].astype(float32)                    
+                    firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)                
+                elif svp['liparams']['unit'] == 'Lux':
+                    virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
+                    illu = virradm2 * 179
+                
+                for gi, gp in enumerate(chunk):  
+                    gparea = gp.calc_area() if svp['liparams']['cp'] == '0' else vertarea(bm, gp) 
+
+                    if svp['liparams']['unit'] == 'W/m2 (f)':
+                        gp[firradm2res] = firradm2[gi].astype(float32)
+                        gp[firradres] = (firradm2[gi] * gparea).astype(float32)
+                    elif svp['liparams']['unit'] in ('DF (%)', 'Lux'):   
+                        gp[virradm2res] = virradm2[gi].astype(float32)
+                        gp[virradres] = (virradm2[gi] * gparea).astype(float32)
+                        gp[illures] = illu[gi].astype(float32)                    
                 
             curres += len(chunk)
 
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
-                return {'CANCELLED'}
+                return 'CANCELLED'
 
         oirrad = array([g[virradm2res] for g in geom]).astype(float64) if svp['liparams']['unit'] == 'Lux' else array([g[firradm2res] for g in geom]).astype(float64)
         maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
@@ -706,7 +713,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
-                return {'CANCELLED'}
+                return 'CANCELLED'
 
         resillu = array([gp[res] for gp in geom if gp[cindex] > 0], dtype = float32)
         resdf = array([gp[dfres] for gp in geom if gp[cindex] > 0], dtype = float32)

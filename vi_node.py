@@ -3293,7 +3293,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
     envi_hvacclt: EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], name = '', description = "Cooling limit type", default = '4', update = hupdate)
     envi_hvaccaf: FloatProperty(name = u'm\u00b3/s', description = "Cooling air flow rate", min = 0, max = 60, default = 1, precision = 4)
     envi_hvacscc: fprop("W", "Sensible cooling capacity", 0, 10000, 1000)
-    envi_hvacoam: eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
+    envi_hvacoam: eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '0')
     envi_hvacfrp: fprop(u'm\u00b3/s/p', "Flow rate per person", 0, 1, 0.008)
     envi_hvacfrzfa: fprop("", "Flow rate per zone area", 0, 1, 0.008)
     envi_hvacfrz: FloatProperty(name = u'm\u00b3/s', description = "Flow rate per zone", min = 0, max = 100, default = 0.1, precision = 4)
@@ -4721,7 +4721,18 @@ class No_En_Mat_Con(Node, EnViMatNodes):
              ("Zone", "Zone", "Zone boundary"), ("Thermal mass", "Thermal mass", "Adiabatic")]
         else:
             return [("None", "None", "None")]
-        
+    
+    def con_type(self, ect):
+        if self.envi_con_type == 'Wall':
+            envi_con_type = 'Internal wall' if self.envi_con_con == 'Zone' else 'Wall'
+        elif self.envi_con_type == 'Floor':    
+            envi_con_type = 'Internal floor' if self.envi_con_con == 'Zone' else 'Floor'
+        elif self.envi_con_type == 'Roof': 
+            envi_con_type = 'Ceiling' if self.envi_con_con == 'Zone' else 'Roof'    
+        else:
+            envi_con_type = ect
+        return envi_con_type
+
     def uv_update(self, context):
         pstcs, resists = [], []
         
@@ -4729,7 +4740,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             if self.envi_con_makeup == '0':
                 ecs = envi_constructions()
                 ems = envi_materials()
-                con_layers = ecs.propdict[self.envi_con_type][self.envi_con_list]
+                con_layers = ecs.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
                 thicks = [0.001 * tc for tc in [self.lt0, self.lt1, self.lt2, self.lt3, 
                                                 self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9][:len(con_layers)]]
 
@@ -5302,7 +5313,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             
         for i, te in enumerate(mtempemps.split()):
             params += ('Temperature {} (C)'.format(i), 'Enthalpy {} (J/kg)'.format(i))
-            paramvs +=(te.split(':')[0], te.split(':')[1])
+            paramvs += (te.split(':')[0], te.split(':')[1])
 
         pcmparams = ('Name', 'Algorithm', 'Construction Name')
         pcmparamsv = ('{} CondFD override'.format(self['matname']), 'ConductionFiniteDifference', self['matname'])

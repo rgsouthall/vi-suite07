@@ -1007,6 +1007,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         calcout = li_calc(self, simnode, livisimacc(simnode))
 
         if calcout == 'CANCELLED':
+            self.report({'ERROR'},"Simulation was cancelled. See log file")
             return {'CANCELLED'}
         else:
             simnode['reslists'] = calcout
@@ -1050,6 +1051,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                 while self.xindex < self.processes and sum([rp.poll() is None for rp in self.rpruns]) < self.processors and self.frame <= self.fe:
                     echo = Popen(['echo', '{}'.format(self.xindex), '0'], stdout = PIPE)
                     self.rpruns.append(Popen(shlex.split(self.rpiececmds[self.frame - self.fs]), stdin = echo.stdout, stderr = PIPE))
+
                     if self.xindex == 0:
                         if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame)):
                             os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame))
@@ -1087,6 +1089,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             elif os.path.isfile(self.pmfile) and not self.rpruns:
                 if sum(self.pmaps):
                     self.percent = 0
+
                     for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
                         for line in vip.readlines()[::-1]:
                             if '% after' in line:
@@ -1132,6 +1135,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
         if 'liviimage' not in bpy.data.images:
             im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
             im.name = 'liviimage'
+            
         bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
         bpy.data.images['liviimage'].reload()
 

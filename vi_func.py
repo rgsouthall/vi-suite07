@@ -303,6 +303,10 @@ class progressfile():
             pfile.write('STARTING')
     
     def check(self, curres):
+        if curres == 'CANCELLED':
+            with open(self.pfile, 'w') as pfile:
+                pfile.write('CANCELLED')
+                
         with open(self.pfile, 'r') as pfile:
             if 'CANCELLED' in pfile.read():
                 return 'CANCELLED'

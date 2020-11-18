@@ -55,7 +55,10 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
     if tri:
         bmesh.ops.triangulate(bm, faces = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
     if fb:
+#        gradfile += radpoints(o, [f for f in bm.faces if f.calc_area() >= 0.0], 0)
         gradfile += radpoints(o, bm.faces, 0)
+#        for f in [f for f in bm.faces if f.calc_area() == 0.0]:
+#            logentry('Object {} face {} has not been exported as it is too small'.format(o.name, f.index))
     else:
         mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
         mpps = array([not m.vi_params.pport for m in o.data.materials])        
