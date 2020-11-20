@@ -1498,6 +1498,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
             
             if 'EnergyPlus Completed Successfully' not in errtext:
                 logentry('Energyplus error: {}'.format(errtext))
+                self.report({'ERROR'}, "Fatal error reported in the EnergyPLus error file. Check the file in Blender's text editor")
                 return {self.terminate('CANCELLED', context)}
             self.e += 1
     
@@ -1543,6 +1544,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                             return {self.terminate('CANCELLED', context)}
                     else:
                         logentry('There was an error in the EnVi simulation. Check the error log in the text editor') 
+                        self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
                         return {self.terminate('CANCELLED', context)}
                 
                 self.report({'INFO'}, "Calculation is finished.") 

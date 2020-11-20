@@ -28,7 +28,7 @@ from .vi_func import delobj, logentry, ret_camera_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
-from .envi_mat import envi_materials, envi_constructions, envi_layer, envi_layertype, envi_con_list
+from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_con_list
 from numpy import where, sort, median, array
 from .vi_dicts import rpictparams, rvuparams
 
@@ -44,6 +44,7 @@ except Exception as e:
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
+envi_ec = envi_embodied()
 
 class ViNetwork(NodeTree):
     '''A node tree for VI-Suite analysis.'''

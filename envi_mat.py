@@ -1,4 +1,23 @@
-# EnVi materials database
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+# 
+
+# EnVi materials databases
 import os, json
 from collections import OrderedDict
 from .envi_func import epentry
@@ -182,37 +201,7 @@ def retmatdict(ect, t, l):
         return typelist
     else:
         return matdict
-            
-#def envi_layerotype(self, context):   
-#    return retmatdict(self, 1, 0) 
-#    
-#def envi_layer1type(self, context):   
-#    return retmatdict(self, 1, 1) 
-#    
-#def envi_layer2type(self, context):   
-#    return retmatdict(self, 1, 2) 
-#    
-#def envi_layer3type(self, context):   
-#    return retmatdict(self, 1, 3) 
-#    
-#def envi_layer4type(self, context):   
-#    return retmatdict(self, 1, 4) 
-#                    
-#def envi_layero(self, context):   
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 0)[self.envi_type_lo])]
-#
-#def envi_layer1(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 1)[self.envi_type_l1])]
-#
-#def envi_layer2(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 2)[self.envi_type_l2])]
-#
-#def envi_layer3(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 3)[self.envi_type_l3])]
-#
-#def envi_layer4(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 4)[self.envi_type_l4])]
-    
+               
 def envi_con_list(self, context):
     ec = envi_constructions()    
     return [(mat, mat, 'Construction') for mat in ((ec.wall_con, ec.iwall_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.roof_con, ec.ceil_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.floor_con, ec.ifloor_con)[self.envi_con_con in ("Zone", "Thermal mass")], ec.door_con, ec.glaze_con, ec.pv_con)[("Wall", "Roof", "Floor", "Door", "Window", "PV").index(self.envi_con_type)]]
@@ -255,6 +244,29 @@ def envi_layer(self, context):
     else:
         return [('', '', '')]    
 
+class envi_embodied(object):
+    '''Defines materials with a comma separated dictionary, with material name as key, giving 
+    embodied energy metrics from ICE databsae v3.0'''
+
+    def __init__(self):
+        self.update()
+
+    def update(self):
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('EC_database.json')), 'r') as ec_jfile:
+            ec_dict = json.loads(ec_jfile.read())
+            self.agg_ecd = ec_dict['aggregatesand']  
+            self.alu_ecd = ec_dict['aluminium']
+            self.asp_ecd = ec_dict['asphalt']
+            self.bit_ecd = ec_dict['bitumen']
+            self.cement_ecd = ec_dict['cement']
+            self.clay_ecd = ec_dict['clay']
+            self.con_ecdd = ec_dict['concrete']
+            self.glass_ecd = ec_dict['glass']
+            self.steel_ecd = ec_dict['steel']
+            self.timber_ecd = ec_dict['timber']
+#            print(ec_dict.keys())
+
+
 #def retmatdict(self, t, l):   
 #    if self.envi_con_type in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling'):
 #        typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
@@ -276,5 +288,36 @@ def envi_layer(self, context):
 #    if t:
 #        return typelist
 #    else:
-#        return matdict              
+#        return matdict      
+# 
+# #def envi_layerotype(self, context):   
+#    return retmatdict(self, 1, 0) 
+#    
+#def envi_layer1type(self, context):   
+#    return retmatdict(self, 1, 1) 
+#    
+#def envi_layer2type(self, context):   
+#    return retmatdict(self, 1, 2) 
+#    
+#def envi_layer3type(self, context):   
+#    return retmatdict(self, 1, 3) 
+#    
+#def envi_layer4type(self, context):   
+#    return retmatdict(self, 1, 4) 
+#                    
+#def envi_layero(self, context):   
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 0)[self.envi_type_lo])]
+#
+#def envi_layer1(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 1)[self.envi_type_l1])]
+#
+#def envi_layer2(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 2)[self.envi_type_l2])]
+#
+#def envi_layer3(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 3)[self.envi_type_l3])]
+#
+#def envi_layer4(self, context):
+#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 4)[self.envi_type_l4])]
+         
      
