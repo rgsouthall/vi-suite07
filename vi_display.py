@@ -773,7 +773,7 @@ class draw_bsdf(Base_Display):
             uniform vec2 spos;
             uniform vec2 size;
             in vec2 position;
-            varying vec4 pp;
+//            varying vec4 pp;
             void main()
                 {
                    float xpos = spos[0] + position[0] * size[0];
