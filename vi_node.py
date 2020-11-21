@@ -3725,7 +3725,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     noof: IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
     spa: IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
     dcof: FloatProperty(default = 0.7, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
-    ddtw: FloatProperty(default = 0.001, min = 0.1, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
+    ddtw: FloatProperty(default = 0.001, min = 0.001, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
     amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, precision = 5, name = "")
     amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, precision = 3, name = "")
     dlen: FloatProperty(default = 2, name = "")

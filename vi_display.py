@@ -2249,7 +2249,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
     #        bgl.glDisable(bgl.GL_POLYGON_SMOOTH)
             bgl.glPointSize(1)
 
-        except:
+        except Exception as e:
+            logentry('Sun path error: {}'.format(e))
             context.scene.vi_params.vi_display = 0
         
     def draw_spnum(self, op, context):
@@ -2303,7 +2304,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                                       svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                             
                     except Exception as e:
-                        print("Somthing went wrong with sun path display : {}".format(e))
+                        logentry("Sun path number error: {}".format(e))
             blf.disable(0, 4)
         else:
             return
@@ -2316,9 +2317,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
             context.area.tag_redraw()
             
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp' or not context.scene.objects.get('SPathMesh'):
+            try:
+                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
+                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
+            except:
+                pass
             svp.vi_display = 0
-            #bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
-            #bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
             svp['viparams']['vidisp'] = ''
             
             for h in bpy.app.handlers.frame_change_post:
