@@ -1,2 +1,2 @@
-# vi-suite06
-VI-Suite release for Blender 2.8
+# vi-suite061
+VI-Suite release for Blender 2.91 (experimental)
