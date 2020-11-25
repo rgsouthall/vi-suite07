@@ -45,9 +45,7 @@ else:
         import matplotlib.pyplot as plt
         from kivy.app import App
     except:
-        if sys.version_info[1] == 7:
-            
-#    if sys.platform in ('darwin', 'linux', 'win32'):      
+        if sys.version_info[1] == 7:    
             if os.environ.get('PYTHONPATH'):
                 if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
                     os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
@@ -71,10 +69,6 @@ else:
         
         elif sys.version_info[1] >= 8:
             os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
-    # try:
-    #     from netgen.meshing import Mesh
-    # except Exception as e:
-    #     print(e)
          
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc 
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
@@ -94,7 +88,6 @@ else:
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update, ret_fvrad_menu
-    #    from .vi_display import setcols
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
@@ -212,9 +205,10 @@ def set_frame(self, value):
         self.vi_frames = value
 
 def d_update(self, context):
-    if not self.vi_display:
+    if not self.vi_display and context.scene.vi_params.get('viparams'):
         dns = bpy.app.driver_namespace
-        for d in context.scene.vi_params['viparams']['drivers']:
+
+        for d in context.scene.vi_params['viparams'].get('drivers'):
             if d in dns:
                 try:
                     bpy.types.SpaceView3D.draw_handler_remove(dns[d], 'WINDOW')
@@ -537,11 +531,12 @@ def update_dir(dummy):
                
 @persistent
 def display_off(dummy):
-    if bpy.context.scene.vi_params.get('viparams') and bpy.context.scene.vi_params['viparams'].get('vidisp'):
-        
+    if bpy.context.scene.vi_params.get('viparams') and bpy.context.scene.vi_params['viparams'].get('vidisp'):        
         ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en', 'bsdf_panel': 'bsdf'}
+        
         if bpy.context.scene.vi_params['viparams']['vidisp'] in ifdict:
             bpy.context.scene.vi_params['viparams']['vidisp'] = ifdict[bpy.context.scene.vi_params['viparams']['vidisp']]
+        
         bpy.context.scene.vi_params.vi_display = 0
                     
 @persistent
@@ -567,18 +562,6 @@ def select_nodetree(dummy):
             print(e)
         
 bpy.app.handlers.depsgraph_update_post.append(select_nodetree)
-
-@persistent
-def clear_modals(dummy):
-    if bpy.context.scene.vi_params.vi_display:
-        bpy.context.scene.vi_params.vi_display = 0
-        bpy.context.area.tag_redraw()
-#        time.sleep(1)
-#    for mod in bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
-        print("Turning off display")
-
-
-bpy.app.handlers.load_pre.append(clear_modals)
         
 def getViEditorSpaces():
     if bpy.context.screen:
@@ -604,13 +587,6 @@ def path_update():
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin') 
     ofbdir = os.path.abspath(vi_prefs.ofbin) if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin') 
-#    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
-#    ofedir = os.path.abspath(vi_prefs.ofetc) if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
-#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
-#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
-#    if vi_prefs and os.path.isdir(vi_prefs.ofbin):
-#        print('PATH')
-#        os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.abspath(ofbdir))
 
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
@@ -625,43 +601,6 @@ def path_update():
                os.environ["PATH"] += '{0}{1}'.format(evsep[str(sys.platform)], radbdir)
         os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
         sys.path.append(ofbdir)
-        
-        # if not os.environ.get("LD_LIBRARY_PATH"):
-        #     os.environ["LD_LIBRARY_PATH"] = "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
-        # else:
-        #     os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
-#        os.environ["WM_PROJECT_DIR"] = ofedir
-    # if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
-    #     Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
-    #     Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
-    # if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'batchrc.bat')):
-    #     print(os.path.join(ofedir, 'batchrc.bat'))
-    #     call(os.path.join(ofedir, 'batchrc.bat')) 
-        
-
-#def tupdate(self, context):
-#    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
-#        o.show_transparent = 1
-#    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_leg_levels + 1)]:
-#        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
-#    cmap(self)
-#        
-#def wupdate(self, context):
-#    o = context.active_object
-#    if o and o.type == 'MESH':
-#        (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_disp_wire else (0, 0)
-#
-#    
-#def liviresupdate(self, context):
-#    setscenelivivals(context.scene)
-#    for o in [o for o in bpy.data.objects if o.lires]:
-#        o.lividisplay(context.scene)  
-#    e_update(self, context)
-#
-#def script_update(self, context):
-#    if context.scene.vi_params.vi_res_process == '2':
-#        script = bpy.data.texts[context.scene.script_file]
-#        exec(script.as_string())
         
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPath, NODE_OT_TextUpdate, NODE_OT_FileSelect, NODE_OT_HdrSelect,
            VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, No_Vi_WR, No_Vi_SVF, NODE_OT_WindRose, VIEW3D_OT_WRDisplay, 
@@ -711,8 +650,7 @@ def unregister():
     nodeitems_utils.unregister_node_categories("EnVi Material Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
     nodeitems_utils.unregister_node_categories("Vi Nodes")
-    
-    
+        
     for cl in reversed(classes):
         bpy.utils.unregister_class(cl)
 
@@ -724,4 +662,61 @@ def unregister():
         
     if update_dir in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_dir)
+
+
+#    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
+#    ofedir = os.path.abspath(vi_prefs.ofetc) if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
+#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
+#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
+#    if vi_prefs and os.path.isdir(vi_prefs.ofbin):
+#        print('PATH')
+#        os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.abspath(ofbdir))
+#         
+        # if not os.environ.get("LD_LIBRARY_PATH"):
+        #     os.environ["LD_LIBRARY_PATH"] = "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
+        # else:
+        #     os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
+#        os.environ["WM_PROJECT_DIR"] = ofedir
+    # if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
+    #     Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
+    #     Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
+    # if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'batchrc.bat')):
+    #     print(os.path.join(ofedir, 'batchrc.bat'))
+    #     call(os.path.join(ofedir, 'batchrc.bat')) 
         
+
+#def tupdate(self, context):
+#    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
+#        o.show_transparent = 1
+#    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_leg_levels + 1)]:
+#        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
+#    cmap(self)
+#        
+#def wupdate(self, context):
+#    o = context.active_object
+#    if o and o.type == 'MESH':
+#        (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_disp_wire else (0, 0)
+#
+#    
+#def liviresupdate(self, context):
+#    setscenelivivals(context.scene)
+#    for o in [o for o in bpy.data.objects if o.lires]:
+#        o.lividisplay(context.scene)  
+#    e_update(self, context)
+#
+#def script_update(self, context):
+#    if context.scene.vi_params.vi_res_process == '2':
+#        script = bpy.data.texts[context.scene.script_file]
+#        exec(script.as_string())
+
+# @persistent
+# def clear_modals(dummy):
+#     if bpy.context.scene.vi_params.vi_display:
+#         bpy.context.scene.vi_params.vi_display = 0
+#         bpy.context.area.tag_redraw()
+# #        time.sleep(1)
+# #    for mod in bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
+#         print("Turning off display")
+
+
+# bpy.app.handlers.load_pre.append(clear_modals)
