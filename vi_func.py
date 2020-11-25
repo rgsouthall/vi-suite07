@@ -390,7 +390,7 @@ if __name__ == '__main__':\n\
 
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
-    return Popen([bpy.app.binary_path_python, file+".py"])
+    return Popen([sys.executable, file+".py"])
 
 def fvprogressbar(file, residuals):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -466,7 +466,7 @@ if __name__ == '__main__':\n\
 
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
-    return Popen([bpy.app.binary_path_python, file+".py"])
+    return Popen([sys.executable, file+".py"])
 
 def logentry(text):
     log = bpy.data.texts.new('vi-suite-log') if 'vi-suite-log' not in bpy.data.texts else bpy.data.texts['vi-suite-log']
@@ -1571,10 +1571,10 @@ def sunpath(context):
                     for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
 
-            v3ds = [a.spaces[0] for a in context.screen.areas if context.screen and a.type == 'VIEW_3D']
-
-            for v3d in v3ds:
-                v3d.shading.shadow_intensity = svp.sp_sun_strength * 0.2
+            if context.screen:
+                for a in context.screen.areas:
+                    if a.type == 'VIEW_3D':
+                        a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.2
 
             suns[0]['solhour'], suns[0]['solday'] = svp.sp_sh, svp.sp_sd
             suns[0].hide_viewport = True if alt <= 0 else False

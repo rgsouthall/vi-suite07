@@ -446,8 +446,8 @@ class linumdisplay():
                     direcs = [self.view_location - f for f in fcos]
                     
                     try:
-                        (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl, fcos[i], direcs[i], distance=distances[i])[0]]))
-                    except:
+                        (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl.depsgraph, fcos[i], direcs[i], distance=distances[i])[0]]))
+                    except Exception as e:
                         (faces, distances) = ([], [])
 
                 if faces:                    
@@ -470,7 +470,7 @@ class linumdisplay():
                     direcs = [self.view_location - v for v in vcos]
 
                     try:
-                        (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vl, vcos[i], direcs[i], distance=distances[i])[0]]))
+                        (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vl.depsgraph, vcos[i], direcs[i], distance=distances[i])[0]]))
                     except:
                         (verts, distances) = ([], [])
                         
@@ -575,49 +575,49 @@ class results_bar():
                 s.uniform_int("image", 0)
                 self.batches[si].draw(s)
     
-def spnumdisplay(disp_op, context):
-    scene = context.scene
-    svp = scene.vi_params
+# def spnumdisplay(disp_op, context):
+#     scene = context.scene
+#     svp = scene.vi_params
 
-    if bpy.data.objects.get('SPathMesh'):
-        spob = bpy.data.objects['SPathMesh'] 
-        ob_mat = spob.matrix_world
-        mid_x, mid_y, width, height = viewdesc(context)
-        vl = ret_vp_loc(context)
-        blf_props(scene, width, height)
+#     if bpy.data.objects.get('SPathMesh'):
+#         spob = bpy.data.objects['SPathMesh'] 
+#         ob_mat = spob.matrix_world
+#         mid_x, mid_y, width, height = viewdesc(context)
+#         vl = ret_vp_loc(context)
+#         blf_props(scene, width, height)
         
-        if svp.sp_hd:
-            pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]
-            pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
-            p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
-            vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl, pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]
+#         if svp.sp_hd:
+#             pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]
+#             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
+#             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
+#             vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl, pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]
             
-            if vispoints:
-                hs = [pvals[pi] for pi in vispoints]
-                posis = [p2ds[pi] for pi in vispoints]                
-                draw_index(posis, hs, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
+#             if vispoints:
+#                 hs = [pvals[pi] for pi in vispoints]
+#                 posis = [p2ds[pi] for pi in vispoints]                
+#                 draw_index(posis, hs, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                 
-        if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and svp['spparams']['suns'] == '0':
-            sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
+#         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and svp['spparams']['suns'] == '0':
+#             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
             
-            if sobs and svp.sp_td:
-                sunloc = ob_mat@sobs[0].location
-                solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
+#             if sobs and svp.sp_td:
+#                 sunloc = ob_mat@sobs[0].location
+#                 solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
                 
-                try:
-                    if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
-                        soltime = datetime.datetime.fromordinal(scene.solday)
-                        soltime += datetime.timedelta(hours = scene.sp_sh)
-                        sre = sobs[0].rotation_euler
-                        blf_props(scene, width, height)
-                        draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi), 
-                                   svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
+#                 try:
+#                     if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
+#                         soltime = datetime.datetime.fromordinal(scene.solday)
+#                         soltime += datetime.timedelta(hours = scene.sp_sh)
+#                         sre = sobs[0].rotation_euler
+#                         blf_props(scene, width, height)
+#                         draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi), 
+#                                    svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
                         
-                except Exception as e:
-                    logentry("Something went wrong with sun path number display: {}".format(e))
-        blf.disable(0, 4)
-    else:
-        return
+#                 except Exception as e:
+#                     logentry("Something went wrong with sun path number display: {}".format(e))
+#         blf.disable(0, 4)
+#     else:
+#         return
     
 class draw_bsdf(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
@@ -2294,7 +2294,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
                     
                     try:
-                        if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
+                        if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer.depsgraph, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
                             soltime = datetime.datetime.fromordinal(svp.sp_sd)
                             soltime += datetime.timedelta(hours = svp.sp_sh)
                             sre = sobs[0].rotation_euler
