@@ -28,7 +28,7 @@ from .vi_func import delobj, logentry, ret_camera_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
-from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_con_list
+from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_con_list
 from numpy import where, sort, median, array
 from .vi_dicts import rpictparams, rvuparams
 
@@ -3472,11 +3472,13 @@ class No_En_Net_Occ(Node, EnViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_occtype")
+
         if self.envi_occtype != '0':
             newrow(layout, 'Max level:', self, "envi_occsmax")
             if not self.inputs['ASchedule'].links:
                 newrow(layout, 'Activity level:', self, 'envi_occwatts')
             newrow(layout, 'Comfort calc:', self, 'envi_comfort')
+
             if self.envi_comfort:
                 if not self.inputs['WSchedule'].links:
                     newrow(layout, 'Work efficiency:', self, 'envi_weff')
@@ -5203,14 +5205,16 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             nodecolour(self, 1) 
         else:
             nodecolour(self, 0)
-             
-    
+                 
     lay_name: StringProperty(name = '', description = 'Custom layer name', update = lay_update)
     layer: EnumProperty(items = [("0", "Database", "Select from database"), 
                                         ("1", "Custom", "Define custom material properties")], 
                                         name = "", description = "Class of layer", default = "0", update = lay_update)
 
     materialtype: EnumProperty(items = envi_layertype, name = "", description = "Layer material type", update = lay_update)
+    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
+    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material type")
+#    embodiedmat:
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
     thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
     tc: FloatProperty(name = "W/m.K", description = "Thickness (mm)", min = 0.001, max = 10, default = 0.5)
@@ -5264,6 +5268,11 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             if self.lay_name:
                 row = layout.row()
                 row.operator('node.lay_save', text = "Layer Save")
+
+        newrow(layout, "Embodied:", self, "embodied")
+
+        if self.embodied:
+            newrow(layout, "Embodied type:", self, "embodiedtype")
     
     def ret_resist(self):
         if self.layer == '0':

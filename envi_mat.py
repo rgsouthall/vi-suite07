@@ -237,7 +237,10 @@ def retuval(mat):
 
 def envi_layertype(self, context):   
     return retmatdict(self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')   
-          
+
+def envi_elayertype(self, context):   
+    return [(k, k, '{} type'.format(k)) for k in envi_embodied().propdict.keys()]
+
 def envi_layer(self, context):  
     if self.materialtype:
         return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self.envi_con_type, 0, self.bl_idname == 'No_En_Mat_Gas')[self.materialtype])]  
@@ -260,10 +263,24 @@ class envi_embodied(object):
             self.bit_ecd = ec_dict['bitumen']
             self.cement_ecd = ec_dict['cement']
             self.clay_ecd = ec_dict['clay']
-            self.con_ecdd = ec_dict['concrete']
+            self.con_ecd = ec_dict['concrete']
             self.glass_ecd = ec_dict['glass']
             self.steel_ecd = ec_dict['steel']
             self.timber_ecd = ec_dict['timber']
+            self.agg_ec = OrderedDict(sorted(self.agg_ecd.items()))
+            self.alu_ec = OrderedDict(sorted(self.alu_ecd.items()))
+            self.asp_ec = OrderedDict(sorted(self.asp_ecd.items()))
+            self.bit_ec = OrderedDict(sorted(self.bit_ecd.items()))
+            self.cement_ec = OrderedDict(sorted(self.cement_ecd.items()))
+            self.clay_ec = OrderedDict(sorted(self.clay_ecd.items()))
+            self.con_ec = OrderedDict(sorted(self.con_ecd.items()))
+            self.glass_ec = OrderedDict(sorted(self.glass_ecd.items()))
+            self.steel_ec = OrderedDict(sorted(self.steel_ecd.items()))
+            self.timber_ec = OrderedDict(sorted(self.timber_ecd.items()))
+            self.propdict = {'Aggregate': self.agg_ec, 'Aluminium': self.alu_ec, 'Asphalt': self.asp_ec, 'Bitumen': self.bit_ec, 'Cement': self.cement_ec, 
+                                'Clay': self.clay_ec, 'Concrete': self.con_ec, 'Glass': self.glass_ec, 'Steel': self.steel_ec, 'Timber': self.timber_ec} 
+
+
 #            print(ec_dict.keys())
 
 

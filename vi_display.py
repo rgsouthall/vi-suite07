@@ -210,6 +210,7 @@ def rendview(i):
                             
 def li_display(disp_op, simnode):    
     scene, obreslist, obcalclist = bpy.context.scene, [], []
+    dp = bpy.context.evaluated_depsgraph_get()
     svp = scene.vi_params
     svp['liparams']['livir'] = []
     setscenelivivals(scene)
@@ -242,9 +243,7 @@ def li_display(disp_op, simnode):
     
     for i, o in enumerate([scene.objects[oname] for oname in svp['liparams']['{}c'.format(mtype)]]):        
         bm = bmesh.new()
-        tempmesh = o.to_mesh()
-        bm.from_mesh(tempmesh)
-        o.to_mesh_clear() 
+        bm.from_object(o, dp)
         ovp = o.vi_params
                       
         if svp['liparams']['cp'] == '0':  
@@ -308,7 +307,6 @@ def li_display(disp_op, simnode):
                 face.select = True
                 face[extrude] = 1
                 
-#        bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         bm.free()
         bpy.ops.object.shade_flat()        
@@ -422,11 +420,12 @@ class linumdisplay():
         for ob in self.obd:
             res = []
             bm = bmesh.new()
-            tempmesh = ob.evaluated_get(dp).to_mesh()
-            bm.from_mesh(tempmesh)
+            bm.from_object(ob, dp)
+            # tempmesh = ob.evaluated_get(dp).to_mesh()
+            # bm.from_mesh(tempmesh)
             bm.transform(ob.matrix_world)
             bm.normal_update() 
-            ob.to_mesh_clear()
+            # ob.to_mesh_clear()
             var = svp.li_disp_menu
             geom = bm.faces if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) else bm.verts
             geom.ensure_lookup_table()

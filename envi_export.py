@@ -29,7 +29,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     scene = bpy.context.scene 
     svp = scene.vi_params
     svp['viparams']['hvactemplate'] = 0
-    depsgraph = bpy.context.evaluated_depsgraph_get()
+    dp = bpy.context.evaluated_depsgraph_get()
     
     for frame in range(svp['enparams']['fs'], svp['enparams']['fe'] + 1):
         pvs = []
@@ -130,26 +130,16 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         gens = []
         
         for coll in geo_colls:
-#            zonenames = [o.name for o in coll.objects if o.vi_params.envi_type == '0']
-#            tcnames = [o.name for o in coll.objects if o.vi_params.envi_type == '2']
-#            zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
-#            for zn in zonenodes:
-#                zn.update()
-#            tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
-#            gens = []
             for obj in coll.objects:
                 mats = [ms.material for ms in obj.material_slots]
-#                obj = scene.objects[zn]
-#            for obj in [obj for obj in coll.objects if obj.type == 'MESH' and obj.vi_type == '1']:
-#                me = obj.to_mesh()
-                me = obj.evaluated_get(depsgraph).to_mesh()
                 bm = bmesh.new()
-                bm.from_mesh(me)
+                bm.from_object(dp, obj)
                 bm.transform(obj.matrix_world)
-                obj.to_mesh_clear()
-    
+                bm.normal_update()
+
                 for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_nodes]:
                     mat = mats[face.material_index]
+                    
                     for emnode in mat.vi_params.envi_nodes.nodes:
                         if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                             vcos = [v.co for v in face.verts]
@@ -501,6 +491,10 @@ def pregeo(context, op):
                 bmesh.ops.delete(bm, geom = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context = 'FACES')
                 bmesh.ops.delete(bm, geom = [f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context = 'FACES')
 #                bmesh.ops.connect_verts_concave(bm, faces = bm.faces)
+                if not bm.faces.layers.int.get('viuid'):
+                    bm.faces.layers.int.new('viuid')
+
+                uid = bm.faces.layers.int['viuid']
 
                 if not len(bm.faces):
                     bpy.data.objects.remove(o, do_unlink = True, do_id_user=True, do_ui_user=True)
@@ -508,9 +502,13 @@ def pregeo(context, op):
                     if o.vi_params.envi_type != '1':
                         bm.faces.layers.string.new('oname')
                         fo = bm.faces.layers.string['oname']
-                    
+                        exp_faces = [f for f in bm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
+
                         for face in bm.faces:
                             face[fo] = o.name.encode()
+                            face[uid] = face[uid] if face[uid] else max([f[uid] for f in exp_faces]) + 1
+                            print(face[uid], face.index)
+
                         if o.vi_params.envi_type == '0':
                             therm = 1
 
