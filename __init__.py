@@ -78,7 +78,10 @@ else:
             print(fn, os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK))
             if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
                 os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
-
+        for fn in ('energyplus-9.3.0', 'ExpandObjects'):
+            print(fn, os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK))
+            if not os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK):
+                os.chmod(os.path.join(addonpath, 'EPFiles', sys.platform, fn), 0o775)
          
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc 
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
