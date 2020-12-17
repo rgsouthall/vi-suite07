@@ -503,10 +503,11 @@ def pregeo(context, op):
                         bm.faces.layers.string.new('oname')
                         fo = bm.faces.layers.string['oname']
                         exp_faces = [f for f in bm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
-
+    
                         for face in bm.faces:
+                            uids = [f[uid] for f in exp_faces]
                             face[fo] = o.name.encode()
-                            face[uid] = face[uid] if face[uid] else max([f[uid] for f in exp_faces]) + 1
+                            face[uid] = face[uid] if face[uid] else max(uids) + 1
                             print(face[uid], face.index)
 
                         if o.vi_params.envi_type == '0':

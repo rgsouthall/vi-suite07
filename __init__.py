@@ -39,7 +39,7 @@ if "bpy" in locals():
 else:
     import sys, os, inspect, shlex, bpy
     from subprocess import Popen, call
-    evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
+#    evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     try:
         import matplotlib.pyplot as plt
@@ -48,27 +48,37 @@ else:
         if sys.version_info[1] == 7:    
             if os.environ.get('PYTHONPATH'):
                 if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
-                    os.environ['PYTHONPATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)
+                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
             else:
                 os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
             
-            if sys.platform =='linux':
+            if sys.platform == 'linux':
                 if not os.environ.get('LD_LIBRARY_PATH'):
                     os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
                 elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
-                    os.environ['LD_LIBRARY_PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform)  
+                    os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)  
                     sys.argv = [bpy.app.binary_path] 
                     os.execv(sys.argv[0], sys.argv)
             sys.path.append(os.path.join(addonpath, 'Python', sys.platform)) 
             
             if os.environ.get('PATH'):
                 if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
-                    os.environ['PATH'] += evsep[sys.platform] + os.path.join(addonpath, 'Python', sys.platform, 'bin')
+                    os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
             else:
                 os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
         
         elif sys.version_info[1] >= 8:
             os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+
+    if sys.platform in ('linux', 'darwin'):
+        for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
+                    'getbbox', 'getinfo', 'ies2rad', 'mkpmap', 'obj2mesh', 'oconv', 'pcomb', 'pcompos', 'pcond',
+                    'pfilt', 'pkgBSDF', 'pmapdump', 'psign', 'rad2mgf', 'rcalc', 'rcontrib', 'rfluxmtx', 'rmtxop',
+                    'rpict', 'rpiece', 'rtrace', 'rttree_reduce', 'rvu', 'vwrays', 'wrapBSDF', 'xform'):
+            print(fn, os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK))
+            if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
+                os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
+
          
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc 
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
@@ -514,7 +524,10 @@ class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
 #    envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
-    
+
+class VI_Params_Link(bpy.types.PropertyGroup):    
+    vi_uid: iprop("ID", "Unique ID", 0, 10000, 0)
+
 @persistent
 def update_chart_node(dummy):
     try:
@@ -590,7 +603,7 @@ def path_update():
 
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
-            os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'RadFiles', 'lib'))
+            os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, os.pathsep, os.path.join(addonpath, 'RadFiles', 'lib'))
         else:
             os.environ["RAYPATH"] = radldir
         if radbdir not in os.environ["PATH"]:
@@ -598,8 +611,8 @@ def path_update():
             if native_path in os.environ["PATH"]:
                 os.environ["PATH"].replace(native_path, radbdir)
             else:
-               os.environ["PATH"] += '{0}{1}'.format(evsep[str(sys.platform)], radbdir)
-        os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
+               os.environ["PATH"] += '{0}{1}'.format(os.pathsep, radbdir)
+        os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(os.pathsep, epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
         sys.path.append(ofbdir)
         
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPath, NODE_OT_TextUpdate, NODE_OT_FileSelect, NODE_OT_HdrSelect,
@@ -625,12 +638,12 @@ def register():
     for cl in classes:
         bpy.utils.register_class(cl)
   
-    Object, Scene, Material, Collection = bpy.types.Object, bpy.types.Scene, bpy.types.Material, bpy.types.Collection
+    Object, Scene, Material, Collection, Link = bpy.types.Object, bpy.types.Scene, bpy.types.Material, bpy.types.Collection, bpy.types.NodeLink
     Scene.vi_params = bpy.props.PointerProperty(type = VI_Params_Scene)
     Object.vi_params = bpy.props.PointerProperty(type = VI_Params_Object)
     Material.vi_params = bpy.props.PointerProperty(type = VI_Params_Material)
     Collection.vi_params = bpy.props.PointerProperty(type = VI_Params_Collection)
-    
+    Link.vi_params = bpy.props.PointerProperty(type = VI_Params_Link)
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
     nodeitems_utils.register_node_categories("EnVi Material Nodes", envimatnode_categories)

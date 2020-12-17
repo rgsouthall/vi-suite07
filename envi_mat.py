@@ -245,7 +245,19 @@ def envi_layer(self, context):
     if self.materialtype:
         return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self.envi_con_type, 0, self.bl_idname == 'No_En_Mat_Gas')[self.materialtype])]  
     else:
-        return [('', '', '')]    
+        return [('', '', '')]   
+
+def envi_eclasstype(self, context): 
+    if self.embodiedtype: 
+        return [((mat, mat, 'Embodied material')) for mat in envi_embodied().propdict[self.embodiedtype]]  
+    else:
+        return [('', '', '')]  
+
+def envi_emattype(self, context): 
+    if self.embodiedtype: 
+        return [((mat, mat, 'Embodied material')) for mat in envi_embodied().propdict[self.embodiedtype][self.embodiedclass]]  
+    else:
+        return [('', '', '')] 
 
 class envi_embodied(object):
     '''Defines materials with a comma separated dictionary, with material name as key, giving 

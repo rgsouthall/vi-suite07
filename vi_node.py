@@ -28,7 +28,7 @@ from .vi_func import delobj, logentry, ret_camera_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
-from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_con_list
+from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
 from numpy import where, sort, median, array
 from .vi_dicts import rpictparams, rvuparams
 
@@ -5213,8 +5213,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
     materialtype: EnumProperty(items = envi_layertype, name = "", description = "Layer material type", update = lay_update)
     embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
-    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material type")
-#    embodiedmat:
+    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class")
+    embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class")
+    embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material")
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
     thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
     tc: FloatProperty(name = "W/m.K", description = "Thickness (mm)", min = 0.001, max = 10, default = 0.5)
@@ -5273,7 +5274,17 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
         if self.embodied:
             newrow(layout, "Embodied type:", self, "embodiedtype")
-    
+            newrow(layout, "Embodied class:", self, "embodiedclass")
+            newrow(layout, "Embodied class:", self, "embodiedmat")
+            
+            try:
+                for k in envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat].keys():
+                    row = layout.row()
+                    row.label(text = '{}: {}'.format(k, envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]))
+            except Exception as e:
+                pass
+
+
     def ret_resist(self):
         if self.layer == '0':
             matlist = list(envi_mats.matdat[self.material])
@@ -5327,7 +5338,6 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
         pcmparams = ('Name', 'Algorithm', 'Construction Name')
         pcmparamsv = ('{} CondFD override'.format(self['matname']), 'ConductionFiniteDifference', self['matname'])
-    
         return epentry("MaterialProperty:PhaseChange", params, paramvs) + epentry('SurfaceProperty:HeatTransferAlgorithm:Construction', pcmparams, pcmparamsv)
         
     def ep_write(self, ln, mn):
