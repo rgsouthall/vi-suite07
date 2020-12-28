@@ -105,6 +105,7 @@ else:
     from .vi_func import lividisplay, logentry
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
+    from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update, ret_fvrad_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
@@ -398,10 +399,8 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 2000)
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
     bsdf_running: bprop("", "Running BSDF calculation", False)
-#    radbsdf = radbsdf
     retsv = retsv
     envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney")], "", "Specify the EnVi surface type", "0")
-#    envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
     flovi_solver: EnumProperty(items = [('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
                                         ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')], 
                                         name = "", default = 'icoFoam')
@@ -421,6 +420,10 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     flovi_efield: fprop("", "e field value", 0, 500, 0.03)
     flovi_ofield: fprop("", "o field value", 0, 500, 0.03)
     flovi_probe: bprop("", "OpenFoam probe", False)
+    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
+    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class")
+    embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class")
+    embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material")
     
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)

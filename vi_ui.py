@@ -341,11 +341,15 @@ class VI_PT_Ob(bpy.types.Panel):
             elif ovp.vi_type == '1':
                 newrow(layout, "Type:", ovp, 'envi_type')
 
-#                if ovp.envi_type == '0':
-#                    newrow(layout, "Habitable:", ovp, 'envi_hab')
-
             elif ovp.vi_type == '2': 
                 pass
+
+            newrow(layout, 'Embodied:', ovp, 'embodied') 
+
+            if ovp.embodied:
+                newrow(layout, 'Embodied class:', ovp, 'embodiedtype') 
+                newrow(layout, 'Embodied type:', ovp, 'embodiedclass') 
+                newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
 
         if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
             newrow(layout, 'IES file:', ovp, "ies_name")

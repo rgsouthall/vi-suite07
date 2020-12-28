@@ -5262,6 +5262,17 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             nodecolour(self, 1) 
         else:
             nodecolour(self, 0)
+    
+    def ec_update(self, context):
+        try:
+            self['ecdict'] = envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+            # if self['ecdict']['unit'] == 'm2':
+            #     self['ecm2'] = self['ecdict']['ecdu']
+            # elif self['ecdict']['unit'] == 'kg':
+            self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
+            print(self['ecm2'], self.thi)
+        except:
+            pass
                  
     lay_name: StringProperty(name = '', description = 'Custom layer name', update = lay_update)
     layer: EnumProperty(items = [("0", "Database", "Select from database"), 
@@ -5269,10 +5280,11 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                         name = "", description = "Class of layer", default = "0", update = lay_update)
 
     materialtype: EnumProperty(items = envi_layertype, name = "", description = "Layer material type", update = lay_update)
-    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
-    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class")
-    embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class")
-    embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material")
+    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0, update = ec_update)
+    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class", update = ec_update)
+    embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class", update = ec_update)
+    embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material", update = ec_update)
+    ecm2: FloatProperty(name = "kgCo2e/m2", description = "Embodied carbon per metre squared", min = 0.0, default = 0.0)
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
     thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
     tc: FloatProperty(name = "W/m.K", description = "Thickness (mm)", min = 0.001, max = 10, default = 0.5)
@@ -5332,12 +5344,14 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         if self.embodied:
             newrow(layout, "Embodied type:", self, "embodiedtype")
             newrow(layout, "Embodied class:", self, "embodiedclass")
-            newrow(layout, "Embodied class:", self, "embodiedmat")
+            newrow(layout, "Embodied material:", self, "embodiedmat")
             
             try:
                 for k in envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat].keys():
                     row = layout.row()
                     row.label(text = '{}: {}'.format(k, envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]))
+                row = layout.row()
+                row.label(text = 'ec/m2: {}'.format(self['ecm2']))
             except Exception as e:
                 pass
 
