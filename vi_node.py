@@ -26,10 +26,11 @@ from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwla
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
 from .vi_func import delobj, logentry, ret_camera_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
-from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, get_con_node2
+from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
-from numpy import where, sort, median, array
+from numpy import sort, median, array, stack
+from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams
 
 try:
@@ -1756,9 +1757,6 @@ class No_Vi_Metrics(Node, ViNodes):
                 if znames:
                     return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
                 else:
-#                    if self.zone_menu != 'None':
-#                    print(self.zone_menu)
-#                        self.zone_menu = 'None'
                     return [('None', 'None', 'None')]
 
                 return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
@@ -1803,6 +1801,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     ("1", "LEED", "LEED v4 results"),
                                     ("2", "RIBA 2030", "RIBA 2030 results")],
                 name="", description="Results metric", default="0", update=zupdate)
+    leed_menu: BoolProperty(name = "", description = "LEED space type", default = 0)
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
                                     ("1", "Non-domestic", "Non-domestic scenario")],
                 name="", description="Results metric", default="0", update=zupdate)
@@ -1873,7 +1872,13 @@ class No_Vi_Metrics(Node, ViNodes):
                     row.label(text = "Operational: {} {}".format(self['res']['totkwh'], epass))
 
         elif self.metric == '1':
-            if self.light_menu == '2':
+            if self.light_menu == '0':
+                areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']
+                    
+                row = layout.row()
+                row.label(text = "Compliant area: {}%".format(areaDF))
+
+            elif self.light_menu == '2':
                 if self['res']['avDF'] < 0:
                     (dfpass, udfpass, avDF, uDF) = ('N/A', 'N/A', 'N/A', 'N/A')
                 else:
@@ -1881,17 +1886,21 @@ class No_Vi_Metrics(Node, ViNodes):
                     udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
                     avDF = self['res']['avDF']
                     uDF = self['res']['ratioDF']
+                    
                 row = layout.row()
                 row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
                 row = layout.row()
                 row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
                 
             if self.light_menu == '1':
+                newrow(layout, 'Healthcare', self, 'leed_menu')
+                (l, h) = (75, 90) if self.leed_menu else (55, 75)
+                
                 if self['res'] and self['res'].get('ase'): 
                     if self['res']['ase'] < 0:
                         (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
                     else:
-                        (sda, ase, o1) = ('sDA300 (%): {:.1f} | > (55, 75) | {}'.format(self['res']['sda'], ('Pass', 'Fail')[self['res']['sda'] < 55]), 
+                        (sda, ase, o1) = ('sDA300 (%): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], (l, h), ('Pass', 'Fail')[self['res']['sda'] < 55]),
                         'ASE1000 (hours): {:.0f} | < 250 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]), 
                         'Total credits: {}'.format(self['res']['o1']))
                     row = layout.row()
@@ -2008,7 +2017,67 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['auto'] = -1
                 self['res']['o1'] = -1
                 
-                if self.light_menu == '2':
+                if self.light_menu == '0':
+                    if self.breeam_menu == '0':
+                        mDF = 2
+                        mA = 0.8
+                        cred = 2
+                        if self.breeam_edumenu == '1':
+                            mA = 0.6
+                            cred = 1
+                    elif self.breeam_menu == '1': 
+                        cred = 2
+                        mA = 0.8
+                        mDF = 2
+                        if self.breeam_healthmenu == '1':
+                            mDF = 3
+                    elif self.breeam_menu == '2': 
+                        cred = 1
+                        mDF = 2
+                        mA = 0.8
+                    elif self.breeam_menu == '3': 
+                        cred = 1
+                        mDF = 2
+                        mA = 0.8
+                        if self.breeam_retailmenu == '0':
+                            mA = 0.35
+                    elif self.breeam_menu == '4': 
+                        cred = 1
+                        mA = 0.8
+                        if self.breeam_othermenu == '0':
+                            mDF = 1.5
+                        elif self.breeam_othermenu in ('1', '2'):
+                            mDF = 3
+                        else:
+                            mDF = 2
+
+                    for r in rl:
+                        if r[0] == self.frame_menu:
+                            if r[2] == self.zone_menu:
+                                if r[3] == 'Areas (m2)':
+                                    dfareas = array([float(p) for p in r[4].split()])
+                                elif r[3] == 'DF (%)':
+                                    df = array([float(p) for p in r[4].split()])
+
+                    try:
+                        self['res']['avDF'] = round(nsum(df * dfareas)/nsum(dfareas), 2)
+                        tdf = stack((df, dfareas), axis=1)
+                        stdf = tdf[tdf[:,0].argsort()][::-1]
+                        aDF = stdf[0][0]
+                        rarea = stdf[0][1] 
+                        i = 1
+
+                        while (aDF >= mDF and i < len(df)):
+                            aDF = nsum(stdf[0: i + 1, 0] * dfareas[0: i + 1])/nsum(dfareas[0: i + 1])
+                            rarea += stdf[i][1]
+                            i += 1
+
+                        self['res']['areaDF'] = round(100 * rarea/nsum(dfareas), 2)
+                        self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
+                    except:
+                        pass
+
+                elif self.light_menu == '2':
                     for r in rl:
                         if r[0] == self.frame_menu:
                             if r[2] == self.zone_menu:
@@ -2041,10 +2110,12 @@ class No_Vi_Metrics(Node, ViNodes):
                                     self['res']['udiae'] = udiaareas[ie]
 
                     if self['res']['ase'] < 250:
-                        if self['res']['sda'] > 55:
-                            self['res']['o1'] = 2  
-                        if self['res']['sda'] > 75:
-                            self['res']['o1'] = 3
+                        if self['res']['sda'] > (55, 75)[self.leed_menu]:
+                            self['res']['o1'] = (2, 1)[self.leed_menu]  
+                        if self['res']['sda'] > (75, 90)[self.leed_menu]:
+                            self['res']['o1'] = (3, 2)[self.leed_menu]
+                    else:
+                        self['res']['o1'] = 0
 
             elif self.metric == '2':        
                 self['res']['pressure'] = {}
@@ -2054,10 +2125,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['zvelocity'] = {}
                 self['res']['yvelocity'] = {}
                 self['res']['wpc'] = {}
-
-#                if self.frame_menu == 'All':
                 znames = set([z[2] for z in rl if z[1] == 'Zone'])
-#                print('zname', znames)
 
                 for zn in znames:
                     for r in rl:
@@ -2069,17 +2137,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['speed'][zn] = float(r[4].split()[-1])
                             elif r[3] == 'Temperature':
                                 self['res']['temperature'][zn] = float(r[4].split()[-1])
-
-                # for r in rl:
-                #     if r[0] == self.frame_menu:
-                #         if r[2] == self.zone_menu:
-                #             if r[3] == 'Pressure':
-                #                 self['res']['pressure'] = [float(p) for p in r[4].split()][-1]
-                #             elif r[3] == 'Temperature':
-                #                 self['res']['temperature'] = [float(p) for p in r[4].split()][-1]
-                #             elif r[3] == 'Speed':
-                #                 self['res']['speed'] = [float(p) for p in r[4].split()][-1]
-
                     
     def ret_metrics(self):
         if self.inputs['Results in'].links:

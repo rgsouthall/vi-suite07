@@ -2712,10 +2712,12 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         redraw = 0        
         updates = [0 for i in self.images]
         
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or event.type == 'ESC':
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or not context.area:
             svp.vi_display = 0
-#            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
-            context.area.tag_redraw()
+
+            if context.area:
+                context.area.tag_redraw()
+                
             return {'CANCELLED'}
 
         if self.cao != context.active_object:            
@@ -2867,9 +2869,12 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         svp = scene.vi_params
         redraw = 0
            
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or event.type == 'ESC':
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or not context.area:
             svp.vi_display = 0
-            context.area.tag_redraw()
+            
+            if context.area:
+                context.area.tag_redraw()
+                
             return {'CANCELLED'}
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
@@ -2980,8 +2985,12 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         redraw = 0 
         updates = [0 for i in self.images]
         
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']]:
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] or not context.area:
             svp.vi_display = 0
+            
+            if context.area:
+                context.area.tag_redraw()
+                
             return {'CANCELLED'}   
         
         if self.scattcol != svp.vi_leg_col or self.cao != context.active_object or self.frame != svp.vi_frames:
@@ -3088,12 +3097,14 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         r2w = r2.width
         redraw = 0
  
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or event.type == 'ESC':
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or not context.area:
             svp['viparams']['vidisp'] = 'bsdf'
             svp.vi_display = 0
-#            bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_bsdfnum, 'WINDOW')
             self.bsdf.plt.close()
-            context.area.tag_redraw()
+            
+            if context.area:
+                context.area.tag_redraw()
+                
             return {'CANCELLED'}
 
         if self.bsdf.expand and any((self.bsdf.leg_max != svp.vi_bsdfleg_max, 
@@ -3222,78 +3233,79 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0 
-        if context.area:
+
+        if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
+            svp.vi_display = 0
+            
+            if context.area:
+                context.area.tag_redraw()
+            else:
+                logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
+
+            return {'CANCELLED'}        
+        
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
             r2 = context.area.regions[2]
             r2h = r2.height
             r2w = r2.width
-
-            if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
-                if context.area:
-                    context.area.tag_redraw()
-                else:
-                    logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
-
-                return {'CANCELLED'}        
+            mx, my = event.mouse_region_x, event.mouse_region_y  
             
-            if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
-                mx, my = event.mouse_region_x, event.mouse_region_y  
-                
-                # Legend routine 
-                rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
-                
-                if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
-                    self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-                    redraw = 1
-                    if event.type == 'LEFTMOUSE':
-                        if event.value == 'RELEASE':
-                            self.legend.expand = 0 if self.legend.expand else 1
-                            
-                elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
-                    self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-                    redraw = 1   
-                    if event.type == 'LEFTMOUSE':
-                        if event.value == 'PRESS':
-                            self.legend.move = 1
-                            self.legend.draw(context)
-                            if context.area:
-                                context.area.tag_redraw()
-                        elif self.legend.move and event.value == 'RELEASE':
-                            self.legend.move = 0                        
-                        return {'RUNNING_MODAL'}
-                  
-                elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
-                    self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-                    if context.area:
-                        context.area.tag_redraw()
-                    if event.type == 'LEFTMOUSE':
-                        if event.value == 'PRESS':
-                            self.legend.resize = 1
-                            self.legend.draw(context)
-                            if context.area:
-                                context.area.tag_redraw()
-                        elif self.legend.resize and event.value == 'RELEASE':
-                            self.legend.resize = 0
-                        return {'RUNNING_MODAL'}  
-                    
-                elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
-                    self.legend.hl = (1, 1, 1, 1)
-                    redraw = 1
-                    
-                if event.type == 'MOUSEMOVE':                
-                    if self.legend.move:
-                        self.legend.lspos[0], self.legend.lepos[1] = mx, my
-                        self.legend.draw(context)
-                        if context.area:
-                            context.area.tag_redraw() 
-                    elif self.legend.resize:
-                        self.legend.lepos[0], self.legend.lspos[1] = mx, my
+            # Legend routine 
+            rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
+            
+            if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'RELEASE':
+                        self.legend.expand = 0 if self.legend.expand else 1
+                        
+            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                redraw = 1   
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.move = 1
                         self.legend.draw(context)
                         if context.area:
                             context.area.tag_redraw()
+                    elif self.legend.move and event.value == 'RELEASE':
+                        self.legend.move = 0                        
+                    return {'RUNNING_MODAL'}
+              
+            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
+                if context.area:
+                    context.area.tag_redraw()
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.resize = 1
+                        self.legend.draw(context)
+                        if context.area:
+                            context.area.tag_redraw()
+                    elif self.legend.resize and event.value == 'RELEASE':
+                        self.legend.resize = 0
+                    return {'RUNNING_MODAL'}  
                 
-                if redraw:
+            elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
+                self.legend.hl = (1, 1, 1, 1)
+                redraw = 1
+                
+            if event.type == 'MOUSEMOVE':                
+                if self.legend.move:
+                    self.legend.lspos[0], self.legend.lepos[1] = mx, my
+                    self.legend.draw(context)
+                    if context.area:
+                        context.area.tag_redraw() 
+                elif self.legend.resize:
+                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                    self.legend.draw(context)
                     if context.area:
                         context.area.tag_redraw()
+            
+            if redraw:
+                if context.area:
+                    context.area.tag_redraw()
 
         return {'PASS_THROUGH'}
     
@@ -3330,1064 +3342,6 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             self.results_bar.draw(r2.width, r2.height)
             self.legend.draw(context)
             self.legend_num.draw(context)
+            
         except Exception as e:
             logentry('Quitting LiVi display {}'.format(e))
-
-
-        
-#        self.dhscatter.draw(context, area.width)
-#        self.num_display.draw(context)
-
-#        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-
-#        if svp['viparams']['visimcontext'] == 'LiVi Basic':
-#            self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)  
-#
-#        if svp['viparams']['visimcontext'] == 'LiVi Compliance':
-#            self.table_comp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
-#
-#            if self.simnode['coptions']['canalysis'] == '3':
-#                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
-#                self.dhscatter.update(context)        
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-
-#        self.dhscatter.update(context)
-        
-#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-#        elif self.scene['viparams']['visimcontext'] == 'LiVi Basic':
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        if self.scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        elif self.scene['viparams']['visimcontext'] == 'LiVi CBDM':
-#            if self.simnode['coptions']['cbanalysis'] != '0':
-#                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
-#                self.dhscatter.update(context)
-#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-
-#    def modal(self, context, event): 
-#        redraw = 0 
-#        
-#        if self.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not any([o.lires for o in bpy.data.objects]):
-#            self.scene.vi_display = 0
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-#            self.scene['viparams']['vidisp'] = 'li'
-#            context.area.tag_redraw()
-#            return {'CANCELLED'}
-#
-#        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
-#            mx, my = event.mouse_region_x, event.mouse_region_y 
-#            
-#            if any((self.scene.vi_leg_levels != self.legend.levels, self.scene.vi_leg_col != self.legend.col, self.scene.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
-#                self.legend.update(context)
-#                redraw = 1
-#            
-#            # Legend routine 
-#            
-#            if self.legend.spos[0] < mx < self.legend.epos[0] and self.legend.spos[1] < my < self.legend.epos[1]:
-#                if self.legend.hl != (0, 1, 1, 1):
-#                    self.legend.hl = (0, 1, 1, 1)
-#                    redraw = 1  
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.legend.press = 1
-#                        self.legend.move = 0
-#                        return {'RUNNING_MODAL'}
-#                    elif event.value == 'RELEASE':
-#                        if not self.legend.move:
-#                            self.legend.expand = 0 if self.legend.expand else 1
-#                        self.legend.press = 0
-#                        self.legend.move = 0
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-#                
-#                elif event.type == 'ESC':
-#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
-#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-#                    self.scene['viparams']['vidisp'] = 'li'
-#                    context.area.tag_redraw()
-#                    return {'CANCELLED'}
-#                    
-#                elif self.legend.press and event.type == 'MOUSEMOVE':
-#                     self.legend.move = 1
-#                     self.legend.press = 0
-#            
-#            elif abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
-#                if self.legend.hl != (0, 1, 1, 1):
-#                    self.legend.hl = (0, 1, 1, 1)
-#                    redraw = 1
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.legend.resize = 1
-#                    if self.legend.resize and event.value == 'RELEASE':
-#                        self.legend.resize = 0
-#                    return {'RUNNING_MODAL'}
-#                    
-#            elif self.legend.hl != (1, 1, 1, 1):
-#                self.legend.hl = (1, 1, 1, 1)
-#                redraw = 1
-
-            # Table routine
-            
-#            if self.frame != context.scene.frame_current or self.table.unit != context.scene['liparams']['unit'] or self.table.cao != context.active_object:
-#                self.table.update(context)                
-#                redraw = 1
-#            
-#            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
-#                if self.table.hl != (0, 1, 1, 1):
-#                    self.table.hl = (0, 1, 1, 1)
-#                    redraw = 1  
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.table.press = 1
-#                        self.table.move = 0
-#                        return {'RUNNING_MODAL'}
-#                    elif event.value == 'RELEASE':
-#                        if not self.table.move:
-#                            self.table.expand = 0 if self.table.expand else 1
-#                        self.table.press = 0
-#                        self.table.move = 0
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-                
-#                elif event.type == 'ESC':
-#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
-#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-#                    context.scene['viparams']['vidisp'] = 'li'
-#                    context.area.tag_redraw()
-#                    return {'CANCELLED'}
-#                    
-#                elif self.table.press and event.type == 'MOUSEMOVE':
-#                     self.table.move = 1
-#                     self.table.press = 0                     
-#            elif self.table.hl != (1, 1, 1, 1):
-#                self.table.hl = (1, 1, 1, 1)
-#                redraw = 1
-#                
-#            if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#                if self.frame != context.scene.frame_current:
-#                    self.tablecomp.update(context)
-#                    redraw = 1
-#                if self.tablecomp.unit != context.scene['liparams']['unit']:
-#                    self.tablecomp.update(context)
-#                    self.tablecomp.unit = context.scene['liparams']['unit']
-#                    redraw = 1
-#                if self.tablecomp.cao != context.active_object:
-#                    self.tablecomp.update(context)
-#                    redraw = 1
-#                
-#                if self.tablecomp.spos[0] < mx < self.tablecomp.epos[0] and self.tablecomp.spos[1] < my < self.tablecomp.epos[1]:
-#                    if self.tablecomp.hl != (0, 1, 1, 1):
-#                        self.tablecomp.hl = (0, 1, 1, 1)
-#                        redraw = 1  
-#                    if event.type == 'LEFTMOUSE':
-#                        if event.value == 'PRESS':
-#                            self.tablecomp.press = 1
-#                            self.tablecomp.move = 0
-#                            return {'RUNNING_MODAL'}
-#                        elif event.value == 'RELEASE':
-#                            if not self.tablecomp.move:
-#                                self.tablecomp.expand = 0 if self.tablecomp.expand else 1
-#                            self.tablecomp.press = 0
-#                            self.tablecomp.move = 0
-#                            context.area.tag_redraw()
-#                            return {'RUNNING_MODAL'}
-#                    
-#                    elif event.type == 'ESC':
-#                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
-#                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-#                        context.scene['viparams']['vidisp'] = 'li'
-#                        context.area.tag_redraw()
-#                        return {'CANCELLED'}
-#                        
-#                    elif self.tablecomp.press and event.type == 'MOUSEMOVE':
-#                         self.tablecomp.move = 1
-#                         self.tablecomp.press = 0                     
-#                elif self.tablecomp.hl != (1, 1, 1, 1):
-#                    self.tablecomp.hl = (1, 1, 1, 1)
-#                    redraw = 1
-                
-#            if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-e (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Avg lux', 'kWh', 'kWh/m2'):
-#                if self.dhscatter.frame != context.scene.frame_current:
-#                    self.dhscatter.update(context)
-#                    redraw = 1
-#                if self.dhscatter.unit != context.scene['liparams']['unit']:
-#                    self.dhscatter.update(context)
-#                    redraw = 1
-#                if self.dhscatter.cao != context.active_object:
-#                    self.dhscatter.update(context)
-#                    redraw = 1
-#                if self.dhscatter.col != context.scene.vi_leg_col:
-#                    self.dhscatter.update(context)
-#                    redraw = 1
-#                if context.scene['liparams']['unit'] in ('Max lux', 'Min lux', 'Avg lux', 'kWh', 'kWh/m2'):
-#                    if (self.dhscatter.vmin, self.dhscatter.vmax) != (context.scene.vi_scatter_min, context.scene.vi_scatter_max):
-#                       self.dhscatter.update(context) 
-#                       redraw = 1
-#                                        
-#                if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
-#                    if self.dhscatter.hl != (0, 1, 1, 1):
-#                        self.dhscatter.hl = (0, 1, 1, 1)
-#                        redraw = 1 
-#                    if event.type == 'LEFTMOUSE':
-#                        if event.value == 'PRESS':
-#                            self.dhscatter.press = 1
-#                            self.dhscatter.move = 0
-#                            return {'RUNNING_MODAL'}
-#                        elif event.value == 'RELEASE':
-#                            if not self.dhscatter.move:
-#                                self.dhscatter.expand = 0 if self.dhscatter.expand else 1
-#                            self.dhscatter.press = 0
-#                            self.dhscatter.move = 0
-#                            context.area.tag_redraw()
-#                            return {'RUNNING_MODAL'}
-                    
-#                    elif event.type == 'ESC':
-#                        bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_ssnum, 'WINDOW')
-##                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-#                        context.scene['viparams']['vidisp'] = 'li'
-#                        context.area.tag_redraw()
-#                        return {'CANCELLED'}
-#                        
-#                    elif self.dhscatter.press and event.type == 'MOUSEMOVE':
-#                         self.dhscatter.move = 1
-#                         self.dhscatter.press = 0   
-#                                            
-#                else:
-#                    if self.dhscatter.hl != (1, 1, 1, 1):
-#                        self.dhscatter.hl = (1, 1, 1, 1)
-#                        redraw = 1
-#                    if self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
-#                        if self.dhscatter.expand: 
-#                            self.dhscatter.hl = (1, 1, 1, 1)
-#                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
-#                                self.dhscatter.show_plot()
-#                                                         
-#            # Resize routines
-#            
-#            if abs(self.legend.lepos[0] - mx) < 20 and abs(self.legend.lspos[1] - my) < 20:
-#                self.legend.hl = (0, 1, 1, 1) 
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.legend.resize = 1
-#                    if self.legend.resize and event.value == 'RELEASE':
-#                        self.legend.resize = 0
-#                    return {'RUNNING_MODAL'}
-                    
-#            elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20:
-#                self.table.hl = (0, 1, 1, 1) 
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.table.resize = 1
-#                    if self.table.resize and event.value == 'RELEASE':
-#                        self.table.resize = 0
-#                    return {'RUNNING_MODAL'}
-#            
-#            elif context.scene['viparams']['visimcontext'] == 'LiVi Compliance' and abs(self.tablecomp.lepos[0] - mx) < 20 and abs(self.tablecomp.lspos[1] - my) < 20:
-#                self.tablecomp.hl = (0, 1, 1, 1) 
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.tablecomp.resize = 1
-#                    if self.tablecomp.resize and event.value == 'RELEASE':
-#                        self.tablecomp.resize = 0
-#                    return {'RUNNING_MODAL'}
-#
-#            elif context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-s (%)', 'UDI-e (%)', 'UDI-f (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Avg lux', 'kWh', 'kWh/m2') and abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
-#                self.dhscatter.hl = (0, 1, 1, 1) 
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.dhscatter.resize = 1
-#                    if self.dhscatter.resize and event.value == 'RELEASE':
-#                        self.dhscatter.resize = 0
-#                    return {'RUNNING_MODAL'}
-            # Move routines
-                     
-#            if event.type == 'MOUSEMOVE':                
-#                if self.legend.move:
-#                    self.legend.pos = [mx, my]
-#                    redraw = 1
-#                if self.legend.resize:
-#                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
-#                    redraw = 1
-#                if self.table.move:
-#                    self.table.pos = [mx, my]
-#                    redraw = 1
-#                if self.table.resize:
-#                    self.table.lepos[0], self.table.lspos[1] = mx, my
-#                    redraw = 1
-#                if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#                    if self.tablecomp.move:
-#                        self.tablecomp.pos = [mx, my]
-#                        redraw = 1
-#                    if self.tablecomp.resize:
-#                        self.tablecomp.lepos[0], self.tablecomp.lspos[1] = mx, my
-#                        redraw = 1
-#                try:
-#                    if self.dhscatter.move:
-#                        self.dhscatter.pos = [mx, my]
-#                        redraw = 1
-#                    if self.dhscatter.resize:
-#                        self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
-#                        redraw = 1
-#                except:
-#                    pass
-#                                
-#            if redraw:
-#                context.area.tag_redraw()
-#                self.frame = context.scene.frame_current
-#                
-#        return {'PASS_THROUGH'}
-
-#                self.bsdf.draw(context)
-
-#        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
-#            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
-#                self.remove(context)
-#                context.scene['viparams']['vidisp'] = self.olddisp
-#                return {'CANCELLED'}
-#
-#            mx, my = event.mouse_region_x, event.mouse_region_y
-#            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
-#                self.bsdf.hl = (0, 1, 1, 1)  
-#                
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.bsdfpress = 1
-#                        self.bsdfmove = 0
-#                        return {'RUNNING_MODAL'}
-#                    elif event.value == 'RELEASE':
-#                        if not self.bsdfmove:
-#                            self.bsdf.expand = 0 if self.bsdf.expand else 1
-#                        self.bsdfpress = 0
-#                        self.bsdfmove = 0
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-#                        
-#                elif event.type == 'ESC':
-#                    self.remove(context)
-#                    context.scene['viparams']['vidisp'] = self.olddisp
-#                    return {'CANCELLED'}                   
-#                elif self.bsdfpress and event.type == 'MOUSEMOVE':
-#                     self.bsdfmove = 1
-#                     self.bsdfpress = 0
-#                            
-#            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
-#                self.bsdf.hl = (0, 1, 1, 1) 
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.bsdf.resize = 1
-#                    if self.bsdf.resize and event.value == 'RELEASE':
-#                        self.bsdf.resize = 0
-#                    return {'RUNNING_MODAL'}  
-#            
-#            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
-#                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-#                    self.bsdf.plt.show()
-#            
-#            else:
-#                for butrange in self.bsdf.buttons:
-#                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
-#                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
-#                            if butrange in ('Front', 'Back'):
-#                                self.bsdf.dir_select = butrange
-#                            elif butrange in ('Visible', 'Solar', 'Discrete'):
-#                                self.bsdf.rad_select = butrange
-#                            elif butrange in ('Transmission', 'Reflection'):
-#                                self.bsdf.type_select = butrange
-#                            self.bsdf.plot(context)
-#
-#                self.bsdf.hl = (1, 1, 1, 1)
-#                                
-#            if event.type == 'MOUSEMOVE':                
-#                if self.bsdfmove:
-#                    self.bsdf.pos = [mx, my]
-#                    context.area.tag_redraw()
-#                    return {'RUNNING_MODAL'}
-#                if self.bsdf.resize:
-#                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
-#            
-#            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
-#                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
-#                phi = atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + pi
-#
-#                if theta < self.bsdf.radii[-1]:
-#                    for ri, r in enumerate(self.bsdf.radii):
-#                        if theta < r:
-#                            break
-#
-#                    upperangles = [p * 2 * pi/self.bsdf.phis[ri] + pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
-#                    uai = 0
-#
-#                    if ri > 0:
-#                        for uai, ua in enumerate(upperangles): 
-#                            if phi > upperangles[-1]:
-#                                uai = 0
-#                                break
-#                            if phi < ua:
-#                                break
-#
-#                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
-#                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
-#                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
-#                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
-#                        self.bsdf.plot(context)
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-#                        
-#                else:
-#                    self.bsdf.patch_hl = None
-#                    
-
-#def draw_legend(self, scene, unit):
-#     font_id = 0
-#     blf.enable(0, 4)
-#     blf.enable(0, 8)
-#     blf.shadow(font_id, 5, 0.7, 0.7, 0.7, 1)    
-#     levels = len(self.resvals)
-#     xdiff = self.lepos[0] - self.lspos[0]
-#     ydiff = self.lepos[1] - self.lspos[1]
-#     lh = ydiff/(levels + 1.25)   
-#     blf.size(font_id, 12, 300)
-#     titxdimen = blf.dimensions(font_id, unit)[0]
-#     resxdimen = blf.dimensions(font_id, self.resvals[-1])[0]
-#     mydimen = blf.dimensions(font_id, unit)[1]
-#     fontscale = max(titxdimen/(xdiff * 0.9), resxdimen/(xdiff * 0.6), mydimen * 1.25/lh)
-#     blf.size(font_id, 12, int(300/fontscale))
-
-#     if not self.resize:
-#         self.lspos = [self.spos[0], self.spos[1] - ydiff]
-#         self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            
-#     else:
-#         self.lspos = [self.spos[0], self.lspos[1]]
-#         self.lepos = [self.lepos[0], self.spos[1]]
-    
-#     bgl.glLineWidth(1)
-#     self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-#     self.legf_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-#     self.legfc_shader = gpu.shader.from_builtin('2D_FLAT_COLOR')
-#     colours = [item for item in [self.cols[i] for i in range(levels)] for i in range(4)]
-#     v_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lepos[1]), (self.lepos[0], self.lepos[1]), (self.lepos[0], self.lspos[1])]
-#     vl_coords = v_coords
-#     f_indices = [(0, 1, 2), (2, 3, 0)]
-#     fl1_indices = [tuple(array((0, 1, 2)) +4 * i) for i in range(levels)]
-#     fl2_indices = [tuple(array((2, 3, 0)) +4 * i) for i in range(levels)]
-#     fl_indices = list(fl1_indices) + list(fl2_indices)
-
-#     for i in range(0, levels):
-#         vl_coords += [(self.lspos[0], int(self.lspos[1] + i * lh)), (int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + i * lh)), (int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh)), (self.lspos[0], int(self.lspos[1] + (i + 1) * lh))]
-
-#     self.legl_batch = batch_for_shader(self.legl_shader, 'LINE_LOOP', {"pos": vl_coords})
-#     self.legf_batch = batch_for_shader(self.legf_shader, 'TRIS', {"pos": v_coords}, indices = f_indices)
-#     self.legfc_batch = batch_for_shader(self.legfc_shader, 'TRIS', {"pos": vl_coords[4:], "color": colours}, indices = fl_indices)
-#     bgl.glEnable(bgl.GL_BLEND)
-#     self.legf_shader.bind()
-#     self.legf_shader.uniform_float("color", (self.hl))
-#     self.legf_batch.draw(self.legf_shader)
-#     bgl.glDisable(bgl.GL_BLEND)
-    
-#     self.legfc_shader.bind()
-#     self.legfc_batch.draw(self.legfc_shader)
-    
-#     self.legl_shader.bind()
-#     self.legl_shader.uniform_float("color", (0, 0, 0, 1))
-#     self.legl_batch.draw(self.legl_shader)
-
-#     blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.45, self.spos[1] - 0.5 * lh - blf.dimensions(font_id, unit)[1] * 0.3, 0) 
-#     blf.color(font_id, 0, 0, 0, 1)      
-#     blf.draw(font_id, unit)
-# #    blf.enable(0, blf.SHADOW)
-# #    blf.enable(0, blf.KERNING_DEFAULT)
-# #    blf.shadow(0, 5, 0, 0, 0, 0.7)
-    
-# #    bgl.glColor4f(*scene.vi_display_rp_fc)
-
-#     blf.shadow(font_id, 5, 0.8, 0.8, 0.8, 1)
-    
-#     blf.size(font_id, 12, int(250/fontscale))
-#     bgl.glDisable(bgl.GL_BLEND)
-    
-# #    self.legl_shader = gpu.shader.from_builtin('2D_UNIFORM_COLOR')
-   
-#     for i in range(levels):
-#         num = self.resvals[i]
-# #        rgba = self.cols[i]
-#         bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-#         ndimen = blf.dimensions(font_id, "{}".format(num))
-#         blf.position(font_id, int(self.lepos[0] - xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
-# #        bgl.glColor4f(0, 0, 0, 1)
-#         blf.draw(font_id, "{}".format(self.resvals[i]))
-    
-#     bgl.glLineWidth(1)
-# #    bgl.glColor4f(0, 0, 0, 1)
-#     blf.disable(0, 8)  
-#     blf.disable(0, 4)
-
-# class ss_legend(Base_Display):
-#     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
-#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
-#         self.base_unit = unit
-#         self.font_id = 0
-#         self.dpi = 300
-#         self.levels = 20        
-#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
-#         self.f_indices = [(0, 1, 2), (2, 3, 0)]
-#         self.update(context)
-#         self.create_batch()
-                                
-#     def update(self, context):        
-#         scene = context.scene
-#         svp = scene.vi_params
-#         self.levels = svp.vi_leg_levels
-#         self.lh = 1/(self.levels + 1.25)
-#         self.cao = context.active_object        
-#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-#         (self.minres, self.maxres) = leg_min_max(svp)
-#         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
-
-# #        for key, val in unit_dict.items():
-# #            if val == svp.li_disp_basic:
-# #                self.base_unit =  key
-#         self.base_unit =  res2unit[svp.li_disp_basic]
-#         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
-#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-#         resdiff = self.maxres - self.minres
-        
-#         if not svp.get('liparams'):
-#             svp.vi_display = 0
-#             return
-#         dplaces = retdp(self.maxres, 1)
-#         resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
-#                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
-
-#         self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
-#         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
-#         blf.size(self.font_id, 12, self.dpi)        
-#         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
-#         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
-#         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
-
-#     def ret_coords(self):      
-#         lh = 1/(self.levels + 1.25) 
-#         vl_coords = self.v_coords[:]
-#         fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
-#         fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
-#         fl_indices = list(fl1_indices) + list(fl2_indices)
-        
-#         for i in range(0, self.levels):
-#             vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
-#         return (vl_coords, fl_indices)
-    
-#     def draw(self, context):
-#         self.ah = context.area.height
-#         self.aw = context.area.width
-#         svp = context.scene.vi_params
-        
-#         if self.expand:
-#             if self.resize:
-#                 self.xdiff = self.lepos[0] - self.lspos[0]
-#                 self.ydiff = self.lepos[1] - self.lspos[1]
-#             elif self.move:
-#                 self.lspos[1] = self.lepos[1] - self.ydiff
-#                 self.lepos[0] = self.lspos[0] + self.xdiff
-#             if self.lepos[1] > self.ah:
-#                 self.lspos[1] = self.ah - self.ydiff 
-#                 self.lepos[1] = self.ah
-#             if self.lepos[0] > self.aw:
-#                 self.lspos[0] = self.aw - self.xdiff   
-#                 self.lepos[0] = self.aw
-                
-#             self.base_shader.bind()
-#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
-#             self.base_shader.uniform_float("spos", self.lspos)
-#             self.base_shader.uniform_float("colour", self.hl)      
-#             self.base_batch.draw(self.base_shader)  
-
-#             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
-#                 self.update(context)
-#                 (vl_coords, fl_indices) = self.ret_coords()
-#                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-#                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-                
-#             self.col_shader.bind()
-#             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
-#             self.col_shader.uniform_float("spos", self.lspos)  
-#             self.col_batch.draw(self.col_shader)            
-#             self.line_shader.bind()
-#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
-#             self.line_shader.uniform_float("spos", self.lspos)
-#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
-#             self.line_batch.draw(self.line_shader)
-#             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
-#             blf.enable(0, 4)
-#             blf.enable(0, 8)
-#             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-#             blf.size(self.font_id, 12, int(self.dpi/fontscale))
-#             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
-#             blf.color(self.font_id, 0, 0, 0, 1)   
-#             blf.draw(self.font_id, self.unit)
-#             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
-#             blf.size(self.font_id, 12, int((self.dpi - 50)/fontscale))
-            
-#             for i in range(self.levels):
-#                 num = self.resvals[i]            
-#                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
-#                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.025 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
-#                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
-                
-#             blf.disable(0, 8)  
-#             blf.disable(0, 4)
-           
-#     def create_batch(self):
-#         base_vertex_shader = '''
-#             uniform mat4 ModelViewProjectionMatrix;
-#             uniform vec2 spos;
-#             uniform vec2 size;
-#             in vec2 position;
-            
-#             void main()
-#                 {
-#                    float xpos = spos[0] + position[0] * size[0];
-#                    float ypos = spos[1] + position[1] * size[1]; 
-#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-#                 }
-#             '''
-            
-#         base_fragment_shader = '''
-#             uniform vec4 colour;
-#             out vec4 FragColour;
-            
-#             void main()
-#                 {
-#                     FragColour = colour;
-#                 }
-           
-#             '''
-            
-#         col_vertex_shader = '''
-#             uniform mat4 ModelViewProjectionMatrix;
-#             uniform vec2 spos;
-#             uniform vec2 size;
-#             in vec2 position;
-#             in vec4 colour;
-#             flat out vec4 f_colour;
-            
-#             void main()
-#                 {
-#                    float xpos = spos[0] + position[0] * size[0];
-#                    float ypos = spos[1] + position[1] * size[1]; 
-#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-#                    f_colour = colour;
-#                 }
-#             '''
-            
-#         col_fragment_shader = '''
-#             uniform vec4 colour;
-#             out vec4 FragColour;
-#             flat in vec4 f_colour;
-            
-#             void main()
-#                 {
-#                     FragColour = f_colour;
-#                 }
-           
-#             '''  
-            
-#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-#         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
-#         (vl_coords, fl_indices) = self.ret_coords()
-#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
-#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-#         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-
-# class livi_legend(Base_Display):
-#     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
-#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
-#         self.base_unit = unit
-#         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
-#         self.dpi = 157
-#         self.levels = 20        
-#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
-#         self.f_indices = [(0, 1, 2), (2, 3, 0)]
-#         self.update(context)
-#         self.create_batch()
-                                
-#     def update(self, context):        
-#         scene = context.scene
-#         svp = scene.vi_params
-#         self.levels = svp.vi_leg_levels
-#         self.lh = 1/(self.levels + 1.25)
-#         self.cao = context.active_object        
-#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-#         (self.minres, self.maxres) = leg_min_max(svp)
-#         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
-
-# #        for key, val in unit_dict.items():
-# #            if val == svp.li_disp_basic:
-# #                self.base_unit =  key
-#         self.base_unit =  res2unit[svp.li_disp_menu]        
-#         self.unit = self.base_unit if not svp.vi_leg_unit else svp.vi_leg_unit
-#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-#         resdiff = self.maxres - self.minres
-        
-#         if not svp.get('liparams'):
-#             svp.vi_display = 0
-#             return
-#         dplaces = retdp(self.maxres, 1)
-#         resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
-#                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
-
-#         self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
-#         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
-#         blf.size(self.font_id, 12, self.dpi)        
-#         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
-#         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
-#         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
-
-#     def ret_coords(self):      
-#         lh = 1/(self.levels + 1.25) 
-#         vl_coords = self.v_coords[:]
-#         fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
-#         fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
-#         fl_indices = list(fl1_indices) + list(fl2_indices)
-        
-#         for i in range(0, self.levels):
-#             vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
-#         return (vl_coords, fl_indices)
-    
-#     def draw(self, context):
-#         self.ah = context.region.height
-#         self.aw = context.region.width
-#         svp = context.scene.vi_params
-        
-#         if self.expand:
-#             if self.resize:
-#                 self.xdiff = self.lepos[0] - self.lspos[0]
-#                 self.ydiff = self.lepos[1] - self.lspos[1]
-#             elif self.move:
-#                 self.lspos[1] = self.lepos[1] - self.ydiff
-#                 self.lepos[0] = self.lspos[0] + self.xdiff
-#             if self.lepos[1] > self.ah:
-#                 self.lspos[1] = self.ah - self.ydiff 
-#                 self.lepos[1] = self.ah
-#             if self.lepos[0] > self.aw:
-#                 self.lspos[0] = self.aw - self.xdiff   
-#                 self.lepos[0] = self.aw
-                
-#             self.base_shader.bind()
-#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
-#             self.base_shader.uniform_float("spos", self.lspos)
-#             self.base_shader.uniform_float("colour", self.hl)      
-#             self.base_batch.draw(self.base_shader)  
-#             self.unit = svp.vi_leg_unit if svp.vi_leg_unit else self.unit
-            
-#             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
-#                 self.update(context)
-#                 (vl_coords, fl_indices) = self.ret_coords()
-#                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-#                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-                               
-#             self.col_shader.bind()
-#             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
-#             self.col_shader.uniform_float("spos", self.lspos)  
-#             self.col_batch.draw(self.col_shader)            
-#             self.line_shader.bind()
-#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
-#             self.line_shader.uniform_float("spos", self.lspos)
-#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
-#             self.line_batch.draw(self.line_shader)
-#             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
-#             blf.enable(0, 4)
-#             blf.enable(0, 8)
-#             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-#             blf.shadow_offset(self.font_id, 1, 1)
-#             blf.size(self.font_id, int(14/fontscale), self.dpi)
-#             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
-#             blf.color(self.font_id, 0, 0, 0, 1)   
-#             blf.draw(self.font_id, self.unit)
-#             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
-#             blf.size(self.font_id, int(11/fontscale), self.dpi)
-            
-#             for i in range(self.levels):
-#                 num = self.resvals[i]            
-#                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
-#                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.025 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
-#                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
-                
-#             blf.disable(0, 8)  
-#             blf.disable(0, 4)
-           
-#     def create_batch(self):
-#         base_vertex_shader = '''
-#             uniform mat4 ModelViewProjectionMatrix;
-#             uniform vec2 spos;
-#             uniform vec2 size;
-#             in vec2 position;
-            
-#             void main()
-#                 {
-#                    float xpos = spos[0] + position[0] * size[0];
-#                    float ypos = spos[1] + position[1] * size[1]; 
-#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-#                 }
-#             '''
-            
-#         base_fragment_shader = '''
-#             uniform vec4 colour;
-#             out vec4 FragColour;
-            
-#             void main()
-#                 {
-#                     FragColour = colour;
-#                 }
-           
-#             '''
-            
-#         col_vertex_shader = '''
-#             uniform mat4 ModelViewProjectionMatrix;
-#             uniform vec2 spos;
-#             uniform vec2 size;
-#             in vec2 position;
-#             in vec4 colour;
-#             flat out vec4 f_colour;
-            
-#             void main()
-#                 {
-#                    float xpos = spos[0] + position[0] * size[0];
-#                    float ypos = spos[1] + position[1] * size[1]; 
-#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-#                    f_colour = colour;
-#                 }
-#             '''
-            
-#         col_fragment_shader = '''
-#             uniform vec4 colour;
-#             out vec4 FragColour;
-#             flat in vec4 f_colour;
-            
-#             void main()
-#                 {
-#                     FragColour = f_colour;
-#                 }
-           
-#             '''  
-            
-#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-#         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
-#         (vl_coords, fl_indices) = self.ret_coords()
-#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
-#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-#         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-            
-#class wr_legend(Base_Display):
-#    def __init__(self, pos, width, height, iname, xdiff, ydiff):
-#        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
-#        
-#    def update(self, context):
-#        scene = context.scene
-#        simnode = bpy.data.node_groups[scene.vi_params['viparams']['restree']].nodes[scene.vi_params['viparams']['resnode']]        
-#        self.cao = context.active_object
-#        covp = self.cao.vi_params
-#
-#        if self.cao and covp.get('VIType') and covp['VIType'] == 'Wind_Plane':            
-#            levels = covp['nbins']
-#            maxres = covp['maxres']
-#        else:
-#            levels = simnode['nbins']
-#            maxres = simnode['maxres']
-#        self.cols = retcols(mcm.get_cmap(scene.vi_leg_col), levels)
-#        
-#        if not scene.get('liparams'):
-#            scene.vi_display = 0
-#            return
-#
-#        self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-#        self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"  
-#        
-#    def drawopen(self, context):
-#        draw_legend(self, context.scene, 'Speed (m/s)')
-        
-#class wr_scatter(Base_Display):
-#    def __init__(self, pos, width, height, iname, xdiff, ydiff):
-#        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
-#        self.unit = '0'
-#        
-#    def update(self, context):
-#        self.cao = context.active_object
-#        covp = self.cao.vi_params
-#        if self.cao and covp.get('ws'):
-#            self.unit = context.scene.wind_type 
-#            zdata = array(covp['ws']) if context.scene.wind_type == '0' else array(covp['wd'])
-#            (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if context.scene.wind_type == '0' else ('Wind Direction', u'Direction (\u00B0)')
-#            self.plt = plt
-#            draw_dhscatter(self, context.scene, covp['days'], covp['hours'], zdata, title, 'Days', 'Hours', cbtitle, nmin(zdata), nmax(zdata))  
-#            save_plot(self, context.scene, 'scatter.png')
-#        
-#    def drawopen(self, context):
-#        draw_image(self, 0)
-#        
-#    def show_plot(self):
-#        show_plot(self)
-            
-#            # Legend routine 
-#            if self.legend.ispos[0] < mx < self.legend.iepos[0] and self.legend.ah - 80 < my < self.legend.ah - 40:
-#                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'RELEASE':
-#                        self.legend.expand = 0 if self.legend.expand else 1
-#            
-#            elif self.table.ispos[0] < mx < self.table.iepos[0] and self.table.ah - 80 < my < self.table.ah - 40:
-#                self.table.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'RELEASE':
-#                        self.table.expand = 0 if self.table.expand else 1
-#                        
-#            elif self.dhscatter.ispos[0] < mx < self.dhscatter.iepos[0] and self.dhscatter.ah - 80 < my < self.dhscatter.ah - 40:
-#                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'RELEASE':
-#                        self.dhscatter.expand = 0 if self.dhscatter.expand else 1
-#                        
-#            elif self.dhscatter.expand and self.dhscatter.lspos[0] + 0.1 * self.dhscatter.xdiff < mx < self.dhscatter.lepos[0] - 0.1 * self.dhscatter.xdiff and self.dhscatter.lspos[1] + 0.1 * self.dhscatter.ydiff  < my < self.dhscatter.lepos[1] - 0.1 * self.dhscatter.ydiff:
-#                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1
-#                if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-#                    self.dhscatter.show_plot(context)
-#                        
-#            elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
-#                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1   
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.legend.move = 1
-#                        self.legend.draw(ah, aw)
-#                        context.area.tag_redraw()
-##                        return {'RUNNING_MODAL'}
-#                    elif self.legend.move and event.value == 'RELEASE':
-#                        self.legend.move = 0                        
-#                    return {'RUNNING_MODAL'}
-#            
-#            elif self.table.expand and abs(self.table.lspos[0] - mx) < 10 and abs(self.table.lepos[1] - my) < 10:
-#                self.table.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1   
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.table.move = 1
-#                        self.table.draw(ah, aw)
-#                        context.area.tag_redraw()
-##                        return {'RUNNING_MODAL'}
-#                    elif self.table.move and event.value == 'RELEASE':
-#                        self.table.move = 0                        
-#                    return {'RUNNING_MODAL'}
-#            
-#            elif self.dhscatter.expand and abs(self.dhscatter.lspos[0] - mx) < 10 and abs(self.dhscatter.lepos[1] - my) < 10:
-#                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
-#                redraw = 1   
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.dhscatter.move = 1
-#                        self.dhscatter.draw(ah, aw)
-#                        context.area.tag_redraw()
-##                        return {'RUNNING_MODAL'}
-#                    elif self.dhscatter.move and event.value == 'RELEASE':
-#                        self.dhscatter.move = 0                        
-#                    return {'RUNNING_MODAL'}
-#                    
-#            elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
-#                self.legend.hl = (0.8, 0.8, 0.8, 0.8) 
-#                context.area.tag_redraw()
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.legend.resize = 1
-#                        self.legend.draw(ah, aw)
-#                        context.area.tag_redraw()
-#                    elif self.legend.resize and event.value == 'RELEASE':
-#                        self.legend.resize = 0
-#                    return {'RUNNING_MODAL'}
-#            
-#            elif self.table.expand and abs(self.table.lepos[0] - mx) < 10 and abs(self.table.lspos[1] - my) < 10:
-#                self.table.hl = (0.8, 0.8, 0.8, 0.8) 
-#                context.area.tag_redraw()
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.table.resize = 1
-#                        self.table.draw(ah, aw)
-#                        context.area.tag_redraw()
-#                    elif self.table.resize and event.value == 'RELEASE':
-#                        self.table.resize = 0
-#                    return {'RUNNING_MODAL'}
-#                
-#            elif self.dhscatter.expand and abs(self.dhscatter.lepos[0] - mx) < 10 and abs(self.dhscatter.lspos[1] - my) < 10:
-#                self.dhscatter.hl = (0.8, 0.8, 0.8, 0.8) 
-#                context.area.tag_redraw()
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.dhscatter.resize = 1
-#                        self.dhscatter.draw(ah, aw)
-#                        context.area.tag_redraw()
-#                    elif self.dhscatter.resize and event.value == 'RELEASE':
-#                        self.dhscatter.resize = 0
-#                    return {'RUNNING_MODAL'}
-#                
-#            elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):                 
-#                self.legend.hl = (1, 1, 1, 1)
-#                redraw = 1
-#            
-#            elif self.table.hl == (0.8, 0.8, 0.8, 0.8):                 
-#                self.table.hl = (1, 1, 1, 1)
-#                redraw = 1
-#                
-#            elif self.dhscatter.hl == (0.8, 0.8, 0.8, 0.8):                 
-#                self.dhscatter.hl = (1, 1, 1, 1)
-#                redraw = 1                    
-#            # Move routines
-#                     
-#            if event.type == 'MOUSEMOVE':                
-#                if self.legend.move:
-#                    self.legend.lspos[0], self.legend.lepos[1] = mx, my
-#                    self.legend.draw(ah, aw)
-#                    context.area.tag_redraw() 
-#                elif self.legend.resize:
-#                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
-#                    self.legend.draw(ah, aw)
-#                    context.area.tag_redraw() 
-#                elif self.table.move:
-#                    self.table.lspos[0], self.table.lepos[1] = mx, my
-#                    self.table.draw(ah, aw)
-#                    context.area.tag_redraw() 
-#                elif self.table.resize:
-#                    self.table.lepos[0], self.table.lspos[1] = mx, my
-#                    self.table.draw(ah, aw)
-#                    context.area.tag_redraw()
-#                elif self.dhscatter.resize:
-#                    self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
-#                    self.dhscatter.draw(ah, aw)
-#                    context.area.tag_redraw() 
-#                elif self.dhscatter.move:
-#                    self.dhscatter.lspos[0], self.dhscatter.lepos[1] = mx, my
-#                    self.dhscatter.draw(ah, aw)
-#                    context.area.tag_redraw() 
-#        
-#            if self.cao != context.active_object:
-#                self.legend.update(context)
-#                self.legend.draw(context)
-#                self.table.update(context)
-#                self.table.draw(context)
-#                self.dhscatter.update(context)
-#                self.dhscatter.draw(context)
-#                context.area.tag_redraw() 
-#                self.cao = context.active_object
-#                
-#            if svp.vi_disp_refresh:
-#                self.dhscatter.update(context)
-#                self.dhscatter.draw(context)
-#                svp.vi_disp_refresh = 0
-#                context.area.tag_redraw()
-#            
-#            if redraw:
-#                context.area.tag_redraw()        
-#        return {'PASS_THROUGH'}

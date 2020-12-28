@@ -75,14 +75,19 @@ else:
                     'getbbox', 'getinfo', 'ies2rad', 'mkpmap', 'obj2mesh', 'oconv', 'pcomb', 'pcompos', 'pcond',
                     'pfilt', 'pkgBSDF', 'pmapdump', 'psign', 'rad2mgf', 'rcalc', 'rcontrib', 'rfluxmtx', 'rmtxop',
                     'rpict', 'rpiece', 'rtrace', 'rttree_reduce', 'rvu', 'vwrays', 'wrapBSDF', 'xform'):
-            print(fn, os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK))
-            if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
-                os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
-        for fn in ('energyplus-9.3.0', 'ExpandObjects'):
-            print(fn, os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK))
-            if not os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK):
-                os.chmod(os.path.join(addonpath, 'EPFiles', sys.platform, fn), 0o775)
-         
+            try:
+                if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
+                    os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
+            except:
+                print('{} not found'.format(fn))
+                
+        for fn in ('energyplus', 'ExpandObjects'):
+            try:
+                if not os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK):
+                    os.chmod(os.path.join(addonpath, 'EPFiles', sys.platform, fn), 0o775)
+            except:
+                print('{} not found'.format(fn))
+                
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc 
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
@@ -149,7 +154,9 @@ def unititems(self, context):
                     ('firrad', 'W', 'Full spectrum irradiance')]
         elif svp['liparams']['unit'] == 'Lux':
             return [('illu', 'Lux', 'Illuminance'), 
-                    ('virradm2', 'Watts/m2', 'Visible spectrum illuminance'),
+                    ('virrad', 'Watts', 'Visible spectrum illuminance')]
+        elif svp['liparams']['unit'] == 'DF':
+            return [('df', 'DF (%)', 'Daylight factor'), 
                     ('virrad', 'Watts', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'lxh':
             return [('illuh', 'Lux-hours', 'Lux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
@@ -220,14 +227,14 @@ def set_frame(self, value):
 def d_update(self, context):
     if not self.vi_display and context.scene.vi_params.get('viparams'):
         dns = bpy.app.driver_namespace
-
-        for d in context.scene.vi_params['viparams'].get('drivers'):
-            if d in dns:
-                try:
+        try:
+            for d in context.scene.vi_params['viparams'].get('drivers'):
+                if d in dns:
                     bpy.types.SpaceView3D.draw_handler_remove(dns[d], 'WINDOW')
                     logentry('Stopping {} display'.format(d))
-                except:
-                    pass
+        except:
+            pass
+        
         context.scene.vi_params['viparams']['drivers'] = []
       
 class VI_Params_Scene(bpy.types.PropertyGroup): 
