@@ -47,6 +47,7 @@ try:
     import matplotlib.colors as mcolors
     from matplotlib.patches import Rectangle
     from matplotlib.collections import PatchCollection
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
     mp = 1
 except:
     mp = 0
@@ -1819,14 +1820,18 @@ def draw_dhscatter(self, x, y, z, tit, xlab, ylab, zlab, valmin, valmax, col):
     self.plt.title(tit, size = 20).set_position([.5, 1.025])
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
-    self.plt.pcolor(x, y, z, cmap=col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
-    cbar = self.plt.colorbar(use_gridspec=True)
+#    self.plt.pcolor(x, y, z, cmap=col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
+#    cbar = self.plt.colorbar(use_gridspec=True)
+    im = self.plt.imshow(z.reshape(len(y) - 1, len(x) - 1), interpolation="none", aspect='auto')
+    divider = make_axes_locatable(self.plt.gca())
+    cax = divider.append_axes("right", "5%", pad="3%")
+    cbar = self.plt.colorbar(im, cax=cax)
     cbar.set_label(label=zlab,size=18)
     cbar.ax.tick_params(labelsize=16)
     self.plt.axis([min(x),max(x),min(y),max(y)])
     self.plt.xticks(size = 16)
     self.plt.yticks(size = 16)
-    self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])  
+    self.plt.tight_layout()  
     
 def draw_table(self):
     draw_icon(self) 
@@ -3018,6 +3023,8 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                     if event.type == 'LEFTMOUSE':
                         if event.value == 'RELEASE':
                             window.expand = 0 if window.expand else 1
+                            context.area.tag_redraw()
+                            return {'RUNNING_MODAL'}
                             
                 elif w == 1 and window.expand and window.lspos[0] + 0.1 * window.xdiff < mx < window.lepos[0] - 0.1 * window.xdiff and window.lspos[1] + 0.1 * window.ydiff  < my < window.lepos[1] - 0.1 * window.ydiff:
                     window.hl = (0.8, 0.8, 0.8, 0.8) 
@@ -3066,6 +3073,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
            
         if redraw:
             context.area.tag_redraw()
+            return {'RUNNING_MODAL'}
 
         return {'PASS_THROUGH'}
 

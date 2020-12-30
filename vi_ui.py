@@ -350,6 +350,8 @@ class VI_PT_Ob(bpy.types.Panel):
                 newrow(layout, 'Embodied class:', ovp, 'embodiedtype') 
                 newrow(layout, 'Embodied type:', ovp, 'embodiedclass') 
                 newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
+                row = layout.row()
+                row.operator("object.vi_embodied", text="Calc")
 
         if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
             newrow(layout, 'IES file:', ovp, "ies_name")

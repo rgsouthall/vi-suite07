@@ -110,7 +110,7 @@ else:
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
-    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, NODE_OT_En_UV
+    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, OBJECT_OT_Embod, NODE_OT_En_UV
     from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_BM, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim
@@ -579,13 +579,14 @@ def select_nodetree(dummy):
             space.node_tree = envings[0]
             
     for space in getEnViMaterialSpaces():
-        try:
-            if space.node_tree != bpy.context.active_object.active_material.vi_params.envi_nodes:
-                envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
-                if envings:
-                    space.node_tree = envings[0]
-        except Exception as e:
-            print(e)
+        if bpy.context.active_object.active_material:
+            try:
+                if space.node_tree != bpy.context.active_object.active_material.vi_params.envi_nodes:
+                    envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
+                    if envings:
+                        space.node_tree = envings[0]
+            except Exception as e:
+                print(e)
         
 bpy.app.handlers.depsgraph_update_post.append(select_nodetree)
         
@@ -643,7 +644,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, So_En_Net_Bound,
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, 
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
-           OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
+           OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC)
                      

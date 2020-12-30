@@ -31,7 +31,7 @@ from xml.dom.minidom import parse, parseString
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
-from .envi_mat import envi_materials, envi_constructions
+from .envi_mat import envi_materials, envi_constructions, envi_embodied
 
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
 
@@ -1683,6 +1683,40 @@ class OBJECT_OT_GOct(bpy.types.Operator):
         scene = context.scene
         ovp = context.object.vi_params
         gen_octree(scene, context.object, self, ovp.fallback, ovp.triangulate)
+        return {'FINISHED'}
+
+class OBJECT_OT_Embod(bpy.types.Operator):
+    ''''''
+    bl_idname = "object.vi_embodied"
+    bl_label = "Embodied carbon"
+    bl_options = {"REGISTER", 'UNDO'}
+    
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return (obj and obj.type == 'MESH')
+    
+    def execute(self, context):
+        dp = bpy.context.evaluated_depsgraph_get()
+        o = context.object
+        ovp = o.vi_params
+        scene = context.scene
+        bm = bmesh.new()
+        bm.from_object(o, dp)
+        bm.transform(o.matrix_world)
+        bm.normal_update()
+
+        if all([e.is_manifold for e in bm.edges]):
+            envi_ec = envi_embodied()
+            vol = bm.calc_volume()
+            o['ecdict'] = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
+            o['ecdict']['ec'] = float(o['ecdict']['eckg']) * float(o['ecdict']['density']) * vol
+            bm.free()
+        else:
+            self.report({'ERROR'},"You cannot calculate embodied carbon on a non-manifold mesh")
+            bm.free()
+            return {'CANCELLED'}
+        
         return {'FINISHED'}
     
 class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
