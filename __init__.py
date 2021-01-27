@@ -98,12 +98,12 @@ else:
     from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op, No_En_Mat_Sched
     from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Net_Sched, No_En_Sim, No_Vi_Chart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
-    from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
+    from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Mat_Fr, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay, logentry
-    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, radmat, retsv
+    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, flovi_bm_update, ret_fvrad_menu
@@ -156,11 +156,11 @@ def unititems(self, context):
         elif svp['liparams']['unit'] == 'Lux':
             return [('illu', 'Lux', 'Illuminance'), 
                     ('virrad', 'Watts', 'Visible spectrum illuminance')]
-        elif svp['liparams']['unit'] == 'DF':
+        elif svp['liparams']['unit'] == 'DF (%)':
             return [('df', 'DF (%)', 'Daylight factor'), 
                     ('virrad', 'Watts', 'Visible spectrum illuminance')]
-        elif svp['liparams']['unit'] == 'lxh':
-            return [('illuh', 'Lux-hours', 'Lux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible)')]
+        elif svp['liparams']['unit'] == 'klxh':
+            return [('illuh', 'klux-hours', 'kilolux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)')]
         elif svp['liparams']['unit'] == 'kWh (f)':
             return [('firradh', 'kWh (f)', 'kilo-Watt hours (solar spectrum)'), 
                     ('firradhm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
@@ -175,7 +175,7 @@ def unititems(self, context):
                    ("maxlux", "Lux level (max)", "Maximum lux level"), 
                    ("avelux", "Lux level (ave)", "Average lux level"), 
                    ("minlux", "Lux level (min)", "Minimum lux level")]
-        elif svp['liparams']['unit'] == '% Sunlit':
+        elif svp['liparams']['unit'] == 'Sunlit time (%)':
             return [('sm', '% Sunlit', '% of time sunlit')]
         elif svp['liparams']['unit'] == 'SVF (%)':
             return [('svf', 'SVF (%)', '% of sky visible')]
@@ -370,7 +370,6 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     limerr: bprop("", "", False)
     manip: bprop("", "", False) 
     bsdf_proxy: bprop("", "", False)
-    compcalcapply = compcalcapply    
     basiccalcapply = basiccalcapply 
     rtpoints = rtpoints
     udidacalcapply = udidacalcapply
@@ -439,7 +438,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radtranspec: fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     radior: fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
     radct: iprop("Temperature (K)", "Colour temperature in Kelven", 0, 12000, 4700)
-    radintensity: fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 100, 1)   
+    radintensity: fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 10000, 1)   
     radfile: sprop("", "Radiance file material description", 1024, "")
     vi_shadow: bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     livi_sense: bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
@@ -536,7 +535,6 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False) 
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
-#    envi_hab: bprop("", "Flag to tell EnVi this is a habitable zone", False)
 
 class VI_Params_Link(bpy.types.PropertyGroup):    
     vi_uid: iprop("ID", "Unique ID", 0, 10000, 0)
@@ -564,7 +562,14 @@ def display_off(dummy):
             bpy.context.scene.vi_params['viparams']['vidisp'] = ifdict[bpy.context.scene.vi_params['viparams']['vidisp']]
         
         bpy.context.scene.vi_params.vi_display = 0
-                    
+
+@persistent
+def display_off_load(dummy):
+    if bpy.context.scene.vi_params.get('vi_display'):
+        bpy.context.scene.vi_params.vi_display = 0
+
+bpy.app.handlers.load_post.append(display_off_load)
+      
 @persistent
 def select_nodetree(dummy): 
     for space in getViEditorSpaces():
@@ -637,7 +642,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
            NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
-           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con, 
+           No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Fr, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con, 
            So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
            No_Vi_Chart, So_En_Res, So_En_ResU, NODE_OT_Chart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Sched, No_En_Net_Inf,
            No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV, No_En_Mat_Sched,

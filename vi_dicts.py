@@ -1,17 +1,29 @@
-rpictparams = {"-ab": (2, 3, 4), "-ad": (32, 512, 4096), "-as": (32, 256, 1024), "-aa": (0, 0, 0), "-dj": (0.0, 0.7, 1), 
-                   "-ss": (0, 2, 5), "-st": (0.85, 0.15, 0.0),
-                   "-lw": (0.1, 0.002, 0.0000002), "-lr": (4, 8, 16), 
-                   "-pj": (0.6, 0.9, 1.0), "-pt":(0.15, 0.05, 0.0), "-ps": (8, 4, 1), 
-                   "-ds": (0.5, 0.15, 0.02), "-dr": (1, 3, 6), "-dt": (0.5, 0.05, 0.0), "-dc": (0.25, 0.5, 1)}
+rpictparams = {"-ab": (2, 3, 4), "-ad": (32, 512, 4096), "-as": (32, 256, 1024), "-aa": (0, 0, 0), 
+                "-ar": (8, 32, 128), "-dj": (0.0, 0.7, 1), "-ss": (0, 2, 5), "-st": (0.85, 0.15, 0.0),
+                "-lw": (0.1, 0.002, 0.0000002), "-lr": (4, 8, 16), 
+                "-pj": (0.6, 0.9, 1.0), "-pt":(0.15, 0.05, 0.0), "-ps": (8, 4, 1), 
+                "-ds": (0.5, 0.15, 0.02), "-dr": (1, 3, 6), "-dt": (0.5, 0.05, 0.0), "-dc": (0.25, 0.5, 1)}
 
-rvuparams = {"-ab": (2, 3, 4), "-ad": (256, 1024, 4096), "-as": (128, 512, 2048), "-aa": (0, 0, 0), "-dj": (0, 0.7, 1), 
-                   "-ds": (0.5, 0.15, 0.15), "-dr": (1, 3, 5), "-ss": (0, 2, 5), "-st": (1, 0.75, 0.1), "-lw": (0.0001, 0.00001, 0.0000002), 
-                   "-lr": (3, 3, 4), "-ps": (16, 4, 1)}
+rvuparams = {"-ab": (2, 3, 4), "-ad": (256, 1024, 4096), "-as": (128, 512, 2048), "-aa": (0, 0, 0), "-ar": (8, 32, 128), 
+                "-dj": (0, 0.7, 1), "-ds": (0.5, 0.15, 0.15), "-dr": (1, 3, 5),
+                "-ss": (0, 2, 5), "-st": (1, 0.75, 0.1), "-lw": (0.0001, 0.00001, 0.0000002), 
+                "-lr": (3, 3, 4), "-ps": (16, 4, 1)}
 
-unit2res = {'Lux': 'illu', 'DF (%)': 'df', 'W/m2 (v)': 'virradm2', 'W/m2 (f)': 'firradm2', 'W (f)': 'firrad', 'W (v)': 'virrad', 'SVF': 'svf', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
-             'lxh': 'illuh','kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh', 'kWh/m2 (v)': 'virradhm2', 'DA (%)': 'da', 
-             'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'Sunlit time (%)': 'sm',
-             'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh', 'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux'}
+rtraceparams = {"-ab": (2, 3, 4), "-ad": (256, 1024, 4096), "-as": (128, 512, 2048), "-aa": (0, 0, 0), "-ar": (8, 32, 128),
+              "-dj": (0, 0.7, 1), "-ds": (0, 0.5, 0.15), "-dr": (1, 3, 5), "-ss": (0, 2, 5), "-st": (1, 0.75, 0.1), 
+              "-lw": (0.0001, 0.00001, 0.000002), "-lr": (2, 3, 4)}
+
+rtracecbdmparams = {"-ab": (3, 5), "-ad": (4096, 8192), "-as": (512, 1024), "-aa": (0, 0), "-ar": (8, 32, 128),
+                  "-dj": (0.7, 1), "-ds": (0.5, 0.15), "-dr": (2, 3), "-ss": (2, 5), "-st": (0.75, 0.1),
+                  "-ss": (2, 5), "-st": (0.75, 0.1), 
+                  "-lw": (1e-4, 1e-5), "-lr": (3, 5)}
+
+unit2res = {'Lux': 'illu', 'DF (%)': 'df', 'W/m2 (v)': 'virradm2', 'W/m2 (f)': 'firradm2', 'W (f)': 'firrad', 
+            'W (v)': 'virrad', 'SVF (%)': 'svf', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
+             'klxh': 'illuh','kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh', 
+             'kWh/m2 (v)': 'virradhm2', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 
+             'Sunlit time (%)': 'sm', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh', 
+             'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux'}
 
 res2unit = {unit2res[u]: u for u in unit2res}
 
@@ -83,6 +95,7 @@ envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (deg
             'Site Wind Speed [m/s] !Hourly': 'Wind Speed (m/s)',
             'Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly': "Diffuse Solar (W/m^2)",
             'Site Direct Solar Radiation Rate per Area [W/m2] !Hourly': "Direct Solar (W/m^2)"}
+
 zresdict = {'Zone Air Temperature [C] !Hourly': "Temperature (degC)",
             'Zone Air Relative Humidity [%] !Hourly': 'Humidity (%)',
             'Zone Air System Sensible Heating Rate [W] !Hourly': 'Heating (W)',

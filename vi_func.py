@@ -77,6 +77,7 @@ def move_to_coll(context, coll, o):
     if o.parent:
         o.parent = None
     collection = create_coll(context, coll)
+    
     if o.name not in collection.objects:
         collection.objects.link(o)
         for c in bpy.data.collections:
@@ -715,8 +716,8 @@ def nodeinputs(node):
                 elif iins and not all([i.links[0].from_node.use_custom_color for i in iins if i.is_linked]):
                     return 0
         return 1
-    except:
-        pass
+    except Exception as e:
+        print(e)
 
 def retmat(fr, node, scene):
     if node.animmenu == "Material":
@@ -1547,7 +1548,7 @@ def sunpath(context):
     svp = scene.vi_params
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
 
-    if svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':        
+    if svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':        
         if suns:                          
             alt, azi, beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)
             suns[0].location.z = 100 * sin(beta)
@@ -1917,6 +1918,7 @@ def sunapply(scene, sun, values, solposs, frames):
         scene.world.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi World Node") 
         stnodes = [stnode for stnode in scene.world.node_tree.nodes if stnode.bl_label == 'Sky Texture']
         bnodes = [bnode for bnode in scene.world.node_tree.nodes if bnode.bl_label == 'Background']
+        
         for stnode in stnodes:
             st1x = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 0)
             st1y = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 1)
@@ -1933,6 +1935,7 @@ def sunapply(scene, sun, values, solposs, frames):
         sunpos = [x*100 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
         sunrot = [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
         scene.display.light_direction = (-sin(solposs[f][3]) * cos(solposs[f][2]), sin(solposs[f][2]),  cos(solposs[f][3]) * cos(solposs[f][2])) 
+        
         if scene.render.engine == 'CYCLES' and scene.world.node_tree:
             if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
                 skydir = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])

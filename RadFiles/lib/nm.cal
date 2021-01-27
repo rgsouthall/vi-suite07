@@ -4,11 +4,22 @@ Lu, Lx are the UVMap coordinates
 Nx, Ny, Nz is the surface normal
 Px, Py, Pz is the surface intersect
 }
+mycross(i, v1x, v1y, v1z, v2) : select(i, v1y*v2(3) - v1z*v2(2), v1z*v2(1) - v1x*v2(3), v1x*v2(2) - v1y*v2(1));
+ddx(dx, dy) = A1*(mycross(1, A2, A3, A4, N)*dx+A2*dy);
+ddy(dx, dy) = A1*(mycross(2, A2, A3, A4, N)*dx+A3*dy);
+ddz(dx, dy) = A1*(mycross(3, A2, A3, A4, N)*dx+A4*dy);
 
-mod = if(Rdot,1,-1);
-ddx(dx, dy) = mod*A1*(A5*dx+A2*dy);
-ddy(dx, dy) = mod*A1*(A6*dx+A3*dy);
-ddz(dx, dy) = mod*A1*(A7*dx+A4*dy);
+{mycross(i, v1x, v1y, v1z, v2) : select(i, v1y*v2(3) - v1z*v2(2), v1z*v2(1) - v1x*v2(3), v1x*v2(2) - v1y*v2(1));
+wxdy = dy*A2;
+wydy = dy*A3;
+wzdy = dy*A4;
+wxdx = dx*mycross(1, A2, A3, A4, N);
+wydx = dx*mycross(2, A2, A3, A4, N);
+wzdx = dx*mycross(3, A2, A3, A4, N);
+ddx(wxdy, wxdx) = A1 * (wxdy + wxdx);
+ddy(wydy, wydx) = A1 * (wydy + wydx);
+ddz(wzdy, wzdx) = A1 * (wzdy + wzdx);}
+
 
 {newDx = if(Dx, -1, 1);
 newDy = if(Dy, -1, 1);

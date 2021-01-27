@@ -105,7 +105,12 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             else:   
                 rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
 
-    tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+    try:
+        tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+    except:
+        calc_op.report({'ERROR'}, 'Re-export the LiVi geometry')
+        return 'CANCELLED'
+
     calcsteps = sum(tpoints) * len(frames)
     pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
     kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Lighting')

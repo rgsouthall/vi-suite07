@@ -19,14 +19,14 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, itertools
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose
+from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, delete
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, radians
 from time import sleep
-from mathutils import Euler, Vector
+from mathutils import Euler, Vector, Matrix
 from xml.dom.minidom import parse, parseString
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .livi_calc  import li_calc
@@ -39,7 +39,7 @@ from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, f
 from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 
-from .vi_func import windnum, wind_rose, create_coll, retobjs, progressfile, progressbar
+from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll
 from .livi_func import retpmap
 #from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
@@ -206,7 +206,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         doys = list(range(simnode.sdoy, simnode.edoy + 1)) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
         awd = array([wd for di, wd in enumerate(cwd) if cdoys[di] in doys])
         aws = array([ws for di, ws in enumerate(cws) if cdoys[di] in doys])
-        validdata = numpy.where(awd > 0) if max(cwd) == 360 else numpy.where(awd > -1)
+        validdata = where(awd > 0) if max(cwd) == 360 else where(awd > -1)
         vawd = awd[validdata]
         vaws = aws[validdata]
         simnode['maxres'], simnode['minres'], simnode['avres'] = max(cws), min(cws), sum(cws)/len(cws)
@@ -222,11 +222,11 @@ class NODE_OT_WindRose(bpy.types.Operator):
         dfreq = dfreq[:-1]        
         
         if simnode.wrtype == '0':
-            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(svp.vi_leg_col))
+            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(svp.vi_scatt_col))
         elif simnode.wrtype == '1':
-            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(svp.vi_leg_col))
+            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(svp.vi_scatt_col))
         elif simnode.wrtype in ('2', '3', '4'):
-            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(svp.vi_leg_col))
+            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(svp.vi_scatt_col))
         
         if simnode.max_freq == '1':
             ax.set_rmax(simnode.max_freq_val)
@@ -283,16 +283,20 @@ class NODE_OT_SVF(bpy.types.Operator):
         
         if viparams(self, scene):            
             return {'CANCELLED'}
+        
+        for o in scene.objects:
+            o.vi_params.licalc = 0
 
         shadobs = retobjs('livig')
         if not shadobs:
-            self.report({'ERROR'},"No shading objects have a material attached.")
+            self.report({'ERROR'},"No shading objects with a material attached.")
             return {'CANCELLED'}
             
-        svp['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
-        if not svp['liparams']['shadc']:
+        calcobs = retobjs('ssc')
+        if not calcobs:
             self.report({'ERROR'},"No objects have a light sensor material attached.")
             return {'CANCELLED'}
+
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
         clearscene(scene, self)
@@ -346,7 +350,8 @@ class NODE_OT_SVF(bpy.types.Operator):
 
             ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
             bm = bmesh.new()
-            bm.from_object(o, dp)
+            bm.from_mesh(o.to_mesh())
+            o.to_mesh_clear()
             clearlayers(bm, 'a')
             bm.transform(o.matrix_world)
             bm.normal_update()
@@ -400,6 +405,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
+            o.vi_params.licalc = 1
 
         svp.vi_leg_max, svp.vi_leg_min = 100, 0
 
@@ -409,7 +415,7 @@ class NODE_OT_SVF(bpy.types.Operator):
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         svp['viparams']['vidisp'] = 'svf'
         simnode['reslists'] = reslists
-        simnode['year'] = 2015
+#        simnode['year'] = 2018
         simnode['frames'] = [f for f in frange]
         simnode.postexport(scene)
         return {'FINISHED'} 
@@ -430,16 +436,19 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if viparams(self, scene):            
             return {'CANCELLED'}
 
+        for o in scene.objects:
+            o.vi_params.licalc = 0
+            
         shadobs = retobjs('livig')
         
         if not shadobs:
-            self.report({'ERROR'},"No shading objects have a material attached.")
+            self.report({'ERROR'},"No shading objects or none with a material attached.")
             return {'CANCELLED'}
             
-        svp['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
+        calcobs = retobjs('ssc')
         
-        if not svp['liparams']['shadc']:
-            self.report({'ERROR'},"No objects have a VI Shadow material attached.")
+        if not calcobs:
+            self.report({'ERROR'},"No objects have a light sensor material attached.")
             return {'CANCELLED'}
         
         simnode = context.node
@@ -450,7 +459,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if not svp.get('liparams'):
            svp['liparams'] = {}
 
-        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
+        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, 'Sunlit time (%)', 'VI Shadow'
         simnode.preexport()
         (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
         cmap(svp)
@@ -461,26 +470,26 @@ class NODE_OT_Shadow(bpy.types.Operator):
         
         svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
         (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 100, 0)]
-        
+        nt = datetime.datetime.now()
         frange = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
-        time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
-        y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
+        time = datetime.datetime(2018, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
+        y = 2018 if simnode.edoy >= simnode.sdoy else 2019
         endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
         interval = datetime.timedelta(hours = 1/simnode.interval)        
         times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour - 1 <= (time + interval*t).hour <= simnode.endhour  - 1]
-        sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, svp.latitude, svp.longitude)[2:] for t in times]
+        sps = array([solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, svp.latitude, svp.longitude)[2:] for t in times])
         valmask = array([sp[0] > 0 for sp in sps], dtype = int8)
-        direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps]  
+        direcs = array([(-sin(sp[1]), -cos(sp[1]), tan(sp[0])) for sp in sps])  
         valdirecs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]  
         lvaldirecs = len(valdirecs)
         ilvaldirecs = 1/lvaldirecs
-        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects.get(on) for on in svp['liparams']['shadc']])
+        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in calcobs)
         curres, reslists = 0, []
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
         kivyrun = progressbar(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'), 'Shadow Map')
         logentry(f'Conducting shadow map calculation with {simnode.interval} samples per hour for {int(len(direcs)/simnode.interval)} total hours and {lvaldirecs} available sun hours')
         
-        for oi, o in enumerate([scene.objects[on] for on in svp['liparams']['shadc']]):
+        for oi, o in enumerate(calcobs):
             ovp = o.vi_params
             for k in ovp.keys():
                 del ovp[k]
@@ -498,8 +507,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 
             ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
             bm = bmesh.new()
-            bm.from_object(o, dp)
-#            bm.from_mesh(o.evaluated_get(dp).data)
+            bm.from_mesh(o.to_mesh())
+            o.to_mesh_clear()
             clearlayers(bm, 'a')
             bm.transform(o.matrix_world)
             bm.normal_update()
@@ -559,6 +568,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
+            o.vi_params.licalc = 1
 
         svp.vi_leg_max, svp.vi_leg_min = 100, 0
 
@@ -568,7 +578,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         simnode['reslists'] = reslists
         simnode['frames'] = [f for f in frange]
-        simnode['year'] = 2015
+#        simnode['year'] = 2015
         simnode.postexport(scene)
         svp['viparams']['vidisp'] = 'ss'
         return {'FINISHED'}
@@ -881,6 +891,8 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         scene = context.scene
         svp = scene.vi_params
+        svp.vi_display = 0
+
         if viparams(self, scene):
             return {'CANCELLED'}
         
@@ -893,8 +905,9 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
         svp['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
 
         if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-            self.report({'ERROR'}, "Current frame is not within the exported frame range")
-            return {'CANCELLED'}
+            frame = svp['liparams']['fe'] if frame > svp['liparams']['fe'] else frame
+            frame = svp['liparams']['fs'] if frame < svp['liparams']['fs'] else frame
+            self.report({'WARNING'}, "Current frame is not within the exported frame range and has been adjusted")
             
         cam = bpy.data.objects[self.simnode.camera.lstrip()]
         
@@ -946,15 +959,57 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             return {'CANCELLED'}
  
                 if self.simnode.pmappreview:
-                    with open("{0}-{1}pmd.oct".format(svp['viparams']['filebase'], frame), 'wb') as octfile:
-                        occmd = 'oconv -i "{0}-{1}.oct" "!pmapdump {0}-{1}.gpm{2}"'.format(svp['viparams']['filebase'], frame, (' {}-{}.cpm'.format(svp['viparams']['filebase'], frame), '')[not self.simnode.pmapcno])
-                        logentry('Running pmapdump: {}'.format(occmd))
-                        Popen(shlex.split(occmd), stdout = octfile).wait()
-                    rvucmd = 'rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} "{6}-{7}pmd.oct"'.format(svp['viparams']['wnproc'], 
-                                 vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                    create_empty_coll(context, 'LiVi Results')
+                    gpmbm = bmesh.new()
 
-                else:
-                    rvucmd = 'rvu -w {11} -ap "{8}" 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], 
+                    for l, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)), stdout = PIPE, stderr = PIPE).stdout):
+                        dl = line.decode().split()
+                        matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                        bmesh.ops.create_icosphere(gpmbm, subdivisions = 2, diameter = 0.05, matrix = matrix, calc_uvs = False)
+                        
+                        if l > self.simnode.pmapvno:
+                            break
+
+                    gpmmesh = bpy.data.meshes.new("GPM_Mesh")
+                    gpmbm.to_mesh(gpmmesh)
+                    gpmbm.free()
+                    gpmobj = bpy.data.objects.new("GlobalPM", gpmmesh)
+                    gpmobj.vi_params.vi_type_string = 'LiVi Res'
+                    scene.collection.objects.link(gpmobj)
+                    move_to_coll(bpy.context, 'LiVi Results', gpmobj)
+
+                    if cpentry:
+                        cpmbm = bmesh.new()
+
+                        for l, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)), stdout = PIPE, stderr = PIPE).stdout):
+                            dl = line.decode().split()
+                            matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                            bmesh.ops.create_icosphere(cpmbm, subdivisions = 2, diameter = 0.05, matrix = matrix, calc_uvs = False)
+                            
+                            if l > self.simnode.pmapvno:
+                                break
+
+                        cpmmesh = bpy.data.meshes.new("CPM_Mesh")
+                        cpmbm.to_mesh(cpmmesh)
+                        cpmbm.free()
+                        cpmobj = bpy.data.objects.new("CausticPM", cpmmesh)
+                        cpmobj.vi_params.vi_type_string = 'LiVi Res'
+                        scene.collection.objects.link(cpmobj)
+                        move_to_coll(bpy.context, 'LiVi Results', cpmobj)
+
+                    # with open("{0}-{1}pmd.oct".format(svp['viparams']['filebase'], frame), 'wb') as octfile:
+                    #     occmd = 'oconv -i "{0}-{1}.oct" "!pmapdump {0}-{1}.gpm{2}"'.format(svp['viparams']['filebase'], frame, (' {}-{}.cpm'.format(svp['viparams']['filebase'], frame), '')[not self.simnode.pmapcno])
+                    #     logentry('Running pmapdump: {}'.format(occmd))
+                    #     ocrun = Popen(shlex.split(occmd), stdout = octfile, stderr = PIPE)
+                    #     ocrun.wait()
+                    # for line in ocrun.stderr:
+                    #     logentry('Pmap preview error: {}'.format(line.decode()))
+
+                    # rvucmd = 'rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} "{6}-{7}pmd.oct"'.format(svp['viparams']['wnproc'], 
+                    #              vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+
+#                else:
+                rvucmd = 'rvu -w {11} -ap "{8}" 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], 
                                  vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
 
             else:
@@ -983,6 +1038,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         svp.vi_display = 0
+
         if viparams(self, scene):
             return {'CANCELLED'}
                     
@@ -1004,6 +1060,9 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         simnode.sim(scene)
 
         for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+            frame = svp['liparams']['fe'] if frame > svp['liparams']['fe'] else frame
+            frame = svp['liparams']['fs'] if frame < svp['liparams']['fs'] else frame
+            self.report({'WARNING'}, "Current frame is not within the exported frame range and has been adjusted")
             if createradfile(scene, frame, self, simnode) == 'CANCELLED' or createoconv(scene, frame, self, simnode) == 'CANCELLED':
                 return {'CANCELLED'}
         
@@ -1068,13 +1127,16 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frameold)))
                     self.frameold = self.frame
             else:
-                while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
+                while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) <= self.frames:
                     with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
                         self.rpruns.append(Popen(shlex.split(self.rpictcmds[self.frame - self.fs]), stdout=imfile, stderr = PIPE))
 
-                if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
-                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
-                    self.frame += 1
+                try:
+                    if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
+                        self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
+                        self.frame += 1
+                except:
+                    print('Frame passing')
                                         
         if event.type == 'TIMER':            
             f = self.frame if self.frame <= self.fe else self.fe
@@ -1248,8 +1310,8 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
             with open(im, 'r') as hdrfile:
                 egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE, stderr = PIPE)
 
-            time = datetime.datetime(2014, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
-                datetime.datetime(2014, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
+            time = datetime.datetime(2019, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
+                datetime.datetime(2019, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
                                   seconds = int(60*(imnode['coptions']['interval']*i - int(imnode['coptions']['interval']*i))))
             
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "w") as glaretf:
@@ -1319,19 +1381,22 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
                     temp_file = os.path.join(svp['viparams']['newdir'], 'images', 'temp.hdr')
                     
                     with open(temp_file, 'w') as tfile:
-                        pccmd = 'pcond -e {} {}'.format(fcnode.disp, os.path.abspath(im))
-                        Popen(shlex.split(pccmd), stdout = tfile)
+                        pccmd = 'pcond -e {} "{}"'.format(fcnode.disp, os.path.abspath(im))
+                        pcrun = Popen(shlex.split(pccmd), stdout = tfile, stderr = PIPE)
                     
+                    for line in pcrun.stderr:
+                        logentry('Pcond error: {}'.format(line))
+
                     poverlay = '-p {}'.format(os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
-                    fccmd = 'falsecolor -i {} {} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fccmd = 'falsecolor -i "{}" {} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
                     fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE) 
 #                    os.remove(temp_file)
                 else:
-                    poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
-                    fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    poverlay = '-p <(pcond -e {0} "{1}")' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
+                    fccmd = "bash -c 'falsecolor -i \"{}\" {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
                     fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE)
 
-                logentry(fccmd)
+                logentry('Running falsecolour with the command: {}'.format(fccmd))
                
                 for line in fcrun.stderr:
                     logentry('Falsecolour error: {}'.format(line))
@@ -1395,16 +1460,14 @@ class NODE_OT_En_UV(bpy.types.Operator):
     bl_label = "EnVi Material U-Value Calculation"
 
     def execute(self, context):
-#        resists = []
         node = context.node
-        node.ret_uv()
-#        lsock = node.inputs['Outer layer']
-#                
-#        while lsock.links:
-#            resists.append(lsock.links[0].from_node.ret_resist())
-#            lsock = lsock.links[0].from_node.inputs['Layer']
-#
-#        node.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+
+        if node.envi_con_makeup == '1':
+            node.ret_uv()
+
+        if node.envi_con_type == 'Window' and node.fclass == '2':
+            node.ret_frame_uv()
+
         return {'FINISHED'}
     
 class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
@@ -1503,6 +1566,16 @@ class NODE_OT_En_Sim(bpy.types.Operator):
             if 'EnergyPlus Completed Successfully' not in errtext:
                 logentry('Energyplus error: {}'.format(errtext))
                 self.report({'ERROR'}, "Fatal error reported in the EnergyPLus error file. Check the file in Blender's text editor")
+
+                for f in range(self.frame, self.frame + len(self.esimruns)):
+                    efilename = "{}{}out.err".format(self.resname, f)
+
+                    if os.path.isfile(os.path.join(self.nd, efilename)):             
+                        if efilename not in [im.name for im in bpy.data.texts]:
+                            bpy.data.texts.load(os.path.join(self.nd, efilename))
+                        else:
+                            bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
+
                 return {self.terminate('CANCELLED', context)}
             self.e += 1
     
@@ -1531,11 +1604,12 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                         os.rename(os.path.join(self.nd, fname), os.path.join(self.nd,fname.replace("eplusout", self.simnode.resname)))
                       
                     efilename = "{}{}out.err".format(self.resname, f)
-                    
+                    print(self.nd)
                     if os.path.isfile(os.path.join(self.nd, efilename)):               
                         if efilename not in [im.name for im in bpy.data.texts]:
                             bpy.data.texts.load(os.path.join(self.nd, efilename))
                         else:
+                            print(bpy.data.texts[efilename].filepath)
                             bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
                         
                         if '** Severe  **' in bpy.data.texts[efilename]:
@@ -1649,19 +1723,38 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
         vs = fs[0].verts[:]
         es = fs[0].edges[:]        
+#        print(vs, es, fs[0])
         gs = vs + es + fs
           
         while res1:
             res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos + ngs1 * self.upv, plane_no = self.upv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
             res1 = res['geom_cut']
+#            print([v.co for v in res1 if isinstance(v, bmesh.types.BMVert)])
+#            for v in mesh.verts:
+            dissvs = [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
+#                if v not in [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]:
+#                    print('diss', bmesh.utils.vert_dissolve(v))
+            print(dissvs)
+#            for v in dissvs:
+#                print('diss', bmesh.utils.vert_dissolve(v))
+            bmesh.ops.dissolve_verts(mesh, verts = dissvs)
+                    
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs1 += gs1
     
         while res2:
             res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos2 + ngs2 * self.acv, plane_no = self.acv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
             res2 = res['geom_cut']
+            dissvs = [v for v in res2 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
+#            for v in dissvs:
+#                print('diss', bmesh.utils.vert_dissolve(v))
+            bmesh.ops.dissolve_verts(mesh, verts = dissvs)
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs2 += gs2
+        
+#        for vert in [v for v in res['geom'] if isinstance(v, bmesh.types.BMVert)]:
+#            if len(vert.link_edges) == 2:
+#                bmesh.utils.vert_dissolve(vert)
 
         mesh.transform(self.o.matrix_world.inverted())
         bmesh.update_edit_mesh(self.o.data)
@@ -1731,7 +1824,7 @@ class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
         rl = innodes[0]['reslists']
         zrl = list(zip(*rl))
-        year = innodes[0]['year']
+        year = context.scene.vi_params['viparams']['year']
         
         if node.inputs['X-axis'].framemenu not in zrl[0]:
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")
@@ -1740,6 +1833,7 @@ class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
         if not mp:
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
+            
         plt.clf()
         Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)# + datetime.timedelta(hours = node.dsh - 1)
         Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)# + datetime.timedelta(hours = node.deh - 1)
@@ -2929,7 +3023,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 reslists.append([str(context.scene.frame_current), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
                 self.simnode['reslists'] = reslists
-                self.simnode['year'] = 2020
+#                self.simnode['year'] = 2020
                 self.simnode['frames'] = [context.scene.frame_current]
             
             self.simnode.post_sim()

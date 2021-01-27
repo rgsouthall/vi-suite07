@@ -31,7 +31,7 @@ from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
 from numpy import sort, median, array, stack
 from numpy import sum as nsum
-from .vi_dicts import rpictparams, rvuparams
+from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 
 try:
     import netgen
@@ -73,6 +73,7 @@ class No_Loc(Node, ViNodes):
         svp = scene.vi_params
         nodecolour(self, self.ready())
         reslists = []
+        svp['viparams']['year'] = 2019
 
         if self.loc == '1':
             entries = []
@@ -97,9 +98,9 @@ class No_Loc(Node, ViNodes):
                     self['frames'] = ['0']
                     epwlines = epwfile.readlines()[8:]
                     epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                    self['year'] = 2015 if len(epwlines) == 8760 else 2016
+                    svp['viparams']['year'] = 2019 if len(epwlines) == 8760 else 2020
                     times = ('Month', 'Day', 'Hour', 'DOS')
-                    
+
                     for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
                         reslists.append(['0', 'Time', '', times[t], ti])
                         
@@ -136,7 +137,7 @@ class No_Loc(Node, ViNodes):
 
     def init(self, context):
         self.outputs.new('So_Vi_Loc', 'Location out')
-        self['year'] = 2015
+        context.scene.vi_params['viparams']['year'] = 2019
         self['entries'] = [('None', 'None', 'None')] 
         try:
             NodeTree.get_from_context(context).use_fake_user = True
@@ -144,7 +145,6 @@ class No_Loc(Node, ViNodes):
             pass
 
     def update(self):
-#        self['year'] = 2015
         if self.outputs.get('Location out'):
             socklink(self.outputs['Location out'], self.id_data.name)
         nodecolour(self, self.ready())
@@ -255,10 +255,10 @@ class No_Li_Con(Node, ViNodes):
     bl_icon = 'LIGHT_SUN'
     
     def ret_params(self):
-        return [str(x) for x in (self.contextmenu, self.spectrummenu, self.canalysismenu, self.cbanalysismenu, 
+        return [str(x) for x in (self.contextmenu, self.spectrummenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
-                   self.cbdm_end_hour, self.bambuildmenu, self.leed4, self.colour, self.cbdm_res, self.ay)]
+                   self.cbdm_end_hour, self.leed4, self.colour, self.cbdm_res, self.ay)]
 
     def nodeupdate(self, context):
         scene = context.scene
@@ -310,6 +310,7 @@ class No_Li_Con(Node, ViNodes):
     skymenu: EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeupdate)
     gref: FloatProperty(name="", description="Ground reflectance", min=0.0, max=1.0, default=0.0, update = nodeupdate)
     gcol:FloatVectorProperty(size = 3, name = '', description="Ground colour", attr = 'Color', default = [0, 1, 0], subtype = 'COLOR', update = nodeupdate)
+    sdist: FloatProperty(name="", description="Blender sun distance", min=0.0, default=50.0, update = nodeupdate)
     shour: FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
     sdoy: IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
     ehour: FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
@@ -320,12 +321,6 @@ class No_Li_Con(Node, ViNodes):
     mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     resname: StringProperty()
     turb: FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
-    canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "Green Star", "Green Star Calculation"), ('3', "LEED", "LEED v4 Daylight calculation")]
-    bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
-    lebuildtype = [('0', "Office/Education/Commercial", "Office/Education/Commercial lighting standard"), ('1', "Healthcare", "Healthcare lighting standard")]
-    canalysismenu: EnumProperty(name="", description="Type of analysis", items = canalysistype, default = '0', update = nodeupdate)
-    bambuildmenu: EnumProperty(name="", description="Type of building", items=bambuildtype, default = '0', update = nodeupdate)
-    lebuildmenu: EnumProperty(name="", description="Type of building", items=lebuildtype, default = '0', update = nodeupdate)
     cusacc: StringProperty(name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     buildstorey: EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
     cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"), ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics")]
@@ -381,6 +376,7 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, "Ground col:", self, 'gcol')
                 
                 if self.skymenu in ('0', '1', '2'):
+                    newrow(layout, "Sun distance:", self, 'sdist')
                     newrow(layout, "Start hour:", self, 'shour')
                     newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                     newrow(layout, "Animation;", self, 'animated')
@@ -636,16 +632,13 @@ class No_Li_Con(Node, ViNodes):
     def postexport(self):  
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)  
         (sdoy, edoy) =  (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
-        typedict = {'Basic': '0', 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'], 
-                    'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 
-                    'CBDM': (('lxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
-        btypedict = {'0': self.bambuildmenu, '1': '', '2': self.bambuildmenu, '3': self.lebuildmenu}
+        typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
+        unitdict = {'Basic': (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'], 
+                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 
             'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour, 
             'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 
-            'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
-            'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 
+            'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 
             'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 
             'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': csh, 
             'cbdm_eh': ceh, 'cbdm_sd': sdoy, 'cbdm_ed': edoy, 'weekdays': (7, 5)[self.weekdays], 
@@ -676,14 +669,15 @@ class No_Li_Im(Node, ViNodes):
     startframe: IntProperty(name = '', default = 0)
     endframe: IntProperty(name = '', default = 0)
     cusacc: StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+            name="Radiance parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"), 
                                            ("3", "Custom", "Edit Radiance parameters")], name="", description="Simulation accuracy", default="0", update = nodeupdate)
 #    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), 
 #                   ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4), ("-pj", 0, 0.6, 0.9))
     pmap: BoolProperty(name = '', default = False, update = nodeupdate)
-    pmapgno: IntProperty(name = '', default = 50000)
-    pmapcno: IntProperty(name = '', default = 0)
+    pmapgno: IntProperty(name = '', description = "Number of global photons", default = 50000)
+    pmapcno: IntProperty(name = '', description = "Number of caustic photons", default = 0)
+    pmapvno: IntProperty(name = '', description = "Number of visualised photons", min = 100, max = 5000, default = 500)
     pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
     pmappreview: BoolProperty(name = '', default = 0, update = nodeupdate)
     x: IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
@@ -729,7 +723,9 @@ class No_Li_Im(Node, ViNodes):
             newrow(layout, 'Accuracy:', self, 'simacc')
     
             if self.simacc == '3':
-                newrow(layout, "Radiance parameters:", self, 'cusacc')
+                row = layout.row()
+                row.prop(self, 'cusacc')
+#                newrow(layout, "Radiance parameters:", self, 'cusacc')
             newrow(layout, 'Photon map:', self, 'pmap')
     
             if self.pmap:
@@ -737,6 +733,9 @@ class No_Li_Im(Node, ViNodes):
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
                newrow(layout, 'Photons options:', self, 'pmapoptions')
                newrow(layout, 'Preview photons:', self, 'pmappreview')
+               
+               if self.pmappreview:
+                   newrow(layout, 'Visualised photons:', self, 'pmapvno')
 
                
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
@@ -775,7 +774,6 @@ class No_Li_Im(Node, ViNodes):
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
-#        self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
         self['rpictparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rpictparams[k][int(self.simacc)]) for k in rpictparams])
         self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])       
         self['basename'] = self.basename if self.basename else 'image'
@@ -905,16 +903,16 @@ class No_Li_Fc(Node, ViNodes):
 
             if self.unit_name:
                 newrow(layout, 'Multiplier:', self, 'multiplier')
-                newrow(layout, 'Colour:', self, 'colour')
-                newrow(layout, 'Divisions:', self, 'divisions')
-                newrow(layout, 'Legend:', self, 'legend')
-                
+                newrow(layout, 'Colour:', self, 'colour')                
+                newrow(layout, 'Legend:', self, 'legend')    
+
                 if self.legend:
                     newrow(layout, 'Scale:', self, 'nscale')
 
                     if self.nscale == '1':
                         newrow(layout, 'Decades:', self, 'decades')
-
+                    
+                    newrow(layout, 'Divisions:', self, 'divisions')
                     newrow(layout, 'Legend max:', self, 'lmax')
                     newrow(layout, 'Legend width:', self, 'lw')
                     newrow(layout, 'Legend height:', self, 'lh')
@@ -923,9 +921,11 @@ class No_Li_Fc(Node, ViNodes):
                 
                 if self.contour:
                     newrow(layout, 'Overlay:', self, 'overlay') 
+
                     if self.overlay:
                         newrow(layout, 'Overlay file:', self, 'ofile') 
                         newrow(layout, 'Overlay exposure:', self, 'disp')
+
                     newrow(layout, 'Bands:', self, 'bands') 
     
                 if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
@@ -959,12 +959,12 @@ class No_Li_Sim(Node, ViNodes):
     csimacc: EnumProperty(items=[("0", "Custom", "Edit Radiance parameters"), ("1", "Initial", "Initial accuracy for this metric"), ("2", "Final", "Final accuracy for this metric")],
             name="", description="Simulation accuracy", default="1", update = nodeupdate)
     cusacc: StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+            name="Radiance parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     
-    rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
-    rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
-    rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
-    rvuadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
+#    rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
+#    rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
+#    rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
+#    rvuadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
     pmap: BoolProperty(name = '', default = False, update = nodeupdate)
     pmapgno: IntProperty(name = '', default = 50000, update = nodeupdate)
     pmapcno: IntProperty(name = '', default = 0, update = nodeupdate)
@@ -1008,7 +1008,9 @@ class No_Li_Sim(Node, ViNodes):
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
             
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
-               newrow(layout, "Radiance parameters:", self, 'cusacc')
+                row = layout.row()
+                row.prop(self, 'cusacc')
+#                newrow(layout, "Radiance parameters:", self, 'cusacc')
     
             if not self.run and (self.simacc != '3' or self.validparams):
                 if cinnode['Options']['Preview']:
@@ -1034,11 +1036,15 @@ class No_Li_Sim(Node, ViNodes):
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
+
         if self['coptions']['Context'] == 'Basic':
-            self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
+            self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rtraceparams[k][int(self.simacc)]) for k in rtraceparams])
+            self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])
         else:
-            self['radparams'] = ' {} '.format(self.cusacc) if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtraceadvance], [n[int(self.csimacc)] for n in self.rtraceadvance]))
-        self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])
+            self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rtracecbdmparams[k][int(self.simacc) - 1]) for k in rtracecbdmparams])
+            self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])
+        
+    
     def sim(self, scene):
         svp = scene.vi_params
         self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
@@ -1138,7 +1144,7 @@ class No_Vi_SVF(Node, ViNodes):
     endframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
     cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update = nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, precision = 3, update = nodeupdate)
     signore: BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
     skytype = [('0', "Tregenza", "145 Tregenza sky patches"), ('1', "Reinhart 577", "577 Reinhart sky patches"), ('2', 'Reinhart 2305', '2305 Reinhart sky patches')]
     skypatches: EnumProperty(name="", description="Animation type", items=skytype, default = '0', update = nodeupdate)
@@ -1207,7 +1213,7 @@ class No_Vi_SS(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
-            (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
+            (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params['viparams']['year'])
             newrow(layout, 'Ignore sensor:', self, "signore")
             newrow(layout, 'Animation:', self, "animmenu")
 
@@ -1229,7 +1235,7 @@ class No_Vi_SS(Node, ViNodes):
             row.operator("node.shad", text = 'Calculate')
 
     def preexport(self):
-        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, bpy.context.scene.vi_params['viparams']['year'])
         self['goptions']['offset'] = self.offset
 
     def postexport(self, scene):
@@ -2016,6 +2022,8 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['sda'] = -1
                 self['res']['auto'] = -1
                 self['res']['o1'] = -1
+                self['res']['areaDF'] = -1
+                self['res']['ratioDF'] = -1
                 
                 if self.light_menu == '0':
                     if self.breeam_menu == '0':
@@ -4736,7 +4744,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     bl_icon = 'NODE_COMPOSITING'
     
     def con_update(self, context):
-        if len(self.inputs) == 3:
+        if len(self.inputs) == 4:
             if self.envi_con_type == 'Shading':
                 self.inputs['Schedule'].hide = False
             else:
@@ -4812,6 +4820,16 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 self.uv = '{:.3f}'.format(uv)                
         else:
             self.uv = "N/A"
+
+    def frame_update(self, context):
+        if self.fclass == '2':
+            self.inputs['Outer frame layer'].hide = False
+        else:
+            for link in self.inputs['Outer frame layer'].links:
+                self.id_data.links.unlink(link)
+
+            self.inputs['Outer frame layer'].hide = True
+            
                                       
     con_name: StringProperty(name = "", description = "", default = '')
     envi_con_type: EnumProperty(items = [("Wall", "Wall", "Wall construction"),
@@ -4849,6 +4867,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     lt8: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
     lt9: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
     uv: StringProperty(name = "", description = "Construction U-Value", default = "N/A")
+    frame_uv: StringProperty(name = "", description = "Frame U-Value", default = "N/A")
     envi_con_list: EnumProperty(items = envi_con_list, name = "", description = "Database construction")
     active: BoolProperty(name = "", description = "Active construction", default = False, update = active_update)
     
@@ -4858,7 +4877,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                                    ("2", "Layers", "Layered frame designation")], 
                                     name = "", 
                                     description = "Window frame specification", 
-                                    default = "0")#, update = frame_update)
+                                    default = "0", update = frame_update)
     
     fmat: EnumProperty(items = [("0", "Wood", "Wooden frame"),
                                    ("1", "Aluminium", "Aluminium frame"),
@@ -4904,6 +4923,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         self.inputs['Outer layer'].hide = True
         self.inputs.new('So_En_Sched', 'Schedule')
         self.inputs['Schedule'].hide = True
+        self.inputs.new('So_En_Mat_Fr', 'Outer frame layer')
+        self.inputs['Outer frame layer'].hide = True
         
     def draw_buttons(self, context, layout):
         newrow(layout, 'Active:', self, 'active')
@@ -4981,16 +5002,25 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         newrow(layout, "    Sol. abs.:", self, "dsa")
                         newrow(layout, "    Vis. abs.:", self, "dva")
                         newrow(layout, "    Emissivity:", self, "dte")
+
                     newrow(layout, "Reveal sol. abs.:", self, "orsa")
                     newrow(layout, "Sill depth:", self, "isd")
                     newrow(layout, "Sill sol. abs.:", self, "issa")
                     newrow(layout, "Reveal depth:", self, "ird")
                     newrow(layout, "Inner reveal sol. abs:", self, "irsa")
-                else:
+
+                elif self.fclass == '2':                  
                     newrow(layout, '% area:', self, "farea")
+                    row = layout.row()
+                    row.operator('node.envi_uv', text = "UV Calc")
+                    try:                        
+                        row.label(text = 'U-value  = {} W/m2.K'.format(self.frame_uv)) 
+                    except: 
+                        row.label(text = 'U-value  = N/A')
             
             elif self.envi_con_type in ('Wall', 'Floor', 'Roof'):
                 row = layout.row()
+
                 if self.envi_con_makeup == '0':
                     try:                        
                         row.label(text = 'U-value  = {} W/m2.K'.format(self.uv)) 
@@ -5011,7 +5041,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 row.operator('node.con_save', text = "Save")
         
     def update(self):
-        if len(self.inputs) == 3:
+        if len(self.inputs) == 4:
             self.valid()
     
     def valid(self):
@@ -5031,6 +5061,18 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
             self.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
         return self.uv
+
+    def ret_frame_uv(self):
+        if self.envi_con_type == 'Window' and self.fclass == '2':
+            resists = []
+            lsock = self.inputs['Outer frame layer']
+            
+            while lsock.links:
+                resists.append(lsock.links[0].from_node.ret_resist())
+                lsock = lsock.links[0].from_node.inputs['Layer']   
+
+            self.frame_uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+        return self.frame_uv 
     
     def ret_nodes(self):
         nodes = [self]
@@ -5229,21 +5271,32 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 ep_text += epentry('WindowProperty:FrameAndDivider', fparams, fparamvs)
                 
             elif self.fclass == '2':
-                ep_text += self.layer_write(self.inputs['Outer frame layer'], mn)
-        
+                in_sock = self.inputs['Outer frame layer']
+                n = 0
+                params = ['Name']
+                paramvs = ['{}-frame'.format(mn)]
+
+                while in_sock.links:
+                    paramvs.append('{}-frame-layer-{}'.format(mn, n)) 
+                    params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                    node = in_sock.links[0].from_node
+                    ep_text += node.ep_write(n, mn) 
+                    in_sock = node.inputs['Layer']
+                    n += 1      
+                ep_text += epentry('Construction', params, paramvs)   
+
         return ep_text
     
     def layer_write(self, in_sock, matname):
         ep_text = ''
         n = 0
-        params = ['Name']
-        paramvs = ['{}-frame'.format(matname)]
+        
         
         while in_sock.links:
             node = in_sock.links[0].from_node
             paramvs.append('{}-frame-layer-{}'.format(matname, n)) 
             params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-            ep_text += node.ep_write(n)                    
+            ep_text += node.ep_write(n, mn)                    
             in_sock = node.inputs['Layer']
             n += 1
             
@@ -5384,7 +5437,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     def update(self):
         socklink2(self.outputs['Layer'], self.id_data)
         if self.outputs['Layer'].links:
-            self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'envi_f_sock' else 'Frame'
+            self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'So_En_Mat_Fr' else 'Frame'
         self.valid()
     
     def valid(self):

@@ -130,7 +130,7 @@ def leg_min_max(svp):
         else:
             return (svp.vi_leg_min, svp.vi_leg_max)
     except Exception as e:
-        logentry('Error setting legen values: {}'.format(e))
+        logentry('Error setting legend values: {}'.format(e))
         return (svp.vi_leg_min, svp.vi_leg_max)
 
 def e_update(self, context):
@@ -139,7 +139,7 @@ def e_update(self, context):
     maxo, mino = svp.vi_leg_max, svp.vi_leg_min
     odiff = svp.vi_leg_max - svp.vi_leg_min
 
-    if context.active_object.mode == 'EDIT':
+    if context.active_object and context.active_object.mode == 'EDIT':
         return
     if odiff:      
         for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -213,6 +213,7 @@ def li_display(disp_op, simnode):
     scene, obreslist, obcalclist = bpy.context.scene, [], []
     dp = bpy.context.evaluated_depsgraph_get()
     svp = scene.vi_params
+    svp.li_disp_menu = unit2res[svp['liparams']['unit']]
     svp['liparams']['livir'] = []
     setscenelivivals(scene)
 
@@ -3353,3 +3354,4 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             
         except Exception as e:
             logentry('Quitting LiVi display {}'.format(e))
+            context.scene.vi_params.vi_display = 0
