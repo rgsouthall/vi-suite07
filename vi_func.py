@@ -219,10 +219,14 @@ def cmap(svp):
         bpy.data.materials[matname].diffuse_color = cols[i][0:4]
         bpy.data.materials[matname].use_nodes = True
         nodes = bpy.data.materials[matname].node_tree.nodes
-
+        links = bpy.data.materials[matname].node_tree.links
+  
         for node in nodes:
             nodes.remove(node)
-        
+
+        node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+        node_output.location = 400,0
+
         if svp.vi_disp_trans < 1:
             # create transparency node
             node_material = nodes.new(type='ShaderNodeBsdfTransparent')    
@@ -231,6 +235,13 @@ def cmap(svp):
             # create emission node
             node_material = nodes.new(type='ShaderNodeEmission') 
             node_material.inputs[1].default_value = svp.vi_disp_ems
+            node_lp = nodes.new(type='ShaderNodeLightPath') 
+            node_mix = nodes.new(type='ShaderNodeMixShader') 
+            node_trans = nodes.new(type='ShaderNodeBsdfTransparent') 
+            links.new(node_lp.outputs[0], node_mix.inputs[0])   
+            links.new(node_material.outputs[0], node_mix.inputs[2])   
+            links.new(node_trans.outputs[0], node_mix.inputs[1]) 
+            links.new(node_mix.outputs[0], node_output.inputs[0]) 
         else:
             # create diffuse node
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
@@ -240,11 +251,10 @@ def cmap(svp):
         node_material.location = 0,0
                 
         # create output node
-        node_output = nodes.new(type='ShaderNodeOutputMaterial')   
-        node_output.location = 400,0
-        
-        links = bpy.data.materials[matname].node_tree.links
-        links.new(node_material.outputs[0], node_output.inputs[0])
+        if svp.vi_disp_trans == 1 and svp.vi_disp_mat:
+            links.new(node_mix.outputs[0], node_output.inputs[0])
+        else:
+            links.new(node_material.outputs[0], node_output.inputs[0])
                                              
 def regresults(scene, frames, simnode, res):    
     for i, f in enumerate(frames):
@@ -1876,7 +1886,7 @@ def sunposh(context, suns):
     for sun in suns:
         pass
         
-def sunapply(scene, sun, values, solposs, frames):
+def sunapply(scene, sun, values, solposs, frames, sdist):
     sun.data.animation_data_clear()
     sun.animation_data_clear()
     sun.animation_data_create()
@@ -1902,12 +1912,12 @@ def sunapply(scene, sun, values, solposs, frames):
         sun.data.node_tree.animation_data_create()
         sun.data.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi Sun Node")
         emnodes = [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']
+        bbnodes = [bbnode for bbnode in sun.data.node_tree.nodes if bbnode.bl_label == 'Blackbody']
+
         for emnode in emnodes:
             em1 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(emnode.name))
-#            em2 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(emnode.name))
             em1.keyframe_points.add(len(frames))
-#            em2.keyframe_points.add(len(frames))
-        bbnodes = [bbnode for bbnode in sun.data.node_tree.nodes if bbnode.bl_label == 'Blackbody']
+        
         for bbnode in bbnodes:
             bb1 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[0].default_value'.format(bbnode.name))
             bb1.keyframe_points.add(len(frames))
@@ -1926,13 +1936,17 @@ def sunapply(scene, sun, values, solposs, frames):
             st1x.keyframe_points.add(len(frames))
             st1y.keyframe_points.add(len(frames))
             st1z.keyframe_points.add(len(frames))
+
         for bnode in bnodes:
             b1 = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(bnode.name))
             b1.keyframe_points.add(len(frames))
 
     for f, frame in enumerate(frames):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]
-        sunpos = [x*100 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
+        sunz = sdist * sin(solposs[f][2])
+        sunx = -(sdist**2 - (sunz)**2)**0.5 * sin(solposs[f][3])
+        suny = -(sdist**2 - (sunz)**2)**0.5 * cos(solposs[f][3])
+        sunpos = [sunx, suny, sunz]
         sunrot = [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
         scene.display.light_direction = (-sin(solposs[f][3]) * cos(solposs[f][2]), sin(solposs[f][2]),  cos(solposs[f][3]) * cos(solposs[f][2])) 
         

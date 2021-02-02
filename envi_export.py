@@ -441,7 +441,7 @@ def pregeo(context, op):
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
             
             for o in cobs:
-                if o.type == 'MESH' and o.vi_params.envi_type in ('0', '1'):
+                if o.type == 'MESH':# and o.vi_params.envi_type in ('0', '1'):
                     if [f for f in o.data.polygons if o.material_slots and \
                         o.material_slots[f.material_index].material and \
                         o.material_slots[f.material_index].material.vi_params.envi_nodes and \
@@ -488,7 +488,6 @@ def pregeo(context, op):
                             uids = [f[uid] for f in exp_faces]
                             face[fo] = o.name.encode()
                             face[uid] = face[uid] if face[uid] else max(uids) + 1
-                            print(face[uid], face.index)
 
                         if o.vi_params.envi_type == '0':
                             therm = 1

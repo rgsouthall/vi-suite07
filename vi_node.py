@@ -190,7 +190,7 @@ class No_Li_Geo(Node, ViNodes):
     bl_icon = 'OBJECT_DATA'
     
     def ret_params(self):
-        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)]
+        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.mesh)]
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
@@ -201,7 +201,7 @@ class No_Li_Geo(Node, ViNodes):
     animated: BoolProperty(name="", description="Animated analysis", default = 0, update = nodeupdate)
     startframe: IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
-    fallback: BoolProperty(name="", description="Enforce simple geometry export", default = 1, update = nodeupdate)
+    mesh: BoolProperty(name="", description="Radiance mesh geometry export", default = 0, update = nodeupdate)
     triangulate: BoolProperty(name="", description="Triangulate mesh geometry for export", default = 0, update = nodeupdate)
     
     def init(self, context):
@@ -211,7 +211,7 @@ class No_Li_Geo(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Triangulate:', self, 'triangulate')
-        newrow(layout, 'Fallback:', self, 'fallback')
+        newrow(layout, 'Mesh:', self, 'mesh')
         newrow(layout, 'Animated:', self, 'animated')
         
         if self.animated:
@@ -3036,13 +3036,11 @@ class No_En_Net_Zone(Node, EnViNodes):
         self.afs = 0
         col = bpy.data.collections[self.zone]
 
-        for obj in col.objects:
+        for obj in col.objects:             
             odm = [m.material for m in obj.material_slots]
             olinks = [(o.name, o.links[0].to_node.name, o.links[0].to_socket.name) for o in self.outputs if o.links and o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
             ilinks = [(i.name, i.links[0].from_node.name, i.links[0].from_socket.name) for i in self.inputs if i.links and i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
             bfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con == 'Zone'], key=lambda face: -face.center[2])
-    #        buvals = [retuval(odm[face.material_index]) for face in bfacelist]
-            
             bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in bfacelist]
             sfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type not in ('Window', 'Door')], key=lambda face: -face.center[2])
             ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in sfacelist]
@@ -3063,19 +3061,19 @@ class No_En_Net_Zone(Node, EnViNodes):
                 self.afs += 1
                 self.outputs.new('So_En_Net_SSFlow', sock).sn = sock.split('_')[-2]
                 self.inputs.new('So_En_Net_SSFlow', sock).sn = sock.split('_')[-2]                
-    #        for s, sock in enumerate(bsocklist):
-    #            self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
-    #            self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
+
             for olink in olinks:
                 try:
                     self.id_data.links.new(self.outputs[olink[0]], self.id_data.nodes[olink[1]].inputs[olink[2]])
                 except:
                     pass
+
             for ilink in ilinks:
                 try:
                     self.id_data.links.new(self.id_data.nodes[ilink[1]].outputs[ilink[2]], self.inputs[ilink[0]])
                 except:
                     pass
+
         self.vol_update(context)
         self['nbound'] = len(bsocklist)
         self['nsflow'] = len(ssocklist)
@@ -3106,12 +3104,6 @@ class No_En_Net_Zone(Node, EnViNodes):
     alllinked: BoolProperty(default = 0, name = "")
     envi_oca: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "TARP", "Use the detailed convection algorithm"), ("3", "DOE-2", "Use the Trombe wall convection algorithm"), ("4", "MoWitt", "Use the adaptive convection algorithm"), ("5", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone outside convection algorithm", "0")
     envi_ica: eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "Detailed", "Use the detailed convection algorithm"), ("3", "Trombe", "Use the Trombe wall convection algorithm"), ("4", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone inside convection algorithm", "0")
-#    envi_hab: BoolProperty(default = 0, name = "")
-#    zone = StringProperty(name = '', default = "en_Chimney")
-#    tcsched = EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
-#    waw = FloatProperty(name = '', min = 0.001, default = 1)
-#    ocs = FloatProperty(name = '', min = 0.001, default = 1)
-#    odc = FloatProperty(name = '', min = 0.001, default = 0.6)
     
     def init(self, context):
         self['nbound'] = 0
@@ -3185,8 +3177,6 @@ class No_En_Net_Zone(Node, EnViNodes):
         newrow(layout, 'Zone:', self, 'zone')
 
         if bpy.data.collections.get(self.zone):
-#            cvp = bpy.data.collections[self.zone].vi_params
-#            newrow(layout, "Habitable:", self, 'envi_hab')
             newrow(layout, "Inside convection:", self, 'envi_ica')
             newrow(layout, "Outside convection:", self, 'envi_oca')
 
@@ -3238,23 +3228,23 @@ class No_En_Net_TC(Node, EnViNodes):
         odm = obj.data.materials
         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con  == 'Zone' and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'So_En_Net_Bound']]
 
-        for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
+        for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'So_En_Net_Bound']:
             self.outputs.remove(oname)
             
-        for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'EnViBoundSocket']:
+        for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'So_En_Net_Bound']:
             self.inputs.remove(iname)
             
         for sock in sorted(set(bsocklist)):
             if not self.outputs.get(sock):
-                self.outputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
+                self.outputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
             if not self.inputs.get(sock):
-                self.inputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
+                self.inputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
                 
         for sock in (self.inputs[:] + self.outputs[:]):
-            if sock.bl_idname == 'EnViBoundSocket' and sock.links:
+            if sock.bl_idname == 'So_En_Net_Bound' and sock.links:
                 zonenames += [(link.from_node.zone, link.to_node.zone)[sock.is_output] for link in sock.links]
 
-        nodecolour(self, all([get_con_node(mat.vi_params).envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials if mat]))
+        nodecolour(self, all([get_con_node(mat.vi_params).envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials if mat and mat.vi_params.envi_nodes]))
         self['zonenames'] = zonenames
 
     def supdate(self, context):
@@ -3290,6 +3280,7 @@ class No_En_Net_TC(Node, EnViNodes):
     def update(self):
         bi, bo = 1, 1
         zonenames, fheights, fareas = [], [], []
+
         for inp in [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound']:
             self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
@@ -3311,20 +3302,21 @@ class No_En_Net_TC(Node, EnViNodes):
                 fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in sock.links]
     
             self['zonenames'] = zonenames
+
             for z, zn in enumerate(self['zonenames']):
                 self['Distance {}'.format(z)] = fheights[z]
                 self['Relative Ratio {}'.format(z)] = 1.0
                 self['Cross Section {}'.format(z)] = fareas[z]
                 
         for sock in self.outputs:
-            socklink(sock, self['nodeid'].split('@')[1])
+            socklink(sock, self.id_data.name)
 
     def uvsockupdate(self):
         for sock in self.outputs:
-            socklink(sock, self['nodeid'].split('@')[1])
+            socklink(sock, self.id_data.name)
             
             if sock.bl_idname == 'EnViBoundSocket':
-                uvsocklink(sock, self['nodeid'].split('@')[1])
+                uvsocklink(sock, self.id_data.name)
                 
     def epwrite(self):
         scheduled = 1 if self.inputs['Schedule'].links and not self.inputs['Schedule'].links[0].to_node.use_custom_color else 0

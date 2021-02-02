@@ -399,7 +399,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
     bsdf_running: bprop("", "Running BSDF calculation", False)
     retsv = retsv
-    envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney")], "", "Specify the EnVi surface type", "0")
+    envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object")], "", "Specify the EnVi surface type", "0")
     flovi_solver: EnumProperty(items = [('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
                                         ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')], 
                                         name = "", default = 'icoFoam')
@@ -410,7 +410,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     flovi_slmax: IntProperty(name = '', description = 'SnappyHexMesh surface maximum levels', min = 1, max = 20, default = 4, update=flovi_levels)   
     flovi_slmin: IntProperty(name = '', description = 'SnappyHexMesh surface minimum levels', min = 1, max = 20, default = 3, update=flovi_levels)     
     flovi_sl: iprop('', 'SnappyHexMesh surface minimum levels', 0, 20, 3)
-    fallback: bprop("", "Enforce simple geometry export", 0)
+    mesh: bprop("", "Radiance mesh geometry export", 1)
     triangulate: bprop("", "Triangulate mesh geometry for export", 0)
     flovi_ufield: fvprop(3, '', 'Velocity field value', [0, 0, 0], 'VELOCITY', -100, 100)
     flovi_pfield: fprop("", "p field value", 0, 500, 0)
@@ -430,11 +430,12 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     # ns: fprop("", "Strength of normal effect", 0, 5, 1)
     nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'XYZ', -1, 1)
     nside: fvprop(3, '', 'Image side vector', [-1, 0, 0], 'XYZ', -1, 1)
-    radcolour: fvprop(3, "Material Reflectance",'Material Reflectance', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
+    radcolour: fvprop(3, "Material Reflectance", 'Material Reflectance', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
     radcolmenu: eprop([("0", "RGB", "Specify colour temperature"), ("1", "Temperature", "Specify colour temperature")], "Colour type:", "Specify the colour input", "0")
     radrough: fprop("Roughness", "Material roughness", 0, 1, 0.1)
     radspec: fprop("Specularity", "Material specular reflection", 0, 1, 0.0)
-    radtrans: fprop("Transmission", "Material diffuse transmission", 0, 1, 0.1)
+    radtrans: fvprop(3, "Transmission", 'Material transmission', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
+    radtransdiff: fprop("Transmission", "Material diffuse transmission", 0, 1, 0.1)
     radtranspec: fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     radior: fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
     radct: iprop("Temperature (K)", "Colour temperature in Kelven", 0, 12000, 4700)
@@ -466,7 +467,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
                 ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material'), ('8', 'BSDF', 'BSDF Radiance material'), ('9', 'Custom', 'Custom Radiance material')]
     radmatmenu: eprop(radtypes, "", "Type of Radiance material", '0')
-    radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], 
+    radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radtrans'], '2': ['radtrans', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtransdiff',  'radtranspec'], '4': ['radcolour'], 
     '5': ['radcolmenu', 0, 'radcolour', 0, 'radct',  0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': [], '8': [], '9': []}
     radmat = radmat
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)

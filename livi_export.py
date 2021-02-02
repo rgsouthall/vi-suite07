@@ -47,14 +47,14 @@ def radpoints(o, faces, sks):
         fentries[f] = ''.join((mentry, fentry, ventries+'\n'))        
     return ''.join(fentries)
 
-def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
+def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
 
     if tri:
         bmesh.ops.triangulate(bm, faces = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
-    if fb:
+    if not m:
 #        gradfile += radpoints(o, [f for f in bm.faces if f.calc_area() >= 0.0], 0)
         gradfile += radpoints(o, bm.faces, 0)
 #        for f in [f for f in bm.faces if f.calc_area() == 0.0]:
@@ -117,7 +117,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb, tri):
     
             else:
                 if o2mrun[1]:
-                    logentry('Obj2mesh error: {}. Using geometry export fallback on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
+                    logentry('Obj2mesh error: {}. Using mesh geometry export on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
     
                 gradfile += radpoints(o, mfaces, 0)
 #    print(gradfile)
@@ -178,7 +178,7 @@ def radgexport(export_op, node, **kwargs):
             bm.transform(o.matrix_world)
             bm.normal_update() 
             o.to_mesh_clear()
-            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback, node.triangulate)
+            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.mesh, node.triangulate)
           
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
@@ -275,7 +275,7 @@ def radgexport(export_op, node, **kwargs):
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
 
-def gen_octree(scene, o, op, fallback, tri):
+def gen_octree(scene, o, op, mesh, tri):
     dg = bpy.context.evaluated_depsgraph_get()
     bm = bmesh.new()
     tempmesh = o.evaluated_get(dg).to_mesh()
@@ -296,7 +296,7 @@ def gen_octree(scene, o, op, fallback, tri):
     with open(mf, "w") as tempmatfile:
         tempmatfile.write(mradfile)  
         
-    gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, fallback, tri)
+    gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, mesh, tri)
 
     with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
         try:
@@ -309,7 +309,7 @@ def gen_octree(scene, o, op, fallback, tri):
             
         except TimeoutExpired:
             ocrun.kill()
-            errmsg = 'Oconv conversion taking too long. Try joining/simplfying geometry or using geometry export fallback'
+            errmsg = 'Oconv conversion taking too long. Try joining/simplfying geometry or using non-mesh geometry export'
             op.report({'ERROR'}, errmsg)
             logentry('Oconv error: {}'.format(errmsg))
             return 'CANCELLED'
@@ -404,7 +404,7 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
             
         except TimeoutExpired:
             ocrun.kill()
-            errmsg = 'Oconv conversion taking too long. Try joining/simplfying geometry or using geometry export fallback'
+            errmsg = 'Oconv conversion taking too long. Try joining/simplfying geometry or using non-mesh geometry export'
             sim_op.report({'ERROR'}, errmsg)
             logentry('Oconv error: {}'.format(errmsg))
             return 'CANCELLED'

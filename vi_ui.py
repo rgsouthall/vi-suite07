@@ -334,7 +334,7 @@ class VI_PT_Ob(bpy.types.Panel):
                 row = layout.row()
                 row.label(text = '-- Octree generation --')
                 newrow(layout, 'Triangulate:', ovp, 'triangulate') 
-                newrow(layout, 'Fallback:', ovp, 'fallback')
+                newrow(layout, 'Mesh:', ovp, 'mesh')
                 row = layout.row()  
                 row.operator('object.vi_genoct', text = "Generate Octree")
 

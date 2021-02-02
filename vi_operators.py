@@ -1437,7 +1437,7 @@ class MAT_EnVi_Node(bpy.types.Operator):
 
 class NODE_OT_En_Geo(bpy.types.Operator):
     bl_idname = "node.engexport"
-    bl_label = "VI-Suite export"
+    bl_label = "EnVi geometry export"
     bl_context = "scene"
 
     def invoke(self, context, event):
@@ -1775,7 +1775,7 @@ class OBJECT_OT_GOct(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         ovp = context.object.vi_params
-        gen_octree(scene, context.object, self, ovp.fallback, ovp.triangulate)
+        gen_octree(scene, context.object, self, ovp.mesh, ovp.triangulate)
         return {'FINISHED'}
 
 class OBJECT_OT_Embod(bpy.types.Operator):
