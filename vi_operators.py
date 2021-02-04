@@ -2722,6 +2722,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         
                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
                     os.makedirs(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
+            elif sys.platform == 'darwin' and os.path.isdir(vi_prefs.ofbin): 
+                print("OSX command to open openfoam docker image: {}".format("docker container run -ti --rm -v $PWD:/data -w /data openfoamplus/of_v2012_centos73:release /bin/bash"))
             
             if os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary')): 
                 with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
