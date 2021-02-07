@@ -321,7 +321,7 @@ class No_Li_Con(Node, ViNodes):
     mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     resname: StringProperty()
     turb: FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
-    cusacc: StringProperty(name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     buildstorey: EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
     cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"), ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics")]
     cbanalysismenu: EnumProperty(name="", description="Type of lighting analysis", items = cbanalysistype, default = '0', update = nodeupdate)
@@ -668,12 +668,10 @@ class No_Li_Im(Node, ViNodes):
             
     startframe: IntProperty(name = '', default = 0)
     endframe: IntProperty(name = '', default = 0)
-    cusacc: StringProperty(
-            name="Radiance parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
-    simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"), 
-                                           ("3", "Custom", "Edit Radiance parameters")], name="", description="Simulation accuracy", default="0", update = nodeupdate)
-#    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), 
-#                   ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4), ("-pj", 0, 0.6, 0.9))
+    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+    simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), 
+                                    ("2", "High", "High but slow accuracy"), ("3", "Custom", "Edit Radiance parameters")], 
+                                    name="", description="Simulation accuracy", default="0", update = nodeupdate)
     pmap: BoolProperty(name = '', default = False, update = nodeupdate)
     pmapgno: IntProperty(name = '', description = "Number of global photons", default = 50000)
     pmapcno: IntProperty(name = '', description = "Number of caustic photons", default = 0)
@@ -721,11 +719,11 @@ class No_Li_Im(Node, ViNodes):
                 newrow(layout, 'FoV:', self, 'fov')
             
             newrow(layout, 'Accuracy:', self, 'simacc')
-    
+
             if self.simacc == '3':
                 row = layout.row()
                 row.prop(self, 'cusacc')
-#                newrow(layout, "Radiance parameters:", self, 'cusacc')
+
             newrow(layout, 'Photon map:', self, 'pmap')
     
             if self.pmap:
@@ -757,14 +755,17 @@ class No_Li_Im(Node, ViNodes):
         
     def update(self):  
         if self.outputs.get('Image'):
-            socklink(self.outputs['Image'], self.id_data.name)      
+            socklink(self.outputs['Image'], self.id_data.name)     
+
         self.run = 0
         
     def presim(self):
         self.time = datetime.datetime.now()
         scene = bpy.context.scene
+
         if sys.platform == 'win32':
             self.mp = 0
+
         pmaps = []
         sf, ef, = self.retframes()
         self['frames'] = range(sf, ef + 1)
@@ -797,13 +798,16 @@ class No_Li_Im(Node, ViNodes):
             (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.3f}'.format(vh), '{:.3f}'.format(vv))
             self['viewparams'][str(frame)]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
             self['viewparams'][str(frame)]['-x'], self['viewparams'][str(frame)]['-y'] = self.x, self.y
+
             if self.mp:
                 self['viewparams'][str(frame)]['-X'], self['viewparams'][str(frame)]['-Y'] = self.processes, 1
+
             self['viewparams'][str(frame)]['-vp'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.location)
             self['viewparams'][str(frame)]['-vu'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)))
             
             if self.illu:
                 self['viewparams'][str(frame)]['-i'] = ''
+
         self['pmaps'] = pmaps
         self.run = 1
         nodecolour(self, 1)
@@ -812,8 +816,8 @@ class No_Li_Im(Node, ViNodes):
         self['images'] = images
         self.run = 0
         self['exportstate'] = [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
-            self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
-            self.x, self.y)]
+                                self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, 
+                                self.pmapgno, self.pmapcno, self.x, self.y)]
         logentry('Time to render: {}'.format(datetime.datetime.now() - self.time))
         nodecolour(self, 0)  
 
@@ -959,7 +963,7 @@ class No_Li_Sim(Node, ViNodes):
     csimacc: EnumProperty(items=[("0", "Custom", "Edit Radiance parameters"), ("1", "Initial", "Initial accuracy for this metric"), ("2", "Final", "Final accuracy for this metric")],
             name="", description="Simulation accuracy", default="1", update = nodeupdate)
     cusacc: StringProperty(
-            name="Radiance parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+            name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     
 #    rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
 #    rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
@@ -1000,9 +1004,7 @@ class No_Li_Sim(Node, ViNodes):
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
                newrow(layout, 'Photon options:', self, 'pmapoptions')
                newrow(layout, 'Preview photons:', self, 'pmappreview')
-#               if self['coptions']['Context'] == 'Basic' or (self['coptions']['Context'] == 'CBDM' and self['coptions']['Type'] == '0'):
-                   
-    
+                       
             row = layout.row()
             row.label(text = "Accuracy:")            
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
@@ -1010,7 +1012,6 @@ class No_Li_Sim(Node, ViNodes):
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
                 row = layout.row()
                 row.prop(self, 'cusacc')
-#                newrow(layout, "Radiance parameters:", self, 'cusacc')
     
             if not self.run and (self.simacc != '3' or self.validparams):
                 if cinnode['Options']['Preview']:
@@ -1023,9 +1024,6 @@ class No_Li_Sim(Node, ViNodes):
                 if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
                     row = layout.row()
                     row.operator("node.livicalc", text = 'Calculate')
-                        
-#        except Exception as e:
-#            logentry('Problem with LiVi simulation: {}'.format(e))
 
     def update(self):
         if self.outputs.get('Results out'):
@@ -1043,8 +1041,7 @@ class No_Li_Sim(Node, ViNodes):
         else:
             self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rtracecbdmparams[k][int(self.simacc) - 1]) for k in rtracecbdmparams])
             self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])
-        
-    
+           
     def sim(self, scene):
         svp = scene.vi_params
         self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
