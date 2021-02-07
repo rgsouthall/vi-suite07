@@ -377,7 +377,7 @@ class No_Li_Con(Node, ViNodes):
                 
                 if self.skymenu in ('0', '1', '2'):
                     newrow(layout, "Sun distance:", self, 'sdist')
-                    newrow(layout, "Start hour:", self, 'shour')
+                    newrow(layout, "Start hour {}:{}:".format(int(self.shour), int((self.shour*60) % 60)), self, 'shour')
                     newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                     newrow(layout, "Animation;", self, 'animated')
                     
@@ -386,7 +386,7 @@ class No_Li_Con(Node, ViNodes):
                         row = layout.row()
                         row.label(text = 'End frame:')
                         row.label(text = '{}'.format(self['endframe']))
-                        newrow(layout, "End hour:", self, 'ehour')
+                        newrow(layout, "End hour {}:{}:".format(int(self.ehour), int((self.ehour*60) % 60)), self, 'ehour')
                         newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                         newrow(layout, "Interval (hours):", self, 'interval')
                     newrow(layout, "Turbidity", self, 'turb')
@@ -397,7 +397,7 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, "Delta:", self, 'delta')
                 newrow(layout, "Ground ref:", self, 'gref')
                 newrow(layout, "Ground col:", self, 'gcol')
-                newrow(layout, "Start hour:", self, 'shour')
+                newrow(layout, "Start hour {}:{}:".format(int(self.shour), int((self.shour*60) % 60)), self, 'shour')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                 newrow(layout, 'Colour sky', self, "colour")
                 newrow(layout, "Animation;", self, 'animated')
@@ -407,7 +407,7 @@ class No_Li_Con(Node, ViNodes):
                     row = layout.row()
                     row.label(text = 'End frame:')
                     row.label(text = '{}'.format(self['endframe']))
-                    newrow(layout, "End hour:", self, 'ehour')
+                    newrow(layout, "End hour {}:{}:".format(int(self.ehour), int((self.ehour*60) % 60)), self, 'ehour')
                     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                     newrow(layout, "Interval (hours):", self, 'interval')
                 
