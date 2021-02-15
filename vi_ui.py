@@ -236,6 +236,7 @@ class VI_PT_Mat(bpy.types.Panel):
 
                     if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet'):
                         newrow(layout, "Field value:", mvp, "flovi_u_field")
+
                         if not mvp.flovi_u_field:
                             newrow(layout, "Velocity value:", mvp, "flovi_u_type")
                             if mvp.flovi_u_type == '0':
@@ -243,6 +244,7 @@ class VI_PT_Mat(bpy.types.Panel):
                             else:
                                 newrow(layout, "Azimuth:", mvp, "flovi_u_azi")
                                 newrow(layout, "Speed:", mvp, "flovi_u_speed")
+                                
                     if svp.get('flparams') and svp['flparams'].get('params'):                       
                         if 'l' not in svp['flparams']['params']:    
                             newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
@@ -350,8 +352,10 @@ class VI_PT_Ob(bpy.types.Panel):
                 newrow(layout, 'Embodied class:', ovp, 'embodiedtype') 
                 newrow(layout, 'Embodied type:', ovp, 'embodiedclass') 
                 newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
-                row = layout.row()
-                row.operator("object.vi_embodied", text="Calc")
+
+                if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
+                    row = layout.row()
+                    row.operator("object.vi_embodied", text="Calc")
 
         if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
             newrow(layout, 'IES file:', ovp, "ies_name")

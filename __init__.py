@@ -435,6 +435,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radrough: fprop("Roughness", "Material roughness", 0, 1, 0.1)
     radspec: fprop("Specularity", "Material specular reflection", 0, 1, 0.0)
     radtrans: fvprop(3, "Transmission", 'Material transmission', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
+    radtransmit: fprop("Transmittance", "Material transmittance", 0, 1, 0.9)
+    radtransmenu: eprop([("0", "Transmission", "RGB transmission"), ("1", "Transmittance", "Transmittance")], "Trans type", "Specify the material transmission", "0")
     radtransdiff: fprop("Transmission", "Material diffuse transmission", 0, 1, 0.1)
     radtranspec: fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     radior: fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
@@ -467,7 +469,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
                 ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material'), ('8', 'BSDF', 'BSDF Radiance material'), ('9', 'Custom', 'Custom Radiance material')]
     radmatmenu: eprop(radtypes, "", "Type of Radiance material", '0')
-    radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radtrans'], '2': ['radtrans', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtransdiff',  'radtranspec'], '4': ['radcolour'], 
+    radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radtransmenu', 0, 'radtrans', 0, 'radtransmit'], '2': ['radtrans', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtransdiff',  'radtranspec'], '4': ['radcolour'], 
     '5': ['radcolmenu', 0, 'radcolour', 0, 'radct',  0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': [], '8': [], '9': []}
     radmat = radmat
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)

@@ -255,7 +255,7 @@ class No_Li_Con(Node, ViNodes):
     bl_icon = 'LIGHT_SUN'
     
     def ret_params(self):
-        return [str(x) for x in (self.contextmenu, self.spectrummenu, self.cbanalysismenu, 
+        return ['{}'.format(x) for x in (self.contextmenu, self.spectrummenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
                    self.cbdm_end_hour, self.leed4, self.colour, self.cbdm_res, self.ay)]
@@ -331,7 +331,7 @@ class No_Li_Con(Node, ViNodes):
     sourcemenu: EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeupdate)
     sourcemenu2: EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeupdate)
     hdrname: StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)
-    hdrmap: EnumProperty(items=[("0", "Polar", "Polar to LatLong HDR mapping"),("1", "Angular", "Light probe or angular mapping")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
+    hdrmap: EnumProperty(items=[("0", "Polar", "Latitude/longitude (equirectangular) format"),("1", "Angular", "Light probe or angular map format")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
     hdrangle: FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update = nodeupdate)
     hdrradius: FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update = nodeupdate)
     mtxname: StringProperty(name="", description="Name of the calculated vector sky file", default="", subtype="FILE_PATH", update = nodeupdate)
@@ -393,13 +393,13 @@ class No_Li_Con(Node, ViNodes):
                 
             elif self.skyprog == '1':
                 newrow(layout, "Spectrum:", self, 'spectrummenu')
+                newrow(layout, 'Colour sky', self, "colour")
                 newrow(layout, "Epsilon:", self, 'epsilon')
                 newrow(layout, "Delta:", self, 'delta')
                 newrow(layout, "Ground ref:", self, 'gref')
                 newrow(layout, "Ground col:", self, 'gcol')
                 newrow(layout, "Start hour {}:{}:".format(int(self.shour), int((self.shour*60) % 60)), self, 'shour')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
-                newrow(layout, 'Colour sky', self, "colour")
                 newrow(layout, "Animation;", self, 'animated')
                 
                 if self.animated:
@@ -1765,6 +1765,12 @@ class No_Vi_Metrics(Node, ViNodes):
                 return [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
             except:
                 return [('None', 'None', 'None')]
+
+        elif self.metric == '3' and self.em_menu == '0':
+            if [o for o in bpy.context.visible_objects if o.vi_params.get('ecdict')]:
+                return [(o.name, o.name, o.name) for o in bpy.context.visible_objects if o.vi_params.get('ecdict')]  + [('All', 'All', 'All objects')]
+            else:
+                return [('None', 'None', 'None')]
         else:
             return [('None', 'None', 'None')]
         
@@ -1795,7 +1801,8 @@ class No_Vi_Metrics(Node, ViNodes):
             return [('None', 'None', 'None')]
         
     
-    metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), ("2", "Flow", "Flow results")],
+    metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), 
+                                ("2", "Flow", "Flow results"), ("3", "Embodied", "Embodied carbon results")],
                 name="", description="Results type", default="0", update=zupdate)   
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results"),
                                     ("1", "RIBA 2030", "RIBA 2030 results")],
@@ -1803,6 +1810,9 @@ class No_Vi_Metrics(Node, ViNodes):
     light_menu: EnumProperty(items=[("0", "BREEAM", "BREEAM HEA1 results"),
                                     ("1", "LEED", "LEED v4 results"),
                                     ("2", "RIBA 2030", "RIBA 2030 results")],
+                name="", description="Results metric", default="0", update=zupdate)
+    em_menu: EnumProperty(items=[("0", "Object", "Calculate from objects"),
+                                    ("1", "Layer", "Calculate from EnVi layers")],
                 name="", description="Results metric", default="0", update=zupdate)
     leed_menu: BoolProperty(name = "", description = "LEED space type", default = 0)
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
@@ -1931,6 +1941,20 @@ class No_Vi_Metrics(Node, ViNodes):
                         if self['res'][m].get(self.zone_menu):
                             row = layout.row()
                             row.label(text = "{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+
+        elif self.metric == '3':
+            newrow(layout, 'Embodied type:', self, "em_menu")
+
+            if self.em_menu == '0':
+                row = layout.row()
+                if self.zone_menu == 'All':
+                    row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
+                else:
+                    print(self['res']['ec'].items())
+                    row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
+            elif self.em_menu == '0':
+                row = layout.row()
+                row.label(text = 'N/A')
 
     def update(self):
         self.ret_metrics()
@@ -2142,7 +2166,15 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['speed'][zn] = float(r[4].split()[-1])
                             elif r[3] == 'Temperature':
                                 self['res']['temperature'][zn] = float(r[4].split()[-1])
-                    
+            
+            elif self.metric == '3' and self.em_menu == '1':
+                self['res']['ec'] = {'':''}
+
+        elif self.metric == '3' and self.em_menu == '0': 
+            self['res']['ec'] = {o.name: o.vi_params['ecdict']['ec'] for o in bpy.context.visible_objects if o.vi_params.get('ecdict')}
+
+            
+
     def ret_metrics(self):
         if self.inputs['Results in'].links:
             reslist = self.inputs['Results in'].links[0].from_node['reslists']

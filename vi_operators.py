@@ -1127,14 +1127,17 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frameold)))
                     self.frameold = self.frame
             else:
-                while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) <= self.frames:
-                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
-                        self.rpruns.append(Popen(shlex.split(self.rpictcmds[self.frame - self.fs]), stdout=imfile, stderr = PIPE))
+                while sum([rp.poll() is None for rp in self.rpruns]) < self.np and len(self.rpruns) < self.frames:
+                    f = self.fs + len(self.rpruns)
+                    
+                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f), 'w') as imfile:
+                        self.rpruns.append(Popen(shlex.split(self.rpictcmds[len(self.rpruns)]), stdout=imfile, stderr = PIPE))
 
                 try:
                     if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
                         self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
-                        self.frame += 1
+                        if self.frame < self.fe:
+                            self.frame += 1
                 except:
                     print('Frame passing')
                                         
@@ -1189,8 +1192,11 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                 if lines:
                     for lineentry in lines[0].split():
                         if '%' in lineentry and self.percent != (float(lineentry.strip('%')) + (f - self.fs) * 100)/self.frames:
-                            self.percent = (float(lineentry.strip('%')) + (f - self.fs) * 100)/self.frames
-                            self.imupdate(f)
+                            newpercent = (float(lineentry.strip('%')) * sum([r.poll() is None for r in self.rpruns]) + 100 * sum([r.poll() is not None for r in self.rpruns]))/self.frames
+                            
+                            if self.percent != newpercent:
+                                self.percent = newpercent
+                                self.imupdate(f)
                 
             return {'PASS_THROUGH'}
         else:
@@ -1254,6 +1260,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.pmapcnos = simnode['pmapcnos']
             self.folder = svp['viparams']['newdir']
             self.fb = svp['viparams']['filebase']
+            self.np = int(svp['viparams']['nproc'])
             self.mp = 0 if sys.platform == 'win32' else simnode.mp 
             self.basename = simnode['basename']
             
@@ -1332,23 +1339,23 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                                       [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'VCP', '{0[3]}'.format(res)], 
                                       [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'CGI', '{[4]}'.format(res)], 
                                       [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'LV', '{[5]}'.format(res)]]
-            
-            pcondcmd = "pcond -h+ -u 300 {}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs']))))
-
+                  
             with open('{}.temphdr'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare')), 'w') as temphdr:
+                pcondcmd = "pcond -h+ -u 300 {}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs']))))
                 Popen(shlex.split(pcondcmd), stdout = temphdr).communicate()
 
-            catcmd = "{0} {1}.glare".format(svp['viparams']['cat'], os.path.join(svp['viparams']['newdir'], 'images', 'temp'))
-            catrun = Popen(shlex.split(catcmd), stdout = PIPE, shell = True)
-            psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imnode.y))
-            psignrun = Popen(shlex.split(psigncmd), stdin = catrun.stdout, stdout = PIPE)
-            pcompcmd = "pcompos {0}.temphdr 0 0 - {1} {2}".format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
+            with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "r") as catfile:
+                psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imnode.y))
+                psignrun = Popen(shlex.split(psigncmd), stdin = catfile, stdout = PIPE, stderr = PIPE) 
 
             with open("{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs'])))), 'w') as ghdr:
+                pcompcmd = "pcompos {0}.temphdr 0 0 - {1} {2}".format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
                 Popen(shlex.split(pcompcmd), stdin = psignrun.stdout, stdout = ghdr).communicate()
 
-            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'.format(i + svp['liparams']['fs'])))  
-            glnode.postsim()                             
+            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'))  
+            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'temp.glare')) 
+            glnode.postsim()    
+                                     
         return {'FINISHED'}
 
 class NODE_OT_Li_Fc(bpy.types.Operator):            
@@ -1779,7 +1786,7 @@ class OBJECT_OT_GOct(bpy.types.Operator):
         return {'FINISHED'}
 
 class OBJECT_OT_Embod(bpy.types.Operator):
-    ''''''
+    '''Calculates embodied energy based on object volume'''
     bl_idname = "object.vi_embodied"
     bl_label = "Embodied carbon"
     bl_options = {"REGISTER", 'UNDO'}
@@ -1802,8 +1809,8 @@ class OBJECT_OT_Embod(bpy.types.Operator):
         if all([e.is_manifold for e in bm.edges]):
             envi_ec = envi_embodied()
             vol = bm.calc_volume()
-            o['ecdict'] = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
-            o['ecdict']['ec'] = float(o['ecdict']['eckg']) * float(o['ecdict']['density']) * vol
+            ovp['ecdict'] = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
+            ovp['ecdict']['ec'] = float(ovp['ecdict']['eckg']) * float(ovp['ecdict']['density']) * vol
             bm.free()
         else:
             self.report({'ERROR'},"You cannot calculate embodied carbon on a non-manifold mesh")
