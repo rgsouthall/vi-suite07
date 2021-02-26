@@ -516,7 +516,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 #            dfbinvals = [self['omin']['df{}'.format(frame)] + (self['omax']['df{}'.format(frame)] - self['omin']['df{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
 #            self['livires']['valbins'] = dfbinvals
             reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[dfres] * 100) for g in rgeom])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
+#            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[dfres]/1.79) for g in rgeom])])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
 

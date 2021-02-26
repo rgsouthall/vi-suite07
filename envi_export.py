@@ -447,6 +447,25 @@ def pregeo(context, op):
                         o.material_slots[f.material_index].material.vi_params.envi_nodes and \
                         get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type != 'None']:
                         selobj(context.view_layer, o)
+                        obm = bmesh.new()
+                        obm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
+                        o.to_mesh_clear()
+                        
+                        if not obm.faces.layers.int.get('viuid'):
+                            obm.faces.layers.int.new('viuid')
+
+                        uid = obm.faces.layers.int['viuid']
+                        # obm.faces.layers.string.new('viuid')
+                        # fo = obm.faces.layers.string['viuid']
+                        exp_faces = [f for f in obm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
+    
+                        for face in obm.faces:
+                            uids = [f[uid] for f in exp_faces]
+                            face[uid] = face[uid] if face[uid] else max(uids) + 1
+#                            face[fo] = '{}#{}'.format(o.name.encode(), face[uid])
+
+                        obm.to_mesh(o.data)
+                        obm.free()    
                         bpy.ops.object.duplicate(linked=False)
                         no = context.active_object.copy()  
                         no.location += context.node.geo_offset                       
@@ -471,36 +490,38 @@ def pregeo(context, op):
                 bmesh.ops.delete(bm, geom = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context = 'FACES')
                 bmesh.ops.delete(bm, geom = [f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context = 'FACES')
 
-                if not bm.faces.layers.int.get('viuid'):
-                    bm.faces.layers.int.new('viuid')
+                # if not bm.faces.layers.int.get('viuid'):
+                #     bm.faces.layers.int.new('viuid')
 
-                uid = bm.faces.layers.int['viuid']
+                # uid = bm.faces.layers.int['viuid']
 
                 if not len(bm.faces):
                     bpy.data.objects.remove(o, do_unlink = True, do_id_user=True, do_ui_user=True)
                 else:
                     if o.vi_params.envi_type != '1':
-                        bm.faces.layers.string.new('oname')
-                        fo = bm.faces.layers.string['oname']
-                        exp_faces = [f for f in bm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
+                        # bm.faces.layers.string.new('oname')
+                        # fo = bm.faces.layers.string['oname']
+                        # exp_faces = [f for f in bm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
     
-                        for face in bm.faces:
-                            uids = [f[uid] for f in exp_faces]
-                            face[fo] = o.name.encode()
-                            face[uid] = face[uid] if face[uid] else max(uids) + 1
+                        # for face in bm.faces:
+                        #     uids = [f[uid] for f in exp_faces]
+                        #     face[fo] = o.name.encode()
+                        #     face[uid] = face[uid] if face[uid] else max(uids) + 1
 
                         if o.vi_params.envi_type == '0':
                             therm = 1
 
                     bm.to_mesh(o.data)
-                    bm.free()
+                bm.free()
                    
             selobs(context.view_layer, [o.name for o in chil.objects])
             bpy.ops.object.join()
             new_ob = bpy.context.active_object
             new_ob.name = '{}'.format(chil.name)
+
             if therm:
                 new_ob.vi_params.envi_type = '0' 
+                
             bm = bmesh.new()
             bm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
             bm.transform(new_ob.matrix_world)
@@ -598,7 +619,7 @@ def pregeo(context, op):
                          
             for link in enng.links:
                 if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):
-                    linklist.append([link.from_socket.node.name, link.from_socket.name, link.to_socket.node.name, link.to_socket.name])
+                    linklist.append([link.from_socket.node.name, link.from_socket.viuid, link.to_socket.node.name, link.to_socket.viuid])
                     enng.links.remove(link)
                     
             if context.view_layer.objects[coll.name].vi_params.envi_type != '1':
@@ -624,7 +645,12 @@ def pregeo(context, op):
             bpy.data.collections.remove(coll)
     for ll in linklist:
         try:
-            enng.links.new(enng.nodes[ll[0]].outputs[ll[1]], enng.nodes[ll[2]].inputs[ll[3]])
+            for outs in [o for o in enng.nodes[ll[0]].outputs if o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+                for ins in [i for i in enng.nodes[ll[2]].inputs if i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
+                    if outs.viuid == ll[1] and ins.viuid == ll[3] and outs.bl_idname == ins.bl_idname:
+                        enng.links.new(outs, ins)
+                        print(outs.viuid, ins.viuid)
+#            enng.links.new(enng.nodes[ll[0]].outputs[ll[1]], enng.nodes[ll[2]].inputs[ll[3]])
         except Exception as e:
             print('Link', e)
             

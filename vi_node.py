@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json
+import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json, bmesh
 from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, StringProperty, FloatVectorProperty
 from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
@@ -71,9 +71,10 @@ class No_Loc(Node, ViNodes):
         context.space_data.edit_tree == ''
         scene = context.scene
         svp = scene.vi_params
+#        svp.year = 2019
         nodecolour(self, self.ready())
         reslists = []
-        svp['viparams']['year'] = 2019
+#        self['year'] = 2019
 
         if self.loc == '1':
             entries = []
@@ -98,7 +99,7 @@ class No_Loc(Node, ViNodes):
                     self['frames'] = ['0']
                     epwlines = epwfile.readlines()[8:]
                     epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                    svp['viparams']['year'] = 2019 if len(epwlines) == 8760 else 2020
+                    svp.year = 2019 if len(epwlines) == 8760 else 2020
                     times = ('Month', 'Day', 'Hour', 'DOS')
 
                     for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
@@ -137,13 +138,13 @@ class No_Loc(Node, ViNodes):
 
     def init(self, context):
         self.outputs.new('So_Vi_Loc', 'Location out')
-        context.scene.vi_params['viparams']['year'] = 2019
         self['entries'] = [('None', 'None', 'None')] 
+
         try:
             NodeTree.get_from_context(context).use_fake_user = True
         except:
             pass
-
+        
     def update(self):
         if self.outputs.get('Location out'):
             socklink(self.outputs['Location out'], self.id_data.name)
@@ -985,7 +986,7 @@ class No_Li_Sim(Node, ViNodes):
         self.inputs.new('So_Li_Con', 'Context in')
         self.outputs.new('So_Vi_Res', 'Results out')
         nodecolour(self, 1)
-        self['maxres'], self['minres'], self['avres'], self['exportstate'], self['year'] = {}, {}, {}, '', 2015
+        self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
         
     def draw_buttons(self, context, layout): 
         scene = context.scene
@@ -1105,7 +1106,7 @@ class No_Vi_WR(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
-            (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
+            (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params.year)
             newrow(layout, 'Type:', self, "wrtype")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
@@ -1210,7 +1211,7 @@ class No_Vi_SS(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
-            (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params['viparams']['year'])
+            (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params.year)
             newrow(layout, 'Ignore sensor:', self, "signore")
             newrow(layout, 'Animation:', self, "animmenu")
 
@@ -1232,7 +1233,7 @@ class No_Vi_SS(Node, ViNodes):
             row.operator("node.shad", text = 'Calculate')
 
     def preexport(self):
-        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, bpy.context.scene.vi_params['viparams']['year'])
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, bpy.context.scene.vi_params.year)
         self['goptions']['offset'] = self.offset
 
     def postexport(self, scene):
@@ -1241,6 +1242,7 @@ class No_Vi_SS(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
     
     def update(self):
+#        bpy.context.scene.vi_params['viparams']['year'] = self['year']
         if self.outputs.get('Results out'):
             socklink(self.outputs['Results out'], self.id_data.name)
 
@@ -1360,18 +1362,20 @@ class No_En_Con(Node, ViNodes):
         self.inputs.new('So_Vi_Loc', 'Location in')
         self.outputs.new('So_En_Con', 'Context out')
         self['exportstate'] = ''
-        self['year'] = 2015
+#        self['year'] = 2015
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        (sdate, edate) = retdates(self.sdoy, self.edoy, self['year'])
+        (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params.year)
         newrow(layout, 'Shadow:', self, 'shadow_calc')
         row = layout.row()
         row.label(text = 'Animation:')
         row.prop(self, 'animated')
+
         if self.animated:
             newrow(layout, 'Start frame:', self, 'fs')
             newrow(layout, 'End frame:', self, 'fe')
+
         newrow(layout, "Name/location", self, "loc")
         row = layout.row()
         row.label(text = 'Terrain:')
@@ -1399,12 +1403,12 @@ class No_En_Con(Node, ViNodes):
     def update(self):
         if self.inputs.get('Location in') and self.outputs.get('Context out'):
             socklink(self.outputs['Context out'], self.id_data.name)
-            self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
+#            self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
     
     def preexport(self, scene):
         (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
         scene.vi_params['enparams']['fs'], scene.vi_params['enparams']['fe'] = self.fs, self.fe
-        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, self['year'])
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, scene.vi_params.year)
         
     def postexport(self):
         nodecolour(self, 0)
@@ -1458,7 +1462,7 @@ class No_En_Sim(Node, ViNodes):
         innode = self.inputs['Context in'].links[0].from_node
         self['frames'] = range(context.scene.vi_params['enparams']['fs'], context.scene.vi_params['enparams']['fe'] + 1)
         self.resfilename = os.path.join(context.scene.vi_params['viparams']['newdir'], self.resname+'.eso')
-        self['year'] = innode['year']
+#        self['year'] = innode['year']
         self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
         self.dedoy = innode.edoy
         self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy}, "End": {"min":innode.sdoy, "max":innode.edoy}, 
@@ -1484,15 +1488,15 @@ class No_En_IF(Node, ViNodes):
         context.scene['enparams']['fs'] = context.scene['enparams']['fe'] = context.scene.frame_current            
         shutil.copyfile(self.idffilename, os.path.join(context.scene['viparams']['newdir'], 'in{}.idf'.format(context.scene.frame_current)))
         locnode = self.inputs['Location in'].links[0].from_node
-        self['year'] = locnode['year']
+#        self['year'] = locnode['year']
         shutil.copyfile(locnode.weather, os.path.join(context.scene['viparams']['newdir'], 'in{}.epw'.format(context.scene.frame_current)))
 
         with open(self.idffilename, 'r', errors='ignore') as idff:
             idfflines = idff.readlines()
             for l, line in enumerate(idfflines):
                 if line.split(',')[0].lstrip(' ').upper() == 'RUNPERIOD':
-                    self.sdoy = datetime.datetime(self['year'], int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
-                    self.edoy = datetime.datetime(self['year'], int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                    self.sdoy = datetime.datetime(context.scene.vi_params.year, int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                    self.edoy = datetime.datetime(context.scene.vi_params.year, int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
                     self.outputs['Context out'].hide = False
                     break
             nodecolour(self, 0)
@@ -1539,10 +1543,10 @@ class No_En_RF(Node, ViNodes):
     dsdoy, dedoy = IntProperty(), IntProperty()
     
     def init(self, context):
-        self['nodeid'] = nodeid(self)
+#        self['nodeid'] = nodeid(self)
         self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
-        self['year'] = 2015        
+#        self['year'] = 2015        
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -1598,7 +1602,7 @@ class No_Vi_Chart(Node, ViNodes):
                 newrow(layout, 'Animated:', self, 'parametricmenu')
 
                 if self.parametricmenu == '0':                
-                    (sdate, edate) = retdates(self['Start'], self['End'], innode['year']) 
+                    (sdate, edate) = retdates(self['Start'], self['End'], context.scene.vi_params.year) 
                     label = "Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month)
                 else:
                     row = layout.row()
@@ -1653,8 +1657,8 @@ class No_Vi_Chart(Node, ViNodes):
                     self['Start'], self['End'] = startframe, endframe
                 else:
                     if 'Month' in zrl[3]:
-                        startday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
-                        endday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                        startday = datetime.datetime(context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                        endday = datetime.datetime(context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
                         self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                         self['Start'], self['End'] = startday, endday
     
@@ -1947,11 +1951,12 @@ class No_Vi_Metrics(Node, ViNodes):
 
             if self.em_menu == '0':
                 row = layout.row()
+                
                 if self.zone_menu == 'All':
                     row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
                 else:
-                    print(self['res']['ec'].items())
                     row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
+                    
             elif self.em_menu == '0':
                 row = layout.row()
                 row.label(text = 'N/A')
@@ -2170,10 +2175,14 @@ class No_Vi_Metrics(Node, ViNodes):
             elif self.metric == '3' and self.em_menu == '1':
                 self['res']['ec'] = {'':''}
 
-        elif self.metric == '3' and self.em_menu == '0': 
-            self['res']['ec'] = {o.name: o.vi_params['ecdict']['ec'] for o in bpy.context.visible_objects if o.vi_params.get('ecdict')}
-
-            
+        elif self.metric == '3':
+            if self.em_menu == '0': 
+                self['res']['ec'] = {o.name: o.vi_params['ecdict']['ec'] for o in bpy.context.visible_objects if o.vi_params.get('ecdict')}
+            elif self.em_menu == '1':
+                self['res']['ec'] = {'':''}
+        else:
+            if self.zone_menu != 'None':
+                self.zone_menu = 'None'        
 
     def ret_metrics(self):
         if self.inputs['Results in'].links:
@@ -2818,8 +2827,10 @@ class So_En_Net_Bound(NodeSocket):
     bl_color = (1.0, 1.0, 0.2, 0.5)
 
     valid = ['Boundary']
-    sn: StringProperty()
+    sn: IntProperty()
     uvalue: StringProperty()
+    viuid: StringProperty()
+    link_limit = 1
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -2865,8 +2876,10 @@ class So_En_Net_SSFlow(NodeSocket):
     bl_idname = 'So_En_Net_SSFlow'
     bl_label = 'Sub-surface flow socket'
 
-    sn: StringProperty()
+    sn: IntProperty()
     valid = ['Sub-surface']
+    viuid: StringProperty()
+    link_limit = 0
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -2882,8 +2895,10 @@ class So_En_Net_SFlow(NodeSocket):
     bl_idname = 'So_En_Net_SFlow'
     bl_label = 'Surface flow socket'
 
-    sn: StringProperty()
+    sn: IntProperty()
     valid = ['Surface']
+    viuid: StringProperty()
+    link_limit = 0
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -3065,48 +3080,65 @@ class No_En_Net_Zone(Node, EnViNodes):
         self.afs = 0
         col = bpy.data.collections[self.zone]
 
-        for obj in col.objects:             
+        for obj in col.objects:  
+            # bm = bmesh.new()
+            # bm.from_mesh(obj.to_mesh())  
+            # obj.to_mesh_clear()         
             odm = [m.material for m in obj.material_slots]
-            olinks = [(o.name, o.links[0].to_node.name, o.links[0].to_socket.name) for o in self.outputs if o.links and o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
-            ilinks = [(i.name, i.links[0].from_node.name, i.links[0].from_socket.name) for i in self.inputs if i.links and i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
+#            olinks = [(o.name, o.links[0].to_node.name, o.links[0].to_socket.name) for o in self.outputs if o.links and o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
+#            ilinks = [(i.name, i.links[0].from_node.name, i.links[0].from_socket.name) for i in self.inputs if i.links and i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
+#            viuid = bm.faces.layers.int['viuid']
+#            bpy.data.meshes['Cube.001'].polygon_layers_int["viuid"]
             bfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con == 'Zone'], key=lambda face: -face.center[2])
-            bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in bfacelist]
+#            bsocklist = ['{}_{}_b_{}'.format(odm[face.material_index].name, face.index) for face in bfacelist]
+#            buidlist = [face[viuid] for face in bfacelist]
             sfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type not in ('Window', 'Door')], key=lambda face: -face.center[2])
-            ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in sfacelist]
+#            ssocklist = ['{}_{}_s_{}'.format(odm[face.material_index].name, face.index, face[viuid]) for face in sfacelist]
             ssfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type in ('Window', 'Door')], key=lambda face: -face.center[2])
-            sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in ssfacelist]
+#            sssocklist = ['{}_{}_ss_{}'.format(odm[face.material_index].name, face.index, face[viuid]) for face in ssfacelist]
             [self.outputs.remove(oname) for oname in self.outputs if oname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and oname not in bsocklist + ssocklist + sssocklist]
             [self.inputs.remove(iname) for iname in self.inputs if iname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and iname not in bsocklist + ssocklist + sssocklist]
-    
-            for sock in bsocklist:
-                self.outputs.new('So_En_Net_Bound', sock)
-                self.outputs[0].sn = sock.split('_')[-2]
-                self.inputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
-            for sock in ssocklist:
+            
+            for bface in bfacelist:
+                self.outputs.new('So_En_Net_Bound', '{}_{}_b'.format(odm[bface.material_index].name, bface.index)).sn = bface.index
+                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[bface.index].value)
+                self.outputs[-1].link_limit = 1
+                self.inputs.new('So_En_Net_Bound', '{}_{}_b'.format(odm[bface.material_index].name, bface.index)).sn = bface.index
+                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[bface.index].value)
+                self.inputs[-1].link_limit = 1
+            for sface in sfacelist:
                 self.afs += 1
-                self.outputs.new('So_En_Net_SFlow', sock).sn = sock.split('_')[-2]
-                self.inputs.new('So_En_Net_SFlow', sock).sn = sock.split('_')[-2]
-            for sock in sssocklist:
+                self.outputs.new('So_En_Net_SFlow', '{}_{}_s'.format(odm[sface.material_index].name, sface.index)).sn = sface.index
+                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[sface.index].value)
+                self.outputs[-1].link_limit = 1
+                self.inputs.new('So_En_Net_SFlow', '{}_{}_s'.format(odm[sface.material_index].name, sface.index)).sn = sface.index
+                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[sface.index].value)
+                self.inputs[-1].link_limit = 1
+            for ssface in ssfacelist:
                 self.afs += 1
-                self.outputs.new('So_En_Net_SSFlow', sock).sn = sock.split('_')[-2]
-                self.inputs.new('So_En_Net_SSFlow', sock).sn = sock.split('_')[-2]                
+                self.outputs.new('So_En_Net_SSFlow', '{}_{}_s'.format(odm[ssface.material_index].name, ssface.index)).sn = ssface.index
+                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[ssface.index].value)
+                self.outputs[-1].link_limit = 1
+                self.inputs.new('So_En_Net_SSFlow', '{}_{}_s'.format(odm[ssface.material_index].name, ssface.index)).sn = ssface.index
+                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[ssface.index].value)   
+                self.inputs[-1].link_limit = 1        
 
-            for olink in olinks:
-                try:
-                    self.id_data.links.new(self.outputs[olink[0]], self.id_data.nodes[olink[1]].inputs[olink[2]])
-                except:
-                    pass
+            # for olink in olinks:
+            #     try:
+            #         self.id_data.links.new(self.outputs[olink[0]], self.id_data.nodes[olink[1]].inputs[olink[2]])
+            #     except:
+            #         pass
 
-            for ilink in ilinks:
-                try:
-                    self.id_data.links.new(self.id_data.nodes[ilink[1]].outputs[ilink[2]], self.inputs[ilink[0]])
-                except:
-                    pass
-
+            # for ilink in ilinks:
+            #     try:
+            #         self.id_data.links.new(self.id_data.nodes[ilink[1]].outputs[ilink[2]], self.inputs[ilink[0]])
+            #     except:
+            #         pass
+            # bm.free()
         self.vol_update(context)
-        self['nbound'] = len(bsocklist)
-        self['nsflow'] = len(ssocklist)
-        self['nssflow'] = len(sssocklist)
+        self['nbound'] = len(bfacelist)
+        self['nsflow'] = len(sfacelist)
+        self['nssflow'] = len(ssfacelist)
 
     def vol_update(self, context):
         coll = bpy.data.collections[self.zone] 
@@ -3845,10 +3877,10 @@ class No_En_Net_SSFlow(Node, EnViNodes):
         self.inputs.new('So_En_Sched', 'VASchedule')
         self.inputs.new('So_En_Sched', 'TSPSchedule')
         self.inputs['TSPSchedule'].hide = True
-        self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s')
-        self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s')
-        self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s')
-        self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s')
+        self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 0
+        self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 0
+        self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 0
+        self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 0
         self.color = (1.0, 0.3, 0.3)
         self['layoutdict'] = {'SO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'), ('Density diff', 'ddtw'), ('DC', 'dcof')), 'DO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'),
                            ('Opening type', 'lvo'), ('Crack length', 'ecl'), ('OF Number', 'noof'), ('OF1', 'of1'), ('DC1', 'dcof1'), ('Width OF1', 'wfof1'), ('Height OF1', 'hfof1'),
@@ -3859,18 +3891,26 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                             'ELA': (('ELA', '["ela"]'), ('DC', 'dcof'), ('PA diff', 'rpd'), ('FE', 'fe'))}
 
     def update(self):
+        self.inputs[2].viuid = '{}#{}'.format(self.name, 1)
+        self.inputs[3].viuid = '{}#{}'.format(self.name, 2)
+        self.outputs[0].viuid = '{}#{}'.format(self.name, 3)
+        self.outputs[1].viuid = '{}#{}'.format(self.name, 4)
+
         if self.get('layoutdict'):
             for sock in self.outputs:
                 socklink(sock, self.id_data.name)
             if self.linkmenu == 'ELA':
                 retelaarea(self)
             self.extnode = 0
+
             for sock in self.inputs[:] + self.outputs[:]:
                 for l in sock.links:
                     if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'No_En_Net_Ext':
                         self.extnode = 1
+
             if self.outputs.get('Node 2'):
                 sockhide(self, ('Node 1', 'Node 2'))
+
             self.legal()
 
     def draw_buttons(self, context, layout):
@@ -3952,9 +3992,11 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                     if (othersock.name[0:-2]+'b' in [s.name for s in othernode.outputs] and othernode.outputs[othersock.name[0:-2]+'b'].links) or othersock.name[0:-2]+'b' not in [s.name for s in othernode.outputs]:
                         zn = othernode.zone
                         sn = othersock.sn
-                        snames.append(('win-', 'door-')[get_con_node(bpy.data.materials[othersock.name[:-len(sn)-4]].vi_params).envi_con_type == 'Door']+zn+'_'+sn)
+                        print(sn, len(str(sn)))
+                        snames.append('{}{}_{}'.format(('win-', 'door-')[get_con_node(bpy.data.materials[othersock.name[:-len(str(sn))-3]].vi_params).envi_con_type == 'Door'], zn, sn))
                         params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor')
                         paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.wdof1))
+
                         if self.linkmenu in ('SO', 'DO'):
                             params += ('Ventilation Control Mode', 'Vent Temperature Schedule Name', 'Limit  Value on Multiplier for Modulating Venting Open Factor (dimensionless)', \
                             'Lower Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)', 'Upper Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)',\
@@ -3963,7 +4005,9 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                         elif self.linkmenu =='HO':
                             params += ('Ventilation Control Mode', 'Ventilation Control Zone Temperature Setpoint Schedule Name')
                             paramvs += (self.controls, '')
+
                         surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
+
         self['sname'] = snames
         self.legal()
         return surfentry + cfentry
@@ -4055,6 +4099,11 @@ class No_En_Net_SFlow(Node, EnViNodes):
         self.outputs.new('So_En_Net_SFlow', 'Node 2')
 
     def update(self):
+        self.inputs[0].viuid = '{}#{}'.format(self.name, 1)
+        self.inputs[1].viuid = '{}#{}'.format(self.name, 2)
+        self.outputs[0].viuid = '{}#{}'.format(self.name, 3)
+        self.outputs[1].viuid = '{}#{}'.format(self.name, 4)
+
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
         if self.linkmenu == 'ELA':
@@ -4117,7 +4166,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
                     if (othersock.name[0:-1]+'b' in [s.name for s in othernode.outputs[:]] and othernode.outputs[othersock.name[0:-1]+'b'].links) or othersock.name[0:-1]+'b' not in [s.name for s in othernode.outputs]:                        
                         sn = othersock.sn
                         zn = othernode.zone
-                        snames.append(zn+'_'+sn)
+                        snames.append('{}_{}'.format(zn, sn))
                         params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor, or Crack Factor (dimensionless)')
                         paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.of))
                         surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
@@ -4864,8 +4913,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                                             description = "Specify the construction type", 
                                             default = "None", update = con_update)
     envi_con_makeup: EnumProperty(items = [("0", "Pre-set", "Construction pre-set"),
-                                            ("1", "Layers", "Custom layers"),
-                                            ("2", "Dummy", "Adiabatic")], 
+                                            ("1", "Layers", "Custom layers")], 
                                             name = "", 
                                             description = "Pre-set construction of custom layers", 
                                             default = "0", update = con_update)
@@ -5232,7 +5280,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             params = ['Name']
             paramvs = [mn]
             ep_text = ''
-            self.resist = 0
+            self.resist, ecm2 = 0, 0
             get_mat(self, 1).vi_params.envi_shading = 0
 
             while in_sock.links:
@@ -5243,9 +5291,11 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
                     ep_text += node.ep_write(n, mn)  
                     self.resist += node.resist
+                    ecm2 += float(node['ecm2'])
                 else:
                     get_mat(self, 1).vi_params.envi_shading = 1
-                    
+
+                get_mat(self, 1).vi_params['enparams']['ecm2'] = ecm2
                 in_sock = node.inputs['Layer']
                 n += 1
                 
@@ -5303,7 +5353,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     node = in_sock.links[0].from_node
                     ep_text += node.ep_write(n, mn) 
                     in_sock = node.inputs['Layer']
-                    n += 1      
+                    n += 1    
+
                 ep_text += epentry('Construction', params, paramvs)   
 
         return ep_text
@@ -5311,8 +5362,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     def layer_write(self, in_sock, matname):
         ep_text = ''
         n = 0
-        
-        
+
         while in_sock.links:
             node = in_sock.links[0].from_node
             paramvs.append('{}-frame-layer-{}'.format(matname, n)) 
@@ -5345,8 +5395,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             # elif self['ecdict']['unit'] == 'kg':
             self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
             print(self['ecm2'], self.thi)
-        except:
-            pass
+        except Exception as e:
+            print('embodied error: {}'.format(e))
                  
     lay_name: StringProperty(name = '', description = 'Custom layer name', update = lay_update)
     layer: EnumProperty(items = [("0", "Database", "Select from database"), 

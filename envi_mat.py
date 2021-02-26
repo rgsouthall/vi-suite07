@@ -171,8 +171,9 @@ class envi_constructions(object):
                     'Door': self.door_cond, 'Glazing': self.glaze_cond, 'Roof': self.roof_cond}    
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'w') as con_jfile:
             con_jfile.write(json.dumps(con_dict))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database_backup.json')), 'w') as con_bujfile:
+            con_bujfile.write(json.dumps(con_dict))
         self.update()
-
 
 def retmatdict(ect, t, l): 
     if ect in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):

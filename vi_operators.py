@@ -1831,7 +1831,7 @@ class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
         rl = innodes[0]['reslists']
         zrl = list(zip(*rl))
-        year = context.scene.vi_params['viparams']['year']
+        year = context.scene.vi_params.year
         
         if node.inputs['X-axis'].framemenu not in zrl[0]:
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")

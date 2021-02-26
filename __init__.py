@@ -251,7 +251,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
             self.id_data.frame_set(value)
             self['vi_frames'] = value
             
-    vi_name =  sprop("", "VI-Suite addon directory name", 1024, "")               
+    vi_name =  sprop("", "VI-Suite addon directory name", 1024, "")
+    year: iprop("",'Year', 2019, 2020, 2019)               
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
     solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
