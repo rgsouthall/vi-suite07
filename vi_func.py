@@ -88,7 +88,8 @@ def move_to_coll(context, coll, o):
         
 def clear_coll(coll):
     for o in coll.objects:
-        if coll.name == 'LiVi Results' and o.vi_params.vi_string_type != 'LiVi Res':
+        if coll.name == 'LiVi Results' and o.vi_params.vi_type_string != 'LiVi Res':
+            print(coll.name, o.vi_params.vi_type_string)
             pass
         else:
             coll.objects.unlink(o)
@@ -511,7 +512,7 @@ def ret_res_vals(svp, reslist):
 def lividisplay(self, scene): 
     svp = scene.vi_params
     
-    if self.id_data.name in svp['liparams']['livir']:        
+    if self.id_data.vi_params.vi_type_string == 'LiVi Res':        
         frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         ll = svp.vi_leg_levels
         increment = 1/ll
@@ -776,9 +777,9 @@ def clearscene(scene, op):
         if ob.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode = 'OBJECT')
 
-        if ob.name in svp['liparams']['livir']:
+        if ob.vi_params.vi_type_string == 'LiVi Res':
             delobj(bpy.context.view_layer, ob)
-        elif ob.name in svp['liparams']['livig']:
+        elif ob.vi_params.vi_type_string != 'LiVi Calc':
             v, f, svv, svf = [0] * 4 
             
             if 'export' in op.name or 'simulation' in op.name:
@@ -1404,7 +1405,7 @@ def retobjs(otypes):
     
     if otypes == 'livig':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.vi_params.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
-        and o.name not in svp['liparams']['livir'] and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
+        and o.vi_params.vi_type_string != 'LiVi Res' and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
     elif otypes == 'livigengeosel':
@@ -1412,14 +1413,14 @@ def retobjs(otypes):
     elif otypes == 'livil':
         return([o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4'])
     elif otypes == 'livic':
-        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.name not in svp['liparams']['livir']])
+        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res'])
     elif otypes == 'livir':
         return([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]\
-                and o.name not in svp['liparams']['livic']])
+                and o.vi_params.vi_type_string != 'LiVi Calc'])
     elif otypes == 'envig':
         return([o for o in scene.objects if o.type == 'MESH' and o.hide == False])
     elif otypes == 'ssc':        
-        return [o for o in validobs if o.type == 'MESH' and o.name not in svp['liparams']['livir'] and o.data.materials and any([o.data.materials[poly.material_index].vi_params.mattype == '1' for poly in o.data.polygons])]
+        return [o for o in validobs if o.type == 'MESH' and o.vi_params.vi_type_string != 'LiVi Res' and o.data.materials and any([o.data.materials[poly.material_index].vi_params.mattype == '1' for poly in o.data.polygons])]
     elif otypes == 'selected': 
         return [o for o in [bpy.context.active_object] if o.type == 'MESH']
 
@@ -1866,10 +1867,10 @@ def retdates(sdoy, edoy, y):
 def li_calcob(ob, li):
     ovp = ob.vi_params
     if not ob.data.materials:
-        ovp.licalc = 0
+        ovp.vi_type_string = 'LiVi Calc'
     else:
-        ovp.licalc = 1 if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index] and ob.data.materials[face.material_index].vi_params.mattype == '1'] else 0
-    return ovp.licalc
+        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index] and ob.data.materials[face.material_index].vi_params.mattype == '1'] else ''
+    return ovp.vi_type_string == 'LiVi Calc'
     
 def sunposh(context, suns):
     scene = context.scene

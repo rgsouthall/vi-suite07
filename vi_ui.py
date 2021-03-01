@@ -143,7 +143,7 @@ class VI_PT_3D(bpy.types.Panel):
                     elif svp['viparams']['vidisp'] == 'li':
                         row.operator("view3d.libd", text="Radiance Display")
                 
-                elif [o for o in bpy.data.objects if o.name in svp['liparams']['livir']]:
+                elif [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
                     if not svp.ss_disp_panel:
                         newrow(layout, 'Result type:', svp, "li_disp_menu")
                         newrow(layout, 'Legend unit:', svp, "vi_leg_unit")

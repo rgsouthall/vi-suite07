@@ -69,7 +69,8 @@ def leg_update(self, context):
     scene = context.scene
     svp = scene.vi_params
     frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
-    obs = [o for o in scene.objects if o.name in svp['liparams']['livir']]
+    obs = [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Res']
+    print('obs', obs)
     increment = 1/svp.vi_leg_levels
     
     if svp.vi_leg_scale == '0':
@@ -86,33 +87,36 @@ def leg_update(self, context):
         bm = bmesh.new()
         bm.from_mesh(o.data)
         cmap(self)
-        
+
         if len(o.material_slots) != svp.vi_leg_levels + 1:
             for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels + 1)]:
                 if bpy.data.materials[matname] not in o.data.materials[:]:
                     bpy.ops.object.material_slot_add()
                     o.material_slots[-1].material = bpy.data.materials[matname]
             while len(o.material_slots) > svp.vi_leg_levels + 1:
-                    bpy.ops.object.material_slot_remove()
-                    
+                bpy.ops.object.material_slot_remove()
+
         for f, frame in enumerate(frames):
+#            print([l.name for l in bm.faces.layers.float])
             if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
                 livires = bm.faces.layers.float['{}{}'.format(svp.li_disp_menu, frame)] 
                 ovals = array([f[livires] for f in bm.faces])
             elif bm.verts.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
                 livires = bm.verts.layers.float['{}{}'.format(svp.li_disp_menu, frame)] 
                 ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
-            
+
             if svp.vi_leg_max > svp.vi_leg_min:
                 vals = ovals - svp.vi_leg_min
                 vals = vals/(svp.vi_leg_max - svp.vi_leg_min)
             else:
                 vals = array([svp.vi_leg_max for f in bm.faces])
-                        
-            nmatis = digitize(vals, bins) + 1
 
-            if len(frames) == 1:                
+            nmatis = digitize(vals, bins) + 1
+            print(nmatis, len(frames))
+
+            if len(frames) == 1:              
                 o.data.polygons.foreach_set('material_index', nmatis)
+                print([p.material_index for p in o.data.polygons])
                 o.data.update()
 
             elif len(frames) > 1:
@@ -143,7 +147,7 @@ def e_update(self, context):
         return
     if odiff:      
         for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-            for o in [obj for obj in bpy.data.objects if obj.name in svp['liparams']['livir'] and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
+            for o in [obj for obj in bpy.data.objects if obj.vi_params.vi_type_string == 'LiVi Res' and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
                 ovp = o.vi_params
                 bm = bmesh.new()
                 bm.from_mesh(o.data)  
@@ -194,7 +198,7 @@ def w_update(self, context):
 
 def livires_update(self, context):
     setscenelivivals(context.scene)
-    for o in [o for o in bpy.data.objects if o.name in context.scene.vi_params['liparams']['livir']]:
+    for o in [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
         o.vi_params.lividisplay(context.scene)  
     e_update(self, context)
                 
@@ -214,7 +218,7 @@ def li_display(disp_op, simnode):
     dp = bpy.context.evaluated_depsgraph_get()
     svp = scene.vi_params
     svp.li_disp_menu = unit2res[svp['liparams']['unit']]
-    svp['liparams']['livir'] = []
+#    svp['liparams']['livir'] = []
     setscenelivivals(scene)
 
     try:
@@ -225,6 +229,7 @@ def li_display(disp_op, simnode):
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 
     for geo in scene.objects:
+        geo.vi_params.vi_type_string == ''
         bpy.context.view_layer.objects.active = geo
         
         if getattr(geo, 'mode') != 'OBJECT':
@@ -236,14 +241,14 @@ def li_display(disp_op, simnode):
         bpy.app.handlers.frame_change_post.append(livi_export.cyfc1)
         
     for o in scene.objects:
-        if o.type == "MESH" and o.get('licalc') and o.hide == False:
+        if o.type == "MESH" and o.vi_params.vi_type_string == 'LiVi Calc' and o.hide_viewport == False:
             bpy.ops.object.select_all(action = 'DESELECT')
             obcalclist.append(o)
     
     scene.frame_set(svp['liparams']['fs'])
     bpy.context.view_layer.objects.active = None
     
-    for i, o in enumerate([scene.objects[oname] for oname in svp['liparams']['{}c'.format(mtype)]]):        
+    for i, o in enumerate([o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']):        
         bm = bmesh.new()
         bm.from_object(o, dp)
         ovp = o.vi_params
@@ -291,7 +296,8 @@ def li_display(disp_op, simnode):
         cv = ores.cycles_visibility
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
-        svp['liparams']['livir'] = [ores.name]
+        ores.vi_params.vi_type_string == 'LiVi Res'
+        # svp['liparams']['livir'] = [ores.name]
         orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave'] 
         selobj(bpy.context.view_layer, ores)
         cmap(svp)
@@ -322,7 +328,7 @@ def li_display(disp_op, simnode):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
                 
-    svp['liparams']['livir'] = [o.name for o in obreslist]          
+#    svp['liparams']['livir'] = [o.name for o in obreslist]          
     skframe('', scene, obreslist)                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(svp['liparams']['fs'])
@@ -338,7 +344,7 @@ class linumdisplay():
         svp.vi_display_rp = 0
         self.fs = svp.vi_display_rp_fs
         self.fontmult = 1
-        self.obreslist = [ob for ob in scene.objects if ob.name in svp['liparams']['livir']]
+#        self.obreslist = [ob for ob in scene.objects if ob.name in svp['liparams']['livir']]
         self.obreslist = [ob for ob in scene.objects if ob.vi_params.vi_type_string == 'LiVi Res']
 
         if svp.vi_display_sel_only == False:
@@ -2991,7 +2997,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         redraw = 0 
         updates = [0 for i in self.images]
         
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] or not context.area:
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc'] or not context.area:
             svp.vi_display = 0
             
             if context.area:
@@ -3243,7 +3249,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         svp = scene.vi_params
         redraw = 0 
 
-        if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.name in svp['liparams']['livir']]:
+        if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.vi_params.vi_type_string == 'LiVi Res']:
             svp.vi_display = 0
             
             if context.area:

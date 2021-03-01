@@ -91,7 +91,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
         zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
-        tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
+#        tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
+#        print(zonenames, zonenodes)
         
         for coll in geo_colls:
             znode = get_zone_node(coll, enng)

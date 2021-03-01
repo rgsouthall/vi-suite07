@@ -190,6 +190,7 @@ def radgexport(export_op, node, **kwargs):
                 ovp.rtpoints(bm, node.offset, str(frame))
                 bm.transform(o.matrix_world.inverted())
                 bm.to_mesh(o.data)
+                o.vi_params.vi_type_string = 'LiVi Calc'
                         
             bm.free()
             
@@ -297,7 +298,7 @@ def gen_octree(scene, o, op, mesh, tri):
         tempmatfile.write(mradfile)  
         
     gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, mesh, tri)
-
+    print(gradfile + mradfile)
     with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
         try:
             ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)

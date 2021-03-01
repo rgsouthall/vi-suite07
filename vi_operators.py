@@ -285,7 +285,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             return {'CANCELLED'}
         
         for o in scene.objects:
-            o.vi_params.licalc = 0
+            o.vi_params.vi_type_string = ''
 
         shadobs = retobjs('livig')
         if not shadobs:
@@ -405,7 +405,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
-            o.vi_params.licalc = 1
+            o.vi_params.vi_type_string = 'LiVi Calc'
 
         svp.vi_leg_max, svp.vi_leg_min = 100, 0
 
@@ -437,7 +437,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             return {'CANCELLED'}
 
         for o in scene.objects:
-            o.vi_params.licalc = 0
+            o.vi_params.vi_type_string = ''
             
         shadobs = retobjs('livig')
         
@@ -551,7 +551,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     ap = numpy.average(allpoints, axis=0)                
                     shadres = [gp[shadres] for gp in gpoints]
                     ovp['ss{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
-                    ovp['omin']['sm{}'.format(frame)], ovp['omax']['sm{}'.format(frame)], ovp['oave']['sm{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
+                    ovp['omin']['sm{}'.format(frame)] = min(shadres)
+                    ovp['omax']['sm{}'.format(frame)] = max(shadres)
+                    ovp['oave']['sm{}'.format(frame)] = sum(shadres)/len(shadres)
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
@@ -568,7 +570,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
-            o.vi_params.licalc = 1
+#            o.vi_params.licalc = 1
+            o.vi_params.vi_type_string = 'LiVi Calc'
 
         svp.vi_leg_max, svp.vi_leg_min = 100, 0
 
@@ -591,8 +594,10 @@ class NODE_OT_Li_Geo(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         svp.vi_display = 0
+
         if viparams(self, scene):
             return {'CANCELLED'}
+
         svp['viparams']['vidisp'] = ''
         svp['viparams']['viexpcontext'] = 'LiVi Geometry'
         objmode()
@@ -1611,7 +1616,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                         os.rename(os.path.join(self.nd, fname), os.path.join(self.nd,fname.replace("eplusout", self.simnode.resname)))
                       
                     efilename = "{}{}out.err".format(self.resname, f)
-                    print(self.nd)
+
                     if os.path.isfile(os.path.join(self.nd, efilename)):               
                         if efilename not in [im.name for im in bpy.data.texts]:
                             bpy.data.texts.load(os.path.join(self.nd, efilename))
@@ -1679,6 +1684,15 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         svp = scene.vi_params
         self.simnode.postsim(self, condition)
         
+        for f in range(self.frame, self.frame + self.e):
+            efilename = "{}{}out.err".format(self.resname, f)
+
+            if os.path.isfile(os.path.join(self.nd, efilename)):               
+                if efilename not in [im.name for im in bpy.data.texts]:
+                    bpy.data.texts.load(os.path.join(self.nd, efilename))
+                else:
+                    bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
+
         if condition == 'FINISHED':
             svp['viparams']['resnode'] = '{}@{}'.format(self.simnode.name, self.simnode.id_data.name)
             svp['viparams']['connode'] = '{}@{}'.format(self.connode, self.simnode.id_data.name)

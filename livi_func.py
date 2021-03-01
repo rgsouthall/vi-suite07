@@ -132,8 +132,8 @@ def setscenelivivals(scene):
     else:
         res = unit2res[svp['liparams']['unit']]
 
-    olist = [o for o in bpy.data.objects if o.name in svp['liparams']['shadc']] if svp['viparams']['visimcontext'] in ('Shadow', 'SVF') else [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
-
+    olist = [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
+    print(olist)
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
@@ -370,7 +370,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
-    totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if svp['liparams']['cp'] == '0' else sum([vertarea(bm, gp) for gp in geom])
+#    totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if svp['liparams']['cp'] == '0' else sum([vertarea(bm, gp) for gp in geom])
     
     for f, frame in enumerate(frames):
         self['res{}'.format(frame)] = {}
@@ -381,6 +381,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             illures = geom.layers.float['illu{}'.format(frame)]
             virradm2res = geom.layers.float['virradm2{}'.format(frame)]
         elif svp['liparams']['unit'] == 'DF (%)':
+            print('df', frame)
             geom.layers.float.new('df{}'.format(frame))
             geom.layers.float.new('virradm2{}'.format(frame))
             dfres = geom.layers.float['df{}'.format(frame)]
@@ -392,7 +393,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             firradm2res = geom.layers.float['firradm2{}'.format(frame)]
 
         geom.layers.float.new('res{}'.format(frame))
-        res = geom.layers.float['res{}'.format(frame)]
+#        res = geom.layers.float['res{}'.format(frame)]
         
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
@@ -470,7 +471,6 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             # else:
             #     vals = [1 for gp in geom]
             
-
         if svp['liparams']['unit'] == 'Lux':
             self['omax']['illu{}'.format(frame)] =  maxoillu
             self['oave']['illu{}'.format(frame)] = aveoillu
@@ -487,11 +487,11 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             #     vals = [1 for gp in geom]
                         
         posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 0]
-        bins = array([increment * i for i in range(1, ll)])
+#        bins = array([increment * i for i in range(1, ll)])
 #        ais = digitize(vals, bins)
         rgeom = [g for g in geom if g[cindex] > 0]
         rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
-        sareas = zeros(ll)
+#        sareas = zeros(ll)
         
 #        for ai in range(ll):
 #            sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai]) if totarea else 0
@@ -550,13 +550,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             ir = []
             
             for frame in frames:
-                if  self['oave']['illu{}'.format(frame)] > 0:
+                if self['oave']['illu{}'.format(frame)] > 0:
                     ir.append('{:.3f}'.format(self['omin']['illu{}'.format(frame)]/self['oave']['illu{}'.format(frame)]))
                 else:
                     ir.append('0')
 
             reslists.append(['All', 'Zone', self.id_data.name, 'Illuminance ratio', ' '.join(ir)])
-
  
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)
