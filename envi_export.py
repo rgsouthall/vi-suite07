@@ -74,7 +74,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
 
         for mat in bpy.data.materials:               
-            mvp = mat.vi_params            
+            mvp = mat.vi_params 
+
             if  mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export == True:  
                 for emnode in mvp.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
@@ -91,8 +92,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
         zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
-#        tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
-#        print(zonenames, zonenodes)
         
         for coll in geo_colls:
             znode = get_zone_node(coll, enng)
@@ -329,12 +328,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         for zn in zonenodes:
             for inflink in zn.inputs['Infiltration'].links:
                 en_idf.write(inflink.from_node.epwrite(zn.zone))
-                
-        en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: TH ===========\n\n")
-        for zn in tcnodes:
-            if zn.bl_idname == 'EnViTC':
-                en_idf.write(zn.epwrite())
-    
+                    
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
         
         if enng and enng['enviparams']['afn']:
@@ -415,6 +409,7 @@ def pregeo(context, op):
 
     if context.active_object and context.active_object.mode == 'EDIT':
         bpy.ops.object.editmode_toggle()
+
     eg = create_coll(context, 'EnVi Geometry')
 
     for chil in eg.children:
@@ -436,43 +431,42 @@ def pregeo(context, op):
     for c in [c for c in bpy.data.collections if c.name != 'EnVi Geometry' and c.name not in [c.name for c in bpy.data.collections['EnVi Geometry'].children]]:
         c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
-        cobs = [o for o in c.objects if o.visible_get()]
+        cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH']
 
         if c.vi_params.envi_zone:
             bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
             
             for o in cobs:
-                if o.type == 'MESH':# and o.vi_params.envi_type in ('0', '1'):
-                    if [f for f in o.data.polygons if o.material_slots and \
-                        o.material_slots[f.material_index].material and \
-                        o.material_slots[f.material_index].material.vi_params.envi_nodes and \
-                        get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type != 'None']:
-                        selobj(context.view_layer, o)
-                        obm = bmesh.new()
-                        obm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
-                        o.to_mesh_clear()
-                        
-                        if not obm.faces.layers.int.get('viuid'):
-                            obm.faces.layers.int.new('viuid')
+                if [f for f in o.data.polygons if o.material_slots and \
+                    o.material_slots[f.material_index].material and \
+                    o.material_slots[f.material_index].material.vi_params.envi_nodes and \
+                    get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type != 'None']:
+                    selobj(context.view_layer, o)
+                    obm = bmesh.new()
+                    obm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
+                    o.to_mesh_clear()
+                    
+                    if not obm.faces.layers.int.get('viuid'):
+                        obm.faces.layers.int.new('viuid')
 
-                        uid = obm.faces.layers.int['viuid']
-                        # obm.faces.layers.string.new('viuid')
-                        # fo = obm.faces.layers.string['viuid']
-                        exp_faces = [f for f in obm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
-    
-                        for face in obm.faces:
-                            uids = [f[uid] for f in exp_faces]
-                            face[uid] = face[uid] if face[uid] else max(uids) + 1
-#                            face[fo] = '{}#{}'.format(o.name.encode(), face[uid])
+                    uid = obm.faces.layers.int['viuid']
+                    # obm.faces.layers.string.new('viuid')
+                    # fo = obm.faces.layers.string['viuid']
+                    exp_faces = [f for f in obm.faces if o.material_slots[f.material_index].material.vi_params.envi_nodes]
 
-                        obm.to_mesh(o.data)
-                        obm.free()    
-                        bpy.ops.object.duplicate(linked=False)
-                        no = context.active_object.copy()  
-                        no.location += context.node.geo_offset                       
-                        bpy.ops.object.delete()
-                        no.name = 'en_{}'.format(c_name) 
-                        bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
+                    for face in obm.faces:
+                        uids = [f[uid] for f in exp_faces]
+                        face[uid] = face[uid] if face[uid] else max(uids) + 1
+#                       face[fo] = '{}#{}'.format(o.name.encode(), face[uid])
+
+                    obm.to_mesh(o.data)
+                    obm.free()    
+                    bpy.ops.object.duplicate(linked=False)
+                    no = context.active_object.copy()  
+                    no.location += context.node.geo_offset                       
+                    bpy.ops.object.delete()
+                    no.name = 'en_{}'.format(c_name) 
+                    bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
             
     for chil in bpy.data.collections['EnVi Geometry'].children: 
         if chil.objects:
@@ -540,6 +534,7 @@ def pregeo(context, op):
             
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
+
         for screen in bpy.data.screens:
             for area in [area for area in screen.areas if area.type == 'NODE_EDITOR' and area.spaces[0].tree_type == 'ViN']:
                 area.spaces[0].node_tree = context.node.id_data
@@ -651,7 +646,7 @@ def pregeo(context, op):
                     if outs.viuid == ll[1] and ins.viuid == ll[3] and outs.bl_idname == ins.bl_idname:
                         enng.links.new(outs, ins)
                         print(outs.viuid, ins.viuid)
-#            enng.links.new(enng.nodes[ll[0]].outputs[ll[1]], enng.nodes[ll[2]].inputs[ll[3]])
+
         except Exception as e:
             print('Link', e)
             

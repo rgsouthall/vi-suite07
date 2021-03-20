@@ -97,7 +97,6 @@ def leg_update(self, context):
                 bpy.ops.object.material_slot_remove()
 
         for f, frame in enumerate(frames):
-#            print([l.name for l in bm.faces.layers.float])
             if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
                 livires = bm.faces.layers.float['{}{}'.format(svp.li_disp_menu, frame)] 
                 ovals = array([f[livires] for f in bm.faces])
@@ -112,17 +111,16 @@ def leg_update(self, context):
                 vals = array([svp.vi_leg_max for f in bm.faces])
 
             nmatis = digitize(vals, bins) + 1
-            print(nmatis, len(frames))
 
             if len(frames) == 1:              
                 o.data.polygons.foreach_set('material_index', nmatis)
-                print([p.material_index for p in o.data.polygons])
                 o.data.update()
 
             elif len(frames) > 1:
                 for fi, fc in enumerate(o.data.animation_data.action.fcurves):
                     fc.keyframe_points[f].co = frame, nmatis[fi]
         bm.free()
+
     scene.frame_set(scene.frame_current)
        
 def leg_min_max(svp):
@@ -154,7 +152,6 @@ def e_update(self, context):
                 bm.transform(o.matrix_world)            
                 skb = bm.verts.layers.shape['Basis']
                 skf = bm.verts.layers.shape[str(frame)]
-#                resname = unit2res[svp.li_disp_menu]
                 
                 if str(frame) in ovp['omax']:
                     if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
@@ -344,7 +341,6 @@ class linumdisplay():
         svp.vi_display_rp = 0
         self.fs = svp.vi_display_rp_fs
         self.fontmult = 1
-#        self.obreslist = [ob for ob in scene.objects if ob.name in svp['liparams']['livir']]
         self.obreslist = [ob for ob in scene.objects if ob.vi_params.vi_type_string == 'LiVi Res']
 
         if svp.vi_display_sel_only == False:
@@ -411,7 +407,6 @@ class linumdisplay():
         
         if svp.vi_display_rp_fs != self.fs:
             self.fs = svp.vi_display_rp_fs
-#            bpy.context.user_preferences.system.window_draw_method = bpy.context.user_preferences.system.window_draw_method
            
     def update(self, context):
         scene = context.scene
@@ -429,11 +424,8 @@ class linumdisplay():
             res = []
             bm = bmesh.new()
             bm.from_object(ob, dp)
-            # tempmesh = ob.evaluated_get(dp).to_mesh()
-            # bm.from_mesh(tempmesh)
             bm.transform(ob.matrix_world)
             bm.normal_update() 
-            # ob.to_mesh_clear()
             var = svp.li_disp_menu
             geom = bm.faces if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) else bm.verts
             geom.ensure_lookup_table()
@@ -496,8 +488,9 @@ class linumdisplay():
                 self.alldepths = nappend(self.alldepths, array(depths))
                 self.allres = nappend(self.allres, array(res))
 
-        self.alldepths = self.alldepths/nmin(self.alldepths) 
-        draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
+        if len(self.alldepths):
+            self.alldepths = self.alldepths/nmin(self.alldepths) 
+            draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
 
 class Base_Display():
     def __init__(self, ipos, width, height, xdiff, ydiff):
@@ -516,12 +509,9 @@ class Base_Display():
 class results_bar():
     def __init__(self, images):
         self.images = images
-#        self.pos = pos
         self.rh = 0
         self.xpos = 0
-#        self.rw = region.width
         self.shaders = [gpu.shader.from_builtin('2D_UNIFORM_COLOR'), gpu.shader.from_builtin('2D_UNIFORM_COLOR')]
-#        self.height = 0
         self.f_indices = ((0, 1, 2), (2, 3, 0))
         self.tex_coords = ((0, 0), (1, 0), (1, 1), (0, 1))
         self.no = len(images)
@@ -1823,23 +1813,19 @@ def draw_dhscatter(self, x, y, z, tit, xlab, ylab, zlab, valmin, valmax, col):
     self.plt.close()
     x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
-    self.fig = self.plt.figure(figsize=(4 + len(x)/len(y), 6))    
+    self.fig, self.ax = plt.subplots(figsize=(12, 6))   
     self.plt.title(tit, size = 20).set_position([.5, 1.025])
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
-#    self.plt.pcolor(x, y, z, cmap=col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
-#    cbar = self.plt.colorbar(use_gridspec=True)
-    im = self.plt.imshow(z.reshape(len(y) - 1, len(x) - 1), interpolation="none", aspect='auto')
-    divider = make_axes_locatable(self.plt.gca())
-    cax = divider.append_axes("right", "5%", pad="3%")
-    cbar = self.plt.colorbar(im, cax=cax)
+    self.plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=valmin, vmax=valmax)
+    cbar = self.plt.colorbar(use_gridspec=True, pad = 0.01)
     cbar.set_label(label=zlab,size=18)
     cbar.ax.tick_params(labelsize=16)
     self.plt.axis([min(x),max(x),min(y),max(y)])
     self.plt.xticks(size = 16)
     self.plt.yticks(size = 16)
-    self.plt.tight_layout()  
-    
+    self.fig.tight_layout()
+
 def draw_table(self):
     draw_icon(self) 
     font_id = 0
@@ -1900,16 +1886,7 @@ def draw_table(self):
                 else:
                     bgl.glColor3f(0.0, 0.0, 0.0)
                 blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
-#    else:
-#        for r in range(rcshape[0]):
-#            for c in range(rcshape[1]):
-#                if self.rcarray[r][c]:
-#                    if c == 0:
-#                        blf.position(font_id, self.lspos[0] + colpos[c] + 0.01 * self.xdiff, self.lepos[1] -  0.01 * self.xdiff - int(rowheight * (r + 0.25)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
-#                    else:
-#                        blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] -  0.01 * self.xdiff - int(rowheight * (r + 0.25)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
-#                    drawloop(int(self.lspos[0] + colpos[c]), int(self.lepos[1] - 0.01 * self.xdiff - r * rowheight), self.lspos[0] + colpos[c + 1], int(self.lepos[1] - 0.01 * self.xdiff - (r + 1) * rowheight))                
-#                    blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+
     bgl.glDisable(bgl.GL_BLEND) 
     blf.disable(0, 8)
     blf.disable(0, 4)
@@ -1918,7 +1895,7 @@ def draw_table(self):
 
 def save_plot(self, scene, filename):
     fileloc = os.path.join(scene.vi_params['viparams']['newdir'], 'images', filename)
-    self.plt.savefig(fileloc, pad_inches = 0.1)
+    self.plt.savefig(fileloc, bbox_inches='tight')
     
     if filename not in [i.name for i in bpy.data.images]:
         self.gimage = filename
@@ -2052,61 +2029,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     vec2 pos = gl_PointCoord - vec2(0.5);
                     if (length(pos) < 0.4) {FragColour = sun_colour;}
                     if (length(pos) <= 0.5) {
-//                            sun_colour[3] = (0.5 - length(pos)) * 10;
-                            FragColour = sun_colour;
-                            FragColour[3] = (0.5 - length(pos)) * 10;
+                        FragColour = sun_colour;
+                        FragColour[3] = (0.5 - length(pos)) * 10;
                         }
                     if (length(pos) > 0.5) {discard;}
                     
                 }            
             '''
-#        sun2_vertex_shader = '''
-#            uniform mat4 viewProjectionMatrix;
-#            uniform mat4 sp_matrix;
-#            in vec3 position;
-#            in vec3 sun_position;
-#//            uniform float sun_radius;
-#//            out vec4 sun_position;
-#//            out mat4 sp_matrix;
-#//            out mat4 viewProjectionMatrix;
-#            out float sun_alpha;
-#            out vec4 sun_Position;
-#            out vec3 sp;
-#            
-#            void main()
-#                {
-#                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
-#                    sun_Position = viewProjectionMatrix * sp_matrix * vec4(sun_position, 1.0f); 
-#//                    sun_Position = ftransform(vec4(sun_position, 1.0f));
-#//                    sun_alpha = length(gl_Position.xy - sun_Position.xy) * 0.1;
-#//                    sp = sun_position;
-#                }
-#            '''
-#        sun2_fragment_shader = '''
-#            uniform vec4 sun_colour;
-#            uniform vec4 viewport;
-#            out vec4 FragColour;
-#            in vec4 sun_Position;
-#            
-#            void main()
-#                {
-#                    vec3 ndc = sun_Position.xyz/sun_Position.w;
-#                    vec2 vp_coord = ndc.xy * 0.5 + 0.5;
-#                    vec2 vpp_coord = vp_coord * viewport.zw;
-#                    float pos = length(gl_FragCoord.xy - vpp_coord);
-#                    float radius = sun_Position.z * 100;
-#                    if (pos > radius) 
-#                        {discard;}
-#                    if (pos >= radius - 10) 
-#                        {
-#                            FragColour = sun_colour;
-#                            FragColour[3] = 0.1*(radius - 10 - pos);
-#                        }
-#                    if (pos < radius -10) 
-#                        {FragColour = sun_colour;}
-#                }
-#           
-#            '''
             
         globe_vertex_shader = '''
             uniform mat4 viewProjectionMatrix;
@@ -2174,18 +2103,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bgl.glDepthFunc(bgl.GL_LESS)
             bgl.glDepthMask(bgl.GL_FALSE)
             bgl.glEnable(bgl.GL_BLEND)
-            
-            
-    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-    #        bgl.glBlendFunc(bgl.GL_SRC_ALPHA,bgl.GL_SRC_ALPHA)
-    #        bgl.glBlendFuncSeparate(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA, bgl.GL_SRC_ALPHA, bgl.GL_DST_ALPHA )
-    #        bgl.glEnable(bgl.GL_MULTISAMPLE)
-    #        bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    #        bgl.glEnable(bgl.GL_CULL_FACE)
-    #        bgl.glCullFace(bgl.GL_BACK)
-    #        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
-    #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
             bgl.glLineWidth(context.scene.vi_params.sp_line_width)
             bgl.glPointSize(context.scene.vi_params.sp_sun_size)
 
@@ -2245,19 +2162,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
             bgl.glDisable(bgl.GL_DEPTH_TEST) 
             bgl.glDepthMask(bgl.GL_TRUE)
-            
-            
-    #        bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    #        bgl.glEnable(bgl.GL_MULTISAMPLE)
-    #        bgl.glEnable(bgl.GL_POLYGON_SMOOTH)
-    #        bgl.glHint(bgl.GL_POLYGON_SMOOTH_HINT, bgl.GL_NICEST)
-    #        bgl.glDisable(bgl.GL_CULL_FACE)
-            
-    #        bgl.glDisable(bgl.GL_LINE_SMOOTH)
-    #        bgl.glEnable(bgl.GL_BLEND)
-            
-    #        bgl.glDisable(bgl.GL_BLEND)
-    #        bgl.glDisable(bgl.GL_POLYGON_SMOOTH)
             bgl.glPointSize(1)
 
         except Exception as e:
@@ -2602,15 +2506,13 @@ class wr_scatter(Base_Display):
               float xpos = spos[0] + position[0] * size[0];
               float ypos = spos[1] + position[1] * size[1]; 
               gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-//              gl_Position.z = 1.0;
               texCoord_interp = texCoord;
             }
         '''
         
         image_fragment_shader = '''
             in vec2 texCoord_interp;
-            out vec4 fragColor;
-            
+            out vec4 fragColor;            
             uniform sampler2D image;
             
             void main()
@@ -2830,7 +2732,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         except Exception as e:
             logentry("Something went wrong with wind rose display: {}".format(e))
             svp.vi_display == 0
- #           bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
         
 class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
@@ -3177,7 +3078,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                     
                     if event.type == 'LEFTMOUSE':
                         redraw = 1
-#                        self.bsdf.create_batch('arc')
+
                         if self.bsdf.cseg != self.bsdf.sseg:
                             self.bsdf.sr, self.bsdf.srs, self.bsdf.sseg = mring, ms, msegment
                             self.bsdf.plot(context)
@@ -3191,6 +3092,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                 if redraw:
                     context.region.tag_redraw()
                     return {'RUNNING_MODAL'} 
+
         return {'PASS_THROUGH'}                    
                
     def invoke(self, context, event):
@@ -3221,13 +3123,6 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             self.report({'ERROR'},"Selected material contains no BSDF information or contains the wrong BSDF type (only Klems is supported)")
             return {'CANCELLED'}
             
-    # def remove(self, context):
-    #     self.bsdf.plt.close()
-    #     bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdfnum, 'WINDOW')
-    #     context.scene.vi_params['viparams']['vidisp'] = 'bsdf'
-    #     bpy.data.images.remove(self.bsdf.gimage)
-    #     context.area.tag_redraw()
-    
     def draw_bsdfnum(self, context):
         try:
             r2 = context.area.regions[2]

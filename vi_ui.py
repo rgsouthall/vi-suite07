@@ -494,7 +494,7 @@ class TREE_PT_envim(bpy.types.Panel):
                 icon_val = layout.icon(mat)
             except:
                 icon_val = 1
-                print("WARNING [Mat Panel]: Could not get icon value for %s" % name)
+
             if mat.users:
                 op = col.operator('tree.goto_mat',
                                   text=name,
@@ -513,9 +513,13 @@ class TREE_PT_envim(bpy.types.Panel):
                                   emboss=(mat == context.space_data.id),
                                   icon='ORPHAN_DATA')
                 op.mat = name
-
+        
+        
         if not materials:
             col.label(text="No EnVi Materials")
+        else:
+            row = layout.row()
+            row.operator('envi_node.remove', text='Clear unused', icon='NODETREE')
 
 class TREE_PT_envin(bpy.types.Panel):
     bl_label = "EnVi Networks"

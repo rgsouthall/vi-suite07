@@ -2028,6 +2028,7 @@ def spfc(self):
 def find_materials_in_groupinstances(empty):
     if empty.instance_collection.name in checked_groups_names_list:
         return None
+
     for obj in bpy.data.collections[empty.instance_collection.name].objects:
         if obj.instance_type == 'COLLECTION' and obj.instance_collection is not None and obj.type == 'EMPTY':
             return find_materials_in_groupinstances(obj)
@@ -2035,6 +2036,7 @@ def find_materials_in_groupinstances(empty):
             for slot in obj.material_slots:
                 if slot.material:
                     materials_from_group.add(slot.material)
+                    
     checked_groups_names_list.append(empty.instance_collection.name)  # or no empty mat in group
     return None
 
@@ -2048,20 +2050,23 @@ def material_on_sel_obj(mat):
     return False
     
 def get_materials():
-#    settings = bpy.context.window_manager.matalogue_settings
     materials = []
+
     for mat in bpy.data.materials:
         conditions = [mat.vi_params.envi_nodes]
+
         if all(conditions):
             materials.append(mat)
+
     additional_mats = set()
     checked_groups_names_list.clear()
-#    if settings.selected_only:
+
     for obj in bpy.context.selected_objects:
         if obj.instance_type == 'COLLECTION' and obj.instance_collection is not None and obj.type == 'EMPTY':
             find_materials_in_groupinstances(obj)
             additional_mats = additional_mats | materials_from_group
             materials_from_group.clear()
+
     all_mats = list(set(materials) | additional_mats)
     all_mats = sorted(all_mats, key=lambda x: x.name.lower())
     return all_mats

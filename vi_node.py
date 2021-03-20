@@ -1657,8 +1657,8 @@ class No_Vi_Chart(Node, ViNodes):
                     self['Start'], self['End'] = startframe, endframe
                 else:
                     if 'Month' in zrl[3]:
-                        startday = datetime.datetime(context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
-                        endday = datetime.datetime(context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                        startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                        endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
                         self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                         self['Start'], self['End'] = startday, endday
     
@@ -1822,6 +1822,31 @@ class No_Vi_Metrics(Node, ViNodes):
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
                                     ("1", "Non-domestic", "Non-domestic scenario")],
                 name="", description="Results metric", default="0", update=zupdate)
+    breeam_menu: EnumProperty(items=[("0", "Education", "Education scenario"),
+                                    ("1", "Healthcare", "Healthcare scenario"),
+                                    ("2", "Multi-residential", "Multi-residential scenario"),
+                                    ("3", "Retail", "Retail scenario"),
+                                    ("4", "Other", "Other scenario")],
+                name="", description="BREEAM space type", default="0", update=zupdate)
+    breeam_edumenu: EnumProperty(items=[("0", "School", "School context"),
+                                        ("1", "Higher education", "Higher education scenario")],
+                name="", description="BREEAM education space type", default="0", update=zupdate)  
+    breeam_healthmenu: EnumProperty(items=[("0", "Staff/public", "Staff/public context"),
+                                        ("1", "Patient", "Patient scenario")],
+                name="", description="BREEAM healthcare space type", default="0", update=zupdate)   
+    breeam_multimenu: EnumProperty(items=[("0", "Kitchen", "Staff/public context"),
+                                        ("1", "Living", "Patient scenario"),
+                                        ("2", "Communal", "Patient scenario")],
+                name="", description="BREEAM multi-residential space type", default="0", update=zupdate) 
+    breeam_retailmenu: EnumProperty(items=[("0", "Sales", "Staff/public context"),
+                                        ("1", "Other", "Patient scenario")],
+                name="", description="BREEAM retail space type", default="0", update=zupdate) 
+    breeam_othermenu: EnumProperty(items=[("0", "Cells", "Custody cells context"),
+                                        ("1", "Atrium", "Communal area scenario"),
+                                        ("2", "Care", "Patient care scenario"),
+                                        ("3", "Lecture", "Lecture scenario"),
+                                        ("4", "Other", "All other scenario")],
+                name="", description="BREEAM other space type", default="0", update=zupdate)   
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
     frame_menu: EnumProperty(items=frames,
@@ -1890,26 +1915,23 @@ class No_Vi_Metrics(Node, ViNodes):
 
         elif self.metric == '1':
             if self.light_menu == '0':
-                areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']
-                    
+                newrow(layout, 'Space:', self, "breeam_menu")
+                if self.breeam_menu == '0':
+                    newrow(layout, 'Education space:', self, "breeam_edumenu")
+                elif self.breeam_menu == '1':
+                    newrow(layout, 'Health space:', self, "breeam_healthmenu")
+                elif self.breeam_menu == '2':
+                    newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
+                elif self.breeam_menu == '3':
+                    newrow(layout, 'Retail space:', self, "breeam_retailmenu")
+                elif self.breeam_menu == '4':
+                    newrow(layout, 'Other space:', self, "breeam_othermenu")
+
+                areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']                    
                 row = layout.row()
                 row.label(text = "Compliant area: {}%".format(areaDF))
-
-            elif self.light_menu == '2':
-                if self['res']['avDF'] < 0:
-                    (dfpass, udfpass, avDF, uDF) = ('N/A', 'N/A', 'N/A', 'N/A')
-                else:
-                    dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
-                    udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
-                    avDF = self['res']['avDF']
-                    uDF = self['res']['ratioDF']
-                    
-                row = layout.row()
-                row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
-                row = layout.row()
-                row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
                 
-            if self.light_menu == '1':
+            elif self.light_menu == '1':
                 newrow(layout, 'Healthcare', self, 'leed_menu')
                 (l, h) = (75, 90) if self.leed_menu else (55, 75)
                 
@@ -1928,6 +1950,20 @@ class No_Vi_Metrics(Node, ViNodes):
                     row.label(text = sda)
                     row = layout.row()
                     row.label(text = o1)
+
+            elif self.light_menu == '2':
+                if self['res']['avDF'] < 0:
+                    (dfpass, udfpass, avDF, uDF) = ('N/A', 'N/A', 'N/A', 'N/A')
+                else:
+                    dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
+                    udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
+                    avDF = self['res']['avDF']
+                    uDF = self['res']['ratioDF']
+                    
+                row = layout.row()
+                row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
+                row = layout.row()
+                row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
 
         elif self.metric == '2':
             newrow(layout, 'Wind speed', self, "ws")
@@ -2108,8 +2144,9 @@ class No_Vi_Metrics(Node, ViNodes):
 
                         self['res']['areaDF'] = round(100 * rarea/nsum(dfareas), 2)
                         self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
-                    except:
-                        pass
+                    
+                    except Exception as e:
+                        print(e)
 
                 elif self.light_menu == '2':
                     for r in rl:

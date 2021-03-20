@@ -110,7 +110,7 @@ else:
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
-    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, OBJECT_OT_Embod, NODE_OT_En_UV
+    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, OBJECT_OT_Embod, NODE_OT_En_UV, MAT_EnVi_Node_Remove
     from .vi_operators import NODE_OT_Chart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_BM, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim
@@ -265,7 +265,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     sp_globe_colour: fvprop(4, "",'Sun colour', [0.0, 0.0, 1.0, 0.1], 'COLOR', 0, 1)
     sp_sun_angle: FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
     sp_sun_size: iprop("",'Sun size', 1, 50, 10)
-    sp_sun_strength: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
+    sp_sun_strength: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 1.0, update=sunpath1)
     sp_season_dash_ratio: fprop("", "Ratio of line to dash of season lines", 0, 5, 0)
     sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, 0.5)
     sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 1)
@@ -367,7 +367,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     ies_colmenu: eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
     ies_rgb: fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
     ies_ct: iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
-    licalc: bprop("", "", False)
+#    licalc: bprop("", "", False)
     limerr: bprop("", "", False)
     manip: bprop("", "", False) 
     bsdf_proxy: bprop("", "", False)
@@ -441,7 +441,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radtransdiff: fprop("Transmission", "Material diffuse transmission", 0, 1, 0.1)
     radtranspec: fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     radior: fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
-    radct: iprop("Temperature (K)", "Colour temperature in Kelven", 0, 12000, 4700)
+    radct: iprop("Temperature (K)", "Colour temperature in Kelvin", 0, 12000, 4700)
     radintensity: fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 10000, 1)   
     radfile: sprop("", "Radiance file material description", 1024, "")
     vi_shadow: bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
@@ -478,7 +478,6 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     
     # FloVi Materials
     flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
-#    Material.flovi_bmb_type: eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Symmetry", "Symmetry boundary"), ("4", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
     flovi_mat = fvmat
     flovi_bmbp_subtype: EnumProperty(items = ret_fvbp_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbp_val: fprop("", "Pressure value", -1000, 1000, 0.0)
@@ -655,7 +654,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
-           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC)
+           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, MAT_EnVi_Node_Remove)
                      
 def register():
     for cl in classes:

@@ -1434,6 +1434,7 @@ class MAT_EnVi_Node(bpy.types.Operator):
             cm = bpy.context.active_object.active_material
 
         mvp = cm.vi_params
+
         if not mvp.envi_nodes:
             bpy.ops.node.new_node_tree(type='EnViMatN', name = cm.name) 
             mvp.envi_nodes = bpy.data.node_groups[cm.name]
@@ -1445,6 +1446,25 @@ class MAT_EnVi_Node(bpy.types.Operator):
         elif cm.name != mvp.envi_nodes.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]:
             mvp.envi_nodes = mvp.envi_nodes.copy()
             mvp.envi_nodes.name = cm.name
+        
+        return {'FINISHED'}
+
+class MAT_EnVi_Node_Remove(bpy.types.Operator):
+    bl_idname = "envi_node.remove"
+    bl_label = "EnVi Material export"
+
+    def invoke(self, context, event):
+        for mat in bpy.data.materials:
+            m = 0
+            for coll in bpy.data.collections['EnVi Geometry'].children:
+                for o in coll.objects:
+                    if mat in [ms.material for ms in o.material_slots]:
+                        m = 1
+            if not m:
+                print(mat.name)
+#            if mat.envi_nodes and mat not in bpy.data.collections 
+#            bpy.data.materials.remove(mat)
+        
         return {'FINISHED'}
 
 class NODE_OT_En_Geo(bpy.types.Operator):
@@ -2645,7 +2665,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             mns.append(len(set(mis)))
 
         fomats = [item for sublist in omats for item in sublist]
-        sizes = [m.vi_params.flovi_ng_max for m in fomats]
         i= 0
         
         for mis, mats in enumerate(omats):    
@@ -2654,6 +2673,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     fd = FaceDescriptor(bc = i, domin = 1, surfnr = i + 1)
                 else:
                     fd = FaceDescriptor(bc = i, domin = 0, domout = 1, surfnr = i + 1)
+
                 fd = totmesh.Add(fd)
                 fds.append(fd)
                 totmesh.SetBCName(fd, mat.name)
@@ -2683,15 +2703,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
 
             for v in bm.verts:
-                mp.RestrictH(x=v.co[0],y=v.co[1],z=v.co[2],h=sizes[max([f.material_index + sum(mns[:oi + 1]) for f in v.link_faces])])
+                mp.RestrictH(x=v.co[0],y=v.co[1],z=v.co[2],h=max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces]))
             
             for e in bm.edges:
-                if e.calc_length() > 2 * max([sizes[f] for f in [f.material_index + sum(mns[:oi + 1]) for f in e.link_faces]]):
-                    segs = int(e.calc_length()/max([sizes[f] for f in [f.material_index + sum(mns[:oi + 1]) for f in e.link_faces]])) + 1
+                if e.calc_length() > 2 * max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces]):
+                    segs = int(e.calc_length()/max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces])) + 1
                     
                     for s in range(1, segs):
                         vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
-                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=sizes[min([f.material_index + sum(mns[:oi + 1]) for f in e.link_faces])])
+                        mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces]))
                     
             with TaskManager():
                 m = geo.GenerateMesh(mp = mp)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
@@ -2703,7 +2723,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     
                     for face in bm.faces:
                         if bmesh.geometry.intersect_face_point(face, fpoint) and abs(mathutils.geometry.distance_point_to_plane(fpoint, face.calc_center_median(), face.normal)) < expnode.pcorr and abs(fnorm.dot(face.normal)) > expnode.acorr:
-                            el.index = face.material_index + 1 + sum(mns[:oi + 1]) 
+                            el.index = omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1]) 
                             intersect = 1
                             break
                     if not intersect:
@@ -2950,6 +2970,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             face.material_index = len(ns)
 
                     expnode.post_export()
+
         except Exception as e:
            logentry("Netgen error: {}".format(e))
            return {'CANCELLED'}
@@ -2975,6 +2996,8 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
 
         if boundnode.pv:
             subprocess.Popen(shlex.split('foamExec paraFoam -builtin -case {}'.format(svp['flparams']['offilebase'])))
+        else:
+            open("{}".format(os.path.join(svp['flparams']['offilebase'], 'project.foam')), "w")
             
         boundnode.post_export()
         return {'FINISHED'}
@@ -2987,6 +3010,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
     bl_undo = True
     
     def modal(self, context, event):
+        svp = context.scene.vi_params
+
         if self.run.poll() is None and self.kivyrun.poll() is None:
             with open(self.fpfile, 'r') as fpfile:
                 lines = fpfile.readlines()[::-1]
@@ -3019,17 +3044,19 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             self.kivyrun.kill()
             
             if self.processes > 1:
-                Popen(shlex.split("foamExec reconstructPar -case {}".format(context.scene.vi_params['flparams']['offilebase']))).wait()
+                Popen(shlex.split("foamExec reconstructPar -case {}".format(svp['flparams']['offilebase']))).wait()
                 
-            Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(context.scene.vi_params['flparams']['offilebase']))).wait()
+            Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(svp['flparams']['offilebase']))).wait()
             
             if self.pv:
-                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(context.scene.vi_params['flparams']['offilebase'])))
+                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(svp['flparams']['offilebase'])))
+            else:
+                open("{}".format(os.path.join(svp['flparams']['offilebase'], 'project.foam')), "w")
 
             reslists = []
 
-            if os.path.isdir(os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')):
-                probed = os.path.join(context.scene.vi_params['flparams']['offilebase'], 'postProcessing', 'probes', '0')
+            if os.path.isdir(os.path.join(svp['flparams']['offilebase'], 'postProcessing', 'probes', '0')):
+                probed = os.path.join(svp['flparams']['offilebase'], 'postProcessing', 'probes', '0')
                 resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity'}
 
                 for f in os.listdir(probed):
@@ -3043,7 +3070,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             resarray = transpose(resarray)
                                     
                         for ri, r in enumerate(resarray[1:]):
-                            reslists.append([str(context.scene.frame_current), 'Zone', context.scene.vi_params['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                            reslists.append([str(context.scene.frame_current), 'Zone', svp['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
                 reslists.append([str(context.scene.frame_current), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
                 self.simnode['reslists'] = reslists

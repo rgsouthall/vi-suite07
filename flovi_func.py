@@ -268,7 +268,7 @@ def fvmat(self, mn, bound):
     
     if bound == 'p':
         val = 'uniform {}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
-        pdict = {'0': self.flovi_bmbp_subtype, '1': self.flovi_bmbp_subtype, '2': 'symmetryPlane', '3': 'empty'}
+        pdict = {'0': self.flovi_bmbp_subtype, '1': self.flovi_bmbp_subtype, '2': 'symmetry', '3': 'empty'}
         ptdict = {'zeroGradient': 'zeroGradient', 'fixedValue': 'fixedValue;\n    value    {}'.format(val), 
                 'calculated': 'calculated;\n    value    $internalField', 
                 'freestreamPressure': 'freestreamPressure', 
@@ -284,7 +284,7 @@ def fvmat(self, mn, bound):
             val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(self.flovi_u_speed * sin(pi*self.flovi_u_azi/180), 
             self.flovi_u_speed * cos(pi*self.flovi_u_azi/180), 0) if not self.flovi_u_field else '$internalField'
 
-        Udict = {'0': self.flovi_bmbu_subtype, '1': self.flovi_bmbu_subtype, '2': 'symmetryPlane', '3': 'empty'}
+        Udict = {'0': self.flovi_bmbu_subtype, '1': self.flovi_bmbu_subtype, '2': 'symmetry', '3': 'empty'}
         Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip', 
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
                   'pressureInletOutletVelocity': 'pressureInletOutletVelocity;\n    value    $internalField', 
