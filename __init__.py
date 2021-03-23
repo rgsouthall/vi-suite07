@@ -587,14 +587,13 @@ def select_nodetree(dummy):
             space.node_tree = envings[0]
             
     for space in getEnViMaterialSpaces():
-        if bpy.context.active_object.active_material:
-            try:
-                if space.node_tree != bpy.context.active_object.active_material.vi_params.envi_nodes:
-                    envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
-                    if envings:
-                        space.node_tree = envings[0]
-            except Exception as e:
-                print(e)
+        try:
+            if space.node_tree != bpy.context.active_object.active_material.vi_params.envi_nodes:
+                envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
+                if envings:
+                    space.node_tree = envings[0]
+        except Exception as e:
+            pass
         
 bpy.app.handlers.depsgraph_update_post.append(select_nodetree)
         
