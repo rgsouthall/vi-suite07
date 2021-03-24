@@ -59,6 +59,10 @@ else:
                     os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)  
                     sys.argv = [bpy.app.binary_path] 
                     os.execv(sys.argv[0], sys.argv)
+            elif sys.platform == 'darwin':
+                if not os.environ.get('DYLD_LIBRARY_PATH'):
+                    os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+
             sys.path.append(os.path.join(addonpath, 'Python', sys.platform)) 
             
             if os.environ.get('PATH'):
