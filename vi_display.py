@@ -944,182 +944,6 @@ class draw_bsdf(Base_Display):
             self.arc_shader.uniform_float("spos", (self.lspos[0] + 50 + 125, self.lepos[1] - 155))
             self.arc_batch.draw(self.arc_shader)
         
-class svf_legend(Base_Display):
-    def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
-        Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
-        self.unit = unit
-        self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
-        self.dpi = 300
-        self.levels = 20        
-        self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
-        self.f_indices = [(0, 1, 2), (2, 3, 0)]
-        self.rh = context.region.height
-        self.update(context)
-        self.create_batch()        
-                        
-    def update(self, context):        
-        scene = context.scene
-        svp = scene.vi_params
-        self.levels = svp.vi_leg_levels
-        self.lh = 1/(self.levels + 1.25)
-        self.cao = context.active_object        
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-        (self.minres, self.maxres) = leg_min_max(svp)
-        self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
-        resdiff = self.maxres - self.minres
-        
-        if not svp.get('liparams'):
-            svp.vi_display = 0
-            return
-
-        resvals = [format(self.minres + i*(resdiff)/self.levels, '.0f') for i in range(self.levels + 1)] if self.scale == '0' else \
-                        [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.0f') for i in range(1, self.levels + 2)[::-1]]
-        self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
-        self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]             
-        blf.size(self.font_id, 12, self.dpi)        
-        self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
-        self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
-        self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
-
-    def ret_coords(self):      
-        lh = 1/(self.levels + 1.25) 
-        vl_coords = self.v_coords[:]
-        fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
-        fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
-        fl_indices = list(fl1_indices) + list(fl2_indices)
-        
-        for i in range(0, self.levels):
-            vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
-        return (vl_coords, fl_indices)
-    
-    def draw(self, context):
-        self.rw = context.region.width
-        svp = context.scene.vi_params
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
-        
-        if self.rh != context.region.height:
-            self.lepos[1] = context.region.height - (self.rh - self.lepos[1])
-            self.lspos[1] = self.lepos[1] - self.ydiff
-            self.rh = context.region.height
-        
-        if self.expand:   
-            if self.resize:
-                self.xdiff = self.lepos[0] - self.lspos[0]
-                self.ydiff = self.lepos[1] - self.lspos[1]
-            elif self.move:
-                self.lspos[1] = self.lepos[1] - self.ydiff
-                self.lepos[0] = self.lspos[0] + self.xdiff
-            if self.lepos[1] > self.rh:
-                self.lspos[1] = self.rh - self.ydiff 
-                self.lepos[1] = self.rh
-            if self.lepos[0] > self.rw:
-                self.lspos[0] = self.rw - self.xdiff   
-                self.lepos[0] = self.rw
-                
-            self.base_shader.bind()
-            self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.base_shader.uniform_float("spos", self.lspos)
-            self.base_shader.uniform_float("colour", self.hl)      
-            self.base_batch.draw(self.base_shader)  
-            
-            if self.levels != svp.vi_leg_levels or self.colours != [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)] or (self.minres, self.maxres) != leg_min_max(svp):
-                self.update(context)
-                (vl_coords, fl_indices) = self.ret_coords()
-                self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-                self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-                               
-            self.col_shader.bind()
-            self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.col_shader.uniform_float("spos", self.lspos)  
-            self.col_batch.draw(self.col_shader)            
-            self.line_shader.bind()
-            self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.line_shader.uniform_float("spos", self.lspos)
-            self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
-            self.line_batch.draw(self.line_shader)
-            fontscale = max(self.titxdimen/(self.xdiff * 0.99), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.1/(self.lh * self.ydiff))
-            blf.enable(0, 4)
-            blf.enable(0, 8)
-            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, 12, int(self.dpi/fontscale))
-            blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.5 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
-            blf.color(self.font_id, 0, 0, 0, 1)      
-            blf.draw(self.font_id, self.unit)
-            blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
-            blf.size(self.font_id, 12, int((self.dpi - 25)/fontscale))
-            
-            for i in range(self.levels):
-                num = self.resvals[i]            
-                ndimen = blf.dimensions(self.font_id, "{}".format(num))
-                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
-                blf.draw(self.font_id, "{}".format(self.resvals[i]))
-                
-            blf.disable(0, 8)  
-            blf.disable(0, 4)
-           
-    def create_batch(self):
-        base_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-            
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1]; 
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                }
-            '''
-            
-        base_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            
-            void main()
-                {
-                    FragColour = colour;
-                }
-           
-            '''
-            
-        col_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-            in vec4 colour;
-            flat out vec4 f_colour;
-            
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1]; 
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                   f_colour = colour;
-                }
-            '''
-            
-        col_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            flat in vec4 f_colour;
-            
-            void main()
-                {
-                    FragColour = f_colour;
-                }
-           
-            '''  
-            
-        self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-        self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
-        self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
-        (vl_coords, fl_indices) = self.ret_coords()
-        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
-        self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-
 class wr_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
@@ -1596,6 +1420,7 @@ class draw_legend(Base_Display):
         
         for i in range(0, self.levels):
             vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
+        
         return (vl_coords, fl_indices)
     
     def draw(self, context):
@@ -1610,17 +1435,19 @@ class draw_legend(Base_Display):
             elif self.move:
                 self.lspos[1] = self.lepos[1] - self.ydiff
                 self.lepos[0] = self.lspos[0] + self.xdiff
+
             if self.lepos[1] > self.ah:
                 self.lspos[1] = self.ah - self.ydiff 
                 self.lepos[1] = self.ah
+
             if self.lepos[0] < self.aw:
                 self.lepos[0] = self.aw  
-                
+   
             self.base_shader.bind()
             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.base_shader.uniform_float("spos", self.lspos)
             self.base_shader.uniform_float("colour", self.hl)      
-            self.base_batch.draw(self.base_shader)  
+            self.base_batch.draw(self.base_shader)                  
             self.unit = svp.vi_leg_unit if svp.vi_leg_unit else res2unit[svp.li_disp_menu]
             
             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
@@ -1628,16 +1455,17 @@ class draw_legend(Base_Display):
                 (vl_coords, fl_indices) = self.ret_coords()
                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
-                               
+
             self.col_shader.bind()
             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.col_shader.uniform_float("spos", self.lspos)  
-            self.col_batch.draw(self.col_shader)            
+            self.col_batch.draw(self.col_shader) 
             self.line_shader.bind()
             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.line_shader.uniform_float("spos", self.lspos)
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
             self.line_batch.draw(self.line_shader)
+            
             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
             blf.enable(0, 4)
             blf.enable(0, 8)
@@ -1790,10 +1618,8 @@ def draw_image(self, topgap):
     bgl.glEnable(bgl.GL_BLEND)
     bpy.data.images[self.gimage].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
     bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.gimage].bindcode[0])
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
-                            bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
-                            bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
     bgl.glEnable(bgl.GL_TEXTURE_2D)
     bgl.glColor4f(1, 1, 1, 1)
     bgl.glBegin(bgl.GL_QUADS)
@@ -2598,7 +2424,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         if not self.cao:
             return{'CANCELLED'}
         else:
-            self.zdata = array(self.cao.vi_params[('ws', 'wd')[int(svp.wind_type)]])
+            self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
             self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
             self.xdata = self.cao.vi_params['days']
@@ -2651,7 +2477,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         if updates[2]:
             self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
             self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
-            self.zdata = array(self.cao.vi_params[('ws', 'wd')[int(svp.wind_type)]])
+            self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
             self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
             self.xdata = self.cao.vi_params['days']
@@ -3256,3 +3082,180 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         except Exception as e:
             logentry('Quitting LiVi display {}'.format(e))
             context.scene.vi_params.vi_display = 0
+
+
+#class svf_legend(Base_Display):
+#     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
+#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
+#         self.unit = unit
+#         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
+#         self.dpi = 300
+#         self.levels = 20        
+#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
+#         self.f_indices = [(0, 1, 2), (2, 3, 0)]
+#         self.rh = context.region.height
+#         self.update(context)
+#         self.create_batch()        
+                        
+#     def update(self, context):        
+#         scene = context.scene
+#         svp = scene.vi_params
+#         self.levels = svp.vi_leg_levels
+#         self.lh = 1/(self.levels + 1.25)
+#         self.cao = context.active_object        
+#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+#         (self.minres, self.maxres) = leg_min_max(svp)
+#         self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
+#         resdiff = self.maxres - self.minres
+        
+#         if not svp.get('liparams'):
+#             svp.vi_display = 0
+#             return
+
+#         resvals = [format(self.minres + i*(resdiff)/self.levels, '.0f') for i in range(self.levels + 1)] if self.scale == '0' else \
+#                         [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.0f') for i in range(1, self.levels + 2)[::-1]]
+#         self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+#         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]             
+#         blf.size(self.font_id, 12, self.dpi)        
+#         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
+#         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
+#         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
+
+#     def ret_coords(self):      
+#         lh = 1/(self.levels + 1.25) 
+#         vl_coords = self.v_coords[:]
+#         fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
+#         fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
+#         fl_indices = list(fl1_indices) + list(fl2_indices)
+        
+#         for i in range(0, self.levels):
+#             vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
+#         return (vl_coords, fl_indices)
+    
+#     def draw(self, context):
+#         self.rw = context.region.width
+#         svp = context.scene.vi_params
+#         self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+        
+#         if self.rh != context.region.height:
+#             self.lepos[1] = context.region.height - (self.rh - self.lepos[1])
+#             self.lspos[1] = self.lepos[1] - self.ydiff
+#             self.rh = context.region.height
+        
+#         if self.expand:   
+#             if self.resize:
+#                 self.xdiff = self.lepos[0] - self.lspos[0]
+#                 self.ydiff = self.lepos[1] - self.lspos[1]
+#             elif self.move:
+#                 self.lspos[1] = self.lepos[1] - self.ydiff
+#                 self.lepos[0] = self.lspos[0] + self.xdiff
+#             if self.lepos[1] > self.rh:
+#                 self.lspos[1] = self.rh - self.ydiff 
+#                 self.lepos[1] = self.rh
+#             if self.lepos[0] > self.rw:
+#                 self.lspos[0] = self.rw - self.xdiff   
+#                 self.lepos[0] = self.rw
+                
+#             self.base_shader.bind()
+#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.base_shader.uniform_float("spos", self.lspos)
+#             self.base_shader.uniform_float("colour", self.hl)      
+#             self.base_batch.draw(self.base_shader)  
+            
+#             if self.levels != svp.vi_leg_levels or self.colours != [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)] or (self.minres, self.maxres) != leg_min_max(svp):
+#                 self.update(context)
+#                 (vl_coords, fl_indices) = self.ret_coords()
+#                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+#                 self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+                               
+#             self.col_shader.bind()
+#             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.col_shader.uniform_float("spos", self.lspos)  
+#             self.col_batch.draw(self.col_shader)            
+#             self.line_shader.bind()
+#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.line_shader.uniform_float("spos", self.lspos)
+#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
+#             self.line_batch.draw(self.line_shader)
+#             fontscale = max(self.titxdimen/(self.xdiff * 0.99), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.1/(self.lh * self.ydiff))
+#             blf.enable(0, 4)
+#             blf.enable(0, 8)
+#             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
+#             blf.size(self.font_id, 12, int(self.dpi/fontscale))
+#             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.5 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0) 
+#             blf.color(self.font_id, 0, 0, 0, 1)      
+#             blf.draw(self.font_id, self.unit)
+#             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
+#             blf.size(self.font_id, 12, int((self.dpi - 25)/fontscale))
+            
+#             for i in range(self.levels):
+#                 num = self.resvals[i]            
+#                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
+#                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
+#                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
+                
+#             blf.disable(0, 8)  
+#             blf.disable(0, 4)
+           
+#     def create_batch(self):
+#         base_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+            
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1]; 
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                 }
+#             '''
+            
+#         base_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+            
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+           
+#             '''
+            
+#         col_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+#             in vec4 colour;
+#             flat out vec4 f_colour;
+            
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1]; 
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                    f_colour = colour;
+#                 }
+#             '''
+            
+#         col_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+#             flat in vec4 f_colour;
+            
+#             void main()
+#                 {
+#                     FragColour = f_colour;
+#                 }
+           
+#             '''  
+            
+#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+#         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
+#         (vl_coords, fl_indices) = self.ret_coords()
+#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
+#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+#         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)

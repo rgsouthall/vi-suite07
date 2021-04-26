@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ##### BEGIN GPL LICENSE BLOCK #####
 #
 #  This program is free software; you can redistribute it and/or
@@ -18,6 +19,7 @@
 
 
 import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json, bmesh
+from collections import OrderedDict
 from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, StringProperty, FloatVectorProperty
 from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
@@ -32,6 +34,9 @@ from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_la
 from numpy import sort, median, array, stack
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
+import matplotlib
+matplotlib.use('qt5agg', force = True)
+import matplotlib.pyplot as plt
 
 try:
     import netgen
@@ -71,10 +76,8 @@ class No_Loc(Node, ViNodes):
         context.space_data.edit_tree == ''
         scene = context.scene
         svp = scene.vi_params
-#        svp.year = 2019
         nodecolour(self, self.ready())
         reslists = []
-#        self['year'] = 2019
 
         if self.loc == '1':
             entries = []
@@ -105,7 +108,7 @@ class No_Loc(Node, ViNodes):
                     for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
                         reslists.append(['0', 'Time', '', times[t], ti])
                         
-                    for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
+                    for c in {"Temperature (degC)": 6, 'Humidity (%)': 8, "Direct Solar (W/m^2)": 14, "Diffuse Solar (W/m^2)": 15,
                               'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
                         reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
     
@@ -326,7 +329,6 @@ class No_Li_Con(Node, ViNodes):
     buildstorey: EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
     cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"), ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics")]
     cbanalysismenu: EnumProperty(name="", description="Type of lighting analysis", items = cbanalysistype, default = '0', update = nodeupdate)
-#    leanalysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation")]
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "HDR", "HDR sky file")]
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
     sourcemenu: EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeupdate)
@@ -1091,13 +1093,14 @@ class No_Vi_WR(Node, ViNodes):
     bl_icon = 'FORCE_WIND'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.sdoy, self.edoy)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.sdoy, self.edoy, self.max_freq, self.max_freq_val, self.temp)])
 
     wrtype: EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0', update = nodeupdate)
     sdoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
     edoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     max_freq: EnumProperty(items = [("0", "Data", "Max frequency taken from data"), ("1", "Specified", "User entered value")], name = "", default = '0', update = nodeupdate)
     max_freq_val: FloatProperty(name = "", description = "Max frequency", min = 1, max = 100, default = 20, update = nodeupdate)
+    temp: BoolProperty(name = "", description = "Plot temperature", default = 0, update = nodeupdate)
 
     def init(self, context):
         self.inputs.new('So_Vi_Loc', 'Location in')
@@ -1108,6 +1111,7 @@ class No_Vi_WR(Node, ViNodes):
         if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
             (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params.year)
             newrow(layout, 'Type:', self, "wrtype")
+            newrow(layout, 'Temperature:', self, "temp")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Colour:', context.scene.vi_params, 'vi_scatt_col')
@@ -1122,7 +1126,7 @@ class No_Vi_WR(Node, ViNodes):
 
     def export(self):
         nodecolour(self, 0)
-        self['exportstate'] = [str(x) for x in (self.wrtype, self.sdoy, self.edoy, self.max_freq, self.max_freq_val)]
+        self['exportstate'] = [str(x) for x in (self.wrtype, self.sdoy, self.edoy, self.max_freq, self.max_freq_val, self.temp)]
         
     def update(self):
         pass
@@ -1640,6 +1644,7 @@ class No_Vi_Chart(Node, ViNodes):
                 innode = self.inputs['X-axis'].links[0].from_node
                 rl = innode['reslists']
                 zrl = list(zip(*rl))
+
                 try:
                     if len(set(zrl[0])) > 1:
                         self['pmitems'] = [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
@@ -1669,8 +1674,7 @@ class No_Vi_Chart(Node, ViNodes):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRXIn'
                     bl_label = 'X-axis'
-                                    
-#                    if innode['reslists']:
+
                     (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
                      zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
                      chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'X-axis')
@@ -1746,6 +1750,158 @@ class No_Vi_Chart(Node, ViNodes):
                 bpy.utils.register_class(ViEnRY3In)
         except Exception as e:
             print('Chart node update failure 2 ', e)
+
+def loctype(self, context):
+    rmenu = str(self.resmenu)
+    locs = [res for ri, res in enumerate(self['locs']) if self['rtypes'][ri] == rmenu]
+    return [(res, res, "Plot {}".format(res)) for res in set(locs)]
+
+class No_Vi_HMChart(Node, ViNodes):
+    '''Node for 2D results plotting'''
+    bl_idname = 'No_Vi_HMChart'
+    bl_label = 'VI Heatmap'
+
+    def update(self):
+        if self.inputs['Results in'].links:
+            innode = self.inputs['Results in'].links[0].from_node
+            rl = innode['reslists']
+            self['times'] = [rl[0] for rl in innode['reslists']]
+            self['rtypes'] = [rl[1] for rl in innode['reslists']] 
+            self['locs'] = [rl[2] for rl in innode['reslists']]
+            self['metrics'] = [rl[3] for rl in innode['reslists']]
+        else:
+            self['times'] = [('0', 'None', "")]
+            self['rtypes'] = [('0', 'None', "")]
+            self['locs'] = [('0', 'None', "")]
+            self['metrics'] = [('0', 'None', "")]
+
+    def ftype(self, context):
+        return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['times'])) if res != 'All'] 
+
+    def loctype(self, context):
+        rmenu = str(self.resmenu)
+        locs = [res for ri, res in enumerate(self['locs']) if self['rtypes'][ri] == rmenu]
+
+        if any(locs):
+            return [(res, res, "Plot {}".format(res)) for res in sorted(set(locs))]
+        else:
+            return [('0', 'None', "")] 
+
+    def restype(self, context):
+        return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['rtypes'])) if res != 'Time'] 
+    
+    def metric(self, context):
+        lmenu = str(self.locmenu)
+        metrics = [res for ri, res in enumerate(self['metrics']) if self['rtypes'][ri] == self.resmenu and (self['locs'][ri], '0')[self.resmenu == 'Climate'] == lmenu]
+
+        if any(metrics):
+            return [(res, res, "Plot {}".format(res)) for res in sorted(set(metrics))]  
+        else:
+            return [('0', 'None', "")]   
+    
+    def mupdate(self, context):
+        if self.locmenu not in [l[0] for l in self.loctype(context)]:
+            self.locmenu = self.loctype(context)[0][0]
+            
+        if self.metricmenu not in [l[0] for l in self.metric(context)]:
+            self.metricmenu = self.metric(context)[0][0]
+
+    def dupdate(self, context):
+        if self.inputs['Results in'].links:
+            innode = self.inputs['Results in'].links[0].from_node
+            rl = innode['reslists']
+
+            for r in rl:
+                if r[0] == self.framemenu:
+                    if r[1] == 'Time':
+                        if r[3] == 'DOS':
+                            self.x = (array([float(r) for r in r[4].split()]) + 0.5)
+                            self.x = self.x.reshape(365, 24)
+                        elif r[3] == 'Hour':
+                            self.y = (array([float(r) for r in r[4].split()]) + 0.5)
+                            self.y = self.y.reshape(365, 24)
+
+                    elif r[1] == self.resmenu:
+                        if self.resmenu == 'Climate':
+                            if r[3] == self.metricmenu:
+                                self.z = array([float(r) for r in r[4].split()])
+                                self.z = self.z.reshape(365, 24)  
+                        elif r[3] == self.metricmenu and r[2] == self.locmenu:
+                                self.z = array([float(r) for r in r[4].split()])
+                                self.z = self.z.reshape(365, 24)  
+    
+    dpi: IntProperty(name = 'DPI', description = "DPI of the shown figure", default = 92, min = 92)
+    framemenu: EnumProperty(items=ftype, name="", description="Frame number") 
+    resmenu: EnumProperty(items=restype, name="", description="Result type", update=mupdate)  
+    locmenu: EnumProperty(items=loctype, name="", description="Result location", update=mupdate)  
+    metricmenu: EnumProperty(items=metric, name="", description="Result metric", update=mupdate) 
+    metricrange: EnumProperty(items=[('0', 'Auto', 'Automatic range based on max/min values'), ('1', 'Custom', 'Custom range based on input values')], name="", description="Result metric") 
+    cf: BoolProperty(name="", description="Contour fill", default = 0)
+    cl: BoolProperty(name="", description="Contour fill", default = 0)
+    clevels: IntProperty(name = '', description = "Number of contour levels", default = 10, min = 1)
+    daystart = IntProperty(name = '', description = "Start day", default = 1, min = 1, max = 365)
+    dayend = IntProperty(name = '', description = "End day", default = 365, min = 1, max = 365)
+    hourstart = IntProperty(name = '', description = "Start hour", default = 1, min = 1, max = 365)
+    hourend = IntProperty(name = '', description = "End hour", default = 24, min = 1, max = 365)
+    varmin = IntProperty(name = '', description = "Variable minimum", default = 0)
+    varmax = IntProperty(name = '', description = "Varaible maximum", default = 20)
+
+    x = []
+    y = []
+    z = []
+
+    def init(self, context):
+        self['times'] = [('', '', "")]
+        self['rtypes'] = [('', '', "")]
+        self['locs'] = [('', '', "")]
+        self['metrics'] = [('', '', "")]
+        self.inputs.new("So_Vi_Res", "Results in")
+
+    def draw_buttons(self, context, layout):
+#        print(self.locmenu, [l[0] for l in self.loctype(context)])
+        svp = context.scene.vi_params
+
+        if self.inputs['Results in'].links:
+            innode = self.inputs['Results in'].links[0].from_node
+
+            if innode.get('reslists'):
+                row = layout.row()
+                row.prop(self, "framemenu")
+                row.prop(self, "dpi")
+                row = layout.row()
+                row.prop(self, "resmenu")
+
+                if self.resmenu != 'Climate':
+                    row.prop(self, "locmenu")
+
+                row.prop(self, "metricmenu")
+                row = layout.row()
+                row.label(text = 'Days:')
+                row.prop(self, 'daystart')
+                row.prop(self, 'dayend')
+                row = layout.row()
+                row.label(text = 'Hours:')
+                row.prop(self, 'hourstart')
+                row.prop(self, 'hourend')
+                row = layout.row()
+                newrow(layout, 'Metric range:', self, "metricrange")
+
+                if self.metricrange == '1':
+                    row = layout.row()
+                    row.label(text = 'Range:')
+                    row.prop(self, 'varmin')
+                    row.prop(self, 'varmax')
+
+                newrow(layout, 'Colour map:', svp, "vi_leg_col")
+                newrow(layout, 'Contour lines:', self, "cl")
+                newrow(layout, 'Contour fill:', self, "cf")
+
+                if self.cl or self.cf:
+                    newrow(layout, 'Contour levels:', self, "clevels")
+
+                if self.metricmenu != 'None':
+                    row = layout.row()
+                    row.operator("node.hmchart", text = 'Create heatmap')
 
 class No_Vi_Metrics(Node, ViNodes):
     '''Node for result metrics'''
@@ -2007,8 +2163,18 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['pvkwh'] = 0
                 self['res']['hkwh'] = 0
                 self['res']['ahkwh'] = 0
-                self['res']['ckwh'] = 0            
-                self['res']['fa'] = sum([c.vi_params['enparams']['floorarea'] for c in bpy.data.collections['EnVi Geometry'].children if c.vi_params['enparams'].get('floorarea')]) if self.zone_menu == 'All' else bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea']
+                self['res']['ckwh'] = 0  
+                fas = []
+
+                for c in bpy.data.collections['EnVi Geometry'].children: 
+                    if self.zone_menu == 'All' and c.vi_params['enparams'].get('floorarea'):
+                        fas.append(c.vi_params['enparams']['floorarea'])
+                    elif bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams'].get('floorarea'):
+                        fas.append(bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea'])
+                    else:
+                        return
+
+                self['res']['fa'] = sum(fas)
 
                 if self.energy_menu == '0':
                     if self['res']['fa'] > 13.9:
@@ -2044,7 +2210,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     self['res']['EPCL'] = epcletts[ei]
                                     break                        
                         else:
-                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
+#                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
 
                             if r[2] == self.zone_menu:
                                 if r[3] == 'Heating (W)':
@@ -2067,7 +2233,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
                             self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self['res']['wkwh'] - self['res']['pvkwh']
                         else:
-                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
+#                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
 
                             if r[2] == self.zone_menu:
                                 if r[3] == 'Heating (W)':
@@ -2820,8 +2986,9 @@ class No_Flo_Sim(Node, ViNodes):
 vi_process = [NodeItem("No_Li_Geo", label="LiVi Geometry"), NodeItem("No_Li_Con", label="LiVi Context"), 
               NodeItem("No_En_Geo", label="EnVi Geometry"), NodeItem("No_En_Con", label="EnVi Context"), NodeItem("No_Flo_Case", label="FloVi Case"),
               NodeItem("No_Flo_NG", label="FloVi NetGen"), NodeItem("No_Flo_Bound", label="FloVi Boundary")]
-# , NodeItem("No_Flo_BMesh", label="FloVi Blockmesh")                
+               
 vi_edit = [NodeItem("No_Text", label="Text Edit")]
+
 vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", label="Wind Rose"), 
              NodeItem("No_Vi_SVF", label="Sky View"), NodeItem("No_Vi_SS", label="Shadow map"),
              NodeItem("No_Li_Sim", label="LiVi Simulation"), NodeItem("No_En_Sim", label="EnVi Simulation"), 
@@ -2829,7 +2996,7 @@ vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", labe
 
 vi_gen = []
 
-vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_Metrics", label="Metrics")]
+vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_HMChart", label="Heatmap"), NodeItem("No_Vi_Metrics", label="Metrics")]
 vi_out = [NodeItem("No_CSV", label="CSV")]
 vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
@@ -2916,7 +3083,7 @@ class So_En_Net_SSFlow(NodeSocket):
     sn: IntProperty()
     valid = ['Sub-surface']
     viuid: StringProperty()
-    link_limit = 0
+    link_limit = 1
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -2935,7 +3102,7 @@ class So_En_Net_SFlow(NodeSocket):
     sn: IntProperty()
     valid = ['Surface']
     viuid: StringProperty()
-    link_limit = 0
+    link_limit = 1
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -3914,10 +4081,10 @@ class No_En_Net_SSFlow(Node, EnViNodes):
         self.inputs.new('So_En_Sched', 'VASchedule')
         self.inputs.new('So_En_Sched', 'TSPSchedule')
         self.inputs['TSPSchedule'].hide = True
-        self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 0
-        self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 0
-        self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 0
-        self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 0
+        self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 1
+        self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
+        self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 1
+        self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
         self.color = (1.0, 0.3, 0.3)
         self['layoutdict'] = {'SO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'), ('Density diff', 'ddtw'), ('DC', 'dcof')), 'DO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'),
                            ('Opening type', 'lvo'), ('Crack length', 'ecl'), ('OF Number', 'noof'), ('OF1', 'of1'), ('DC1', 'dcof1'), ('Width OF1', 'wfof1'), ('Height OF1', 'hfof1'),
@@ -5328,7 +5495,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
                     ep_text += node.ep_write(n, mn)  
                     self.resist += node.resist
-                    ecm2 += float(node['ecm2'])
+                    if node.embodied:
+                        ecm2 += float(node['ecm2'])
                 else:
                     get_mat(self, 1).vi_params.envi_shading = 1
 
@@ -5431,8 +5599,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             #     self['ecm2'] = self['ecdict']['ecdu']
             # elif self['ecdict']['unit'] == 'kg':
             self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
-            print(self['ecm2'], self.thi)
+
         except Exception as e:
+            self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
             print('embodied error: {}'.format(e))
                  
     lay_name: StringProperty(name = '', description = 'Custom layer name', update = lay_update)

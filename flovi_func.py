@@ -821,7 +821,66 @@ def fvobjwrite(scene, fvos, bmo):
                 objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces = bm.faces)['faces'] if f.material_index == m]))
             objfile.write('#{}'.format(len(bm.faces)))
             bm.free()
-            
+
+def oftomesh(ofb, vl, fomats, st):
+    mesh = bpy.data.meshes.new("mesh") 
+    vcoords = []
+    findices = []
+    fi = []
+    fn = 0
+    prevline = ''    
+        
+    with open(os.path.join(ofb, st, 'polyMesh', 'points'), 'r') as mfile:
+        for li, line in enumerate(mfile.readlines()):
+            if '(' in line and ')' in line:
+                vcoords.append([float(x) for x in line.split('(')[1].split(')')[0].split()])
+                
+    with open(os.path.join(ofb, st, 'polyMesh', 'faces'), 'r') as mfile:
+        for li, line in enumerate(mfile.readlines()):
+            if line:
+                if fn:
+                    try:
+                        fi.append(int(line))
+                        fn -= 1
+                    except:
+                        pass
+                        
+                if not fn and fi:
+                    findices.append(fi) 
+                    fi = []  
+                    fn = 0
+                elif '(' in line and ')' in line:
+                    findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
+                    
+                else:
+                    try:
+                        if prevline == '\n' and int(line) < 100:
+                            fn = int(line)
+                    except:
+                        fn = 0
+            prevline = line
+    
+    mesh.from_pydata(vcoords, [], findices)
+    o = bpy.data.objects.new('Mesh', mesh)
+    bpy.context.view_layer.active_layer_collection.collection.objects.link(o)
+    selobj(vl, o)
+    
+    for mat in fomats:
+        bpy.ops.object.material_slot_add()
+        o.material_slots[-1].material = mat
+        
+    bpy.ops.object.material_slot_add()
+    o.material_slots[-1].material = bpy.data.materials.new("Volume") if 'Volume' not in [m.name for m in bpy.data.materials] else bpy.data.materials["Volume"]
+    
+    for face in o.data.polygons:
+        mi = 0
+        for ni, n in enumerate(ns):
+            if face.index >= n and face.index <= n + nf[ni]:
+                face.material_index = ni
+                mi = 1
+        if not mi:
+            face.material_index = len(ns)   
+
 # def fvsolwrite(node):
 #     header = ofheader + fileheader('fvSolution')
 #     if not node.buoyancy:        

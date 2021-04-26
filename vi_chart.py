@@ -18,6 +18,7 @@
 
 import sys, bpy
 from .envi_func import retmenu
+from numpy import amax, amin
 
 def label(dnode, metric, axis, variant):
     catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
@@ -99,6 +100,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation'):        
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day  
+
         if mdata:
             (dm, dd) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]])
         
@@ -156,8 +158,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     except Exception as e:
         chart_op.report({'ERROR'}, 'Invalid data on the y1 axis: {}'.format(e))
         return
-    y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
-    
+
+    y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)    
     ylabel = label(dnode, menusy1[1], 'Y-axis 1', variant)
     drange = checkdata(chart_op, xdata, y1data)        
     line, = ax.plot(xdata[:drange], y1data[:drange], color=colors[0], ls = linestyles[0], linewidth = 1, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    
@@ -168,11 +170,13 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         rzly2 = list(zip(*rly2))
         framey2 = retframe('Y-axis 2', dnode, rzly2[0])
         menusy2 = retmenu(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu)
+
         try:
             y2d = [ry2[4].split()[si:ei + 1] for ry2 in rly2 if ry2[0] == framey2 and ry2[1] == dnode.inputs['Y-axis 2'].rtypemenu and ry2[2] == menusy2[0] and ry2[3] == menusy2[1]][0]
         except Exception as e:
             chart_op.report({'ERROR'}, 'Invalid data on the y2 axis: {}'.format(e))
             return
+
         y2data = timedata([dnode.inputs['Y-axis 2'].multfactor * float(y) for y in y2d], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
         drange = checkdata(chart_op, xdata, y2data) 
         line, = ax.plot(xdata[:drange], y2data[:drange], color=colors[1], ls = linestyles[1], linewidth = 1, label = llabel(dnode, menusy2[1], 'Y-axis 2', variant))    
@@ -183,11 +187,13 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         rzly3 = list(zip(*rly3))
         framey3 = retframe('Y-axis 3', dnode, rzly3[0])
         menusy3 = retmenu(dnode, 'Y-axis 3', dnode.inputs['Y-axis 3'].rtypemenu)
+
         try:
             y3d = [ry3[4].split()[si:ei + 1] for ry3 in rly3 if ry3[0] == framey3 and ry3[1] == dnode.inputs['Y-axis 3'].rtypemenu and ry3[2] == menusy3[0] and ry3[3] == menusy3[1]][0]
         except Exception as e:
             chart_op.report({'ERROR'}, 'Invalid data on the y3 axis: {}'.format(e))
             return
+
         y3data = timedata([dnode.inputs['Y-axis 3'].multfactor * float(y) for y in y3d], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
         drange = checkdata(chart_op, xdata, y3data) 
         line, = ax.plot(xdata[:drange], y3data[:drange], color=colors[2], ls = linestyles[2], linewidth = 1, label=llabel(dnode, menusy3[1], 'Y-axis 3', variant))    
@@ -212,3 +218,35 @@ def checkdata(chart_op, x, y):
     else:
         drange = len(x)
     return drange
+
+def hmchart_disp(chart_op, plt, dnode, col):
+    x, y, z, var = dnode.x, dnode.y, dnode.z, dnode.metricmenu
+    xmin = dnode.daystart if dnode.daystart > amin(x) else amin(x)
+    xmax = dnode.dayend if dnode.dayend < amax(x) else amax(x)
+    ymin = dnode.hourstart if dnode.hourstart > amin(y) else amin(y)
+    ymax = dnode.hourend if dnode.hourend < amax(y) else amax(y)
+    zmin = dnode.varmin if dnode.metricrange  == '1' else amin(z)
+    zmax = dnode.varmax if dnode.metricrange  == '1' else amax(z)
+    plt.close()
+    fig, ax = plt.subplots(figsize=(12, 6), dpi = dnode.dpi)  
+    plt.xlabel('Days', size = 18)
+    plt.ylabel('Hours', size = 18)
+    
+    if dnode.cf:
+        plt.contourf(x, y, z, dnode.clevels, cmap=col)
+    else:
+        plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax)
+    
+    cbar = plt.colorbar(use_gridspec=True, pad = 0.01)
+
+    if dnode.cl:
+        plt.contour(x, y, z, dnode.clevels, colors='Black')
+
+    cbar.set_label(label=var,size=18)
+    cbar.ax.tick_params(labelsize=16)
+    plt.axis([xmin,xmax,ymin,ymax])
+    plt.xticks(size = 16)
+    plt.yticks(size = 16)   
+    fig.tight_layout()
+    plt.show()
+

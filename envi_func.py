@@ -349,6 +349,7 @@ def enparametric(self, context):
         resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
         rl = resnode['reslists']
         zrl = list(zip(*rl))
+        
         if len(set(zrl[0])) > 1:
             return [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
         else:
@@ -363,10 +364,12 @@ def retrmenus(innode, node, axis):
     zrl = list(zip(*rl))
     ftype = [(frame, frame, "Plot "+frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']        
     frame = 'All' if node.parametricmenu == '1' and len(ftype) > 1 else zrl[0][0]
+
     if axis == 'X-axis':
         rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame]))
     else:
         rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame and zrl[1][ri] != 'Time']))
+
     rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
     ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
