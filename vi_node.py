@@ -2067,6 +2067,10 @@ class No_Vi_Metrics(Node, ViNodes):
                     tar = 35 if self.riba_menu == '0' else 55
                     epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
                     row = layout.row()
+                    row.label(text = "Space heating (kWh): {}".format(self['res']['hkwh']))
+                    row = layout.row()
+                    row.label(text = "Space heating (kWh/m2): {}".format(self['res']['hkwh']/self['res']['fa']))
+                    row = layout.row()
                     row.label(text = "Operational: {} {}".format(self['res']['totkwh'], epass))
 
         elif self.metric == '1':
@@ -2165,16 +2169,16 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['ahkwh'] = 0
                 self['res']['ckwh'] = 0  
                 fas = []
+                geo_coll = bpy.data.collections['EnVi Geometry']
 
-                for c in bpy.data.collections['EnVi Geometry'].children: 
-                    if self.zone_menu == 'All' and c.vi_params['enparams'].get('floorarea'):
-                        fas.append(c.vi_params['enparams']['floorarea'])
-                    elif bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams'].get('floorarea'):
-                        fas.append(bpy.data.collections['EnVi Geometry'].children[self.zone_menu].vi_params['enparams']['floorarea'])
-                    else:
-                        return
+                if self.zone_menu == 'All':
+                    if geo_coll.vi_params['enparams'].get('floorarea'):
+                        self['res']['fa'] = geo_coll.vi_params['enparams']['floorarea']
+            
+                elif geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
+                    self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea']
 
-                self['res']['fa'] = sum(fas)
+#                self['res']['fa'] = sum(fas)
 
                 if self.energy_menu == '0':
                     if self['res']['fa'] > 13.9:
@@ -2231,7 +2235,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['ahkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                             elif r[3] == 'Cooling (W)':
                                 self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                            self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self['res']['wkwh'] - self['res']['pvkwh']
+                            self['res']['totkwh'] = (self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] + self['res']['wkwh'] - self['res']['pvkwh'])/self['res']['fa']
                         else:
 #                            self['res']['fa'] = bpy.data.collections[self.zone_menu].vi_params['enparams']['floorarea']
 

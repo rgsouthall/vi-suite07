@@ -35,9 +35,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         pvs = []
         gen = 0
         scene.frame_set(frame)
-        geo_colls = bpy.data.collections['EnVi Geometry'].children
-        onames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
-        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
+        geo_coll = bpy.data.collections['EnVi Geometry']
+        geo_colls = geo_coll.children
+#        onames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
+#        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
         zonenames = [c.name for c in geo_colls]
         en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
@@ -108,6 +109,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
                     en_idf.write(epentry('Zone', params, paramvs))
         
+        geo_coll.vi_params['enparams'] = {'floorarea': sum([float(coll.vi_params['enparams']['floorarea']) for coll in geo_colls])}
         params = ('Starting Vertex Position', 'Vertex Entry Direction', 'Coordinate System')
         paramvs = ('UpperRightCorner', 'Counterclockwise', 'World')
         en_idf.write(epentry('GlobalGeometryRules', params, paramvs))

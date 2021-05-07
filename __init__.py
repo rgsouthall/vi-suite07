@@ -456,8 +456,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     hspacetype = [('0', 'Public/Staff', 'Public/Staff area'), ('1', 'Patient', 'Patient area')]
     rspacetype = [('0', "Kitchen", "Kitchen space"), ('1', "Living/Dining/Study", "Living/Dining/Study area"), ('2', "Communal", "Non-residential or communal area")]
     respacetype = [('0', "Sales", "Sales space"), ('1', "Occupied", "Occupied space")]
-    lespacetype = [('0', "Healthcare", "Healthcare space"), ('1', "Other", "Other space")]
-    
+    lespacetype = [('0', "Healthcare", "Healthcare space"), ('1', "Other", "Other space")]    
     hspacemenu: eprop(hspacetype, "", "Type of healthcare space", '0')
     brspacemenu: eprop(rspacetype, "", "Type of residential space", '0')
     crspacemenu: eprop(rspacetype[:2], "", "Type of residential space", '0')

@@ -3,76 +3,63 @@ build_time_vars = {'ABIFLAGS': 'm',
  'AC_APPLE_UNIVERSAL_BUILD': 0,
  'AIX_GENUINE_CPLUSPLUS': 0,
  'ANDROID_API_LEVEL': 0,
- 'AR': 'x86_64-linux-gnu-gcc-ar',
+ 'AR': 'ar',
  'ARFLAGS': 'rcs',
  'BASECFLAGS': '-Wno-unused-result -Wsign-compare',
- 'BASECPPFLAGS': '-IObjects -IInclude -IPython',
+ 'BASECPPFLAGS': '',
  'BASEMODLIBS': '',
- 'BINDIR': '/usr/bin',
- 'BINLIBDEST': '/usr/lib/python3.6',
- 'BLDLIBRARY': '-lpython3.6m',
- 'BLDSHARED': 'x86_64-linux-gnu-gcc -pthread -shared -Wl,-O1 '
-              '-Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions '
-              ' -Wl,-z,relro',
+ 'BINDIR': '/opt/hostedtoolcache/Python/3.7.10/x64/bin',
+ 'BINLIBDEST': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
+ 'BLDLIBRARY': '-L. -lpython3.7m',
+ 'BLDSHARED': 'gcc -pthread -shared '
+              '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib '
+              '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib',
  'BUILDEXE': '',
  'BUILDPYTHON': 'python',
  'BUILD_GNU_TYPE': 'x86_64-pc-linux-gnu',
  'BYTESTR_DEPS': '\\',
- 'CC': 'x86_64-linux-gnu-gcc -pthread',
+ 'CC': 'gcc -pthread',
  'CCSHARED': '-fPIC',
- 'CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g '
-           ' '
-           ' -fstack-protector-strong '
-           '-Wformat -Werror=format-security  -g -flto -fuse-linker-plugin '
-           '-ffat-lto-objects',
+ 'CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall',
  'CFLAGSFORSHARED': '-fPIC',
  'CFLAGS_ALIASING': '',
- 'CFLAGS_NODIST': '',
  'CONFIGFILES': 'configure configure.ac acconfig.h pyconfig.h.in '
                 'Makefile.pre.in',
- 'CONFIGURE_CFLAGS': '-g '
-                     ' '
-                     ' '
-                     '-fstack-protector-strong -Wformat -Werror=format-security',
+ 'CONFIGURE_CFLAGS': '',
  'CONFIGURE_CFLAGS_NODIST': '-std=c99 -Wextra -Wno-unused-result '
                             '-Wno-unused-parameter '
                             '-Wno-missing-field-initializers '
-                            '-Wno-cast-function-type',
- 'CONFIGURE_CPPFLAGS': '-Wdate-time -D_FORTIFY_SOURCE=2',
- 'CONFIGURE_LDFLAGS': '-Wl,-Bsymbolic-functions '
-                      ' -Wl,-z,relro',
- 'CONFIG_ARGS': "'--enable-shared' '--prefix=/usr' '--enable-ipv6' "
+                            '-Wno-cast-function-type '
+                            '-Werror=implicit-function-declaration',
+ 'CONFIGURE_CPPFLAGS': '',
+ 'CONFIGURE_LDFLAGS': '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib',
+ 'CONFIGURE_LDFLAGS_NODIST': '',
+ 'CONFIG_ARGS': "'--prefix=/opt/hostedtoolcache/Python/3.7.10/x64' "
+                "'--enable-shared' '--enable-optimizations' "
                 "'--enable-loadable-sqlite-extensions' "
-                "'--with-dbmliborder=bdb:gdbm' '--with-computed-gotos' "
-                "'--without-ensurepip' '--with-system-expat' "
-                "'--with-system-libmpdec' '--with-system-ffi' "
-                "'CC=x86_64-linux-gnu-gcc' 'CFLAGS=-g "
-                ' '
-                ' -fstack-protector-strong '
-                "-Wformat -Werror=format-security ' "
-                "'LDFLAGS=-Wl,-Bsymbolic-functions "
-                " -Wl,-z,relro' "
-                "'CPPFLAGS=-Wdate-time -D_FORTIFY_SOURCE=2'",
- 'CONFINCLUDEDIR': '/usr/include',
- 'CONFINCLUDEPY': '/usr/include/python3.6m',
- 'COREPYTHONPATH': ':',
- 'COVERAGE_INFO': '/build/python3.6-tym8xC/python3.6-3.6.8/build-shared/coverage.info',
- 'COVERAGE_REPORT': '/build/python3.6-tym8xC/python3.6-3.6.8/build-shared/lcov-report',
+                "'LDFLAGS=-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib'",
+ 'CONFINCLUDEDIR': '/opt/hostedtoolcache/Python/3.7.10/x64/include',
+ 'CONFINCLUDEPY': '/opt/hostedtoolcache/Python/3.7.10/x64/include/python3.7m',
+ 'COREPYTHONPATH': '',
+ 'COVERAGE_INFO': '/home/vsts/work/1/s/SourceCode/coverage.info',
+ 'COVERAGE_REPORT': '/home/vsts/work/1/s/SourceCode/lcov-report',
  'COVERAGE_REPORT_OPTIONS': '--no-branch-coverage --title "CPython lcov '
                             'report"',
- 'CPPFLAGS': '-IObjects -IInclude -IPython -I. -I../Include -Wdate-time '
-             '-D_FORTIFY_SOURCE=2',
- 'CXX': 'x86_64-linux-gnu-g++ -pthread',
- 'DESTDIRS': '/usr /usr/lib /usr/lib/python3.6 /usr/lib/python3.6/lib-dynload',
- 'DESTLIB': '/usr/lib/python3.6',
+ 'CPPFLAGS': '-I. -I./Include',
+ 'CXX': 'g++ -pthread',
+ 'DESTDIRS': '/opt/hostedtoolcache/Python/3.7.10/x64 '
+             '/opt/hostedtoolcache/Python/3.7.10/x64/lib '
+             '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7 '
+             '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7/lib-dynload',
+ 'DESTLIB': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
  'DESTPATH': '',
- 'DESTSHARED': '/usr/lib/python3.6/lib-dynload',
+ 'DESTSHARED': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7/lib-dynload',
  'DFLAGS': '',
  'DIRMODE': 755,
- 'DIST': 'README ChangeLog configure configure.ac acconfig.h pyconfig.h.in '
+ 'DIST': 'README.rst ChangeLog configure configure.ac acconfig.h pyconfig.h.in '
          'Makefile.pre.in Include Lib Misc Ext-dummy',
  'DISTDIRS': 'Include Lib Misc Ext-dummy',
- 'DISTFILES': 'README ChangeLog configure configure.ac acconfig.h '
+ 'DISTFILES': 'README.rst ChangeLog configure configure.ac acconfig.h '
               'pyconfig.h.in Makefile.pre.in',
  'DLINCLDIR': '.',
  'DLLLIBRARY': '',
@@ -85,12 +72,12 @@ build_time_vars = {'ABIFLAGS': 'm',
  'DTRACE_OBJS': '',
  'DYNLOADFILE': 'dynload_shlib.o',
  'ENABLE_IPV6': 1,
- 'ENSUREPIP': 'no',
+ 'ENSUREPIP': 'upgrade',
  'EXE': '',
  'EXEMODE': 755,
- 'EXTRAMACHDEPPATH': '',
  'EXTRATESTOPTS': '',
- 'EXT_SUFFIX': '.cpython-36m-x86_64-linux-gnu.so',
+ 'EXTRA_CFLAGS': '',
+ 'EXT_SUFFIX': '.cpython-37m-x86_64-linux-gnu.so',
  'FILEMODE': 644,
  'FLOCK_NEEDS_LIBBSD': 0,
  'GETPGRP_HAVE_ARG': 0,
@@ -110,7 +97,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_ASM_TYPES_H': 1,
  'HAVE_ATANH': 1,
  'HAVE_BIND_TEXTDOMAIN_CODESET': 1,
- 'HAVE_BLUETOOTH_BLUETOOTH_H': 1,
+ 'HAVE_BLUETOOTH_BLUETOOTH_H': 0,
  'HAVE_BLUETOOTH_H': 0,
  'HAVE_BROKEN_MBSTOWCS': 0,
  'HAVE_BROKEN_NICE': 0,
@@ -133,6 +120,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_CONIO_H': 0,
  'HAVE_COPYSIGN': 1,
  'HAVE_CRYPT_H': 1,
+ 'HAVE_CRYPT_R': 1,
  'HAVE_CTERMID': 1,
  'HAVE_CTERMID_R': 0,
  'HAVE_CURSES_FILTER': 1,
@@ -154,6 +142,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_DECL_RTLD_GLOBAL': 1,
  'HAVE_DECL_RTLD_LAZY': 1,
  'HAVE_DECL_RTLD_LOCAL': 1,
+ 'HAVE_DECL_RTLD_MEMBER': 0,
  'HAVE_DECL_RTLD_NODELETE': 1,
  'HAVE_DECL_RTLD_NOLOAD': 1,
  'HAVE_DECL_RTLD_NOW': 1,
@@ -280,6 +269,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_LINUX_NETLINK_H': 1,
  'HAVE_LINUX_RANDOM_H': 1,
  'HAVE_LINUX_TIPC_H': 1,
+ 'HAVE_LINUX_VM_SOCKETS_H': 1,
  'HAVE_LOCKF': 1,
  'HAVE_LOG1P': 1,
  'HAVE_LOG2': 1,
@@ -288,7 +278,6 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_LUTIMES': 1,
  'HAVE_MAKEDEV': 1,
  'HAVE_MBRTOWC': 1,
- 'HAVE_MEMMOVE': 1,
  'HAVE_MEMORY_H': 1,
  'HAVE_MEMRCHR': 1,
  'HAVE_MKDIRAT': 1,
@@ -314,12 +303,15 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_POLL_H': 1,
  'HAVE_POSIX_FADVISE': 1,
  'HAVE_POSIX_FALLOCATE': 1,
+ 'HAVE_POSIX_SPAWN': 1,
  'HAVE_PREAD': 1,
+ 'HAVE_PREADV': 1,
+ 'HAVE_PREADV2': 1,
  'HAVE_PRLIMIT': 1,
  'HAVE_PROCESS_H': 0,
  'HAVE_PROTOTYPES': 1,
- 'HAVE_PTHREAD_ATFORK': 1,
  'HAVE_PTHREAD_DESTRUCTOR': 0,
+ 'HAVE_PTHREAD_GETCPUCLOCKID': 1,
  'HAVE_PTHREAD_H': 1,
  'HAVE_PTHREAD_INIT': 0,
  'HAVE_PTHREAD_KILL': 1,
@@ -327,13 +319,14 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_PTY_H': 1,
  'HAVE_PUTENV': 1,
  'HAVE_PWRITE': 1,
+ 'HAVE_PWRITEV': 1,
+ 'HAVE_PWRITEV2': 1,
  'HAVE_READLINK': 1,
  'HAVE_READLINKAT': 1,
  'HAVE_READV': 1,
  'HAVE_REALPATH': 1,
  'HAVE_RENAMEAT': 1,
  'HAVE_RL_APPEND_HISTORY': 1,
- 'HAVE_RL_CALLBACK': 1,
  'HAVE_RL_CATCH_SIGNAL': 1,
  'HAVE_RL_COMPLETION_APPEND_CHARACTER': 1,
  'HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK': 1,
@@ -348,7 +341,6 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_SCHED_SETAFFINITY': 1,
  'HAVE_SCHED_SETPARAM': 1,
  'HAVE_SCHED_SETSCHEDULER': 1,
- 'HAVE_SELECT': 1,
  'HAVE_SEM_GETVALUE': 1,
  'HAVE_SEM_OPEN': 1,
  'HAVE_SEM_TIMEDWAIT': 1,
@@ -374,6 +366,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_SHADOW_H': 1,
  'HAVE_SIGACTION': 1,
  'HAVE_SIGALTSTACK': 1,
+ 'HAVE_SIGINFO_T_SI_BAND': 1,
  'HAVE_SIGINTERRUPT': 1,
  'HAVE_SIGNAL_H': 1,
  'HAVE_SIGPENDING': 1,
@@ -400,7 +393,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_STRINGS_H': 1,
  'HAVE_STRING_H': 1,
  'HAVE_STRLCPY': 0,
- 'HAVE_STROPTS_H': 1,
+ 'HAVE_STROPTS_H': 0,
  'HAVE_STRUCT_PASSWD_PW_GECOS': 1,
  'HAVE_STRUCT_PASSWD_PW_PASSWD': 1,
  'HAVE_STRUCT_STAT_ST_BIRTHTIME': 0,
@@ -475,6 +468,11 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_UTIMENSAT': 1,
  'HAVE_UTIMES': 1,
  'HAVE_UTIME_H': 1,
+ 'HAVE_UUID_CREATE': 0,
+ 'HAVE_UUID_ENC_BE': 0,
+ 'HAVE_UUID_GENERATE_TIME_SAFE': 1,
+ 'HAVE_UUID_H': 0,
+ 'HAVE_UUID_UUID_H': 1,
  'HAVE_WAIT3': 1,
  'HAVE_WAIT4': 1,
  'HAVE_WAITID': 1,
@@ -486,107 +484,96 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_WMEMCMP': 1,
  'HAVE_WORKING_TZSET': 1,
  'HAVE_WRITEV': 1,
+ 'HAVE_X509_VERIFY_PARAM_SET1_HOST': 1,
  'HAVE_ZLIB_COPY': 1,
  'HAVE__GETPTY': 0,
  'HOST_GNU_TYPE': 'x86_64-pc-linux-gnu',
- 'INCLDIRSTOMAKE': '/usr/include /usr/include /usr/include/python3.6m '
-                   '/usr/include/python3.6m',
- 'INCLUDEDIR': '/usr/include',
- 'INCLUDEPY': '/usr/include/python3.6m',
+ 'INCLDIRSTOMAKE': '/opt/hostedtoolcache/Python/3.7.10/x64/include '
+                   '/opt/hostedtoolcache/Python/3.7.10/x64/include '
+                   '/opt/hostedtoolcache/Python/3.7.10/x64/include/python3.7m '
+                   '/opt/hostedtoolcache/Python/3.7.10/x64/include/python3.7m',
+ 'INCLUDEDIR': '/opt/hostedtoolcache/Python/3.7.10/x64/include',
+ 'INCLUDEPY': '/opt/hostedtoolcache/Python/3.7.10/x64/include/python3.7m',
  'INSTALL': '/usr/bin/install -c',
  'INSTALL_DATA': '/usr/bin/install -c -m 644',
  'INSTALL_PROGRAM': '/usr/bin/install -c',
  'INSTALL_SCRIPT': '/usr/bin/install -c',
  'INSTALL_SHARED': '/usr/bin/install -c -m 555',
- 'INSTSONAME': 'libpython3.6m.so.1.0',
+ 'INSTSONAME': 'libpython3.7m.so.1.0',
  'IO_H': 'Modules/_io/_iomodule.h',
  'IO_OBJS': '\\',
- 'LDCXXSHARED': 'x86_64-linux-gnu-g++ -pthread -shared -Wl,-O1 '
-                '-Wl,-Bsymbolic-functions',
- 'LDFLAGS': '-Wl,-Bsymbolic-functions  '
-            '-Wl,-z,relro',
+ 'LDCXXSHARED': 'g++ -pthread -shared',
+ 'LDFLAGS': '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib '
+            '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib',
  'LDLAST': '',
- 'LDLIBRARY': 'libpython3.6m.so',
+ 'LDLIBRARY': 'libpython3.7m.so',
  'LDLIBRARYDIR': '',
- 'LDSHARED': 'x86_64-linux-gnu-gcc -pthread -shared -Wl,-O1 '
-             '-Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions '
-             ' -Wl,-z,relro',
- 'LDVERSION': '3.6m',
+ 'LDSHARED': 'gcc -pthread -shared '
+             '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib '
+             '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib',
+ 'LDVERSION': '3.7m',
  'LIBC': '',
- 'LIBDEST': '/usr/lib/python3.6',
- 'LIBDIR': '/usr/lib',
+ 'LIBDEST': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
+ 'LIBDIR': '/opt/hostedtoolcache/Python/3.7.10/x64/lib',
  'LIBFFI_INCLUDEDIR': '',
  'LIBM': '-lm',
  'LIBOBJDIR': 'Python/',
  'LIBOBJS': '',
- 'LIBPC': '/usr/lib/x86_64-linux-gnu/pkgconfig',
- 'LIBPL': '/usr/lib/python3.6/config-3.6m-x86_64-linux-gnu',
- 'LIBRARY': 'libpython3.6m.a',
+ 'LIBPC': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/pkgconfig',
+ 'LIBPL': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7/config-3.7m-x86_64-linux-gnu',
+ 'LIBRARY': 'libpython3.7m.a',
  'LIBRARY_OBJS': '\\',
  'LIBRARY_OBJS_OMIT_FROZEN': '\\',
- 'LIBS': '-lpthread -ldl  -lutil',
+ 'LIBS': '-lcrypt -lpthread -ldl  -lutil',
  'LIBSUBDIRS': 'tkinter tkinter/test tkinter/test/test_tkinter \\',
- 'LINKCC': 'x86_64-linux-gnu-gcc -pthread',
- 'LINKFORSHARED': '-Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions',
+ 'LINKCC': 'gcc -pthread',
+ 'LINKFORSHARED': '-Xlinker -export-dynamic',
  'LIPO_32BIT_FLAGS': '',
  'LLVM_PROF_ERR': 'no',
  'LLVM_PROF_FILE': '',
  'LLVM_PROF_MERGER': 'true',
  'LN': 'ln',
- 'LOCALMODLIBS': '-lexpat                     -L/usr/lib -lz  -lexpat',
+ 'LOCALMODLIBS': '',
  'LOG1P_DROPS_ZERO_SIGN': 0,
  'MACHDEP': 'linux',
- 'MACHDEPPATH': ':',
  'MACHDEP_OBJS': '',
- 'MACHDESTLIB': '/usr/lib/python3.6',
+ 'MACHDESTLIB': '/opt/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
  'MACOSX_DEPLOYMENT_TARGET': '',
- 'MAINCC': 'x86_64-linux-gnu-gcc -pthread',
+ 'MAINCC': 'gcc -pthread',
  'MAJOR_IN_MKDEV': 0,
- 'MAJOR_IN_SYSMACROS': 0,
- 'MAKESETUP': '../Modules/makesetup',
- 'MANDIR': '/usr/share/man',
- 'MKDIR_P': '/bin/mkdir -p',
- 'MODLIBS': '-lexpat                     -L/usr/lib -lz  -lexpat',
- 'MODNAMES': '_thread array cmath math _struct _random _elementtree _pickle '
-             '_datetime _bisect _heapq unicodedata fcntl spwd grp select '
-             '_socket _posixsubprocess _md5 _sha1 _sha256 _sha512 _sha3 '
-             '_blake2 syslog binascii zlib pyexpat posix errno pwd _sre '
-             '_codecs _weakref _functools _operator _collections itertools '
-             'atexit _signal _stat time _locale _io zipimport faulthandler '
-             '_tracemalloc _symtable xxsubtype',
- 'MODOBJS': '$(sort   Modules/_threadmodule.o  Modules/arraymodule.o  '
-            'Modules/cmathmodule.o Modules/_math.o  Modules/mathmodule.o '
-            'Modules/_math.o  Modules/_struct.o  Modules/_randommodule.o  '
-            'Modules/_elementtree.o  Modules/_pickle.o  '
-            'Modules/_datetimemodule.o  Modules/_bisectmodule.o  '
-            'Modules/_heapqmodule.o  Modules/unicodedata.o  '
-            'Modules/fcntlmodule.o  Modules/spwdmodule.o  Modules/grpmodule.o  '
-            'Modules/selectmodule.o  Modules/socketmodule.o  '
-            'Modules/_posixsubprocess.o  Modules/md5module.o  '
-            'Modules/sha1module.o  Modules/sha256module.o  '
-            'Modules/sha512module.o  Modules/sha3module.o  '
-            'Modules/blake2module.o Modules/blake2b_impl.o '
-            'Modules/blake2s_impl.o  Modules/syslogmodule.o  '
-            'Modules/binascii.o  Modules/zlibmodule.o  Modules/pyexpat.o  '
-            'Modules/posixmodule.o  Modules/errnomodule.o  '
+ 'MAJOR_IN_SYSMACROS': 1,
+ 'MAKESETUP': './Modules/makesetup',
+ 'MANDIR': '/opt/hostedtoolcache/Python/3.7.10/x64/share/man',
+ 'MKDIR_P': '/usr/bin/mkdir -p',
+ 'MODBUILT_NAMES': 'posix  errno  pwd  _sre  _codecs  _weakref  _functools  '
+                   '_operator  _collections  _abc  itertools  atexit  _signal  '
+                   '_stat  time  _thread  _locale  _io  zipimport  '
+                   'faulthandler  _tracemalloc  _symtable  xxsubtype',
+ 'MODDISABLED_NAMES': '',
+ 'MODLIBS': '',
+ 'MODOBJS': 'Modules/posixmodule.o  Modules/errnomodule.o  '
             'Modules/pwdmodule.o  Modules/_sre.o  Modules/_codecsmodule.o  '
             'Modules/_weakref.o  Modules/_functoolsmodule.o  '
             'Modules/_operator.o  Modules/_collectionsmodule.o  '
-            'Modules/itertoolsmodule.o  Modules/atexitmodule.o  '
-            'Modules/signalmodule.o  Modules/_stat.o  Modules/timemodule.o  '
+            'Modules/_abc.o  Modules/itertoolsmodule.o  '
+            'Modules/atexitmodule.o  Modules/signalmodule.o  Modules/_stat.o  '
+            'Modules/timemodule.o  Modules/_threadmodule.o  '
             'Modules/_localemodule.o  Modules/_iomodule.o Modules/iobase.o '
             'Modules/fileio.o Modules/bytesio.o Modules/bufferedio.o '
             'Modules/textio.o Modules/stringio.o  Modules/zipimport.o  '
             'Modules/faulthandler.o  Modules/_tracemalloc.o '
             'Modules/hashtable.o  Modules/symtablemodule.o  '
-            'Modules/xxsubtype.o)',
+            'Modules/xxsubtype.o',
  'MODULE_OBJS': '\\',
  'MULTIARCH': 'x86_64-linux-gnu',
  'MULTIARCH_CPPFLAGS': '-DMULTIARCH=\\"x86_64-linux-gnu\\"',
  'MVWDELCH_IS_EXPRESSION': 1,
  'NO_AS_NEEDED': '-Wl,--no-as-needed',
  'OBJECT_OBJS': '\\',
- 'OPT': '-DNDEBUG -g -fwrapv -O2 -Wall',
+ 'OPENSSL_INCLUDES': '',
+ 'OPENSSL_LDFLAGS': '',
+ 'OPENSSL_LIBS': '-lssl -lcrypto',
+ 'OPT': '-DNDEBUG -g -fwrapv -O3 -Wall',
  'OTHER_LIBTOOL_OPT': '',
  'PACKAGE_BUGREPORT': 0,
  'PACKAGE_NAME': 0,
@@ -600,11 +587,11 @@ build_time_vars = {'ABIFLAGS': 'm',
  'PGENOBJS': '\\ \\',
  'PGOBJS': '\\',
  'PGO_PROF_GEN_FLAG': '-fprofile-generate',
- 'PGO_PROF_USE_FLAG': '',
- 'PLATDIR': '',
+ 'PGO_PROF_USE_FLAG': '-fprofile-use -fprofile-correction',
  'POBJS': '\\',
  'POSIX_SEMAPHORES_NOT_ENABLED': 0,
  'PROFILE_TASK': '-m test.regrtest --pgo',
+ 'PTHREAD_KEY_T_IS_COMPATIBLE_WITH_INT': 1,
  'PTHREAD_SYSTEM_SCHED_SUPPORTED': 1,
  'PURIFY': '',
  'PY3LIBRARY': 'libpython3.so',
@@ -614,34 +601,47 @@ build_time_vars = {'ABIFLAGS': 'm',
  'PYTHONFRAMEWORKDIR': 'no-framework',
  'PYTHONFRAMEWORKINSTALLDIR': '',
  'PYTHONFRAMEWORKPREFIX': '',
- 'PYTHONPATH': ':',
+ 'PYTHONPATH': '',
  'PYTHON_FOR_BUILD': './python -E',
- 'PYTHON_FOR_REGEN': 'python3.6',
+ 'PYTHON_FOR_REGEN': 'python3',
  'PYTHON_HEADERS': '\\',
  'PYTHON_OBJS': '\\',
- 'PY_CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall '
-              '-g  '
-              ' -fstack-protector-strong '
-              '-Wformat -Werror=format-security  -g -flto -fuse-linker-plugin '
-              '-ffat-lto-objects',
+ 'PY_BUILTIN_MODULE_CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g '
+                             '-fwrapv -O3 -Wall -std=c99 -Wextra '
+                             '-Wno-unused-result -Wno-unused-parameter '
+                             '-Wno-missing-field-initializers '
+                             '-Wno-cast-function-type '
+                             '-Werror=implicit-function-declaration '
+                             '-fprofile-use -fprofile-correction -I. '
+                             '-I./Include -fPIC -DPy_BUILD_CORE_BUILTIN',
+ 'PY_CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall',
  'PY_CFLAGS_NODIST': '-std=c99 -Wextra -Wno-unused-result '
                      '-Wno-unused-parameter -Wno-missing-field-initializers '
-                     '-Wno-cast-function-type',
- 'PY_CORE_CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O2 '
-                   '-Wall -g '
-                   ' '
-                   ' '
-                   '-fstack-protector-strong -Wformat -Werror=format-security  -g '
-                   '-flto -fuse-linker-plugin -ffat-lto-objects -std=c99 '
-                   '-Wextra -Wno-unused-result -Wno-unused-parameter '
-                   '-Wno-missing-field-initializers -Wno-cast-function-type '
-                   '-IObjects -IInclude -IPython -I. -I../Include -Wdate-time '
-                   '-D_FORTIFY_SOURCE=2 -fPIC -DPy_BUILD_CORE',
- 'PY_CPPFLAGS': '-IObjects -IInclude -IPython -I. -I../Include -Wdate-time '
-                '-D_FORTIFY_SOURCE=2',
+                     '-Wno-cast-function-type '
+                     '-Werror=implicit-function-declaration -fprofile-use '
+                     '-fprofile-correction',
+ 'PY_COERCE_C_LOCALE': 1,
+ 'PY_CORE_CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 '
+                   '-Wall -std=c99 -Wextra -Wno-unused-result '
+                   '-Wno-unused-parameter -Wno-missing-field-initializers '
+                   '-Wno-cast-function-type '
+                   '-Werror=implicit-function-declaration -fprofile-use '
+                   '-fprofile-correction -I. -I./Include -fPIC -DPy_BUILD_CORE',
+ 'PY_CORE_LDFLAGS': '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib '
+                    '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib',
+ 'PY_CPPFLAGS': '-I. -I./Include',
  'PY_FORMAT_SIZE_T': '"z"',
- 'PY_LDFLAGS': '-Wl,-Bsymbolic-functions '
-               ' -Wl,-z,relro',
+ 'PY_LDFLAGS': '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib '
+               '-Wl,--rpath=/opt/hostedtoolcache/Python/3.7.10/x64/lib',
+ 'PY_LDFLAGS_NODIST': '',
+ 'PY_SSL_DEFAULT_CIPHERS': 1,
+ 'PY_SSL_DEFAULT_CIPHER_STRING': 0,
+ 'PY_STDMODULE_CFLAGS': '-Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv '
+                        '-O3 -Wall -std=c99 -Wextra -Wno-unused-result '
+                        '-Wno-unused-parameter -Wno-missing-field-initializers '
+                        '-Wno-cast-function-type '
+                        '-Werror=implicit-function-declaration -fprofile-use '
+                        '-fprofile-correction -I. -I./Include -fPIC',
  'Py_DEBUG': 0,
  'Py_ENABLE_SHARED': 1,
  'Py_HASH_ALGORITHM': 0,
@@ -649,12 +649,12 @@ build_time_vars = {'ABIFLAGS': 'm',
  'READELF': 'readelf',
  'RESSRCDIR': 'Mac/Resources/framework',
  'RETSIGTYPE': 'void',
- 'RUNSHARED': 'LD_LIBRARY_PATH=/build/python3.6-tym8xC/python3.6-3.6.8/build-shared',
- 'SCRIPTDIR': '/usr/lib',
+ 'RUNSHARED': 'LD_LIBRARY_PATH=/home/vsts/work/1/s/SourceCode',
+ 'SCRIPTDIR': '/opt/hostedtoolcache/Python/3.7.10/x64/lib',
  'SETPGRP_HAVE_ARG': 0,
- 'SGI_ABI': '',
+ 'SGI_ABI': '@SGI_ABI@',
  'SHELL': '/bin/sh',
- 'SHLIBS': '-lpthread -ldl  -lutil',
+ 'SHLIBS': '-lcrypt -lpthread -ldl  -lutil',
  'SHLIB_SUFFIX': '.so',
  'SIGNED_RIGHT_SHIFT_ZERO_FILLS': 0,
  'SITEPATH': '',
@@ -667,6 +667,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'SIZEOF_LONG_LONG': 8,
  'SIZEOF_OFF_T': 8,
  'SIZEOF_PID_T': 4,
+ 'SIZEOF_PTHREAD_KEY_T': 4,
  'SIZEOF_PTHREAD_T': 8,
  'SIZEOF_SHORT': 2,
  'SIZEOF_SIZE_T': 8,
@@ -675,9 +676,9 @@ build_time_vars = {'ABIFLAGS': 'm',
  'SIZEOF_VOID_P': 8,
  'SIZEOF_WCHAR_T': 4,
  'SIZEOF__BOOL': 1,
- 'SOABI': 'cpython-36m-x86_64-linux-gnu',
- 'SRCDIRS': 'Parser Objects Python Modules Programs',
- 'SRC_GDB_HOOKS': '../Tools/gdb/libpython.py',
+ 'SOABI': 'cpython-37m-x86_64-linux-gnu',
+ 'SRCDIRS': 'Parser Objects Python Modules Modules/_io Programs',
+ 'SRC_GDB_HOOKS': './Tools/gdb/libpython.py',
  'STDC_HEADERS': 1,
  'STRICT_SYSV_CURSES': "/* Don't use ncurses extensions */",
  'STRIPFLAG': '-s',
@@ -690,38 +691,33 @@ build_time_vars = {'ABIFLAGS': 'm',
  'TCLTK_LIBS': '',
  'TESTOPTS': '',
  'TESTPATH': '',
- 'TESTPYTHON': 'LD_LIBRARY_PATH=/build/python3.6-tym8xC/python3.6-3.6.8/build-shared '
-               './python',
+ 'TESTPYTHON': 'LD_LIBRARY_PATH=/home/vsts/work/1/s/SourceCode ./python',
  'TESTPYTHONOPTS': '',
- 'TESTRUNNER': 'LD_LIBRARY_PATH=/build/python3.6-tym8xC/python3.6-3.6.8/build-shared '
-               './python ../Tools/scripts/run_tests.py',
+ 'TESTRUNNER': 'LD_LIBRARY_PATH=/home/vsts/work/1/s/SourceCode ./python '
+               './Tools/scripts/run_tests.py',
  'TESTTIMEOUT': 1200,
- 'THREADOBJ': 'Python/thread.o',
  'TIMEMODULE_LIB': 0,
  'TIME_WITH_SYS_TIME': 1,
  'TM_IN_SYS_TIME': 0,
  'UNICODE_DEPS': '\\',
  'UNIVERSALSDK': '',
- 'UPDATE_FILE': 'python3.6 ../Tools/scripts/update_file.py',
- 'USE_COMPUTED_GOTOS': 1,
- 'USE_INLINE': 1,
- 'VERSION': '3.6',
- 'VPATH': '..',
- 'WANT_SIGFPE_HANDLER': 0,
+ 'UPDATE_FILE': 'python3 ./Tools/scripts/update_file.py',
+ 'USE_COMPUTED_GOTOS': 0,
+ 'VERSION': '3.7',
  'WINDOW_HAS_FLAGS': 1,
+ 'WITH_DECIMAL_CONTEXTVAR': 1,
  'WITH_DOC_STRINGS': 1,
  'WITH_DTRACE': 0,
  'WITH_DYLD': 0,
  'WITH_LIBINTL': 0,
  'WITH_NEXT_FRAMEWORK': 0,
  'WITH_PYMALLOC': 1,
- 'WITH_THREAD': 1,
  'WITH_VALGRIND': 0,
  'X87_DOUBLE_ROUNDING': 0,
  'XMLLIBSUBDIRS': 'xml xml/dom xml/etree xml/parsers xml/sax',
- 'abs_builddir': '/build/python3.6-tym8xC/python3.6-3.6.8/build-shared',
- 'abs_srcdir': '/build/python3.6-tym8xC/python3.6-3.6.8/build-shared/..',
- 'datarootdir': '/usr/share',
- 'exec_prefix': '/usr',
- 'prefix': '/usr',
- 'srcdir': '..'}
+ 'abs_builddir': '/home/vsts/work/1/s/SourceCode',
+ 'abs_srcdir': '/home/vsts/work/1/s/SourceCode',
+ 'datarootdir': '/opt/hostedtoolcache/Python/3.7.10/x64/share',
+ 'exec_prefix': '/opt/hostedtoolcache/Python/3.7.10/x64',
+ 'prefix': '/opt/hostedtoolcache/Python/3.7.10/x64',
+ 'srcdir': '.'}
