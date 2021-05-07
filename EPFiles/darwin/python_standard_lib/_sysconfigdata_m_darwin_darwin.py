@@ -5,76 +5,58 @@ build_time_vars = {'ABIFLAGS': 'm',
  'ANDROID_API_LEVEL': 0,
  'AR': 'ar',
  'ARFLAGS': 'rcs',
- 'BASECFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code '
-               '-fno-common -dynamic',
+ 'BASECFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code',
  'BASECPPFLAGS': '',
  'BASEMODLIBS': '',
- 'BINDIR': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/bin',
- 'BINLIBDEST': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7',
- 'BLDLIBRARY': '',
- 'BLDSHARED': 'clang -bundle -undefined dynamic_lookup -isysroot '
-              '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk',
+ 'BINDIR': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/bin',
+ 'BINLIBDEST': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
+ 'BLDLIBRARY': '-L. -lpython3.7m',
+ 'BLDSHARED': 'gcc -bundle -undefined dynamic_lookup '
+              '-L/usr/local/opt/sqlite/lib  -L/usr/local/opt/sqlite/lib',
  'BUILDEXE': '.exe',
  'BUILDPYTHON': 'python.exe',
- 'BUILD_GNU_TYPE': 'x86_64-apple-darwin17.7.0',
+ 'BUILD_GNU_TYPE': 'x86_64-apple-darwin18.7.0',
  'BYTESTR_DEPS': '\\',
- 'CC': 'clang',
+ 'CC': 'gcc',
  'CCSHARED': '',
- 'CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code -fno-common '
-           '-dynamic -DNDEBUG -g -fwrapv -O3 -Wall -isysroot '
-           '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-           '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-           '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers',
+ 'CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG -g '
+           '-fwrapv -O3 -Wall -I/usr/local/opt/sqlite/include  '
+           '-I/usr/local/opt/sqlite/include',
  'CFLAGSFORSHARED': '',
  'CFLAGS_ALIASING': '-fno-strict-aliasing',
- 'CFLAGS_NODIST': '',
  'CONFIGFILES': 'configure configure.ac acconfig.h pyconfig.h.in '
                 'Makefile.pre.in',
- 'CONFIGURE_CFLAGS': '-isysroot '
-                     '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-                     '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-                     '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers',
- 'CONFIGURE_CFLAGS_NODIST': '-std=c99 -Wextra -Wno-unused-result '
-                            '-Wno-unused-parameter '
+ 'CONFIGURE_CFLAGS': '-I/usr/local/opt/sqlite/include',
+ 'CONFIGURE_CFLAGS_NODIST': '-flto -Wl,-export_dynamic -g -std=c99 -Wextra '
+                            '-Wno-unused-result -Wno-unused-parameter '
                             '-Wno-missing-field-initializers '
                             '-Wstrict-prototypes '
                             '-Werror=implicit-function-declaration',
  'CONFIGURE_CPPFLAGS': '',
- 'CONFIGURE_LDFLAGS': '-isysroot '
-                      '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk',
- 'CONFIGURE_LDFLAGS_NODIST': '',
- 'CONFIG_ARGS': "'--prefix=/usr/local/opt/python' '--enable-ipv6' "
-                "'--datarootdir=/usr/local/opt/python/share' "
-                "'--datadir=/usr/local/opt/python/share' "
-                "'--enable-framework=/usr/local/opt/python/Frameworks' "
-                "'--enable-loadable-sqlite-extensions' '--without-ensurepip' "
-                "'--with-dtrace' '--with-openssl=/usr/local/opt/openssl' "
-                "'--without-gcc' 'MACOSX_DEPLOYMENT_TARGET=10.13' "
-                "'CFLAGS=-isysroot "
-                '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-                '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-                "-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers' "
-                "'LDFLAGS=-isysroot "
-                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk' "
-                "'CC=clang' "
-                "'PKG_CONFIG_PATH=/usr/local/opt/openssl/lib/pkgconfig:/usr/local/opt/readline/lib/pkgconfig:/usr/local/opt/sqlite/lib/pkgconfig:/usr/local/opt/xz/lib/pkgconfig' "
-                "'PKG_CONFIG_LIBDIR=/usr/lib/pkgconfig:/usr/local/Homebrew/Library/Homebrew/os/mac/pkgconfig/10.13'",
- 'CONFINCLUDEDIR': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include',
- 'CONFINCLUDEPY': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include/python3.7m',
+ 'CONFIGURE_LDFLAGS': '-L/usr/local/opt/sqlite/lib',
+ 'CONFIGURE_LDFLAGS_NODIST': '-flto -Wl,-export_dynamic -g',
+ 'CONFIG_ARGS': "'--prefix=/Users/runner/hostedtoolcache/Python/3.7.10/x64' "
+                "'--enable-optimizations' '--enable-shared' '--with-lto' "
+                "'--with-openssl=/usr/local/opt/openssl@1.1' "
+                "'--enable-loadable-sqlite-extensions' 'CFLAGS= "
+                "-I/usr/local/opt/sqlite/include' 'LDFLAGS= "
+                "-L/usr/local/opt/sqlite/lib'",
+ 'CONFINCLUDEDIR': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include',
+ 'CONFINCLUDEPY': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include/python3.7m',
  'COREPYTHONPATH': '',
- 'COVERAGE_INFO': '/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4/coverage.info',
- 'COVERAGE_REPORT': '/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4/lcov-report',
+ 'COVERAGE_INFO': '/Users/runner/work/1/s/SourceCode/coverage.info',
+ 'COVERAGE_REPORT': '/Users/runner/work/1/s/SourceCode/lcov-report',
  'COVERAGE_REPORT_OPTIONS': '--no-branch-coverage --title "CPython lcov '
                             'report"',
  'CPPFLAGS': '-I. -I./Include',
- 'CXX': 'clang++',
- 'DESTDIRS': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7 '
-             '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib '
-             '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7 '
-             '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7/lib-dynload',
- 'DESTLIB': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7',
+ 'CXX': 'g++',
+ 'DESTDIRS': '/Users/runner/hostedtoolcache/Python/3.7.10/x64 '
+             '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib '
+             '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7 '
+             '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7/lib-dynload',
+ 'DESTLIB': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
  'DESTPATH': '',
- 'DESTSHARED': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7/lib-dynload',
+ 'DESTSHARED': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7/lib-dynload',
  'DFLAGS': '',
  'DIRMODE': 755,
  'DIST': 'README.rst ChangeLog configure configure.ac acconfig.h pyconfig.h.in '
@@ -87,13 +69,13 @@ build_time_vars = {'ABIFLAGS': 'm',
  'DOUBLE_IS_ARM_MIXED_ENDIAN_IEEE754': 0,
  'DOUBLE_IS_BIG_ENDIAN_IEEE754': 0,
  'DOUBLE_IS_LITTLE_ENDIAN_IEEE754': 1,
- 'DTRACE': '/usr/sbin/dtrace',
+ 'DTRACE': '',
  'DTRACE_DEPS': '\\',
- 'DTRACE_HEADERS': 'Include/pydtrace_probes.h',
+ 'DTRACE_HEADERS': '',
  'DTRACE_OBJS': '',
  'DYNLOADFILE': 'dynload_shlib.o',
  'ENABLE_IPV6': 1,
- 'ENSUREPIP': 'no',
+ 'ENSUREPIP': 'upgrade',
  'EXE': '',
  'EXEMODE': 755,
  'EXTRATESTOPTS': '',
@@ -117,7 +99,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_ASINH': 1,
  'HAVE_ASM_TYPES_H': 0,
  'HAVE_ATANH': 1,
- 'HAVE_BIND_TEXTDOMAIN_CODESET': 0,
+ 'HAVE_BIND_TEXTDOMAIN_CODESET': 1,
  'HAVE_BLUETOOTH_BLUETOOTH_H': 0,
  'HAVE_BLUETOOTH_H': 0,
  'HAVE_BROKEN_MBSTOWCS': 0,
@@ -276,7 +258,7 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_LIBDL': 1,
  'HAVE_LIBDLD': 0,
  'HAVE_LIBIEEE': 0,
- 'HAVE_LIBINTL_H': 0,
+ 'HAVE_LIBINTL_H': 1,
  'HAVE_LIBREADLINE': 1,
  'HAVE_LIBRESOLV': 0,
  'HAVE_LIBSENDFILE': 0,
@@ -347,14 +329,14 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_READV': 1,
  'HAVE_REALPATH': 1,
  'HAVE_RENAMEAT': 1,
- 'HAVE_RL_APPEND_HISTORY': 1,
- 'HAVE_RL_CATCH_SIGNAL': 1,
+ 'HAVE_RL_APPEND_HISTORY': 0,
+ 'HAVE_RL_CATCH_SIGNAL': 0,
  'HAVE_RL_COMPLETION_APPEND_CHARACTER': 1,
  'HAVE_RL_COMPLETION_DISPLAY_MATCHES_HOOK': 1,
  'HAVE_RL_COMPLETION_MATCHES': 1,
- 'HAVE_RL_COMPLETION_SUPPRESS_APPEND': 1,
+ 'HAVE_RL_COMPLETION_SUPPRESS_APPEND': 0,
  'HAVE_RL_PRE_INPUT_HOOK': 1,
- 'HAVE_RL_RESIZE_TERMINAL': 1,
+ 'HAVE_RL_RESIZE_TERMINAL': 0,
  'HAVE_ROUND': 1,
  'HAVE_SCHED_GET_PRIORITY_MAX': 1,
  'HAVE_SCHED_H': 1,
@@ -508,48 +490,45 @@ build_time_vars = {'ABIFLAGS': 'm',
  'HAVE_X509_VERIFY_PARAM_SET1_HOST': 1,
  'HAVE_ZLIB_COPY': 1,
  'HAVE__GETPTY': 0,
- 'HOST_GNU_TYPE': 'x86_64-apple-darwin17.7.0',
- 'INCLDIRSTOMAKE': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include '
-                   '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include '
-                   '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include/python3.7m '
-                   '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include/python3.7m',
- 'INCLUDEDIR': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include',
- 'INCLUDEPY': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/include/python3.7m',
+ 'HOST_GNU_TYPE': 'x86_64-apple-darwin18.7.0',
+ 'INCLDIRSTOMAKE': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include '
+                   '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include '
+                   '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include/python3.7m '
+                   '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include/python3.7m',
+ 'INCLUDEDIR': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include',
+ 'INCLUDEPY': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/include/python3.7m',
  'INSTALL': '/usr/bin/install -c',
  'INSTALL_DATA': '/usr/bin/install -c -m 644',
  'INSTALL_PROGRAM': '/usr/bin/install -c',
  'INSTALL_SCRIPT': '/usr/bin/install -c',
  'INSTALL_SHARED': '/usr/bin/install -c -m 555',
- 'INSTSONAME': 'Python.framework/Versions/3.7/Python',
+ 'INSTSONAME': 'libpython3.7m.dylib',
  'IO_H': 'Modules/_io/_iomodule.h',
  'IO_OBJS': '\\',
- 'LDCXXSHARED': 'clang++ -bundle -undefined dynamic_lookup',
- 'LDFLAGS': '-isysroot '
-            '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk',
- 'LDFLAGS_NODIST': '',
+ 'LDCXXSHARED': 'g++ -bundle -undefined dynamic_lookup',
+ 'LDFLAGS': '-L/usr/local/opt/sqlite/lib  -L/usr/local/opt/sqlite/lib',
  'LDLAST': '',
- 'LDLIBRARY': 'Python.framework/Versions/3.7/Python',
+ 'LDLIBRARY': 'libpython3.7m.dylib',
  'LDLIBRARYDIR': '',
- 'LDSHARED': 'clang -bundle -undefined dynamic_lookup -isysroot '
-             '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk',
+ 'LDSHARED': 'gcc -bundle -undefined dynamic_lookup '
+             '-L/usr/local/opt/sqlite/lib  -L/usr/local/opt/sqlite/lib',
  'LDVERSION': '3.7m',
  'LIBC': '',
- 'LIBDEST': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7',
- 'LIBDIR': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib',
+ 'LIBDEST': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
+ 'LIBDIR': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib',
  'LIBFFI_INCLUDEDIR': '',
  'LIBM': '',
  'LIBOBJDIR': 'Python/',
  'LIBOBJS': '',
- 'LIBPC': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/pkgconfig',
- 'LIBPL': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7/config-3.7m-darwin',
+ 'LIBPC': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/pkgconfig',
+ 'LIBPL': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7/config-3.7m-darwin',
  'LIBRARY': 'libpython3.7m.a',
  'LIBRARY_OBJS': '\\',
  'LIBRARY_OBJS_OMIT_FROZEN': '\\',
- 'LIBS': '-ldl  -framework CoreFoundation',
+ 'LIBS': '-lintl -ldl  -framework CoreFoundation',
  'LIBSUBDIRS': 'tkinter tkinter/test tkinter/test/test_tkinter \\',
- 'LINKCC': 'clang',
- 'LINKFORSHARED': '-Wl,-stack_size,1000000  -framework CoreFoundation '
-                  '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/Python',
+ 'LINKCC': 'gcc',
+ 'LINKFORSHARED': '-Wl,-stack_size,1000000  -framework CoreFoundation',
  'LIPO_32BIT_FLAGS': '',
  'LLVM_PROF_ERR': 'no',
  'LLVM_PROF_FILE': 'LLVM_PROFILE_FILE="code-%p.profclangr"',
@@ -560,13 +539,13 @@ build_time_vars = {'ABIFLAGS': 'm',
  'LOG1P_DROPS_ZERO_SIGN': 0,
  'MACHDEP': 'darwin',
  'MACHDEP_OBJS': '',
- 'MACHDESTLIB': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib/python3.7',
- 'MACOSX_DEPLOYMENT_TARGET': '10.13',
- 'MAINCC': 'clang',
+ 'MACHDESTLIB': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib/python3.7',
+ 'MACOSX_DEPLOYMENT_TARGET': '10.14',
+ 'MAINCC': 'gcc',
  'MAJOR_IN_MKDEV': 0,
  'MAJOR_IN_SYSMACROS': 0,
  'MAKESETUP': './Modules/makesetup',
- 'MANDIR': '/usr/local/opt/python/share/man',
+ 'MANDIR': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/share/man',
  'MKDIR_P': './install-sh -c -d',
  'MODBUILT_NAMES': 'posix  errno  pwd  _sre  _codecs  _weakref  _functools  '
                    '_operator  _collections  _abc  itertools  atexit  _signal  '
@@ -593,8 +572,8 @@ build_time_vars = {'ABIFLAGS': 'm',
  'MVWDELCH_IS_EXPRESSION': 1,
  'NO_AS_NEEDED': '',
  'OBJECT_OBJS': '\\',
- 'OPENSSL_INCLUDES': '-I/usr/local/opt/openssl/include',
- 'OPENSSL_LDFLAGS': '-L/usr/local/opt/openssl/lib',
+ 'OPENSSL_INCLUDES': '-I/usr/local/opt/openssl@1.1/include',
+ 'OPENSSL_LDFLAGS': '-L/usr/local/opt/openssl@1.1/lib',
  'OPENSSL_LIBS': '-lssl -lcrypto',
  'OPT': '-DNDEBUG -g -fwrapv -O3 -Wall',
  'OTHER_LIBTOOL_OPT': '',
@@ -620,79 +599,74 @@ build_time_vars = {'ABIFLAGS': 'm',
  'PY3LIBRARY': '',
  'PYLONG_BITS_IN_DIGIT': 0,
  'PYTHON': 'python',
- 'PYTHONFRAMEWORK': 'Python',
- 'PYTHONFRAMEWORKDIR': 'Python.framework',
- 'PYTHONFRAMEWORKINSTALLDIR': '/usr/local/opt/python/Frameworks/Python.framework',
- 'PYTHONFRAMEWORKPREFIX': '/usr/local/opt/python/Frameworks',
+ 'PYTHONFRAMEWORK': '',
+ 'PYTHONFRAMEWORKDIR': 'no-framework',
+ 'PYTHONFRAMEWORKINSTALLDIR': '',
+ 'PYTHONFRAMEWORKPREFIX': '',
  'PYTHONPATH': '',
  'PYTHON_FOR_BUILD': './python.exe -E',
- 'PYTHON_FOR_REGEN': 'python',
+ 'PYTHON_FOR_REGEN': 'python3',
  'PYTHON_HEADERS': '\\',
  'PYTHON_OBJS': '\\',
  'PY_BUILTIN_MODULE_CFLAGS': '-Wno-unused-result -Wsign-compare '
-                             '-Wunreachable-code -fno-common -dynamic -DNDEBUG '
-                             '-g -fwrapv -O3 -Wall -isysroot '
-                             '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-                             '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-                             '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers '
-                             '-std=c99 -Wextra -Wno-unused-result '
-                             '-Wno-unused-parameter '
+                             '-Wunreachable-code -DNDEBUG -g -fwrapv -O3 -Wall '
+                             '-I/usr/local/opt/sqlite/include  '
+                             '-I/usr/local/opt/sqlite/include -flto '
+                             '-Wl,-export_dynamic -g -std=c99 -Wextra '
+                             '-Wno-unused-result -Wno-unused-parameter '
                              '-Wno-missing-field-initializers '
                              '-Wstrict-prototypes '
-                             '-Werror=implicit-function-declaration -I. '
+                             '-Werror=implicit-function-declaration '
+                             '-fprofile-instr-use=code.profclangd -I. '
                              '-I./Include -DPy_BUILD_CORE_BUILTIN',
- 'PY_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code '
-              '-fno-common -dynamic -DNDEBUG -g -fwrapv -O3 -Wall -isysroot '
-              '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-              '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-              '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers',
- 'PY_CFLAGS_NODIST': '-std=c99 -Wextra -Wno-unused-result '
-                     '-Wno-unused-parameter -Wno-missing-field-initializers '
-                     '-Wstrict-prototypes '
-                     '-Werror=implicit-function-declaration',
+ 'PY_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code -DNDEBUG '
+              '-g -fwrapv -O3 -Wall -I/usr/local/opt/sqlite/include  '
+              '-I/usr/local/opt/sqlite/include',
+ 'PY_CFLAGS_NODIST': '-flto -Wl,-export_dynamic -g -std=c99 -Wextra '
+                     '-Wno-unused-result -Wno-unused-parameter '
+                     '-Wno-missing-field-initializers -Wstrict-prototypes '
+                     '-Werror=implicit-function-declaration '
+                     '-fprofile-instr-use=code.profclangd',
  'PY_COERCE_C_LOCALE': 1,
  'PY_CORE_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code '
-                   '-fno-common -dynamic -DNDEBUG -g -fwrapv -O3 -Wall '
-                   '-isysroot '
-                   '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-                   '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-                   '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers '
-                   '-std=c99 -Wextra -Wno-unused-result -Wno-unused-parameter '
-                   '-Wno-missing-field-initializers -Wstrict-prototypes '
-                   '-Werror=implicit-function-declaration -I. -I./Include '
+                   '-DNDEBUG -g -fwrapv -O3 -Wall '
+                   '-I/usr/local/opt/sqlite/include  '
+                   '-I/usr/local/opt/sqlite/include -flto -Wl,-export_dynamic '
+                   '-g -std=c99 -Wextra -Wno-unused-result '
+                   '-Wno-unused-parameter -Wno-missing-field-initializers '
+                   '-Wstrict-prototypes -Werror=implicit-function-declaration '
+                   '-fprofile-instr-use=code.profclangd -I. -I./Include '
                    '-DPy_BUILD_CORE',
- 'PY_CORE_LDFLAGS': '-isysroot '
-                    '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk',
+ 'PY_CORE_LDFLAGS': '-L/usr/local/opt/sqlite/lib  -L/usr/local/opt/sqlite/lib '
+                    '-flto -Wl,-export_dynamic -g',
  'PY_CPPFLAGS': '-I. -I./Include',
  'PY_FORMAT_SIZE_T': '"z"',
- 'PY_LDFLAGS': '-isysroot '
-               '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk',
- 'PY_LDFLAGS_NODIST': '',
+ 'PY_LDFLAGS': '-L/usr/local/opt/sqlite/lib  -L/usr/local/opt/sqlite/lib',
+ 'PY_LDFLAGS_NODIST': '-flto -Wl,-export_dynamic -g',
  'PY_SSL_DEFAULT_CIPHERS': 1,
  'PY_SSL_DEFAULT_CIPHER_STRING': 0,
  'PY_STDMODULE_CFLAGS': '-Wno-unused-result -Wsign-compare -Wunreachable-code '
-                        '-fno-common -dynamic -DNDEBUG -g -fwrapv -O3 -Wall '
-                        '-isysroot '
-                        '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk '
-                        '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/usr/include '
-                        '-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks/Tk.framework/Versions/8.5/Headers '
-                        '-std=c99 -Wextra -Wno-unused-result '
-                        '-Wno-unused-parameter -Wno-missing-field-initializers '
-                        '-Wstrict-prototypes '
-                        '-Werror=implicit-function-declaration -I. -I./Include',
+                        '-DNDEBUG -g -fwrapv -O3 -Wall '
+                        '-I/usr/local/opt/sqlite/include  '
+                        '-I/usr/local/opt/sqlite/include -flto '
+                        '-Wl,-export_dynamic -g -std=c99 -Wextra '
+                        '-Wno-unused-result -Wno-unused-parameter '
+                        '-Wno-missing-field-initializers -Wstrict-prototypes '
+                        '-Werror=implicit-function-declaration '
+                        '-fprofile-instr-use=code.profclangd -I. -I./Include',
  'Py_DEBUG': 0,
- 'Py_ENABLE_SHARED': 0,
+ 'Py_ENABLE_SHARED': 1,
  'Py_HASH_ALGORITHM': 0,
  'QUICKTESTOPTS': '-x test_subprocess test_io test_lib2to3 \\',
  'READELF': ':',
  'RESSRCDIR': 'Mac/Resources/framework',
  'RETSIGTYPE': 'void',
- 'RUNSHARED': 'DYLD_FRAMEWORK_PATH=/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4',
- 'SCRIPTDIR': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7/lib',
+ 'RUNSHARED': 'DYLD_LIBRARY_PATH=/Users/runner/work/1/s/SourceCode',
+ 'SCRIPTDIR': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/lib',
  'SETPGRP_HAVE_ARG': 0,
  'SGI_ABI': '@SGI_ABI@',
  'SHELL': '/bin/sh',
- 'SHLIBS': '-ldl  -framework CoreFoundation',
+ 'SHLIBS': '-lintl -ldl  -framework CoreFoundation',
  'SHLIB_SUFFIX': '.so',
  'SIGNED_RIGHT_SHIFT_ZERO_FILLS': 0,
  'SITEPATH': '',
@@ -729,10 +703,10 @@ build_time_vars = {'ABIFLAGS': 'm',
  'TCLTK_LIBS': '',
  'TESTOPTS': '',
  'TESTPATH': '',
- 'TESTPYTHON': 'DYLD_FRAMEWORK_PATH=/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4 '
+ 'TESTPYTHON': 'DYLD_LIBRARY_PATH=/Users/runner/work/1/s/SourceCode '
                './python.exe',
  'TESTPYTHONOPTS': '',
- 'TESTRUNNER': 'DYLD_FRAMEWORK_PATH=/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4 '
+ 'TESTRUNNER': 'DYLD_LIBRARY_PATH=/Users/runner/work/1/s/SourceCode '
                './python.exe ./Tools/scripts/run_tests.py',
  'TESTTIMEOUT': 1200,
  'TIMEMODULE_LIB': 0,
@@ -740,22 +714,23 @@ build_time_vars = {'ABIFLAGS': 'm',
  'TM_IN_SYS_TIME': 0,
  'UNICODE_DEPS': '\\',
  'UNIVERSALSDK': '',
- 'UPDATE_FILE': 'python ./Tools/scripts/update_file.py',
+ 'UPDATE_FILE': 'python3 ./Tools/scripts/update_file.py',
  'USE_COMPUTED_GOTOS': 0,
  'VERSION': '3.7',
  'WINDOW_HAS_FLAGS': 1,
+ 'WITH_DECIMAL_CONTEXTVAR': 1,
  'WITH_DOC_STRINGS': 1,
- 'WITH_DTRACE': 1,
+ 'WITH_DTRACE': 0,
  'WITH_DYLD': 1,
- 'WITH_LIBINTL': 0,
- 'WITH_NEXT_FRAMEWORK': 1,
+ 'WITH_LIBINTL': 1,
+ 'WITH_NEXT_FRAMEWORK': 0,
  'WITH_PYMALLOC': 1,
  'WITH_VALGRIND': 0,
  'X87_DOUBLE_ROUNDING': 0,
  'XMLLIBSUBDIRS': 'xml xml/dom xml/etree xml/parsers xml/sax',
- 'abs_builddir': '/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4',
- 'abs_srcdir': '/private/tmp/python-20190709-15448-vhtqxy/Python-3.7.4',
- 'datarootdir': '/usr/local/opt/python/share',
- 'exec_prefix': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7',
- 'prefix': '/usr/local/opt/python/Frameworks/Python.framework/Versions/3.7',
+ 'abs_builddir': '/Users/runner/work/1/s/SourceCode',
+ 'abs_srcdir': '/Users/runner/work/1/s/SourceCode',
+ 'datarootdir': '/Users/runner/hostedtoolcache/Python/3.7.10/x64/share',
+ 'exec_prefix': '/Users/runner/hostedtoolcache/Python/3.7.10/x64',
+ 'prefix': '/Users/runner/hostedtoolcache/Python/3.7.10/x64',
  'srcdir': '.'}
