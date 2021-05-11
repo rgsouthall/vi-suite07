@@ -2066,12 +2066,13 @@ class No_Vi_Metrics(Node, ViNodes):
                     newrow(layout, 'Type', self, 'riba_menu')
                     tar = 35 if self.riba_menu == '0' else 55
                     epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
+                    shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
                     row = layout.row()
-                    row.label(text = "Space heating (kWh): {}".format(self['res']['hkwh']))
+                    row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
                     row = layout.row()
-                    row.label(text = "Space heating (kWh/m2): {}".format(self['res']['hkwh']/self['res']['fa']))
+                    row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'], shpass))
                     row = layout.row()
-                    row.label(text = "Operational: {} {}".format(self['res']['totkwh'], epass))
+                    row.label(text = "Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh'], epass))
 
         elif self.metric == '1':
             if self.light_menu == '0':
