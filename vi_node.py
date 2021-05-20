@@ -2065,7 +2065,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 if self['res'] and self['res'].get('totkwh'):
                     newrow(layout, 'Type', self, 'riba_menu')
                     tar = 35 if self.riba_menu == '0' else 55
-                    epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
+                    epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
                     shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
                     row = layout.row()
                     row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
