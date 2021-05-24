@@ -64,6 +64,29 @@ class ViNodes:
     def poll(cls, ntree):
         return ntree.bl_idname == 'ViN'
 
+# Animate nodes
+class No_Anim(Node, ViNodes):
+    '''Node to automate changes in parameters'''
+    bl_idname = 'No_Anim'
+    bl_label = 'VI Parametric'
+    bl_icon = 'ANIM'
+    
+    def retparams(self, context):
+        if self.inputs[0].links:
+            return [(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save]
+        else:
+            return [('None', 'None', 'None')]
+    
+    parameter: EnumProperty(name='', description = 'Parameter to be animated', items=retparams)
+    anim_file: StringProperty(name = '')
+
+    def init(self, context):
+        self.inputs.new('So_Anim', 'Parameter')
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, "Parameter:", self, 'parameter')
+        layout.prop_search(self, 'anim_file', bpy.data, 'texts', text='File', icon='TEXT')
+
 # Input nodes
         
 class No_Loc(Node, ViNodes):
@@ -95,6 +118,7 @@ class No_Loc(Node, ViNodes):
                         if wfl.split(',')[0].upper() == 'LOCATION':
                             entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
                             break
+            
             self['entries'] = entries if entries else [('None', 'None', 'None')]
             
             if os.path.isfile(self.weather):            
@@ -131,7 +155,9 @@ class No_Loc(Node, ViNodes):
         except:
             return [('None', 'None','None' )]
                   
-    weather: EnumProperty(name='', items=retentries, update=updatelatlong)
+    weather: EnumProperty(name='', description="Weather file", items=retentries, options={'SKIP_SAVE'}, update=updatelatlong)
+    weather_anim: BoolProperty(name = '', description = 'Animate weather file', default = False)
+    weather_anim_file: StringProperty(name = '')
     loc: EnumProperty(items=[("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
     maxws: FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws: FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
@@ -141,6 +167,7 @@ class No_Loc(Node, ViNodes):
 
     def init(self, context):
         self.outputs.new('So_Vi_Loc', 'Location out')
+        self.outputs.new('So_Anim', 'Parameter')
         self['entries'] = [('None', 'None', 'None')] 
 
         try:
@@ -151,13 +178,22 @@ class No_Loc(Node, ViNodes):
     def update(self):
         if self.outputs.get('Location out'):
             socklink(self.outputs['Location out'], self.id_data.name)
+        
         nodecolour(self, self.ready())
         
     def draw_buttons(self, context, layout):
         newrow(layout, "Source:", self, 'loc')
         
         if self.loc == "1":
-            newrow(layout, "Weather file:", self, 'weather')
+            # newrow(layout, "Weather file:", self, 'weather')
+            row = layout.row()
+            row.label(text = 'Weather file:')
+            row.prop(self, 'weather')
+#            row.prop(self, 'weather_anim')
+
+            if self.weather_anim:
+                layout.prop_search(self, 'weather_anim_file', bpy.data, 'texts', text='File', icon='TEXT')
+
         else:
             newrow(layout, 'Latitude', context.scene.vi_params, "latitude")
             newrow(layout, 'Longitude', context.scene.vi_params, "longitude")
@@ -178,7 +214,6 @@ class No_ASC_Import(Node, ViNodes):
     single: BoolProperty(name = '', default = False)
     ascfile: StringProperty()
     clear_nodata: EnumProperty(name="", description="Deal with no data", items=[('0', 'Zero', 'Make no data zero'), ('1', 'Delete', 'Delete no data')], default='0')
-
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Single file:', self, 'single')
@@ -1764,7 +1799,6 @@ class No_Vi_HMChart(Node, ViNodes):
     def update(self):
         if self.inputs['Results in'].links:
             innode = self.inputs['Results in'].links[0].from_node
-            rl = innode['reslists']
             self['times'] = [rl[0] for rl in innode['reslists']]
             self['rtypes'] = [rl[1] for rl in innode['reslists']] 
             self['locs'] = [rl[2] for rl in innode['reslists']]
@@ -1839,12 +1873,12 @@ class No_Vi_HMChart(Node, ViNodes):
     cf: BoolProperty(name="", description="Contour fill", default = 0)
     cl: BoolProperty(name="", description="Contour fill", default = 0)
     clevels: IntProperty(name = '', description = "Number of contour levels", default = 10, min = 1)
-    daystart = IntProperty(name = '', description = "Start day", default = 1, min = 1, max = 365)
-    dayend = IntProperty(name = '', description = "End day", default = 365, min = 1, max = 365)
-    hourstart = IntProperty(name = '', description = "Start hour", default = 1, min = 1, max = 365)
-    hourend = IntProperty(name = '', description = "End hour", default = 24, min = 1, max = 365)
-    varmin = IntProperty(name = '', description = "Variable minimum", default = 0)
-    varmax = IntProperty(name = '', description = "Varaible maximum", default = 20)
+    daystart: IntProperty(name = '', description = "Start day", default = 1, min = 1, max = 365)
+    dayend: IntProperty(name = '', description = "End day", default = 365, min = 1, max = 365)
+    hourstart: IntProperty(name = '', description = "Start hour", default = 1, min = 1, max = 365)
+    hourend: IntProperty(name = '', description = "End hour", default = 24, min = 1, max = 365)
+    varmin: IntProperty(name = '', description = "Variable minimum", default = 0)
+    varmax: IntProperty(name = '', description = "Varaible maximum", default = 20)
 
     x = []
     y = []
@@ -2427,6 +2461,21 @@ class ViNodeCategory(NodeCategory):
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
 
+class So_Anim(NodeSocket):
+    '''Vi Animation socket'''
+    bl_idname = 'So_Anim'
+    bl_label = 'Animation socket'
+    valid = ['Animation']
+
+    def draw(self, context, layout, node, text):
+        layout.label(text = text)
+
+    def draw_color(self, context, node):
+        return (1, 1.0, 0.45, 1.0)
+    
+    def ret_valid(self, node):
+        return ['Animation']
+
 class So_Vi_Loc(NodeSocket):
     '''Vi Location socket'''
     bl_idname = 'So_Vi_Loc'
@@ -3000,13 +3049,14 @@ vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", labe
              NodeItem("No_Flo_Sim", label="FloVi Simulation")]
 
 vi_gen = []
-
+vi_anim = [NodeItem("No_Anim", label="Animation")]
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_HMChart", label="Heatmap"), NodeItem("No_Vi_Metrics", label="Metrics")]
 vi_out = [NodeItem("No_CSV", label="CSV")]
 vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
 
 vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out), 
+                     ViNodeCategory("Animation", "Animation Nodes", items=vi_anim),
                      ViNodeCategory("Edit", "Edit Nodes", items=vi_edit), 
                      ViNodeCategory("Image", "Image Nodes", items=vi_image), 
                      ViNodeCategory("Display", "Display Nodes", items=vi_display), 
@@ -4234,7 +4284,18 @@ class No_En_Net_Ext(Node, EnViNodes):
     bl_icon = 'FORCE_WIND'
 
     height: FloatProperty(default = 1.0)
-    (wpc1, wpc2, wpc3, wpc4, wpc5, wpc6, wpc7, wpc8, wpc9, wpc10, wpc11, wpc12) = [FloatProperty(name = '', default = 0, min = -1, max = 1) for x in range(12)]
+    wpc1: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc2: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc3: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc4: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc5: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc6: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc7: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc8: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc9: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc10: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc11: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    wpc12: FloatProperty(name = '', default = 0, min = -1, max = 1)
     enname: StringProperty()
 
     def init(self, context):
@@ -4560,9 +4621,18 @@ class No_En_Net_Sched(Node, EnViNodes):
     hours: IntProperty(name = "", default = 8760, min = 1, max = 8760)
     delim: EnumProperty(name = '', items = [("Comma", "Comma", "Comma delimiter"), ("Space", "Space", "space delimiter")], default = 'Comma')
 #    generate_file: StringProperty(default = "", name = "")
-    (u1, u2, u3, u4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)] * 4
-    (f1, f2, f3, f4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)] * 4
-    (t1, t2, t3, t4) = [IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
+    u1: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    u2: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    u3: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    u4: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    f1: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)
+    f2: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate) 
+    f3: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate) 
+    f4: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)
+    t1: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
+    t2: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate) 
+    t3: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate) 
+    t4: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
 
     def init(self, context):
         self.outputs.new('So_En_Sched', 'Schedule')

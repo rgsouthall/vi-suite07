@@ -1,8 +1,6 @@
 """See https://github.com/numpy/numpy/pull/11937.
 
 """
-from __future__ import division, absolute_import, print_function
-
 import sys
 import os
 import uuid
@@ -16,8 +14,6 @@ from . import util
 
 
 def setup_module():
-    if sys.platform == 'win32' and sys.version_info[0] < 3:
-        pytest.skip('Fails with MinGW64 Gfortran (Issue #9673)')
     if not util.has_c_compiler():
         pytest.skip("Needs C compiler")
     if not util.has_f77_compiler():
@@ -29,6 +25,7 @@ def setup_module():
 @pytest.mark.parametrize(
     "extra_args", [['--noopt', '--debug'], '--noopt --debug', '']
     )
+@pytest.mark.leaks_references(reason="Imported module seems never deleted.")
 def test_f2py_init_compile(extra_args):
     # flush through the f2py __init__ compile() function code path as a
     # crude test for input handling following migration from
@@ -81,6 +78,9 @@ def test_f2py_init_compile(extra_args):
             return_check = import_module(modname)
             calc_result = return_check.foo()
             assert_equal(calc_result, 15)
+            # Removal from sys.modules, is not as such necessary. Even with
+            # removal, the module (dict) stays alive.
+            del sys.modules[modname]
 
 
 def test_f2py_init_compile_failure():

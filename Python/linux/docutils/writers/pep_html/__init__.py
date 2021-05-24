@@ -1,4 +1,4 @@
-# $Id: __init__.py 7630 2013-03-15 22:27:04Z milde $
+# $Id: __init__.py 8412 2019-11-06 18:15:21Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -55,7 +55,8 @@ class Writer(html4css1.Writer):
     relative_path_settings = ('template',)
 
     config_section = 'pep_html writer'
-    config_section_dependencies = ('writers', 'html4css1 writer')
+    config_section_dependencies = ('writers', 'html writers',
+                                   'html4css1 writer')
 
     def __init__(self):
         html4css1.Writer.__init__(self)

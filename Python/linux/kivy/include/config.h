@@ -15,3 +15,4 @@
 #define __USE_AVFOUNDATION 0
 #define __USE_OSX_FRAMEWORKS 0
 #define __DEBUG_GL 0
+#define __KIVY_SDL_GL_ALPHA_SIZE 8

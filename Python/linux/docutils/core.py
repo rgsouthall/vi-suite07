@@ -1,4 +1,4 @@
-# $Id: core.py 8126 2017-06-23 09:34:28Z milde $
+# $Id: core.py 8367 2019-08-27 12:09:56Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -11,6 +11,7 @@ custom component objects first, and pass *them* to
 
 .. _The Docutils Publisher: http://docutils.sf.net/docs/api/publisher.html
 """
+from __future__ import print_function
 
 __docformat__ = 'reStructuredText'
 
@@ -23,7 +24,7 @@ from docutils.transforms import Transformer
 from docutils.utils.error_reporting import ErrorOutput, ErrorString
 import docutils.readers.doctree
 
-class Publisher:
+class Publisher(object):
 
     """
     A facade encapsulating the high-level logic of a Docutils system.
@@ -154,7 +155,7 @@ class Publisher:
         if argv is None:
             argv = sys.argv[1:]
             # converting to Unicode (Python 3 does this automatically):
-            if sys.version_info < (3,0):
+            if sys.version_info < (3, 0):
                 # TODO: make this failsafe and reversible?
                 argv_encoding = (frontend.locale_encoding or 'ascii')
                 argv = [a.decode(argv_encoding) for a in argv]
@@ -250,8 +251,8 @@ class Publisher:
             print(pprint.pformat(self.document.__dict__), file=self._stderr)
         if self.settings.dump_transforms:
             print('\n::: Transforms applied:', file=self._stderr)
-            print((' (priority, transform class, '
-                                 'pending node details, keyword args)'), file=self._stderr)
+            print(' (priority, transform class, pending node details, '
+                  'keyword args)', file=self._stderr)
             print(pprint.pformat(
                 [(priority, '%s.%s' % (xclass.__module__, xclass.__name__),
                   pending and pending.details, kwargs)
@@ -268,14 +269,14 @@ class Publisher:
         elif isinstance(error, UnicodeEncodeError):
             self.report_UnicodeError(error)
         elif isinstance(error, io.InputError):
-            self._stderr.write('Unable to open source file for reading:\n'
-                               '  %s\n' % ErrorString(error))
+            self._stderr.write(u'Unable to open source file for reading:\n'
+                               u'  %s\n' % ErrorString(error))
         elif isinstance(error, io.OutputError):
             self._stderr.write(
-                'Unable to open destination file for writing:\n'
-                '  %s\n' % ErrorString(error))
+                u'Unable to open destination file for writing:\n'
+                u'  %s\n' % ErrorString(error))
         else:
-            print('%s' % ErrorString(error), file=self._stderr)
+            print(u'%s' % ErrorString(error), file=self._stderr)
             print(("""\
 Exiting due to error.  Use "--traceback" to diagnose.
 Please report errors to <docutils-users@lists.sf.net>.
@@ -287,9 +288,9 @@ command line used.""" % (__version__,
                          sys.version.split()[0])), file=self._stderr)
 
     def report_SystemMessage(self, error):
-        print(('Exiting due to level-%s (%s) system message.'
-                             % (error.level,
-                                utils.Reporter.levels[error.level])), file=self._stderr)
+        print('Exiting due to level-%s (%s) system message.' % (
+            error.level, utils.Reporter.levels[error.level]),
+              file=self._stderr)
 
     def report_UnicodeError(self, error):
         data = error.object[error.start:error.end]

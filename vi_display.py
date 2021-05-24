@@ -70,11 +70,10 @@ def leg_update(self, context):
     svp = scene.vi_params
     frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
     obs = [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Res']
-    print('obs', obs)
     increment = 1/svp.vi_leg_levels
     
     if svp.vi_leg_scale == '0':
-        bins = array([increment * i for i in range(1, svp.vi_leg_levels)])
+        bins = array([increment * i for i in range(1, svp.vi_leg_levels + 1)])
         
     elif svp.vi_leg_scale == '1':
         slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
@@ -110,7 +109,7 @@ def leg_update(self, context):
             else:
                 vals = array([svp.vi_leg_max for f in bm.faces])
 
-            nmatis = digitize(vals, bins) + 1
+            nmatis = digitize(vals, bins)
 
             if len(frames) == 1:              
                 o.data.polygons.foreach_set('material_index', nmatis)
@@ -409,8 +408,7 @@ class linumdisplay():
             self.fs = svp.vi_display_rp_fs
            
     def update(self, context):
-        scene = context.scene
-        
+        scene = context.scene        
         vl = context.view_layer
         svp = scene.vi_params
         self.allpcs, self.alldepths, self.allres = array([]), array([]), array([])
@@ -498,11 +496,10 @@ class Base_Display():
         self.iepos = [ipos[0] + 40, ipos[1] + 40]
         self.xdiff, self.ydiff = xdiff, ydiff
         self.lspos = [ipos[0] - 5, ipos[1] - self.ydiff - 25]
-        self.lepos = [ipos[0] + self.xdiff, self.lspos[1] + self.ydiff]
+        self.lepos = [ipos[0] - 5 + self.xdiff, self.lspos[1] + self.ydiff]
         self.resize, self.move, self.expand = 0, 0, 0
         self.hl = [1, 1, 1, 1]
-        self.cao = None
-        
+        self.cao = None        
         self.ah = height
         self.aw = width
         
@@ -1403,7 +1400,7 @@ class draw_legend(Base_Display):
             if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
                 self.resvals = bpy.app.driver_namespace.get('restext')()
             else:
-                self.resvals = ['{0} - {1}'.format(resvals[i], resvals[i+1]) for i in range(self.levels)]
+                self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
                 
             self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
             blf.size(self.font_id, 12, self.dpi)        
@@ -1419,7 +1416,7 @@ class draw_legend(Base_Display):
         fl_indices = list(fl1_indices) + list(fl2_indices)
         
         for i in range(0, self.levels):
-            vl_coords += [(0, i * lh), (0.35, i * lh), (0.35, (i + 1) * lh), (0, (i + 1) * lh)]
+            vl_coords += [(0, i * lh), (0.5, i * lh), (0.5, (i + 1) * lh), (0, (i + 1) * lh)]
         
         return (vl_coords, fl_indices)
     
@@ -1466,22 +1463,23 @@ class draw_legend(Base_Display):
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
             self.line_batch.draw(self.line_shader)
             
-            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
+            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.4), self.mydimen * 1.25/(self.lh * self.ydiff))
             blf.enable(0, 4)
             blf.enable(0, 8)
             blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
             blf.shadow_offset(self.font_id, 1, 1)
-            blf.size(self.font_id, int(14/fontscale), self.dpi)
+            blf.size(self.font_id, int(12/fontscale), self.dpi)
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.5, 0) 
             blf.color(self.font_id, 0, 0, 0, 1)   
             blf.draw(self.font_id, self.unit)
             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
             blf.size(self.font_id, int(11/fontscale), self.dpi)
             
-            for i in range(self.levels):
+            for i in range(1, self.levels):
                 num = self.resvals[i]            
                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
-                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.5), 0)
+#                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.5), 0)
+                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff - ndimen[1]*0.5), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
                 
             blf.disable(0, 8)  
@@ -1567,8 +1565,7 @@ def draw_icon_new(self):
     
     def draw():
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)
-    
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)   
         shader.bind()
         shader.uniform_int("image", 0)
         batch.draw(shader)
@@ -1928,10 +1925,15 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bgl.glEnable(bgl.GL_DEPTH_TEST)
             bgl.glDepthFunc(bgl.GL_LESS)
             bgl.glDepthMask(bgl.GL_FALSE)
-            bgl.glEnable(bgl.GL_BLEND)
+            bgl.glEnable(bgl.GL_BLEND)            
             bgl.glLineWidth(context.scene.vi_params.sp_line_width)
             bgl.glPointSize(context.scene.vi_params.sp_sun_size)
 
+            gpu.state.depth_test_set('LESS')
+            gpu.state.depth_mask_set(False)
+            gpu.state.blend_set('ALPHA')
+            gpu.state.line_width_set(context.scene.vi_params.sp_line_width)
+            gpu.state.point_size_set(context.scene.vi_params.sp_sun_size)
             try:
                 self.sp_shader.bind()
             except:
@@ -2707,7 +2709,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.images = ('legend.png', 'scatter.png')
         self.results_bar = results_bar(self.images)
         legend_icon_pos = self.results_bar.ret_coords(r2w, r2h, 0)[0]
-        self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, rw, r2h, 75, 400, 20)
+        self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, rw, r2h, 100, 400, 20)
         self.num_display = linumdisplay(self, context)
         scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]                    
         self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)

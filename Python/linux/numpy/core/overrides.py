@@ -12,6 +12,27 @@ from numpy.compat._inspect import getargspec
 ARRAY_FUNCTION_ENABLED = bool(
     int(os.environ.get('NUMPY_EXPERIMENTAL_ARRAY_FUNCTION', 1)))
 
+array_function_like_doc = (
+    """like : array_like
+        Reference object to allow the creation of arrays which are not
+        NumPy arrays. If an array-like passed in as ``like`` supports
+        the ``__array_function__`` protocol, the result will be defined
+        by it. In this case, it ensures the creation of an array object
+        compatible with that passed in via this argument.
+
+        .. note::
+            The ``like`` keyword is an experimental feature pending on
+            acceptance of :ref:`NEP 35 <NEP35>`."""
+)
+
+def set_array_function_like_doc(public_api):
+    if public_api.__doc__ is not None:
+        public_api.__doc__ = public_api.__doc__.replace(
+            "${ARRAY_FUNCTION_LIKE}",
+            array_function_like_doc,
+        )
+    return public_api
+
 
 add_docstring(
     implement_array_function,
@@ -20,8 +41,8 @@ add_docstring(
 
     All arguments are required, and can only be passed by position.
 
-    Arguments
-    ---------
+    Parameters
+    ----------
     implementation : function
         Function that implements the operation on NumPy array without
         overrides when called like ``implementation(*args, **kwargs)``.
@@ -109,6 +130,18 @@ def set_module(module):
     return decorator
 
 
+
+# Call textwrap.dedent here instead of in the function so as to avoid
+# calling dedent multiple times on the same text
+_wrapped_func_source = textwrap.dedent("""
+    @functools.wraps(implementation)
+    def {name}(*args, **kwargs):
+        relevant_args = dispatcher(*args, **kwargs)
+        return implement_array_function(
+            implementation, {name}, relevant_args, args, kwargs)
+    """)
+
+
 def array_function_dispatch(dispatcher, module=None, verify=True,
                             docs_from_dispatcher=False):
     """Decorator for adding dispatch with the __array_function__ protocol.
@@ -163,13 +196,7 @@ def array_function_dispatch(dispatcher, module=None, verify=True,
         # more interpettable name. Otherwise, the original function does not
         # show up at all in many cases, e.g., if it's written in C or if the
         # dispatcher gets an invalid keyword argument.
-        source = textwrap.dedent("""
-        @functools.wraps(implementation)
-        def {name}(*args, **kwargs):
-            relevant_args = dispatcher(*args, **kwargs)
-            return implement_array_function(
-                implementation, {name}, relevant_args, args, kwargs)
-        """).format(name=implementation.__name__)
+        source = _wrapped_func_source.format(name=implementation.__name__)
 
         source_object = compile(
             source, filename='<__array_function__ internals>', mode='exec')

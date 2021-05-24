@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # :Author: Günter Milde <milde@users.sourceforge.net>
-# :Revision: $Revision: 8046 $
-# :Date: $Date: 2017-03-11 13:09:36 +0100 (Sa, 11. Mär 2017) $
+# :Revision: $Revision: 8672 $
+# :Date: $Date: 2021-04-07 14:10:06 +0200 (Mi, 07. Apr 2021) $
 # :Copyright: © 2010 Günter Milde.
 # :License: Released under the terms of the `2-Clause BSD license`_, in short:
 # 
@@ -12,7 +12,7 @@
 #    notice and this notice are preserved.
 #    This file is offered as-is, without any warranty.
 # 
-# .. _2-Clause BSD license: http://www.spdx.org/licenses/BSD-2-Clause
+# .. _2-Clause BSD license: https://opensource.org/licenses/BSD-2-Clause
 
 """
 XeLaTeX document tree Writer.
@@ -35,7 +35,7 @@ from docutils.writers import latex2e
 class Writer(latex2e.Writer):
     """A writer for Unicode-aware LaTeX variants (XeTeX, LuaTeX)"""
 
-    supported = ('lxtex', 'xetex','xelatex','luatex', 'lualatex')
+    supported = ('lxtex', 'xetex', 'xelatex', 'luatex', 'lualatex')
     """Formats this writer supports."""
 
     default_template = 'xelatex.tex'
@@ -47,7 +47,8 @@ class Writer(latex2e.Writer):
     ])
 
     config_section = 'xetex writer'
-    config_section_dependencies = ('writers', 'latex2e writer')
+    config_section_dependencies = ('writers', 'latex writers',
+                                   'latex2e writer') # TODO: remove dependency on `latex2e writer`.
 
     settings_spec = frontend.filter_settings_spec(
         latex2e.Writer.settings_spec,
@@ -62,7 +63,7 @@ class Writer(latex2e.Writer):
 
     def __init__(self):
         latex2e.Writer.__init__(self)
-        self.settings_defaults.update({'fontencoding': ''}) # use default (EU1 or EU2)
+        self.settings_defaults.update({'fontencoding': ''}) # use default (TU)
         self.translator_class = XeLaTeXTranslator
 
 
@@ -93,7 +94,7 @@ class Babel(latex2e.Babel):
         # zh-Latn:      ???        #     Chinese Pinyin
         })
     # normalize (downcase) keys
-    language_codes = dict([(k.lower(), v) for (k,v) in list(language_codes.items())])
+    language_codes = dict([(k.lower(), v) for (k, v) in language_codes.items()])
 
     # Languages without Polyglossia support:
     for key in ('af',           # 'afrikaans',
@@ -120,7 +121,7 @@ class Babel(latex2e.Babel):
         self.quotes = ('"', '"')
         # language dependent configuration:
         # double quotes are "active" in some languages (e.g. German).
-        self.literal_double_quote = '"' # TODO: use \textquotedbl ?
+        self.literal_double_quote = u'"' # TODO: use \textquotedbl ?
 
     def __call__(self):
         setup = [r'\usepackage{polyglossia}',

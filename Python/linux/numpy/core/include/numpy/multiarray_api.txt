@@ -144,6 +144,11 @@ new reference -- accepts NULL for mintype
   PyArray_ConvertToCommonType(PyObject *op, int *retn)
 
 
+This function is only used in one place within NumPy and should
+generally be avoided. It is provided mainly for backward compatibility.
+
+The user of the function has to free the returned array.
+
 ::
 
   PyArray_Descr *
@@ -242,18 +247,19 @@ Returns NULL if un-successful.
 ::
 
   PyObject *
-  PyArray_FromDims(int nd, int *d, int type)
+  PyArray_FromDims(int NPY_UNUSED(nd) , int *NPY_UNUSED(d) , int
+                   NPY_UNUSED(type) )
 
-Construct an empty array from dimensions and typenum
+Deprecated, use PyArray_SimpleNew instead.
 
 ::
 
   PyObject *
-  PyArray_FromDimsAndDataAndDescr(int nd, int *d, PyArray_Descr
-                                  *descr, char *data)
+  PyArray_FromDimsAndDataAndDescr(int NPY_UNUSED(nd) , int
+                                  *NPY_UNUSED(d) , PyArray_Descr
+                                  *descr, char *NPY_UNUSED(data) )
 
-Like FromDimsAndData but uses the Descr structure instead of typecode
-as input.
+Deprecated, use PyArray_NewFromDescr instead.
 
 ::
 
@@ -294,9 +300,8 @@ so it can be used like PyArray_EnsureArray(some_function(...))
 Given a ``FILE *`` pointer ``fp``, and a ``PyArray_Descr``, return an
 array corresponding to the data encoded in that file.
 
-If the dtype is NULL, the default array type is used (double).
-If non-null, the reference is stolen and if dtype->subarray is true dtype
-will be decrefed even on success.
+The reference to `dtype` is stolen (it is possible that the passed in
+dtype is not held on to).
 
 The number of elements to read is given as ``num``; if it is < 0, then
 then as many as possible are read.
@@ -388,7 +393,7 @@ steals reference to dtype, must not be NULL
 
   PyObject *
   PyArray_Resize(PyArrayObject *self, PyArray_Dims *newshape, int
-                 refcheck, NPY_ORDER order)
+                 refcheck, NPY_ORDER NPY_UNUSED(order) )
 
 Resize (reallocate data).  Only works if nothing else is referencing this
 array and it is contiguous.  If refcheck is 0, then the reference count is
@@ -578,7 +583,8 @@ Assumes contiguous
 
   npy_bool
   PyArray_CheckStrides(int elsize, int nd, npy_intp numbytes, npy_intp
-                       offset, npy_intp *dims, npy_intp *newstrides)
+                       offset, npy_intp const *dims, npy_intp const
+                       *newstrides)
 
 
 ::
@@ -692,7 +698,8 @@ TODO: For NumPy 2.0, add a NPY_CASTING parameter.
 ::
 
   int
-  PyArray_CompareUCS4(npy_ucs4 *s1, npy_ucs4 *s2, size_t len)
+  PyArray_CompareUCS4(npy_ucs4 const *s1, npy_ucs4 const *s2, size_t
+                      len)
 
 
 ::
@@ -1081,15 +1088,17 @@ steals a reference to typedescr -- can be NULL
 ::
 
   int
-  PyArray_As1D(PyObject **op, char **ptr, int *d1, int typecode)
+  PyArray_As1D(PyObject **NPY_UNUSED(op) , char **NPY_UNUSED(ptr) , int
+               *NPY_UNUSED(d1) , int NPY_UNUSED(typecode) )
 
 Convert to a 1D C-array
 
 ::
 
   int
-  PyArray_As2D(PyObject **op, char ***ptr, int *d1, int *d2, int
-               typecode)
+  PyArray_As2D(PyObject **NPY_UNUSED(op) , char ***NPY_UNUSED(ptr) , int
+               *NPY_UNUSED(d1) , int *NPY_UNUSED(d2) , int
+               NPY_UNUSED(typecode) )
 
 Convert to a 2D C-array
 
@@ -1386,14 +1395,14 @@ Initialize arrfuncs to NULL
 ::
 
   PyObject *
-  PyArray_IntTupleFromIntp(int len, npy_intp *vals)
+  PyArray_IntTupleFromIntp(int len, npy_intp const *vals)
 
 PyArray_IntTupleFromIntp
 
 ::
 
   int
-  PyArray_TypeNumFromName(char *str)
+  PyArray_TypeNumFromName(char const *str)
 
 
 ::
@@ -1475,14 +1484,14 @@ convert 0-d arrays to 1-d arrays
 ::
 
   npy_intp
-  PyArray_OverflowMultiplyList(npy_intp *l1, int n)
+  PyArray_OverflowMultiplyList(npy_intp const *l1, int n)
 
 Multiply a List of Non-negative numbers with over-flow detection.
 
 ::
 
   int
-  PyArray_CompareString(char *s1, char *s2, size_t len)
+  PyArray_CompareString(const char *s1, const char *s2, size_t len)
 
 
 ::
@@ -1524,7 +1533,7 @@ correlate(a2, a1), and conjugate the second argument for complex inputs
 ::
 
   PyObject*
-  PyArray_NeighborhoodIterNew(PyArrayIterObject *x, npy_intp
+  PyArray_NeighborhoodIterNew(PyArrayIterObject *x, const npy_intp
                               *bounds, int mode, PyArrayObject*fill)
 
 A Neighborhood Iterator object.
@@ -1532,7 +1541,7 @@ A Neighborhood Iterator object.
 ::
 
   void
-  PyArray_SetDatetimeParseFunction(PyObject *op)
+  PyArray_SetDatetimeParseFunction(PyObject *NPY_UNUSED(op) )
 
 This function is scheduled to be removed
 
@@ -1541,8 +1550,9 @@ TO BE REMOVED - NOT USED INTERNALLY.
 ::
 
   void
-  PyArray_DatetimeToDatetimeStruct(npy_datetime val, NPY_DATETIMEUNIT
-                                   fr, npy_datetimestruct *result)
+  PyArray_DatetimeToDatetimeStruct(npy_datetime NPY_UNUSED(val)
+                                   , NPY_DATETIMEUNIT NPY_UNUSED(fr)
+                                   , npy_datetimestruct *result)
 
 Fill the datetime struct from the value and resolution unit.
 
@@ -1551,8 +1561,9 @@ TO BE REMOVED - NOT USED INTERNALLY.
 ::
 
   void
-  PyArray_TimedeltaToTimedeltaStruct(npy_timedelta val, NPY_DATETIMEUNIT
-                                     fr, npy_timedeltastruct *result)
+  PyArray_TimedeltaToTimedeltaStruct(npy_timedelta NPY_UNUSED(val)
+                                     , NPY_DATETIMEUNIT NPY_UNUSED(fr)
+                                     , npy_timedeltastruct *result)
 
 Fill the timedelta struct from the timedelta value and resolution unit.
 
@@ -1561,8 +1572,8 @@ TO BE REMOVED - NOT USED INTERNALLY.
 ::
 
   npy_datetime
-  PyArray_DatetimeStructToDatetime(NPY_DATETIMEUNIT
-                                   fr, npy_datetimestruct *d)
+  PyArray_DatetimeStructToDatetime(NPY_DATETIMEUNIT NPY_UNUSED(fr)
+                                   , npy_datetimestruct *NPY_UNUSED(d) )
 
 Create a datetime value from a filled datetime struct and resolution unit.
 
@@ -1571,8 +1582,9 @@ TO BE REMOVED - NOT USED INTERNALLY.
 ::
 
   npy_datetime
-  PyArray_TimedeltaStructToTimedelta(NPY_DATETIMEUNIT
-                                     fr, npy_timedeltastruct *d)
+  PyArray_TimedeltaStructToTimedelta(NPY_DATETIMEUNIT NPY_UNUSED(fr)
+                                     , npy_timedeltastruct
+                                     *NPY_UNUSED(d) )
 
 Create a timdelta value from a filled timedelta struct and resolution unit.
 
@@ -1622,7 +1634,12 @@ Makes a copy of the iterator
   int
   NpyIter_Deallocate(NpyIter *iter)
 
-Deallocate an iterator
+Deallocate an iterator.
+
+To correctly work when an error is in progress, we have to check
+`PyErr_Occurred()`. This is necessary when buffers are not finalized
+or WritebackIfCopy is used. We could avoid that check by exposing a new
+function which is passed in whether or not a Python error is already set.
 
 ::
 
@@ -1670,10 +1687,14 @@ This function may be safely called without holding the Python GIL.
 
 Resets the iterator to its initial state
 
+The use of errmsg is discouraged, it cannot be guaranteed that the GIL
+will not be grabbed on casting errors even when this is passed.
+
 If errmsg is non-NULL, it should point to a variable which will
 receive the error message, and no Python exception will be set.
 This is so that the function can be called from code not holding
-the GIL.
+the GIL. Note that cast errors may still lead to the GIL being
+grabbed temporarily.
 
 ::
 
@@ -1687,7 +1708,8 @@ This function requires great caution.
 If errmsg is non-NULL, it should point to a variable which will
 receive the error message, and no Python exception will be set.
 This is so that the function can be called from code not holding
-the GIL.
+the GIL. Note that cast errors may still lead to the GIL being
+grabbed temporarily.
 
 ::
 
@@ -1700,7 +1722,8 @@ Resets the iterator to a new iterator index range
 If errmsg is non-NULL, it should point to a variable which will
 receive the error message, and no Python exception will be set.
 This is so that the function can be called from code not holding
-the GIL.
+the GIL. Note that cast errors may still lead to the GIL being
+grabbed temporarily.
 
 ::
 
@@ -2157,67 +2180,17 @@ dtype->subarray is true, dtype will be decrefed.
 ::
 
   int
-  PyArray_GetArrayParamsFromObject(PyObject *op, PyArray_Descr
-                                   *requested_dtype, npy_bool
-                                   writeable, PyArray_Descr
-                                   **out_dtype, int *out_ndim, npy_intp
-                                   *out_dims, PyArrayObject
-                                   **out_arr, PyObject *context)
+  PyArray_GetArrayParamsFromObject(PyObject *NPY_UNUSED(op)
+                                   , PyArray_Descr
+                                   *NPY_UNUSED(requested_dtype)
+                                   , npy_bool NPY_UNUSED(writeable)
+                                   , PyArray_Descr
+                                   **NPY_UNUSED(out_dtype) , int
+                                   *NPY_UNUSED(out_ndim) , npy_intp
+                                   *NPY_UNUSED(out_dims) , PyArrayObject
+                                   **NPY_UNUSED(out_arr) , PyObject
+                                   *NPY_UNUSED(context) )
 
-Retrieves the array parameters for viewing/converting an arbitrary
-PyObject* to a NumPy array. This allows the "innate type and shape"
-of Python list-of-lists to be discovered without
-actually converting to an array.
-
-In some cases, such as structured arrays and the __array__ interface,
-a data type needs to be used to make sense of the object.  When
-this is needed, provide a Descr for 'requested_dtype', otherwise
-provide NULL. This reference is not stolen. Also, if the requested
-dtype doesn't modify the interpretation of the input, out_dtype will
-still get the "innate" dtype of the object, not the dtype passed
-in 'requested_dtype'.
-
-If writing to the value in 'op' is desired, set the boolean
-'writeable' to 1.  This raises an error when 'op' is a scalar, list
-of lists, or other non-writeable 'op'.
-
-Result: When success (0 return value) is returned, either out_arr
-is filled with a non-NULL PyArrayObject and
-the rest of the parameters are untouched, or out_arr is
-filled with NULL, and the rest of the parameters are
-filled.
-
-Typical usage:
-
-PyArrayObject *arr = NULL;
-PyArray_Descr *dtype = NULL;
-int ndim = 0;
-npy_intp dims[NPY_MAXDIMS];
-
-if (PyArray_GetArrayParamsFromObject(op, NULL, 1, &dtype,
-&ndim, dims, &arr, NULL) < 0) {
-return NULL;
-}
-if (arr == NULL) {
-... validate/change dtype, validate flags, ndim, etc ...
-// Could make custom strides here too
-arr = PyArray_NewFromDescr(&PyArray_Type, dtype, ndim,
-dims, NULL,
-is_f_order ? NPY_ARRAY_F_CONTIGUOUS : 0,
-NULL);
-if (arr == NULL) {
-return NULL;
-}
-if (PyArray_CopyObject(arr, op) < 0) {
-Py_DECREF(arr);
-return NULL;
-}
-}
-else {
-... in this case the other parameters weren't filled, just
-validate and possibly copy arr itself ...
-}
-... use arr ...
 
 ::
 
@@ -2277,7 +2250,7 @@ Returns 0 on success, -1 on failure.
 ::
 
   void
-  PyArray_CreateSortedStridePerm(int ndim, npy_intp
+  PyArray_CreateSortedStridePerm(int ndim, npy_intp const
                                  *strides, npy_stride_sort_item
                                  *out_strideperm)
 
@@ -2290,7 +2263,7 @@ For example, the stride array (4, -2, 12) becomes
 ::
 
   void
-  PyArray_RemoveAxesInPlace(PyArrayObject *arr, npy_bool *flags)
+  PyArray_RemoveAxesInPlace(PyArrayObject *arr, const npy_bool *flags)
 
 
 Removes the axes flagged as True from the array,

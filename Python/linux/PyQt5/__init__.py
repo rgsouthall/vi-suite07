@@ -1,4 +1,4 @@
-# Copyright (c) 2019 Riverbank Computing Limited <info@riverbankcomputing.com>
+# Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 # 
 # This file is part of PyQt5.
 # 
@@ -14,3 +14,7 @@
 # 
 # This file is provided AS IS with NO WARRANTY OF ANY KIND, INCLUDING THE
 # WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+
+# Support PyQt5 sub-packages that have been created by setuptools.
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)

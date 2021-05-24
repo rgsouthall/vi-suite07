@@ -822,7 +822,7 @@ def fvobjwrite(scene, fvos, bmo):
             objfile.write('#{}'.format(len(bm.faces)))
             bm.free()
 
-def oftomesh(ofb, vl, fomats, st):
+def oftomesh(ofb, vl, fomats, st, ns, nf):
     mesh = bpy.data.meshes.new("mesh") 
     vcoords = []
     findices = []
@@ -831,12 +831,12 @@ def oftomesh(ofb, vl, fomats, st):
     prevline = ''    
         
     with open(os.path.join(ofb, st, 'polyMesh', 'points'), 'r') as mfile:
-        for li, line in enumerate(mfile.readlines()):
+        for line in mfile.readlines():
             if '(' in line and ')' in line:
                 vcoords.append([float(x) for x in line.split('(')[1].split(')')[0].split()])
                 
     with open(os.path.join(ofb, st, 'polyMesh', 'faces'), 'r') as mfile:
-        for li, line in enumerate(mfile.readlines()):
+        for line in mfile.readlines():
             if line:
                 if fn:
                     try:

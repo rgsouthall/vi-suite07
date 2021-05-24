@@ -1,0 +1,8 @@
+#!/home/ryan/Desktop/blender-2.93.0-beta+blender-v293-release.0456223cde98-linux.x86_64-release/2.93/python/bin/python3.9
+# -*- coding: utf-8 -*-
+import re
+import sys
+from netgen.main import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())

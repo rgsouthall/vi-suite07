@@ -302,11 +302,14 @@ class NODE_OT_SVF(bpy.types.Operator):
             o.vi_params.vi_type_string = ''
 
         shadobs = retobjs('livig')
+
         if not shadobs:
             self.report({'ERROR'},"No shading objects with a material attached.")
             return {'CANCELLED'}
             
         calcobs = retobjs('ssc')
+        print([o.name for o in calcobs])
+
         if not calcobs:
             self.report({'ERROR'},"No objects have a light sensor material attached.")
             return {'CANCELLED'}
@@ -348,12 +351,12 @@ class NODE_OT_SVF(bpy.types.Operator):
                     
         valdirecs = [v for v in zip(x, y, z)]
         lvaldirecs = len(valdirecs)
-        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in [scene.objects[on] for on in svp['liparams']['shadc']])
+        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].vi_params.mattype == '1']) for o in calcobs)
         curres, reslists = 0, []
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
         kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Sky View')
-        
-        for oi, o in enumerate([scene.objects[on] for on in svp['liparams']['shadc']]):
+
+        for o in calcobs:
             ovp = o.vi_params
             for k in ovp.keys():
                 del ovp[k]
@@ -399,6 +402,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                             g += 1
 
                         curres += len(chunk)
+
                         if pfile.check(curres) == 'CANCELLED':
                             return {'CANCELLED'}
               
@@ -2897,11 +2901,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     for file in os.listdir(svp['flparams']['ofcpfilebase']):
                         shutil.copy(os.path.join(svp['flparams']['ofcpfilebase'], file), os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
                     
-                    oftomesh(svp['flparams']['offilebase'], vl, fomats, st)
+                    oftomesh(svp['flparams']['offilebase'], vl, fomats, st, ns, nf)
                     expnode.post_export()
 
                 else:
-                    oftomesh(svp['flparams']['offilebase'], vl, fomats, st)
+                    oftomesh(svp['flparams']['offilebase'], vl, fomats, st, ns, nf)
                     expnode.post_export()
 
         except Exception as e:

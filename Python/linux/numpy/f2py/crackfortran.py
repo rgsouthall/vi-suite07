@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 crackfortran --- read fortran (77,90) code and extract declaration information.
 
@@ -138,8 +138,6 @@ TODO:
     The above may be solved by creating appropriate preprocessor program, for example.
 
 """
-from __future__ import division, absolute_import, print_function
-
 import sys
 import string
 import fileinput
@@ -150,7 +148,7 @@ import platform
 
 from . import __version__
 
-# The eviroment provided by auxfuncs.py is needed for some calls to eval.
+# The environment provided by auxfuncs.py is needed for some calls to eval.
 # As the needed functions cannot be determined by static inspection of the
 # code, it is safest to use import * pending a major refactoring of f2py.
 from .auxfuncs import *
@@ -296,10 +294,10 @@ def getextension(name):
         return ''
     return name[i + 1:]
 
-is_f_file = re.compile(r'.*[.](for|ftn|f77|f)\Z', re.I).match
-_has_f_header = re.compile(r'-[*]-\s*fortran\s*-[*]-', re.I).search
-_has_f90_header = re.compile(r'-[*]-\s*f90\s*-[*]-', re.I).search
-_has_fix_header = re.compile(r'-[*]-\s*fix\s*-[*]-', re.I).search
+is_f_file = re.compile(r'.*\.(for|ftn|f77|f)\Z', re.I).match
+_has_f_header = re.compile(r'-\*-\s*fortran\s*-\*-', re.I).search
+_has_f90_header = re.compile(r'-\*-\s*f90\s*-\*-', re.I).search
+_has_fix_header = re.compile(r'-\*-\s*fix\s*-\*-', re.I).search
 _free_f90_start = re.compile(r'[^c*]\s*[^\s\d\t]', re.I).match
 
 
@@ -558,7 +556,8 @@ groupbegins90 = groupbegins77 + \
     r'|module(?!\s*procedure)|python\s*module|interface|type(?!\s*\()'
 beginpattern90 = re.compile(
     beforethisafter % ('', groupbegins90, groupbegins90, '.*'), re.I), 'begin'
-groupends = r'end|endprogram|endblockdata|endmodule|endpythonmodule|endinterface'
+groupends = (r'end|endprogram|endblockdata|endmodule|endpythonmodule|'
+             r'endinterface|endsubroutine|endfunction')
 endpattern = re.compile(
     beforethisafter % ('', groupends, groupends, r'[\w\s]*'), re.I), 'end'
 # endifs='end\s*(if|do|where|select|while|forall)'
@@ -580,8 +579,8 @@ publicpattern = re.compile(
     beforethisafter % ('', 'public', 'public', '.*'), re.I), 'public'
 privatepattern = re.compile(
     beforethisafter % ('', 'private', 'private', '.*'), re.I), 'private'
-intrisicpattern = re.compile(
-    beforethisafter % ('', 'intrisic', 'intrisic', '.*'), re.I), 'intrisic'
+intrinsicpattern = re.compile(
+    beforethisafter % ('', 'intrinsic', 'intrinsic', '.*'), re.I), 'intrinsic'
 intentpattern = re.compile(beforethisafter % (
     '', 'intent|depend|note|check', 'intent|depend|note|check', r'\s*\(.*?\).*'), re.I), 'intent'
 parameterpattern = re.compile(
@@ -637,7 +636,7 @@ def _simplifyargs(argsline):
         a.append(n)
     return ','.join(a)
 
-crackline_re_1 = re.compile(r'\s*(?P<result>\b[a-z]+[\w]*\b)\s*[=].*', re.I)
+crackline_re_1 = re.compile(r'\s*(?P<result>\b[a-z]+\w*\b)\s*=.*', re.I)
 
 
 def crackline(line, reset=0):
@@ -706,7 +705,7 @@ def crackline(line, reset=0):
     for pat in [dimensionpattern, externalpattern, intentpattern, optionalpattern,
                 requiredpattern,
                 parameterpattern, datapattern, publicpattern, privatepattern,
-                intrisicpattern,
+                intrinsicpattern,
                 endifpattern, endpattern,
                 formatpattern,
                 beginpattern, functionpattern, subroutinepattern,
@@ -869,7 +868,7 @@ def appenddecl(decl, decl2, force=1):
     return decl
 
 selectpattern = re.compile(
-    r'\s*(?P<this>(@\(@.*?@\)@|[*][\d*]+|[*]\s*@\(@.*?@\)@|))(?P<after>.*)\Z', re.I)
+    r'\s*(?P<this>(@\(@.*?@\)@|\*[\d*]+|\*\s*@\(@.*?@\)@|))(?P<after>.*)\Z', re.I)
 nameargspattern = re.compile(
     r'\s*(?P<name>\b[\w$]+\b)\s*(@\(@\s*(?P<args>[\w\s,]*)\s*@\)@|)\s*((result(\s*@\(@\s*(?P<result>\b[\w$]+\b)\s*@\)@|))|(bind\s*@\(@\s*(?P<bind>.*)\s*@\)@))*\s*\Z', re.I)
 callnameargspattern = re.compile(
@@ -1098,7 +1097,7 @@ def analyzeline(m, case, line):
         last_name = updatevars(typespec, selector, attr, edecl)
         if last_name is not None:
             previous_context = ('variable', last_name, groupcounter)
-    elif case in ['dimension', 'intent', 'optional', 'required', 'external', 'public', 'private', 'intrisic']:
+    elif case in ['dimension', 'intent', 'optional', 'required', 'external', 'public', 'private', 'intrinsic']:
         edecl = groupcache[groupcounter]['vars']
         ll = m.group('after').strip()
         i = ll.find('::')
@@ -1158,7 +1157,7 @@ def analyzeline(m, case, line):
                     else:
                         errmess('analyzeline: intent(callback) %s is already'
                                 ' in argument list' % (k))
-            if case in ['optional', 'required', 'public', 'external', 'private', 'intrisic']:
+            if case in ['optional', 'required', 'public', 'external', 'private', 'intrinsic']:
                 ap = case
             if 'attrspec' in edecl[k]:
                 edecl[k]['attrspec'].append(ap)
@@ -1390,7 +1389,7 @@ def analyzeline(m, case, line):
         previous_context = ('common', bn, groupcounter)
     elif case == 'use':
         m1 = re.match(
-            r'\A\s*(?P<name>\b[\w]+\b)\s*((,(\s*\bonly\b\s*:|(?P<notonly>))\s*(?P<list>.*))|)\s*\Z', m.group('after'), re.I)
+            r'\A\s*(?P<name>\b\w+\b)\s*((,(\s*\bonly\b\s*:|(?P<notonly>))\s*(?P<list>.*))|)\s*\Z', m.group('after'), re.I)
         if m1:
             mm = m1.groupdict()
             if 'use' not in groupcache[groupcounter]:
@@ -1407,7 +1406,7 @@ def analyzeline(m, case, line):
                 for l in ll:
                     if '=' in l:
                         m2 = re.match(
-                            r'\A\s*(?P<local>\b[\w]+\b)\s*=\s*>\s*(?P<use>\b[\w]+\b)\s*\Z', l, re.I)
+                            r'\A\s*(?P<local>\b\w+\b)\s*=\s*>\s*(?P<use>\b\w+\b)\s*\Z', l, re.I)
                         if m2:
                             rl[m2.group('local').strip()] = m2.group(
                                 'use').strip()
@@ -1483,15 +1482,15 @@ def cracktypespec0(typespec, ll):
         ll = ll[i + 2:]
     return typespec, selector, attr, ll
 #####
-namepattern = re.compile(r'\s*(?P<name>\b[\w]+\b)\s*(?P<after>.*)\s*\Z', re.I)
+namepattern = re.compile(r'\s*(?P<name>\b\w+\b)\s*(?P<after>.*)\s*\Z', re.I)
 kindselector = re.compile(
-    r'\s*(\(\s*(kind\s*=)?\s*(?P<kind>.*)\s*\)|[*]\s*(?P<kind2>.*?))\s*\Z', re.I)
+    r'\s*(\(\s*(kind\s*=)?\s*(?P<kind>.*)\s*\)|\*\s*(?P<kind2>.*?))\s*\Z', re.I)
 charselector = re.compile(
-    r'\s*(\((?P<lenkind>.*)\)|[*]\s*(?P<charlen>.*))\s*\Z', re.I)
+    r'\s*(\((?P<lenkind>.*)\)|\*\s*(?P<charlen>.*))\s*\Z', re.I)
 lenkindpattern = re.compile(
     r'\s*(kind\s*=\s*(?P<kind>.*?)\s*(@,@\s*len\s*=\s*(?P<len>.*)|)|(len\s*=\s*|)(?P<len2>.*?)\s*(@,@\s*(kind\s*=\s*|)(?P<kind2>.*)|))\s*\Z', re.I)
 lenarraypattern = re.compile(
-    r'\s*(@\(@\s*(?!/)\s*(?P<array>.*?)\s*@\)@\s*[*]\s*(?P<len>.*?)|([*]\s*(?P<len2>.*?)|)\s*(@\(@\s*(?!/)\s*(?P<array2>.*?)\s*@\)@|))\s*(=\s*(?P<init>.*?)|(@\(@|)/\s*(?P<init2>.*?)\s*/(@\)@|)|)\s*\Z', re.I)
+    r'\s*(@\(@\s*(?!/)\s*(?P<array>.*?)\s*@\)@\s*\*\s*(?P<len>.*?)|(\*\s*(?P<len2>.*?)|)\s*(@\(@\s*(?!/)\s*(?P<array2>.*?)\s*@\)@|))\s*(=\s*(?P<init>.*?)|(@\(@|)/\s*(?P<init2>.*?)\s*/(@\)@|)|)\s*\Z', re.I)
 
 
 def removespaces(expr):
@@ -1612,6 +1611,10 @@ def updatevars(typespec, selector, attrspec, entitydecl):
             edecl['charselector'] = copy.copy(charselect)
             edecl['typename'] = typename
             edecl['attrspec'] = copy.copy(attrspec)
+        if 'external' in (edecl.get('attrspec') or []) and e in groupcache[groupcounter]['args']:
+            if 'externals' not in groupcache[groupcounter]:
+                groupcache[groupcounter]['externals'] = []
+            groupcache[groupcounter]['externals'].append(e)
         if m.group('after'):
             m1 = lenarraypattern.match(markouterparen(m.group('after')))
             if m1:
@@ -1750,10 +1753,12 @@ def setattrspec(decl, attr, force=0):
         decl['attrspec'].append(attr)
     elif attr == 'automatic' and 'static' not in decl['attrspec']:
         decl['attrspec'].append(attr)
-    elif attr == 'public' and 'private' not in decl['attrspec']:
-        decl['attrspec'].append(attr)
-    elif attr == 'private' and 'public' not in decl['attrspec']:
-        decl['attrspec'].append(attr)
+    elif attr == 'public':
+        if 'private' not in decl['attrspec']:
+            decl['attrspec'].append(attr)
+    elif attr == 'private':
+        if 'public' not in decl['attrspec']:
+            decl['attrspec'].append(attr)
     else:
         decl['attrspec'].append(attr)
     return decl
@@ -2102,8 +2107,9 @@ def buildimplicitrules(block):
 
 
 def myeval(e, g=None, l=None):
+    """ Like `eval` but returns only integers and floats """
     r = eval(e, g, l)
-    if type(r) in [type(0), type(0.0)]:
+    if type(r) in [int, float]:
         return r
     raise ValueError('r=%r' % (r))
 
@@ -2111,6 +2117,26 @@ getlincoef_re_1 = re.compile(r'\A\b\w+\b\Z', re.I)
 
 
 def getlincoef(e, xset):  # e = a*x+b ; x in xset
+    """
+    Obtain ``a`` and ``b`` when ``e == "a*x+b"``, where ``x`` is a symbol in
+    xset.
+
+    >>> getlincoef('2*x + 1', {'x'})
+    (2, 1, 'x')
+    >>> getlincoef('3*x + x*2 + 2 + 1', {'x'})
+    (5, 3, 'x')
+    >>> getlincoef('0', {'x'})
+    (0, 0, None)
+    >>> getlincoef('0*x', {'x'})
+    (0, 0, 'x')
+    >>> getlincoef('x*x', {'x'})
+    (None, None, None)
+
+    This can be tricked by sufficiently complex expressions
+
+    >>> getlincoef('(x - 0.5)*(x - 1.5)*(x - 1)*x + 2*x + 3', {'x'})
+    (2.0, 3.0, 'x')
+    """
     try:
         c = int(myeval(e, {}, {}))
         return 0, c, None
@@ -2165,6 +2191,37 @@ _varname_match = re.compile(r'\A[a-z]\w*\Z').match
 
 
 def getarrlen(dl, args, star='*'):
+    """
+    Parameters
+    ----------
+    dl : sequence of two str objects
+        dimensions of the array
+    args : Iterable[str]
+        symbols used in the expression
+    star : Any
+        unused
+
+    Returns
+    -------
+    expr : str
+        Some numeric expression as a string
+    arg : Optional[str]
+        If understood, the argument from `args` present in `expr`
+    expr2 : Optional[str]
+        If understood, an expression fragment that should be used as
+        ``"(%s%s".format(something, expr2)``.
+
+    Examples
+    --------
+    >>> getarrlen(['10*x + 20', '40*x'], {'x'})
+    ('30 * x - 19', 'x', '+19)/(30)')
+    >>> getarrlen(['1', '10*x + 20'], {'x'})
+    ('10 * x + 20', 'x', '-20)/(10)')
+    >>> getarrlen(['10*x + 20', '1'], {'x'})
+    ('-10 * x - 18', 'x', '+18)/(-10)')
+    >>> getarrlen(['20', '1'], {'x'})
+    ('-18', None, None)
+    """
     edl = []
     try:
         edl.append(myeval(dl[0], {}, {}))
@@ -2552,7 +2609,7 @@ def analyzevars(block):
     params = get_parameters(vars, get_useparameters(block))
 
     dep_matches = {}
-    name_match = re.compile(r'\w[\w\d_$]*').match
+    name_match = re.compile(r'[A-Za-z][\w$]*').match
     for v in list(vars.keys()):
         m = name_match(v)
         if m:
@@ -2935,10 +2992,10 @@ def analyzeargs(block):
         block['vars'][block['result']] = {}
     return block
 
-determineexprtype_re_1 = re.compile(r'\A\(.+?[,].+?\)\Z', re.I)
-determineexprtype_re_2 = re.compile(r'\A[+-]?\d+(_(?P<name>[\w]+)|)\Z', re.I)
+determineexprtype_re_1 = re.compile(r'\A\(.+?,.+?\)\Z', re.I)
+determineexprtype_re_2 = re.compile(r'\A[+-]?\d+(_(?P<name>\w+)|)\Z', re.I)
 determineexprtype_re_3 = re.compile(
-    r'\A[+-]?[\d.]+[\d+\-de.]*(_(?P<name>[\w]+)|)\Z', re.I)
+    r'\A[+-]?[\d.]+[-\d+de.]*(_(?P<name>\w+)|)\Z', re.I)
 determineexprtype_re_4 = re.compile(r'\A\(.*\)\Z', re.I)
 determineexprtype_re_5 = re.compile(r'\A(?P<name>\w+)\s*\(.*?\)\s*\Z', re.I)
 
@@ -3056,7 +3113,7 @@ def crack2fortrangen(block, tab='\n', as_interface=False):
         result = ' result (%s)' % block['result']
         if block['result'] not in argsl:
             argsl.append(block['result'])
-    body = crack2fortrangen(block['body'], tab + tabchar)
+    body = crack2fortrangen(block['body'], tab + tabchar, as_interface=as_interface)
     vars = vars2fortran(
         block, block['vars'], argsl, tab + tabchar, as_interface=as_interface)
     mess = ''
@@ -3114,11 +3171,12 @@ def true_intent_list(var):
     ret = []
     for intent in lst:
         try:
-            c = eval('isintent_%s(var)' % intent)
-        except NameError:
-            c = 0
-        if c:
-            ret.append(intent)
+            f = globals()['isintent_%s' % intent]
+        except KeyError:
+            pass
+        else:
+            if f(var):
+                ret.append(intent)
     return ret
 
 
@@ -3173,8 +3231,13 @@ def vars2fortran(block, vars, args, tab='', as_interface=False):
             show(vars)
             outmess('vars2fortran: No definition for argument "%s".\n' % a)
             continue
-        if a == block['name'] and not block['block'] == 'function':
-            continue
+        if a == block['name']:
+            if block['block'] != 'function' or block.get('result'):
+                # 1) skip declaring a variable that name matches with
+                #    subroutine name
+                # 2) skip declaring function when its type is
+                #    declared via `result` construction
+                continue
         if 'typespec' not in vars[a]:
             if 'attrspec' in vars[a] and 'external' in vars[a]['attrspec']:
                 if a in args:

@@ -1,4 +1,4 @@
-# $Id: references.py 8197 2017-11-04 10:31:01Z milde $
+# $Id: references.py 8565 2020-09-14 10:26:03Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -475,17 +475,17 @@ class Footnotes(Transform):
           # Entries 1-4 and 6 below are from section 12.51 of
           # The Chicago Manual of Style, 14th edition.
           '*',                          # asterisk/star
-          '\u2020',                    # dagger &dagger;
-          '\u2021',                    # double dagger &Dagger;
-          '\u00A7',                    # section mark &sect;
-          '\u00B6',                    # paragraph mark (pilcrow) &para;
+          u'\u2020',                    # dagger &dagger;
+          u'\u2021',                    # double dagger &Dagger;
+          u'\u00A7',                    # section mark &sect;
+          u'\u00B6',                    # paragraph mark (pilcrow) &para;
                                         # (parallels ['||'] in CMoS)
           '#',                          # number sign
           # The entries below were chosen arbitrarily.
-          '\u2660',                    # spade suit &spades;
-          '\u2665',                    # heart suit &hearts;
-          '\u2666',                    # diamond suit &diams;
-          '\u2663',                    # club suit &clubs;
+          u'\u2660',                    # spade suit &spades;
+          u'\u2665',                    # heart suit &hearts;
+          u'\u2666',                    # diamond suit &diams;
+          u'\u2663',                    # club suit &clubs;
           ]
 
     def apply(self):
@@ -663,86 +663,94 @@ class Substitutions(Transform):
     def apply(self):
         defs = self.document.substitution_defs
         normed = self.document.substitution_names
-        subreflist = self.document.traverse(nodes.substitution_reference)
         nested = {}
+        line_length_limit = getattr(self.document.settings,
+                                    "line_length_limit", 10000)
+
+        subreflist = list(self.document.traverse(nodes.substitution_reference))
         for ref in subreflist:
+            msg = ''
             refname = ref['refname']
-            key = None
             if refname in defs:
                 key = refname
             else:
                 normed_name = refname.lower()
-                if normed_name in normed:
-                    key = normed[normed_name]
+                key = normed.get(normed_name, None)
             if key is None:
                 msg = self.document.reporter.error(
                       'Undefined substitution referenced: "%s".'
                       % refname, base_node=ref)
+            else:
+                subdef = defs[key]
+                if len(subdef.astext()) > line_length_limit:
+                    msg = self.document.reporter.error(
+                            'Substitution definition "%s" exceeds the'
+                            ' line-length-limit.' % (key))
+            if msg:
                 msgid = self.document.set_id(msg)
                 prb = nodes.problematic(
                       ref.rawsource, ref.rawsource, refid=msgid)
                 prbid = self.document.set_id(prb)
                 msg.add_backref(prbid)
                 ref.replace_self(prb)
-            else:
-                subdef = defs[key]
+                continue
+
+            parent = ref.parent
+            index = parent.index(ref)
+            if  ('ltrim' in subdef.attributes
+                    or 'trim' in subdef.attributes):
+                if index > 0 and isinstance(parent[index - 1],
+                                            nodes.Text):
+                    parent[index - 1] = parent[index - 1].rstrip()
+            if  ('rtrim' in subdef.attributes
+                    or 'trim' in subdef.attributes):
+                if  (len(parent) > index + 1
+                        and isinstance(parent[index + 1], nodes.Text)):
+                    parent[index + 1] = parent[index + 1].lstrip()
+            subdef_copy = subdef.deepcopy()
+            try:
+                # Take care of nested substitution references:
+                for nested_ref in subdef_copy.traverse(
+                        nodes.substitution_reference):
+                    nested_name = normed[nested_ref['refname'].lower()]
+                    if nested_name in nested.setdefault(nested_name, []):
+                        raise CircularSubstitutionDefinitionError
+                    nested[nested_name].append(key)
+                    nested_ref['ref-origin'] = ref
+                    subreflist.append(nested_ref)
+            except CircularSubstitutionDefinitionError:
                 parent = ref.parent
-                index = parent.index(ref)
-                if  ('ltrim' in subdef.attributes
-                     or 'trim' in subdef.attributes):
-                    if index > 0 and isinstance(parent[index - 1],
-                                                nodes.Text):
-                        parent[index - 1] = parent[index - 1].rstrip()
-                if  ('rtrim' in subdef.attributes
-                     or 'trim' in subdef.attributes):
-                    if  (len(parent) > index + 1
-                         and isinstance(parent[index + 1], nodes.Text)):
-                        parent[index + 1] = parent[index + 1].lstrip()
-                subdef_copy = subdef.deepcopy()
-                try:
-                    # Take care of nested substitution references:
-                    for nested_ref in subdef_copy.traverse(
-                          nodes.substitution_reference):
-                        nested_name = normed[nested_ref['refname'].lower()]
-                        if nested_name in nested.setdefault(nested_name, []):
-                            raise CircularSubstitutionDefinitionError
-                        else:
-                            nested[nested_name].append(key)
-                            nested_ref['ref-origin'] = ref
-                            subreflist.append(nested_ref)
-                except CircularSubstitutionDefinitionError:
-                    parent = ref.parent
-                    if isinstance(parent, nodes.substitution_definition):
-                        msg = self.document.reporter.error(
-                            'Circular substitution definition detected:',
-                            nodes.literal_block(parent.rawsource,
-                                                parent.rawsource),
-                            line=parent.line, base_node=parent)
-                        parent.replace_self(msg)
-                    else:
-                        # find original ref substitution which cased this error
-                        ref_origin = ref
-                        while ref_origin.hasattr('ref-origin'):
-                            ref_origin = ref_origin['ref-origin']
-                        msg = self.document.reporter.error(
-                            'Circular substitution definition referenced: '
-                            '"%s".' % refname, base_node=ref_origin)
-                        msgid = self.document.set_id(msg)
-                        prb = nodes.problematic(
-                            ref.rawsource, ref.rawsource, refid=msgid)
-                        prbid = self.document.set_id(prb)
-                        msg.add_backref(prbid)
-                        ref.replace_self(prb)
+                if isinstance(parent, nodes.substitution_definition):
+                    msg = self.document.reporter.error(
+                        'Circular substitution definition detected:',
+                        nodes.literal_block(parent.rawsource,
+                                            parent.rawsource),
+                        line=parent.line, base_node=parent)
+                    parent.replace_self(msg)
                 else:
-                    ref.replace_self(subdef_copy.children)
-                    # register refname of the replacment node(s)
-                    # (needed for resolution of references)
-                    for node in subdef_copy.children:
-                        if isinstance(node, nodes.Referential):
-                            # HACK: verify refname attribute exists.
-                            # Test with docs/dev/todo.txt, see. |donate|
-                            if 'refname' in node:
-                                self.document.note_refname(node)
+                    # find original ref substitution which caused this error
+                    ref_origin = ref
+                    while ref_origin.hasattr('ref-origin'):
+                        ref_origin = ref_origin['ref-origin']
+                    msg = self.document.reporter.error(
+                        'Circular substitution definition referenced: '
+                        '"%s".' % refname, base_node=ref_origin)
+                    msgid = self.document.set_id(msg)
+                    prb = nodes.problematic(
+                        ref.rawsource, ref.rawsource, refid=msgid)
+                    prbid = self.document.set_id(prb)
+                    msg.add_backref(prbid)
+                    ref.replace_self(prb)
+                continue
+            ref.replace_self(subdef_copy.children)
+            # register refname of the replacment node(s)
+            # (needed for resolution of references)
+            for node in subdef_copy.children:
+                if isinstance(node, nodes.Referential):
+                    # HACK: verify refname attribute exists.
+                    # Test with docs/dev/todo.txt, see. |donate|
+                    if 'refname' in node:
+                        self.document.note_refname(node)
 
 
 class TargetNotes(Transform):

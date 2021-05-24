@@ -1,12 +1,10 @@
-from __future__ import division, absolute_import, print_function
-
 import functools
 import warnings
 import operator
+import types
 
 from . import numeric as _nx
-from .numeric import (result_type, NaN, shares_memory, MAY_SHARE_BOUNDS,
-                      TooHardError, asanyarray, ndim)
+from .numeric import result_type, NaN, asanyarray, ndim
 from numpy.core.multiarray import add_docstring
 from numpy.core import overrides
 
@@ -15,18 +13,6 @@ __all__ = ['logspace', 'linspace', 'geomspace']
 
 array_function_dispatch = functools.partial(
     overrides.array_function_dispatch, module='numpy')
-
-
-def _index_deprecate(i, stacklevel=2):
-    try:
-        i = operator.index(i)
-    except TypeError:
-        msg = ("object of type {} cannot be safely interpreted as "
-               "an integer.".format(type(i)))
-        i = int(i)
-        stacklevel += 1
-        warnings.warn(msg, DeprecationWarning, stacklevel=stacklevel)
-    return i
 
 
 def _linspace_dispatcher(start, stop, num=None, endpoint=None, retstep=None,
@@ -48,6 +34,11 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
     .. versionchanged:: 1.16.0
         Non-scalar `start` and `stop` are now supported.
 
+    .. versionchanged:: 1.20.0
+        Values are rounded towards ``-inf`` instead of ``0`` when an
+        integer ``dtype`` is specified. The old behavior can
+        still be obtained with ``np.linspace(start, stop, num).astype(int)``
+
     Parameters
     ----------
     start : array_like
@@ -66,8 +57,10 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
         If True, return (`samples`, `step`), where `step` is the spacing
         between samples.
     dtype : dtype, optional
-        The type of the output array.  If `dtype` is not given, infer the data
-        type from the other input arguments.
+        The type of the output array.  If `dtype` is not given, the data type
+        is inferred from `start` and `stop`. The inferred dtype will never be
+        an integer; `float` is chosen even if the arguments would produce an
+        array of integers.
 
         .. versionadded:: 1.9.0
 
@@ -124,8 +117,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
     >>> plt.show()
 
     """
-    # 2016-02-25, 1.12
-    num = _index_deprecate(num)
+    num = operator.index(num)
     if num < 0:
         raise ValueError("Number of samples, %s, must be non-negative." % num)
     div = (num - 1) if endpoint else num
@@ -145,7 +137,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
     # from overriding what class is produced, and thus prevents, e.g. use of Quantities,
     # see gh-7142. Hence, we multiply in place only for standard scalar types.
     _mult_inplace = _nx.isscalar(delta)
-    if num > 1:
+    if div > 0:
         step = delta / div
         if _nx.any(step == 0):
             # Special handling for denormal numbers, gh-5437
@@ -160,7 +152,8 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
             else:
                 y = y * step
     else:
-        # 0 and 1 item long sequences have an undefined step
+        # sequences with 0 items or 1 item with endpoint=True (i.e. div <= 0)
+        # have an undefined step
         step = NaN
         # Multiply with delta to allow possible override of output class.
         y = y * delta
@@ -172,6 +165,9 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
 
     if axis != 0:
         y = _nx.moveaxis(y, 0, axis)
+
+    if _nx.issubdtype(dtype, _nx.integer):
+        _nx.floor(y, out=y)
 
     if retstep:
         return y.astype(dtype, copy=False), step
@@ -211,13 +207,15 @@ def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None,
     endpoint : boolean, optional
         If true, `stop` is the last sample. Otherwise, it is not included.
         Default is True.
-    base : float, optional
+    base : array_like, optional
         The base of the log space. The step size between the elements in
         ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
         Default is 10.0.
     dtype : dtype
-        The type of the output array.  If `dtype` is not given, infer the data
-        type from the other input arguments.
+        The type of the output array.  If `dtype` is not given, the data type
+        is inferred from `start` and `stop`. The inferred type will never be
+        an integer; `float` is chosen even if the arguments would produce an
+        array of integers.
     axis : int, optional
         The axis in the result to store the samples.  Relevant only if start
         or stop are array-like.  By default (0), the samples will be along a
@@ -311,8 +309,10 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
         If true, `stop` is the last sample. Otherwise, it is not included.
         Default is True.
     dtype : dtype
-        The type of the output array.  If `dtype` is not given, infer the data
-        type from the other input arguments.
+        The type of the output array.  If `dtype` is not given, the data type
+        is inferred from `start` and `stop`. The inferred dtype will never be
+        an integer; `float` is chosen even if the arguments would produce an
+        array of integers.
     axis : int, optional
         The axis in the result to store the samples.  Relevant only if start
         or stop are array-like.  By default (0), the samples will be along a
@@ -422,36 +422,84 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
 
     log_start = _nx.log10(start)
     log_stop = _nx.log10(stop)
-    result = out_sign * logspace(log_start, log_stop, num=num,
-                                 endpoint=endpoint, base=10.0, dtype=dtype)
+    result = logspace(log_start, log_stop, num=num,
+                      endpoint=endpoint, base=10.0, dtype=dtype)
+
+    # Make sure the endpoints match the start and stop arguments. This is
+    # necessary because np.exp(np.log(x)) is not necessarily equal to x.
+    if num > 0:
+        result[0] = start
+        if num > 1 and endpoint:
+            result[-1] = stop
+
+    result = out_sign * result
+
     if axis != 0:
         result = _nx.moveaxis(result, 0, axis)
 
     return result.astype(dtype, copy=False)
 
 
-#always succeed
-def _add_docstring(obj, doc):
+def _needs_add_docstring(obj):
+    """
+    Returns true if the only way to set the docstring of `obj` from python is
+    via add_docstring.
+
+    This function errs on the side of being overly conservative.
+    """
+    Py_TPFLAGS_HEAPTYPE = 1 << 9
+
+    if isinstance(obj, (types.FunctionType, types.MethodType, property)):
+        return False
+
+    if isinstance(obj, type) and obj.__flags__ & Py_TPFLAGS_HEAPTYPE:
+        return False
+
+    return True
+
+
+def _add_docstring(obj, doc, warn_on_python):
+    if warn_on_python and not _needs_add_docstring(obj):
+        warnings.warn(
+            "add_newdoc was used on a pure-python object {}. "
+            "Prefer to attach it directly to the source."
+            .format(obj),
+            UserWarning,
+            stacklevel=3)
     try:
         add_docstring(obj, doc)
     except Exception:
         pass
 
 
-def add_newdoc(place, obj, doc):
+def add_newdoc(place, obj, doc, warn_on_python=True):
     """
-    Adds documentation to obj which is in module place.
+    Add documentation to an existing object, typically one defined in C
 
-    If doc is a string add it to obj as a docstring
+    The purpose is to allow easier editing of the docstrings without requiring
+    a re-compile. This exists primarily for internal use within numpy itself.
 
-    If doc is a tuple, then the first element is interpreted as
-       an attribute of obj and the second as the docstring
-          (method, docstring)
+    Parameters
+    ----------
+    place : str
+        The absolute name of the module to import from
+    obj : str
+        The name of the object to add documentation to, typically a class or
+        function name
+    doc : {str, Tuple[str, str], List[Tuple[str, str]]}
+        If a string, the documentation to apply to `obj`
 
-    If doc is a list, then each element of the list should be a
-       sequence of length two --> [(method1, docstring1),
-       (method2, docstring2), ...]
+        If a tuple, then the first element is interpreted as an attribute of
+        `obj` and the second as the docstring to apply - ``(method, docstring)``
 
+        If a list, then each element of the list should be a tuple of length
+        two - ``[(method1, docstring1), (method2, docstring2), ...]``
+    warn_on_python : bool
+        If True, the default, emit `UserWarning` if this is used to attach
+        documentation to a pure-python object.
+
+    Notes
+    -----
     This routine never raises an error if the docstring can't be written, but
     will raise an error if the object being documented does not exist.
 
@@ -459,12 +507,23 @@ def add_newdoc(place, obj, doc):
     in new-style classes or built-in functions. Because this
     routine never raises an error the caller must check manually
     that the docstrings were changed.
+
+    Since this function grabs the ``char *`` from a c-level str object and puts
+    it into the ``tp_doc`` slot of the type of `obj`, it violates a number of
+    C-API best-practices, by:
+
+    - modifying a `PyTypeObject` after calling `PyType_Ready`
+    - calling `Py_INCREF` on the str and losing the reference, so the str
+      will never be released
+
+    If possible it should be avoided.
     """
     new = getattr(__import__(place, globals(), {}, [obj]), obj)
     if isinstance(doc, str):
-        _add_docstring(new, doc.strip())
+        _add_docstring(new, doc.strip(), warn_on_python)
     elif isinstance(doc, tuple):
-        _add_docstring(getattr(new, doc[0]), doc[1].strip())
+        attr, docstring = doc
+        _add_docstring(getattr(new, attr), docstring.strip(), warn_on_python)
     elif isinstance(doc, list):
-        for val in doc:
-            _add_docstring(getattr(new, val[0]), val[1].strip())
+        for attr, docstring in doc:
+            _add_docstring(getattr(new, attr), docstring.strip(), warn_on_python)

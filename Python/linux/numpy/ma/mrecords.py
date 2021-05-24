@@ -8,18 +8,14 @@ and the masking of individual fields.
 .. moduleauthor:: Pierre Gerard-Marchant
 
 """
-from __future__ import division, absolute_import, print_function
-
 #  We should make sure that no field is called '_mask','mask','_fieldmask',
 #  or whatever restricted keywords.  An idea would be to no bother in the
 #  first place, and then rename the invalid fields with a trailing
 #  underscore. Maybe we could just overload the parser function ?
 
-import sys
 import warnings
 
 import numpy as np
-from numpy.compat import basestring
 from numpy import (
         bool_, dtype, ndarray, recarray, array as narray
         )
@@ -64,7 +60,7 @@ def _checknames(descr, names=None):
         elif isinstance(names, str):
             new_names = names.split(',')
         else:
-            raise NameError("illegal input names %s" % repr(names))
+            raise NameError(f'illegal input names {names!r}')
         nnames = len(new_names)
         if nnames < ndescr:
             new_names += default_names[nnames:]
@@ -87,7 +83,7 @@ def _get_fieldmask(self):
     return fdmask
 
 
-class MaskedRecords(MaskedArray, object):
+class MaskedRecords(MaskedArray):
     """
 
     Attributes
@@ -202,8 +198,8 @@ class MaskedRecords(MaskedArray, object):
         fielddict = ndarray.__getattribute__(self, 'dtype').fields
         try:
             res = fielddict[attr][:2]
-        except (TypeError, KeyError):
-            raise AttributeError("record array has no attribute %s" % attr)
+        except (TypeError, KeyError) as e:
+            raise AttributeError(f'record array has no attribute {attr}') from e
         # So far, so good
         _localdict = ndarray.__getattribute__(self, '__dict__')
         _data = ndarray.view(self, _localdict['_baseclass'])
@@ -260,8 +256,7 @@ class MaskedRecords(MaskedArray, object):
             fielddict = ndarray.__getattribute__(self, 'dtype').fields or {}
             optinfo = ndarray.__getattribute__(self, '_optinfo') or {}
             if not (attr in fielddict or attr in optinfo):
-                exctype, value = sys.exc_info()[:2]
-                raise exctype(value)
+                raise
         else:
             # Get the list of names
             fielddict = ndarray.__getattribute__(self, 'dtype').fields or {}
@@ -279,7 +274,7 @@ class MaskedRecords(MaskedArray, object):
         try:
             res = fielddict[attr][:2]
         except (TypeError, KeyError):
-            raise AttributeError("record array has no attribute %s" % attr)
+            raise AttributeError(f'record array has no attribute {attr}')
 
         if val is masked:
             _fill_value = _localdict['_fill_value']
@@ -306,7 +301,7 @@ class MaskedRecords(MaskedArray, object):
         _mask = ndarray.__getattribute__(self, '_mask')
         _data = ndarray.view(self, _localdict['_baseclass'])
         # We want a field
-        if isinstance(indx, basestring):
+        if isinstance(indx, str):
             # Make sure _sharedmask is True to propagate back to _fieldmask
             # Don't use _set_mask, there are some copies being made that
             # break propagation Don't force the mask to nomask, that wreaks
@@ -333,7 +328,7 @@ class MaskedRecords(MaskedArray, object):
 
         """
         MaskedArray.__setitem__(self, indx, value)
-        if isinstance(indx, basestring):
+        if isinstance(indx, str):
             self._mask[indx] = ma.getmaskarray(value)
 
     def __str__(self):
@@ -342,13 +337,13 @@ class MaskedRecords(MaskedArray, object):
 
         """
         if self.size > 1:
-            mstr = ["(%s)" % ",".join([str(i) for i in s])
+            mstr = [f"({','.join([str(i) for i in s])})"
                     for s in zip(*[getattr(self, f) for f in self.dtype.names])]
-            return "[%s]" % ", ".join(mstr)
+            return f"[{', '.join(mstr)}]"
         else:
-            mstr = ["%s" % ",".join([str(i) for i in s])
+            mstr = [f"{','.join([str(i) for i in s])}"
                     for s in zip([getattr(self, f) for f in self.dtype.names])]
-            return "(%s)" % ", ".join(mstr)
+            return f"({', '.join(mstr)})"
 
     def __repr__(self):
         """
@@ -662,7 +657,7 @@ def openfile(fname):
     try:
         f = open(fname)
     except IOError:
-        raise IOError("No such file: '%s'" % fname)
+        raise IOError(f"No such file: '{fname}'")
     if f.readline()[:2] != "\\x":
         f.seek(0, 0)
         return f

@@ -1,10 +1,7 @@
-from __future__ import division, absolute_import, print_function
-
 import warnings
 import sys
 import os
 import itertools
-import textwrap
 import pytest
 import weakref
 
@@ -20,7 +17,7 @@ from numpy.testing import (
 from numpy.core.overrides import ARRAY_FUNCTION_ENABLED
 
 
-class _GenericTest(object):
+class _GenericTest:
 
     def _test_equal(self, a, b):
         self._assert_func(a, b)
@@ -89,6 +86,21 @@ class TestArrayEqual(_GenericTest):
         # Test strings
         for t in ['S1', 'U1']:
             foo(t)
+
+    def test_0_ndim_array(self):
+        x = np.array(473963742225900817127911193656584771)
+        y = np.array(18535119325151578301457182298393896)
+        assert_raises(AssertionError, self._assert_func, x, y)
+
+        y = x
+        self._assert_func(x, y)
+
+        x = np.array(43)
+        y = np.array(10)
+        assert_raises(AssertionError, self._assert_func, x, y)
+
+        y = x
+        self._assert_func(x, y)
 
     def test_generic_rank3(self):
         """Test rank 3 array for all dtypes."""
@@ -196,7 +208,7 @@ class TestArrayEqual(_GenericTest):
         self._test_not_equal(b, a)
 
 
-class TestBuildErrorMessage(object):
+class TestBuildErrorMessage:
 
     def test_build_err_msg_defaults(self):
         x = np.array([1.00001, 2.00002, 3.00003])
@@ -327,24 +339,6 @@ class TestEqual(TestArrayEqual):
         y = np.array([complex(1, 2), complex(1, 2)])
         self._assert_func(x, x)
         self._test_not_equal(x, y)
-
-    def test_error_message(self):
-        with pytest.raises(AssertionError) as exc_info:
-            self._assert_func(np.array([1, 2]), np.array([[1, 2]]))
-        msg = str(exc_info.value)
-        msg2 = msg.replace("shapes (2L,), (1L, 2L)", "shapes (2,), (1, 2)")
-        msg_reference = textwrap.dedent("""\
-
-        Arrays are not equal
-
-        (shapes (2,), (1, 2) mismatch)
-         x: array([1, 2])
-         y: array([[1, 2]])""")
-
-        try:
-            assert_equal(msg, msg_reference)
-        except AssertionError:
-            assert_equal(msg2, msg_reference)
 
     def test_object(self):
         #gh-12942
@@ -520,7 +514,7 @@ class TestAlmostEqual(_GenericTest):
         with pytest.raises(AssertionError) as exc_info:
             self._assert_func(x, y, decimal=12)
         msgs = str(exc_info.value).split('\n')
-        assert_equal(msgs[3], 'Mismatch: 100%')
+        assert_equal(msgs[3], 'Mismatched elements: 3 / 3 (100%)')
         assert_equal(msgs[4], 'Max absolute difference: 1.e-05')
         assert_equal(msgs[5], 'Max relative difference: 3.33328889e-06')
         assert_equal(
@@ -536,7 +530,7 @@ class TestAlmostEqual(_GenericTest):
         with pytest.raises(AssertionError) as exc_info:
             self._assert_func(x, y)
         msgs = str(exc_info.value).split('\n')
-        assert_equal(msgs[3], 'Mismatch: 33.3%')
+        assert_equal(msgs[3], 'Mismatched elements: 1 / 3 (33.3%)')
         assert_equal(msgs[4], 'Max absolute difference: 1.e-05')
         assert_equal(msgs[5], 'Max relative difference: 3.33328889e-06')
         assert_equal(msgs[6], ' x: array([1.     , 2.     , 3.00003])')
@@ -548,7 +542,7 @@ class TestAlmostEqual(_GenericTest):
         with pytest.raises(AssertionError) as exc_info:
             self._assert_func(x, y)
         msgs = str(exc_info.value).split('\n')
-        assert_equal(msgs[3], 'Mismatch: 50%')
+        assert_equal(msgs[3], 'Mismatched elements: 1 / 2 (50%)')
         assert_equal(msgs[4], 'Max absolute difference: 1.')
         assert_equal(msgs[5], 'Max relative difference: 1.')
         assert_equal(msgs[6], ' x: array([inf,  0.])')
@@ -560,9 +554,29 @@ class TestAlmostEqual(_GenericTest):
         with pytest.raises(AssertionError) as exc_info:
             self._assert_func(x, y)
         msgs = str(exc_info.value).split('\n')
-        assert_equal(msgs[3], 'Mismatch: 100%')
+        assert_equal(msgs[3], 'Mismatched elements: 2 / 2 (100%)')
         assert_equal(msgs[4], 'Max absolute difference: 2')
         assert_equal(msgs[5], 'Max relative difference: inf')
+
+    def test_error_message_2(self):
+        """Check the message is formatted correctly when either x or y is a scalar."""
+        x = 2
+        y = np.ones(20)
+        with pytest.raises(AssertionError) as exc_info:
+            self._assert_func(x, y)
+        msgs = str(exc_info.value).split('\n')
+        assert_equal(msgs[3], 'Mismatched elements: 20 / 20 (100%)')
+        assert_equal(msgs[4], 'Max absolute difference: 1.')
+        assert_equal(msgs[5], 'Max relative difference: 1.')
+
+        y = 2
+        x = np.ones(20)
+        with pytest.raises(AssertionError) as exc_info:
+            self._assert_func(x, y)
+        msgs = str(exc_info.value).split('\n')
+        assert_equal(msgs[3], 'Mismatched elements: 20 / 20 (100%)')
+        assert_equal(msgs[4], 'Max absolute difference: 1.')
+        assert_equal(msgs[5], 'Max relative difference: 0.5')
 
     def test_subclass_that_cannot_be_bool(self):
         # While we cannot guarantee testing functions will always work for
@@ -583,14 +597,14 @@ class TestAlmostEqual(_GenericTest):
         self._assert_func(a, a)
 
 
-class TestApproxEqual(object):
+class TestApproxEqual:
 
     def setup(self):
         self._assert_func = assert_approx_equal
 
-    def test_simple_arrays(self):
-        x = np.array([1234.22])
-        y = np.array([1234.23])
+    def test_simple_0d_arrays(self):
+        x = np.array(1234.22)
+        y = np.array(1234.23)
 
         self._assert_func(x, y, significant=5)
         self._assert_func(x, y, significant=6)
@@ -626,7 +640,7 @@ class TestApproxEqual(object):
         assert_raises(AssertionError, lambda: self._assert_func(ainf, anan))
 
 
-class TestArrayAssertLess(object):
+class TestArrayAssertLess:
 
     def setup(self):
         self._assert_func = assert_array_less
@@ -736,7 +750,7 @@ class TestArrayAssertLess(object):
 
 
 @pytest.mark.skip(reason="The raises decorator depends on Nose")
-class TestRaises(object):
+class TestRaises:
 
     def setup(self):
         class MyException(Exception):
@@ -770,7 +784,7 @@ class TestRaises(object):
             raise AssertionError("should have raised an AssertionError")
 
 
-class TestWarns(object):
+class TestWarns:
 
     def test_warn(self):
         def f():
@@ -821,7 +835,7 @@ class TestWarns(object):
             raise AssertionError("wrong warning caught by assert_warn")
 
 
-class TestAssertAllclose(object):
+class TestAssertAllclose:
 
     def test_simple(self):
         x = 1e-3
@@ -855,7 +869,8 @@ class TestAssertAllclose(object):
         with pytest.raises(AssertionError) as exc_info:
             assert_allclose(a, b)
         msg = str(exc_info.value)
-        assert_('Mismatch: 25%\nMax absolute difference: 1\n'
+        assert_('Mismatched elements: 1 / 4 (25%)\n'
+                'Max absolute difference: 1\n'
                 'Max relative difference: 0.5' in msg)
 
     def test_equal_nan(self):
@@ -889,8 +904,13 @@ class TestAssertAllclose(object):
         msg = str(exc_info.value)
         assert_('Max relative difference: 0.5' in msg)
 
+    def test_timedelta(self):
+        # see gh-18286
+        a = np.array([[1, 2, 3, "NaT"]], dtype="m8[ns]")
+        assert_allclose(a, a)
 
-class TestArrayAlmostEqualNulp(object):
+
+class TestArrayAlmostEqualNulp:
 
     def test_float64_pass(self):
         # The number of units of least precision
@@ -926,6 +946,17 @@ class TestArrayAlmostEqualNulp(object):
         assert_raises(AssertionError, assert_array_almost_equal_nulp,
                       x, y, nulp)
 
+    def test_float64_ignore_nan(self):
+        # Ignore ULP differences between various NAN's
+        # Note that MIPS may reverse quiet and signaling nans
+        # so we use the builtin version as a base.
+        offset = np.uint64(0xffffffff)
+        nan1_i64 = np.array(np.nan, dtype=np.float64).view(np.uint64)
+        nan2_i64 = nan1_i64 ^ offset  # nan payload on MIPS is all ones.
+        nan1_f64 = nan1_i64.view(np.float64)
+        nan2_f64 = nan2_i64.view(np.float64)
+        assert_array_max_ulp(nan1_f64, nan2_f64, 0)
+
     def test_float32_pass(self):
         nulp = 5
         x = np.linspace(-20, 20, 50, dtype=np.float32)
@@ -956,6 +987,17 @@ class TestArrayAlmostEqualNulp(object):
         assert_raises(AssertionError, assert_array_almost_equal_nulp,
                       x, y, nulp)
 
+    def test_float32_ignore_nan(self):
+        # Ignore ULP differences between various NAN's
+        # Note that MIPS may reverse quiet and signaling nans
+        # so we use the builtin version as a base.
+        offset = np.uint32(0xffff)
+        nan1_i32 = np.array(np.nan, dtype=np.float32).view(np.uint32)
+        nan2_i32 = nan1_i32 ^ offset  # nan payload on MIPS is all ones.
+        nan1_f32 = nan1_i32.view(np.float32)
+        nan2_f32 = nan2_i32.view(np.float32)
+        assert_array_max_ulp(nan1_f32, nan2_f32, 0)
+
     def test_float16_pass(self):
         nulp = 5
         x = np.linspace(-4, 4, 10, dtype=np.float16)
@@ -985,6 +1027,17 @@ class TestArrayAlmostEqualNulp(object):
         y = x - x*epsneg*nulp*2.
         assert_raises(AssertionError, assert_array_almost_equal_nulp,
                       x, y, nulp)
+
+    def test_float16_ignore_nan(self):
+        # Ignore ULP differences between various NAN's
+        # Note that MIPS may reverse quiet and signaling nans
+        # so we use the builtin version as a base.
+        offset = np.uint16(0xff)
+        nan1_i16 = np.array(np.nan, dtype=np.float16).view(np.uint16)
+        nan2_i16 = nan1_i16 ^ offset  # nan payload on MIPS is all ones.
+        nan1_f16 = nan1_i16.view(np.float16)
+        nan2_f16 = nan2_i16.view(np.float16)
+        assert_array_max_ulp(nan1_f16, nan2_f16, 0)
 
     def test_complex128_pass(self):
         nulp = 5
@@ -1087,7 +1140,7 @@ class TestArrayAlmostEqualNulp(object):
                       xi, y + y*1j, nulp)
 
 
-class TestULP(object):
+class TestULP:
 
     def test_equal(self):
         x = np.random.randn(10)
@@ -1143,7 +1196,7 @@ class TestULP(object):
                           maxulp=maxulp))
 
 
-class TestStringEqual(object):
+class TestStringEqual:
     def test_simple(self):
         assert_string_equal("hello", "hello")
         assert_string_equal("hello\nmultiline", "hello\nmultiline")
@@ -1192,7 +1245,7 @@ def assert_warn_len_equal(mod, n_in_context, py34=None, py37=None):
         if sys.version_info[:2] >= (3, 7):
             if py37 is not None:
                 n_in_context = py37
-        elif sys.version_info[:2] >= (3, 4):
+        else:
             if py34 is not None:
                 n_in_context = py34
     assert_equal(num_warns, n_in_context)
@@ -1205,7 +1258,7 @@ def test_warn_len_equal_call_scenarios():
     # check that no assertion is uncaught
 
     # parallel scenario -- no warning issued yet
-    class mod(object):
+    class mod:
         pass
 
     mod_inst = mod()
@@ -1215,7 +1268,7 @@ def test_warn_len_equal_call_scenarios():
 
     # serial test scenario -- the __warningregistry__
     # attribute should be present
-    class mod(object):
+    class mod:
         def __init__(self):
             self.__warningregistry__ = {'warning1':1,
                                         'warning2':2}
@@ -1490,7 +1543,7 @@ def test_clear_and_catch_warnings_inherit():
 
 
 @pytest.mark.skipif(not HAS_REFCOUNT, reason="Python lacks refcounts")
-class TestAssertNoGcCycles(object):
+class TestAssertNoGcCycles:
     """ Test assert_no_gc_cycles """
     def test_passes(self):
         def no_cycle():
@@ -1524,7 +1577,7 @@ class TestAssertNoGcCycles(object):
         error, instead of hanging forever trying to clear it.
         """
 
-        class ReferenceCycleInDel(object):
+        class ReferenceCycleInDel:
             """
             An object that not only contains a reference cycle, but creates new
             cycles whenever it's garbage-collected and its __del__ runs

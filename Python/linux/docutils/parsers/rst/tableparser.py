@@ -1,4 +1,4 @@
-# $Id: tableparser.py 7898 2015-05-29 20:49:28Z milde $
+# $Id: tableparser.py 8373 2019-08-27 12:11:30Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -40,7 +40,7 @@ class TableMarkupError(DataError):
             DataError.__init__(self, *args)
 
 
-class TableParser:
+class TableParser(object):
 
     """
     Abstract superclass for the common parts of the syntax-specific parsers.
@@ -286,13 +286,11 @@ class GridTableParser(TableParser):
         From the data collected by `scan_cell()`, convert to the final data
         structure.
         """
-        rowseps = list(self.rowseps.keys())   # list of row boundaries
-        rowseps.sort()
+        rowseps = sorted(self.rowseps.keys())   # list of row boundaries
         rowindex = {}
         for i in range(len(rowseps)):
             rowindex[rowseps[i]] = i    # row boundary -> row number mapping
-        colseps = list(self.colseps.keys())   # list of column boundaries
-        colseps.sort()
+        colseps = sorted(self.colseps.keys())   # list of column boundaries
         colindex = {}
         for i in range(len(colseps)):
             colindex[colseps[i]] = i    # column boundary -> col number map
@@ -540,5 +538,5 @@ def update_dict_of_lists(master, newdata):
 
     Both parameters must be dictionaries containing list values.
     """
-    for key, values in list(newdata.items()):
+    for key, values in newdata.items():
         master.setdefault(key, []).extend(values)

@@ -1,8 +1,8 @@
 /* CSS31_ style sheet for the output of Docutils HTML writers.             */
-/* Rules for easy reading and pre-defined style variants.		   */
+/* Rules for easy reading and pre-defined style variants.                  */
 /*                                                                         */
 /* :Author: Günter Milde, based on html4css1.css by David Goodger          */
-/* :Id: $Id: plain.css 8229 2018-11-20 17:47:12Z milde $               */
+/* :Id: $Id: plain.css 8636 2021-03-19 00:23:33Z milde $                                                               */
 /* :Copyright: © 2015 Günter Milde.                                        */
 /* :License: Released under the terms of the `2-Clause BSD license`_,      */
 /*    in short:                                                            */
@@ -10,11 +10,11 @@
 /*    Copying and distribution of this file, with or without modification, */
 /*    are permitted in any medium without royalty provided the copyright   */
 /*    notice and this notice are preserved.                                */
-/*    	     	      	     	 					   */
+/*                                                                         */
 /*    This file is offered as-is, without any warranty.                    */
 /*                                                                         */
 /* .. _2-Clause BSD license: http://www.spdx.org/licenses/BSD-2-Clause     */
-/* .. _CSS3: http://www.w3.org/TR/CSS3		        		   */
+/* .. _CSS3: http://www.w3.org/TR/CSS3                                     */
 
 
 /* Document Structure */
@@ -25,22 +25,26 @@ body {
   margin: 0;
   background-color: #dbdbdb;
 }
-div.document {
+main, footer, header {
   line-height:1.3;
-  counter-reset: table;
-  /* counter-reset: figure; */
   /* avoid long lines --> better reading */
+  /* optimum is 45…75 characters/line <http://webtypography.net/2.1.2> */
   /* OTOH: lines should not be too short because of missing hyphenation, */
-  max-width: 50em;
+  max-width: 50rem;
   padding: 1px 2%; /* 1px on top avoids grey bar above title (mozilla) */
   margin: auto;
+}
+main {
+  counter-reset: table figure;
   background-color: white;
 }
-
-/* Sections */
+footer, header {
+  font-size: smaller;
+  padding: 0.5em 2%;
+  border: none;
+}
 
 /* Transitions */
-
 hr.docutils {
   width: 80%;
   margin-top: 1em;
@@ -48,32 +52,34 @@ hr.docutils {
   clear: both;
 }
 
-/* Paragraphs               */
-/* ==========               */
+/* Paragraphs */
 
 /* vertical space (parskip) */
-p, ol, ul, dl,
+p, ol, ul, dl, li, dd,
 div.line-block,
-table{
+div.topic,
+table {
   margin-top: 0.5em;
   margin-bottom: 0.5em;
 }
+p:first-child { margin-top: 0; }
+/* (:last-child is new in CSS 3) */
+p:last-child  { margin-bottom: 0; }
+
 h1, h2, h3, h4, h5, h6,
 dl > dd {
   margin-bottom: 0.5em;
 }
 
-/* Lists                    */
-/* ==========               */
+/* Lists */
+/* ===== */
 
-/* Definition Lists         */
+/* Separate list entries in compound lists */
+dl > dd, ol > li,
 
-dl > dd > p:first-child { margin-top: 0; }
-/* :last-child is not part of CSS 2.1 (introduced in CSS 3) */
-dl > dd > p:last-child  { margin-bottom: 0; }
-
-/* lists nested in definition lists */
-/* :only-child is not part of CSS 2.1 (introduced in CSS 3) */
+/* Definition Lists */
+/* Indent lists nested in definition lists */
+/* (:only-child is new in CSS 3)           */
 dd > ul:only-child, dd > ol:only-child { padding-left: 1em; }
 
 /* Description Lists */
@@ -114,21 +120,16 @@ div.dedication p.topic-title {
   font-style: normal;
 }
 
-/* Citations */
-dl.citation dt.label {
-  font-weight: bold;
+/* Text Blocks */
+/* =========== */
+
+/* Literal Blocks */
+pre.literal-block, pre.doctest-block,
+pre.math, pre.code {
+  font-family: monospace;
 }
-span.fn-backref {
-  font-weight: normal;
-}
 
-/* Text Blocks           */
-/* ============          */
-
-/* Literal Blocks           */
-
-/* Block Quotes             */
-
+/* Block Quotes */
 blockquote > table,
 div.topic > table {
   margin-top: 0;
@@ -140,8 +141,8 @@ div.topic p.attribution {
   margin-left: 20%;
 }
 
-/* Tables                   */
-/* ======                   */
+/* Tables */
+/* ====== */
 
 /* th { vertical-align: bottom; } */
 
@@ -168,11 +169,11 @@ table.numbered > caption:before {
   font-weight: bold;
 }
 
-/* Explicit Markup Blocks   */
-/* ======================   */
+/* Explicit Markup Blocks */
+/* ====================== */
 
-/* Footnotes and Citations  */
-/* -----------------------  */
+/* Footnotes and Citations */
+/* ----------------------- */
 
 /* line on the left */
 dl.footnote {
@@ -181,51 +182,65 @@ dl.footnote {
   border-left-width: thin;
 }
 
-/* Directives               */
-/* ----------               */
+/* Directives */
+/* ---------- */
 
-/* Body Elements            */
-/* ~~~~~~~~~~~~~            */
+/* Body Elements */
+/* ~~~~~~~~~~~~~ */
 
 /* Images and Figures */
 
 /* let content flow to the side of aligned images and figures */
-.figure.align-left,
+figure.align-left,
 img.align-left,
+video.align-left,
 object.align-left {
-  display: block;
   clear: left;
   float: left;
-  margin-right: 1em
+  margin-right: 1em;
 }
-.figure.align-right,
+figure.align-right,
 img.align-right,
+video.align-right,
 object.align-right {
-  display: block;
   clear: right;
   float: right;
-  margin-left: 1em
+  margin-left: 1em;
 }
-/* Stop floating sidebars, images and figures at section level 1,2,3 */
-h1, h2, h3 { clear: both; }
+/* Stop floating sidebars, images and figures */
+h1, h2, h3, h4, footer, header { clear: both; }
+
+/* Numbered figures */
+figure.numbered > figcaption > p:before {
+  counter-increment: figure;
+  content: "Figure " counter(figure) ": ";
+  font-weight: bold;
+}
+
+/* Admonitions and System Messages */
+.caution p.admonition-title,
+.attention p.admonition-title,
+.danger p.admonition-title,
+.error p.admonition-title,
+.warning p.admonition-title,
+div.error {
+  color: red;
+}
 
 /* Sidebar */
-
-/* Move into the margin. In a layout with fixed margins, */
-/* it can be moved into the margin completely.		 */
-div.sidebar {
+/* Move right. In a layout with fixed margins, */
+/* it can be moved into the margin.            */
+aside.sidebar {
   width: 30%;
   max-width: 26em;
   margin-left: 1em;
-  margin-right: -5.5%;
-  background-color: #ffffee ;
+  margin-right: -2%;
+  background-color: #ffffee;
 }
 
-/* Code                     */
-
+/* Code */
 pre.code { padding: 0.7ex }
 pre.code, code { background-color: #eeeeee }
-pre.code .ln { color: gray; } /* line numbers */
 /* basic highlighting: for a complete scheme, see */
 /* http://docutils.sourceforge.net/sandbox/stylesheets/ */
 pre.code .comment, code .comment { color: #5C6576 }
@@ -235,47 +250,30 @@ pre.code .name.builtin, code .name.builtin { color: #352B84 }
 pre.code .deleted, code .deleted { background-color: #DEB0A1}
 pre.code .inserted, code .inserted { background-color: #A3D289}
 
-/* Math                     */
+/* Math */
 /* styled separately (see math.css for math-output=HTML) */
 
-/* Epigraph                 */
-/* Highlights               */
-/* Pull-Quote               */
-/* Compound Paragraph       */
-/* Container                */
+/* Epigraph           */
+/* Highlights         */
+/* Pull-Quote         */
+/* Compound Paragraph */
+/* Container          */
 
-/* can be styled in a custom stylesheet */
+/* Inline Markup */
+/* ============= */
 
-/* Document Header and Footer */
-
-div.footer, div.header {
-  clear: both;
-  font-size: smaller;
-}
-
-/* Inline Markup            */
-/* =============            */
-
-/* Emphasis                 */
-/*   em                     */
-/* Strong Emphasis          */
-/*   strong		    */
-/* Interpreted Text         */
-/*   span.interpreted  	    */
-/* Title Reference 	    */
-/*   cite		    */
-/* Inline Literals          */
+/* Inline Literals                                          */
 /* possible values: normal, nowrap, pre, pre-wrap, pre-line */
-/*   span.docutils.literal { white-space: pre-wrap; } */
+/*   span.docutils.literal { white-space: pre-wrap; }       */
 
-/* Hyperlink References     */
+/* Hyperlink References */
 a { text-decoration: none; }
 
-/* External Targets         */
-/*   span.target.external   */
-/* Internal Targets  	    */
-/*   span.target.internal   */
-/* Footnote References      */
-/*   a.footnote-reference   */
-/* Citation References      */
-/*   a.citation-reference   */
+/* External Targets       */
+/*   span.target.external */
+/* Internal Targets       */
+/*   span.target.internal */
+/* Footnote References    */
+/*   a.footnote-reference */
+/* Citation References    */
+/*   a.citation-reference */

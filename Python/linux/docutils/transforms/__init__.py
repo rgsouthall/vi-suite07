@@ -1,4 +1,4 @@
-# $Id: __init__.py 8238 2018-11-21 19:09:09Z milde $
+# $Id: __init__.py 8358 2019-08-26 16:45:09Z milde $
 # Authors: David Goodger <goodger@python.org>; Ueli Schlaepfer
 # Copyright: This module has been placed in the public domain.
 
@@ -30,7 +30,7 @@ from docutils import languages, ApplicationError, TransformSpec
 class TransformError(ApplicationError): pass
 
 
-class Transform:
+class Transform(object):
 
     """
     Docutils transform component abstract base class.
@@ -153,9 +153,8 @@ class Transformer(TransformSpec):
         unknown_reference_resolvers = []
         for i in components:
             unknown_reference_resolvers.extend(i.unknown_reference_resolvers)
-        decorated_list = [(f.priority, f) for f in unknown_reference_resolvers]
-        decorated_list.sort()
-        self.unknown_reference_resolvers.extend([f[1] for f in decorated_list])
+        decorated_list = sorted((f.priority, f) for f in unknown_reference_resolvers)
+        self.unknown_reference_resolvers.extend(f[1] for f in decorated_list)
 
     def apply_transforms(self):
         """Apply all of the stored transforms, in priority order."""

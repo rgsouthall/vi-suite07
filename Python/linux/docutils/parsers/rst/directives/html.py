@@ -1,4 +1,4 @@
-# $Id: html.py 8171 2017-08-17 15:58:23Z milde $
+# $Id: html.py 8603 2021-01-08 15:24:32Z milde $
 # Author: David Goodger <goodger@python.org>
 # Copyright: This module has been placed in the public domain.
 
@@ -35,7 +35,7 @@ class MetaBody(states.SpecializedBody):
         node = self.meta()
         pending = nodes.pending(components.Filter,
                                 {'component': 'writer',
-                                 'format': 'html',
+                                 'format': 'html,latex,odt',
                                  'nodes': [node]})
         node['content'] = utils.unescape(utils.escape2null(
                                             ' '.join(indented)))

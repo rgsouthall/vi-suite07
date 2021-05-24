@@ -1,9 +1,20 @@
-from __future__ import division, absolute_import, print_function
+import warnings
+
+# 2018-05-29, PendingDeprecationWarning added to matrix.__new__
+# 2020-01-23, numpy 1.19.0 PendingDeprecatonWarning
+warnings.warn("Importing from numpy.matlib is deprecated since 1.19.0. "
+              "The matrix subclass is not the recommended way to represent "
+              "matrices or deal with linear algebra (see "
+              "https://docs.scipy.org/doc/numpy/user/numpy-for-matlab-users.html). "
+              "Please adjust your code to use regular ndarray. ",
+              PendingDeprecationWarning, stacklevel=2)
 
 import numpy as np
 from numpy.matrixlib.defmatrix import matrix, asmatrix
-# need * as we're copying the numpy namespace
-from numpy import *
+# Matlib.py contains all functions in the numpy namespace with a few
+# replacements. See doc/source/reference/routines.matlib.rst for details.
+# Need * as we're copying the numpy namespace.
+from numpy import *  # noqa: F403
 
 __version__ = np.__version__
 
@@ -239,7 +250,7 @@ def rand(*args):
 
     See Also
     --------
-    randn, numpy.random.rand
+    randn, numpy.random.RandomState.rand
 
     Examples
     --------
@@ -285,7 +296,7 @@ def randn(*args):
 
     See Also
     --------
-    rand, random.randn
+    rand, numpy.random.RandomState.randn
 
     Notes
     -----

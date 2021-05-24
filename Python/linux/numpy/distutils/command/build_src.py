@@ -1,7 +1,5 @@
 """ Build swig and f2py sources.
 """
-from __future__ import division, absolute_import, print_function
-
 import os
 import re
 import sys
@@ -53,9 +51,12 @@ class build_src(build_ext.build_ext):
         ('inplace', 'i',
          "ignore build-lib and put compiled extensions into the source " +
          "directory alongside your pure Python modules"),
+        ('verbose-cfg', None,
+         "change logging level from WARN to INFO which will show all " +
+         "compiler output")
         ]
 
-    boolean_options = ['force', 'inplace']
+    boolean_options = ['force', 'inplace', 'verbose-cfg']
 
     help_options = []
 
@@ -76,6 +77,7 @@ class build_src(build_ext.build_ext):
         self.swig_opts = None
         self.swig_cpp = None
         self.swig = None
+        self.verbose_cfg = None
 
     def finalize_options(self):
         self.set_undefined_options('build',
@@ -90,7 +92,7 @@ class build_src(build_ext.build_ext):
         self.data_files = self.distribution.data_files or []
 
         if self.build_src is None:
-            plat_specifier = ".%s-%s" % (get_platform(), sys.version[0:3])
+            plat_specifier = ".{}-{}.{}".format(get_platform(), *sys.version_info[:2])
             self.build_src = os.path.join(self.build_base, 'src'+plat_specifier)
 
         # py_modules_dict is used in build_py.find_package_modules
@@ -362,9 +364,16 @@ class build_src(build_ext.build_ext):
             #    incl_dirs = extension.include_dirs
             #if self.build_src not in incl_dirs:
             #    incl_dirs.append(self.build_src)
-            build_dir = os.path.join(*([self.build_src]\
+            build_dir = os.path.join(*([self.build_src]
                                        +name.split('.')[:-1]))
         self.mkpath(build_dir)
+
+        if self.verbose_cfg:
+            new_level = log.INFO
+        else:
+            new_level = log.WARN
+        old_level = log.set_threshold(new_level)
+
         for func in func_sources:
             source = func(extension, build_dir)
             if not source:
@@ -375,7 +384,7 @@ class build_src(build_ext.build_ext):
             else:
                 log.info("  adding '%s' to sources." % (source,))
                 new_sources.append(source)
-
+        log.set_threshold(old_level)
         return new_sources
 
     def filter_py_files(self, sources):
@@ -540,7 +549,7 @@ class build_src(build_ext.build_ext):
             if is_sequence(extension):
                 name = extension[0]
             else: name = extension.name
-            target_dir = os.path.join(*([self.build_src]\
+            target_dir = os.path.join(*([self.build_src]
                                         +name.split('.')[:-1]))
             target_file = os.path.join(target_dir, ext_name + 'module.c')
             new_sources.append(target_file)

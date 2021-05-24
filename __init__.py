@@ -21,7 +21,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 6, 1),
-    "blender": (2, 91),
+    "blender": (2, 93),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
@@ -45,7 +45,7 @@ else:
         import matplotlib.pyplot as plt
         from kivy.app import App
     except:
-        if sys.version_info[1] == 7:    
+        if sys.version_info[1] == 9:    
             if os.environ.get('PYTHONPATH'):
                 if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
                     os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
@@ -72,8 +72,8 @@ else:
             else:
                 os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
         
-        elif sys.version_info[1] >= 8:
-            os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+            if sys.platform == 'win32':
+                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
@@ -105,7 +105,7 @@ else:
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Mat_Fr, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
-    from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC
+    from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, No_Anim, So_Anim
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay, logentry
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
@@ -657,7 +657,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group, 
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
-           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, MAT_EnVi_Node_Remove)
+           So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, MAT_EnVi_Node_Remove, No_Anim, So_Anim)
                      
 def register():
     for cl in classes:

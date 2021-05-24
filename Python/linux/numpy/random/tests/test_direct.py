@@ -1,5 +1,6 @@
 import os
 from os.path import join
+import sys
 
 import numpy as np
 from numpy.testing import (assert_equal, assert_allclose, assert_array_equal,
@@ -10,7 +11,7 @@ from numpy.random import (
     Generator, MT19937, PCG64, Philox, RandomState, SeedSequence, SFC64,
     default_rng
 )
-from numpy.random.common import interface
+from numpy.random._common import interface
 
 try:
     import cffi  # noqa: F401
@@ -25,6 +26,12 @@ try:
     MISSING_CTYPES = False
 except ImportError:
     MISSING_CTYPES = False
+
+if sys.flags.optimize > 1:
+    # no docstrings present to inspect when PYTHONOPTIMIZE/Py_OptimizeFlag > 1
+    # cffi cannot succeed
+    MISSING_CFFI = True
+
 
 pwd = os.path.dirname(os.path.abspath(__file__))
 
@@ -138,7 +145,7 @@ def test_seedsequence():
     assert len(dummy.spawn(10)) == 10
 
 
-class Base(object):
+class Base:
     dtype = np.uint64
     data2 = data1 = {}
 
@@ -223,13 +230,13 @@ class Base(object):
     def test_repr(self):
         rs = Generator(self.bit_generator(*self.data1['seed']))
         assert 'Generator' in repr(rs)
-        assert '{:#x}'.format(id(rs)).upper().replace('X', 'x') in repr(rs)
+        assert f'{id(rs):#x}'.upper().replace('X', 'x') in repr(rs)
 
     def test_str(self):
         rs = Generator(self.bit_generator(*self.data1['seed']))
         assert 'Generator' in str(rs)
         assert str(self.bit_generator.__name__) in str(rs)
-        assert '{:#x}'.format(id(rs)).upper().replace('X', 'x') not in str(rs)
+        assert f'{id(rs):#x}'.upper().replace('X', 'x') not in str(rs)
 
     def test_pickle(self):
         import pickle
@@ -403,7 +410,7 @@ class TestSFC64(Base):
         cls.invalid_init_values = [(-1,)]
 
 
-class TestDefaultRNG(object):
+class TestDefaultRNG:
     def test_seed(self):
         for args in [(), (None,), (1234,), ([1234, 5678],)]:
             rg = default_rng(*args)

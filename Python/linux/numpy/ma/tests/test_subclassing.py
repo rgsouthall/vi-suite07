@@ -6,8 +6,6 @@
 :version: $Id: test_subclassing.py 3473 2007-10-29 15:18:13Z jarrod.millman $
 
 """
-from __future__ import division, absolute_import, print_function
-
 import numpy as np
 from numpy.testing import assert_, assert_raises
 from numpy.ma.testutils import assert_equal
@@ -80,7 +78,7 @@ msubarray = MSubArray
 # and overrides __array_wrap__, updating the info dict, to check that this
 # doesn't get destroyed by MaskedArray._update_from.  But this one also needs
 # its own iterator...
-class CSAIterator(object):
+class CSAIterator:
     """
     Flat iterator object that uses its own setter/getter
     (works around ndarray.flat not propagating subclass setters/getters
@@ -107,17 +105,15 @@ class CSAIterator(object):
     def __next__(self):
         return next(self._dataiter).__array__().view(type(self._original))
 
-    next = __next__
-
 
 class ComplicatedSubArray(SubArray):
 
     def __str__(self):
-        return 'myprefix {0} mypostfix'.format(self.view(SubArray))
+        return f'myprefix {self.view(SubArray)} mypostfix'
 
     def __repr__(self):
         # Return a repr that does not start with 'name('
-        return '<{0} {1}>'.format(self.__class__.__name__, self)
+        return f'<{self.__class__.__name__} {self}>'
 
     def _validate_input(self, value):
         if not isinstance(value, ComplicatedSubArray):
@@ -154,7 +150,7 @@ class ComplicatedSubArray(SubArray):
         return obj
 
 
-class TestSubclassing(object):
+class TestSubclassing:
     # Test suite for masked subclasses of ndarray.
 
     def setup(self):
@@ -321,8 +317,8 @@ class TestSubclassing(object):
         assert_startswith(repr(mx), 'masked_array')
         xsub = SubArray(x)
         mxsub = masked_array(xsub, mask=[True, False, True, False, False])
-        assert_startswith(repr(mxsub),
-            'masked_{0}(data=[--, 1, --, 3, 4]'.format(SubArray.__name__))
+        assert_startswith(repr(mxsub), 
+            f'masked_{SubArray.__name__}(data=[--, 1, --, 3, 4]')
 
     def test_subclass_str(self):
         """test str with subclass that has overridden str, setitem"""
