@@ -302,6 +302,7 @@ class No_Li_Con(Node, ViNodes):
     def nodeupdate(self, context):
         scene = context.scene
         nodecolour(self, self['exportstate'] != self.ret_params())
+
         if self.edoy < self.sdoy:
             self.edoy = self.sdoy
         if self.edoy == self.sdoy:
@@ -344,16 +345,16 @@ class No_Li_Con(Node, ViNodes):
     spectrummenu: EnumProperty(name="", description = "Visible/full radiation spectrum selection", items = spectrumtype, default = '0', update = nodeupdate)
     skyprog: EnumProperty(name="", items=[('0', "Gensky", "Basic sky creation"), ('1', "Gendaylit", "Perez sky creation"),
                                                      ("2", "HDR Sky", "HDR file sky"), ("3", "Radiance Sky", "Radiance file sky"), ("4", "None", "No Sky")], description="Specify sky creation", default="0", update = nodeupdate)
-    epsilon: FloatProperty(name="", description="Hour of simulation", min=1, max=8, default=6.3, update = nodeupdate)
-    delta: FloatProperty(name="", description="Hour of simulation", min=0.05, max=0.5, default=0.15, update = nodeupdate)
+    epsilon: FloatProperty(name="", description="Sky epsilon", min=1, max=8, default=6.3, options={'SKIP_SAVE'}, update = nodeupdate)
+    delta: FloatProperty(name="", description="Sky delta", min=0.05, max=0.5, default=0.15, options={'SKIP_SAVE'}, update = nodeupdate)
     skymenu: EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeupdate)
-    gref: FloatProperty(name="", description="Ground reflectance", min=0.0, max=1.0, default=0.0, update = nodeupdate)
-    gcol:FloatVectorProperty(size = 3, name = '', description="Ground colour", attr = 'Color', default = [0, 1, 0], subtype = 'COLOR', update = nodeupdate)
+    gref: FloatProperty(name="", description="Ground reflectance", min=0.0, max=1.0, default=0.0, options={'SKIP_SAVE'}, update = nodeupdate)
+    gcol:FloatVectorProperty(size = 3, name = '', description="Ground colour", attr = 'Color', default = [0, 1, 0], subtype = 'COLOR', options={'SKIP_SAVE'}, update = nodeupdate)
     sdist: FloatProperty(name="", description="Blender sun distance", min=0.0, default=50.0, update = nodeupdate)
-    shour: FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
-    sdoy: IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
-    ehour: FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
-    edoy: IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
+    shour: FloatProperty(name="", description="Start hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
+    sdoy: IntProperty(name="", description="Start day of simulation", min=1, max=365, default=1, update = nodeupdate)
+    ehour: FloatProperty(name="", description="End hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
+    edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=1, update = nodeupdate)
     interval: FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update = nodeupdate)
     hdr: BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
     skyname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
@@ -396,6 +397,7 @@ class No_Li_Con(Node, ViNodes):
         self.outputs.new('So_Li_Con', 'Context out')
         self.inputs.new('So_Vi_Loc', 'Location in')
         self.outputs['Context out'].hide = True
+        self.outputs.new('So_Anim', 'Parameter')
         nodecolour(self, 1)
         self.hdrname = ''
         self.skyname = ''
@@ -1378,12 +1380,12 @@ class No_En_Con(Node, ViNodes):
     terrain: EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
                    ("1", "Urban", "Urban, Industrial, Forest"),("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
                     ("3", "Country", "Flat, Open Country"),("4", "Ocean", "Ocean, very flat country")],
-                    name="", description="Specify the surrounding terrain", default="0", update = nodeupdate)
+                    name="", description="Exposure context", default="0", options={'SKIP_SAVE'}, update = nodeupdate)
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
-    sdoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
-    edoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
+    sdoy: IntProperty(name = "", description = "Start day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
+    edoy: IntProperty(name = "", description = "End day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps: IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
     shadow_calc: EnumProperty(items = [("0", "CPU", "CPU based shadow calculations"), ("1", "GPU", "GPU based shadow calculations")],
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
@@ -1392,14 +1394,27 @@ class No_En_Con(Node, ViNodes):
                                    ("4", "Thermal Chimney", "Thermal Chimney Results"), ("5", "Power", "Power Production Results")],
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
 
-    (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
-     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp, resoeg,
-     respve, respvw, respvt, respveff) = resnameunits()
+    resaam: bpy.props.BoolProperty(name = 'Air', description = 'Ambient air metrics', default = False)
+    resaws: bpy.props.BoolProperty(name = 'Wind speed', description = 'Ambient wind speed', default = False)
+    resawd: bpy.props.BoolProperty(name = 'Wind direction', description = 'Ambient wind direction', default = False)
+    resah: bpy.props.BoolProperty(name = 'Humidity', description = 'Ambient humidity', default = False)
+    resasm: bpy.props.BoolProperty(name = 'Solar', description = 'Ambient solar metrics', default = False)
+    restt: bpy.props.BoolProperty(name = 'Temperature', description = 'Zone temperature (degC)', default = False)
+    resh: bpy.props.BoolProperty(name = 'Humidity', description = 'Zone humidity (%)', default = False)
+    restwh: bpy.props.BoolProperty(name = 'Heating Watts', description = 'Zone heating (Watts)', default = False)
+    restwc: bpy.props.BoolProperty(name = 'Cooling Watts', description = 'Zone cooling (Watts)', default = False)
+    reswsg: bpy.props.BoolProperty(name = 'Solar gain', description = 'Window solar gain (Watts)', default = False)
+    rescpp: bpy.props.BoolProperty(name = 'PPD', description = 'Percentage People Dissatisfied', default = False)
+    rescpm: bpy.props.BoolProperty(name = 'PMV', description = 'Predicted Mean Vote', default = False)
+    # (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
+    #  reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp, resoeg,
+    #  respve, respvw, respvt, respveff) = resnameunits()
      
     def init(self, context):
         self.inputs.new('So_En_Geo', 'Geometry in')
         self.inputs.new('So_Vi_Loc', 'Location in')
         self.outputs.new('So_En_Con', 'Context out')
+        self.outputs.new('So_Anim', 'Parameter')
         self['exportstate'] = ''
 #        self['year'] = 2015
         nodecolour(self, 1)
@@ -1417,7 +1432,7 @@ class No_En_Con(Node, ViNodes):
 
         newrow(layout, "Name/location", self, "loc")
         row = layout.row()
-        row.label(text = 'Terrain:')
+        row.label(text = 'Exposure:')
         col = row.column()
         col.prop(self, "terrain")
         newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
