@@ -1,6 +1,5 @@
 from io import BytesIO
 import pickle
-import platform
 
 import numpy as np
 import pytest
@@ -40,9 +39,12 @@ def test_simple():
     pickle.dump(fig, BytesIO(), pickle.HIGHEST_PROTOCOL)
 
 
-@image_comparison(['multi_pickle.png'], remove_text=True, style='mpl20',
-                  tol=0 if platform.machine() == 'x86_64' else 0.082)
+@image_comparison(
+    ['multi_pickle.png'], remove_text=True, style='mpl20', tol=0.082)
 def test_complete():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     fig = plt.figure('Figure with a label?', figsize=(10, 6))
 
     plt.suptitle('Can you fit any more in a figure?')
@@ -136,7 +138,7 @@ def test_image():
 
 
 def test_polar():
-    plt.subplot(111, polar=True)
+    plt.subplot(polar=True)
     fig = plt.gcf()
     pf = pickle.dumps(fig)
     pickle.loads(pf)
@@ -188,6 +190,13 @@ def test_shared():
     fig = pickle.loads(pickle.dumps(fig))
     fig.axes[0].set_xlim(10, 20)
     assert fig.axes[1].get_xlim() == (10, 20)
+
+
+def test_inset_and_secondary():
+    fig, ax = plt.subplots()
+    ax.inset_axes([.1, .1, .3, .3])
+    ax.secondary_xaxis("top", functions=(np.square, np.sqrt))
+    pickle.loads(pickle.dumps(fig))
 
 
 @pytest.mark.parametrize("cmap", cm._cmap_registry.values())

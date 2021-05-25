@@ -12,7 +12,8 @@ import math
 import numpy as np
 
 from matplotlib import (
-    artist, colors as mcolors, lines, text as mtext, path as mpath)
+    _api, artist, cbook, colors as mcolors, lines, text as mtext,
+    path as mpath)
 from matplotlib.collections import (
     LineCollection, PolyCollection, PatchCollection, PathCollection)
 from matplotlib.colors import Normalize
@@ -44,18 +45,17 @@ def get_dir_vector(zdir):
     ----------
     zdir : {'x', 'y', 'z', None, 3-tuple}
         The direction. Possible values are:
+
         - 'x': equivalent to (1, 0, 0)
         - 'y': equivalent to (0, 1, 0)
         - 'z': equivalent to (0, 0, 1)
         - *None*: equivalent to (0, 0, 0)
-        - an iterable (x, y, z) is returned unchanged.
+        - an iterable (x, y, z) is converted to a NumPy array, if not already
 
     Returns
     -------
     x, y, z : array-like
-        The direction vector. This is either a numpy.array or *zdir* itself if
-        *zdir* is already a length-3 iterable.
-
+        The direction vector.
     """
     if zdir == 'x':
         return np.array((1, 0, 0))
@@ -66,7 +66,7 @@ def get_dir_vector(zdir):
     elif zdir is None:
         return np.array((0, 0, 0))
     elif np.iterable(zdir) and len(zdir) == 3:
-        return zdir
+        return np.array(zdir)
     else:
         raise ValueError("'x', 'y', 'z', None or vector of length 3 expected")
 
@@ -95,22 +95,54 @@ class Text3D(mtext.Text):
         mtext.Text.__init__(self, x, y, text, **kwargs)
         self.set_3d_properties(z, zdir)
 
+    def get_position_3d(self):
+        """Return the (x, y, z) position of the text."""
+        return self._x, self._y, self._z
+
+    def set_position_3d(self, xyz, zdir=None):
+        """
+        Set the (*x*, *y*, *z*) position of the text.
+
+        Parameters
+        ----------
+        xyz : (float, float, float)
+            The position in 3D space.
+        zdir : {'x', 'y', 'z', None, 3-tuple}
+            The direction of the text. If unspecified, the zdir will not be
+            changed.
+        """
+        super().set_position(xyz[:2])
+        self.set_z(xyz[2])
+        if zdir is not None:
+            self._dir_vec = get_dir_vector(zdir)
+
+    def set_z(self, z):
+        """
+        Set the *z* position of the text.
+
+        Parameters
+        ----------
+        z : float
+        """
+        self._z = z
+        self.stale = True
+
     def set_3d_properties(self, z=0, zdir='z'):
-        x, y = self.get_position()
-        self._position3d = np.array((x, y, z))
+        self._z = z
         self._dir_vec = get_dir_vector(zdir)
         self.stale = True
 
     @artist.allow_rasterization
     def draw(self, renderer):
+        position3d = np.array((self._x, self._y, self._z))
         proj = proj3d.proj_trans_points(
-            [self._position3d, self._position3d + self._dir_vec], renderer.M)
+            [position3d, position3d + self._dir_vec], self.axes.M)
         dx = proj[0][1] - proj[0][0]
         dy = proj[1][1] - proj[1][0]
         angle = math.degrees(math.atan2(dy, dx))
-        self.set_position((proj[0][0], proj[1][0]))
-        self.set_rotation(_norm_text_angle(angle))
-        mtext.Text.draw(self, renderer)
+        with cbook._setattr_cm(self, _x=proj[0][0], _y=proj[1][0],
+                               _rotation=_norm_text_angle(angle)):
+            mtext.Text.draw(self, renderer)
         self.stale = False
 
     def get_tightbbox(self, renderer):
@@ -134,7 +166,7 @@ class Line3D(lines.Line2D):
         """
         Keyword arguments are passed onto :func:`~matplotlib.lines.Line2D`.
         """
-        lines.Line2D.__init__(self, [], [], *args, **kwargs)
+        super().__init__([], [], *args, **kwargs)
         self._verts3d = xs, ys, zs
 
     def set_3d_properties(self, zs=0, zdir='z'):
@@ -181,9 +213,9 @@ class Line3D(lines.Line2D):
     @artist.allow_rasterization
     def draw(self, renderer):
         xs3d, ys3d, zs3d = self._verts3d
-        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
         self.set_data(xs, ys)
-        lines.Line2D.draw(self, renderer)
+        super().draw(renderer)
         self.stale = False
 
 
@@ -207,7 +239,12 @@ def _path_to_3d_segment(path, zs=0, zdir='z'):
 def _paths_to_3d_segments(paths, zs=0, zdir='z'):
     """Convert paths from a collection object to 3D segments."""
 
-    zs = np.broadcast_to(zs, len(paths))
+    if not np.iterable(zs):
+        zs = np.broadcast_to(zs, len(paths))
+    else:
+        if len(zs) != len(paths):
+            raise ValueError('Number of z-coordinates does not match paths.')
+
     segs = [_path_to_3d_segment(path, pathz, zdir)
             for path, pathz in zip(paths, zs)]
     return segs
@@ -258,15 +295,15 @@ class Line3DCollection(LineCollection):
         Set 3D segments.
         """
         self._segments3d = segments
-        LineCollection.set_segments(self, [])
+        super().set_segments([])
 
-    def do_3d_projection(self, renderer):
+    @_api.delete_parameter('3.4', 'renderer')
+    def do_3d_projection(self, renderer=None):
         """
         Project the points according to renderer matrix.
         """
-        xyslist = [
-            proj3d.proj_trans_points(points, renderer.M) for points in
-            self._segments3d]
+        xyslist = [proj3d.proj_trans_points(points, self.axes.M)
+                   for points in self._segments3d]
         segments_2d = [np.column_stack([xs, ys]) for xs, ys, zs in xyslist]
         LineCollection.set_segments(self, segments_2d)
 
@@ -277,10 +314,12 @@ class Line3DCollection(LineCollection):
         return minz
 
     @artist.allow_rasterization
+    @_api.delete_parameter('3.4', 'project',
+                           alternative='Line3DCollection.do_3d_projection')
     def draw(self, renderer, project=False):
         if project:
-            self.do_3d_projection(renderer)
-        LineCollection.draw(self, renderer)
+            self.do_3d_projection()
+        super().draw(renderer)
 
 
 def line_collection_2d_to_3d(col, zs=0, zdir='z'):
@@ -296,28 +335,24 @@ class Patch3D(Patch):
     """
 
     def __init__(self, *args, zs=(), zdir='z', **kwargs):
-        Patch.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.set_3d_properties(zs, zdir)
 
     def set_3d_properties(self, verts, zs=0, zdir='z'):
         zs = np.broadcast_to(zs, len(verts))
         self._segment3d = [juggle_axes(x, y, z, zdir)
                            for ((x, y), z) in zip(verts, zs)]
-        self._facecolor3d = Patch.get_facecolor(self)
 
     def get_path(self):
         return self._path2d
 
-    def get_facecolor(self):
-        return self._facecolor2d
-
-    def do_3d_projection(self, renderer):
+    @_api.delete_parameter('3.4', 'renderer')
+    def do_3d_projection(self, renderer=None):
         s = self._segment3d
         xs, ys, zs = zip(*s)
-        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs, renderer.M)
+        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs,
+                                                        self.axes.M)
         self._path2d = mpath.Path(np.column_stack([vxs, vys]))
-        # FIXME: coloring
-        self._facecolor2d = self._facecolor3d
         return min(vzs)
 
 
@@ -327,6 +362,7 @@ class PathPatch3D(Patch3D):
     """
 
     def __init__(self, path, *, zs=(), zdir='z', **kwargs):
+        # Not super().__init__!
         Patch.__init__(self, **kwargs)
         self.set_3d_properties(path, zs, zdir)
 
@@ -334,13 +370,13 @@ class PathPatch3D(Patch3D):
         Patch3D.set_3d_properties(self, path.vertices, zs=zs, zdir=zdir)
         self._code3d = path.codes
 
-    def do_3d_projection(self, renderer):
+    @_api.delete_parameter('3.4', 'renderer')
+    def do_3d_projection(self, renderer=None):
         s = self._segment3d
         xs, ys, zs = zip(*s)
-        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs, renderer.M)
+        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs,
+                                                        self.axes.M)
         self._path2d = mpath.Path(np.column_stack([vxs, vys]), self._code3d)
-        # FIXME: coloring
-        self._facecolor2d = self._facecolor3d
         return min(vzs)
 
 
@@ -349,10 +385,7 @@ def _get_patch_verts(patch):
     trans = patch.get_patch_transform()
     path = patch.get_path()
     polygons = path.to_polygons(trans)
-    if len(polygons):
-        return polygons[0]
-    else:
-        return []
+    return polygons[0] if len(polygons) else np.array([])
 
 
 def patch_2d_to_3d(patch, z=0, zdir='z'):
@@ -388,7 +421,7 @@ class Patch3DCollection(PatchCollection):
         :class:`~matplotlib.collections.PatchCollection`. In addition,
         keywords *zs=0* and *zdir='z'* are available.
 
-        Also, the keyword argument "depthshade" is available to
+        Also, the keyword argument *depthshade* is available to
         indicate whether or not to shade the patches in order to
         give the appearance of depth (default is *True*).
         This is typically desired in scatter plots.
@@ -396,6 +429,22 @@ class Patch3DCollection(PatchCollection):
         self._depthshade = depthshade
         super().__init__(*args, **kwargs)
         self.set_3d_properties(zs, zdir)
+
+    def get_depthshade(self):
+        return self._depthshade
+
+    def set_depthshade(self, depthshade):
+        """
+        Set whether depth shading is performed on collection members.
+
+        Parameters
+        ----------
+        depthshade : bool
+            Whether to shade the patches in order to give the appearance of
+            depth.
+        """
+        self._depthshade = depthshade
+        self.stale = True
 
     def set_sort_zpos(self, val):
         """Set the position to use for z-sorting."""
@@ -413,29 +462,42 @@ class Patch3DCollection(PatchCollection):
             xs = []
             ys = []
         self._offsets3d = juggle_axes(xs, ys, np.atleast_1d(zs), zdir)
-        self._facecolor3d = self.get_facecolor()
-        self._edgecolor3d = self.get_edgecolor()
+        self._vzs = None
         self.stale = True
 
-    def do_3d_projection(self, renderer):
+    @_api.delete_parameter('3.4', 'renderer')
+    def do_3d_projection(self, renderer=None):
         xs, ys, zs = self._offsets3d
-        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs, renderer.M)
-
-        fcs = (_zalpha(self._facecolor3d, vzs) if self._depthshade else
-               self._facecolor3d)
-        fcs = mcolors.to_rgba_array(fcs, self._alpha)
-        self.set_facecolors(fcs)
-
-        ecs = (_zalpha(self._edgecolor3d, vzs) if self._depthshade else
-               self._edgecolor3d)
-        ecs = mcolors.to_rgba_array(ecs, self._alpha)
-        self.set_edgecolors(ecs)
-        PatchCollection.set_offsets(self, np.column_stack([vxs, vys]))
+        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs,
+                                                        self.axes.M)
+        self._vzs = vzs
+        super().set_offsets(np.column_stack([vxs, vys]))
 
         if vzs.size > 0:
             return min(vzs)
         else:
             return np.nan
+
+    def _maybe_depth_shade_and_sort_colors(self, color_array):
+        color_array = (
+            _zalpha(color_array, self._vzs)
+            if self._vzs is not None and self._depthshade
+            else color_array
+        )
+        if len(color_array) > 1:
+            color_array = color_array[self._z_markers_idx]
+        return mcolors.to_rgba_array(color_array, self._alpha)
+
+    def get_facecolor(self):
+        return self._maybe_depth_shade_and_sort_colors(super().get_facecolor())
+
+    def get_edgecolor(self):
+        # We need this check here to make sure we do not double-apply the depth
+        # based alpha shading when the edge color is "face" which means the
+        # edge colour should be identical to the face colour.
+        if cbook._str_equal(self._edgecolors, 'face'):
+            return self.get_facecolor()
+        return self._maybe_depth_shade_and_sort_colors(super().get_edgecolor())
 
 
 class Path3DCollection(PathCollection):
@@ -454,14 +516,19 @@ class Path3DCollection(PathCollection):
         :class:`~matplotlib.collections.PathCollection`. In addition,
         keywords *zs=0* and *zdir='z'* are available.
 
-        Also, the keyword argument "depthshade" is available to
+        Also, the keyword argument *depthshade* is available to
         indicate whether or not to shade the patches in order to
         give the appearance of depth (default is *True*).
         This is typically desired in scatter plots.
         """
         self._depthshade = depthshade
+        self._in_draw = False
         super().__init__(*args, **kwargs)
         self.set_3d_properties(zs, zdir)
+
+    def draw(self, renderer):
+        with cbook._setattr_cm(self, _in_draw=True):
+            super().draw(renderer)
 
     def set_sort_zpos(self, val):
         """Set the position to use for z-sorting."""
@@ -479,53 +546,104 @@ class Path3DCollection(PathCollection):
             xs = []
             ys = []
         self._offsets3d = juggle_axes(xs, ys, np.atleast_1d(zs), zdir)
-        self._facecolor3d = self.get_facecolor()
-        self._edgecolor3d = self.get_edgecolor()
-        self._sizes3d = self.get_sizes()
-        self._linewidth3d = self.get_linewidth()
-        self.stale = True
-
-    def do_3d_projection(self, renderer):
+        # In the base draw methods we access the attributes directly which
+        # means we can not resolve the shuffling in the getter methods like
+        # we do for the edge and face colors.
+        #
+        # This means we need to carry around a cache of the unsorted sizes and
+        # widths (postfixed with 3d) and in `do_3d_projection` set the
+        # depth-sorted version of that data into the private state used by the
+        # base collection class in its draw method.
+        #
+        # Grab the current sizes and linewidths to preserve them.
+        self._sizes3d = self._sizes
+        self._linewidths3d = self._linewidths
         xs, ys, zs = self._offsets3d
-        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs, renderer.M)
-
-        fcs = (_zalpha(self._facecolor3d, vzs) if self._depthshade else
-               self._facecolor3d)
-        ecs = (_zalpha(self._edgecolor3d, vzs) if self._depthshade else
-               self._edgecolor3d)
-        sizes = self._sizes3d
-        lws = self._linewidth3d
 
         # Sort the points based on z coordinates
         # Performance optimization: Create a sorted index array and reorder
         # points and point properties according to the index array
-        z_markers_idx = np.argsort(vzs)[::-1]
+        self._z_markers_idx = slice(-1)
+        self._vzs = None
+        self.stale = True
+
+    def set_sizes(self, sizes, dpi=72.0):
+        super().set_sizes(sizes, dpi)
+        if not self._in_draw:
+            self._sizes3d = sizes
+
+    def set_linewidth(self, lw):
+        super().set_linewidth(lw)
+        if not self._in_draw:
+            self._linewidth3d = lw
+
+    def get_depthshade(self):
+        return self._depthshade
+
+    def set_depthshade(self, depthshade):
+        """
+        Set whether depth shading is performed on collection members.
+
+        Parameters
+        ----------
+        depthshade : bool
+            Whether to shade the patches in order to give the appearance of
+            depth.
+        """
+        self._depthshade = depthshade
+        self.stale = True
+
+    @_api.delete_parameter('3.4', 'renderer')
+    def do_3d_projection(self, renderer=None):
+        xs, ys, zs = self._offsets3d
+        vxs, vys, vzs, vis = proj3d.proj_transform_clip(xs, ys, zs,
+                                                        self.axes.M)
+        # Sort the points based on z coordinates
+        # Performance optimization: Create a sorted index array and reorder
+        # points and point properties according to the index array
+        z_markers_idx = self._z_markers_idx = np.argsort(vzs)[::-1]
+        self._vzs = vzs
+
+        # we have to special case the sizes because of code in collections.py
+        # as the draw method does
+        #      self.set_sizes(self._sizes, self.figure.dpi)
+        # so we can not rely on doing the sorting on the way out via get_*
+
+        if len(self._sizes3d) > 1:
+            self._sizes = self._sizes3d[z_markers_idx]
+
+        if len(self._linewidths3d) > 1:
+            self._linewidths = self._linewidths3d[z_markers_idx]
 
         # Re-order items
         vzs = vzs[z_markers_idx]
         vxs = vxs[z_markers_idx]
         vys = vys[z_markers_idx]
-        if len(fcs) > 1:
-            fcs = fcs[z_markers_idx]
-        if len(ecs) > 1:
-            ecs = ecs[z_markers_idx]
-        if len(sizes) > 1:
-            sizes = sizes[z_markers_idx]
-        if len(lws) > 1:
-            lws = lws[z_markers_idx]
-        vps = np.column_stack((vxs, vys))
 
-        fcs = mcolors.to_rgba_array(fcs, self._alpha)
-        ecs = mcolors.to_rgba_array(ecs, self._alpha)
-
-        self.set_edgecolors(ecs)
-        self.set_facecolors(fcs)
-        self.set_sizes(sizes)
-        self.set_linewidth(lws)
-
-        PathCollection.set_offsets(self, vps)
+        PathCollection.set_offsets(self, np.column_stack((vxs, vys)))
 
         return np.min(vzs) if vzs.size else np.nan
+
+    def _maybe_depth_shade_and_sort_colors(self, color_array):
+        color_array = (
+            _zalpha(color_array, self._vzs)
+            if self._vzs is not None and self._depthshade
+            else color_array
+        )
+        if len(color_array) > 1:
+            color_array = color_array[self._z_markers_idx]
+        return mcolors.to_rgba_array(color_array, self._alpha)
+
+    def get_facecolor(self):
+        return self._maybe_depth_shade_and_sort_colors(super().get_facecolor())
+
+    def get_edgecolor(self):
+        # We need this check here to make sure we do not double-apply the depth
+        # based alpha shading when the edge color is "face" which means the
+        # edge colour should be identical to the face colour.
+        if cbook._str_equal(self._edgecolors, 'face'):
+            return self.get_facecolor()
+        return self._maybe_depth_shade_and_sort_colors(super().get_edgecolor())
 
 
 def patch_collection_2d_to_3d(col, zs=0, zdir='z', depthshade=True):
@@ -551,6 +669,7 @@ def patch_collection_2d_to_3d(col, zs=0, zdir='z', depthshade=True):
     elif isinstance(col, PatchCollection):
         col.__class__ = Patch3DCollection
     col._depthshade = depthshade
+    col._in_draw = False
     col.set_3d_properties(zs, zdir)
 
 
@@ -579,7 +698,7 @@ class Poly3DCollection(PolyCollection):
         """
         Parameters
         ----------
-        verts : list of array-like Nx3
+        verts : list of (N, 3) array-like
             Each element describes a polygon as a sequence of ``N_i`` points
             ``(x, y, z)``.
         zsort : {'average', 'min', 'max'}, default: 'average'
@@ -633,7 +752,7 @@ class Poly3DCollection(PolyCollection):
         """Set 3D vertices."""
         self.get_vector(verts)
         # 2D verts will be updated at draw time
-        PolyCollection.set_verts(self, [], False)
+        super().set_verts([], False)
         self._closed = closed
 
     def set_verts_and_codes(self, verts, codes):
@@ -650,8 +769,8 @@ class Poly3DCollection(PolyCollection):
         self.update_scalarmappable()
         self._sort_zpos = None
         self.set_zsort('average')
-        self._facecolors3d = PolyCollection.get_facecolor(self)
-        self._edgecolors3d = PolyCollection.get_edgecolor(self)
+        self._facecolor3d = PolyCollection.get_facecolor(self)
+        self._edgecolor3d = PolyCollection.get_edgecolor(self)
         self._alpha3d = PolyCollection.get_alpha(self)
         self.stale = True
 
@@ -660,21 +779,32 @@ class Poly3DCollection(PolyCollection):
         self._sort_zpos = val
         self.stale = True
 
-    def do_3d_projection(self, renderer):
+    @_api.delete_parameter('3.4', 'renderer')
+    def do_3d_projection(self, renderer=None):
         """
         Perform the 3D projection for this object.
         """
-        # FIXME: This may no longer be needed?
         if self._A is not None:
+            # force update of color mapping because we re-order them
+            # below.  If we do not do this here, the 2D draw will call
+            # this, but we will never port the color mapped values back
+            # to the 3D versions.
+            #
+            # We hold the 3D versions in a fixed order (the order the user
+            # passed in) and sort the 2D version by view depth.
+            copy_state = self._update_dict['array']
             self.update_scalarmappable()
-            self._facecolors3d = self._facecolors
-
-        txs, tys, tzs = proj3d._proj_transform_vec(self._vec, renderer.M)
+            if copy_state:
+                if self._face_is_mapped:
+                    self._facecolor3d = self._facecolors
+                if self._edge_is_mapped:
+                    self._edgecolor3d = self._edgecolors
+        txs, tys, tzs = proj3d._proj_transform_vec(self._vec, self.axes.M)
         xyzlist = [(txs[sl], tys[sl], tzs[sl]) for sl in self._segslices]
 
         # This extra fuss is to re-order face / edge colors
-        cface = self._facecolors3d
-        cedge = self._edgecolors3d
+        cface = self._facecolor3d
+        cedge = self._edgecolor3d
         if len(cface) != len(xyzlist):
             cface = cface.repeat(len(xyzlist), axis=0)
         if len(cedge) != len(xyzlist):
@@ -683,15 +813,21 @@ class Poly3DCollection(PolyCollection):
             else:
                 cedge = cedge.repeat(len(xyzlist), axis=0)
 
-        # sort by depth (furthest drawn first)
-        z_segments_2d = sorted(
-            ((self._zsortfunc(zs), np.column_stack([xs, ys]), fc, ec, idx)
-             for idx, ((xs, ys, zs), fc, ec)
-             in enumerate(zip(xyzlist, cface, cedge))),
-            key=lambda x: x[0], reverse=True)
+        if xyzlist:
+            # sort by depth (furthest drawn first)
+            z_segments_2d = sorted(
+                ((self._zsortfunc(zs), np.column_stack([xs, ys]), fc, ec, idx)
+                 for idx, ((xs, ys, zs), fc, ec)
+                 in enumerate(zip(xyzlist, cface, cedge))),
+                key=lambda x: x[0], reverse=True)
 
-        zzs, segments_2d, self._facecolors2d, self._edgecolors2d, idxs = \
-            zip(*z_segments_2d)
+            _, segments_2d, self._facecolors2d, self._edgecolors2d, idxs = \
+                zip(*z_segments_2d)
+        else:
+            segments_2d = []
+            self._facecolors2d = np.empty((0, 4))
+            self._edgecolors2d = np.empty((0, 4))
+            idxs = []
 
         if self._codes3d is not None:
             codes = [self._codes3d[idx] for idx in idxs]
@@ -699,13 +835,13 @@ class Poly3DCollection(PolyCollection):
         else:
             PolyCollection.set_verts(self, segments_2d, self._closed)
 
-        if len(self._edgecolors3d) != len(cface):
-            self._edgecolors2d = self._edgecolors3d
+        if len(self._edgecolor3d) != len(cface):
+            self._edgecolors2d = self._edgecolor3d
 
         # Return zorder value
         if self._sort_zpos is not None:
             zvec = np.array([[0], [0], [self._sort_zpos], [1]])
-            ztrans = proj3d._proj_transform_vec(zvec, renderer.M)
+            ztrans = proj3d._proj_transform_vec(zvec, self.axes.M)
             return ztrans[2][0]
         elif tzs.size > 0:
             # FIXME: Some results still don't look quite right.
@@ -716,24 +852,26 @@ class Poly3DCollection(PolyCollection):
             return np.nan
 
     def set_facecolor(self, colors):
-        PolyCollection.set_facecolor(self, colors)
-        self._facecolors3d = PolyCollection.get_facecolor(self)
+        # docstring inherited
+        super().set_facecolor(colors)
+        self._facecolor3d = PolyCollection.get_facecolor(self)
 
     def set_edgecolor(self, colors):
-        PolyCollection.set_edgecolor(self, colors)
-        self._edgecolors3d = PolyCollection.get_edgecolor(self)
+        # docstring inherited
+        super().set_edgecolor(colors)
+        self._edgecolor3d = PolyCollection.get_edgecolor(self)
 
     def set_alpha(self, alpha):
         # docstring inherited
         artist.Artist.set_alpha(self, alpha)
         try:
-            self._facecolors3d = mcolors.to_rgba_array(
-                self._facecolors3d, self._alpha)
+            self._facecolor3d = mcolors.to_rgba_array(
+                self._facecolor3d, self._alpha)
         except (AttributeError, TypeError, IndexError):
             pass
         try:
             self._edgecolors = mcolors.to_rgba_array(
-                    self._edgecolors3d, self._alpha)
+                    self._edgecolor3d, self._alpha)
         except (AttributeError, TypeError, IndexError):
             pass
         self.stale = True
@@ -790,20 +928,13 @@ def rotate_axes(xs, ys, zs, zdir):
         return xs, ys, zs
 
 
-def _get_colors(c, num):
-    """Stretch the color argument to provide the required number *num*."""
-    return np.broadcast_to(
-        mcolors.to_rgba_array(c) if len(c) else [0, 0, 0, 0],
-        (num, 4))
-
-
 def _zalpha(colors, zs):
     """Modify the alphas of the color list according to depth."""
     # FIXME: This only works well if the points for *zs* are well-spaced
     #        in all three dimensions. Otherwise, at certain orientations,
     #        the min and max zs are very close together.
     #        Should really normalize against the viewing depth.
-    if len(zs) == 0:
+    if len(colors) == 0 or len(zs) == 0:
         return np.zeros((0, 4))
     norm = Normalize(min(zs), max(zs))
     sats = 1 - norm(zs) * 0.7

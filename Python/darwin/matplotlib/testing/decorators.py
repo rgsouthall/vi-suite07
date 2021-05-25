@@ -9,12 +9,7 @@ import string
 import sys
 import unittest
 import warnings
-try:
-    from contextlib import nullcontext
-except ImportError:
-    from contextlib import ExitStack as nullcontext  # Py3.6.
 
-import matplotlib as mpl
 import matplotlib.style
 import matplotlib.units
 import matplotlib.testing
@@ -116,7 +111,8 @@ def _checked_on_freetype_version(required_freetype_version):
 def remove_ticks_and_titles(figure):
     figure.suptitle("")
     null_formatter = ticker.NullFormatter()
-    for ax in figure.get_axes():
+    def remove_ticks(ax):
+        """Remove ticks in *ax* and all its child Axes."""
         ax.set_title("")
         ax.xaxis.set_major_formatter(null_formatter)
         ax.xaxis.set_minor_formatter(null_formatter)
@@ -127,6 +123,10 @@ def remove_ticks_and_titles(figure):
             ax.zaxis.set_minor_formatter(null_formatter)
         except AttributeError:
             pass
+        for child in ax.child_axes:
+            remove_ticks(child)
+    for ax in figure.get_axes():
+        remove_ticks(ax)
 
 
 def _raise_on_image_difference(expected, actual, tol):
@@ -219,7 +219,8 @@ class _ImageComparisonBase:
                               {'Creator': None, 'Producer': None,
                                'CreationDate': None})
 
-        lock = cbook._lock_path(actual_path) if _lock else nullcontext()
+        lock = (cbook._lock_path(actual_path)
+                if _lock else contextlib.nullcontext())
         with lock:
             fig.savefig(actual_path, **kwargs)
             expected_path = self.copy_baseline(baseline, extension)
@@ -407,6 +408,12 @@ def check_figures_equal(*, extensions=("png", "pdf", "svg"), tol=0):
     tol : float
         The RMS threshold above which the test is considered failed.
 
+    Raises
+    ------
+    RuntimeError
+        If any new figures are created (and not subsequently closed) inside
+        the test function.
+
     Examples
     --------
     Check that calling `.Axes.plot` with a single argument plots it against
@@ -420,6 +427,7 @@ def check_figures_equal(*, extensions=("png", "pdf", "svg"), tol=0):
     """
     ALLOWED_CHARS = set(string.digits + string.ascii_letters + '_-[]()')
     KEYWORD_ONLY = inspect.Parameter.KEYWORD_ONLY
+
     def decorator(func):
         import pytest
 
@@ -443,7 +451,16 @@ def check_figures_equal(*, extensions=("png", "pdf", "svg"), tol=0):
             try:
                 fig_test = plt.figure("test")
                 fig_ref = plt.figure("reference")
+                # Keep track of number of open figures, to make sure test
+                # doesn't create any new ones
+                n_figs = len(plt.get_fignums())
                 func(*args, fig_test=fig_test, fig_ref=fig_ref, **kwargs)
+                if len(plt.get_fignums()) > n_figs:
+                    raise RuntimeError('Number of open figures changed during '
+                                       'test. Make sure you are plotting to '
+                                       'fig_test or fig_ref, or if this is '
+                                       'deliberate explicitly close the '
+                                       'new figure(s) inside the test.')
                 test_image_path = result_dir / (file_name + "." + ext)
                 ref_image_path = result_dir / (file_name + "-expected." + ext)
                 fig_test.savefig(test_image_path)

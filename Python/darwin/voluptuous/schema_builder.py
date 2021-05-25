@@ -615,11 +615,11 @@ class Schema(object):
             if not isinstance(data, seq_type):
                 raise er.SequenceTypeInvalid('expected a %s' % seq_type_name, path)
 
-            # Empty seq schema, allow any data.
+            # Empty seq schema, reject any data.
             if not schema:
                 if data:
                     raise er.MultipleInvalid([
-                        er.ValueInvalid('not a valid value', [value]) for value in data
+                        er.ValueInvalid('not a valid value', path if path else data)
                     ])
                 return data
 
@@ -815,7 +815,7 @@ def _compile_scalar(schema):
         def validate_callable(path, data):
             try:
                 return schema(data)
-            except ValueError as e:
+            except ValueError:
                 raise er.ValueInvalid('not a valid value', path)
             except er.Invalid as e:
                 e.prepend(path)

@@ -28,12 +28,19 @@ import weakref
 import numpy as np
 
 import matplotlib
-from .deprecation import (
-    deprecated, warn_deprecated,
-    _rename_parameter, _delete_parameter, _make_keyword_only,
-    _deprecate_method_override, _deprecate_privatize_attribute,
-    _suppress_matplotlib_deprecation_warning,
+from matplotlib import _api, _c_internal_utils
+from matplotlib._api.deprecation import (
     MatplotlibDeprecationWarning, mplDeprecation)
+
+
+@_api.deprecated("3.4")
+def deprecated(*args, **kwargs):
+    return _api.deprecated(*args, **kwargs)
+
+
+@_api.deprecated("3.4")
+def warn_deprecated(*args, **kwargs):
+    _api.warn_deprecated(*args, **kwargs)
 
 
 def _get_running_interactive_framework():
@@ -63,15 +70,16 @@ def _get_running_interactive_framework():
         return "wx"
     tkinter = sys.modules.get("tkinter")
     if tkinter:
+        codes = {tkinter.mainloop.__code__, tkinter.Misc.mainloop.__code__}
         for frame in sys._current_frames().values():
             while frame:
-                if frame.f_code == tkinter.mainloop.__code__:
+                if frame.f_code in codes:
                     return "tk"
                 frame = frame.f_back
     if 'matplotlib.backends._macosx' in sys.modules:
         if sys.modules["matplotlib.backends._macosx"].event_loop_is_running():
             return "macosx"
-    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+    if not _c_internal_utils.display_is_valid():
         return "headless"
     return None
 
@@ -99,6 +107,16 @@ class _StrongRef:
 
     def __hash__(self):
         return hash(self._obj)
+
+
+def _weak_or_strong_ref(func, callback):
+    """
+    Return a `WeakMethod` wrapping *func* if possible, else a `_StrongRef`.
+    """
+    try:
+        return weakref.WeakMethod(func, callback)
+    except TypeError:
+        return _StrongRef(func)
 
 
 class CallbackRegistry:
@@ -135,20 +153,14 @@ class CallbackRegistry:
     Parameters
     ----------
     exception_handler : callable, optional
-       If provided must have signature ::
+       If not None, *exception_handler* must be a function that takes an
+       `Exception` as single parameter.  It gets called with any `Exception`
+       raised by the callbacks during `CallbackRegistry.process`, and may
+       either re-raise the exception or handle it in another manner.
 
-          def handler(exc: Exception) -> None:
-
-       If not None this function will be called with any `Exception`
-       subclass raised by the callbacks in `CallbackRegistry.process`.
-       The handler may either consume the exception or re-raise.
-
-       The callable must be pickle-able.
-
-       The default handler is ::
-
-          def h(exc):
-              traceback.print_exc()
+       The default handler prints the exception (with `traceback.print_exc`) if
+       an interactive event loop is running; it re-raises the exception if no
+       interactive event loop is running.
     """
 
     # We maintain two mappings:
@@ -160,25 +172,42 @@ class CallbackRegistry:
         self.callbacks = {}
         self._cid_gen = itertools.count()
         self._func_cid_map = {}
+        # A hidden variable that marks cids that need to be pickled.
+        self._pickled_cids = set()
 
     def __getstate__(self):
-        # In general, callbacks may not be pickled, so we just drop them.
-        return {**vars(self), "callbacks": {}, "_func_cid_map": {}}
+        return {
+            **vars(self),
+            # In general, callbacks may not be pickled, so we just drop them,
+            # unless directed otherwise by self._pickled_cids.
+            "callbacks": {s: {cid: proxy() for cid, proxy in d.items()
+                              if cid in self._pickled_cids}
+                          for s, d in self.callbacks.items()},
+            # It is simpler to reconstruct this from callbacks in __setstate__.
+            "_func_cid_map": None,
+        }
 
-    def connect(self, s, func):
-        """Register *func* to be called when signal *s* is generated."""
-        self._func_cid_map.setdefault(s, {})
-        try:
-            proxy = weakref.WeakMethod(func, self._remove_proxy)
-        except TypeError:
-            proxy = _StrongRef(func)
-        if proxy in self._func_cid_map[s]:
-            return self._func_cid_map[s][proxy]
+    def __setstate__(self, state):
+        vars(self).update(state)
+        self.callbacks = {
+            s: {cid: _weak_or_strong_ref(func, self._remove_proxy)
+                for cid, func in d.items()}
+            for s, d in self.callbacks.items()}
+        self._func_cid_map = {
+            s: {proxy: cid for cid, proxy in d.items()}
+            for s, d in self.callbacks.items()}
 
+    @_api.rename_parameter("3.4", "s", "signal")
+    def connect(self, signal, func):
+        """Register *func* to be called when signal *signal* is generated."""
+        self._func_cid_map.setdefault(signal, {})
+        proxy = _weak_or_strong_ref(func, self._remove_proxy)
+        if proxy in self._func_cid_map[signal]:
+            return self._func_cid_map[signal][proxy]
         cid = next(self._cid_gen)
-        self._func_cid_map[s][proxy] = cid
-        self.callbacks.setdefault(s, {})
-        self.callbacks[s][cid] = proxy
+        self._func_cid_map[signal][proxy] = cid
+        self.callbacks.setdefault(signal, {})
+        self.callbacks[signal][cid] = proxy
         return cid
 
     # Keep a reference to sys.is_finalizing, as sys may have been cleared out
@@ -187,28 +216,45 @@ class CallbackRegistry:
         if _is_finalizing():
             # Weakrefs can't be properly torn down at that point anymore.
             return
-        for signal, proxies in list(self._func_cid_map.items()):
-            try:
-                del self.callbacks[signal][proxies[proxy]]
-            except KeyError:
-                pass
-            if len(self.callbacks[signal]) == 0:
-                del self.callbacks[signal]
-                del self._func_cid_map[signal]
+        for signal, proxy_to_cid in list(self._func_cid_map.items()):
+            cid = proxy_to_cid.pop(proxy, None)
+            if cid is not None:
+                del self.callbacks[signal][cid]
+                self._pickled_cids.discard(cid)
+                break
+        else:
+            # Not found
+            return
+        # Clean up empty dicts
+        if len(self.callbacks[signal]) == 0:
+            del self.callbacks[signal]
+            del self._func_cid_map[signal]
 
     def disconnect(self, cid):
-        """Disconnect the callback registered with callback id *cid*."""
-        for eventname, callbackd in list(self.callbacks.items()):
-            try:
-                del callbackd[cid]
-            except KeyError:
-                continue
-            else:
-                for signal, functions in list(self._func_cid_map.items()):
-                    for function, value in list(functions.items()):
-                        if value == cid:
-                            del functions[function]
-                return
+        """
+        Disconnect the callback registered with callback id *cid*.
+
+        No error is raised if such a callback does not exist.
+        """
+        self._pickled_cids.discard(cid)
+        # Clean up callbacks
+        for signal, cid_to_proxy in list(self.callbacks.items()):
+            proxy = cid_to_proxy.pop(cid, None)
+            if proxy is not None:
+                break
+        else:
+            # Not found
+            return
+
+        proxy_to_cid = self._func_cid_map[signal]
+        for current_proxy, current_cid in list(proxy_to_cid.items()):
+            if current_cid == cid:
+                assert proxy is current_proxy
+                del proxy_to_cid[current_proxy]
+        # Clean up empty dicts
+        if len(self.callbacks[signal]) == 0:
+            del self.callbacks[signal]
+            del self._func_cid_map[signal]
 
     def process(self, s, *args, **kwargs):
         """
@@ -247,17 +293,25 @@ class silent_list(list):
     one will get ::
 
         <a list of 3 Line2D objects>
+
+    If ``self.type`` is None, the type name is obtained from the first item in
+    the list (if any).
     """
+
     def __init__(self, type, seq=None):
         self.type = type
         if seq is not None:
             self.extend(seq)
 
     def __repr__(self):
-        return '<a list of %d %s objects>' % (len(self), self.type)
+        if self.type is not None or len(self) != 0:
+            tp = self.type if self.type is not None else type(self[0]).__name__
+            return f"<a list of {len(self)} {tp} objects>"
+        else:
+            return "<an empty list>"
 
 
-@deprecated("3.3")
+@_api.deprecated("3.3")
 class IgnoredKeywordWarning(UserWarning):
     """
     A class for issuing warnings about keyword arguments that will be ignored
@@ -266,7 +320,7 @@ class IgnoredKeywordWarning(UserWarning):
     pass
 
 
-@deprecated("3.3", alternative="normalize_kwargs")
+@_api.deprecated("3.3", alternative="normalize_kwargs")
 def local_over_kwdict(local_var, kwargs, *keys):
     """
     Enforces the priority of a local variable over potentially conflicting
@@ -314,8 +368,8 @@ def _local_over_kwdict(
             if out is None:
                 out = kwarg_val
             else:
-                _warn_external('"%s" keyword argument will be ignored' % key,
-                               warning_cls)
+                _api.warn_external(f'"{key}" keyword argument will be ignored',
+                                   warning_cls)
     return out
 
 
@@ -372,14 +426,14 @@ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
     fname : str or path-like or file-like
         If `str` or `os.PathLike`, the file is opened using the flags specified
         by *flag* and *encoding*.  If a file-like object, it is passed through.
-    flag : str, default 'r'
+    flag : str, default: 'r'
         Passed as the *mode* argument to `open` when *fname* is `str` or
         `os.PathLike`; ignored if *fname* is file-like.
-    return_opened : bool, default False
+    return_opened : bool, default: False
         If True, return both the file object and a boolean indicating whether
         this was a new file (that the caller needs to close).  If False, return
         only the new file.
-    encoding : str or None, default None
+    encoding : str or None, default: None
         Passed as the *mode* argument to `open` when *fname* is `str` or
         `os.PathLike`; ignored if *fname* is file-like.
 
@@ -392,9 +446,9 @@ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
     if isinstance(fname, os.PathLike):
         fname = os.fspath(fname)
     if "U" in flag:
-        warn_deprecated("3.3", message="Passing a flag containing 'U' to "
-                        "to_filehandle() is deprecated since %(since)s and "
-                        "will be removed %(removal)s.")
+        _api.warn_deprecated(
+            "3.3", message="Passing a flag containing 'U' to to_filehandle() "
+            "is deprecated since %(since)s and will be removed %(removal)s.")
         flag = flag.replace("U", "")
     if isinstance(fname, str):
         if fname.endswith('.gz'):
@@ -456,7 +510,7 @@ def get_sample_data(fname, asfileobj=True, *, np_load=False):
             if np_load:
                 return np.load(path)
             else:
-                warn_deprecated(
+                _api.warn_deprecated(
                     "3.3", message="In a future release, get_sample_data "
                     "will automatically load numpy arrays.  Set np_load to "
                     "True to get the array and suppress this warning.  Set "
@@ -473,7 +527,7 @@ def get_sample_data(fname, asfileobj=True, *, np_load=False):
 
 def _get_data_path(*args):
     """
-    Return the `Path` to a resource file provided by Matplotlib.
+    Return the `pathlib.Path` to a resource file provided by Matplotlib.
 
     ``*args`` specify a path relative to the base data path.
     """
@@ -502,7 +556,7 @@ def flatten(seq, scalarp=is_scalar_or_string):
             yield from flatten(item, scalarp)
 
 
-@deprecated("3.3", alternative="os.path.realpath and os.stat")
+@_api.deprecated("3.3", alternative="os.path.realpath and os.stat")
 @functools.lru_cache()
 def get_realpath_and_stat(path):
     realpath = os.path.realpath(path)
@@ -785,8 +839,8 @@ class Grouper:
     >>> grp.join(a, b)
     >>> grp.join(b, c)
     >>> grp.join(d, e)
-    >>> sorted(map(tuple, grp))
-    [(a, b, c), (d, e)]
+    >>> list(grp)
+    [[a, b, c], [d, e]]
     >>> grp.joined(a, b)
     True
     >>> grp.joined(a, c)
@@ -979,7 +1033,7 @@ def _combine_masks(*args):
     Masks are obtained from all arguments of the correct length
     in categories 1, 2, and 4; a point is bad if masked in a masked
     array or if it is a nan or inf.  No attempt is made to
-    extract a mask from categories 2 and 4 if :meth:`np.isfinite`
+    extract a mask from categories 2 and 4 if `numpy.isfinite`
     does not yield a Boolean array.  Category 3 is included to
     support RGB or RGBA ndarrays, which are assumed to have only
     valid values and which are passed through unchanged.
@@ -1046,8 +1100,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
 
         If a pair of floats, they indicate the percentiles at which to draw the
         whiskers (e.g., (5, 95)).  In particular, setting this to (0, 100)
-        results in whiskers covering the whole range of the data.  "range" is
-        a deprecated synonym for (0, 100).
+        results in whiskers covering the whole range of the data.
 
         In the edge case where ``Q1 == Q3``, *whis* is automatically set to
         (0, 100) (cover the whole range of the data) if *autorange* is True.
@@ -1190,22 +1243,13 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
         )
 
         # lowest/highest non-outliers
-        if np.isscalar(whis):
-            if np.isreal(whis):
-                loval = q1 - whis * stats['iqr']
-                hival = q3 + whis * stats['iqr']
-            elif whis in ['range', 'limit', 'limits', 'min/max']:
-                warn_deprecated(
-                    "3.2", message=f"Setting whis to {whis!r} is deprecated "
-                    "since %(since)s and support for it will be removed "
-                    "%(removal)s; set it to [0, 100] to achieve the same "
-                    "effect.")
-                loval = np.min(x)
-                hival = np.max(x)
-            else:
-                raise ValueError('whis must be a float or list of percentiles')
-        else:
+        if np.iterable(whis) and not isinstance(whis, str):
             loval, hival = np.percentile(x, whis)
+        elif np.isreal(whis):
+            loval = q1 - whis * stats['iqr']
+            hival = q3 + whis * stats['iqr']
+        else:
+            raise ValueError('whis must be a float or list of percentiles')
 
         # get high extreme
         wiskhi = x[x <= hival]
@@ -1222,7 +1266,7 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
             stats['whislo'] = np.min(wisklo)
 
         # compute a single array of outliers
-        stats['fliers'] = np.hstack([
+        stats['fliers'] = np.concatenate([
             x[x < stats['whislo']],
             x[x > stats['whishi']],
         ])
@@ -1233,9 +1277,9 @@ def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None,
     return bxpstats
 
 
-# The ls_mapper maps short codes for line style to their full name used by
-# backends; the reverse mapper is for mapping full names to short ones.
+#: Maps short codes for line style to their full name used by backends.
 ls_mapper = {'-': 'solid', '--': 'dashed', '-.': 'dashdot', ':': 'dotted'}
+#: Maps full names for line styles used by backends to their short codes.
 ls_mapper_r = {v: k for k, v in ls_mapper.items()}
 
 
@@ -1290,7 +1334,7 @@ def _to_unmasked_float_array(x):
 
 
 def _check_1d(x):
-    """Convert scalars to 1d arrays; pass-through arrays as is."""
+    """Convert scalars to 1D arrays; pass-through arrays as is."""
     if not hasattr(x, 'shape') or len(x.shape) < 1:
         return np.atleast_1d(x)
     else:
@@ -1339,7 +1383,7 @@ def _reshape_2D(X, name):
     Use Fortran ordering to convert ndarrays and lists of iterables to lists of
     1D arrays.
 
-    Lists of iterables are converted by applying `np.asanyarray` to each of
+    Lists of iterables are converted by applying `numpy.asanyarray` to each of
     their elements.  1D ndarrays are returned in a singleton list containing
     them.  2D ndarrays are converted to the list of their *columns*.
 
@@ -1679,9 +1723,9 @@ def sanitize_sequence(data):
             else data)
 
 
-@_delete_parameter("3.3", "required")
-@_delete_parameter("3.3", "forbidden")
-@_delete_parameter("3.3", "allowed")
+@_api.delete_parameter("3.3", "required")
+@_api.delete_parameter("3.3", "forbidden")
+@_api.delete_parameter("3.3", "allowed")
 def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
                      allowed=None):
     """
@@ -1699,8 +1743,10 @@ def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
 
     Parameters
     ----------
-    kw : dict
-        A dict of keyword arguments.
+    kw : dict or None
+        A dict of keyword arguments.  None is explicitly supported and treated
+        as an empty dict, to support functions with an optional parameter of
+        the form ``props=None``.
 
     alias_mapping : dict or Artist subclass or Artist instance, optional
         A mapping between a canonical name to a list of
@@ -1731,6 +1777,9 @@ def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
         a callable.
     """
     from matplotlib.artist import Artist
+
+    if kw is None:
+        return {}
 
     # deal with default value of alias_mapping
     if alias_mapping is None:
@@ -2086,28 +2135,6 @@ def _setattr_cm(obj, **kwargs):
                 setattr(obj, attr, orig)
 
 
-def _warn_external(message, category=None):
-    """
-    `warnings.warn` wrapper that sets *stacklevel* to "outside Matplotlib".
-
-    The original emitter of the warning can be obtained by patching this
-    function back to `warnings.warn`, i.e. ``cbook._warn_external =
-    warnings.warn`` (or ``functools.partial(warnings.warn, stacklevel=2)``,
-    etc.).
-    """
-    frame = sys._getframe()
-    for stacklevel in itertools.count(1):  # lgtm[py/unused-loop-variable]
-        if frame is None:
-            # when called in embedded context may hit frame is None
-            break
-        if not re.match(r"\A(matplotlib|mpl_toolkits)(\Z|\.(?!tests\.))",
-                        # Work around sphinx-gallery not setting __name__.
-                        frame.f_globals.get("__name__", "")):
-            break
-        frame = frame.f_back
-    warnings.warn(message, category, stacklevel)
-
-
 class _OrderedSet(collections.abc.MutableSet):
     def __init__(self):
         self._od = collections.OrderedDict()
@@ -2171,6 +2198,24 @@ def _unmultiplied_rgba8888_to_premultiplied_argb32(rgba8888):
     return argb32
 
 
+def _get_nonzero_slices(buf):
+    """
+    Return the bounds of the nonzero region of a 2D array as a pair of slices.
+
+    ``buf[_get_nonzero_slices(buf)]`` is the smallest sub-rectangle in *buf*
+    that encloses all non-zero entries in *buf*.  If *buf* is fully zero, then
+    ``(slice(0, 0), slice(0, 0))`` is returned.
+    """
+    x_nz, = buf.any(axis=0).nonzero()
+    y_nz, = buf.any(axis=1).nonzero()
+    if len(x_nz) and len(y_nz):
+        l, r = x_nz[[0, -1]]
+        b, t = y_nz[[0, -1]]
+        return slice(b, t + 1), slice(l, r + 1)
+    else:
+        return slice(0, 0), slice(0, 0)
+
+
 def _pformat_subprocess(command):
     """Pretty-format a subprocess command for printing/logging purposes."""
     return (command if isinstance(command, str)
@@ -2211,148 +2256,6 @@ def _check_and_log_subprocess(command, logger, **kwargs):
     return proc.stdout
 
 
-# In the following _check_foo functions, the first parameter starts with an
-# underscore because it is intended to be positional-only (e.g., so that
-# `_check_isinstance([...], types=foo)` doesn't fail.
-
-
-def _check_isinstance(_types, **kwargs):
-    """
-    For each *key, value* pair in *kwargs*, check that *value* is an instance
-    of one of *_types*; if not, raise an appropriate TypeError.
-
-    As a special case, a ``None`` entry in *_types* is treated as NoneType.
-
-    Examples
-    --------
-    >>> cbook._check_isinstance((SomeClass, None), arg=arg)
-    """
-    types = _types
-    if isinstance(types, type) or types is None:
-        types = (types,)
-    none_allowed = None in types
-    types = tuple(tp for tp in types if tp is not None)
-
-    def type_name(tp):
-        return (tp.__qualname__ if tp.__module__ == "builtins"
-                else f"{tp.__module__}.{tp.__qualname__}")
-
-    names = [*map(type_name, types)]
-    if none_allowed:
-        types = (*types, type(None))
-        names.append("None")
-    for k, v in kwargs.items():
-        if not isinstance(v, types):
-            raise TypeError(
-                "{!r} must be an instance of {}, not a {}".format(
-                    k,
-                    ", ".join(names[:-1]) + " or " + names[-1]
-                    if len(names) > 1 else names[0],
-                    type_name(type(v))))
-
-
-def _check_in_list(_values, **kwargs):
-    """
-    For each *key, value* pair in *kwargs*, check that *value* is in *_values*;
-    if not, raise an appropriate ValueError.
-
-    Examples
-    --------
-    >>> cbook._check_in_list(["foo", "bar"], arg=arg, other_arg=other_arg)
-    """
-    values = _values
-    for k, v in kwargs.items():
-        if v not in values:
-            raise ValueError(
-                "{!r} is not a valid value for {}; supported values are {}"
-                .format(v, k, ', '.join(map(repr, values))))
-
-
-def _check_shape(_shape, **kwargs):
-    """
-    For each *key, value* pair in *kwargs*, check that *value* has the shape
-    *_shape*, if not, raise an appropriate ValueError.
-
-    *None* in the shape is treated as a "free" size that can have any length.
-    e.g. (None, 2) -> (N, 2)
-
-    The values checked must be numpy arrays.
-
-    Examples
-    --------
-    To check for (N, 2) shaped arrays
-
-    >>> cbook._check_in_list((None, 2), arg=arg, other_arg=other_arg)
-    """
-    target_shape = _shape
-    for k, v in kwargs.items():
-        data_shape = v.shape
-
-        if len(target_shape) != len(data_shape) or any(
-                t not in [s, None]
-                for t, s in zip(target_shape, data_shape)
-        ):
-            dim_labels = iter(itertools.chain(
-                'MNLIJKLH',
-                (f"D{i}" for i in itertools.count())))
-            text_shape = ", ".join((str(n)
-                                    if n is not None
-                                    else next(dim_labels)
-                                    for n in target_shape))
-
-            raise ValueError(
-                f"{k!r} must be {len(target_shape)}D "
-                f"with shape ({text_shape}). "
-                f"Your input has shape {v.shape}."
-            )
-
-
-def _check_getitem(_mapping, **kwargs):
-    """
-    *kwargs* must consist of a single *key, value* pair.  If *key* is in
-    *_mapping*, return ``_mapping[value]``; else, raise an appropriate
-    ValueError.
-
-    Examples
-    --------
-    >>> cbook._check_getitem({"foo": "bar"}, arg=arg)
-    """
-    mapping = _mapping
-    if len(kwargs) != 1:
-        raise ValueError("_check_getitem takes a single keyword argument")
-    (k, v), = kwargs.items()
-    try:
-        return mapping[v]
-    except KeyError:
-        raise ValueError(
-            "{!r} is not a valid value for {}; supported values are {}"
-            .format(v, k, ', '.join(map(repr, mapping)))) from None
-
-
-class _classproperty:
-    """
-    Like `property`, but also triggers on access via the class, and it is the
-    *class* that's passed as argument.
-
-    Examples
-    --------
-    ::
-
-        class C:
-            @classproperty
-            def foo(cls):
-                return cls.__name__
-
-        assert C.foo == "C"
-    """
-
-    def __init__(self, fget):
-        self._fget = fget
-
-    def __get__(self, instance, owner):
-        return self._fget(owner)
-
-
 def _backend_module_name(name):
     """
     Convert a backend name (either a standard backend -- "Agg", "TkAgg", ... --
@@ -2360,3 +2263,50 @@ def _backend_module_name(name):
     """
     return (name[9:] if name.startswith("module://")
             else "matplotlib.backends.backend_{}".format(name.lower()))
+
+
+def _setup_new_guiapp():
+    """
+    Perform OS-dependent setup when Matplotlib creates a new GUI application.
+    """
+    # Windows: If not explicit app user model id has been set yet (so we're not
+    # already embedded), then set it to "matplotlib", so that taskbar icons are
+    # correct.
+    try:
+        _c_internal_utils.Win32_GetCurrentProcessExplicitAppUserModelID()
+    except OSError:
+        _c_internal_utils.Win32_SetCurrentProcessExplicitAppUserModelID(
+            "matplotlib")
+
+
+def _format_approx(number, precision):
+    """
+    Format the number with at most the number of decimals given as precision.
+    Remove trailing zeros and possibly the decimal point.
+    """
+    return f'{number:.{precision}f}'.rstrip('0').rstrip('.') or '0'
+
+
+def _unikey_or_keysym_to_mplkey(unikey, keysym):
+    """
+    Convert a Unicode key or X keysym to a Matplotlib key name.
+
+    The Unicode key is checked first; this avoids having to list most printable
+    keysyms such as ``EuroSign``.
+    """
+    # For non-printable characters, gtk3 passes "\0" whereas tk passes an "".
+    if unikey and unikey.isprintable():
+        return unikey
+    key = keysym.lower()
+    if key.startswith("kp_"):  # keypad_x (including kp_enter).
+        key = key[3:]
+    if key.startswith("page_"):  # page_{up,down}
+        key = key.replace("page_", "page")
+    if key.endswith(("_l", "_r")):  # alt_l, ctrl_l, shift_l.
+        key = key[:-2]
+    key = {
+        "return": "enter",
+        "prior": "pageup",  # Used by tk.
+        "next": "pagedown",  # Used by tk.
+    }.get(key, key)
+    return key

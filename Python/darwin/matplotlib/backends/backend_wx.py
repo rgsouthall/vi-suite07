@@ -22,7 +22,7 @@ from matplotlib.backend_bases import (
     GraphicsContextBase, MouseButton, NavigationToolbar2, RendererBase,
     StatusbarBase, TimerBase, ToolContainerBase, cursors)
 
-from matplotlib import cbook, backend_tools
+from matplotlib import _api, cbook, backend_tools
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_managers import ToolManager
 from matplotlib.figure import Figure
@@ -43,7 +43,7 @@ _DEBUG = 5
 _DEBUG_lvls = {1: 'Low ', 2: 'Med ', 3: 'High', 4: 'Error'}
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 def DEBUG_MSG(string, lvl=3, o=None):
     if lvl >= _DEBUG:
         print(f"{_DEBUG_lvls[lvl]}- {string} in {type(o)}")
@@ -75,7 +75,7 @@ class TimerWx(TimerBase):
     def __init__(self, *args, **kwargs):
         self._timer = wx.Timer()
         self._timer.Notify = self._on_timer
-        TimerBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def _timer_start(self):
         self._timer.Start(self._interval, self._single)
@@ -86,9 +86,6 @@ class TimerWx(TimerBase):
     def _timer_set_interval(self):
         if self._timer.IsRunning():
             self._timer_start()  # Restart with new interval.
-
-    def _timer_set_single_shot(self):
-        self._timer.Start()
 
 
 class RendererWx(RendererBase):
@@ -145,11 +142,11 @@ class RendererWx(RendererBase):
 
     def __init__(self, bitmap, dpi):
         """Initialise a wxWindows renderer instance."""
-        cbook.warn_deprecated(
+        _api.warn_deprecated(
             "2.0", name="wx", obj_type="backend", removal="the future",
             alternative="wxagg", addendum="See the Matplotlib usage FAQ for "
             "more info on backends.")
-        RendererBase.__init__(self)
+        super().__init__()
         _log.debug("%s - __init__()", type(self))
         self.width = bitmap.GetWidth()
         self.height = bitmap.GetHeight()
@@ -283,7 +280,7 @@ class RendererWx(RendererBase):
         self.gc.unselect()
         return self.gc
 
-    @cbook.deprecated("3.3", alternative=".gc")
+    @_api.deprecated("3.3", alternative=".gc")
     def get_gc(self):
         """
         Fetch the locally cached gc.
@@ -300,10 +297,11 @@ class RendererWx(RendererBase):
         font = self.fontd.get(key)
         if font is not None:
             return font
+        size = self.points_to_pixels(prop.get_size_in_points())
         # Font colour is determined by the active wx.Pen
         # TODO: It may be wise to cache font information
         self.fontd[key] = font = wx.Font(  # Cache the font and gc.
-            pointSize=self.points_to_pixels(prop.get_size_in_points()),
+            pointSize=int(size + 0.5),
             family=self.fontnames.get(prop.get_name(), wx.ROMAN),
             style=self.fontangles[prop.get_style()],
             weight=self.fontweights[prop.get_weight()])
@@ -339,7 +337,7 @@ class GraphicsContextWx(GraphicsContextBase):
     _cache = weakref.WeakKeyDictionary()
 
     def __init__(self, bitmap, renderer):
-        GraphicsContextBase.__init__(self)
+        super().__init__()
         # assert self.Ok(), "wxMemoryDC not OK to use"
         _log.debug("%s - __init__(): %s", type(self), bitmap)
 
@@ -379,7 +377,7 @@ class GraphicsContextWx(GraphicsContextBase):
         # Same goes for text foreground...
         _log.debug("%s - set_foreground()", type(self))
         self.select()
-        GraphicsContextBase.set_foreground(self, fg, isRGBA)
+        super().set_foreground(fg, isRGBA)
 
         self._pen.SetColour(self.get_wxcolour(self.get_rgb()))
         self.gfx_ctx.SetPen(self._pen)
@@ -392,7 +390,7 @@ class GraphicsContextWx(GraphicsContextBase):
         self.select()
         if 0 < w < 1:
             w = 1
-        GraphicsContextBase.set_linewidth(self, w)
+        super().set_linewidth(w)
         lw = int(self.renderer.points_to_pixels(self._linewidth))
         if lw == 0:
             lw = 1
@@ -404,7 +402,7 @@ class GraphicsContextWx(GraphicsContextBase):
         # docstring inherited
         _log.debug("%s - set_capstyle()", type(self))
         self.select()
-        GraphicsContextBase.set_capstyle(self, cs)
+        super().set_capstyle(cs)
         self._pen.SetCap(GraphicsContextWx._capd[self._capstyle])
         self.gfx_ctx.SetPen(self._pen)
         self.unselect()
@@ -413,7 +411,7 @@ class GraphicsContextWx(GraphicsContextBase):
         # docstring inherited
         _log.debug("%s - set_joinstyle()", type(self))
         self.select()
-        GraphicsContextBase.set_joinstyle(self, js)
+        super().set_joinstyle(js)
         self._pen.SetJoin(GraphicsContextWx._joind[self._joinstyle])
         self.gfx_ctx.SetPen(self._pen)
         self.unselect()
@@ -421,23 +419,7 @@ class GraphicsContextWx(GraphicsContextBase):
     def get_wxcolour(self, color):
         """Convert a RGB(A) color to a wx.Colour."""
         _log.debug("%s - get_wx_color()", type(self))
-        if len(color) == 3:
-            r, g, b = color
-            r *= 255
-            g *= 255
-            b *= 255
-            return wx.Colour(red=int(r), green=int(g), blue=int(b))
-        else:
-            r, g, b, a = color
-            r *= 255
-            g *= 255
-            b *= 255
-            a *= 255
-            return wx.Colour(
-                red=int(r),
-                green=int(g),
-                blue=int(b),
-                alpha=int(a))
+        return wx.Colour(*[int(255 * x) for x in color])
 
 
 class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
@@ -457,6 +439,7 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         wx.WXK_CONTROL: 'control',
         wx.WXK_SHIFT: 'shift',
         wx.WXK_ALT: 'alt',
+        wx.WXK_CAPITAL: 'caps_lock',
         wx.WXK_LEFT: 'left',
         wx.WXK_UP: 'up',
         wx.WXK_RIGHT: 'right',
@@ -512,7 +495,7 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         wx.WXK_NUMPAD_DELETE: 'delete',
     }
 
-    def __init__(self, parent, id, figure):
+    def __init__(self, parent, id, figure=None):
         """
         Initialize a FigureWx instance.
 
@@ -522,18 +505,18 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         """
 
         FigureCanvasBase.__init__(self, figure)
-        w, h = map(math.ceil, figure.bbox.size)
+        w, h = map(math.ceil, self.figure.bbox.size)
         # Set preferred window size hint - helps the sizer, if one is connected
         wx.Panel.__init__(self, parent, id, size=wx.Size(w, h))
         # Create the drawing bitmap
         self.bitmap = wx.Bitmap(w, h)
         _log.debug("%s - __init__() - bitmap w:%d h:%d", type(self), w, h)
-        # TODO: Add support for 'point' inspection and plot navigation.
         self._isDrawn = False
+        self._rubberband_rect = None
 
         self.Bind(wx.EVT_SIZE, self._onSize)
         self.Bind(wx.EVT_PAINT, self._onPaint)
-        self.Bind(wx.EVT_KEY_DOWN, self._onKeyDown)
+        self.Bind(wx.EVT_CHAR_HOOK, self._onKeyDown)
         self.Bind(wx.EVT_KEY_UP, self._onKeyUp)
         self.Bind(wx.EVT_LEFT_DOWN, self._onMouseButton)
         self.Bind(wx.EVT_LEFT_DCLICK, self._onMouseButton)
@@ -586,7 +569,7 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
             raise RuntimeError("Event loop already running")
         timer = wx.Timer(self, id=wx.ID_ANY)
         if timeout > 0:
-            timer.Start(timeout * 1000, oneShot=True)
+            timer.Start(int(timeout * 1000), oneShot=True)
             self.Bind(wx.EVT_TIMER, self.stop_event_loop, id=timer.GetId())
         # Event loop handler for start/stop event loop
         self._event_loop = wx.GUIEventLoop()
@@ -618,6 +601,7 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         wildcards = '|'.join(wildcards)
         return wildcards, extensions, filter_index
 
+    @_api.delete_parameter("3.4", "origin")
     def gui_repaint(self, drawDC=None, origin='WX'):
         """
         Performs update of the displayed image on the GUI canvas, using the
@@ -628,20 +612,23 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         _log.debug("%s - gui_repaint()", type(self))
         # The "if self" check avoids a "wrapped C/C++ object has been deleted"
         # RuntimeError if doing things after window is closed.
-        if self and self.IsShownOnScreen():
-            if not drawDC:
-                # not called from OnPaint use a ClientDC
-                drawDC = wx.ClientDC(self)
-
-            # following is for 'WX' backend on Windows
-            # the bitmap can not be in use by another DC,
-            # see GraphicsContextWx._cache
-            if wx.Platform == '__WXMSW__' and origin == 'WX':
-                img = self.bitmap.ConvertToImage()
-                bmp = img.ConvertToBitmap()
-                drawDC.DrawBitmap(bmp, 0, 0)
-            else:
-                drawDC.DrawBitmap(self.bitmap, 0, 0)
+        if not (self and self.IsShownOnScreen()):
+            return
+        if not drawDC:  # not called from OnPaint use a ClientDC
+            drawDC = wx.ClientDC(self)
+        # For 'WX' backend on Windows, the bitmap can not be in use by another
+        # DC (see GraphicsContextWx._cache).
+        bmp = (self.bitmap.ConvertToImage().ConvertToBitmap()
+               if wx.Platform == '__WXMSW__'
+                  and isinstance(self.figure._cachedRenderer, RendererWx)
+               else self.bitmap)
+        drawDC.DrawBitmap(bmp, 0, 0)
+        if self._rubberband_rect is not None:
+            x0, y0, x1, y1 = self._rubberband_rect
+            drawDC.DrawLineList(
+                [(x0, y0, x1, y0), (x1, y0, x1, y1),
+                 (x0, y0, x0, y1), (x0, y1, x1, y1)],
+                wx.Pen('BLACK', 1, wx.PENSTYLE_SHORT_DASH))
 
     filetypes = {
         **FigureCanvasBase.filetypes,
@@ -732,11 +719,13 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         else:
             key = None
 
-        for meth, prefix in (
-                [event.AltDown, 'alt'],
-                [event.ControlDown, 'ctrl'], ):
-            if meth():
-                key = '{0}+{1}'.format(prefix, key)
+        for meth, prefix, key_name in (
+                [event.ControlDown, 'ctrl', 'control'],
+                [event.AltDown, 'alt', 'alt'],
+                [event.ShiftDown, 'shift', 'shift'],):
+            if meth() and key_name != key:
+                if not (key_name == 'shift' and key.isupper()):
+                    key = '{0}+{1}'.format(prefix, key)
 
         return key
 
@@ -917,15 +906,15 @@ class FigureFrameWx(wx.Frame):
             pos = wx.DefaultPosition
         else:
             pos = wx.Point(20, 20)
-        wx.Frame.__init__(self, parent=None, id=-1, pos=pos,
-                          title="Figure %d" % num)
+        super().__init__(parent=None, id=-1, pos=pos)
         # Frame will be sized later by the Fit method
         _log.debug("%s - __init__()", type(self))
         self.num = num
         _set_frame_icon(self)
 
         self.canvas = self.get_canvas(fig)
-        self.canvas.SetInitialSize(wx.Size(fig.bbox.width, fig.bbox.height))
+        w, h = map(math.ceil, fig.bbox.size)
+        self.canvas.SetInitialSize(wx.Size(w, h))
         self.canvas.SetFocus()
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.sizer.Add(self.canvas, 1, wx.TOP | wx.LEFT | wx.EXPAND)
@@ -958,11 +947,6 @@ class FigureFrameWx(wx.Frame):
 
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
-    @cbook.deprecated("3.2", alternative="self.GetStatusBar()")
-    @property
-    def statusbar(self):
-        return self.GetStatusBar()
-
     @property
     def toolmanager(self):
         return self.figmgr.toolmanager
@@ -987,9 +971,13 @@ class FigureFrameWx(wx.Frame):
         _log.debug("%s - onClose()", type(self))
         self.canvas.close_event()
         self.canvas.stop_event_loop()
-        Gcf.destroy(self)
-        if self:
-            self.Destroy()
+        # set FigureManagerWx.frame to None to prevent repeated attempts to
+        # close this frame from FigureManagerWx.destroy()
+        self.figmgr.frame = None
+        # remove figure manager from Gcf.figs
+        Gcf.destroy(self.figmgr)
+        # Carry on with close event propagation, frame & children destruction
+        event.Skip()
 
     def GetToolBar(self):
         """Override wxFrame::GetToolBar as we don't have managed toolbar"""
@@ -1005,12 +993,9 @@ class FigureFrameWx(wx.Frame):
         # RuntimeError at exit with e.g.
         # MPLBACKEND=wxagg python -c 'from pylab import *; plot()'.
         if self and not self.IsBeingDeleted():
-            wx.Frame.Destroy(self, *args, **kwargs)
-            if self.toolbar is not None:
-                self.toolbar.Destroy()
-            wxapp = wx.GetApp()
-            if wxapp:
-                wxapp.Yield()
+            super().Destroy(*args, **kwargs)
+            # self.toolbar.Destroy() should not be necessary if the close event
+            # is allowed to propagate.
         return True
 
 
@@ -1031,9 +1016,10 @@ class FigureManagerWx(FigureManagerBase):
 
     def __init__(self, canvas, num, frame):
         _log.debug("%s - __init__()", type(self))
-        FigureManagerBase.__init__(self, canvas, num)
-        self.frame = frame
-        self.window = frame
+        self.frame = self.window = frame
+        self._initializing = True
+        super().__init__(canvas, num)
+        self._initializing = False
 
     @property
     def toolbar(self):
@@ -1043,7 +1029,7 @@ class FigureManagerWx(FigureManagerBase):
     def toolbar(self, value):
         # Never allow this, except that base class inits this to None before
         # the frame is set up.
-        if value is not None or hasattr(self, "frame"):
+        if not self._initializing:
             raise AttributeError("can't set attribute")
 
     def show(self):
@@ -1058,10 +1044,13 @@ class FigureManagerWx(FigureManagerBase):
         _log.debug("%s - destroy()", type(self))
         frame = self.frame
         if frame:  # Else, may have been already deleted, e.g. when closing.
-            frame.Close()
-        wxapp = wx.GetApp()
-        if wxapp:
-            wxapp.Yield()
+            # As this can be called from non-GUI thread from plt.close use
+            # wx.CallAfter to ensure thread safety.
+            wx.CallAfter(frame.Close)
+
+    def full_screen_toggle(self):
+        # docstring inherited
+        self.frame.ShowFullScreen(not self.frame.IsFullScreen())
 
     def get_window_title(self):
         # docstring inherited
@@ -1073,7 +1062,8 @@ class FigureManagerWx(FigureManagerBase):
 
     def resize(self, width, height):
         # docstring inherited
-        self.canvas.SetInitialSize(wx.Size(width, height))
+        self.canvas.SetInitialSize(
+            wx.Size(math.ceil(width), math.ceil(height)))
         self.window.GetSizer().Fit(self.window)
 
 
@@ -1136,7 +1126,7 @@ class NavigationToolbar2Wx(NavigationToolbar2, wx.ToolBar):
         self.Realize()
 
         NavigationToolbar2.__init__(self, canvas)
-        self._idle = True
+
         self._prevZoomRect = None
         # for now, use alternate zoom-rectangle drawing on all
         # Macs. N.B. In future versions of wx it may be possible to
@@ -1144,13 +1134,13 @@ class NavigationToolbar2Wx(NavigationToolbar2, wx.ToolBar):
         # and/or dc.GetContentScaleFactor()
         self._retinaFix = 'wxMac' in wx.PlatformInfo
 
-    prevZoomRect = cbook._deprecate_privatize_attribute("3.3")
-    retinaFix = cbook._deprecate_privatize_attribute("3.3")
-    savedRetinaImage = cbook._deprecate_privatize_attribute("3.3")
-    wxoverlay = cbook._deprecate_privatize_attribute("3.3")
-    zoomAxes = cbook._deprecate_privatize_attribute("3.3")
-    zoomStartX = cbook._deprecate_privatize_attribute("3.3")
-    zoomStartY = cbook._deprecate_privatize_attribute("3.3")
+    prevZoomRect = _api.deprecate_privatize_attribute("3.3")
+    retinaFix = _api.deprecate_privatize_attribute("3.3")
+    savedRetinaImage = _api.deprecate_privatize_attribute("3.3")
+    wxoverlay = _api.deprecate_privatize_attribute("3.3")
+    zoomAxes = _api.deprecate_privatize_attribute("3.3")
+    zoomStartX = _api.deprecate_privatize_attribute("3.3")
+    zoomStartY = _api.deprecate_privatize_attribute("3.3")
 
     @staticmethod
     def _icon(name):
@@ -1177,36 +1167,19 @@ class NavigationToolbar2Wx(NavigationToolbar2, wx.ToolBar):
         return wx.Bitmap.FromBufferRGBA(
             image.shape[1], image.shape[0], image.tobytes())
 
+    @_api.deprecated("3.4")
     def get_canvas(self, frame, fig):
         return type(self.canvas)(frame, -1, fig)
 
     def zoom(self, *args):
-        self.ToggleTool(self.wx_ids['Pan'], False)
-        NavigationToolbar2.zoom(self, *args)
+        tool = self.wx_ids['Zoom']
+        self.ToggleTool(tool, not self.GetToolState(tool))
+        super().zoom(*args)
 
     def pan(self, *args):
-        self.ToggleTool(self.wx_ids['Zoom'], False)
-        NavigationToolbar2.pan(self, *args)
-
-    def configure_subplots(self, *args):
-        global FigureManager  # placates pyflakes: created by @_Backend.export
-        frame = wx.Frame(None, -1, "Configure subplots")
-        _set_frame_icon(frame)
-
-        toolfig = Figure((6, 3))
-        canvas = type(self.canvas)(frame, -1, toolfig)
-
-        # Create a figure manager to manage things
-        FigureManager(canvas, 1, frame)
-
-        # Now put all into a sizer
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        # This way of adding to sizer allows resizing
-        sizer.Add(canvas, 1, wx.LEFT | wx.TOP | wx.GROW)
-        frame.SetSizer(sizer)
-        frame.Fit()
-        SubplotTool(self.canvas.figure, toolfig)
-        frame.Show()
+        tool = self.wx_ids['Pan']
+        self.ToggleTool(tool, not self.GetToolState(tool))
+        super().pan(*args)
 
     def save_figure(self, *args):
         # Fetch the required filename and file type.
@@ -1272,68 +1245,13 @@ class NavigationToolbar2Wx(NavigationToolbar2, wx.ToolBar):
                     self._zoomAxes = None
 
     def draw_rubberband(self, event, x0, y0, x1, y1):
-        if self._retinaFix:  # On Macs, use the following code
-            # wx.DCOverlay does not work properly on Retina displays.
-            rubberBandColor = '#C0C0FF'
-            if self._prevZoomRect:
-                self._prevZoomRect.pop(0).remove()
-            self.canvas.restore_region(self._savedRetinaImage)
-            X0, X1 = self._zoomStartX, event.xdata
-            Y0, Y1 = self._zoomStartY, event.ydata
-            lineX = (X0, X0, X1, X1, X0)
-            lineY = (Y0, Y1, Y1, Y0, Y0)
-            self._prevZoomRect = self._zoomAxes.plot(
-                lineX, lineY, '-', color=rubberBandColor)
-            self._zoomAxes.draw_artist(self._prevZoomRect[0])
-            self.canvas.blit(self._zoomAxes.bbox)
-            return
-
-        # Use an Overlay to draw a rubberband-like bounding box.
-
-        dc = wx.ClientDC(self.canvas)
-        odc = wx.DCOverlay(self._wxoverlay, dc)
-        odc.Clear()
-
-        # Mac's DC is already the same as a GCDC, and it causes
-        # problems with the overlay if we try to use an actual
-        # wx.GCDC so don't try it.
-        if 'wxMac' not in wx.PlatformInfo:
-            dc = wx.GCDC(dc)
-
         height = self.canvas.figure.bbox.height
-        y1 = height - y1
-        y0 = height - y0
+        self.canvas._rubberband_rect = (x0, height - y0, x1, height - y1)
+        self.canvas.Refresh()
 
-        if y1 < y0:
-            y0, y1 = y1, y0
-        if x1 < x0:
-            x0, x1 = x1, x0
-
-        w = x1 - x0
-        h = y1 - y0
-        rect = wx.Rect(x0, y0, w, h)
-
-        rubberBandColor = '#C0C0FF'  # or load from config?
-
-        # Set a pen for the border
-        color = wx.Colour(rubberBandColor)
-        dc.SetPen(wx.Pen(color, 1))
-
-        # use the same color, plus alpha for the brush
-        r, g, b, a = color.Get(True)
-        color.Set(r, g, b, 0x60)
-        dc.SetBrush(wx.Brush(color))
-        dc.DrawRectangle(rect)
-
-    @cbook.deprecated("3.2")
-    def set_status_bar(self, statbar):
-        self.GetTopLevelParent().SetStatusBar(statbar)
-
-    @cbook.deprecated("3.2",
-                      alternative="self.GetTopLevelParent().GetStatusBar()")
-    @property
-    def statbar(self):
-        return self.GetTopLevelParent().GetStatusBar()
+    def remove_rubberband(self):
+        self.canvas._rubberband_rect = None
+        self.canvas.Refresh()
 
     def set_message(self, s):
         if self._coordinates:
@@ -1348,7 +1266,7 @@ class NavigationToolbar2Wx(NavigationToolbar2, wx.ToolBar):
             self.EnableTool(self.wx_ids['Forward'], can_forward)
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 class StatusBarWx(wx.StatusBar):
     """
     A status bar is added to _FigureFrame to allow measurements and the
@@ -1356,7 +1274,7 @@ class StatusBarWx(wx.StatusBar):
     """
 
     def __init__(self, parent, *args, **kwargs):
-        wx.StatusBar.__init__(self, parent, -1)
+        super().__init__(parent, -1)
         self.SetFieldsCount(2)
 
     def set_function(self, string):
@@ -1450,7 +1368,7 @@ class ToolbarWx(ToolContainerBase, wx.ToolBar):
         self._label_text.SetLabel(s)
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 class StatusbarWx(StatusbarBase, wx.StatusBar):
     """For use with ToolManager."""
     def __init__(self, parent, *args, **kwargs):
@@ -1468,27 +1386,6 @@ class ConfigureSubplotsWx(backend_tools.ConfigureSubplotsBase):
         NavigationToolbar2Wx.configure_subplots(
             self._make_classic_style_pseudo_toolbar())
 
-    @cbook.deprecated("3.2")
-    def configure_subplots(self):
-        frame = wx.Frame(None, -1, "Configure subplots")
-        _set_frame_icon(frame)
-
-        toolfig = Figure((6, 3))
-        canvas = self.get_canvas(frame, toolfig)
-
-        # Now put all into a sizer
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        # This way of adding to sizer allows resizing
-        sizer.Add(canvas, 1, wx.LEFT | wx.TOP | wx.GROW)
-        frame.SetSizer(sizer)
-        frame.Fit()
-        SubplotTool(self.canvas.figure, toolfig)
-        frame.Show()
-
-    @cbook.deprecated("3.2")
-    def get_canvas(self, frame, fig):
-        return type(self.canvas)(frame, -1, fig)
-
 
 class SaveFigureWx(backend_tools.SaveFigureBase):
     def trigger(self, *args):
@@ -1502,91 +1399,14 @@ class SetCursorWx(backend_tools.SetCursorBase):
             self._make_classic_style_pseudo_toolbar(), cursor)
 
 
-if 'wxMac' not in wx.PlatformInfo:
-    # on most platforms, use overlay
-    class RubberbandWx(backend_tools.RubberbandBase):
-        def __init__(self, *args, **kwargs):
-            backend_tools.RubberbandBase.__init__(self, *args, **kwargs)
-            self._wxoverlay = None
+class RubberbandWx(backend_tools.RubberbandBase):
+    def draw_rubberband(self, x0, y0, x1, y1):
+        NavigationToolbar2Wx.draw_rubberband(
+            self._make_classic_style_pseudo_toolbar(), None, x0, y0, x1, y1)
 
-        def draw_rubberband(self, x0, y0, x1, y1):
-            # Use an Overlay to draw a rubberband-like bounding box.
-            if self._wxoverlay is None:
-                self._wxoverlay = wx.Overlay()
-            dc = wx.ClientDC(self.canvas)
-            odc = wx.DCOverlay(self._wxoverlay, dc)
-            odc.Clear()
-
-            dc = wx.GCDC(dc)
-
-            height = self.canvas.figure.bbox.height
-            y1 = height - y1
-            y0 = height - y0
-
-            if y1 < y0:
-                y0, y1 = y1, y0
-            if x1 < x0:
-                x0, x1 = x1, x0
-
-            w = x1 - x0
-            h = y1 - y0
-            rect = wx.Rect(x0, y0, w, h)
-
-            rubberBandColor = '#C0C0FF'  # or load from config?
-
-            # Set a pen for the border
-            color = wx.Colour(rubberBandColor)
-            dc.SetPen(wx.Pen(color, 1))
-
-            # use the same color, plus alpha for the brush
-            r, g, b, a = color.Get(True)
-            color.Set(r, g, b, 0x60)
-            dc.SetBrush(wx.Brush(color))
-            dc.DrawRectangle(rect)
-
-        def remove_rubberband(self):
-            if self._wxoverlay is None:
-                return
-            self._wxoverlay.Reset()
-            self._wxoverlay = None
-
-else:
-    # on Mac OS retina displays DCOverlay does not work
-    # and dc.SetLogicalFunction does not have an effect on any display
-    # the workaround is to blit the full image for remove_rubberband
-    class RubberbandWx(backend_tools.RubberbandBase):
-        def __init__(self, *args, **kwargs):
-            backend_tools.RubberbandBase.__init__(self, *args, **kwargs)
-            self._rect = None
-
-        def draw_rubberband(self, x0, y0, x1, y1):
-            dc = wx.ClientDC(self.canvas)
-            # this would be required if the Canvas is a ScrolledWindow,
-            # which is not the case for now
-            # self.PrepareDC(dc)
-
-            # delete old rubberband
-            if self._rect:
-                self.remove_rubberband(dc)
-
-            # draw new rubberband
-            dc.SetPen(wx.Pen(wx.BLACK, 1, wx.SOLID))
-            dc.SetBrush(wx.TRANSPARENT_BRUSH)
-            self._rect = (x0, self.canvas._height-y0, x1-x0, -y1+y0)
-            dc.DrawRectangle(self._rect)
-
-        def remove_rubberband(self, dc=None):
-            if not self._rect:
-                return
-            if self.canvas.bitmap:
-                if dc is None:
-                    dc = wx.ClientDC(self.canvas)
-                dc.DrawBitmap(self.canvas.bitmap, 0, 0)
-                #  for testing the method on Windows, use this code instead:
-                # img = self.canvas.bitmap.ConvertToImage()
-                # bmp = img.ConvertToBitmap()
-                # dc.DrawBitmap(bmp, 0, 0)
-            self._rect = None
+    def remove_rubberband(self):
+        NavigationToolbar2Wx.remove_rubberband(
+            self._make_classic_style_pseudo_toolbar())
 
 
 class _HelpDialog(wx.Dialog):
@@ -1595,8 +1415,8 @@ class _HelpDialog(wx.Dialog):
     widths = [100, 140, 300]
 
     def __init__(self, parent, help_entries):
-        wx.Dialog.__init__(self, parent, title="Help",
-                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super().__init__(parent, title="Help",
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         grid_sizer = wx.FlexGridSizer(0, 3, 8, 6)
@@ -1666,10 +1486,6 @@ class _BackendWx(_Backend):
     FigureManager = FigureManagerWx
     _frame_class = FigureFrameWx
 
-    @staticmethod
-    def trigger_manager_draw(manager):
-        manager.canvas.draw_idle()
-
     @classmethod
     def new_figure_manager(cls, num, *args, **kwargs):
         # Create a wx.App instance if it has not been created so far.
@@ -1677,6 +1493,7 @@ class _BackendWx(_Backend):
         if wxapp is None:
             wxapp = wx.App(False)
             wxapp.SetExitOnFrameDelete(True)
+            cbook._setup_new_guiapp()
             # Retain a reference to the app object so that it does not get
             # garbage collected.
             _BackendWx._theWxApp = wxapp

@@ -1,37 +1,9 @@
 import numpy as np
 
-import matplotlib.cbook as cbook
+from matplotlib import _api
 import matplotlib.docstring as docstring
 import matplotlib.ticker as mticker
-import matplotlib.transforms as mtransforms
-from matplotlib.axes._base import _AxesBase
-
-
-def _make_secondary_locator(rect, parent):
-    """
-    Helper function to locate the secondary axes.
-
-    A locator gets used in `Axes.set_aspect` to override the default
-    locations...  It is a function that takes an axes object and
-    a renderer and tells `set_aspect` where it is to be placed.
-
-    This locator make the transform be in axes-relative co-coordinates
-    because that is how we specify the "location" of the secondary axes.
-
-    Here *rect* is a rectangle [l, b, w, h] that specifies the
-    location for the axes in the transform given by *trans* on the
-    *parent*.
-    """
-    _rect = mtransforms.Bbox.from_bounds(*rect)
-    def secondary_locator(ax, renderer):
-        # delay evaluating transform until draw time because the
-        # parent transform may have changed (i.e. if window reesized)
-        bb = mtransforms.TransformedBbox(_rect, parent.transAxes)
-        tr = parent.figure.transFigure.inverted()
-        bb = mtransforms.TransformedBbox(bb, tr)
-        return bb
-
-    return secondary_locator
+from matplotlib.axes._base import _AxesBase, _TransformedBoundsLocator
 
 
 class SecondaryAxis(_AxesBase):
@@ -63,8 +35,6 @@ class SecondaryAxis(_AxesBase):
             self._otherstrings = ['top', 'bottom']
         self._parentscale = None
         # this gets positioned w/o constrained_layout so exclude:
-        self._layoutbox = None
-        self._poslayoutbox = None
 
         self.set_location(location)
         self.set_functions(functions)
@@ -78,10 +48,8 @@ class SecondaryAxis(_AxesBase):
         otheraxis.set_major_locator(mticker.NullLocator())
         otheraxis.set_ticks_position('none')
 
-        for st in self._otherstrings:
-            self.spines[st].set_visible(False)
-        for st in self._locstrings:
-            self.spines[st].set_visible(True)
+        self.spines[self._otherstrings].set_visible(False)
+        self.spines[self._locstrings].set_visible(True)
 
         if self._pos < 0.5:
             # flip the location strings...
@@ -99,7 +67,7 @@ class SecondaryAxis(_AxesBase):
             either 'top' or 'bottom' for orientation='x' or
             'left' or 'right' for orientation='y' axis.
         """
-        cbook._check_in_list(self._locstrings, align=align)
+        _api.check_in_list(self._locstrings, align=align)
         if align == self._locstrings[1]:  # Need to change the orientation.
             self._locstrings = self._locstrings[::-1]
         self.spines[self._locstrings[0]].set_visible(True)
@@ -137,25 +105,25 @@ class SecondaryAxis(_AxesBase):
         self._loc = location
 
         if self._orientation == 'x':
+            # An x-secondary axes is like an inset axes from x = 0 to x = 1 and
+            # from y = pos to y = pos + eps, in the parent's transAxes coords.
             bounds = [0, self._pos, 1., 1e-10]
         else:
             bounds = [self._pos, 0, 1e-10, 1]
 
-        secondary_locator = _make_secondary_locator(bounds, self._parent)
-
         # this locator lets the axes move in the parent axes coordinates.
         # so it never needs to know where the parent is explicitly in
         # figure coordinates.
-        # it gets called in `ax.apply_aspect() (of all places)
-        self.set_axes_locator(secondary_locator)
+        # it gets called in ax.apply_aspect() (of all places)
+        self.set_axes_locator(
+            _TransformedBoundsLocator(bounds, self._parent.transAxes))
 
     def apply_aspect(self, position=None):
         # docstring inherited.
         self._set_lims()
         super().apply_aspect(position)
 
-    @cbook._make_keyword_only("3.2", "minor")
-    def set_ticks(self, ticks, minor=False):
+    def set_ticks(self, ticks, *, minor=False):
         """
         Set the x ticks with list of *ticks*
 
@@ -275,57 +243,7 @@ class SecondaryAxis(_AxesBase):
         Secondary axes cannot set the aspect ratio, so calling this just
         sets a warning.
         """
-        cbook._warn_external("Secondary axes can't set the aspect ratio")
-
-    def set_xlabel(self, xlabel, fontdict=None, labelpad=None, **kwargs):
-        """
-        Set the label for the x-axis.
-
-        Parameters
-        ----------
-        xlabel : str
-            The label text.
-
-        labelpad : float, default: ``self.xaxis.labelpad``
-            Spacing in points between the label and the x-axis.
-
-        Other Parameters
-        ----------------
-        **kwargs : `.Text` properties
-            `.Text` properties control the appearance of the label.
-
-        See Also
-        --------
-        text : Documents the properties supported by `.Text`.
-        """
-        if labelpad is not None:
-            self.xaxis.labelpad = labelpad
-        return self.xaxis.set_label_text(xlabel, fontdict, **kwargs)
-
-    def set_ylabel(self, ylabel, fontdict=None, labelpad=None, **kwargs):
-        """
-        Set the label for the y-axis.
-
-        Parameters
-        ----------
-        ylabel : str
-            The label text.
-
-        labelpad : float, default: ``self.yaxis.labelpad``
-            Spacing in points between the label and the y-axis.
-
-        Other Parameters
-        ----------------
-        **kwargs : `.Text` properties
-            `.Text` properties control the appearance of the label.
-
-        See Also
-        --------
-        text : Documents the properties supported by `.Text`.
-        """
-        if labelpad is not None:
-            self.yaxis.labelpad = labelpad
-        return self.yaxis.set_label_text(ylabel, fontdict, **kwargs)
+        _api.warn_external("Secondary axes can't set the aspect ratio")
 
     def set_color(self, color):
         """
@@ -337,13 +255,13 @@ class SecondaryAxis(_AxesBase):
         """
         if self._orientation == 'x':
             self.tick_params(axis='x', colors=color)
-            self.spines['bottom'].set_color(color)
-            self.spines['top'].set_color(color)
+            self.spines.bottom.set_color(color)
+            self.spines.top.set_color(color)
             self.xaxis.label.set_color(color)
         else:
             self.tick_params(axis='y', colors=color)
-            self.spines['left'].set_color(color)
-            self.spines['right'].set_color(color)
+            self.spines.left.set_color(color)
+            self.spines.right.set_color(color)
             self.yaxis.label.set_color(color)
 
 

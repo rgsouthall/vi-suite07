@@ -8,9 +8,12 @@ import pytest
 
 import matplotlib as mpl
 from matplotlib.backend_bases import MouseEvent
+from matplotlib.font_manager import FontProperties
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 from matplotlib.testing.decorators import check_figures_equal, image_comparison
+from matplotlib.text import Text
 
 
 needs_usetex = pytest.mark.skipif(
@@ -33,10 +36,9 @@ def test_font_styles():
         UserWarning,
         module='matplotlib.font_manager')
 
-    plt.figure()
-    ax = plt.subplot(1, 1, 1)
+    fig, ax = plt.subplots()
 
-    normalFont = find_matplotlib_font(
+    normal_font = find_matplotlib_font(
         family="sans-serif",
         style="normal",
         variant="normal",
@@ -45,9 +47,9 @@ def test_font_styles():
         "Normal Font",
         (0.1, 0.1),
         xycoords='axes fraction',
-        fontproperties=normalFont)
+        fontproperties=normal_font)
 
-    boldFont = find_matplotlib_font(
+    bold_font = find_matplotlib_font(
         family="Foo",
         style="normal",
         variant="normal",
@@ -58,9 +60,9 @@ def test_font_styles():
         "Bold Font",
         (0.1, 0.2),
         xycoords='axes fraction',
-        fontproperties=boldFont)
+        fontproperties=bold_font)
 
-    boldItemFont = find_matplotlib_font(
+    bold_italic_font = find_matplotlib_font(
         family="sans serif",
         style="italic",
         variant="normal",
@@ -71,9 +73,9 @@ def test_font_styles():
         "Bold Italic Font",
         (0.1, 0.3),
         xycoords='axes fraction',
-        fontproperties=boldItemFont)
+        fontproperties=bold_italic_font)
 
-    lightFont = find_matplotlib_font(
+    light_font = find_matplotlib_font(
         family="sans-serif",
         style="normal",
         variant="normal",
@@ -84,9 +86,9 @@ def test_font_styles():
         "Light Font",
         (0.1, 0.4),
         xycoords='axes fraction',
-        fontproperties=lightFont)
+        fontproperties=light_font)
 
-    condensedFont = find_matplotlib_font(
+    condensed_font = find_matplotlib_font(
         family="sans-serif",
         style="normal",
         variant="normal",
@@ -97,7 +99,7 @@ def test_font_styles():
         "Condensed Font",
         (0.1, 0.5),
         xycoords='axes fraction',
-        fontproperties=condensedFont)
+        fontproperties=condensed_font)
 
     ax.set_xticks([])
     ax.set_yticks([])
@@ -598,8 +600,7 @@ def test_text_as_text_opacity():
 def test_text_repr():
     # smoketest to make sure text repr doesn't error for category
     plt.plot(['A', 'B'], [1, 2])
-    txt = plt.text(['A'], 0.5, 'Boo')
-    print(txt)
+    repr(plt.text(['A'], 0.5, 'Boo'))
 
 
 def test_annotation_update():
@@ -638,7 +639,7 @@ def test_large_subscript_title():
     ax.set_xticklabels('')
 
     ax = axs[1]
-    tt = ax.set_title(r'$\sum_{i} x_i$', y=1.01)
+    ax.set_title(r'$\sum_{i} x_i$', y=1.01)
     ax.set_title('Old Way', loc='left')
     ax.set_xticklabels('')
 
@@ -689,3 +690,33 @@ def test_fontproperties_kwarg_precedence():
     text2 = plt.ylabel("counts", size=40.0, fontproperties='Times New Roman')
     assert text1.get_size() == 40.0
     assert text2.get_size() == 40.0
+
+
+def test_transform_rotates_text():
+    ax = plt.gca()
+    transform = mtransforms.Affine2D().rotate_deg(30)
+    text = ax.text(0, 0, 'test', transform=transform,
+                   transform_rotates_text=True)
+    result = text.get_rotation()
+    assert_almost_equal(result, 30)
+
+
+def test_update_mutate_input():
+    inp = dict(fontproperties=FontProperties(weight="bold"),
+               bbox=None)
+    cache = dict(inp)
+    t = Text()
+    t.update(inp)
+    assert inp['fontproperties'] == cache['fontproperties']
+    assert inp['bbox'] == cache['bbox']
+
+
+def test_invalid_color():
+    with pytest.raises(ValueError):
+        plt.figtext(.5, .5, "foo", c="foobar")
+
+
+@image_comparison(['text_pdf_kerning.pdf'], style='mpl20')
+def test_pdf_kerning():
+    plt.figure()
+    plt.figtext(0.1, 0.5, "ATATATATATATATATATA", size=30)

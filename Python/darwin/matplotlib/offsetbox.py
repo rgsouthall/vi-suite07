@@ -24,7 +24,7 @@ Container classes for `.Artist`\s.
 
 import numpy as np
 
-from matplotlib import cbook, docstring, rcParams
+from matplotlib import _api, docstring, rcParams
 import matplotlib.artist as martist
 import matplotlib.path as mpath
 import matplotlib.text as mtext
@@ -44,22 +44,18 @@ def bbox_artist(*args, **kwargs):
     if DEBUG:
         mbbox_artist(*args, **kwargs)
 
-# _get_packed_offsets() and _get_aligned_offsets() are coded assuming
-# that we are packing boxes horizontally. But same function will be
-# used with vertical packing.
-
 
 def _get_packed_offsets(wd_list, total, sep, mode="fixed"):
-    """
-    Given a list of (width, xdescent) of each boxes, calculate the
-    total width and the x-offset positions of each items according to
-    *mode*. xdescent is analogous to the usual descent, but along the
-    x-direction. xdescent values are currently ignored.
+    r"""
+    Pack boxes specified by their ``(width, xdescent)`` pair.
 
     For simplicity of the description, the terminology used here assumes a
     horizontal layout, but the function works equally for a vertical layout.
 
-    There are three packing modes:
+    *xdescent* is analogous to the usual descent, but along the x-direction; it
+    is currently ignored.
+
+    There are three packing *mode*\s:
 
     - 'fixed': The elements are packed tight to the left with a spacing of
       *sep* in between. If *total* is *None* the returned total will be the
@@ -99,7 +95,7 @@ def _get_packed_offsets(wd_list, total, sep, mode="fixed"):
         The left offsets of the boxes.
     """
     w_list, d_list = zip(*wd_list)  # d_list is currently not used.
-    cbook._check_in_list(["fixed", "expand", "equal"], mode=mode)
+    _api.check_in_list(["fixed", "expand", "equal"], mode=mode)
 
     if mode == "fixed":
         offsets_ = np.cumsum([0] + [w + sep for w in w_list])
@@ -136,26 +132,36 @@ def _get_packed_offsets(wd_list, total, sep, mode="fixed"):
 
 def _get_aligned_offsets(hd_list, height, align="baseline"):
     """
-    Given a list of (height, descent) of each boxes, align the boxes
-    with *align* and calculate the y-offsets of each boxes.
-    total width and the offset positions of each items according to
-    *mode*. xdescent is analogous to the usual descent, but along the
-    x-direction. xdescent values are currently ignored.
+    Align boxes each specified by their ``(height, descent)`` pair.
+
+    For simplicity of the description, the terminology used here assumes a
+    horizontal layout (i.e., vertical alignment), but the function works
+    equally for a vertical layout.
 
     Parameters
     ----------
     hd_list
         List of (height, xdescent) of boxes to be aligned.
     height : float or None
-        Intended total length. If None, the maximum of the heights in *hd_list*
+        Intended total height. If None, the maximum of the heights in *hd_list*
         is used.
     align : {'baseline', 'left', 'top', 'right', 'bottom', 'center'}
-        Align mode.
+        The alignment anchor of the boxes.
+
+    Returns
+    -------
+    height
+        The total height of the packing (if a value was originally passed in,
+        it is returned without checking that it is actually large enough).
+    descent
+        The descent of the packing.
+    offsets
+        The bottom offsets of the boxes.
     """
 
     if height is None:
         height = max(h for h, d in hd_list)
-    cbook._check_in_list(
+    _api.check_in_list(
         ["baseline", "left", "top", "right", "bottom", "center"], align=align)
 
     if align == "baseline":
@@ -205,7 +211,7 @@ class OffsetBox(martist.Artist):
         ----------
         fig : `~matplotlib.figure.Figure`
         """
-        martist.Artist.set_figure(self, fig)
+        super().set_figure(fig)
         for c in self.get_children():
             c.set_figure(fig)
 
@@ -367,8 +373,7 @@ class OffsetBox(martist.Artist):
 
 class PackerBase(OffsetBox):
     def __init__(self, pad=None, sep=None, width=None, height=None,
-                 align=None, mode=None,
-                 children=None):
+                 align="baseline", mode="fixed", children=None):
         """
         Parameters
         ----------
@@ -382,13 +387,14 @@ class PackerBase(OffsetBox):
             Width and height of the container box in pixels, calculated if
             *None*.
 
-        align : {'top', 'bottom', 'left', 'right', 'center', 'baseline'}
+        align : {'top', 'bottom', 'left', 'right', 'center', 'baseline'}, \
+default: 'baseline'
             Alignment of boxes.
 
-        mode : {'fixed', 'expand', 'equal'}
+        mode : {'fixed', 'expand', 'equal'}, default: 'fixed'
             The packing mode.
 
-            - 'fixed' packs the given `.Artists` tight with *sep* spacing.
+            - 'fixed' packs the given `.Artist`\\s tight with *sep* spacing.
             - 'expand' uses the maximal available space to distribute the
               artists with equal spacing in between.
             - 'equal': Each artist an equal fraction of the available space
@@ -403,59 +409,20 @@ class PackerBase(OffsetBox):
         dpi, while *width* and *height* are in in pixels.
         """
         super().__init__()
-
         self.height = height
         self.width = width
         self.sep = sep
         self.pad = pad
         self.mode = mode
         self.align = align
-
         self._children = children
 
 
 class VPacker(PackerBase):
     """
-    The VPacker has its children packed vertically. It automatically
-    adjusts the relative positions of children at drawing time.
+    VPacker packs its children vertically, automatically adjusting their
+    relative positions at draw time.
     """
-    def __init__(self, pad=None, sep=None, width=None, height=None,
-                 align="baseline", mode="fixed",
-                 children=None):
-        """
-        Parameters
-        ----------
-        pad : float, optional
-            The boundary padding in points.
-
-        sep : float, optional
-            The spacing between items in points.
-
-        width, height : float, optional
-            Width and height of the container box in pixels, calculated if
-            *None*.
-
-        align : {'top', 'bottom', 'left', 'right', 'center', 'baseline'}
-            Alignment of boxes.
-
-        mode : {'fixed', 'expand', 'equal'}
-            The packing mode.
-
-            - 'fixed' packs the given `.Artists` tight with *sep* spacing.
-            - 'expand' uses the maximal available space to distribute the
-              artists with equal spacing in between.
-            - 'equal': Each artist an equal fraction of the available space
-              and is left-aligned (or top-aligned) therein.
-
-        children : list of `.Artist`
-            The artists to pack.
-
-        Notes
-        -----
-        *pad* and *sep* are in points and will be scaled with the renderer
-        dpi, while *width* and *height* are in in pixels.
-        """
-        super().__init__(pad, sep, width, height, align, mode, children)
 
     def get_extent_offsets(self, renderer):
         # docstring inherited
@@ -494,46 +461,9 @@ class VPacker(PackerBase):
 
 class HPacker(PackerBase):
     """
-    The HPacker has its children packed horizontally. It automatically
-    adjusts the relative positions of children at draw time.
+    HPacker packs its children horizontally, automatically adjusting their
+    relative positions at draw time.
     """
-    def __init__(self, pad=None, sep=None, width=None, height=None,
-                 align="baseline", mode="fixed",
-                 children=None):
-        """
-        Parameters
-        ----------
-        pad : float, optional
-            The boundary padding in points.
-
-        sep : float, optional
-            The spacing between items in points.
-
-        width, height : float, optional
-            Width and height of the container box in pixels, calculated if
-            *None*.
-
-        align : {'top', 'bottom', 'left', 'right', 'center', 'baseline'}
-            Alignment of boxes.
-
-        mode : {'fixed', 'expand', 'equal'}
-            The packing mode.
-
-            - 'fixed' packs the given `.Artists` tight with *sep* spacing.
-            - 'expand' uses the maximal available space to distribute the
-              artists with equal spacing in between.
-            - 'equal': Each artist an equal fraction of the available space
-              and is left-aligned (or top-aligned) therein.
-
-        children : list of `.Artist`
-            The artists to pack.
-
-        Notes
-        -----
-        *pad* and *sep* are in points and will be scaled with the renderer
-        dpi, while *width* and *height* are in in pixels.
-        """
-        super().__init__(pad, sep, width, height, align, mode, children)
 
     def get_extent_offsets(self, renderer):
         # docstring inherited
@@ -769,14 +699,17 @@ class DrawingArea(OffsetBox):
 
 class TextArea(OffsetBox):
     """
-    The TextArea is contains a single Text instance. The text is
-    placed at (0, 0) with baseline+left alignment. The width and height
-    of the TextArea instance is the width and height of the its child
-    text.
+    The TextArea is a container artist for a single Text instance.
+
+    The text is placed at (0, 0) with baseline+left alignment, by default. The
+    width and height of the TextArea instance is the width and height of its
+    child text.
     """
+
+    @_api.delete_parameter("3.4", "minimumdescent")
     def __init__(self, s,
                  textprops=None,
-                 multilinebaseline=None,
+                 multilinebaseline=False,
                  minimumdescent=True,
                  ):
         """
@@ -784,23 +717,20 @@ class TextArea(OffsetBox):
         ----------
         s : str
             The text to be displayed.
-
-        textprops : dict, optional
-            Dictionary of keyword parameters to be passed to the
-            `~matplotlib.text.Text` instance contained inside TextArea.
-
-        multilinebaseline : bool, optional
-            If `True`, baseline for multiline text is adjusted so that it is
-            (approximately) center-aligned with singleline text.
-
-        minimumdescent : bool, optional
-            If `True`, the box has a minimum descent of "p".
+        textprops : dict, default: {}
+            Dictionary of keyword parameters to be passed to the `.Text`
+            instance in the TextArea.
+        multilinebaseline : bool, default: False
+            Whether the baseline for multiline text is adjusted so that it
+            is (approximately) center-aligned with single-line text.
+        minimumdescent : bool, default: True
+            If `True`, the box has a minimum descent of "p".  This is now
+            effectively always True.
         """
         if textprops is None:
             textprops = {}
-        textprops.setdefault("va", "baseline")
         self._text = mtext.Text(0, 0, s, **textprops)
-        OffsetBox.__init__(self)
+        super().__init__()
         self._children = [self._text]
         self.offset_transform = mtransforms.Affine2D()
         self._baseline_transform = mtransforms.Affine2D()
@@ -822,8 +752,10 @@ class TextArea(OffsetBox):
         """
         Set multilinebaseline.
 
-        If True, baseline for multiline text is adjusted so that it is
-        (approximately) center-aligned with single-line text.
+        If True, the baseline for multiline text is adjusted so that it is
+        (approximately) center-aligned with single-line text.  This is used
+        e.g. by the legend implementation so that single-line labels are
+        baseline-aligned, but multiline labels are "center"-aligned with them.
         """
         self._multilinebaseline = t
         self.stale = True
@@ -834,16 +766,20 @@ class TextArea(OffsetBox):
         """
         return self._multilinebaseline
 
+    @_api.deprecated("3.4")
     def set_minimumdescent(self, t):
         """
         Set minimumdescent.
 
         If True, extent of the single line text is adjusted so that
-        it has minimum descent of "p"
+        its descent is at least the one of the glyph "p".
         """
+        # The current implementation of Text._get_layout always behaves as if
+        # this is True.
         self._minimumdescent = t
         self.stale = True
 
+    @_api.deprecated("3.4")
     def get_minimumdescent(self):
         """
         Get minimumdescent.
@@ -876,37 +812,36 @@ class TextArea(OffsetBox):
     def get_window_extent(self, renderer):
         """Return the bounding box in display space."""
         w, h, xd, yd = self.get_extent(renderer)
-        ox, oy = self.get_offset()  # w, h, xd, yd)
+        ox, oy = self.get_offset()
         return mtransforms.Bbox.from_bounds(ox - xd, oy - yd, w, h)
 
     def get_extent(self, renderer):
         _, h_, d_ = renderer.get_text_width_height_descent(
-            "lp", self._text._fontproperties, ismath=False)
+            "lp", self._text._fontproperties,
+            ismath="TeX" if self._text.get_usetex() else False)
 
-        bbox, info, d = self._text._get_layout(renderer)
+        bbox, info, yd = self._text._get_layout(renderer)
         w, h = bbox.width, bbox.height
 
         self._baseline_transform.clear()
 
         if len(info) > 1 and self._multilinebaseline:
-            d_new = 0.5 * h - 0.5 * (h_ - d_)
-            self._baseline_transform.translate(0, d - d_new)
-            d = d_new
-
+            yd_new = 0.5 * h - 0.5 * (h_ - d_)
+            self._baseline_transform.translate(0, yd - yd_new)
+            yd = yd_new
         else:  # single line
+            h_d = max(h_ - d_, h - yd)
+            h = h_d + yd
 
-            h_d = max(h_ - d_, h - d)
+        ha = self._text.get_horizontalalignment()
+        if ha == 'left':
+            xd = 0
+        elif ha == 'center':
+            xd = w / 2
+        elif ha == 'right':
+            xd = w
 
-            if self.get_minimumdescent():
-                ## to have a minimum descent, #i.e., "l" and "p" have same
-                ## descents.
-                d = max(d, d_)
-            #else:
-            #    d = d
-
-            h = h_d + d
-
-        return w, h, 0., d
+        return w, h, xd, yd
 
     def draw(self, renderer):
         # docstring inherited
@@ -931,7 +866,7 @@ class AuxTransformBox(OffsetBox):
     """
     def __init__(self, aux_transform):
         self.aux_transform = aux_transform
-        OffsetBox.__init__(self)
+        super().__init__()
         self.offset_transform = mtransforms.Affine2D()
         # ref_offset_transform makes offset_transform always relative to the
         # lower-left corner of the bbox of its children.
@@ -991,7 +926,7 @@ class AuxTransformBox(OffsetBox):
         ub = mtransforms.Bbox.union(bboxes)
         # adjust ref_offset_transform
         self.ref_offset_transform.translate(-ub.x0, -ub.y0)
-        # restor offset transform
+        # restore offset transform
         self.offset_transform.set_matrix(_off)
 
         return ub.width, ub.height, 0., 0.
@@ -1088,7 +1023,7 @@ class AnchoredOffsetbox(OffsetBox):
         self.set_child(child)
 
         if isinstance(loc, str):
-            loc = cbook._check_getitem(self.codes, loc=loc)
+            loc = _api.check_getitem(self.codes, loc=loc)
 
         self.loc = loc
         self.borderpad = borderpad
@@ -1288,13 +1223,12 @@ class AnchoredText(AnchoredOffsetbox):
 
         if prop is None:
             prop = {}
-        badkwargs = {'ha', 'horizontalalignment', 'va', 'verticalalignment'}
+        badkwargs = {'va', 'verticalalignment'}
         if badkwargs & set(prop):
             raise ValueError(
-                "Mixing horizontalalignment or verticalalignment with "
-                "AnchoredText is not supported.")
+                'Mixing verticalalignment with AnchoredText is not supported.')
 
-        self.txt = TextArea(s, textprops=prop, minimumdescent=False)
+        self.txt = TextArea(s, textprops=prop)
         fp = self.txt._text.get_fontproperties()
         super().__init__(
             loc, pad=pad, borderpad=borderpad, child=self.txt, prop=fp,
@@ -1315,7 +1249,7 @@ class OffsetImage(OffsetBox):
                  **kwargs
                  ):
 
-        OffsetBox.__init__(self)
+        super().__init__()
         self._dpi_cor = dpi_cor
 
         self.image = BboxImage(bbox=self.get_window_extent,
@@ -1446,7 +1380,7 @@ class AnnotationBbox(martist.Artist, mtext._AnnotationBase):
             Other parameters are identical to `.Annotation`.
         """
 
-        martist.Artist.__init__(self, **kwargs)
+        martist.Artist.__init__(self)
         mtext._AnnotationBase.__init__(self,
                                        xy,
                                        xycoords=xycoords,
@@ -1489,6 +1423,8 @@ class AnnotationBbox(martist.Artist, mtext._AnnotationBase):
         self.patch.set_boxstyle("square", pad=pad)
         if bboxprops:
             self.patch.set(**bboxprops)
+
+        self.update(kwargs)
 
     @property
     def xyann(self):
@@ -1544,7 +1480,7 @@ class AnnotationBbox(martist.Artist, mtext._AnnotationBase):
         self.prop = FontProperties(size=s)
         self.stale = True
 
-    @cbook._delete_parameter("3.3", "s")
+    @_api.delete_parameter("3.3", "s")
     def get_fontsize(self, s=None):
         """Return the fontsize in points."""
         return self.prop.get_size_in_points()
@@ -1694,7 +1630,7 @@ class DraggableBase:
 
         if not ref_artist.pickable():
             ref_artist.set_picker(True)
-        overridden_picker = cbook._deprecate_method_override(
+        overridden_picker = _api.deprecate_method_override(
             __class__.artist_picker, self, since="3.3",
             addendum="Directly set the artist's picker if desired.")
         if overridden_picker is not None:
@@ -1713,7 +1649,7 @@ class DraggableBase:
             else:
                 self.canvas.draw()
 
-    @cbook.deprecated("3.3", alternative="self.on_motion")
+    @_api.deprecated("3.3", alternative="self.on_motion")
     def on_motion_blit(self, evt):
         if self._check_still_parented() and self.got_artist:
             dx = evt.x - self.mouse_x
@@ -1766,7 +1702,7 @@ class DraggableBase:
         else:
             self.canvas.mpl_disconnect(c1)
 
-    @cbook.deprecated("3.3", alternative="self.ref_artist.contains")
+    @_api.deprecated("3.3", alternative="self.ref_artist.contains")
     def artist_picker(self, artist, evt):
         return self.ref_artist.contains(evt)
 
@@ -1782,7 +1718,7 @@ class DraggableBase:
 
 class DraggableOffsetBox(DraggableBase):
     def __init__(self, ref_artist, offsetbox, use_blit=False):
-        DraggableBase.__init__(self, ref_artist, use_blit=use_blit)
+        super().__init__(ref_artist, use_blit=use_blit)
         self.offsetbox = offsetbox
 
     def save_offset(self):
@@ -1808,7 +1744,7 @@ class DraggableOffsetBox(DraggableBase):
 
 class DraggableAnnotation(DraggableBase):
     def __init__(self, annotation, use_blit=False):
-        DraggableBase.__init__(self, annotation, use_blit=use_blit)
+        super().__init__(annotation, use_blit=use_blit)
         self.annotation = annotation
 
     def save_offset(self):

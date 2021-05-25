@@ -69,7 +69,6 @@ class Viewer:
         Converts the given image to the target format and displays it.
         """
 
-        # save temporary image to disk
         if not (
             image.mode in ("1", "RGBA")
             or (self.format == "PNG" and image.mode in ("I;16", "LA"))
@@ -123,9 +122,9 @@ class WindowsViewer(Viewer):
 
     def get_command(self, file, **options):
         return (
-            'start "Pillow" /WAIT "%s" '
+            f'start "Pillow" /WAIT "{file}" '
             "&& ping -n 2 127.0.0.1 >NUL "
-            '&& del /f "%s"' % (file, file)
+            f'&& del /f "{file}"'
         )
 
 
@@ -143,9 +142,7 @@ class MacViewer(Viewer):
         # on darwin open returns immediately resulting in the temp
         # file removal while app is opening
         command = "open -a Preview.app"
-        command = "({} {}; sleep 20; rm -f {})&".format(
-            command, quote(file), quote(file)
-        )
+        command = f"({command} {quote(file)}; sleep 20; rm -f {quote(file)})&"
         return command
 
     def show_file(self, file, **options):
@@ -153,7 +150,7 @@ class MacViewer(Viewer):
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "w") as f:
             f.write(file)
-        with open(path, "r") as f:
+        with open(path) as f:
             subprocess.Popen(
                 ["im=$(cat); open -a Preview.app $im; sleep 20; rm -f $im"],
                 shell=True,
@@ -173,14 +170,14 @@ class UnixViewer(Viewer):
 
     def get_command(self, file, **options):
         command = self.get_command_ex(file, **options)[0]
-        return "({} {}; rm -f {})&".format(command, quote(file), quote(file))
+        return f"({command} {quote(file)}; rm -f {quote(file)})&"
 
     def show_file(self, file, **options):
         """Display given file"""
         fd, path = tempfile.mkstemp()
         with os.fdopen(fd, "w") as f:
             f.write(file)
-        with open(path, "r") as f:
+        with open(path) as f:
             command = self.get_command_ex(file, **options)[0]
             subprocess.Popen(
                 ["im=$(cat);" + command + " $im; rm -f $im"], shell=True, stdin=f
@@ -194,6 +191,15 @@ class DisplayViewer(UnixViewer):
 
     def get_command_ex(self, file, **options):
         command = executable = "display"
+        return command, executable
+
+
+class GmDisplayViewer(UnixViewer):
+    """The GraphicsMagick ``gm display`` command."""
+
+    def get_command_ex(self, file, **options):
+        executable = "gm"
+        command = "gm display"
         return command, executable
 
 
@@ -216,17 +222,36 @@ class XVViewer(UnixViewer):
         # imagemagick's display command instead.
         command = executable = "xv"
         if title:
-            command += " -name %s" % quote(title)
+            command += f" -name {quote(title)}"
         return command, executable
 
 
 if sys.platform not in ("win32", "darwin"):  # unixoids
     if shutil.which("display"):
         register(DisplayViewer)
+    if shutil.which("gm"):
+        register(GmDisplayViewer)
     if shutil.which("eog"):
         register(EogViewer)
     if shutil.which("xv"):
         register(XVViewer)
+
+
+class IPythonViewer(Viewer):
+    """The viewer for IPython frontends."""
+
+    def show_image(self, image, **options):
+        ipython_display(image)
+        return 1
+
+
+try:
+    from IPython.display import display as ipython_display
+except ImportError:
+    pass
+else:
+    register(IPythonViewer)
+
 
 if __name__ == "__main__":
 

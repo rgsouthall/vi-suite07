@@ -1,3 +1,4 @@
+import uuid
 from contextlib import contextmanager
 import logging
 import math
@@ -11,7 +12,7 @@ import tkinter.messagebox
 import numpy as np
 
 import matplotlib as mpl
-from matplotlib import backend_tools, cbook
+from matplotlib import _api, backend_tools, cbook, _c_internal_utils
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, NavigationToolbar2,
     StatusbarBase, TimerBase, ToolContainerBase, cursors, _Mode)
@@ -19,22 +20,6 @@ from matplotlib._pylab_helpers import Gcf
 from matplotlib.figure import Figure
 from matplotlib.widgets import SubplotTool
 from . import _tkagg
-
-try:
-    from ._tkagg import Win32_GetForegroundWindow, Win32_SetForegroundWindow
-except ImportError:
-    @contextmanager
-    def _restore_foreground_window_at_end():
-        yield
-else:
-    @contextmanager
-    def _restore_foreground_window_at_end():
-        foreground = Win32_GetForegroundWindow()
-        try:
-            yield
-        finally:
-            if mpl.rcParams['tk.window_focus']:
-                Win32_SetForegroundWindow(foreground)
 
 
 _log = logging.getLogger(__name__)
@@ -50,6 +35,38 @@ cursord = {
     }
 
 
+@contextmanager
+def _restore_foreground_window_at_end():
+    foreground = _c_internal_utils.Win32_GetForegroundWindow()
+    try:
+        yield
+    finally:
+        if mpl.rcParams['tk.window_focus']:
+            _c_internal_utils.Win32_SetForegroundWindow(foreground)
+
+
+_blit_args = {}
+# Initialize to a non-empty string that is not a Tcl command
+_blit_tcl_name = "mpl_blit_" + uuid.uuid4().hex
+
+
+def _blit(argsid):
+    """
+    Thin wrapper to blit called via tkapp.call.
+
+    *argsid* is a unique string identifier to fetch the correct arguments from
+    the ``_blit_args`` dict, since arguments cannot be passed directly.
+
+    photoimage blanking must occur in the same event and thread as blitting
+    to avoid flickering.
+    """
+    photoimage, dataptr, offsets, bboxptr, blank = _blit_args.pop(argsid)
+    if blank:
+        photoimage.blank()
+    _tkagg.blit(
+        photoimage.tk.interpaddr(), str(photoimage), dataptr, offsets, bboxptr)
+
+
 def blit(photoimage, aggimage, offsets, bbox=None):
     """
     Blit *aggimage* to *photoimage*.
@@ -59,7 +76,10 @@ def blit(photoimage, aggimage, offsets, bbox=None):
     (2, 1, 0, 3) for little-endian ARBG32 (i.e. GBRA8888) data and (1, 2, 3, 0)
     for big-endian ARGB32 (i.e. ARGB8888) data.
 
-    If *bbox* is passed, it defines the region that gets blitted.
+    If *bbox* is passed, it defines the region that gets blitted. That region
+    will NOT be blanked before blitting.
+
+    Tcl events must be dispatched to trigger a blit from a non-Tcl thread.
     """
     data = np.asarray(aggimage)
     height, width = data.shape[:2]
@@ -71,11 +91,31 @@ def blit(photoimage, aggimage, offsets, bbox=None):
         y1 = max(math.floor(y1), 0)
         y2 = min(math.ceil(y2), height)
         bboxptr = (x1, x2, y1, y2)
+        blank = False
     else:
-        photoimage.blank()
         bboxptr = (0, width, 0, height)
-    _tkagg.blit(
-        photoimage.tk.interpaddr(), str(photoimage), dataptr, offsets, bboxptr)
+        blank = True
+
+    # NOTE: _tkagg.blit is thread unsafe and will crash the process if called
+    # from a thread (GH#13293). Instead of blanking and blitting here,
+    # use tkapp.call to post a cross-thread event if this function is called
+    # from a non-Tcl thread.
+
+    # tkapp.call coerces all arguments to strings, so to avoid string parsing
+    # within _blit, pack up the arguments into a global data structure.
+    args = photoimage, dataptr, offsets, bboxptr, blank
+    # Need a unique key to avoid thread races.
+    # Again, make the key a string to avoid string parsing in _blit.
+    argsid = str(id(args))
+    _blit_args[argsid] = args
+
+    try:
+        photoimage.tk.call(_blit_tcl_name, argsid)
+    except tk.TclError as e:
+        if "invalid command name" not in str(e):
+            raise
+        photoimage.tk.createcommand(_blit_tcl_name, _blit)
+        photoimage.tk.call(_blit_tcl_name, argsid)
 
 
 class TimerTk(TimerBase):
@@ -83,7 +123,7 @@ class TimerTk(TimerBase):
 
     def __init__(self, parent, *args, **kwargs):
         self._timer = None
-        TimerBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.parent = parent
 
     def _timer_start(self):
@@ -96,13 +136,22 @@ class TimerTk(TimerBase):
         self._timer = None
 
     def _on_timer(self):
-        TimerBase._on_timer(self)
+        super()._on_timer()
         # Tk after() is only a single shot, so we need to add code here to
         # reset the timer if we're not operating in single shot mode.  However,
         # if _timer is None, this means that _timer_stop has been called; so
         # don't recreate the timer in that case.
         if not self._single and self._timer:
-            self._timer = self.parent.after(self._interval, self._on_timer)
+            if self._interval > 0:
+                self._timer = self.parent.after(self._interval, self._on_timer)
+            else:
+                # Edge case: Tcl after 0 *prepends* events to the queue
+                # so a 0 interval does not allow any other events to run.
+                # This incantation is cancellable and runs as fast as possible
+                # while also allowing events and drawing every frame. GH#18236
+                self._timer = self.parent.after_idle(
+                    lambda: self.parent.after(self._interval, self._on_timer)
+                )
         else:
             self._timer = None
 
@@ -110,74 +159,14 @@ class TimerTk(TimerBase):
 class FigureCanvasTk(FigureCanvasBase):
     required_interactive_framework = "tk"
 
-    keyvald = {65507: 'control',
-               65505: 'shift',
-               65513: 'alt',
-               65515: 'super',
-               65508: 'control',
-               65506: 'shift',
-               65514: 'alt',
-               65361: 'left',
-               65362: 'up',
-               65363: 'right',
-               65364: 'down',
-               65307: 'escape',
-               65470: 'f1',
-               65471: 'f2',
-               65472: 'f3',
-               65473: 'f4',
-               65474: 'f5',
-               65475: 'f6',
-               65476: 'f7',
-               65477: 'f8',
-               65478: 'f9',
-               65479: 'f10',
-               65480: 'f11',
-               65481: 'f12',
-               65300: 'scroll_lock',
-               65299: 'break',
-               65288: 'backspace',
-               65293: 'enter',
-               65379: 'insert',
-               65535: 'delete',
-               65360: 'home',
-               65367: 'end',
-               65365: 'pageup',
-               65366: 'pagedown',
-               65438: '0',
-               65436: '1',
-               65433: '2',
-               65435: '3',
-               65430: '4',
-               65437: '5',
-               65432: '6',
-               65429: '7',
-               65431: '8',
-               65434: '9',
-               65451: '+',
-               65453: '-',
-               65450: '*',
-               65455: '/',
-               65439: 'dec',
-               65421: 'enter',
-               }
-
-    _keycode_lookup = {
-                       262145: 'control',
-                       524320: 'alt',
-                       524352: 'alt',
-                       1048584: 'super',
-                       1048592: 'super',
-                       131074: 'shift',
-                       131076: 'shift',
-                       }
-    """_keycode_lookup is used for badly mapped (i.e. no event.key_sym set)
-       keys on apple keyboards."""
-
-    def __init__(self, figure, master=None, resize_callback=None):
-        super(FigureCanvasTk, self).__init__(figure)
+    @_api.delete_parameter(
+        "3.4", "resize_callback",
+        alternative="get_tk_widget().bind('<Configure>', ..., True)")
+    def __init__(self, figure=None, master=None, resize_callback=None):
+        super().__init__(figure)
         self._idle = True
         self._idle_callback = None
+        self._event_loop_id = None
         w, h = self.figure.bbox.size.astype(int)
         self._tkcanvas = tk.Canvas(
             master=master, background="white",
@@ -215,7 +204,6 @@ class FigureCanvasTk(FigureCanvasBase):
         # to the window and filter.
         def filter_destroy(event):
             if event.widget is self._tkcanvas:
-                self._master.update_idletasks()
                 self.close_event()
         root.bind("<Destroy>", filter_destroy, "+")
 
@@ -239,7 +227,6 @@ class FigureCanvasTk(FigureCanvasBase):
         self._tkcanvas.create_image(
             int(width / 2), int(height / 2), image=self._tkphoto)
         self.resize_event()
-        self.draw()
 
     def draw_idle(self):
         # docstring inherited
@@ -269,13 +256,13 @@ class FigureCanvasTk(FigureCanvasBase):
         x = event.x
         # flipy so y=0 is bottom of canvas
         y = self.figure.bbox.height - event.y
-        FigureCanvasBase.motion_notify_event(self, x, y, guiEvent=event)
+        super().motion_notify_event(x, y, guiEvent=event)
 
     def enter_notify_event(self, event):
         x = event.x
         # flipy so y=0 is bottom of canvas
         y = self.figure.bbox.height - event.y
-        FigureCanvasBase.enter_notify_event(self, guiEvent=event, xy=(x, y))
+        super().enter_notify_event(guiEvent=event, xy=(x, y))
 
     def button_press_event(self, event, dblclick=False):
         x = event.x
@@ -290,8 +277,8 @@ class FigureCanvasTk(FigureCanvasBase):
             elif num == 3:
                 num = 2
 
-        FigureCanvasBase.button_press_event(
-            self, x, y, num, dblclick=dblclick, guiEvent=event)
+        super().button_press_event(x, y, num,
+                                   dblclick=dblclick, guiEvent=event)
 
     def button_dblclick_event(self, event):
         self.button_press_event(event, dblclick=True)
@@ -310,14 +297,14 @@ class FigureCanvasTk(FigureCanvasBase):
             elif num == 3:
                 num = 2
 
-        FigureCanvasBase.button_release_event(self, x, y, num, guiEvent=event)
+        super().button_release_event(x, y, num, guiEvent=event)
 
     def scroll_event(self, event):
         x = event.x
         y = self.figure.bbox.height - event.y
         num = getattr(event, 'num', None)
         step = 1 if num == 4 else -1 if num == 5 else 0
-        FigureCanvasBase.scroll_event(self, x, y, step, guiEvent=event)
+        super().scroll_event(x, y, step, guiEvent=event)
 
     def scroll_event_windows(self, event):
         """MouseWheel event processor"""
@@ -331,16 +318,8 @@ class FigureCanvasTk(FigureCanvasBase):
             FigureCanvasBase.scroll_event(self, x, y, step, guiEvent=event)
 
     def _get_key(self, event):
-        val = event.keysym_num
-        if val in self.keyvald:
-            key = self.keyvald[val]
-        elif (val == 0 and sys.platform == 'darwin'
-              and event.keycode in self._keycode_lookup):
-            key = self._keycode_lookup[event.keycode]
-        elif val < 256:
-            key = chr(val)
-        else:
-            key = None
+        unikey = event.char
+        key = cbook._unikey_or_keysym_to_mplkey(unikey, event.keysym)
 
         # add modifier keys to the key string. Bit details originate from
         # http://effbot.org/tkinterbook/tkinter-events-and-bindings.htm
@@ -351,25 +330,29 @@ class FigureCanvasTk(FigureCanvasBase):
         # however this is not the case on "darwin", so double check that
         # we aren't adding repeat modifier flags to a modifier key.
         if sys.platform == 'win32':
-            modifiers = [(17, 'alt', 'alt'),
-                         (2, 'ctrl', 'control'),
+            modifiers = [(2, 'ctrl', 'control'),
+                         (17, 'alt', 'alt'),
+                         (0, 'shift', 'shift'),
                          ]
         elif sys.platform == 'darwin':
-            modifiers = [(3, 'super', 'super'),
+            modifiers = [(2, 'ctrl', 'control'),
                          (4, 'alt', 'alt'),
-                         (2, 'ctrl', 'control'),
+                         (0, 'shift', 'shift'),
+                         (3, 'super', 'super'),
                          ]
         else:
-            modifiers = [(6, 'super', 'super'),
+            modifiers = [(2, 'ctrl', 'control'),
                          (3, 'alt', 'alt'),
-                         (2, 'ctrl', 'control'),
+                         (0, 'shift', 'shift'),
+                         (6, 'super', 'super'),
                          ]
 
         if key is not None:
             # shift is not added to the keys as this is already accounted for
             for bitmask, prefix, key_name in modifiers:
                 if event.state & (1 << bitmask) and key_name not in key:
-                    key = '{0}+{1}'.format(prefix, key)
+                    if not (prefix == 'shift' and unikey):
+                        key = '{0}+{1}'.format(prefix, key)
 
         return key
 
@@ -389,6 +372,25 @@ class FigureCanvasTk(FigureCanvasBase):
         # docstring inherited
         self._master.update()
 
+    def start_event_loop(self, timeout=0):
+        # docstring inherited
+        if timeout > 0:
+            milliseconds = int(1000 * timeout)
+            if milliseconds > 0:
+                self._event_loop_id = self._tkcanvas.after(
+                    milliseconds, self.stop_event_loop)
+            else:
+                self._event_loop_id = self._tkcanvas.after_idle(
+                    self.stop_event_loop)
+        self._master.mainloop()
+
+    def stop_event_loop(self):
+        # docstring inherited
+        if self._event_loop_id:
+            self._master.after_cancel(self._event_loop_id)
+            self._event_loop_id = None
+        self._master.quit()
+
 
 class FigureManagerTk(FigureManagerBase):
     """
@@ -404,11 +406,12 @@ class FigureManagerTk(FigureManagerBase):
         The tk.Window
     """
 
+    _owns_mainloop = False
+
     def __init__(self, canvas, num, window):
-        FigureManagerBase.__init__(self, canvas, num)
         self.window = window
+        super().__init__(canvas, num)
         self.window.withdraw()
-        self.set_window_title("Figure %d" % num)
         # packing toolbar first, because if space is getting low, last packed
         # widget is getting shrunk first (-> the canvas)
         self.toolbar = self._get_toolbar()
@@ -448,9 +451,8 @@ class FigureManagerTk(FigureManagerBase):
         with _restore_foreground_window_at_end():
             if not self._shown:
                 def destroy(*args):
-                    self.window = None
                     Gcf.destroy(self)
-                self.canvas._tkcanvas.bind("<Destroy>", destroy)
+                self.window.protocol("WM_DELETE_WINDOW", destroy)
                 self.window.deiconify()
             else:
                 self.canvas.draw_idle()
@@ -460,15 +462,24 @@ class FigureManagerTk(FigureManagerBase):
             self._shown = True
 
     def destroy(self, *args):
-        if self.window is not None:
-            #self.toolbar.destroy()
-            if self.canvas._idle_callback:
-                self.canvas._tkcanvas.after_cancel(self.canvas._idle_callback)
+        if self.canvas._idle_callback:
+            self.canvas._tkcanvas.after_cancel(self.canvas._idle_callback)
+        if self.canvas._event_loop_id:
+            self.canvas._tkcanvas.after_cancel(self.canvas._event_loop_id)
+
+        # NOTE: events need to be flushed before issuing destroy (GH #9956),
+        # however, self.window.update() can break user code. This is the
+        # safest way to achieve a complete draining of the event queue,
+        # but it may require users to update() on their own to execute the
+        # completion in obscure corner cases.
+        def delayed_destroy():
             self.window.destroy()
-        if Gcf.get_num_fig_managers() == 0:
-            if self.window is not None:
+
+            if self._owns_mainloop and not Gcf.get_num_fig_managers():
                 self.window.quit()
-        self.window = None
+
+        # "after idle after 0" avoids Tcl error/race (GH #19940)
+        self.window.after_idle(self.window.after, 0, delayed_destroy)
 
     def get_window_title(self):
         return self.window.wm_title()
@@ -511,7 +522,7 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
             else:
                 self._buttons[text] = button = self._Button(
                     text,
-                    str(cbook._get_data_path(f"images/{image_file}.gif")),
+                    str(cbook._get_data_path(f"images/{image_file}.png")),
                     toggle=callback in ["zoom", "pan"],
                     command=getattr(self, callback),
                 )
@@ -533,10 +544,6 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
         NavigationToolbar2.__init__(self, canvas)
         if pack_toolbar:
             self.pack(side=tk.BOTTOM, fill=tk.X)
-
-    def destroy(self, *args):
-        del self.message
-        tk.Frame.destroy(self, *args)
 
     def _update_buttons_checked(self):
         # sync button checkstates to match active mode
@@ -578,11 +585,13 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
             window.configure(cursor=cursord[cursor])
         except tkinter.TclError:
             pass
-        else:
-            window.update_idletasks()
 
     def _Button(self, text, image_file, toggle, command):
-        image = (tk.PhotoImage(master=self, file=image_file)
+        if tk.TkVersion >= 8.6:
+            PhotoImage = tk.PhotoImage
+        else:
+            from PIL.ImageTk import PhotoImage
+        image = (PhotoImage(master=self, file=image_file)
                  if image_file is not None else None)
         if not toggle:
             b = tk.Button(master=self, text=text, image=image, command=command)
@@ -607,16 +616,6 @@ class NavigationToolbar2Tk(NavigationToolbar2, tk.Frame):
             master=self, height=26, relief=tk.RIDGE, pady=2, bg="DarkGray")
         s.pack(side=tk.LEFT, padx=5)
         return s
-
-    def configure_subplots(self):
-        toolfig = Figure(figsize=(6, 3))
-        window = tk.Toplevel()
-        canvas = type(self.canvas)(toolfig, master=window)
-        toolfig.subplots_adjust(top=0.9)
-        canvas.tool = SubplotTool(self.canvas.figure, toolfig)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-        window.grab_set()
 
     def save_figure(self, *args):
         filetypes = self.canvas.get_supported_filetypes().copy()
@@ -743,8 +742,6 @@ class SetCursorTk(backend_tools.SetCursorBase):
 
 
 class ToolbarTk(ToolContainerBase, tk.Frame):
-    _icon_extension = '.gif'
-
     def __init__(self, toolmanager, window):
         ToolContainerBase.__init__(self, toolmanager)
         xmin, xmax = self.toolmanager.canvas.figure.bbox.intervalx
@@ -779,8 +776,7 @@ class ToolbarTk(ToolContainerBase, tk.Frame):
         return self._groups[group]
 
     def _add_separator(self):
-        separator = tk.Frame(master=self, bd=5, width=1, bg='black')
-        separator.pack(side=tk.LEFT, fill=tk.Y, padx=2)
+        return NavigationToolbar2Tk._Spacer(self)
 
     def _button_click(self, name):
         self.trigger_tool(name)
@@ -803,7 +799,7 @@ class ToolbarTk(ToolContainerBase, tk.Frame):
         self._message.set(s)
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 class StatusbarTk(StatusbarBase, tk.Frame):
     def __init__(self, window, *args, **kwargs):
         StatusbarBase.__init__(self, *args, **kwargs)
@@ -829,7 +825,7 @@ class SaveFigureTk(backend_tools.SaveFigureBase):
 
 class ConfigureSubplotsTk(backend_tools.ConfigureSubplotsBase):
     def __init__(self, *args, **kwargs):
-        backend_tools.ConfigureSubplotsBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.window = None
 
     def trigger(self, *args):
@@ -882,6 +878,8 @@ class _BackendTk(_Backend):
         Create a new figure manager instance for the given figure.
         """
         with _restore_foreground_window_at_end():
+            if cbook._get_running_interactive_framework() is None:
+                cbook._setup_new_guiapp()
             window = tk.Tk(className="matplotlib")
             window.withdraw()
 
@@ -906,11 +904,15 @@ class _BackendTk(_Backend):
             return manager
 
     @staticmethod
-    def trigger_manager_draw(manager):
-        manager.show()
-
-    @staticmethod
     def mainloop():
         managers = Gcf.get_all_fig_managers()
         if managers:
-            managers[0].window.mainloop()
+            first_manager = managers[0]
+            manager_class = type(first_manager)
+            if manager_class._owns_mainloop:
+                return
+            manager_class._owns_mainloop = True
+            try:
+                first_manager.window.mainloop()
+            finally:
+                manager_class._owns_mainloop = False

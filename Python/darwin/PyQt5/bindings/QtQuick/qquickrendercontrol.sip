@@ -2,7 +2,7 @@
 //
 // This file is part of the QtQuick Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -36,7 +36,9 @@ public:
     QQuickRenderControl(QObject *parent /TransferThis/ = 0);
 %End
     virtual ~QQuickRenderControl();
+%If (PyQt_OpenGL)
     void initialize(QOpenGLContext *gl);
+%End
     void invalidate();
     void polishItems();
     void render();

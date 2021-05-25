@@ -1,19 +1,8 @@
 import numpy as np
 
-from matplotlib import cbook, ticker as mticker
+from matplotlib import _api, ticker as mticker
 from matplotlib.transforms import Bbox, Transform
 from .clip_path import clip_line_to_rect
-
-
-def _deprecate_factor_none(factor):
-    # After the deprecation period, calls to _deprecate_factor_none can just be
-    # removed.
-    if factor is None:
-        cbook.warn_deprecated(
-            "3.2", message="factor=None is deprecated since %(since)s and "
-            "support will be removed %(removal)s; use/return factor=1 instead")
-        factor = 1
-    return factor
 
 
 class ExtremeFinderSimple:
@@ -110,8 +99,8 @@ class GridFinder:
         lon_levs, lon_n, lon_factor = self.grid_locator1(lon_min, lon_max)
         lat_levs, lat_n, lat_factor = self.grid_locator2(lat_min, lat_max)
 
-        lon_values = lon_levs[:lon_n] / _deprecate_factor_none(lon_factor)
-        lat_values = lat_levs[:lat_n] / _deprecate_factor_none(lat_factor)
+        lon_values = lon_levs[:lon_n] / lon_factor
+        lat_values = lat_levs[:lat_n] / lat_factor
 
         lon_lines, lat_lines = self._get_raw_grid_lines(lon_values,
                                                         lat_values,
@@ -187,24 +176,26 @@ class GridFinder:
         return gi
 
     def update_transform(self, aux_trans):
-        if isinstance(aux_trans, Transform):
-            def transform_xy(x, y):
-                ll1 = np.column_stack([x, y])
-                ll2 = aux_trans.transform(ll1)
-                lon, lat = ll2[:, 0], ll2[:, 1]
-                return lon, lat
+        if not isinstance(aux_trans, Transform) and len(aux_trans) != 2:
+            raise TypeError("'aux_trans' must be either a Transform instance "
+                            "or a pair of callables")
+        self._aux_transform = aux_trans
 
-            def inv_transform_xy(x, y):
-                ll1 = np.column_stack([x, y])
-                ll2 = aux_trans.inverted().transform(ll1)
-                lon, lat = ll2[:, 0], ll2[:, 1]
-                return lon, lat
-
+    def transform_xy(self, x, y):
+        aux_trf = self._aux_transform
+        if isinstance(aux_trf, Transform):
+            return aux_trf.transform(np.column_stack([x, y])).T
         else:
-            transform_xy, inv_transform_xy = aux_trans
+            transform_xy, inv_transform_xy = aux_trf
+            return transform_xy(x, y)
 
-        self.transform_xy = transform_xy
-        self.inv_transform_xy = inv_transform_xy
+    def inv_transform_xy(self, x, y):
+        aux_trf = self._aux_transform
+        if isinstance(aux_trf, Transform):
+            return aux_trf.inverted().transform(np.column_stack([x, y])).T
+        else:
+            transform_xy, inv_transform_xy = aux_trf
+            return inv_transform_xy(x, y)
 
     def update(self, **kw):
         for k in kw:
@@ -218,19 +209,6 @@ class GridFinder:
                 raise ValueError("Unknown update property '%s'" % k)
 
 
-@cbook.deprecated("3.2")
-class GridFinderBase(GridFinder):
-    def __init__(self,
-                 extreme_finder,
-                 grid_locator1=None,
-                 grid_locator2=None,
-                 tick_formatter1=None,
-                 tick_formatter2=None):
-        super().__init__((None, None), extreme_finder,
-                         grid_locator1, grid_locator2,
-                         tick_formatter1, tick_formatter2)
-
-
 class MaxNLocator(mticker.MaxNLocator):
     def __init__(self, nbins=10, steps=None,
                  trim=True,
@@ -238,20 +216,19 @@ class MaxNLocator(mticker.MaxNLocator):
                  symmetric=False,
                  prune=None):
         # trim argument has no effect. It has been left for API compatibility
-        mticker.MaxNLocator.__init__(self, nbins, steps=steps,
-                                     integer=integer,
-                                     symmetric=symmetric, prune=prune)
+        super().__init__(nbins, steps=steps, integer=integer,
+                         symmetric=symmetric, prune=prune)
         self.create_dummy_axis()
         self._factor = 1
 
     def __call__(self, v1, v2):
         self.set_bounds(v1 * self._factor, v2 * self._factor)
-        locs = mticker.MaxNLocator.__call__(self)
+        locs = super().__call__()
         return np.array(locs), len(locs), self._factor
 
-    @cbook.deprecated("3.3")
+    @_api.deprecated("3.3")
     def set_factor(self, f):
-        self._factor = _deprecate_factor_none(f)
+        self._factor = f
 
 
 class FixedLocator:
@@ -264,9 +241,9 @@ class FixedLocator:
         locs = np.array([l for l in self._locs if v1 <= l <= v2])
         return locs, len(locs), self._factor
 
-    @cbook.deprecated("3.3")
+    @_api.deprecated("3.3")
     def set_factor(self, f):
-        self._factor = _deprecate_factor_none(f)
+        self._factor = f
 
 
 # Tick Formatter

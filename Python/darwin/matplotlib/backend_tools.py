@@ -12,7 +12,6 @@ These tools are used by `matplotlib.backend_managers.ToolManager`
 """
 
 from enum import IntEnum
-import logging
 import re
 import time
 from types import SimpleNamespace
@@ -23,9 +22,7 @@ import numpy as np
 
 import matplotlib as mpl
 from matplotlib._pylab_helpers import Gcf
-import matplotlib.cbook as cbook
-
-_log = logging.getLogger(__name__)
+from matplotlib import _api, cbook
 
 
 class Cursors(IntEnum):  # Must subclass int for the macOS backend.
@@ -80,9 +77,6 @@ class ToolBase:
     """
 
     def __init__(self, toolmanager, name):
-        cbook._warn_external(
-            'The new Tool classes introduced in v1.5 are experimental; their '
-            'API (including names) will likely change in future versions.')
         self._name = name
         self._toolmanager = toolmanager
         self._figure = None
@@ -187,7 +181,7 @@ class ToolToggleBase(ToolBase):
 
     def __init__(self, *args, **kwargs):
         self._toggled = kwargs.pop('toggled', self.default_toggled)
-        ToolBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def trigger(self, sender, event, data=None):
         """Calls `enable` or `disable` based on `toggled` value."""
@@ -235,7 +229,7 @@ class ToolToggleBase(ToolBase):
                 # if no figure the internal state is not changed
                 # we change it here so next call to trigger will change it back
                 self._toggled = False
-        ToolBase.set_figure(self, figure)
+        super().set_figure(figure)
         if toggled:
             if figure:
                 self.trigger(self, None)
@@ -253,7 +247,7 @@ class SetCursorBase(ToolBase):
     `set_cursor` when a tool gets triggered.
     """
     def __init__(self, *args, **kwargs):
-        ToolBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._id_drag = None
         self._cursor = None
         self._default_cursor = cursors.POINTER
@@ -268,7 +262,7 @@ class SetCursorBase(ToolBase):
     def set_figure(self, figure):
         if self._id_drag:
             self.canvas.mpl_disconnect(self._id_drag)
-        ToolBase.set_figure(self, figure)
+        super().set_figure(figure)
         if figure:
             self._id_drag = self.canvas.mpl_connect(
                 'motion_notify_event', self._set_cursor_cbk)
@@ -324,12 +318,12 @@ class ToolCursorPosition(ToolBase):
     """
     def __init__(self, *args, **kwargs):
         self._id_drag = None
-        ToolBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def set_figure(self, figure):
         if self._id_drag:
             self.canvas.mpl_disconnect(self._id_drag)
-        ToolBase.set_figure(self, figure)
+        super().set_figure(figure)
         if figure:
             self._id_drag = self.canvas.mpl_connect(
                 'motion_notify_event', self.send_message)
@@ -339,27 +333,10 @@ class ToolCursorPosition(ToolBase):
         if self.toolmanager.messagelock.locked():
             return
 
-        message = ' '
-
-        if event.inaxes and event.inaxes.get_navigate():
-            try:
-                s = event.inaxes.format_coord(event.xdata, event.ydata)
-            except (ValueError, OverflowError):
-                pass
-            else:
-                artists = [a for a in event.inaxes._mouseover_set
-                           if a.contains(event) and a.get_visible()]
-
-                if artists:
-                    a = cbook._topmost_artist(artists)
-                    if a is not event.inaxes.patch:
-                        data = a.get_cursor_data(event)
-                        if data is not None:
-                            data_str = a.format_cursor_data(data)
-                            if data_str is not None:
-                                s = s + ' ' + data_str
-
-                message = s
+        from matplotlib.backend_bases import NavigationToolbar2
+        message = NavigationToolbar2._mouse_event_to_message(event)
+        if message is None:
+            message = ' '
         self.toolmanager.message_event(message, self)
 
 
@@ -421,7 +398,7 @@ class _ToolEnableAllNavigation(ToolBase):
         mpl.backend_bases.key_press_handler(event, self.figure.canvas, None)
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 class ToolEnableAllNavigation(_ToolEnableAllNavigation):
     pass
 
@@ -436,7 +413,7 @@ class _ToolEnableNavigation(ToolBase):
         mpl.backend_bases.key_press_handler(event, self.figure.canvas, None)
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 class ToolEnableNavigation(_ToolEnableNavigation):
     pass
 
@@ -490,7 +467,7 @@ class AxisScaleBase(ToolToggleBase):
     def trigger(self, sender, event, data=None):
         if event.inaxes is None:
             return
-        ToolToggleBase.trigger(self, sender, event, data)
+        super().trigger(sender, event, data)
 
     def enable(self, event):
         self.set_scale(event.inaxes, 'log')
@@ -539,7 +516,7 @@ class ToolViewsPositions(ToolBase):
         self.views = WeakKeyDictionary()
         self.positions = WeakKeyDictionary()
         self.home_views = WeakKeyDictionary()
-        ToolBase.__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def add_figure(self, figure):
         """Add the current figure to the stack of views and positions."""
@@ -636,7 +613,7 @@ class ToolViewsPositions(ToolBase):
             if a not in self.home_views[figure]:
                 self.home_views[figure][a] = a._get_view()
 
-    @cbook.deprecated("3.3", alternative="self.figure.canvas.draw_idle()")
+    @_api.deprecated("3.3", alternative="self.figure.canvas.draw_idle()")
     def refresh_locators(self):
         """Redraw the canvases, update the locators."""
         self._refresh_locators()
@@ -736,7 +713,7 @@ class SaveFigureBase(ToolBase):
 class ZoomPanBase(ToolToggleBase):
     """Base class for `ToolZoom` and `ToolPan`."""
     def __init__(self, *args):
-        ToolToggleBase.__init__(self, *args)
+        super().__init__(*args)
         self._button_pressed = None
         self._xypress = None
         self._idPress = None
@@ -766,7 +743,10 @@ class ZoomPanBase(ToolToggleBase):
 
     def trigger(self, sender, event, data=None):
         self.toolmanager.get_tool(_views_positions).add_figure(self.figure)
-        ToolToggleBase.trigger(self, sender, event, data)
+        super().trigger(sender, event, data)
+        new_navigate_mode = self.name.upper() if self.toggled else None
+        for ax in self.figure.axes:
+            ax.set_navigate_mode(new_navigate_mode)
 
     def scroll_zoom(self, event):
         # https://gist.github.com/tacaswell/3144287
@@ -807,7 +787,7 @@ class ToolZoom(ZoomPanBase):
     radio_group = 'default'
 
     def __init__(self, *args):
-        ZoomPanBase.__init__(self, *args)
+        super().__init__(*args)
         self._ids_zoom = []
 
     def _cancel_action(self):
@@ -933,7 +913,7 @@ class ToolPan(ZoomPanBase):
     radio_group = 'default'
 
     def __init__(self, *args):
-        ZoomPanBase.__init__(self, *args)
+        super().__init__(*args)
         self._id_drag = None
 
     def _cancel_action(self):

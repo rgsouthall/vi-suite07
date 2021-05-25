@@ -2,7 +2,7 @@
 //
 // This file is part of the QtQuick Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -216,7 +216,7 @@ enum /NoScope/
 
         int count;
         int stride;
-        const QSGGeometry::Attribute *attributes /TypeHint="sip.array[QSGGeometry.Attribute]"/ {
+        const QSGGeometry::Attribute *attributes /TypeHint="PyQt5.sip.array[QSGGeometry.Attribute]"/ {
 %GetCode
             sipPy = sipConvertToTypedArray((void *)sipCpp->attributes,
                     sipType_QSGGeometry_Attribute, "iiiI", sizeof (QSGGeometry::Attribute),
@@ -284,8 +284,8 @@ enum /NoScope/
 
     QSGGeometry(const QSGGeometry::AttributeSet &attribs /KeepReference/, int vertexCount, int indexCount = 0, int indexType = GL_UNSIGNED_SHORT);
     virtual ~QSGGeometry();
-    void setDrawingMode(GLenum mode);
-    GLenum drawingMode() const;
+    void setDrawingMode(unsigned int mode);
+    unsigned int drawingMode() const;
     void allocate(int vertexCount, int indexCount = 0);
     int vertexCount() const;
     void *vertexData();
@@ -293,7 +293,7 @@ enum /NoScope/
     int indexCount() const;
     void *indexData();
     int attributeCount() const;
-    SIP_PYOBJECT attributes() const /TypeHint="sip.array[QSGGeometry.Attribute]"/;
+    SIP_PYOBJECT attributes() const /TypeHint="PyQt5.sip.array[QSGGeometry.Attribute]"/;
 %MethodCode
         sipRes = sipConvertToTypedArray((void *)sipCpp->attributes(),
                 sipType_QSGGeometry_Attribute, "iiiI", sizeof (QSGGeometry::Attribute),
@@ -311,33 +311,33 @@ enum /NoScope/
     void markVertexDataDirty();
     float lineWidth() const;
     void setLineWidth(float w);
-    SIP_PYOBJECT indexDataAsUInt() /TypeHint="sip.array[int]"/;
+    SIP_PYOBJECT indexDataAsUInt() /TypeHint="PyQt5.sip.array[int]"/;
 %MethodCode
         sipRes = sipConvertToArray(sipCpp->indexDataAsUInt(), "I",
                 sipCpp->indexCount(), 0);
 %End
 
-    SIP_PYOBJECT indexDataAsUShort() /TypeHint="sip.array[int]"/;
+    SIP_PYOBJECT indexDataAsUShort() /TypeHint="PyQt5.sip.array[int]"/;
 %MethodCode
         sipRes = sipConvertToArray(sipCpp->indexDataAsUShort(), "H",
                 sipCpp->indexCount(), 0);
 %End
 
-    SIP_PYOBJECT vertexDataAsPoint2D() /TypeHint="sip.array[QSGGeometry.Point2D]"/;
+    SIP_PYOBJECT vertexDataAsPoint2D() /TypeHint="PyQt5.sip.array[QSGGeometry.Point2D]"/;
 %MethodCode
         sipRes = sipConvertToTypedArray(sipCpp->vertexDataAsPoint2D(),
                 sipType_QSGGeometry_Point2D, "ff", sizeof (QSGGeometry::Point2D),
                 sipCpp->vertexCount(), 0);
 %End
 
-    SIP_PYOBJECT vertexDataAsTexturedPoint2D() /TypeHint="sip.array[QSGGeometry.TexturedPoint2D]"/;
+    SIP_PYOBJECT vertexDataAsTexturedPoint2D() /TypeHint="PyQt5.sip.array[QSGGeometry.TexturedPoint2D]"/;
 %MethodCode
         sipRes = sipConvertToTypedArray(sipCpp->vertexDataAsTexturedPoint2D(),
                 sipType_QSGGeometry_TexturedPoint2D, "ffff",
                 sizeof (QSGGeometry::TexturedPoint2D), sipCpp->vertexCount(), 0);
 %End
 
-    SIP_PYOBJECT vertexDataAsColoredPoint2D() /TypeHint="sip.array[QSGGeometry.ColoredPoint2D]"/;
+    SIP_PYOBJECT vertexDataAsColoredPoint2D() /TypeHint="PyQt5.sip.array[QSGGeometry.ColoredPoint2D]"/;
 %MethodCode
         sipRes = sipConvertToTypedArray(sipCpp->vertexDataAsColoredPoint2D(),
                 sipType_QSGGeometry_ColoredPoint2D, "ffbbbb",

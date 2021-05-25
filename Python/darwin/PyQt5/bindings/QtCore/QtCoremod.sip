@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -45,7 +45,7 @@
 %Feature PyQt_CONSTEXPR
 
 %Copying
-Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 
 This file is part of PyQt5.
 

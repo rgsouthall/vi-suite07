@@ -1,8 +1,8 @@
 import datetime
+import decimal
 import io
 import os
 from pathlib import Path
-import sys
 from tempfile import NamedTemporaryFile
 
 import numpy as np
@@ -31,8 +31,7 @@ def test_use14corefonts():
 and containing some French characters and the euro symbol:
 "Merci pépé pour les 10 €"'''
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     ax.set_title('Test PDF backend with option use14corefonts=True')
     ax.text(0.5, 0.5, text, horizontalalignment='center',
             verticalalignment='bottom',
@@ -43,8 +42,7 @@ and containing some French characters and the euro symbol:
 def test_type42():
     rcParams['pdf.fonttype'] = 42
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig, ax = plt.subplots()
     ax.plot([1, 2, 3])
     fig.savefig(io.BytesIO())
 
@@ -52,8 +50,7 @@ def test_type42():
 def test_multipage_pagecount():
     with PdfPages(io.BytesIO()) as pdf:
         assert pdf.get_pagecount() == 0
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        fig, ax = plt.subplots()
         ax.plot([1, 2, 3])
         fig.savefig(pdf, format="pdf")
         assert pdf.get_pagecount() == 1
@@ -65,13 +62,12 @@ def test_multipage_properfinalize():
     pdfio = io.BytesIO()
     with PdfPages(pdfio) as pdf:
         for i in range(10):
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
+            fig, ax = plt.subplots()
             ax.set_title('This is a long title')
             fig.savefig(pdf, format="pdf")
-    pdfio.seek(0)
-    assert sum(b'startxref' in line for line in pdfio) == 1
-    assert sys.getsizeof(pdfio) < 40000
+    s = pdfio.getvalue()
+    assert s.count(b'startxref') == 1
+    assert len(s) < 40000
 
 
 def test_multipage_keep_empty():
@@ -87,8 +83,7 @@ def test_multipage_keep_empty():
         pass
     assert not os.path.exists(filename)
     # test pdf files with content, they should never be deleted
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig, ax = plt.subplots()
     ax.plot([1, 2, 3])
     # test that a non-empty pdf is left behind with keep_empty=True (default)
     with NamedTemporaryFile(delete=False) as tmp:
@@ -111,8 +106,7 @@ def test_composite_image():
     # (on a single set of axes) into a single composite image.
     X, Y = np.meshgrid(np.arange(-5, 5, 1), np.arange(-5, 5, 1))
     Z = np.sin(Y ** 2)
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     ax.set_xlim(0, 3)
     ax.imshow(Z, extent=[0, 1, 0, 1])
     ax.imshow(Z[::-1], extent=[2, 3, 0, 1])
@@ -161,6 +155,26 @@ def test_savefig_metadata(monkeypatch):
     }
 
 
+def test_invalid_metadata():
+    fig, ax = plt.subplots()
+
+    with pytest.warns(UserWarning,
+                      match="Unknown infodict keyword: 'foobar'."):
+        fig.savefig(io.BytesIO(), format='pdf', metadata={'foobar': 'invalid'})
+
+    with pytest.warns(UserWarning,
+                      match='not an instance of datetime.datetime.'):
+        fig.savefig(io.BytesIO(), format='pdf',
+                    metadata={'ModDate': '1968-08-01'})
+
+    with pytest.warns(UserWarning,
+                      match='not one of {"True", "False", "Unknown"}'):
+        fig.savefig(io.BytesIO(), format='pdf', metadata={'Trapped': 'foo'})
+
+    with pytest.warns(UserWarning, match='not an instance of str.'):
+        fig.savefig(io.BytesIO(), format='pdf', metadata={'Title': 1234})
+
+
 def test_multipage_metadata(monkeypatch):
     pikepdf = pytest.importorskip('pikepdf')
     monkeypatch.setenv('SOURCE_DATE_EPOCH', '0')
@@ -196,6 +210,57 @@ def test_multipage_metadata(monkeypatch):
         '/Title': 'Multipage PDF',
         '/Trapped': '/True',
     }
+
+
+def test_text_urls():
+    pikepdf = pytest.importorskip('pikepdf')
+
+    test_url = 'https://test_text_urls.matplotlib.org/'
+
+    fig = plt.figure(figsize=(2, 1))
+    fig.text(0.1, 0.1, 'test plain 123', url=f'{test_url}plain')
+    fig.text(0.1, 0.4, 'test mathtext $123$', url=f'{test_url}mathtext')
+
+    with io.BytesIO() as fd:
+        fig.savefig(fd, format='pdf')
+
+        with pikepdf.Pdf.open(fd) as pdf:
+            annots = pdf.pages[0].Annots
+
+            # Iteration over Annots must occur within the context manager,
+            # otherwise it may fail depending on the pdf structure.
+            for y, fragment in [('0.1', 'plain'), ('0.4', 'mathtext')]:
+                annot = next(
+                    (a for a in annots if a.A.URI == f'{test_url}{fragment}'),
+                    None)
+                assert annot is not None
+                # Positions in points (72 per inch.)
+                assert annot.Rect[1] == decimal.Decimal(y) * 72
+
+
+@needs_usetex
+def test_text_urls_tex():
+    pikepdf = pytest.importorskip('pikepdf')
+
+    test_url = 'https://test_text_urls.matplotlib.org/'
+
+    fig = plt.figure(figsize=(2, 1))
+    fig.text(0.1, 0.7, 'test tex $123$', usetex=True, url=f'{test_url}tex')
+
+    with io.BytesIO() as fd:
+        fig.savefig(fd, format='pdf')
+
+        with pikepdf.Pdf.open(fd) as pdf:
+            annots = pdf.pages[0].Annots
+
+            # Iteration over Annots must occur within the context manager,
+            # otherwise it may fail depending on the pdf structure.
+            annot = next(
+                (a for a in annots if a.A.URI == f'{test_url}tex'),
+                None)
+            assert annot is not None
+            # Positions in points (72 per inch.)
+            assert annot.Rect[1] == decimal.Decimal('0.7') * 72
 
 
 def test_pdfpages_fspath():
@@ -254,16 +319,11 @@ def test_pdf_eps_savefig_when_color_is_none(fig_test, fig_ref):
 
 
 @needs_usetex
-def test_failing_latex(tmpdir):
+def test_failing_latex():
     """Test failing latex subprocess call"""
-    path = str(tmpdir.join("tmpoutput.pdf"))
-
-    rcParams['text.usetex'] = True
-
-    # This fails with "Double subscript"
-    plt.xlabel("$22_2_2$")
+    plt.xlabel("$22_2_2$", usetex=True)  # This fails with "Double subscript"
     with pytest.raises(RuntimeError):
-        plt.savefig(path)
+        plt.savefig(io.BytesIO(), format="pdf")
 
 
 def test_empty_rasterized():
@@ -271,3 +331,11 @@ def test_empty_rasterized():
     fig, ax = plt.subplots()
     ax.plot([], [], rasterized=True)
     fig.savefig(io.BytesIO(), format="pdf")
+
+
+@image_comparison(['kerning.pdf'])
+def test_kerning():
+    fig = plt.figure()
+    s = "AVAVAVAVAVAVAVAV€AAVV"
+    fig.text(0, .25, s, size=5)
+    fig.text(0, .75, s, size=20)

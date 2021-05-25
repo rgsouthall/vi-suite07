@@ -28,12 +28,13 @@ import time
 import numpy as np
 
 import matplotlib as mpl
-from matplotlib import cbook, docstring, colors
+from matplotlib import _api, docstring, colors
 from matplotlib.artist import Artist, allow_rasterization
 from matplotlib.cbook import silent_list
 from matplotlib.font_manager import FontProperties
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch, Rectangle, Shadow, FancyBboxPatch
+from matplotlib.patches import (Patch, Rectangle, Shadow, FancyBboxPatch,
+                                StepPatch)
 from matplotlib.collections import (LineCollection, RegularPolyCollection,
                                     CircleCollection, PathCollection,
                                     PolyCollection)
@@ -65,11 +66,10 @@ class DraggableLegend(DraggableOffsetBox):
         """
         self.legend = legend
 
-        cbook._check_in_list(["loc", "bbox"], update=update)
+        _api.check_in_list(["loc", "bbox"], update=update)
         self._update = update
 
-        DraggableOffsetBox.__init__(self, legend, legend._legend_box,
-                                    use_blit=use_blit)
+        super().__init__(legend, legend._legend_box, use_blit=use_blit)
 
     def finalize_offset(self):
         if self._update == "loc":
@@ -174,7 +174,7 @@ fontsize : int or {'xx-small', 'x-small', 'small', 'medium', 'large', \
     default font size. This argument is only used if *prop* is not specified.
 
 labelcolor : str or list
-    Sets the color of the text in the legend. Can be a valid color string
+    The color of the text in the legend. Either a valid color string
     (for example, 'red'), or a list of color strings. The labelcolor can
     also be made to match the color of the line or marker using 'linecolor',
     'markerfacecolor' (or 'mfc'), or 'markeredgecolor' (or 'mec').
@@ -366,7 +366,7 @@ class Legend(Artist):
         from matplotlib.axes import Axes
         from matplotlib.figure import Figure
 
-        Artist.__init__(self)
+        super().__init__()
 
         if prop is None:
             if fontsize is not None:
@@ -404,9 +404,9 @@ class Legend(Artist):
         _lab, _hand = [], []
         for label, handle in zip(labels, handles):
             if isinstance(label, str) and label.startswith('_'):
-                cbook._warn_external('The handle {!r} has a label of {!r} '
-                                     'which cannot be automatically added to'
-                                     ' the legend.'.format(handle, label))
+                _api.warn_external('The handle {!r} has a label of {!r} '
+                                   'which cannot be automatically added to'
+                                   ' the legend.'.format(handle, label))
             else:
                 _lab.append(label)
                 _hand.append(handle)
@@ -624,6 +624,7 @@ class Legend(Artist):
         ErrorbarContainer: legend_handler.HandlerErrorbar(),
         Line2D: legend_handler.HandlerLine2D(),
         Patch: legend_handler.HandlerPatch(),
+        StepPatch: legend_handler.HandlerStepPatch(),
         LineCollection: legend_handler.HandlerLineCollection(),
         RegularPolyCollection: legend_handler.HandlerRegularPolyCollection(),
         CircleCollection: legend_handler.HandlerCircleCollection(),
@@ -743,7 +744,7 @@ class Legend(Artist):
         for orig_handle, lab in zip(handles, labels):
             handler = self.get_legend_handler(legend_handler_map, orig_handle)
             if handler is None:
-                cbook._warn_external(
+                _api.warn_external(
                     "Legend does not support {!r} instances.\nA proxy artist "
                     "may be used instead.\nSee: "
                     "https://matplotlib.org/users/legend_guide.html"
@@ -754,8 +755,7 @@ class Legend(Artist):
                 handle_list.append(None)
             else:
                 textbox = TextArea(lab, textprops=label_prop,
-                                   multilinebaseline=True,
-                                   minimumdescent=True)
+                                   multilinebaseline=True)
                 handlebox = DrawingArea(width=self.handlelength * fontsize,
                                         height=height,
                                         xdescent=0., ydescent=descent)
@@ -789,12 +789,6 @@ class Legend(Artist):
                                  children=[h, t] if markerfirst else [t, h],
                                  align="baseline")
                          for h, t in handles_and_labels[i0:i0 + di]]
-            # minimumdescent=False for the text of the last row of the column
-            if markerfirst:
-                itemBoxes[-1].get_children()[1].set_minimumdescent(False)
-            else:
-                itemBoxes[-1].get_children()[0].set_minimumdescent(False)
-
             # pack columnBox
             alignment = "baseline" if markerfirst else "right"
             columnbox.append(VPacker(pad=0,
@@ -1059,7 +1053,7 @@ class Legend(Artist):
         _, _, (l, b) = min(candidates)
 
         if self._loc_used_default and time.perf_counter() - start_time > 1:
-            cbook._warn_external(
+            _api.warn_external(
                 'Creating legend with loc="best" can be slow with large '
                 'amounts of data.')
 
@@ -1163,7 +1157,45 @@ def _parse_legend_args(axs, *args, handles=None, labels=None, **kwargs):
     Get the handles and labels from the calls to either ``figure.legend``
     or ``axes.legend``.
 
-    ``axs`` is a list of axes (to get legend artists from)
+    The parser is a bit involved because we support::
+
+        legend()
+        legend(labels)
+        legend(handles, labels)
+        legend(labels=labels)
+        legend(handles=handles)
+        legend(handles=handles, labels=labels)
+
+    The behavior for a mixture of positional and keyword handles and labels
+    is undefined and issues a warning.
+
+    Parameters
+    ----------
+    axs : list of `.Axes`
+        If handles are not given explicitly, the artists in these Axes are
+        used as handles.
+    *args : tuple
+        Positional parameters passed to ``legend()``.
+    handles
+        The value of the keyword argument ``legend(handles=...)``, or *None*
+        if that keyword argument was not used.
+    labels
+        The value of the keyword argument ``legend(labels=...)``, or *None*
+        if that keyword argument was not used.
+    **kwargs
+        All other keyword arguments passed to ``legend()``.
+
+    Returns
+    -------
+    handles : list of `.Artist`
+        The legend handles.
+    labels : list of str
+        The legend labels.
+    extra_args : tuple
+        *args* with positional handles and labels removed.
+    kwargs : dict
+        *kwargs* with keywords handles and labels removed.
+
     """
     log = logging.getLogger(__name__)
 
@@ -1171,8 +1203,8 @@ def _parse_legend_args(axs, *args, handles=None, labels=None, **kwargs):
     extra_args = ()
 
     if (handles is not None or labels is not None) and args:
-        cbook._warn_external("You have mixed positional and keyword "
-                             "arguments, some input may be discarded.")
+        _api.warn_external("You have mixed positional and keyword arguments, "
+                           "some input may be discarded.")
 
     # if got both handles and labels as kwargs, make same length
     if handles and labels:

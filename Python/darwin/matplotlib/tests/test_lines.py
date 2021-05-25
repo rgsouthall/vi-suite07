@@ -4,6 +4,7 @@ Tests specific to the lines module.
 
 import itertools
 import timeit
+from types import SimpleNamespace
 
 from cycler import cycler
 import numpy as np
@@ -47,7 +48,7 @@ def test_invisible_Line_rendering():
 
     # Create a plot figure:
     fig = plt.figure()
-    ax = plt.subplot(111)
+    ax = plt.subplot()
 
     # Create a "big" Line instance:
     l = mlines.Line2D(x, y)
@@ -73,8 +74,7 @@ def test_invisible_Line_rendering():
 
 
 def test_set_line_coll_dash():
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     np.random.seed(0)
     # Testing setting linestyles for line collections.
     # This should not produce an error.
@@ -83,15 +83,13 @@ def test_set_line_coll_dash():
 
 @image_comparison(['line_dashes'], remove_text=True)
 def test_line_dashes():
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
 
     ax.plot(range(10), linestyle=(0, (3, 3)), lw=5)
 
 
 def test_line_colors():
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     ax.plot(range(10), color='none')
     ax.plot(range(10), color='r')
     ax.plot(range(10), color='.3')
@@ -100,9 +98,14 @@ def test_line_colors():
     fig.canvas.draw()
 
 
+def test_valid_colors():
+    line = mlines.Line2D([], [])
+    with pytest.raises(ValueError):
+        line.set_color("foobar")
+
+
 def test_linestyle_variants():
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     for ls in ["-", "solid", "--", "dashed",
                "-.", "dashdot", ":", "dotted"]:
         ax.plot(range(10), linestyle=ls)
@@ -149,8 +152,7 @@ def test_set_drawstyle():
 
 @image_comparison(['line_collection_dashes'], remove_text=True, style='mpl20')
 def test_set_line_coll_dash_image():
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     np.random.seed(0)
     ax.contour(np.random.randn(20, 30), linestyles=[(0, (3, 3))])
 
@@ -263,3 +265,29 @@ def test_marker_as_markerstyle():
 def test_odd_dashes(fig_test, fig_ref):
     fig_test.add_subplot().plot([1, 2], dashes=[1, 2, 3])
     fig_ref.add_subplot().plot([1, 2], dashes=[1, 2, 3, 1, 2, 3])
+
+
+def test_picking():
+    fig, ax = plt.subplots()
+    mouse_event = SimpleNamespace(x=fig.bbox.width // 2,
+                                  y=fig.bbox.height // 2 + 15)
+
+    # Default pickradius is 5, so event should not pick this line.
+    l0, = ax.plot([0, 1], [0, 1], picker=True)
+    found, indices = l0.contains(mouse_event)
+    assert not found
+
+    # But with a larger pickradius, this should be picked.
+    l1, = ax.plot([0, 1], [0, 1], picker=True, pickradius=20)
+    found, indices = l1.contains(mouse_event)
+    assert found
+    assert_array_equal(indices['ind'], [0])
+
+    # And if we modify the pickradius after creation, it should work as well.
+    l2, = ax.plot([0, 1], [0, 1], picker=True)
+    found, indices = l2.contains(mouse_event)
+    assert not found
+    l2.set_pickradius(20)
+    found, indices = l2.contains(mouse_event)
+    assert found
+    assert_array_equal(indices['ind'], [0])

@@ -24,7 +24,6 @@ import sys
 import tempfile
 
 from PIL import Image, ImageFile, PngImagePlugin, features
-from PIL._binary import i8
 
 enable_jpeg2k = features.check_codec("jpg_2000")
 if enable_jpeg2k:
@@ -70,7 +69,7 @@ def read_32(fobj, start_length, size):
                 byte = fobj.read(1)
                 if not byte:
                     break
-                byte = i8(byte)
+                byte = byte[0]
                 if byte & 0x80:
                     blocksize = byte - 125
                     byte = fobj.read(1)
@@ -83,7 +82,7 @@ def read_32(fobj, start_length, size):
                 if bytesleft <= 0:
                     break
             if bytesleft != 0:
-                raise SyntaxError("Error reading channel [%r left]" % bytesleft)
+                raise SyntaxError(f"Error reading channel [{repr(bytesleft)} left]")
             band = Image.frombuffer("L", pixel_size, b"".join(data), "raw", "L", 0, 1)
             im.im.putband(band.im, band_ix)
     return {"RGB": im}
@@ -106,6 +105,7 @@ def read_png_or_jpeg2000(fobj, start_length, size):
     if sig[:8] == b"\x89PNG\x0d\x0a\x1a\x0a":
         fobj.seek(start)
         im = PngImagePlugin.PngImageFile(fobj)
+        Image._decompression_bomb_check(im.size)
         return {"RGBA": im}
     elif (
         sig[:4] == b"\xff\x4f\xff\x51"
@@ -122,6 +122,7 @@ def read_png_or_jpeg2000(fobj, start_length, size):
         jp2kstream = fobj.read(length)
         f = io.BytesIO(jp2kstream)
         im = Jpeg2KImagePlugin.Jpeg2KImageFile(f)
+        Image._decompression_bomb_check(im.size)
         if im.mode != "RGBA":
             im = im.convert("RGBA")
         return {"RGBA": im}
@@ -321,7 +322,7 @@ def _save(im, fp, filename):
         last_w = None
         second_path = None
         for w in [16, 32, 128, 256, 512]:
-            prefix = "icon_{}x{}".format(w, w)
+            prefix = f"icon_{w}x{w}"
 
             first_path = os.path.join(iconset, prefix + ".png")
             if last_w == w:

@@ -36,11 +36,15 @@ import io
 import os
 import struct
 import subprocess
+import sys
 import tempfile
 import warnings
+import xml.etree.ElementTree
 
 from . import Image, ImageFile, TiffImagePlugin
-from ._binary import i8, i16be as i16, i32be as i32, o8
+from ._binary import i16be as i16
+from ._binary import i32be as i32
+from ._binary import o8
 from .JpegPresets import presets
 
 #
@@ -71,7 +75,7 @@ def APP(self, marker):
         self.info["jfif_version"] = divmod(version, 256)
         # extract JFIF properties
         try:
-            jfif_unit = i8(s[7])
+            jfif_unit = s[7]
             jfif_density = i16(s, 8), i16(s, 10)
         except Exception:
             pass
@@ -111,7 +115,7 @@ def APP(self, marker):
                 code = i16(s, offset)
                 offset += 2
                 # resource name (usually empty)
-                name_len = i8(s[offset])
+                name_len = s[offset]
                 # name = s[offset+1:offset+1+name_len]
                 offset += 1 + name_len
                 offset += offset & 1  # align
@@ -121,10 +125,10 @@ def APP(self, marker):
                 data = s[offset : offset + size]
                 if code == 0x03ED:  # ResolutionInfo
                     data = {
-                        "XResolution": i32(data[:4]) / 65536,
-                        "DisplayedUnitsX": i16(data[4:8]),
-                        "YResolution": i32(data[8:12]) / 65536,
-                        "DisplayedUnitsY": i16(data[12:]),
+                        "XResolution": i32(data, 0) / 65536,
+                        "DisplayedUnitsX": i16(data, 4),
+                        "YResolution": i32(data, 8) / 65536,
+                        "DisplayedUnitsY": i16(data, 12),
                     }
                 photoshop[code] = data
                 offset += size
@@ -136,7 +140,7 @@ def APP(self, marker):
         self.info["adobe"] = i16(s, 5)
         # extract Adobe custom properties
         try:
-            adobe_transform = i8(s[1])
+            adobe_transform = s[1]
         except Exception:
             pass
         else:
@@ -191,13 +195,13 @@ def SOF(self, marker):
 
     n = i16(self.fp.read(2)) - 2
     s = ImageFile._safe_read(self.fp, n)
-    self._size = i16(s[3:]), i16(s[1:])
+    self._size = i16(s, 3), i16(s, 1)
 
-    self.bits = i8(s[0])
+    self.bits = s[0]
     if self.bits != 8:
-        raise SyntaxError("cannot handle %d-bit layers" % self.bits)
+        raise SyntaxError(f"cannot handle {self.bits}-bit layers")
 
-    self.layers = i8(s[5])
+    self.layers = s[5]
     if self.layers == 1:
         self.mode = "L"
     elif self.layers == 3:
@@ -205,7 +209,7 @@ def SOF(self, marker):
     elif self.layers == 4:
         self.mode = "CMYK"
     else:
-        raise SyntaxError("cannot handle %d-layer images" % self.layers)
+        raise SyntaxError(f"cannot handle {self.layers}-layer images")
 
     if marker in [0xFFC2, 0xFFC6, 0xFFCA, 0xFFCE]:
         self.info["progressive"] = self.info["progression"] = 1
@@ -213,7 +217,7 @@ def SOF(self, marker):
     if self.icclist:
         # fixup icc profile
         self.icclist.sort()  # sort by sequence number
-        if i8(self.icclist[0][13]) == len(self.icclist):
+        if self.icclist[0][13] == len(self.icclist):
             profile = []
             for p in self.icclist:
                 profile.append(p[14:])
@@ -226,14 +230,13 @@ def SOF(self, marker):
     for i in range(6, len(s), 3):
         t = s[i : i + 3]
         # 4-tuples: id, vsamp, hsamp, qtable
-        self.layer.append((t[0], i8(t[1]) // 16, i8(t[1]) & 15, i8(t[2])))
+        self.layer.append((t[0], t[1] // 16, t[1] & 15, t[2]))
 
 
 def DQT(self, marker):
     #
-    # Define quantization table.  Support baseline 8-bit tables
-    # only.  Note that there might be more than one table in
-    # each marker.
+    # Define quantization table.  Note that there might be more
+    # than one table in each marker.
 
     # FIXME: The quantization tables can be used to estimate the
     # compression quality.
@@ -241,15 +244,16 @@ def DQT(self, marker):
     n = i16(self.fp.read(2)) - 2
     s = ImageFile._safe_read(self.fp, n)
     while len(s):
-        if len(s) < 65:
+        v = s[0]
+        precision = 1 if (v // 16 == 0) else 2  # in bytes
+        qt_length = 1 + precision * 64
+        if len(s) < qt_length:
             raise SyntaxError("bad quantization table marker")
-        v = i8(s[0])
-        if v // 16 == 0:
-            self.quantization[v & 15] = array.array("B", s[1:65])
-            s = s[65:]
-        else:
-            return  # FIXME: add code to read 16-bit tables!
-            # raise SyntaxError, "bad quantization table element size"
+        data = array.array("B" if precision == 1 else "H", s[1:qt_length])
+        if sys.byteorder == "little" and precision > 1:
+            data.byteswap()  # the values are always big-endian
+        self.quantization[v & 15] = data
+        s = s[qt_length:]
 
 
 #
@@ -355,10 +359,11 @@ class JpegImageFile(ImageFile.ImageFile):
         self.app = {}  # compatibility
         self.applist = []
         self.icclist = []
+        self._xmp = None
 
         while True:
 
-            i = i8(s)
+            i = s[0]
             if i == 0xFF:
                 s = s + self.fp.read(1)
                 i = i16(s)
@@ -471,24 +476,38 @@ class JpegImageFile(ImageFile.ImageFile):
     def _getmp(self):
         return _getmp(self)
 
+    def getxmp(self):
+        """
+        Returns a dictionary containing the XMP tags.
+        :returns: XMP tags in a dictionary.
+        """
 
-def _fixup_dict(src_dict):
-    # Helper function for _getexif()
-    # returns a dict with any single item tuples/lists as individual values
-    exif = Image.Exif()
-    return exif._fixup_dict(src_dict)
+        if self._xmp is None:
+            self._xmp = {}
+
+        for segment, content in self.applist:
+            if segment == "APP1":
+                marker, xmp_tags = content.rsplit(b"\x00", 1)
+                if marker == b"http://ns.adobe.com/xap/1.0/":
+                    root = xml.etree.ElementTree.fromstring(xmp_tags)
+                    for element in root.findall(".//"):
+                        self._xmp[element.tag.split("}")[1]] = {
+                            child.split("}")[1]: value
+                            for child, value in element.attrib.items()
+                        }
+        return self._xmp
 
 
 def _getexif(self):
     if "exif" not in self.info:
         return None
-    return dict(self.getexif())
+    return self.getexif()._get_merged_dict()
 
 
 def _getmp(self):
     # Extract MP information.  This method was inspired by the "highly
     # experimental" _getexif version that's been in use for years now,
-    # itself based on the ImageFileDirectory class in the TIFF plug-in.
+    # itself based on the ImageFileDirectory class in the TIFF plugin.
 
     # The MP record essentially consists of a TIFF file embedded in a JPEG
     # application marker.
@@ -518,7 +537,7 @@ def _getmp(self):
         rawmpentries = mp[0xB002]
         for entrynum in range(0, quant):
             unpackedentry = struct.unpack_from(
-                "{}LLLHH".format(endianness), rawmpentries, entrynum * 16
+                f"{endianness}LLLHH", rawmpentries, entrynum * 16
             )
             labels = ("Attribute", "Size", "DataOffset", "EntryNo1", "EntryNo2")
             mpentry = dict(zip(labels, unpackedentry))
@@ -613,7 +632,7 @@ def _save(im, fp, filename):
     try:
         rawmode = RAWMODE[im.mode]
     except KeyError as e:
-        raise OSError("cannot write mode %s as JPEG" % im.mode) from e
+        raise OSError(f"cannot write mode {im.mode} as JPEG") from e
 
     info = im.encoderinfo
 
@@ -680,7 +699,7 @@ def _save(im, fp, filename):
                 try:
                     if len(table) != 64:
                         raise TypeError
-                    table = array.array("B", table)
+                    table = array.array("H", table)
                 except TypeError as e:
                     raise ValueError("Invalid quantization table") from e
                 else:

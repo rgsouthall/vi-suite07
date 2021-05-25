@@ -30,7 +30,7 @@ import textwrap
 
 import numpy as np
 
-from matplotlib import cbook, rcParams
+from matplotlib import _api, cbook, rcParams
 
 _log = logging.getLogger(__name__)
 
@@ -313,18 +313,26 @@ class Dvi:
         #   xxx comment
         #   down
         #   push
-        #     down, down
+        #     down
+        #     <push, push, xxx, right, xxx, pop, pop>  # if using xcolor
+        #     down
         #     push
         #       down (possibly multiple)
         #       push  <=  here, v is the baseline position.
         #         etc.
         # (dviasm is useful to explore this structure.)
+        # Thus, we use the vertical position at the first time the stack depth
+        # reaches 3, while at least three "downs" have been executed, as the
+        # baseline (the "down" count is necessary to handle xcolor).
+        downs = 0
         self._baseline_v = None
         while True:
             byte = self.file.read(1)[0]
             self._dtable[byte](self, byte)
+            downs += self._dtable[byte].__name__ == "_down"
             if (self._baseline_v is None
-                    and len(getattr(self, "stack", [])) == 3):
+                    and len(getattr(self, "stack", [])) == 3
+                    and downs >= 4):
                 self._baseline_v = self.v
             if byte == 140:                         # end of page
                 return True
@@ -531,10 +539,9 @@ class DviFont:
     tfm : Tfm
         TeX font metrics for this font
     texname : bytes
-       Name of the font as used internally by TeX and friends, as an
-       ASCII bytestring. This is usually very different from any external
-       font names, and :class:`dviread.PsfontsMap` can be used to find
-       the external name of the font.
+       Name of the font as used internally by TeX and friends, as an ASCII
+       bytestring.  This is usually very different from any external font
+       names; `PsfontsMap` can be used to find the external name of the font.
     vf : Vf
        A TeX "virtual font" file, or None if this font is not virtual.
 
@@ -552,7 +559,7 @@ class DviFont:
     __slots__ = ('texname', 'size', 'widths', '_scale', '_vf', '_tfm')
 
     def __init__(self, scale, tfm, texname, vf):
-        cbook._check_isinstance(bytes, texname=texname)
+        _api.check_isinstance(bytes, texname=texname)
         self._scale = scale
         self._tfm = tfm
         self.texname = texname
@@ -595,11 +602,12 @@ class DviFont:
                 result.append(0)
             else:
                 result.append(_mul2012(value, self._scale))
-        # cmsy10 glyph 0 ("minus") has a nonzero descent so that TeX aligns
-        # equations properly (https://tex.stackexchange.com/questions/526103/),
-        # but we actually care about the rasterization depth to align the
-        # dvipng-generated images.
-        if self.texname == b"cmsy10" and char == 0:
+        # cmsyXX (symbols font) glyph 0 ("minus") has a nonzero descent
+        # so that TeX aligns equations properly
+        # (https://tex.stackexchange.com/questions/526103/),
+        # but we actually care about the rasterization depth to align
+        # the dvipng-generated images.
+        if re.match(br'^cmsy\d+$', self.texname) and char == 0:
             result[-1] = 0
         return result
 
@@ -629,7 +637,7 @@ class Vf(Dvi):
     """
 
     def __init__(self, filename):
-        Dvi.__init__(self, filename, 0)
+        super().__init__(filename, 0)
         try:
             self._first_font = None
             self._chars = {}
@@ -952,7 +960,7 @@ class PsfontsMap:
                 encoding=encoding, filename=filename)
 
 
-@cbook.deprecated("3.3")
+@_api.deprecated("3.3")
 class Encoding:
     r"""
     Parse a \*.enc file referenced from a psfonts.map style file.

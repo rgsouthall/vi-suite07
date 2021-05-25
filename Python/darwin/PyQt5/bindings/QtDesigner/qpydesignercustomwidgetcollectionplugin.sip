@@ -1,7 +1,7 @@
 // This is the SIP specification of the QPyDesignerCustomWidgetCollectionPlugin
 // class.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 

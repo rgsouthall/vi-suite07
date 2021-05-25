@@ -19,7 +19,7 @@ import re
 import warnings
 
 import matplotlib as mpl
-from matplotlib import cbook, rc_params_from_file, rcParamsDefault
+from matplotlib import _api, rc_params_from_file, rcParamsDefault
 
 _log = logging.getLogger(__name__)
 
@@ -47,18 +47,12 @@ def _remove_blacklisted_style_params(d, warn=True):
     for key in d:  # prevent triggering RcParams.__getitem__('backend')
         if key in STYLE_BLACKLIST:
             if warn:
-                cbook._warn_external(
+                _api.warn_external(
                     "Style includes a parameter, '{0}', that is not related "
                     "to style.  Ignoring".format(key))
         else:
             o[key] = d[key]
     return o
-
-
-@cbook.deprecated("3.2")
-def is_style_file(filename):
-    """Return True if the filename looks like a style file."""
-    return STYLE_FILE_PATTERN.match(filename) is not None
 
 
 def _apply_style(d, warn=True):
@@ -112,7 +106,7 @@ def use(style):
         elif style == 'default':
             # Deprecation warnings were already handled when creating
             # rcParamsDefault, no need to reemit them here.
-            with cbook._suppress_matplotlib_deprecation_warning():
+            with _api.suppress_matplotlib_deprecation_warning():
                 _apply_style(rcParamsDefault, warn=False)
         elif style in library:
             _apply_style(library[style])
@@ -180,17 +174,6 @@ def update_user_library(library):
         styles = read_style_directory(stylelib_path)
         update_nested_dict(library, styles)
     return library
-
-
-@cbook.deprecated("3.2")
-def iter_style_files(style_dir):
-    """Yield file path and name of styles in the given directory."""
-    for path in os.listdir(style_dir):
-        filename = os.path.basename(path)
-        if is_style_file(filename):
-            match = STYLE_FILE_PATTERN.match(filename)
-            path = os.path.abspath(os.path.join(style_dir, path))
-            yield path, match.group(1)
 
 
 def read_style_directory(style_dir):

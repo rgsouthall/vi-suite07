@@ -2,7 +2,7 @@
 //
 // This file is part of the QtGui Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -167,6 +167,7 @@ public:
     void fill(const QColor &color);
     void fill(uint pixel);
     bool hasAlphaChannel() const;
+    void setAlphaChannel(const QImage &alphaChannel);
     QImage createAlphaMask(Qt::ImageConversionFlags flags = Qt::ImageConversionFlag::AutoColor) const;
     QImage createHeuristicMask(bool clipTight = true) const;
     QImage scaled(int width, int height, Qt::AspectRatioMode aspectRatioMode = Qt::IgnoreAspectRatio, Qt::TransformationMode transformMode = Qt::FastTransformation) const;
@@ -238,7 +239,7 @@ public:
     bool reinterpretAsFormat(QImage::Format f);
 %End
 %If (Qt_5_10_0 -)
-    SIP_SSIZE_T sizeInBytes() const [qsizetype ()];
+    Py_ssize_t sizeInBytes() const [qsizetype ()];
 %End
 %If (Qt_5_13_0 -)
     void convertTo(QImage::Format f, Qt::ImageConversionFlags flags = Qt::ImageConversionFlag::AutoColor);

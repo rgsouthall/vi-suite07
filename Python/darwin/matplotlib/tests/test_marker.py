@@ -7,27 +7,49 @@ from matplotlib.testing.decorators import check_figures_equal
 import pytest
 
 
-def test_markers_valid():
-    marker_style = markers.MarkerStyle()
-    mrk_array = np.array([[-0.5, 0],
-                          [0.5, 0]])
+def test_marker_fillstyle():
+    marker_style = markers.MarkerStyle(marker='o', fillstyle='none')
+    assert marker_style.get_fillstyle() == 'none'
+    assert not marker_style.is_filled()
+
+
+@pytest.mark.parametrize('marker', [
+    'o',
+    'x',
+    '',
+    'None',
+    None,
+    r'$\frac{1}{2}$',
+    "$\u266B$",
+    1,
+    markers.TICKLEFT,
+    [[-1, 0], [1, 0]],
+    np.array([[-1, 0], [1, 0]]),
+    Path([[0, 0], [1, 0]], [Path.MOVETO, Path.LINETO]),
+    (5, 0),  # a pentagon
+    (7, 1),  # a 7-pointed star
+    (5, 2),  # asterisk
+    (5, 0, 10),  # a pentagon, rotated by 10 degrees
+    (7, 1, 10),  # a 7-pointed star, rotated by 10 degrees
+    (5, 2, 10),  # asterisk, rotated by 10 degrees
+    markers.MarkerStyle(),
+    markers.MarkerStyle('o'),
+])
+def test_markers_valid(marker):
     # Checking this doesn't fail.
-    marker_style.set_marker(mrk_array)
+    markers.MarkerStyle(marker)
 
 
-def test_markers_invalid():
-    marker_style = markers.MarkerStyle()
-    mrk_array = np.array([[-0.5, 0, 1, 2, 3]])
-    # Checking this does fail.
+@pytest.mark.parametrize('marker', [
+    'square',  # arbitrary string
+    np.array([[-0.5, 0, 1, 2, 3]]),  # 1D array
+    (1,),
+    (5, 3),  # second parameter of tuple must be 0, 1, or 2
+    (1, 2, 3, 4),
+])
+def test_markers_invalid(marker):
     with pytest.raises(ValueError):
-        marker_style.set_marker(mrk_array)
-
-
-def test_marker_path():
-    marker_style = markers.MarkerStyle()
-    path = Path([[0, 0], [1, 0]], [Path.MOVETO, Path.LINETO])
-    # Checking this doesn't fail.
-    marker_style.set_marker(path)
+        markers.MarkerStyle(marker)
 
 
 class UnsnappedMarkerStyle(markers.MarkerStyle):

@@ -1,16 +1,14 @@
-try:
-    from contextlib import nullcontext
-except ImportError:
-    from contextlib import ExitStack as nullcontext  # Py 3.6.
-import re
+from contextlib import nullcontext
 import itertools
+import locale
+import re
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_array_equal
 import pytest
 
 import matplotlib as mpl
-from matplotlib import cbook
+from matplotlib import _api
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
@@ -456,7 +454,7 @@ class TestIndexFormatter:
                                           (2, 'label2'),
                                           (2.5, '')])
     def test_formatting(self, x, label):
-        with cbook._suppress_matplotlib_deprecation_warning():
+        with _api.suppress_matplotlib_deprecation_warning():
             formatter = mticker.IndexFormatter(['label0', 'label1', 'label2'])
         assert formatter(x) == label
 
@@ -529,18 +527,18 @@ class TestScalarFormatter:
     @pytest.mark.parametrize('left, right, offset', offset_data)
     def test_offset_value(self, left, right, offset):
         fig, ax = plt.subplots()
-        formatter = ax.get_xaxis().get_major_formatter()
+        formatter = ax.xaxis.get_major_formatter()
 
         with (pytest.warns(UserWarning, match='Attempting to set identical')
               if left == right else nullcontext()):
             ax.set_xlim(left, right)
-        ax.get_xaxis()._update_ticks()
+        ax.xaxis._update_ticks()
         assert formatter.offset == offset
 
         with (pytest.warns(UserWarning, match='Attempting to set identical')
               if left == right else nullcontext()):
             ax.set_xlim(right, left)
-        ax.get_xaxis()._update_ticks()
+        ax.xaxis._update_ticks()
         assert formatter.offset == offset
 
     @pytest.mark.parametrize('use_offset', use_offset_data)
@@ -548,6 +546,21 @@ class TestScalarFormatter:
         with mpl.rc_context({'axes.formatter.useoffset': use_offset}):
             tmp_form = mticker.ScalarFormatter()
             assert use_offset == tmp_form.get_useOffset()
+
+    def test_use_locale(self):
+        conv = locale.localeconv()
+        sep = conv['thousands_sep']
+        if not sep or conv['grouping'][-1:] in ([], [locale.CHAR_MAX]):
+            pytest.skip('Locale does not apply grouping')  # pragma: no cover
+
+        with mpl.rc_context({'axes.formatter.use_locale': True}):
+            tmp_form = mticker.ScalarFormatter()
+            assert tmp_form.get_useLocale()
+
+            tmp_form.create_dummy_axis()
+            tmp_form.set_bounds(0, 10)
+            tmp_form.set_locs([1, 2, 3])
+            assert sep in tmp_form(1e9)
 
     @pytest.mark.parametrize(
         'sci_type, scilimits, lim, orderOfMag, fewticks', scilimits_data)
@@ -869,6 +882,13 @@ class TestLogFormatter:
         temp_lf.axis = FakeAxis()
         assert temp_lf(val) == str(val)
 
+    @pytest.mark.parametrize('val', [1e-323, 2e-323, 10e-323, 11e-323])
+    def test_LogFormatter_call_tiny(self, val):
+        # test coeff computation in __call__
+        temp_lf = mticker.LogFormatter()
+        temp_lf.axis = FakeAxis()
+        temp_lf(val)
+
 
 class TestLogitFormatter:
     @staticmethod
@@ -1113,10 +1133,12 @@ class TestEngFormatter:
         """
         Test the formatting of EngFormatter for various values of the 'places'
         argument, in several cases:
-            0. without a unit symbol but with a (default) space separator;
-            1. with both a unit symbol and a (default) space separator;
-            2. with both a unit symbol and some non default separators;
-            3. without a unit symbol but with some non default separators.
+
+        0. without a unit symbol but with a (default) space separator;
+        1. with both a unit symbol and a (default) space separator;
+        2. with both a unit symbol and some non default separators;
+        3. without a unit symbol but with some non default separators.
+
         Note that cases 2. and 3. are looped over several separator strings.
         """
 
@@ -1347,3 +1369,13 @@ def test_bad_locator_subs(sub):
     ll = mticker.LogLocator()
     with pytest.raises(ValueError):
         ll.subs(sub)
+
+
+@pytest.mark.parametrize('numticks', [1, 2, 3, 9])
+@pytest.mark.style('default')
+def test_small_range_loglocator(numticks):
+    ll = mticker.LogLocator()
+    ll.set_params(numticks=numticks)
+    for top in [5, 7, 9, 11, 15, 50, 100, 1000]:
+        ticks = ll.tick_values(.5, top)
+        assert (np.diff(np.log10(ll.tick_values(6, 150))) == 1).all()

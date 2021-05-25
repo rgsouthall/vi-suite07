@@ -8,10 +8,12 @@ import pytest
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.collections as mcollections
+import matplotlib.colors as mcolors
 import matplotlib.transforms as mtransforms
 from matplotlib.collections import (Collection, LineCollection,
                                     EventCollection, PolyCollection)
-from matplotlib.testing.decorators import image_comparison
+from matplotlib.testing.decorators import check_figures_equal, image_comparison
+from matplotlib._api.deprecation import MatplotlibDeprecationWarning
 
 
 def generate_EventCollection_plot():
@@ -36,8 +38,7 @@ def generate_EventCollection_plot():
                            antialiased=antialiased
                            )
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     ax.add_collection(coll)
     ax.set_title('EventCollection: default')
     props = {'positions': positions,
@@ -302,6 +303,32 @@ def test_add_collection():
     assert ax.dataLim.bounds == bounds
 
 
+@pytest.mark.style('mpl20')
+@check_figures_equal(extensions=['png'])
+def test_collection_log_datalim(fig_test, fig_ref):
+    # Data limits should respect the minimum x/y when using log scale.
+    x_vals = [4.38462e-6, 5.54929e-6, 7.02332e-6, 8.88889e-6, 1.12500e-5,
+              1.42383e-5, 1.80203e-5, 2.28070e-5, 2.88651e-5, 3.65324e-5,
+              4.62363e-5, 5.85178e-5, 7.40616e-5, 9.37342e-5, 1.18632e-4]
+    y_vals = [0.0, 0.1, 0.182, 0.332, 0.604, 1.1, 2.0, 3.64, 6.64, 12.1, 22.0,
+              39.6, 71.3]
+
+    x, y = np.meshgrid(x_vals, y_vals)
+    x = x.flatten()
+    y = y.flatten()
+
+    ax_test = fig_test.subplots()
+    ax_test.set_xscale('log')
+    ax_test.set_yscale('log')
+    ax_test.margins = 0
+    ax_test.scatter(x, y)
+
+    ax_ref = fig_ref.subplots()
+    ax_ref.set_xscale('log')
+    ax_ref.set_yscale('log')
+    ax_ref.plot(x, y, marker="o", ls="")
+
+
 def test_quiver_limits():
     ax = plt.axes()
     x, y = np.arange(8), np.arange(10)
@@ -366,7 +393,7 @@ def test_polycollection_close():
         [[3., 0.], [3., 1.], [4., 1.], [4., 0.]]]
 
     fig = plt.figure()
-    ax = Axes3D(fig)
+    ax = fig.add_axes(Axes3D(fig, auto_add_to_figure=False))
 
     colors = ['r', 'g', 'b', 'y', 'k']
     zpos = list(range(5))
@@ -519,8 +546,7 @@ def test_joinstyle():
 
 @image_comparison(['cap_and_joinstyle.png'])
 def test_cap_and_joinstyle_image():
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     ax.set_xlim([-0.5, 1.5])
     ax.set_ylim([-0.5, 2.5])
 
@@ -543,9 +569,36 @@ def test_cap_and_joinstyle_image():
 def test_scatter_post_alpha():
     fig, ax = plt.subplots()
     sc = ax.scatter(range(5), range(5), c=range(5))
-    # this needs to be here to update internal state
-    fig.canvas.draw()
     sc.set_alpha(.1)
+
+
+def test_scatter_alpha_array():
+    x = np.arange(5)
+    alpha = x / 5
+    # With colormapping.
+    fig, (ax0, ax1) = plt.subplots(2)
+    sc0 = ax0.scatter(x, x, c=x, alpha=alpha)
+    sc1 = ax1.scatter(x, x, c=x)
+    sc1.set_alpha(alpha)
+    plt.draw()
+    assert_array_equal(sc0.get_facecolors()[:, -1], alpha)
+    assert_array_equal(sc1.get_facecolors()[:, -1], alpha)
+    # Without colormapping.
+    fig, (ax0, ax1) = plt.subplots(2)
+    sc0 = ax0.scatter(x, x, color=['r', 'g', 'b', 'c', 'm'], alpha=alpha)
+    sc1 = ax1.scatter(x, x, color='r', alpha=alpha)
+    plt.draw()
+    assert_array_equal(sc0.get_facecolors()[:, -1], alpha)
+    assert_array_equal(sc1.get_facecolors()[:, -1], alpha)
+    # Without colormapping, and set alpha afterward.
+    fig, (ax0, ax1) = plt.subplots(2)
+    sc0 = ax0.scatter(x, x, color=['r', 'g', 'b', 'c', 'm'])
+    sc0.set_alpha(alpha)
+    sc1 = ax1.scatter(x, x, color='r')
+    sc1.set_alpha(alpha)
+    plt.draw()
+    assert_array_equal(sc0.get_facecolors()[:, -1], alpha)
+    assert_array_equal(sc1.get_facecolors()[:, -1], alpha)
 
 
 def test_pathcollection_legend_elements():
@@ -660,3 +713,158 @@ def test_quadmesh_set_array():
     coll.set_array(np.ones(9))
     fig.canvas.draw()
     assert np.array_equal(coll.get_array(), np.ones(9))
+
+
+def test_quadmesh_alpha_array():
+    x = np.arange(4)
+    y = np.arange(4)
+    z = np.arange(9).reshape((3, 3))
+    alpha = z / z.max()
+    alpha_flat = alpha.ravel()
+    # Provide 2-D alpha:
+    fig, (ax0, ax1) = plt.subplots(2)
+    coll1 = ax0.pcolormesh(x, y, z, alpha=alpha)
+    coll2 = ax1.pcolormesh(x, y, z)
+    coll2.set_alpha(alpha)
+    plt.draw()
+    assert_array_equal(coll1.get_facecolors()[:, -1], alpha_flat)
+    assert_array_equal(coll2.get_facecolors()[:, -1], alpha_flat)
+    # Or provide 1-D alpha:
+    fig, (ax0, ax1) = plt.subplots(2)
+    coll1 = ax0.pcolormesh(x, y, z, alpha=alpha_flat)
+    coll2 = ax1.pcolormesh(x, y, z)
+    coll2.set_alpha(alpha_flat)
+    plt.draw()
+    assert_array_equal(coll1.get_facecolors()[:, -1], alpha_flat)
+    assert_array_equal(coll2.get_facecolors()[:, -1], alpha_flat)
+
+
+def test_alpha_validation():
+    # Most of the relevant testing is in test_artist and test_colors.
+    fig, ax = plt.subplots()
+    pc = ax.pcolormesh(np.arange(12).reshape((3, 4)))
+    with pytest.raises(ValueError, match="^Data array shape"):
+        pc.set_alpha([0.5, 0.6])
+        pc.update_scalarmappable()
+
+
+def test_legend_inverse_size_label_relationship():
+    """
+    Ensure legend markers scale appropriately when label and size are
+    inversely related.
+    Here label = 5 / size
+    """
+
+    np.random.seed(19680801)
+    X = np.random.random(50)
+    Y = np.random.random(50)
+    C = 1 - np.random.random(50)
+    S = 5 / C
+
+    legend_sizes = [0.2, 0.4, 0.6, 0.8]
+    fig, ax = plt.subplots()
+    sc = ax.scatter(X, Y, s=S)
+    handles, labels = sc.legend_elements(
+      prop='sizes', num=legend_sizes, func=lambda s: 5 / s
+    )
+
+    # Convert markersize scale to 's' scale
+    handle_sizes = [x.get_markersize() for x in handles]
+    handle_sizes = [5 / x**2 for x in handle_sizes]
+
+    assert_array_almost_equal(handle_sizes, legend_sizes, decimal=1)
+
+
+@pytest.mark.style('default')
+@pytest.mark.parametrize('pcfunc', [plt.pcolor, plt.pcolormesh])
+def test_color_logic(pcfunc):
+    z = np.arange(12).reshape(3, 4)
+    # Explicitly set an edgecolor.
+    pc = pcfunc(z, edgecolors='red', facecolors='none')
+    pc.update_scalarmappable()  # This is called in draw().
+    # Define 2 reference "colors" here for multiple use.
+    face_default = mcolors.to_rgba_array(pc._get_default_facecolor())
+    mapped = pc.get_cmap()(pc.norm((z.ravel())))
+    # Github issue #1302:
+    assert mcolors.same_color(pc.get_edgecolor(), 'red')
+    # Check setting attributes after initialization:
+    pc = pcfunc(z)
+    pc.set_facecolor('none')
+    pc.set_edgecolor('red')
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), 'none')
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+    pc.set_alpha(0.5)
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 0.5]])
+    pc.set_alpha(None)  # restore default alpha
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+    # Reset edgecolor to default.
+    pc.set_edgecolor(None)
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_edgecolor(), mapped)
+    pc.set_facecolor(None)  # restore default for facecolor
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), mapped)
+    assert mcolors.same_color(pc.get_edgecolor(), 'none')
+    # Turn off colormapping entirely:
+    pc.set_array(None)
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_edgecolor(), 'none')
+    assert mcolors.same_color(pc.get_facecolor(), face_default)  # not mapped
+    # Turn it back on by restoring the array (must be 1D!):
+    pc.set_array(z.ravel())
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), mapped)
+    assert mcolors.same_color(pc.get_edgecolor(), 'none')
+    # Give color via tuple rather than string.
+    pc = pcfunc(z, edgecolors=(1, 0, 0), facecolors=(0, 1, 0))
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), mapped)
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+    # Provide an RGB array; mapping overrides it.
+    pc = pcfunc(z, edgecolors=(1, 0, 0), facecolors=np.ones((12, 3)))
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), mapped)
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+    # Turn off the mapping.
+    pc.set_array(None)
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), np.ones((12, 3)))
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+    # And an RGBA array.
+    pc = pcfunc(z, edgecolors=(1, 0, 0), facecolors=np.ones((12, 4)))
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), mapped)
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+    # Turn off the mapping.
+    pc.set_array(None)
+    pc.update_scalarmappable()
+    assert mcolors.same_color(pc.get_facecolor(), np.ones((12, 4)))
+    assert mcolors.same_color(pc.get_edgecolor(), [[1, 0, 0, 1]])
+
+
+def test_LineCollection_args():
+    with pytest.warns(MatplotlibDeprecationWarning):
+        lc = LineCollection(None, 2.2, 'r', zorder=3, facecolors=[0, 1, 0, 1])
+        assert lc.get_linewidth()[0] == 2.2
+        assert mcolors.same_color(lc.get_edgecolor(), 'r')
+        assert lc.get_zorder() == 3
+        assert mcolors.same_color(lc.get_facecolor(), [[0, 1, 0, 1]])
+    # To avoid breaking mplot3d, LineCollection internally sets the facecolor
+    # kwarg if it has not been specified.  Hence we need the following test
+    # for LineCollection._set_default().
+    lc = LineCollection(None, facecolor=None)
+    assert mcolors.same_color(lc.get_facecolor(), 'none')
+
+
+def test_array_wrong_dimensions():
+    z = np.arange(12).reshape(3, 4)
+    pc = plt.pcolor(z)
+    with pytest.raises(ValueError, match="^Collections can only map"):
+        pc.set_array(z)
+        pc.update_scalarmappable()
+    pc = plt.pcolormesh(z)
+    pc.set_array(z)  # 2D is OK for Quadmesh
+    pc.update_scalarmappable()

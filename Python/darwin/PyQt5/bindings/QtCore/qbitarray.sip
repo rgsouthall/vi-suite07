@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -83,7 +83,7 @@ public:
 
 %End
 %If (Qt_5_11_0 -)
-    static QBitArray fromBits(const char *data /Encoding="None"/, SIP_SSIZE_T len) [QBitArray (const char *data, qsizetype len)];
+    static QBitArray fromBits(const char *data /Encoding="None"/, Py_ssize_t len) [QBitArray (const char *data, qsizetype len)];
 %End
 };
 

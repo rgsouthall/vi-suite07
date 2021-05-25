@@ -19,7 +19,7 @@ The cell (0, 0) is positioned at the top left.
 Thanks to John Gill for providing the class and table.
 """
 
-from . import artist, cbook, docstring
+from . import _api, artist, docstring
 from .artist import Artist, allow_rasterization
 from .patches import Rectangle
 from .text import Text
@@ -85,8 +85,8 @@ class Cell(Rectangle):
         """
 
         # Call base
-        Rectangle.__init__(self, xy, width=width, height=height, fill=fill,
-                           edgecolor=edgecolor, facecolor=facecolor)
+        super().__init__(xy, width=width, height=height, fill=fill,
+                         edgecolor=edgecolor, facecolor=facecolor)
         self.set_clip_on(False)
         self.visible_edges = visible_edges
 
@@ -99,12 +99,12 @@ class Cell(Rectangle):
                           horizontalalignment=loc, verticalalignment='center')
 
     def set_transform(self, trans):
-        Rectangle.set_transform(self, trans)
+        super().set_transform(trans)
         # the text does not get the transform!
         self.stale = True
 
     def set_figure(self, fig):
-        Rectangle.set_figure(self, fig)
+        super().set_figure(fig)
         self._text.set_figure(fig)
 
     def get_text(self):
@@ -136,7 +136,7 @@ class Cell(Rectangle):
         if not self.get_visible():
             return
         # draw the rectangle
-        Rectangle.draw(self, renderer)
+        super().draw(renderer)
         # position the text
         self._set_text_position(renderer)
         self._text.draw(renderer)
@@ -177,7 +177,7 @@ class Cell(Rectangle):
 
         Valid keyword arguments are:
 
-        %(Text)s
+        %(Text_kwdoc)s
         """
         self._text.update(kwargs)
         self.stale = True
@@ -289,7 +289,7 @@ class Table(Artist):
             `.Artist` properties.
         """
 
-        Artist.__init__(self)
+        super().__init__()
 
         if isinstance(loc, str):
             if loc not in self.codes:
@@ -342,7 +342,7 @@ class Table(Artist):
         """
         Set a custom cell in a given position.
         """
-        cbook._check_isinstance(Cell, cell=cell)
+        _api.check_isinstance(Cell, cell=cell)
         try:
             row, col = position[0], position[1]
         except Exception as err:
@@ -639,7 +639,7 @@ class Table(Artist):
         return self._cells
 
 
-docstring.interpd.update(Table=artist.kwdoc(Table))
+docstring.interpd.update(Table_kwdoc=artist.kwdoc(Table))
 
 
 @docstring.dedent_interpd
@@ -723,7 +723,7 @@ def table(ax,
     **kwargs
         `.Table` properties.
 
-    %(Table)s
+    %(Table_kwdoc)s
     """
 
     if cellColours is None and cellText is None:

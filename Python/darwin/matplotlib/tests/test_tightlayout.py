@@ -50,7 +50,8 @@ def test_tight_layout3():
     plt.tight_layout()
 
 
-@image_comparison(['tight_layout4'], freetype_version=('2.5.5', '2.6.1'))
+@image_comparison(['tight_layout4'], freetype_version=('2.5.5', '2.6.1'),
+                  tol=0.015)
 def test_tight_layout4():
     """Test tight_layout for subplot2grid."""
     ax1 = plt.subplot2grid((3, 3), (0, 0))
@@ -67,7 +68,7 @@ def test_tight_layout4():
 @image_comparison(['tight_layout5'])
 def test_tight_layout5():
     """Test tight_layout for image."""
-    ax = plt.subplot(111)
+    ax = plt.subplot()
     arr = np.arange(100).reshape((10, 10))
     ax.imshow(arr, interpolation="none")
     plt.tight_layout()
@@ -134,7 +135,7 @@ def test_tight_layout8():
     """Test automatic use of tight_layout."""
     fig = plt.figure()
     fig.set_tight_layout({'pad': .1})
-    ax = fig.add_subplot(111)
+    ax = fig.add_subplot()
     example_plot(ax, fontsize=24)
 
 
@@ -287,13 +288,16 @@ def test_badsubplotgrid():
 
 
 def test_collapsed():
-    # test that if a call to tight_layout will collapses the axes that
-    # it does not get applied:
+    # test that if the amount of space required to make all the axes
+    # decorations fit would mean that the actual Axes would end up with size
+    # zero (i.e. margins add up to more than the available width) that a call
+    # to tight_layout will not get applied:
     fig, ax = plt.subplots(tight_layout=True)
     ax.set_xlim([0, 1])
     ax.set_ylim([0, 1])
 
-    ax.annotate('BIG LONG STRING', xy=(1.25, 2), xytext=(10.5, 1.75),)
+    ax.annotate('BIG LONG STRING', xy=(1.25, 2), xytext=(10.5, 1.75),
+                annotation_clip=False)
     p1 = ax.get_position()
     with pytest.warns(UserWarning):
         plt.tight_layout()

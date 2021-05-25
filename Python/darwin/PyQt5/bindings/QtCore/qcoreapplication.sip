@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -327,12 +327,38 @@ PYQT_SLOT = typing.Union[typing.Callable[..., None], QtCore.pyqtBoundSignal]
 # Support for QDate, QDateTime and QTime.
 import datetime
 
+
 # Support for new-style signals and slots.
 class pyqtSignal:
-    def __init__(self, *types, name: str = ...) -> None: ...
+
+    signatures = ...    # type: typing.Tuple[str, ...]
+
+    def __init__(self, *types: typing.Any, name: str = ...) -> None: ...
+
+    @typing.overload
+    def __get__(self, instance: None, owner: typing.Type['QObject']) -> 'pyqtSignal': ...
+
+    @typing.overload
+    def __get__(self, instance: 'QObject', owner: typing.Type['QObject']) -> 'pyqtBoundSignal': ...
+
+
 
 class pyqtBoundSignal:
-    def emit(self, *args) -> None: ...
+
+    signal = ...        # type: str
+
+    def __getitem__(self, key: object) -> 'pyqtBoundSignal': ...
+
+    def connect(self, slot: 'PYQT_SLOT') -> 'QMetaObject.Connection': ...
+
+    @typing.overload
+    def disconnect(self) -> None: ...
+
+    @typing.overload
+    def disconnect(self, slot: typing.Union['PYQT_SLOT', 'QMetaObject.Connection']) -> None: ...
+
+    def emit(self, *args: typing.Any) -> None: ...
+
 
 # Convenient type aliases.
 PYQT_SIGNAL = typing.Union[pyqtSignal, pyqtBoundSignal]

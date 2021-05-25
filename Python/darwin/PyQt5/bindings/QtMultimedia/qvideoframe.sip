@@ -2,7 +2,7 @@
 //
 // This file is part of the QtMultimedia Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -103,7 +103,7 @@ public:
 %If (Qt_5_4_0 -)
     int bytesPerLine(int plane) const;
 %End
-    SIP_PYOBJECT bits() /TypeHint="sip.voidptr"/;
+    SIP_PYOBJECT bits() /TypeHint="PyQt5.sip.voidptr"/;
 %MethodCode
         uchar *mem;
         

@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 import matplotlib as mpl
+from matplotlib.testing import _has_tex_package
 from matplotlib.testing.decorators import check_figures_equal, image_comparison
 import matplotlib.pyplot as plt
 
@@ -16,8 +17,7 @@ if not mpl.checkdep_usetex(True):
     style="mpl20")
 def test_usetex():
     mpl.rcParams['text.usetex'] = True
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
+    fig, ax = plt.subplots()
     kwargs = {"verticalalignment": "baseline", "size": 24,
               "bbox": dict(pad=0, edgecolor="k", facecolor="none")}
     ax.text(0.2, 0.7,
@@ -61,11 +61,13 @@ def test_mathdefault():
     fig.canvas.draw()
 
 
-def test_minus_no_descent():
+@pytest.mark.parametrize("fontsize", [8, 10, 12])
+def test_minus_no_descent(fontsize):
     # Test special-casing of minus descent in DviFont._height_depth_of, by
     # checking that overdrawing a 1 and a -1 results in an overall height
     # equivalent to drawing either of them separately.
     mpl.style.use("mpl20")
+    mpl.rcParams['font.size'] = fontsize
     heights = {}
     fig = plt.figure()
     for vals in [(1,), (-1,), (-1, 1)]:
@@ -77,6 +79,23 @@ def test_minus_no_descent():
         heights[vals] = ((np.array(fig.canvas.buffer_rgba())[..., 0] != 255)
                          .any(axis=1).sum())
     assert len({*heights.values()}) == 1
+
+
+@pytest.mark.skipif(not _has_tex_package('xcolor'),
+                    reason='xcolor is not available')
+def test_usetex_xcolor():
+    mpl.rcParams['text.usetex'] = True
+
+    fig = plt.figure()
+    text = fig.text(0.5, 0.5, "Some text 0123456789")
+    fig.canvas.draw()
+
+    mpl.rcParams['text.latex.preamble'] = r'\usepackage[dvipsnames]{xcolor}'
+    fig = plt.figure()
+    text2 = fig.text(0.5, 0.5, "Some text 0123456789")
+    fig.canvas.draw()
+    np.testing.assert_array_equal(text2.get_window_extent(),
+                                  text.get_window_extent())
 
 
 def test_textcomp_full():

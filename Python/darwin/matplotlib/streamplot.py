@@ -6,8 +6,7 @@ Streamline plotting for 2D vector fields.
 import numpy as np
 
 import matplotlib
-import matplotlib.cbook as cbook
-import matplotlib.cm as cm
+from matplotlib import _api, cm
 import matplotlib.colors as mcolors
 import matplotlib.collections as mcollections
 import matplotlib.lines as mlines
@@ -26,8 +25,8 @@ def streamplot(axes, x, y, u, v, density=1, linewidth=None, color=None,
 
     Parameters
     ----------
-    x, y : 1D arrays
-        An evenly spaced grid.
+    x, y : 1D/2D arrays
+        Evenly spaced strictly increasing arrays to make a grid.
     u, v : 2D arrays
         *x* and *y*-velocities. The number of rows and columns must match
         the length of *y* and *x*, respectively.
@@ -103,8 +102,8 @@ def streamplot(axes, x, y, u, v, density=1, linewidth=None, color=None,
     line_kw = {}
     arrow_kw = dict(arrowstyle=arrowstyle, mutation_scale=10 * arrowsize)
 
-    cbook._check_in_list(['both', 'forward', 'backward'],
-                         integration_direction=integration_direction)
+    _api.check_in_list(['both', 'forward', 'backward'],
+                       integration_direction=integration_direction)
 
     if integration_direction == 'both':
         maxlength /= 2.
@@ -234,7 +233,7 @@ class StreamplotSet:
 
     def __init__(self, lines, arrows, **kwargs):
         if kwargs:
-            cbook.warn_deprecated(
+            _api.warn_deprecated(
                 "3.3",
                 message="Passing arbitrary keyword arguments to StreamplotSet "
                         "is deprecated since %(since) and will become an "
@@ -334,6 +333,11 @@ class Grid:
         else:
             raise ValueError("'y' can have at maximum 2 dimensions")
 
+        if not (np.diff(x) > 0).all():
+            raise ValueError("'x' must be strictly increasing")
+        if not (np.diff(y) > 0).all():
+            raise ValueError("'y' must be strictly increasing")
+
         self.nx = len(x)
         self.ny = len(y)
 
@@ -356,7 +360,7 @@ class Grid:
         return self.ny, self.nx
 
     def within_grid(self, xi, yi):
-        """Return True if point is a valid index of grid."""
+        """Return whether (*xi*, *yi*) is a valid index of the grid."""
         # Note that xi/yi can be floats; so, for example, we can't simply check
         # `xi < self.nx` since *xi* can be `self.nx - 1 < xi < self.nx`
         return 0 <= xi <= self.nx - 1 and 0 <= yi <= self.ny - 1

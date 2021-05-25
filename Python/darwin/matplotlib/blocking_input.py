@@ -22,7 +22,7 @@ Classes used for blocking interaction with figure windows:
 import logging
 from numbers import Integral
 
-from matplotlib import cbook
+from matplotlib import _api
 from matplotlib.backend_bases import MouseButton
 import matplotlib.lines as mlines
 
@@ -78,7 +78,7 @@ class BlockingInput:
 
     def __call__(self, n=1, timeout=30):
         """Blocking call to retrieve *n* events."""
-        cbook._check_isinstance(Integral, n=n)
+        _api.check_isinstance(Integral, n=n)
         self.n = n
         self.events = []
 
@@ -115,9 +115,8 @@ class BlockingMouseInput(BlockingInput):
                  mouse_add=MouseButton.LEFT,
                  mouse_pop=MouseButton.RIGHT,
                  mouse_stop=MouseButton.MIDDLE):
-        BlockingInput.__init__(self, fig=fig,
-                               eventslist=('button_press_event',
-                                           'key_press_event'))
+        super().__init__(fig=fig,
+                         eventslist=('button_press_event', 'key_press_event'))
         self.button_add = mouse_add
         self.button_pop = mouse_pop
         self.button_stop = mouse_stop
@@ -150,10 +149,9 @@ class BlockingMouseInput(BlockingInput):
         if event.key is None:
             # At least in OSX gtk backend some keys return None.
             return
-        key = event.key.lower()
-        if key in ['backspace', 'delete']:
+        if event.key in ['backspace', 'delete']:
             self.mouse_event_pop(event)
-        elif key in ['escape', 'enter']:
+        elif event.key in ['escape', 'enter']:
             self.mouse_event_stop(event)
         else:
             self.mouse_event_add(event)
@@ -239,7 +237,7 @@ class BlockingMouseInput(BlockingInput):
         Defaults to the last click.
         """
         self.pop_click(event, index)
-        BlockingInput.pop(self, index)
+        super().pop(index)
 
     def cleanup(self, event=None):
         """
@@ -255,7 +253,7 @@ class BlockingMouseInput(BlockingInput):
             self.marks = []
             self.fig.canvas.draw()
         # Call base class to remove callbacks.
-        BlockingInput.cleanup(self)
+        super().cleanup()
 
     def __call__(self, n=1, timeout=30, show_clicks=True):
         """
@@ -264,7 +262,7 @@ class BlockingMouseInput(BlockingInput):
         self.show_clicks = show_clicks
         self.clicks = []
         self.marks = []
-        BlockingInput.__call__(self, n=n, timeout=timeout)
+        super().__call__(n=n, timeout=timeout)
         return self.clicks
 
 
@@ -277,7 +275,7 @@ class BlockingContourLabeler(BlockingMouseInput):
 
     def __init__(self, cs):
         self.cs = cs
-        BlockingMouseInput.__init__(self, fig=cs.ax.figure)
+        super().__init__(fig=cs.axes.figure)
 
     def add_click(self, event):
         self.button1(event)
@@ -323,8 +321,7 @@ class BlockingContourLabeler(BlockingMouseInput):
     def __call__(self, inline, inline_spacing=5, n=-1, timeout=-1):
         self.inline = inline
         self.inline_spacing = inline_spacing
-        BlockingMouseInput.__call__(self, n=n, timeout=timeout,
-                                    show_clicks=False)
+        super().__call__(n=n, timeout=timeout, show_clicks=False)
 
 
 class BlockingKeyMouseInput(BlockingInput):
@@ -333,8 +330,8 @@ class BlockingKeyMouseInput(BlockingInput):
     """
 
     def __init__(self, fig):
-        BlockingInput.__init__(self, fig=fig, eventslist=(
-            'button_press_event', 'key_press_event'))
+        super().__init__(fig=fig,
+                         eventslist=('button_press_event', 'key_press_event'))
 
     def post_event(self):
         """Determine if it is a key event."""
@@ -351,6 +348,6 @@ class BlockingKeyMouseInput(BlockingInput):
         timed out.
         """
         self.keyormouse = None
-        BlockingInput.__call__(self, n=1, timeout=timeout)
+        super().__call__(n=1, timeout=timeout)
 
         return self.keyormouse

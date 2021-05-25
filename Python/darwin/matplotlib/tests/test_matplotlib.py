@@ -25,6 +25,14 @@ def test_tmpconfigdir_warning(tmpdir):
         os.chmod(tmpdir, mode)
 
 
+def test_importable_with_no_home(tmpdir):
+    subprocess.run(
+        [sys.executable, "-c",
+         "import pathlib; pathlib.Path.home = lambda *args: 1/0; "
+         "import matplotlib.pyplot"],
+        env={**os.environ, "MPLCONFIGDIR": str(tmpdir)}, check=True)
+
+
 def test_use_doc_standard_backends():
     """
     Test that the standard backends mentioned in the docstring of
@@ -42,3 +50,18 @@ def test_use_doc_standard_backends():
             set(matplotlib.rcsetup.interactive_bk))
     assert (set(parse('- non-interactive backends:\n')) ==
             set(matplotlib.rcsetup.non_interactive_bk))
+
+
+def test_importable_with__OO():
+    """
+    When using -OO or export PYTHONOPTIMIZE=2, docstrings are discarded,
+    this simple test may prevent something like issue #17970.
+    """
+    program = (
+        "import matplotlib as mpl; "
+        "import matplotlib.pyplot as plt; "
+        "import matplotlib.cbook as cbook; "
+        "import matplotlib.patches as mpatches"
+    )
+    cmd = [sys.executable, "-OO", "-c", program]
+    assert subprocess.call(cmd, env={**os.environ, "MPLBACKEND": ""}) == 0

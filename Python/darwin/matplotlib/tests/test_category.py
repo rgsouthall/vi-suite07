@@ -5,6 +5,7 @@ import numpy as np
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import matplotlib.category as cat
+from matplotlib.testing.decorators import check_figures_equal
 
 
 class TestUnitData:
@@ -139,7 +140,7 @@ class TestStrCategoryLocator:
 
     @pytest.mark.parametrize("plotter", PLOT_LIST, ids=PLOT_IDS)
     def test_StrCategoryLocatorPlot(self, ax, plotter):
-        ax.plot(["a", "b", "c"])
+        plotter(ax, [1, 2, 3], ["a", "b", "c"])
         np.testing.assert_array_equal(ax.yaxis.major.locator(), range(3))
 
 
@@ -269,6 +270,31 @@ class TestPlotTypes:
         with pytest.raises(TypeError):
             plotter(ax, [0, 3], [1, 3])
             plotter(ax, xdata, [1, 2])
+
+
+@pytest.mark.style('default')
+@check_figures_equal(extensions=["png"])
+def test_overriding_units_in_plot(fig_test, fig_ref):
+    from datetime import datetime
+
+    t0 = datetime(2018, 3, 1)
+    t1 = datetime(2018, 3, 2)
+    t2 = datetime(2018, 3, 3)
+    t3 = datetime(2018, 3, 4)
+
+    ax_test = fig_test.subplots()
+    ax_ref = fig_ref.subplots()
+    for ax, kwargs in zip([ax_test, ax_ref],
+                          ({}, dict(xunits=None, yunits=None))):
+        # First call works
+        ax.plot([t0, t1], ["V1", "V2"], **kwargs)
+        x_units = ax.xaxis.units
+        y_units = ax.yaxis.units
+        # this should not raise
+        ax.plot([t2, t3], ["V1", "V2"], **kwargs)
+        # assert that we have not re-set the units attribute at all
+        assert x_units is ax.xaxis.units
+        assert y_units is ax.yaxis.units
 
 
 def test_hist():

@@ -2,7 +2,7 @@
 A collection of functions and objects for creating or placing inset axes.
 """
 
-from matplotlib import cbook, docstring
+from matplotlib import _api, docstring
 from matplotlib.offsetbox import AnchoredOffsetbox
 from matplotlib.patches import Patch, Rectangle
 from matplotlib.path import Path
@@ -148,13 +148,13 @@ class BboxPatch(Patch):
         **kwargs
             Patch properties. Valid arguments include:
 
-            %(Patch)s
+            %(Patch_kwdoc)s
         """
         if "transform" in kwargs:
             raise ValueError("transform should not be set")
 
         kwargs["transform"] = IdentityTransform()
-        Patch.__init__(self, **kwargs)
+        super().__init__(**kwargs)
         self.bbox = bbox
 
     def get_path(self):
@@ -270,17 +270,17 @@ class BboxConnector(Patch):
         **kwargs
             Patch properties for the line drawn. Valid arguments include:
 
-            %(Patch)s
+            %(Patch_kwdoc)s
         """
         if "transform" in kwargs:
             raise ValueError("transform should not be set")
 
         kwargs["transform"] = IdentityTransform()
         if 'fill' in kwargs:
-            Patch.__init__(self, **kwargs)
+            super().__init__(**kwargs)
         else:
             fill = bool({'fc', 'facecolor', 'color'}.intersection(kwargs))
-            Patch.__init__(self, fill=fill, **kwargs)
+            super().__init__(fill=fill, **kwargs)
         self.bbox1 = bbox1
         self.bbox2 = bbox2
         self.loc1 = loc1
@@ -329,11 +329,11 @@ class BboxConnectorPatch(BboxConnector):
         **kwargs
             Patch properties for the line drawn:
 
-            %(Patch)s
+            %(Patch_kwdoc)s
         """
         if "transform" in kwargs:
             raise ValueError("transform should not be set")
-        BboxConnector.__init__(self, bbox1, bbox2, loc1a, loc2a, **kwargs)
+        super().__init__(bbox1, bbox2, loc1a, loc2a, **kwargs)
         self.loc1b = loc1b
         self.loc2b = loc2b
 
@@ -449,7 +449,7 @@ def inset_axes(parent_axes, width, height, loc='upper right',
         Keyworded arguments to pass to the constructor of the inset axes.
         Valid arguments include:
 
-        %(Axes)s
+        %(Axes_kwdoc)s
 
     borderpad : float, default: 0.5
         Padding between inset axes and the bbox_to_anchor.
@@ -474,10 +474,9 @@ def inset_axes(parent_axes, width, height, loc='upper right',
     if bbox_transform in [parent_axes.transAxes,
                           parent_axes.figure.transFigure]:
         if bbox_to_anchor is None:
-            cbook._warn_external("Using the axes or figure transform "
-                                 "requires a bounding box in the respective "
-                                 "coordinates. "
-                                 "Using bbox_to_anchor=(0, 0, 1, 1) now.")
+            _api.warn_external("Using the axes or figure transform requires a "
+                               "bounding box in the respective coordinates. "
+                               "Using bbox_to_anchor=(0, 0, 1, 1) now.")
             bbox_to_anchor = (0, 0, 1, 1)
 
     if bbox_to_anchor is None:
@@ -567,7 +566,7 @@ def zoomed_inset_axes(parent_axes, zoom, loc='upper right',
         Keyworded arguments to pass to the constructor of the inset axes.
         Valid arguments include:
 
-        %(Axes)s
+        %(Axes_kwdoc)s
 
     borderpad : float, default: 0.5
         Padding between inset axes and the bbox_to_anchor.
@@ -624,7 +623,7 @@ def mark_inset(parent_axes, inset_axes, loc1, loc2, **kwargs):
     **kwargs
         Patch properties for the lines and box drawn:
 
-        %(Patch)s
+        %(Patch_kwdoc)s
 
     Returns
     -------

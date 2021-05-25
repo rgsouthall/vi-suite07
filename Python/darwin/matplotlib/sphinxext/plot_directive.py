@@ -71,6 +71,11 @@ The ``plot`` directive supports the following options:
         If specified, the code block will be run, but no figures will be
         inserted.  This is usually useful with the ``:context:`` option.
 
+    caption : str
+        If specified, the option's argument will be used as a caption for the
+        figure. This overwrites the caption given in the content, when the plot
+        is generated from a file.
+
 Additionally, this directive supports all of the options of the `image`
 directive, except for *target* (since plot will add its own target).  These
 include *alt*, *height*, *width*, *scale*, *align* and *class*.
@@ -151,10 +156,12 @@ import jinja2  # Sphinx dependency.
 import matplotlib
 from matplotlib.backend_bases import FigureManagerBase
 import matplotlib.pyplot as plt
-from matplotlib import _pylab_helpers, cbook
+from matplotlib import _api, _pylab_helpers, cbook
 
 matplotlib.use("agg")
-align = Image.align
+align = _api.deprecated(
+    "3.4", alternative="docutils.parsers.rst.directives.images.Image.align")(
+        Image.align)
 
 __version__ = 2
 
@@ -184,11 +191,6 @@ def _option_context(arg):
 
 def _option_format(arg):
     return directives.choice(arg, ('python', 'doctest'))
-
-
-def _option_align(arg):
-    return directives.choice(arg, ("top", "middle", "bottom", "left", "center",
-                                   "right"))
 
 
 def mark_plot_labels(app, document):
@@ -233,23 +235,33 @@ class PlotDirective(Directive):
         'height': directives.length_or_unitless,
         'width': directives.length_or_percentage_or_unitless,
         'scale': directives.nonnegative_int,
-        'align': _option_align,
+        'align': Image.align,
         'class': directives.class_option,
         'include-source': _option_boolean,
         'format': _option_format,
         'context': _option_context,
         'nofigs': directives.flag,
         'encoding': directives.encoding,
+        'caption': directives.unchanged,
         }
 
     def run(self):
         """Run the plot directive."""
-        return run(self.arguments, self.content, self.options,
-                   self.state_machine, self.state, self.lineno)
+        try:
+            return run(self.arguments, self.content, self.options,
+                       self.state_machine, self.state, self.lineno)
+        except Exception as e:
+            raise self.error(str(e))
+
+
+def _copy_css_file(app, exc):
+    if exc is None and app.builder.format == 'html':
+        src = cbook._get_data_path('plot_directive/plot_directive.css')
+        dst = app.outdir / Path('_static')
+        shutil.copy(src, dst)
 
 
 def setup(app):
-    import matplotlib
     setup.app = app
     setup.config = app.config
     setup.confdir = app.confdir
@@ -264,9 +276,9 @@ def setup(app):
     app.add_config_value('plot_apply_rcparams', False, True)
     app.add_config_value('plot_working_directory', None, True)
     app.add_config_value('plot_template', None, True)
-
     app.connect('doctree-read', mark_plot_labels)
-
+    app.add_css_file('plot_directive.css')
+    app.connect('build-finished', _copy_css_file)
     metadata = {'parallel_read_safe': True, 'parallel_write_safe': True,
                 'version': matplotlib.__version__}
     return metadata
@@ -332,7 +344,6 @@ def split_code_at_show(text):
 # Template
 # -----------------------------------------------------------------------------
 
-
 TEMPLATE = """
 {{ source_code }}
 
@@ -369,7 +380,7 @@ TEMPLATE = """
         )
       {%- endif -%}
 
-      {{ caption }}
+      {{ caption }}  {# appropriate leading whitespace added beforehand #}
    {% endfor %}
 
 .. only:: not html
@@ -378,9 +389,9 @@ TEMPLATE = """
    .. figure:: {{ build_dir }}/{{ img.basename }}.*
       {% for option in options -%}
       {{ option }}
-      {% endfor %}
+      {% endfor -%}
 
-      {{ caption }}
+      {{ caption }}  {# appropriate leading whitespace added beforehand #}
    {% endfor %}
 
 """
@@ -516,7 +527,7 @@ def render_figures(code, code_path, output_dir, output_base, context,
     """
     formats = get_plot_formats(config)
 
-    # -- Try to determine if all images already exist
+    # Try to determine if all images already exist
 
     code_pieces = split_code_at_show(code)
 
@@ -619,6 +630,13 @@ def run(arguments, content, options, state_machine, state, lineno):
     default_fmt = formats[0][0]
 
     options.setdefault('include-source', config.plot_include_source)
+    if 'class' in options:
+        # classes are parsed into a list of string, and output by simply
+        # printing the list, abusing the fact that RST guarantees to strip
+        # non-conforming characters
+        options['class'] = ['plot-directive'] + options['class']
+    else:
+        options.setdefault('class', ['plot-directive'])
     keep_context = 'context' in options
     context_opt = None if not keep_context else options['context']
 
@@ -636,6 +654,16 @@ def run(arguments, content, options, state_machine, state, lineno):
         # If there is content, it will be passed as a caption.
         caption = '\n'.join(content)
 
+        # Enforce unambiguous use of captions.
+        if "caption" in options:
+            if caption:
+                raise ValueError(
+                    'Caption specified in both content and options.'
+                    ' Please remove ambiguity.'
+                )
+            # Use caption option
+            caption = options["caption"]
+
         # If the optional function name is provided, use it
         if len(arguments) == 2:
             function_name = arguments[1]
@@ -652,7 +680,7 @@ def run(arguments, content, options, state_machine, state, lineno):
         base, ext = os.path.splitext(os.path.basename(source_file_name))
         output_base = '%s-%d.py' % (base, counter)
         function_name = None
-        caption = ''
+        caption = options.get('caption', '')
 
     base, source_ext = os.path.splitext(output_base)
     if source_ext in ('.py', '.rst', '.txt'):
@@ -728,8 +756,8 @@ def run(arguments, content, options, state_machine, state, lineno):
         errors = [sm]
 
     # Properly indent the caption
-    caption = '\n'.join('      ' + line.strip()
-                        for line in caption.split('\n'))
+    caption = '\n' + '\n'.join('      ' + line.strip()
+                               for line in caption.split('\n'))
 
     # generate output restructuredtext
     total_lines = []

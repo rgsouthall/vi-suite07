@@ -17,7 +17,7 @@ import logging
 
 import numpy as np
 
-from matplotlib import cbook, ticker, units
+from matplotlib import _api, ticker, units
 
 
 _log = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ class StrCategoryConverter(units.ConversionInterface):
                 'Missing category information for StrCategoryConverter; '
                 'this might be caused by unintendedly mixing categorical and '
                 'numeric data')
+        StrCategoryConverter._validate_unit(unit)
         # dtype = object preserves numerical pass throughs
         values = np.atleast_1d(np.array(value, dtype=object))
         # pass through sequence of non binary numbers
@@ -80,6 +81,7 @@ class StrCategoryConverter(units.ConversionInterface):
 
         .. note: axis is not used
         """
+        StrCategoryConverter._validate_unit(unit)
         # locator and formatter take mapping dict because
         # args need to be pass by reference for updates
         majloc = StrCategoryLocator(unit._mapping)
@@ -108,6 +110,13 @@ class StrCategoryConverter(units.ConversionInterface):
         else:
             axis.units.update(data)
         return axis.units
+
+    @staticmethod
+    def _validate_unit(unit):
+        if not hasattr(unit, '_mapping'):
+            raise ValueError(
+                f'Provided unit "{unit}" is not valid for a categorical '
+                'converter, as it does not have a _mapping attribute.')
 
 
 class StrCategoryLocator(ticker.Locator):
@@ -208,7 +217,7 @@ class UnitData:
         convertible = True
         for val in OrderedDict.fromkeys(data):
             # OrderedDict just iterates over unique values in data.
-            cbook._check_isinstance((str, bytes), value=val)
+            _api.check_isinstance((str, bytes), value=val)
             if convertible:
                 # this will only be called so long as convertible is True.
                 convertible = self._str_is_convertible(val)

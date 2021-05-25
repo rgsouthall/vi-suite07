@@ -2,7 +2,7 @@
 //
 // This file is part of the QtWidgets Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -102,7 +102,7 @@ public:
 %End
 
     virtual void addItem(QLayoutItem * /Transfer/) = 0;
-    void removeWidget(QWidget *w);
+    void removeWidget(QWidget *w /TransferBack/);
     void removeItem(QLayoutItem * /TransferBack/);
     virtual Qt::Orientations expandingDirections() const;
     virtual QSize minimumSize() const;

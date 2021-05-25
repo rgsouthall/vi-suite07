@@ -5,6 +5,7 @@ Common functionality between the PDF and PS backends.
 import functools
 
 import matplotlib as mpl
+from matplotlib import _api
 from .. import font_manager, ft2font
 from ..afm import AFM
 from ..backend_bases import RendererBase
@@ -27,7 +28,7 @@ class CharacterTracker:
     def __init__(self):
         self.used = {}
 
-    @mpl.cbook.deprecated("3.3")
+    @_api.deprecated("3.3")
     @property
     def used_characters(self):
         d = {}
@@ -45,6 +46,7 @@ class CharacterTracker:
             fname = font.fname
         self.used.setdefault(fname, set()).update(map(ord, s))
 
+    # Not public, can be removed when pdf/ps merge_used_characters is removed.
     def merge(self, other):
         """Update self with a font path to character codepoints."""
         for fname, charset in other.items():
@@ -87,7 +89,12 @@ class RendererPDFPSBase(RendererBase):
                 s, fontsize, renderer=self)
             return w, h, d
         elif ismath:
-            parse = self.mathtext_parser.parse(s, 72, prop)
+            # Circular import.
+            from matplotlib.backends.backend_ps import RendererPS
+            parse = self._text2path.mathtext_parser.parse(
+                s, 72, prop,
+                _force_standard_ps_fonts=(isinstance(self, RendererPS)
+                                          and mpl.rcParams["ps.useafm"]))
             return parse.width, parse.height, parse.depth
         elif mpl.rcParams[self._use_afm_rc_name]:
             font = self._get_font_afm(prop)

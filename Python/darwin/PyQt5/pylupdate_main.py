@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+# Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 # 
 # This file is part of PyQt5.
 # 
@@ -16,6 +16,7 @@
 # WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 
+import locale
 import sys
 
 from PyQt5.QtCore import (PYQT_VERSION_STR, QDir, QFile, QFileInfo, QIODevice,
@@ -66,6 +67,10 @@ def updateTsFiles(fetchedTor, tsFileNames, codecForTr, noObsolete, verbose):
 
         if not out.save(t):
             sys.stderr.write("pylupdate5 error: Cannot save '%s'\n" % fn)
+
+
+def _encoded_path(path):
+    return path.encode(locale.getdefaultlocale()[1])
 
 
 def main():
@@ -169,7 +174,9 @@ def main():
             for key, value in proFileTagMap(fullText).items():
                 for t in value.split(' '):
                     if key == "SOURCES":
-                        fetchtr_py(QDir.current().absoluteFilePath(t),
+                        fetchtr_py(
+                                _encoded_path(
+                                        QDir.current().absoluteFilePath(t)),
                                 fetchedTor, defaultContext, True,
                                 codecForSource, tr_func, translate_func)
                         metSomething = True
@@ -186,7 +193,9 @@ def main():
                         codecForSource = t
 
                     elif key == "FORMS":
-                        fetchtr_ui(QDir.current().absoluteFilePath(t),
+                        fetchtr_ui(
+                                _encoded_path(
+                                        QDir.current().absoluteFilePath(t)),
                                 fetchedTor, defaultContext, True)
 
             updateTsFiles(fetchedTor, tsFileNames, codecForTr, noObsolete,
@@ -218,14 +227,13 @@ def main():
                             "pylupdate5 error: File '%s' lacks .ts extension\n" % arg)
             else:
                 fi = QFileInfo(arg)
+                path = _encoded_path(fi.absoluteFilePath())
 
                 if fi.suffix() in ("py", "pyw"):
-                    fetchtr_py(fi.absoluteFilePath(), fetchedTor,
-                            defaultContext, True, codecForSource, tr_func,
-                            translate_func)
+                    fetchtr_py(path, fetchedTor, defaultContext, True,
+                            codecForSource, tr_func, translate_func)
                 else:
-                    fetchtr_ui(fi.absoluteFilePath(), fetchedTor,
-                            defaultContext, True)
+                    fetchtr_ui(path, fetchedTor, defaultContext, True)
 
     if not standardSyntax:
         updateTsFiles(fetchedTor, tsFileNames, codecForTr, noObsolete, verbose)

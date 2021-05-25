@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     pygments.lexers.int_fiction
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Lexers for interactive fiction languages.
 
-    :copyright: Copyright 2006-2020 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -515,6 +514,15 @@ class Inform6Lexer(RegexLexer):
                 previous_token = token
         while objectloop_queue:
             yield objectloop_queue.pop(0)
+
+    def analyse_text(text):
+        """We try to find a keyword which seem relatively common, unfortunately
+        there is a decent overlap with Smalltalk keywords otherwise here.."""
+        result = 0
+        if re.search('\borigsource\b', text, re.IGNORECASE):
+            result += 0.05
+
+        return result
 
 
 class Inform7Lexer(RegexLexer):
@@ -1343,3 +1351,17 @@ class Tads3Lexer(RegexLexer):
                 else:
                     token = Comment
             yield index, token, value
+
+    def analyse_text(text):
+        """This is a rather generic descriptive language without strong
+        identifiers. It looks like a 'GameMainDef' has to be present,
+        and/or a 'versionInfo' with an 'IFID' field."""
+        result = 0
+        if '__TADS' in text or 'GameMainDef' in text:
+            result += 0.2
+
+        # This is a fairly unique keyword which is likely used in source as well
+        if 'versionInfo' in text and 'IFID' in text:
+            result += 0.1
+
+        return result

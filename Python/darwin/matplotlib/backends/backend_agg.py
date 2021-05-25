@@ -1,7 +1,5 @@
 """
-An agg_ backend.
-
-.. _agg: http://antigrain.com/
+An `Anti-Grain Geometry <http://antigrain.com>`_ (AGG) backend.
 
 Features that are implemented:
 
@@ -16,7 +14,7 @@ Features that are implemented:
 * draw polygon
 * freetype2 w/ ft2font
 
-TODO:
+Still TODO:
 
 * integrate screen dpi w/ ppi and text
 """
@@ -25,17 +23,14 @@ try:
     import threading
 except ImportError:
     import dummy_threading as threading
-try:
-    from contextlib import nullcontext
-except ImportError:
-    from contextlib import ExitStack as nullcontext  # Py 3.6.
+from contextlib import nullcontext
 from math import radians, cos, sin
 
 import numpy as np
 from PIL import Image
 
 import matplotlib as mpl
-from matplotlib import cbook
+from matplotlib import _api, cbook
 from matplotlib import colors as mcolors
 from matplotlib.backend_bases import (
     _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
@@ -88,7 +83,7 @@ class RendererAgg(RendererBase):
     lock = threading.RLock()
 
     def __init__(self, width, height, dpi):
-        RendererBase.__init__(self)
+        super().__init__()
 
         self.dpi = dpi
         self.width = width
@@ -119,8 +114,15 @@ class RendererAgg(RendererBase):
         # self.draw_path_collection = self._renderer.draw_path_collection
         self.draw_quad_mesh = self._renderer.draw_quad_mesh
         self.copy_from_bbox = self._renderer.copy_from_bbox
-        self.get_content_extents = self._renderer.get_content_extents
 
+    @_api.deprecated("3.4")
+    def get_content_extents(self):
+        orig_img = np.asarray(self.buffer_rgba())
+        slice_y, slice_x = cbook._get_nonzero_slices(orig_img[..., 3])
+        return (slice_x.start, slice_y.start,
+                slice_x.stop - slice_x.start, slice_y.stop - slice_y.start)
+
+    @_api.deprecated("3.4")
     def tostring_rgba_minimized(self):
         extents = self.get_content_extents()
         bbox = [[extents[0], self.height - (extents[1] + extents[3])],
@@ -166,7 +168,7 @@ class RendererAgg(RendererBase):
                              linewidths, linestyles, antialiaseds, urls,
                              offset_position):
         if offset_position == "data":
-            cbook.warn_deprecated(
+            _api.warn_deprecated(
                 "3.3", message="Support for offset_position='data' is "
                 "deprecated since %(since)s and will be removed %(removal)s.")
         return self._renderer.draw_path_collection(
@@ -217,7 +219,7 @@ class RendererAgg(RendererBase):
 
         if ismath in ["TeX", "TeX!"]:
             if ismath == "TeX!":
-                cbook._warn_deprecated(
+                _api.warn_deprecated(
                     "3.3", message="Support for ismath='TeX!' is deprecated "
                     "since %(since)s and will be removed %(removal)s; use "
                     "ismath='TeX' instead.")
@@ -243,8 +245,7 @@ class RendererAgg(RendererBase):
         d /= 64.0
         return w, h, d
 
-    @cbook._delete_parameter("3.2", "ismath")
-    def draw_tex(self, gc, x, y, s, prop, angle, ismath='TeX!', mtext=None):
+    def draw_tex(self, gc, x, y, s, prop, angle, *, mtext=None):
         # docstring inherited
         # todo, handle props, angle, origins
         size = prop.get_size_in_points()
@@ -367,23 +368,21 @@ class RendererAgg(RendererBase):
         The saved renderer is restored and the returned image from
         post_processing is plotted (using draw_image) on it.
         """
-
-        width, height = int(self.width), int(self.height)
-
-        buffer, (l, b, w, h) = self.tostring_rgba_minimized()
+        orig_img = np.asarray(self.buffer_rgba())
+        slice_y, slice_x = cbook._get_nonzero_slices(orig_img[..., 3])
+        cropped_img = orig_img[slice_y, slice_x]
 
         self._renderer = self._filter_renderers.pop()
         self._update_methods()
 
-        if w > 0 and h > 0:
-            img = np.frombuffer(buffer, np.uint8)
-            img, ox, oy = post_processing(img.reshape((h, w, 4)) / 255.,
-                                          self.dpi)
+        if cropped_img.size:
+            img, ox, oy = post_processing(cropped_img / 255, self.dpi)
             gc = self.new_gc()
             if img.dtype.kind == 'f':
                 img = np.asarray(img * 255., np.uint8)
-            img = img[::-1]
-            self._renderer.draw_image(gc, l + ox, height - b - h + oy, img)
+            self._renderer.draw_image(
+                gc, slice_x.start + ox, int(self.height) - slice_y.stop + oy,
+                img[::-1])
 
 
 class FigureCanvasAgg(FigureCanvasBase):
@@ -523,15 +522,13 @@ class FigureCanvasAgg(FigureCanvasBase):
 
     @_check_savefig_extra_args(
         extra_kwargs=["quality", "optimize", "progressive"])
-    @cbook._delete_parameter("3.2", "dryrun")
-    @cbook._delete_parameter("3.3", "quality",
-                             alternative="pil_kwargs={'quality': ...}")
-    @cbook._delete_parameter("3.3", "optimize",
-                             alternative="pil_kwargs={'optimize': ...}")
-    @cbook._delete_parameter("3.3", "progressive",
-                             alternative="pil_kwargs={'progressive': ...}")
-    def print_jpg(self, filename_or_obj, *args, dryrun=False, pil_kwargs=None,
-                  **kwargs):
+    @_api.delete_parameter("3.3", "quality",
+                           alternative="pil_kwargs={'quality': ...}")
+    @_api.delete_parameter("3.3", "optimize",
+                           alternative="pil_kwargs={'optimize': ...}")
+    @_api.delete_parameter("3.3", "progressive",
+                           alternative="pil_kwargs={'progressive': ...}")
+    def print_jpg(self, filename_or_obj, *args, pil_kwargs=None, **kwargs):
         """
         Write the figure to a JPEG file.
 
@@ -548,16 +545,13 @@ class FigureCanvasAgg(FigureCanvasBase):
             the JPEG compression algorithm, and results in large files
             with hardly any gain in image quality.  This parameter is
             deprecated.
-
         optimize : bool, default: False
             Whether the encoder should make an extra pass over the image
             in order to select optimal encoder settings.  This parameter is
             deprecated.
-
         progressive : bool, default: False
             Whether the image should be stored as a progressive JPEG file.
             This parameter is deprecated.
-
         pil_kwargs : dict, optional
             Additional keyword arguments that are passed to
             `PIL.Image.Image.save` when saving the figure.  These take
@@ -570,8 +564,6 @@ class FigureCanvasAgg(FigureCanvasBase):
             FigureCanvasAgg.draw(self)
         finally:
             self.figure.set_facecolor((r, g, b, a))
-        if dryrun:
-            return
         if pil_kwargs is None:
             pil_kwargs = {}
         for k in ["quality", "optimize", "progressive"]:
@@ -581,7 +573,7 @@ class FigureCanvasAgg(FigureCanvasBase):
             quality = pil_kwargs["quality"] = \
                 dict.__getitem__(mpl.rcParams, "savefig.jpeg_quality")
             if quality not in [0, 75, 95]:  # default qualities.
-                cbook.warn_deprecated(
+                _api.warn_deprecated(
                     "3.3", name="savefig.jpeg_quality", obj_type="rcParam",
                     addendum="Set the quality using "
                     "`pil_kwargs={'quality': ...}`; the future default "
@@ -595,11 +587,8 @@ class FigureCanvasAgg(FigureCanvasBase):
     print_jpeg = print_jpg
 
     @_check_savefig_extra_args
-    @cbook._delete_parameter("3.2", "dryrun")
-    def print_tif(self, filename_or_obj, *, dryrun=False, pil_kwargs=None):
+    def print_tif(self, filename_or_obj, *, pil_kwargs=None):
         FigureCanvasAgg.draw(self)
-        if dryrun:
-            return
         if pil_kwargs is None:
             pil_kwargs = {}
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))

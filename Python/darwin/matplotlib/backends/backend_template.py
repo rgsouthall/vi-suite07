@@ -191,7 +191,14 @@ class FigureCanvasTemplate(FigureCanvasBase):
     """
 
     def draw(self):
-        """Draw the figure using the renderer."""
+        """
+        Draw the figure using the renderer.
+
+        It is important that this method actually walk the artist tree
+        even if not output is produced because this will trigger
+        deferred work (like computing limits auto-limits and tick
+        values) that users may want access to before saving to disk.
+        """
         renderer = RendererTemplate(self.figure.dpi)
         self.figure.draw(renderer)
 
@@ -204,9 +211,13 @@ class FigureCanvasTemplate(FigureCanvasBase):
 
     def print_foo(self, filename, *args, **kwargs):
         """
-        Write out format foo.  The dpi, facecolor and edgecolor are restored
-        to their original values after this call, so you don't need to
-        save and restore them.
+        Write out format foo.
+
+        This method is normally called via `.Figure.savefig` and
+        `.FigureCanvasBase.print_figure`, which take care of setting the figure
+        facecolor, edgecolor, and dpi to the desired output values, and will
+        restore them to the original values.  Therefore, `print_foo` does not
+        need to handle these settings.
         """
         self.draw()
 

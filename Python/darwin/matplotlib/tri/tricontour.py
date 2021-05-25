@@ -5,27 +5,16 @@ from matplotlib.contour import ContourSet
 from matplotlib.tri.triangulation import Triangulation
 
 
+@docstring.dedent_interpd
 class TriContourSet(ContourSet):
     """
     Create and store a set of contour lines or filled regions for
     a triangular grid.
 
-    User-callable method: clabel
+    This class is typically not instantiated directly by the user but by
+    `~.Axes.tricontour` and `~.Axes.tricontourf`.
 
-    Attributes
-    ----------
-    ax
-        The axes object in which the contours are drawn.
-
-    collections
-        A silent_list of LineCollections or PolyCollections.
-
-    levels
-        Contour levels.
-
-    layers
-        Same as levels for line contours; half-way between
-        levels for filled contours.  See :meth:`_process_colors`.
+    %(contour_set_attributes)s
     """
     def __init__(self, ax, *args, **kwargs):
         """
@@ -37,7 +26,7 @@ class TriContourSet(ContourSet):
         object.  The remaining arguments and keyword arguments
         are described in the docstring of `~.Axes.tricontour`.
         """
-        ContourSet.__init__(self, ax, *args, **kwargs)
+        super().__init__(ax, *args, **kwargs)
 
     def _process_args(self, *args, **kwargs):
         """
@@ -164,15 +153,15 @@ triangulation : `.Triangulation`, optional
 x, y : array-like, optional
     The coordinates of the values in *Z*.
 
-triangles : int array-like of shape (ntri, 3), optional
+triangles : (ntri, 3) array-like of int, optional
     For each triangle, the indices of the three points that make up the
     triangle, ordered in an anticlockwise manner.  If not specified, the
     Delaunay triangulation is calculated.
 
-mask : bool array-like of shape (ntri), optional
+mask : (ntri,) array-like of bool, optional
     Which triangles are masked out.
 
-Z : array-like(N, M)
+Z : 2D array-like
     The height values over which the contour is drawn.
 
 levels : int or array-like, optional
@@ -217,6 +206,11 @@ norm : `~matplotlib.colors.Normalize`, optional
     If a colormap is used, the `.Normalize` instance scales the level values to
     the canonical colormap range [0, 1] for mapping to colors. If not given,
     the default linear scaling is used.
+
+vmin, vmax : float, optional
+    If not *None*, either or both of these values will be supplied to
+    the `.Normalize` instance, overriding the default color scaling
+    based on *levels*.
 
 origin : {*None*, 'upper', 'lower', 'image'}, default: None
     Determines the orientation and exact position of *Z* by specifying the
@@ -266,7 +260,12 @@ extend : {'neither', 'both', 'min', 'max'}, default: 'neither'
 
 xunits, yunits : registered units, optional
     Override axis units by specifying an instance of a
-    :class:`matplotlib.units.ConversionInterface`.""")
+    :class:`matplotlib.units.ConversionInterface`.
+
+antialiased : bool, optional
+    Enable antialiasing, overriding the defaults.  For
+    filled contours, the default is *True*.  For line contours,
+    it is taken from :rc:`lines.antialiased`.""")
 
 
 @docstring.Substitution(func='tricontour', type='lines')
@@ -304,8 +303,11 @@ def tricontourf(ax, *args, **kwargs):
     """
     %(_tricontour_doc)s
 
-    antialiased : bool, default: True
-        Whether to use antialiasing.
+    hatches : list[str], optional
+        A list of cross hatch patterns to use on the filled areas.
+        If None, no hatching will be added to the contour.
+        Hatching is supported in the PostScript, PDF, SVG and Agg
+        backends only.
 
     Notes
     -----

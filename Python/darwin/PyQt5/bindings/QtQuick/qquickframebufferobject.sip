@@ -2,7 +2,7 @@
 //
 // This file is part of the QtQuick Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -39,9 +39,13 @@ public:
         Renderer();
         virtual ~Renderer();
         virtual void render() = 0;
+%If (PyQt_OpenGL)
         virtual QOpenGLFramebufferObject *createFramebufferObject(const QSize &size);
+%End
         virtual void synchronize(QQuickFramebufferObject *);
+%If (PyQt_OpenGL)
         QOpenGLFramebufferObject *framebufferObject() const;
+%End
         void update();
         void invalidateFramebufferObject();
     };

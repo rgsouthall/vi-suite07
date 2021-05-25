@@ -54,7 +54,7 @@ def _prism_blue(x): return -1.1 * np.sin((x * 20.9) * np.pi)
 _prism_data = {'red': _prism_red, 'green': _prism_green, 'blue': _prism_blue}
 
 def _ch_helper(gamma, s, r, h, p0, p1, x):
-    """Helper function for generating picklable cubehelix color maps."""
+    """Helper function for generating picklable cubehelix colormaps."""
     # Apply gamma factor to emphasise low or high intensity values
     xg = x ** gamma
     # Calculate amplitude and angle of deviation from the black to white
@@ -76,7 +76,7 @@ def cubehelix(gamma=1.0, s=0.5, r=-1.5, h=1.0):
     can be visualised as a squashed helix around the diagonal in the
     (r, g, b) color cube.
 
-    For a unit color cube (i.e. 3-D coordinates for (r, g, b) each in the
+    For a unit color cube (i.e. 3D coordinates for (r, g, b) each in the
     range 0 to 1) the color scheme starts at (r, g, b) = (0, 0, 0), i.e. black,
     and finishes at (r, g, b) = (1, 1, 1), i.e. white. For some fraction *x*,
     between 0 and 1, the color is the corresponding grey value at that
@@ -1096,7 +1096,7 @@ _gist_stern_data = {
 def _gist_yarg(x): return 1 - x
 _gist_yarg_data = {'red': _gist_yarg, 'green': _gist_yarg, 'blue': _gist_yarg}
 
-# This bipolar color map was generated from CoolWarmFloat33.csv of
+# This bipolar colormap was generated from CoolWarmFloat33.csv of
 # "Diverging Color Maps for Scientific Visualization" by Kenneth Moreland.
 # <http://www.kennethmoreland.com/color-maps/>
 _coolwarm_data = {

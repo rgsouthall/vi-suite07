@@ -5,8 +5,8 @@ r"""
 The `GridSpec` specifies the overall grid structure. Individual cells within
 the grid are referenced by `SubplotSpec`\s.
 
-See the tutorial :ref:`sphx_glr_tutorials_intermediate_gridspec.py` for a
-comprehensive usage guide.
+See the tutorial :doc:`/tutorials/intermediate/gridspec` for a comprehensive
+usage guide.
 """
 
 import copy
@@ -16,9 +16,10 @@ from numbers import Integral
 import numpy as np
 
 import matplotlib as mpl
-from matplotlib import _pylab_helpers, cbook, tight_layout, rcParams
+from matplotlib import _api, _pylab_helpers, tight_layout, rcParams
 from matplotlib.transforms import Bbox
-import matplotlib._layoutbox as layoutbox
+import matplotlib._layoutgrid as layoutgrid
+
 
 _log = logging.getLogger(__name__)
 
@@ -56,9 +57,9 @@ class GridSpecBase:
 
     def __repr__(self):
         height_arg = (', height_ratios=%r' % (self._row_height_ratios,)
-                      if self._row_height_ratios is not None else '')
+                      if len(set(self._row_height_ratios)) != 1 else '')
         width_arg = (', width_ratios=%r' % (self._col_width_ratios,)
-                     if self._col_width_ratios is not None else '')
+                     if len(set(self._col_width_ratios)) != 1 else '')
         return '{clsname}({nrows}, {ncols}{optionals})'.format(
             clsname=self.__class__.__name__,
             nrows=self._nrows,
@@ -104,7 +105,9 @@ class GridSpecBase:
         *width_ratios* must be of length *ncols*. Each column gets a relative
         width of ``width_ratios[i] / sum(width_ratios)``.
         """
-        if width_ratios is not None and len(width_ratios) != self._ncols:
+        if width_ratios is None:
+            width_ratios = [1] * self._ncols
+        elif len(width_ratios) != self._ncols:
             raise ValueError('Expected the given number of width ratios to '
                              'match the number of columns of the grid')
         self._col_width_ratios = width_ratios
@@ -124,7 +127,9 @@ class GridSpecBase:
         *height_ratios* must be of length *nrows*. Each row gets a relative
         height of ``height_ratios[i] / sum(height_ratios)``.
         """
-        if height_ratios is not None and len(height_ratios) != self._nrows:
+        if height_ratios is None:
+            height_ratios = [1] * self._nrows
+        elif len(height_ratios) != self._nrows:
             raise ValueError('Expected the given number of height ratios to '
                              'match the number of rows of the grid')
         self._row_height_ratios = height_ratios
@@ -181,28 +186,43 @@ class GridSpecBase:
         # calculate accumulated heights of columns
         cell_h = tot_height / (nrows + hspace*(nrows-1))
         sep_h = hspace * cell_h
-        if self._row_height_ratios is not None:
-            norm = cell_h * nrows / sum(self._row_height_ratios)
-            cell_heights = [r * norm for r in self._row_height_ratios]
-        else:
-            cell_heights = [cell_h] * nrows
+        norm = cell_h * nrows / sum(self._row_height_ratios)
+        cell_heights = [r * norm for r in self._row_height_ratios]
         sep_heights = [0] + ([sep_h] * (nrows-1))
         cell_hs = np.cumsum(np.column_stack([sep_heights, cell_heights]).flat)
 
         # calculate accumulated widths of rows
         cell_w = tot_width / (ncols + wspace*(ncols-1))
         sep_w = wspace * cell_w
-        if self._col_width_ratios is not None:
-            norm = cell_w * ncols / sum(self._col_width_ratios)
-            cell_widths = [r * norm for r in self._col_width_ratios]
-        else:
-            cell_widths = [cell_w] * ncols
+        norm = cell_w * ncols / sum(self._col_width_ratios)
+        cell_widths = [r * norm for r in self._col_width_ratios]
         sep_widths = [0] + ([sep_w] * (ncols-1))
         cell_ws = np.cumsum(np.column_stack([sep_widths, cell_widths]).flat)
 
         fig_tops, fig_bottoms = (top - cell_hs).reshape((-1, 2)).T
         fig_lefts, fig_rights = (left + cell_ws).reshape((-1, 2)).T
         return fig_bottoms, fig_tops, fig_lefts, fig_rights
+
+    @staticmethod
+    def _check_gridspec_exists(figure, nrows, ncols):
+        """
+        Check if the figure already has a gridspec with these dimensions,
+        or create a new one
+        """
+        for ax in figure.get_axes():
+            if hasattr(ax, 'get_subplotspec'):
+                gs = ax.get_subplotspec().get_gridspec()
+                if hasattr(gs, 'get_topmost_subplotspec'):
+                    # This is needed for colorbar gridspec layouts.
+                    # This is probably OK because this whole logic tree
+                    # is for when the user is doing simple things with the
+                    # add_subplot command.  For complicated layouts
+                    # like subgridspecs the proper gridspec is passed in...
+                    gs = gs.get_topmost_subplotspec().get_gridspec()
+                if gs.get_geometry() == (nrows, ncols):
+                    return gs
+        # else gridspec not found:
+        return GridSpec(nrows, ncols, figure=figure)
 
     def __getitem__(self, key):
         """Create and return a `.SubplotSpec` instance."""
@@ -246,57 +266,7 @@ class GridSpecBase:
         """
         Add all subplots specified by this `GridSpec` to its parent figure.
 
-        This utility wrapper makes it convenient to create common layouts of
-        subplots in a single call.
-
-        Parameters
-        ----------
-        sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
-            Controls sharing of properties among x (*sharex*) or y (*sharey*)
-            axes:
-
-            - True or 'all': x- or y-axis will be shared among all subplots.
-            - False or 'none': each subplot x- or y-axis will be independent.
-            - 'row': each subplot row will share an x- or y-axis.
-            - 'col': each subplot column will share an x- or y-axis.
-
-            When subplots have a shared x-axis along a column, only the x tick
-            labels of the bottom subplot are created. Similarly, when subplots
-            have a shared y-axis along a row, only the y tick labels of the
-            first column subplot are created. To later turn other subplots'
-            ticklabels on, use `~matplotlib.axes.Axes.tick_params`.
-
-        squeeze : bool, optional, default: True
-            - If True, extra dimensions are squeezed out from the returned
-              array of Axes:
-
-              - if only one subplot is constructed (nrows=ncols=1), the
-                resulting single Axes object is returned as a scalar.
-              - for Nx1 or 1xM subplots, the returned object is a 1D numpy
-                object array of Axes objects.
-              - for NxM, subplots with N>1 and M>1 are returned as a 2D array.
-
-            - If False, no squeezing at all is done: the returned Axes object
-              is always a 2D array containing Axes instances, even if it ends
-              up being 1x1.
-
-        subplot_kw : dict, optional
-            Dict with keywords passed to the `~.Figure.add_subplot` call used
-            to create each subplot.
-
-        Returns
-        -------
-        ax : `~.axes.Axes` object or array of Axes objects.
-            *ax* can be either a single `~matplotlib.axes.Axes` object or
-            an array of Axes objects if more than one subplot was created. The
-            dimensions of the resulting array can be controlled with the
-            squeeze keyword, see above.
-
-        See Also
-        --------
-        .pyplot.subplots
-        .Figure.add_subplot
-        .pyplot.subplot
+        See `.Figure.subplots` for detailed documentation.
         """
 
         figure = self.figure
@@ -313,13 +283,14 @@ class GridSpecBase:
         # `subplots(1, 2, 1)` when `subplot(1, 2, 1)` was intended.
         # In most cases, no error will ever occur, but mysterious behavior
         # will result because what was intended to be the subplot index is
-        # instead treated as a bool for sharex.
+        # instead treated as a bool for sharex.  This check should go away
+        # once sharex becomes kwonly.
         if isinstance(sharex, Integral):
-            cbook._warn_external(
+            _api.warn_external(
                 "sharex argument to subplots() was an integer.  Did you "
                 "intend to use subplot() (without 's')?")
-        cbook._check_in_list(["all", "row", "col", "none"],
-                             sharex=sharex, sharey=sharey)
+        _api.check_in_list(["all", "row", "col", "none"],
+                           sharex=sharex, sharey=sharey)
         if subplot_kw is None:
             subplot_kw = {}
         # don't mutate kwargs passed by user...
@@ -338,17 +309,23 @@ class GridSpecBase:
 
         # turn off redundant tick labeling
         if sharex in ["col", "all"]:
-            # turn off all but the bottom row
-            for ax in axarr[:-1, :].flat:
-                ax.xaxis.set_tick_params(which='both',
-                                         labelbottom=False, labeltop=False)
-                ax.xaxis.offsetText.set_visible(False)
+            for ax in axarr[:-1, :].flat:  # Remove bottom labels/offsettexts.
+                ax.xaxis.set_tick_params(which="both", labelbottom=False)
+                if ax.xaxis.offsetText.get_position()[1] == 0:
+                    ax.xaxis.offsetText.set_visible(False)
+            for ax in axarr[1:, :].flat:  # Remove top labels/offsettexts.
+                ax.xaxis.set_tick_params(which="both", labeltop=False)
+                if ax.xaxis.offsetText.get_position()[1] == 1:
+                    ax.xaxis.offsetText.set_visible(False)
         if sharey in ["row", "all"]:
-            # turn off all but the first column
-            for ax in axarr[:, 1:].flat:
-                ax.yaxis.set_tick_params(which='both',
-                                         labelleft=False, labelright=False)
-                ax.yaxis.offsetText.set_visible(False)
+            for ax in axarr[:, 1:].flat:  # Remove left labels/offsettexts.
+                ax.yaxis.set_tick_params(which="both", labelleft=False)
+                if ax.yaxis.offsetText.get_position()[0] == 0:
+                    ax.yaxis.offsetText.set_visible(False)
+            for ax in axarr[:, :-1].flat:  # Remove right labels/offsettexts.
+                ax.yaxis.set_tick_params(which="both", labelright=False)
+                if ax.yaxis.offsetText.get_position()[0] == 1:
+                    ax.yaxis.offsetText.set_visible(False)
 
         if squeeze:
             # Discarding unneeded dimensions that equal 1.  If we only have one
@@ -378,7 +355,7 @@ class GridSpec(GridSpecBase):
             The number of rows and columns of the grid.
 
         figure : `~.figure.Figure`, optional
-            Only used for constrained layout to create a proper layoutbox.
+            Only used for constrained layout to create a proper layoutgrid.
 
         left, right, top, bottom : float, optional
             Extent of the subplots as a fraction of figure width or height.
@@ -417,26 +394,28 @@ class GridSpec(GridSpecBase):
         self.hspace = hspace
         self.figure = figure
 
-        GridSpecBase.__init__(self, nrows, ncols,
-                              width_ratios=width_ratios,
-                              height_ratios=height_ratios)
+        super().__init__(nrows, ncols,
+                         width_ratios=width_ratios,
+                         height_ratios=height_ratios)
 
+        # set up layoutgrid for constrained_layout:
+        self._layoutgrid = None
         if self.figure is None or not self.figure.get_constrained_layout():
-            self._layoutbox = None
+            self._layoutgrid = None
         else:
-            self.figure.init_layoutbox()
-            self._layoutbox = layoutbox.LayoutBox(
-                parent=self.figure._layoutbox,
-                name='gridspec' + layoutbox.seq_id(),
-                artist=self)
-        # by default the layoutbox for a gridspec will fill a figure.
-        # but this can change below if the gridspec is created from a
-        # subplotspec. (GridSpecFromSubplotSpec)
+            self._toplayoutbox = self.figure._layoutgrid
+            self._layoutgrid = layoutgrid.LayoutGrid(
+                parent=self.figure._layoutgrid,
+                parent_inner=True,
+                name=(self.figure._layoutgrid.name + '.gridspec' +
+                      layoutgrid.seq_id()),
+                ncols=ncols, nrows=nrows, width_ratios=width_ratios,
+                height_ratios=height_ratios)
 
     _AllowedKeys = ["left", "bottom", "right", "top", "wspace", "hspace"]
 
     def __getstate__(self):
-        return {**self.__dict__, "_layoutbox": None}
+        return {**self.__dict__, "_layoutgrid": None}
 
     def update(self, **kwargs):
         """
@@ -460,22 +439,11 @@ class GridSpec(GridSpecBase):
                 raise AttributeError(f"{k} is an unknown keyword")
         for figmanager in _pylab_helpers.Gcf.figs.values():
             for ax in figmanager.canvas.figure.axes:
-                # copied from Figure.subplots_adjust
-                if not isinstance(ax, mpl.axes.SubplotBase):
-                    # Check if sharing a subplots axis
-                    if isinstance(ax._sharex, mpl.axes.SubplotBase):
-                        if ax._sharex.get_subplotspec().get_gridspec() == self:
-                            ax._sharex.update_params()
-                            ax._set_position(ax._sharex.figbox)
-                    elif isinstance(ax._sharey, mpl.axes.SubplotBase):
-                        if ax._sharey.get_subplotspec().get_gridspec() == self:
-                            ax._sharey.update_params()
-                            ax._set_position(ax._sharey.figbox)
-                else:
+                if isinstance(ax, mpl.axes.SubplotBase):
                     ss = ax.get_subplotspec().get_topmost_subplotspec()
                     if ss.get_gridspec() == self:
-                        ax.update_params()
-                        ax._set_position(ax.figbox)
+                        ax._set_position(
+                            ax.get_subplotspec().get_position(ax.figure))
 
     def get_subplot_params(self, figure=None):
         """
@@ -528,9 +496,9 @@ class GridSpec(GridSpecBase):
         subplotspec_list = tight_layout.get_subplotspec_list(
             figure.axes, grid_spec=self)
         if None in subplotspec_list:
-            cbook._warn_external("This figure includes Axes that are not "
-                                 "compatible with tight_layout, so results "
-                                 "might be incorrect.")
+            _api.warn_external("This figure includes Axes that are not "
+                               "compatible with tight_layout, so results "
+                               "might be incorrect.")
 
         if renderer is None:
             renderer = tight_layout.get_renderer(figure)
@@ -562,19 +530,29 @@ class GridSpecFromSubplotSpec(GridSpecBase):
         self._hspace = hspace
         self._subplot_spec = subplot_spec
         self.figure = self._subplot_spec.get_gridspec().figure
-        GridSpecBase.__init__(self, nrows, ncols,
-                              width_ratios=width_ratios,
-                              height_ratios=height_ratios)
-        # do the layoutboxes
-        subspeclb = subplot_spec._layoutbox
+        super().__init__(nrows, ncols,
+                         width_ratios=width_ratios,
+                         height_ratios=height_ratios)
+        # do the layoutgrids for constrained_layout:
+        subspeclb = subplot_spec.get_gridspec()._layoutgrid
         if subspeclb is None:
-            self._layoutbox = None
+            self._layoutgrid = None
         else:
-            # OK, this is needed to divide the figure.
-            self._layoutbox = subspeclb.layout_from_subplotspec(
-                    subplot_spec,
-                    name=subspeclb.name + '.gridspec' + layoutbox.seq_id(),
-                    artist=self)
+            # this _toplayoutbox is a container that spans the cols and
+            # rows in the parent gridspec.  Not yet implemented,
+            # but we do this so that it is possible to have subgridspec
+            # level artists.
+            self._toplayoutgrid = layoutgrid.LayoutGrid(
+                parent=subspeclb,
+                name=subspeclb.name + '.top' + layoutgrid.seq_id(),
+                nrows=1, ncols=1,
+                parent_pos=(subplot_spec.rowspan, subplot_spec.colspan))
+            self._layoutgrid = layoutgrid.LayoutGrid(
+                    parent=self._toplayoutgrid,
+                    name=(self._toplayoutgrid.name + '.gridspec' +
+                          layoutgrid.seq_id()),
+                    nrows=nrows, ncols=ncols,
+                    width_ratios=width_ratios, height_ratios=height_ratios)
 
     def get_subplot_params(self, figure=None):
         """Return a dictionary of subplot layout parameters."""
@@ -623,18 +601,6 @@ class SubplotSpec:
         self._gridspec = gridspec
         self.num1 = num1
         self.num2 = num2
-        if gridspec._layoutbox is not None:
-            glb = gridspec._layoutbox
-            # So note that here we don't assign any layout yet,
-            # just make the layoutbox that will contain all items
-            # associated w/ this axis.  This can include other axes like
-            # a colorbar or a legend.
-            self._layoutbox = layoutbox.LayoutBox(
-                    parent=glb,
-                    name=glb.name + '.ss' + layoutbox.seq_id(),
-                    artist=self)
-        else:
-            self._layoutbox = None
 
     def __repr__(self):
         return (f"{self.get_gridspec()}["
@@ -658,7 +624,7 @@ class SubplotSpec:
                 return arg
             else:
                 if not isinstance(arg, Integral):
-                    cbook.warn_deprecated("3.3", message=message)
+                    _api.warn_deprecated("3.3", message=message)
                     arg = str(arg)
                 try:
                     rows, cols, num = map(int, str(arg))
@@ -666,32 +632,35 @@ class SubplotSpec:
                     raise ValueError(
                         f"Single argument to subplot must be a three-digit "
                         f"integer, not {arg}") from None
-                # num - 1 for converting from MATLAB to python indexing
-                return GridSpec(rows, cols, figure=figure)[num - 1]
+                i = j = num
         elif len(args) == 3:
             rows, cols, num = args
             if not (isinstance(rows, Integral) and isinstance(cols, Integral)):
-                cbook.warn_deprecated("3.3", message=message)
+                _api.warn_deprecated("3.3", message=message)
                 rows, cols = map(int, [rows, cols])
             gs = GridSpec(rows, cols, figure=figure)
             if isinstance(num, tuple) and len(num) == 2:
                 if not all(isinstance(n, Integral) for n in num):
-                    cbook.warn_deprecated("3.3", message=message)
+                    _api.warn_deprecated("3.3", message=message)
                     i, j = map(int, num)
                 else:
                     i, j = num
-                return gs[i-1:j]
             else:
                 if not isinstance(num, Integral):
-                    cbook.warn_deprecated("3.3", message=message)
+                    _api.warn_deprecated("3.3", message=message)
                     num = int(num)
                 if num < 1 or num > rows*cols:
                     raise ValueError(
                         f"num must be 1 <= num <= {rows*cols}, not {num}")
-                return gs[num - 1]   # -1 due to MATLAB indexing.
+                i = j = num
         else:
             raise TypeError(f"subplot() takes 1 or 3 positional arguments but "
                             f"{len(args)} were given")
+
+        gs = GridSpec._check_gridspec_exists(figure, rows, cols)
+        if gs is None:
+            gs = GridSpec(rows, cols, figure=figure)
+        return gs[i-1:j]
 
     # num2 is a property only to handle the case where it is None and someone
     # mutates num1.
@@ -705,7 +674,7 @@ class SubplotSpec:
         self._num2 = value
 
     def __getstate__(self):
-        return {**self.__dict__, "_layoutbox": None}
+        return {**self.__dict__}
 
     def get_gridspec(self):
         return self._gridspec
@@ -721,7 +690,7 @@ class SubplotSpec:
         rows, cols = self.get_gridspec().get_geometry()
         return rows, cols, self.num1, self.num2
 
-    @cbook.deprecated("3.3", alternative="rowspan, colspan")
+    @_api.deprecated("3.3", alternative="rowspan, colspan")
     def get_rows_columns(self):
         """
         Return the subplot row and column numbers as a tuple
@@ -743,11 +712,24 @@ class SubplotSpec:
     def colspan(self):
         """The columns spanned by this subplot, as a `range` object."""
         ncols = self.get_gridspec().ncols
-        # We explicitly support num2 refering to a column on num1's *left*, so
+        # We explicitly support num2 referring to a column on num1's *left*, so
         # we must sort the column indices here so that the range makes sense.
         c1, c2 = sorted([self.num1 % ncols, self.num2 % ncols])
         return range(c1, c2 + 1)
 
+    def is_first_row(self):
+        return self.rowspan.start == 0
+
+    def is_last_row(self):
+        return self.rowspan.stop == self.get_gridspec().nrows
+
+    def is_first_col(self):
+        return self.colspan.start == 0
+
+    def is_last_col(self):
+        return self.colspan.stop == self.get_gridspec().ncols
+
+    @_api.delete_parameter("3.4", "return_all")
     def get_position(self, figure, return_all=False):
         """
         Update the subplot position from ``figure.subplotpars``.

@@ -2,7 +2,7 @@
 //
 // This file is part of the QtQuick Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -65,7 +65,7 @@ public:
     QColor clearColor() const;
     void setClearMode(QSGAbstractRenderer::ClearMode mode);
     QSGAbstractRenderer::ClearMode clearMode() const;
-    virtual void renderScene(GLuint fboId = 0) = 0;
+    virtual void renderScene(uint fboId = 0) = 0;
 
 signals:
     void sceneGraphChanged();

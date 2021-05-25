@@ -183,8 +183,8 @@ class XrefTable:
                     this_deleted_object_id = deleted_keys.pop(0)
                     check_format_condition(
                         object_id == this_deleted_object_id,
-                        "expected the next deleted object ID to be %s, instead found %s"
-                        % (object_id, this_deleted_object_id),
+                        f"expected the next deleted object ID to be {object_id}, "
+                        f"instead found {this_deleted_object_id}",
                     )
                     try:
                         next_in_linked_list = deleted_keys[0]
@@ -218,7 +218,7 @@ class PdfName:
         return hash(self.name)
 
     def __repr__(self):
-        return "PdfName(%s)" % repr(self.name)
+        return f"PdfName({repr(self.name)})"
 
     @classmethod
     def from_pdf_stream(cls, data):
@@ -315,7 +315,7 @@ class PdfStream:
             return zlib.decompress(self.buf, bufsize=int(expected_length))
         else:
             raise NotImplementedError(
-                "stream filter %s unknown/unsupported" % repr(self.dictionary.Filter)
+                f"stream filter {repr(self.dictionary.Filter)} unknown/unsupported"
             )
 
 
@@ -423,7 +423,7 @@ class PdfParser:
         self.f.write(b"%PDF-1.4\n")
 
     def write_comment(self, s):
-        self.f.write(("% {}\n".format(s)).encode("utf-8"))
+        self.f.write(f"% {s}\n".encode("utf-8"))
 
     def write_catalog(self):
         self.del_root()
@@ -580,8 +580,9 @@ class PdfParser:
     whitespace_or_hex = br"[\000\011\012\014\015\0400-9a-fA-F]"
     whitespace_optional = whitespace + b"*"
     whitespace_mandatory = whitespace + b"+"
+    whitespace_optional_no_nl = br"[\000\011\014\015\040]*"  # no "\012" aka "\n"
     newline_only = br"[\r\n]+"
-    newline = whitespace_optional + newline_only + whitespace_optional
+    newline = whitespace_optional_no_nl + newline_only + whitespace_optional_no_nl
     re_trailer_end = re.compile(
         whitespace_mandatory
         + br"trailer"
@@ -966,9 +967,8 @@ class PdfParser:
         offset, generation = self.xref_table[ref[0]]
         check_format_condition(
             generation == ref[1],
-            "expected to find generation %s for object ID %s in xref table, "
-            "instead found generation %s at offset %s"
-            % (ref[1], ref[0], generation, offset),
+            f"expected to find generation {ref[1]} for object ID {ref[0]} in xref "
+            f"table, instead found generation {generation} at offset {offset}",
         )
         value = self.get_value(
             self.buf,

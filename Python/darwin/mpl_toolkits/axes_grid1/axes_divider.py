@@ -4,7 +4,7 @@ Helper classes to adjust the positions of multiple axes at drawing time.
 
 import numpy as np
 
-from matplotlib import cbook
+from matplotlib import _api
 from matplotlib.axes import SubplotBase
 from matplotlib.gridspec import SubplotSpec, GridSpec
 import matplotlib.transforms as mtransforms
@@ -123,7 +123,7 @@ class Divider:
 
         """
         if len(anchor) != 2:
-            cbook._check_in_list(mtransforms.Bbox.coefs, anchor=anchor)
+            _api.check_in_list(mtransforms.Bbox.coefs, anchor=anchor)
         self._anchor = anchor
 
     def get_anchor(self):
@@ -258,8 +258,8 @@ class Divider:
         elif position == "top":
             self._vertical.append(size)
         else:
-            cbook._check_in_list(["left", "right", "bottom", "top"],
-                                 position=position)
+            _api.check_in_list(["left", "right", "bottom", "top"],
+                               position=position)
 
     def add_auto_adjustable_area(self, use_axes, pad=0.1, adjust_dirs=None):
         if adjust_dirs is None:
@@ -347,27 +347,33 @@ class SubplotDivider(Divider):
             (2, 3, 4)).
         """
         self.figure = fig
-        self._subplotspec = SubplotSpec._from_subplot_args(fig, args)
-        self.update_params()  # sets self.figbox
-        Divider.__init__(self, fig, pos=self.figbox.bounds,
+        super().__init__(fig, [0, 0, 1, 1],
                          horizontal=horizontal or [], vertical=vertical or [],
                          aspect=aspect, anchor=anchor)
+        self.set_subplotspec(SubplotSpec._from_subplot_args(fig, args))
 
     def get_position(self):
         """Return the bounds of the subplot box."""
-        self.update_params()  # update self.figbox
-        return self.figbox.bounds
+        return self.get_subplotspec().get_position(self.figure).bounds
 
+    @_api.deprecated("3.4")
+    @property
+    def figbox(self):
+        return self.get_subplotspec().get_position(self.figure)
+
+    @_api.deprecated("3.4")
     def update_params(self):
-        """Update the subplot position from fig.subplotpars."""
-        self.figbox = self.get_subplotspec().get_position(self.figure)
+        pass
 
+    @_api.deprecated(
+        "3.4", alternative="get_subplotspec",
+        addendum="(get_subplotspec returns a SubplotSpec instance.)")
     def get_geometry(self):
         """Get the subplot geometry, e.g., (2, 2, 3)."""
         rows, cols, num1, num2 = self.get_subplotspec().get_geometry()
         return rows, cols, num1 + 1  # for compatibility
 
-    # COVERAGE NOTE: Never used internally or from examples
+    @_api.deprecated("3.4", alternative="set_subplotspec")
     def change_geometry(self, numrows, numcols, num):
         """Change subplot geometry, e.g., from (1, 1, 1) to (2, 2, 3)."""
         self._subplotspec = GridSpec(numrows, numcols)[num-1]
@@ -381,6 +387,7 @@ class SubplotDivider(Divider):
     def set_subplotspec(self, subplotspec):
         """Set the SubplotSpec instance."""
         self._subplotspec = subplotspec
+        self.set_position(subplotspec.get_position(self.figure))
 
 
 class AxesDivider(Divider):
@@ -406,7 +413,7 @@ class AxesDivider(Divider):
         else:
             self._yref = yref
 
-        Divider.__init__(self, fig=axes.get_figure(), pos=None,
+        super().__init__(fig=axes.get_figure(), pos=None,
                          horizontal=[self._xref], vertical=[self._yref],
                          aspect=None, anchor="C")
 
@@ -443,7 +450,7 @@ class AxesDivider(Divider):
             main axes will be used.
         """
         if pad is None:
-            cbook.warn_deprecated(
+            _api.warn_deprecated(
                 "3.2", message="In a future version, 'pad' will default to "
                 "rcParams['figure.subplot.wspace'].  Set pad=0 to keep the "
                 "old behavior.")
@@ -492,7 +499,7 @@ class AxesDivider(Divider):
             main axes will be used.
         """
         if pad is None:
-            cbook.warn_deprecated(
+            _api.warn_deprecated(
                 "3.2", message="In a future version, 'pad' will default to "
                 "rcParams['figure.subplot.hspace'].  Set pad=0 to keep the "
                 "old behavior.")
@@ -538,8 +545,8 @@ class AxesDivider(Divider):
         elif position == "top":
             ax = self.new_vertical(size, pad, pack_start=False, **kwargs)
         else:
-            cbook._check_in_list(["left", "right", "bottom", "top"],
-                                 position=position)
+            _api.check_in_list(["left", "right", "bottom", "top"],
+                               position=position)
         if add_to_figure:
             self._fig.add_axes(ax)
         return ax
@@ -609,8 +616,7 @@ class HBoxDivider(SubplotDivider):
 
     def new_locator(self, nx, nx1=None):
         """
-        Create a new `~mpl_toolkits.axes_grid.axes_divider.AxesLocator` for
-        the specified cell.
+        Create a new `AxesLocator` for the specified cell.
 
         Parameters
         ----------
@@ -688,8 +694,7 @@ class VBoxDivider(HBoxDivider):
 
     def new_locator(self, ny, ny1=None):
         """
-        Create a new `~mpl_toolkits.axes_grid.axes_divider.AxesLocator` for
-        the specified cell.
+        Create a new `AxesLocator` for the specified cell.
 
         Parameters
         ----------

@@ -6,6 +6,19 @@ var comm_websocket_adapter = function (comm) {
     // socket, so there is still some room for performance tuning.
     var ws = {};
 
+    ws.binaryType = comm.kernel.ws.binaryType;
+    ws.readyState = comm.kernel.ws.readyState;
+    function updateReadyState(_event) {
+        if (comm.kernel.ws) {
+            ws.readyState = comm.kernel.ws.readyState;
+        } else {
+            ws.readyState = 3; // Closed state.
+        }
+    }
+    comm.kernel.ws.addEventListener('open', updateReadyState);
+    comm.kernel.ws.addEventListener('close', updateReadyState);
+    comm.kernel.ws.addEventListener('error', updateReadyState);
+
     ws.close = function () {
         comm.close();
     };
@@ -16,8 +29,14 @@ var comm_websocket_adapter = function (comm) {
     // Register the callback with on_msg.
     comm.on_msg(function (msg) {
         //console.log('receiving', msg['content']['data'], msg);
+        var data = msg['content']['data'];
+        if (data['blob'] !== undefined) {
+            data = {
+                data: new Blob(msg['buffers'], { type: data['blob'] }),
+            };
+        }
         // Pass the mpl event to the overridden (by mpl) onmessage function.
-        ws.onmessage(msg['content']['data']);
+        ws.onmessage(data);
     });
     return ws;
 };
@@ -48,7 +67,7 @@ mpl.mpl_figure_comm = function (comm, msg) {
         console.error('Failed to find cell for figure', id, fig);
         return;
     }
-    fig.cell_info[0].output_area.element.one(
+    fig.cell_info[0].output_area.element.on(
         'cleared',
         { fig: fig },
         fig._remove_fig_handler
@@ -61,6 +80,7 @@ mpl.figure.prototype.handle_close = function (fig, msg) {
         'cleared',
         fig._remove_fig_handler
     );
+    fig.resizeObserverInstance.unobserve(fig.canvas_div);
 
     // Update the output cell to use the data from the current canvas.
     fig.push_to_output();
@@ -181,6 +201,10 @@ mpl.figure.prototype._init_toolbar = function () {
 
 mpl.figure.prototype._remove_fig_handler = function (event) {
     var fig = event.data.fig;
+    if (event.target !== this) {
+        // Ignore bubbled events from children.
+        return;
+    }
     fig.close_ws(fig, {});
 };
 

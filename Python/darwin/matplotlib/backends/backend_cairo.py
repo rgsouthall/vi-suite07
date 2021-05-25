@@ -21,10 +21,11 @@ except ImportError:
         import cairocffi as cairo
     except ImportError as err:
         raise ImportError(
-            "cairo backend requires that pycairo>=1.11.0 or cairocffi"
+            "cairo backend requires that pycairo>=1.11.0 or cairocffi "
             "is installed") from err
 
-from .. import cbook, font_manager
+import matplotlib as mpl
+from .. import _api, cbook, font_manager
 from matplotlib.backend_bases import (
     _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
     GraphicsContextBase, RendererBase)
@@ -91,48 +92,47 @@ def _cairo_font_args_from_font_prop(prop):
     return name, slant, weight
 
 
-class RendererCairo(RendererBase):
-    @cbook.deprecated("3.3")
-    @property
-    def fontweights(self):
-        return {
-            100:          cairo.FONT_WEIGHT_NORMAL,
-            200:          cairo.FONT_WEIGHT_NORMAL,
-            300:          cairo.FONT_WEIGHT_NORMAL,
-            400:          cairo.FONT_WEIGHT_NORMAL,
-            500:          cairo.FONT_WEIGHT_NORMAL,
-            600:          cairo.FONT_WEIGHT_BOLD,
-            700:          cairo.FONT_WEIGHT_BOLD,
-            800:          cairo.FONT_WEIGHT_BOLD,
-            900:          cairo.FONT_WEIGHT_BOLD,
-            'ultralight': cairo.FONT_WEIGHT_NORMAL,
-            'light':      cairo.FONT_WEIGHT_NORMAL,
-            'normal':     cairo.FONT_WEIGHT_NORMAL,
-            'medium':     cairo.FONT_WEIGHT_NORMAL,
-            'regular':    cairo.FONT_WEIGHT_NORMAL,
-            'semibold':   cairo.FONT_WEIGHT_BOLD,
-            'bold':       cairo.FONT_WEIGHT_BOLD,
-            'heavy':      cairo.FONT_WEIGHT_BOLD,
-            'ultrabold':  cairo.FONT_WEIGHT_BOLD,
-            'black':      cairo.FONT_WEIGHT_BOLD,
-        }
+# Mappings used for deprecated properties in RendererCairo, see below.
+_f_weights = {
+    100:          cairo.FONT_WEIGHT_NORMAL,
+    200:          cairo.FONT_WEIGHT_NORMAL,
+    300:          cairo.FONT_WEIGHT_NORMAL,
+    400:          cairo.FONT_WEIGHT_NORMAL,
+    500:          cairo.FONT_WEIGHT_NORMAL,
+    600:          cairo.FONT_WEIGHT_BOLD,
+    700:          cairo.FONT_WEIGHT_BOLD,
+    800:          cairo.FONT_WEIGHT_BOLD,
+    900:          cairo.FONT_WEIGHT_BOLD,
+    'ultralight': cairo.FONT_WEIGHT_NORMAL,
+    'light':      cairo.FONT_WEIGHT_NORMAL,
+    'normal':     cairo.FONT_WEIGHT_NORMAL,
+    'medium':     cairo.FONT_WEIGHT_NORMAL,
+    'regular':    cairo.FONT_WEIGHT_NORMAL,
+    'semibold':   cairo.FONT_WEIGHT_BOLD,
+    'bold':       cairo.FONT_WEIGHT_BOLD,
+    'heavy':      cairo.FONT_WEIGHT_BOLD,
+    'ultrabold':  cairo.FONT_WEIGHT_BOLD,
+    'black':      cairo.FONT_WEIGHT_BOLD,
+}
+_f_angles = {
+    'italic':  cairo.FONT_SLANT_ITALIC,
+    'normal':  cairo.FONT_SLANT_NORMAL,
+    'oblique': cairo.FONT_SLANT_OBLIQUE,
+}
 
-    @cbook.deprecated("3.3")
-    @property
-    def fontangles(self):
-        return {
-            'italic':  cairo.FONT_SLANT_ITALIC,
-            'normal':  cairo.FONT_SLANT_NORMAL,
-            'oblique': cairo.FONT_SLANT_OBLIQUE,
-        }
+
+class RendererCairo(RendererBase):
+    fontweights = _api.deprecated("3.3")(property(lambda self: {*_f_weights}))
+    fontangles = _api.deprecated("3.3")(property(lambda self: {*_f_angles}))
+    mathtext_parser = _api.deprecated("3.4")(
+        property(lambda self: MathTextParser('Cairo')))
 
     def __init__(self, dpi):
         self.dpi = dpi
         self.gc = GraphicsContextCairo(renderer=self)
         self.text_ctx = cairo.Context(
            cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1))
-        self.mathtext_parser = MathTextParser('Cairo')
-        RendererBase.__init__(self)
+        super().__init__()
 
     def set_ctx_from_surface(self, surface):
         self.gc.ctx = cairo.Context(surface)
@@ -244,9 +244,14 @@ class RendererCairo(RendererBase):
             ctx.new_path()
             ctx.move_to(x, y)
 
-            ctx.select_font_face(*_cairo_font_args_from_font_prop(prop))
             ctx.save()
+            ctx.select_font_face(*_cairo_font_args_from_font_prop(prop))
             ctx.set_font_size(prop.get_size_in_points() * self.dpi / 72)
+            opts = cairo.FontOptions()
+            opts.set_antialias(
+                cairo.ANTIALIAS_DEFAULT if mpl.rcParams["text.antialiased"]
+                else cairo.ANTIALIAS_NONE)
+            ctx.set_font_options(opts)
             if angle:
                 ctx.rotate(np.deg2rad(-angle))
             ctx.show_text(s)
@@ -254,26 +259,25 @@ class RendererCairo(RendererBase):
 
     def _draw_mathtext(self, gc, x, y, s, prop, angle):
         ctx = gc.ctx
-        width, height, descent, glyphs, rects = self.mathtext_parser.parse(
-            s, self.dpi, prop)
+        width, height, descent, glyphs, rects = \
+            self._text2path.mathtext_parser.parse(s, self.dpi, prop)
 
         ctx.save()
         ctx.translate(x, y)
         if angle:
             ctx.rotate(np.deg2rad(-angle))
 
-        for font, fontsize, s, ox, oy in glyphs:
+        for font, fontsize, idx, ox, oy in glyphs:
             ctx.new_path()
-            ctx.move_to(ox, oy)
-
+            ctx.move_to(ox, -oy)
             ctx.select_font_face(
                 *_cairo_font_args_from_font_prop(ttfFontProperty(font)))
             ctx.set_font_size(fontsize * self.dpi / 72)
-            ctx.show_text(s)
+            ctx.show_text(chr(idx))
 
         for ox, oy, w, h in rects:
             ctx.new_path()
-            ctx.rectangle(ox, oy, w, h)
+            ctx.rectangle(ox, -oy, w, -h)
             ctx.set_source_rgb(0, 0, 0)
             ctx.fill_preserve()
 
@@ -286,9 +290,12 @@ class RendererCairo(RendererBase):
     def get_text_width_height_descent(self, s, prop, ismath):
         # docstring inherited
 
+        if ismath == 'TeX':
+            return super().get_text_width_height_descent(s, prop, ismath)
+
         if ismath:
-            width, height, descent, fonts, used_characters = \
-                self.mathtext_parser.parse(s, self.dpi, prop)
+            width, height, descent, *_ = \
+                self._text2path.mathtext_parser.parse(s, self.dpi, prop)
             return width, height, descent
 
         ctx = self.text_ctx
@@ -332,14 +339,14 @@ class GraphicsContextCairo(GraphicsContextBase):
     }
 
     def __init__(self, renderer):
-        GraphicsContextBase.__init__(self)
+        super().__init__()
         self.renderer = renderer
 
     def restore(self):
         self.ctx.restore()
 
     def set_alpha(self, alpha):
-        GraphicsContextBase.set_alpha(self, alpha)
+        super().set_alpha(alpha)
         _alpha = self.get_alpha()
         rgb = self._rgb
         if self.get_forced_alpha():
@@ -347,12 +354,12 @@ class GraphicsContextCairo(GraphicsContextBase):
         else:
             self.ctx.set_source_rgba(rgb[0], rgb[1], rgb[2], rgb[3])
 
-    # def set_antialiased(self, b):
-        # cairo has many antialiasing modes, we need to pick one for True and
-        # one for False.
+    def set_antialiased(self, b):
+        self.ctx.set_antialias(
+            cairo.ANTIALIAS_DEFAULT if b else cairo.ANTIALIAS_NONE)
 
     def set_capstyle(self, cs):
-        self.ctx.set_line_cap(cbook._check_getitem(self._capd, capstyle=cs))
+        self.ctx.set_line_cap(_api.check_getitem(self._capd, capstyle=cs))
         self._capstyle = cs
 
     def set_clip_rectangle(self, rectangle):
@@ -385,7 +392,7 @@ class GraphicsContextCairo(GraphicsContextBase):
                 offset)
 
     def set_foreground(self, fg, isRGBA=None):
-        GraphicsContextBase.set_foreground(self, fg, isRGBA)
+        super().set_foreground(fg, isRGBA)
         if len(self._rgb) == 3:
             self.ctx.set_source_rgb(*self._rgb)
         else:
@@ -395,7 +402,7 @@ class GraphicsContextCairo(GraphicsContextBase):
         return self.ctx.get_source().get_rgba()[:3]
 
     def set_joinstyle(self, js):
-        self.ctx.set_line_join(cbook._check_getitem(self._joind, joinstyle=js))
+        self.ctx.set_line_join(_api.check_getitem(self._joind, joinstyle=js))
         self._joinstyle = js
 
     def set_linewidth(self, w):

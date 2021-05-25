@@ -30,7 +30,9 @@ import os
 import subprocess
 
 from . import Image, ImageChops, ImageFile, ImagePalette, ImageSequence
-from ._binary import i8, i16le as i16, o8, o16le as o16
+from ._binary import i16le as i16
+from ._binary import o8
+from ._binary import o16le as o16
 
 # --------------------------------------------------------------------
 # Identify/read GIF files
@@ -55,8 +57,8 @@ class GifImageFile(ImageFile.ImageFile):
 
     def data(self):
         s = self.fp.read(1)
-        if s and i8(s):
-            return self.fp.read(i8(s))
+        if s and s[0]:
+            return self.fp.read(s[0])
         return None
 
     def _open(self):
@@ -67,18 +69,18 @@ class GifImageFile(ImageFile.ImageFile):
             raise SyntaxError("not a GIF file")
 
         self.info["version"] = s[:6]
-        self._size = i16(s[6:]), i16(s[8:])
+        self._size = i16(s, 6), i16(s, 8)
         self.tile = []
-        flags = i8(s[10])
+        flags = s[10]
         bits = (flags & 7) + 1
 
         if flags & 128:
             # get global palette
-            self.info["background"] = i8(s[11])
+            self.info["background"] = s[11]
             # check if palette contains colour indices
             p = self.fp.read(3 << bits)
             for i in range(0, len(p), 3):
-                if not (i // 3 == i8(p[i]) == i8(p[i + 1]) == i8(p[i + 2])):
+                if not (i // 3 == p[i] == p[i + 1] == p[i + 2]):
                     p = ImagePalette.raw("RGB", p)
                     self.global_palette = self.palette = p
                     break
@@ -143,7 +145,6 @@ class GifImageFile(ImageFile.ImageFile):
             self.dispose_extent = [0, 0, 0, 0]  # x0, y0, x1, y1
             self.__frame = -1
             self.__fp.seek(self.__rewind)
-            self._prev_im = None
             self.disposal_method = 0
         else:
             # ensure that the previous frame was loaded
@@ -151,7 +152,7 @@ class GifImageFile(ImageFile.ImageFile):
                 self.load()
 
         if frame != self.__frame + 1:
-            raise ValueError("cannot seek to frame %d" % frame)
+            raise ValueError(f"cannot seek to frame {frame}")
         self.__frame = frame
 
         self.tile = []
@@ -172,6 +173,8 @@ class GifImageFile(ImageFile.ImageFile):
         self.palette = copy(self.global_palette)
 
         info = {}
+        frame_transparency = None
+        interlace = None
         while True:
 
             s = self.fp.read(1)
@@ -184,14 +187,14 @@ class GifImageFile(ImageFile.ImageFile):
                 #
                 s = self.fp.read(1)
                 block = self.data()
-                if i8(s) == 249:
+                if s[0] == 249:
                     #
                     # graphic control extension
                     #
-                    flags = i8(block[0])
+                    flags = block[0]
                     if flags & 1:
-                        info["transparency"] = i8(block[3])
-                    info["duration"] = i16(block[1:3]) * 10
+                        frame_transparency = block[3]
+                    info["duration"] = i16(block, 1) * 10
 
                     # disposal method - find the value of bits 4 - 6
                     dispose_bits = 0b00011100 & flags
@@ -202,7 +205,7 @@ class GifImageFile(ImageFile.ImageFile):
                         # correct, but it seems to prevent the last
                         # frame from looking odd for some animations
                         self.disposal_method = dispose_bits
-                elif i8(s) == 254:
+                elif s[0] == 254:
                     #
                     # comment extension
                     #
@@ -213,15 +216,15 @@ class GifImageFile(ImageFile.ImageFile):
                             info["comment"] = block
                         block = self.data()
                     continue
-                elif i8(s) == 255:
+                elif s[0] == 255:
                     #
                     # application extension
                     #
                     info["extension"] = block, self.fp.tell()
                     if block[:11] == b"NETSCAPE2.0":
                         block = self.data()
-                        if len(block) >= 3 and i8(block[0]) == 1:
-                            info["loop"] = i16(block[1:3])
+                        if len(block) >= 3 and block[0] == 1:
+                            info["loop"] = i16(block, 1)
                 while self.data():
                     pass
 
@@ -232,12 +235,12 @@ class GifImageFile(ImageFile.ImageFile):
                 s = self.fp.read(9)
 
                 # extent
-                x0, y0 = i16(s[0:]), i16(s[2:])
-                x1, y1 = x0 + i16(s[4:]), y0 + i16(s[6:])
+                x0, y0 = i16(s, 0), i16(s, 2)
+                x1, y1 = x0 + i16(s, 4), y0 + i16(s, 6)
                 if x1 > self.size[0] or y1 > self.size[1]:
                     self._size = max(x1, self.size[0]), max(y1, self.size[1])
                 self.dispose_extent = x0, y0, x1, y1
-                flags = i8(s[8])
+                flags = s[8]
 
                 interlace = (flags & 64) != 0
 
@@ -246,16 +249,13 @@ class GifImageFile(ImageFile.ImageFile):
                     self.palette = ImagePalette.raw("RGB", self.fp.read(3 << bits))
 
                 # image data
-                bits = i8(self.fp.read(1))
+                bits = self.fp.read(1)[0]
                 self.__offset = self.fp.tell()
-                self.tile = [
-                    ("gif", (x0, y0, x1, y1), self.__offset, (bits, interlace))
-                ]
                 break
 
             else:
                 pass
-                # raise OSError, "illegal GIF tag `%x`" % i8(s)
+                # raise OSError, "illegal GIF tag `%x`" % s[0]
 
         try:
             if self.disposal_method < 2:
@@ -263,24 +263,43 @@ class GifImageFile(ImageFile.ImageFile):
                 self.dispose = None
             elif self.disposal_method == 2:
                 # replace with background colour
-                Image._decompression_bomb_check(self.size)
-                self.dispose = Image.core.fill("P", self.size, self.info["background"])
+
+                # only dispose the extent in this frame
+                x0, y0, x1, y1 = self.dispose_extent
+                dispose_size = (x1 - x0, y1 - y0)
+
+                Image._decompression_bomb_check(dispose_size)
+                self.dispose = Image.core.fill(
+                    "P", dispose_size, self.info["background"]
+                )
             else:
                 # replace with previous contents
                 if self.im:
-                    self.dispose = self.im.copy()
-
-            # only dispose the extent in this frame
-            if self.dispose:
-                self.dispose = self._crop(self.dispose, self.dispose_extent)
+                    # only dispose the extent in this frame
+                    self.dispose = self._crop(self.im, self.dispose_extent)
         except (AttributeError, KeyError):
             pass
 
-        if not self.tile:
+        if interlace is not None:
+            transparency = -1
+            if frame_transparency is not None:
+                if frame == 0:
+                    self.info["transparency"] = frame_transparency
+                else:
+                    transparency = frame_transparency
+            self.tile = [
+                (
+                    "gif",
+                    (x0, y0, x1, y1),
+                    self.__offset,
+                    (bits, interlace, transparency),
+                )
+            ]
+        else:
             # self.__fp = None
             raise EOFError
 
-        for k in ["transparency", "duration", "comment", "extension", "loop"]:
+        for k in ["duration", "comment", "extension", "loop"]:
             if k in info:
                 self.info[k] = info[k]
             elif k in self.info:
@@ -292,19 +311,6 @@ class GifImageFile(ImageFile.ImageFile):
 
     def tell(self):
         return self.__frame
-
-    def load_end(self):
-        ImageFile.ImageFile.load_end(self)
-
-        # if the disposal method is 'do not dispose', transparent
-        # pixels should show the content of the previous frame
-        if self._prev_im and self.disposal_method == 1:
-            # we do this by pasting the updated area onto the previous
-            # frame which we then use as the current image content
-            updated = self._crop(self.im, self.dispose_extent)
-            self._prev_im.paste(updated, self.dispose_extent, updated.convert("RGBA"))
-            self.im = self._prev_im
-        self._prev_im = self.im.copy()
 
     def _close__fp(self):
         try:

@@ -1,27 +1,26 @@
+from contextlib import nullcontext
 from datetime import datetime
 import io
 from pathlib import Path
 import platform
 from types import SimpleNamespace
 import warnings
-try:
-    from contextlib import nullcontext
-except ImportError:
-    from contextlib import ExitStack as nullcontext  # Py3.6
 
 import matplotlib as mpl
 from matplotlib import cbook, rcParams
 from matplotlib.testing.decorators import image_comparison, check_figures_equal
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from matplotlib.ticker import AutoMinorLocator, FixedFormatter, ScalarFormatter
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.gridspec as gridspec
+from matplotlib.cbook import MatplotlibDeprecationWarning
 import numpy as np
 import pytest
 
 
-@image_comparison(['figure_align_labels'],
+@image_comparison(['figure_align_labels'], extensions=['png', 'svg'],
                   tol=0 if platform.machine() == 'x86_64' else 0.01)
 def test_align_labels():
     fig = plt.figure(tight_layout=True)
@@ -63,10 +62,9 @@ def test_align_labels():
 
 
 def test_figure_label():
-    # pyplot figure creation, selection and closing with figure label and
-    # number
+    # pyplot figure creation, selection, and closing with label/number/instance
     plt.close('all')
-    plt.figure('today')
+    fig_today = plt.figure('today')
     plt.figure(3)
     plt.figure('tomorrow')
     plt.figure()
@@ -81,6 +79,10 @@ def test_figure_label():
     plt.close('tomorrow')
     assert plt.get_fignums() == [0, 1]
     assert plt.get_figlabels() == ['', 'today']
+    plt.figure(fig_today)
+    assert plt.gcf() == fig_today
+    with pytest.raises(ValueError):
+        plt.figure(Figure())
 
 
 def test_fignum_exists():
@@ -153,31 +155,73 @@ def test_gca():
         assert fig.add_axes() is None
 
     ax0 = fig.add_axes([0, 0, 1, 1])
-    assert fig.gca(projection='rectilinear') is ax0
+    with pytest.warns(
+            MatplotlibDeprecationWarning,
+            match=r'Calling gca\(\) with keyword arguments was deprecated'):
+        assert fig.gca(projection='rectilinear') is ax0
     assert fig.gca() is ax0
 
     ax1 = fig.add_axes(rect=[0.1, 0.1, 0.8, 0.8])
-    assert fig.gca(projection='rectilinear') is ax1
+    with pytest.warns(
+            MatplotlibDeprecationWarning,
+            match=r'Calling gca\(\) with keyword arguments was deprecated'):
+        assert fig.gca(projection='rectilinear') is ax1
     assert fig.gca() is ax1
 
     ax2 = fig.add_subplot(121, projection='polar')
     assert fig.gca() is ax2
-    assert fig.gca(polar=True) is ax2
+    with pytest.warns(
+            MatplotlibDeprecationWarning,
+            match=r'Calling gca\(\) with keyword arguments was deprecated'):
+        assert fig.gca(polar=True) is ax2
 
     ax3 = fig.add_subplot(122)
     assert fig.gca() is ax3
 
-    # the final request for a polar axes will end up creating one
-    # with a spec of 111.
-    with pytest.warns(UserWarning):
-        # Changing the projection will throw a warning
-        assert fig.gca(polar=True) is not ax3
-    assert fig.gca(polar=True) is not ax2
-    assert fig.gca().get_geometry() == (1, 1, 1)
+    with pytest.warns(
+            MatplotlibDeprecationWarning,
+            match=r'Calling gca\(\) with keyword arguments was deprecated'):
+        assert fig.gca(polar=True) is ax3
+    with pytest.warns(
+            MatplotlibDeprecationWarning,
+            match=r'Calling gca\(\) with keyword arguments was deprecated'):
+        assert fig.gca(polar=True) is not ax2
+    assert fig.gca().get_subplotspec().get_geometry() == (1, 2, 1, 1)
+
+    # add_axes on an existing Axes should not change stored order, but will
+    # make it current.
+    fig.add_axes(ax0)
+    assert fig.axes == [ax0, ax1, ax2, ax3]
+    assert fig.gca() is ax0
+
+    # add_subplot on an existing Axes should not change stored order, but will
+    # make it current.
+    fig.add_subplot(ax2)
+    assert fig.axes == [ax0, ax1, ax2, ax3]
+    assert fig.gca() is ax2
 
     fig.sca(ax1)
-    assert fig.gca(projection='rectilinear') is ax1
+    with pytest.warns(
+            MatplotlibDeprecationWarning,
+            match=r'Calling gca\(\) with keyword arguments was deprecated'):
+        assert fig.gca(projection='rectilinear') is ax1
     assert fig.gca() is ax1
+
+    # sca() should not change stored order of Axes, which is order added.
+    assert fig.axes == [ax0, ax1, ax2, ax3]
+
+
+def test_add_subplot_subclass():
+    fig = plt.figure()
+    fig.add_subplot(axes_class=Axes)
+    with pytest.raises(ValueError):
+        fig.add_subplot(axes_class=Axes, projection="3d")
+    with pytest.raises(ValueError):
+        fig.add_subplot(axes_class=Axes, polar=True)
+    with pytest.raises(ValueError):
+        fig.add_subplot(projection="3d", polar=True)
+    with pytest.raises(TypeError):
+        fig.add_subplot(projection=42)
 
 
 def test_add_subplot_invalid():
@@ -212,6 +256,11 @@ def test_add_subplot_invalid():
                       match='Passing non-integers as three-element position '
                             'specification is deprecated'):
         fig.add_subplot(2.0, 2, 1)
+    _, ax = plt.subplots()
+    with pytest.raises(ValueError,
+                       match='The Subplot must have been created in the '
+                             'present figure'):
+        fig.add_subplot(ax)
 
 
 @image_comparison(['figure_suptitle'])
@@ -396,6 +445,12 @@ def test_invalid_figure_add_axes():
 
     with pytest.raises(TypeError, match="multiple values for argument 'rect'"):
         fig.add_axes([0, 0, 1, 1], rect=[0, 0, 1, 1])
+
+    _, ax = plt.subplots()
+    with pytest.raises(ValueError,
+                       match="The Axes must have been created in the present "
+                             "figure"):
+        fig.add_axes(ax)
 
 
 def test_subplots_shareax_loglabels():
@@ -731,6 +786,8 @@ class TestSubplotMosaic:
     def test_fail_list_of_str(self):
         with pytest.raises(ValueError, match='must be 2D'):
             plt.subplot_mosaic(['foo', 'bar'])
+        with pytest.raises(ValueError, match='must be 2D'):
+            plt.subplot_mosaic(['foo'])
 
     @check_figures_equal(extensions=["png"])
     @pytest.mark.parametrize("subplot_kw", [{}, {"projection": "polar"}, None])
@@ -743,6 +800,24 @@ class TestSubplotMosaic:
         axA = fig_ref.add_subplot(gs[0, 0], **subplot_kw)
 
         axB = fig_ref.add_subplot(gs[0, 1], **subplot_kw)
+
+    def test_string_parser(self):
+        normalize = Figure._normalize_grid_string
+        assert normalize('ABC') == [['A', 'B', 'C']]
+        assert normalize('AB;CC') == [['A', 'B'], ['C', 'C']]
+        assert normalize('AB;CC;DE') == [['A', 'B'], ['C', 'C'], ['D', 'E']]
+        assert normalize("""
+                         ABC
+                         """) == [['A', 'B', 'C']]
+        assert normalize("""
+                         AB
+                         CC
+                         """) == [['A', 'B'], ['C', 'C']]
+        assert normalize("""
+                         AB
+                         CC
+                         DE
+                         """) == [['A', 'B'], ['C', 'C'], ['D', 'E']]
 
     @check_figures_equal(extensions=["png"])
     @pytest.mark.parametrize("str_pattern",
@@ -785,3 +860,211 @@ class TestSubplotMosaic:
     def test_hashable_keys(self, fig_test, fig_ref):
         fig_test.subplot_mosaic([[object(), object()]])
         fig_ref.subplot_mosaic([["A", "B"]])
+
+    @pytest.mark.parametrize('str_pattern',
+                             ['abc', 'cab', 'bca', 'cba', 'acb', 'bac'])
+    def test_user_order(self, str_pattern):
+        fig = plt.figure()
+        ax_dict = fig.subplot_mosaic(str_pattern)
+        assert list(str_pattern) == list(ax_dict)
+        assert list(fig.axes) == list(ax_dict.values())
+
+    def test_nested_user_order(self):
+        layout = [
+            ["A", [["B", "C"],
+                   ["D", "E"]]],
+            ["F", "G"],
+            [".", [["H", [["I"],
+                          ["."]]]]]
+        ]
+
+        fig = plt.figure()
+        ax_dict = fig.subplot_mosaic(layout)
+        assert list(ax_dict) == list("ABCDEFGHI")
+        assert list(fig.axes) == list(ax_dict.values())
+
+
+def test_reused_gridspec():
+    """Test that these all use the same gridspec"""
+    fig = plt.figure()
+    ax1 = fig.add_subplot(3, 2, (3, 5))
+    ax2 = fig.add_subplot(3, 2, 4)
+    ax3 = plt.subplot2grid((3, 2), (2, 1), colspan=2, fig=fig)
+
+    gs1 = ax1.get_subplotspec().get_gridspec()
+    gs2 = ax2.get_subplotspec().get_gridspec()
+    gs3 = ax3.get_subplotspec().get_gridspec()
+
+    assert gs1 == gs2
+    assert gs1 == gs3
+
+
+@image_comparison(['test_subfigure.png'], style='mpl20',
+                  savefig_kwarg={'facecolor': 'teal'},
+                  remove_text=False)
+def test_subfigure():
+    np.random.seed(19680801)
+    fig = plt.figure(constrained_layout=True)
+    sub = fig.subfigures(1, 2)
+
+    axs = sub[0].subplots(2, 2)
+    for ax in axs.flat:
+        pc = ax.pcolormesh(np.random.randn(30, 30), vmin=-2, vmax=2)
+    sub[0].colorbar(pc, ax=axs)
+    sub[0].suptitle('Left Side')
+
+    axs = sub[1].subplots(1, 3)
+    for ax in axs.flat:
+        pc = ax.pcolormesh(np.random.randn(30, 30), vmin=-2, vmax=2)
+    sub[1].colorbar(pc, ax=axs, location='bottom')
+    sub[1].suptitle('Right Side')
+
+    fig.suptitle('Figure suptitle', fontsize='xx-large')
+
+
+def test_subfigure_tightbbox():
+    # test that we can get the tightbbox with a subfigure...
+    fig = plt.figure(constrained_layout=True)
+    sub = fig.subfigures(1, 2)
+
+    np.testing.assert_allclose(
+            fig.get_tightbbox(fig.canvas.get_renderer()).width, 0.1)
+
+
+@image_comparison(['test_subfigure_ss.png'], style='mpl20',
+                  savefig_kwarg={'facecolor': 'teal'},
+                  remove_text=False)
+def test_subfigure_ss():
+    # test assigning the subfigure via subplotspec
+    np.random.seed(19680801)
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(1, 2)
+
+    sub = fig.add_subfigure(gs[0], facecolor='pink')
+
+    axs = sub.subplots(2, 2)
+    for ax in axs.flat:
+        pc = ax.pcolormesh(np.random.randn(30, 30), vmin=-2, vmax=2)
+    sub.colorbar(pc, ax=axs)
+    sub.suptitle('Left Side')
+
+    ax = fig.add_subplot(gs[1])
+    ax.plot(np.arange(20))
+    ax.set_title('Axes')
+
+    fig.suptitle('Figure suptitle', fontsize='xx-large')
+
+
+@image_comparison(['test_subfigure_double.png'], style='mpl20',
+                  savefig_kwarg={'facecolor': 'teal'},
+                  remove_text=False)
+def test_subfigure_double():
+    # test assigning the subfigure via subplotspec
+    np.random.seed(19680801)
+
+    fig = plt.figure(constrained_layout=True, figsize=(10, 8))
+
+    fig.suptitle('fig')
+
+    subfigs = fig.subfigures(1, 2, wspace=0.07)
+
+    subfigs[0].set_facecolor('coral')
+    subfigs[0].suptitle('subfigs[0]')
+
+    subfigs[1].set_facecolor('coral')
+    subfigs[1].suptitle('subfigs[1]')
+
+    subfigsnest = subfigs[0].subfigures(2, 1, height_ratios=[1, 1.4])
+    subfigsnest[0].suptitle('subfigsnest[0]')
+    subfigsnest[0].set_facecolor('r')
+    axsnest0 = subfigsnest[0].subplots(1, 2, sharey=True)
+    for ax in axsnest0:
+        fontsize = 12
+        pc = ax.pcolormesh(np.random.randn(30, 30), vmin=-2.5, vmax=2.5)
+        ax.set_xlabel('x-label', fontsize=fontsize)
+        ax.set_ylabel('y-label', fontsize=fontsize)
+        ax.set_title('Title', fontsize=fontsize)
+
+    subfigsnest[0].colorbar(pc, ax=axsnest0)
+
+    subfigsnest[1].suptitle('subfigsnest[1]')
+    subfigsnest[1].set_facecolor('g')
+    axsnest1 = subfigsnest[1].subplots(3, 1, sharex=True)
+    for nn, ax in enumerate(axsnest1):
+        ax.set_ylabel(f'ylabel{nn}')
+    subfigsnest[1].supxlabel('supxlabel')
+    subfigsnest[1].supylabel('supylabel')
+
+    axsRight = subfigs[1].subplots(2, 2)
+
+
+def test_subfigure_spanning():
+    # test that subfigures get laid out properly...
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(3, 3)
+    sub_figs = [
+        fig.add_subfigure(gs[0, 0]),
+        fig.add_subfigure(gs[0:2, 1]),
+        fig.add_subfigure(gs[2, 1:3]),
+    ]
+
+    w = 640
+    h = 480
+    np.testing.assert_allclose(sub_figs[0].bbox.min, [0., h * 2/3])
+    np.testing.assert_allclose(sub_figs[0].bbox.max, [w / 3, h])
+
+    np.testing.assert_allclose(sub_figs[1].bbox.min, [w / 3, h / 3])
+    np.testing.assert_allclose(sub_figs[1].bbox.max, [w * 2/3, h])
+
+    np.testing.assert_allclose(sub_figs[2].bbox.min, [w / 3, 0])
+    np.testing.assert_allclose(sub_figs[2].bbox.max, [w, h / 3])
+
+
+def test_add_subplot_kwargs():
+    # fig.add_subplot() always creates new axes, even if axes kwargs differ.
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax1 = fig.add_subplot(1, 1, 1)
+    assert ax is not None
+    assert ax1 is not ax
+    plt.close()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection='polar')
+    ax1 = fig.add_subplot(1, 1, 1, projection='polar')
+    assert ax is not None
+    assert ax1 is not ax
+    plt.close()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1, projection='polar')
+    ax1 = fig.add_subplot(1, 1, 1)
+    assert ax is not None
+    assert ax1.name == 'rectilinear'
+    assert ax1 is not ax
+    plt.close()
+
+
+def test_add_axes_kwargs():
+    # fig.add_axes() always creates new axes, even if axes kwargs differ.
+    fig = plt.figure()
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax1 = fig.add_axes([0, 0, 1, 1])
+    assert ax is not None
+    assert ax1 is not ax
+    plt.close()
+
+    fig = plt.figure()
+    ax = fig.add_axes([0, 0, 1, 1], projection='polar')
+    ax1 = fig.add_axes([0, 0, 1, 1], projection='polar')
+    assert ax is not None
+    assert ax1 is not ax
+    plt.close()
+
+    fig = plt.figure()
+    ax = fig.add_axes([0, 0, 1, 1], projection='polar')
+    ax1 = fig.add_axes([0, 0, 1, 1])
+    assert ax is not None
+    assert ax1.name == 'rectilinear'
+    assert ax1 is not ax
+    plt.close()
