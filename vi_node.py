@@ -64,7 +64,7 @@ class ViNodes:
     def poll(cls, ntree):
         return ntree.bl_idname == 'ViN'
 
-# Animate nodes
+# Parametric nodes
 class No_Anim(Node, ViNodes):
     '''Node to automate changes in parameters'''
     bl_idname = 'No_Anim'
@@ -1391,7 +1391,7 @@ class No_En_Con(Node, ViNodes):
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
     restype: EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), 
                                    ("2", "Zone Ventilation", "Zone Ventilation Results"), ("3", "Ventilation Link", "Ventilation Link Results"), 
-                                   ("4", "Thermal Chimney", "Thermal Chimney Results"), ("5", "Power", "Power Production Results")],
+                                   ("4", "Power", "Power Production Results")],
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
 
     resaam: bpy.props.BoolProperty(name = 'Air', description = 'Ambient air metrics', default = False)
@@ -1401,11 +1401,32 @@ class No_En_Con(Node, ViNodes):
     resasm: bpy.props.BoolProperty(name = 'Solar', description = 'Ambient solar metrics', default = False)
     restt: bpy.props.BoolProperty(name = 'Temperature', description = 'Zone temperature (degC)', default = False)
     resh: bpy.props.BoolProperty(name = 'Humidity', description = 'Zone humidity (%)', default = False)
-    restwh: bpy.props.BoolProperty(name = 'Heating Watts', description = 'Zone heating (Watts)', default = False)
-    restwc: bpy.props.BoolProperty(name = 'Cooling Watts', description = 'Zone cooling (Watts)', default = False)
-    reswsg: bpy.props.BoolProperty(name = 'Solar gain', description = 'Window solar gain (Watts)', default = False)
+    restwh: bpy.props.BoolProperty(name = 'Heating', description = 'Zone heating (W)', default = False)
+    restwc: bpy.props.BoolProperty(name = 'Cooling', description = 'Zone cooling (W)', default = False)
+    reswsg: bpy.props.BoolProperty(name = 'Solar gain', description = 'Window solar gain (W)', default = False)
     rescpp: bpy.props.BoolProperty(name = 'PPD', description = 'Percentage People Dissatisfied', default = False)
     rescpm: bpy.props.BoolProperty(name = 'PMV', description = 'Predicted Mean Vote', default = False)
+    resvls: bpy.props.BoolProperty(name = 'Ventilation (l/s)', description = 'Zone ventilation rate (l/s)', default = False)
+    resvmh: bpy.props.BoolProperty(name = 'Ventilation (m\u00b3/h)', description = 'Zone ventilation rate (m\u00b3/h)', default = False)
+    resim: bpy.props.BoolProperty(name = 'Infiltration (m\u00b3/h)', description = 'Zone infiltration rate (m\u00b3/h)', default = False)
+    resiach: bpy.props.BoolProperty(name = 'Infiltration (ACH)', description = 'Zone infiltration rate (ACH)', default = False)
+    resco2: bpy.props.BoolProperty(name = 'CO2 (ppm)', description = 'Zone CO2 concentration (ppm)', default = False)
+    resihl: bpy.props.BoolProperty(name = 'Heat loss (W)', description = 'Ventilation heat loss (W)', default = False)
+    resl12ms: bpy.props.BoolProperty(name = u'Flow (m\u00b3/s)', description = u'Linkage flow (m\u00b3/s)', default = False)
+    reslof: bpy.props.BoolProperty(name = 'Opening factor', description = 'Linkage opening factor', default = False)
+    resmrt: bpy.props.BoolProperty(name = 'MRT', description = 'Mean radiant temperature (degC)', default = False)
+    resocc: bpy.props.BoolProperty(name = 'Occupancy', description = 'Zone occupancy', default = False)
+    resh: bpy.props.BoolProperty(name = 'Humidity', description = 'Zone humidity (%)', default = False)
+    resfhb: bpy.props.BoolProperty(name = 'Heat balance', description = 'Fabric heat balance (W)', default = False)
+    ressah: bpy.props.BoolProperty(name = 'Air heating', description = 'Air heating (W)', default = False)
+    ressac: bpy.props.BoolProperty(name = 'Air cooling', description = 'Air cooling (W)', default = False)
+    reshrhw: bpy.props.BoolProperty(name = 'Heat recovery', description = 'Heat recovery heating (W)', default = False)
+    resldp: bpy.props.BoolProperty(name = 'Delta P', description = 'Pressure difference (Pa)', default = False)
+    resoeg: bpy.props.BoolProperty(name = 'Equipment', description = 'Other equipment heat gains (W)', default = False)
+    respve: bpy.props.BoolProperty(name = 'PV Energy', description = 'PV energy (J)', default = False)
+    respvw: bpy.props.BoolProperty(name = 'PV Power', description = 'PV power (W)', default = False)
+    respvt: bpy.props.BoolProperty(name = 'PV Temperature', description = 'PV Temperature (degC)', default = False)
+    respveff: bpy.props.BoolProperty(name = 'PV Efficiency', description = 'PV efficiency (%)', default = False)
     # (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
     #  reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp, resoeg,
     #  respve, respvw, respvt, respveff) = resnameunits()
@@ -3064,14 +3085,14 @@ vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", labe
              NodeItem("No_Flo_Sim", label="FloVi Simulation")]
 
 vi_gen = []
-vi_anim = [NodeItem("No_Anim", label="Animation")]
+vi_anim = [NodeItem("No_Anim", label="Parametric")]
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_HMChart", label="Heatmap"), NodeItem("No_Vi_Metrics", label="Metrics")]
 vi_out = [NodeItem("No_CSV", label="CSV")]
 vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
 
 vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out), 
-                     ViNodeCategory("Animation", "Animation Nodes", items=vi_anim),
+                     ViNodeCategory("Parametric", "Parametric Nodes", items=vi_anim),
                      ViNodeCategory("Edit", "Edit Nodes", items=vi_edit), 
                      ViNodeCategory("Image", "Image Nodes", items=vi_image), 
                      ViNodeCategory("Display", "Display Nodes", items=vi_display), 
@@ -4131,14 +4152,28 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     dmtc: FloatProperty(default = 0.0001, name = "")
     fe: FloatProperty(default = 0.6, min = 0, max = 1, name = "")
     rpd: FloatProperty(default = 4, min = 0.1, max = 50, name = "")
-    of1:FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor {} (dimensionless)')
-    (of2, of3, of4) =  [FloatProperty(default = 1.0, min = 0.01, max = 1, name = '', description = 'Opening Factor {} (dimensionless)'.format(i)) for i in range(3)]
-    (dcof1, dcof2, dcof3, dcof4) = [FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
-    (wfof1, wfof2, wfof3, wfof4) = [FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
-    (hfof1, hfof2, hfof3, hfof4) = [FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
-    (sfof1, sfof2, sfof3, sfof4) = [FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
+    of1: FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor 1 (dimensionless)')
+    of2: FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor 2 (dimensionless)') 
+    of3: FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor 3 (dimensionless)') 
+    of4: FloatProperty(default = 1.0, min = 0.01, max = 1, name = '', description = 'Opening Factor 4 (dimensionless)')
+    dcof1: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
+    dcof2: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 2 (dimensionless)')
+    dcof3: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 3 (dimensionless)')
+    dcof4: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 4 (dimensionless)')
+    wfof1: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)') 
+    wfof2: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 2 (dimensionless)') 
+    wfof3: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 3 (dimensionless)') 
+    wfof4: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
+    hfof1: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)') 
+    hfof2: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 2 (dimensionless)') 
+    hfof3: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 3 (dimensionless)') 
+    hfof4: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
+    sfof1: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 1 (dimensionless)') 
+    sfof2: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 2 (dimensionless)') 
+    sfof3: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 3 (dimensionless)') 
+    sfof4: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
     dcof: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
-    extnode:  BoolProperty(default = 0)
+    extnode: BoolProperty(default = 0)
     actlist = [("0", "Opening factor", "Actuate the opening factor")]
     acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
     compdict = {'0': 'AirFlow Network Window/Door Opening'}
@@ -4155,6 +4190,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
         self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
         self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 1
         self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
+        self.outputs.new('So_Anim', 'Parameter')
         self.color = (1.0, 0.3, 0.3)
         self['layoutdict'] = {'SO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'), ('Density diff', 'ddtw'), ('DC', 'dcof')), 'DO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'),
                            ('Opening type', 'lvo'), ('Crack length', 'ecl'), ('OF Number', 'noof'), ('OF1', 'of1'), ('DC1', 'dcof1'), ('Width OF1', 'wfof1'), ('Height OF1', 'hfof1'),
@@ -4266,7 +4302,6 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                     if (othersock.name[0:-2]+'b' in [s.name for s in othernode.outputs] and othernode.outputs[othersock.name[0:-2]+'b'].links) or othersock.name[0:-2]+'b' not in [s.name for s in othernode.outputs]:
                         zn = othernode.zone
                         sn = othersock.sn
-                        print(sn, len(str(sn)))
                         snames.append('{}{}_{}'.format(('win-', 'door-')[get_con_node(bpy.data.materials[othersock.name[:-len(str(sn))-3]].vi_params).envi_con_type == 'Door'], zn, sn))
                         params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor')
                         paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.wdof1))
@@ -4357,11 +4392,12 @@ class No_En_Net_SFlow(Node, EnViNodes):
         ("ELA", "ELA", "Effective leakage area")]
 
     linkmenu: EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA')
+    ela: FloatProperty(default = 0.1, min = 0.00001, max = 1, name = "", description = 'Effective leakage area')
     of: FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     dcof: FloatProperty(default = 0.7, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
-    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "", precision = 5, description = 'Flow coefficient')
-    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "", precision = 3, description = 'Flow exponent')
+    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, name = "", precision = 5, description = 'Flow coefficient', options = {'SKIP_SAVE'})
+    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, name = "", precision = 3, description = 'Flow exponent', options = {'SKIP_SAVE'})
     dlen: FloatProperty(default = 2, name = "")
     dhyd: FloatProperty(default = 0.1, name = "")
     dcs: FloatProperty(default = 0.1, name = "")
@@ -4382,6 +4418,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
         self.inputs.new('So_En_Net_SFlow', 'Node 2')
         self.outputs.new('So_En_Net_SFlow', 'Node 1')
         self.outputs.new('So_En_Net_SFlow', 'Node 2')
+        self.outputs.new('So_Anim', 'Parameter')
 
     def update(self):
         self.inputs[0].viuid = '{}#{}'.format(self.name, 1)
@@ -4412,6 +4449,23 @@ class No_En_Net_SFlow(Node, EnViNodes):
 
     def epwrite(self, exp_op, enng):
         fentry, crentry, zn, en, surfentry, crname, snames = '', '', '', '', '', '', []
+        paradict = {}
+        
+        for p in self.bl_rna.properties:
+            if p.is_skip_save and p.identifier in [l.to_node.parameter for l in self.outputs['Parameter'].links]:
+                for l in self.outputs['Parameter'].links:
+                    if p.identifier == l.to_node.parameter:
+                        paradict[p.identifier] = bpy.data.texts[l.to_node.file].read().split('/n')[bpy.context.scene.current_frame]
+
+            else:
+                paradict[p.identifier] = getattr(self, p.identifier)
+
+        print(paradict)
+
+
+        para_dict = {l.to_node.parameter: bpy.data.texts[l.to_node.file].read().split('/n')[bpy.context.scene.current_frame] for l in self.outputs['Parameter'].links}
+        print(para_dict)
+
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
                 othernode = (link.from_node, link.to_node)[sock.is_output]
@@ -4892,7 +4946,31 @@ class No_En_Net_EMSPy(Node, EnViNodes):
             return epentry('PythonPlugin:Instance', pyparams, pyparamvs)
         else:
             return ''
-        
+
+class No_En_Net_Anim(Node, EnViNodes):
+    '''Node to automate changes in parameters'''
+    bl_idname = 'No_En_Net_Anim'
+    bl_label = 'VI Animation'
+    bl_icon = 'ANIM'
+    
+    def retparams(self, context):
+        if self.inputs[0].links:
+            print([(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save])
+            return [(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save]
+            
+        else:
+            return [('None', 'None', 'None')]
+    
+    parameter: EnumProperty(name='', description = 'Parameter to be animated', items=retparams)
+    anim_file: StringProperty(name = '')
+
+    def init(self, context):
+        self.inputs.new('So_Anim', 'Parameter')
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, "Parameter:", self, 'parameter')
+        layout.prop_search(self, 'anim_file', bpy.data, 'texts', text='File', icon='TEXT')        
+
 class EnViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -4901,16 +4979,22 @@ class EnViNodeCategory(NodeCategory):
 envi_zone = [NodeItem("No_En_Net_Zone", label="Zone"), NodeItem("No_En_Net_Occ", label="Occupancy"),
              NodeItem("No_En_Net_Hvac", label="HVAC"), NodeItem("No_En_Net_Eq", label="Equipment"),
              NodeItem("No_En_Net_Inf", label="Infiltration"), NodeItem("No_En_Net_TC", label="Thermal Chimney")]
+
 envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule Net")]
+
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
                 NodeItem("No_En_Net_Ext", label="External Air"), NodeItem("No_En_Net_WPC", label="WPC")]
+
 envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program"),
             NodeItem("No_En_Net_EMSPy", label="EMS Python")]
+
+envi_para = [NodeItem("No_En_Net_Anim", label="Parametric")]
 
 envinode_categories = [EnViNodeCategory("Zone", "Zone Nodes", items=envi_zone), 
                        EnViNodeCategory("Schedule_Net", "Schedule Nodes", items=envi_sched),
                        EnViNodeCategory("Airflow", "Airflow Nodes", items=envi_airflow),
-                       EnViNodeCategory("EMS", "EMS Nodes", items=envi_ems)]
+                       EnViNodeCategory("EMS", "EMS Nodes", items=envi_ems),
+                       EnViNodeCategory("Parametric", "Parametric Nodes", items=envi_ems)]
 
         
 #        EnViNodeCategory("Control", "Control Node", items=[NodeItem("AFNCon", label="Control Node"), NodeItem("EnViWPCA", label="WPCA Node"), NodeItem("EnViCrRef", label="Crack Reference")]),
@@ -5706,8 +5790,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material", update = ec_update)
     ecm2: FloatProperty(name = "kgCo2e/m2", description = "Embodied carbon per metre squared", min = 0.0, default = 0.0)
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
-    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
-    tc: FloatProperty(name = "W/m.K", description = "Thickness (mm)", min = 0.001, max = 10, default = 0.5)
+    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'SKIP_SAVE'})
+    tc: FloatProperty(name = "W/m.K", description = "Thermal conductivity (W/m.K)", min = 0.001, max = 10, default = 0.5)
     rough: EnumProperty(items = [("VeryRough", "VeryRough", "Roughness"), 
                                   ("Rough", "Rough", "Roughness"), 
                                   ("MediumRough", "MediumRough", "Roughness"),
@@ -5732,6 +5816,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     def init(self, context):
         self.outputs.new('So_En_Mat_Op', 'Layer')
         self.inputs.new('So_En_Mat_Op', 'Layer')
+        self.outputs.new('So_Anim', 'Parameter')
         
     def draw_buttons(self, context, layout):
         newrow(layout, "Type:", self, "materialtype")
@@ -6839,7 +6924,29 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
         schedtext = epentry('Schedule:File', params, paramvs)    
         return schedtext
-   
+
+class No_En_Mat_Anim(Node, EnViNodes):
+    '''Node to automate changes in parameters'''
+    bl_idname = 'No_En_Mat_Anim'
+    bl_label = 'VI Animation'
+    bl_icon = 'ANIM'
+    
+    def retparams(self, context):
+        if self.inputs[0].links:
+            return [(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save]
+        else:
+            return [('None', 'None', 'None')]
+    
+    parameter: EnumProperty(name='', description = 'Parameter to be animated', items=retparams)
+    anim_file: StringProperty(name = '')
+
+    def init(self, context):
+        self.inputs.new('So_Anim', 'Parameter')
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, "Parameter:", self, 'parameter')
+        layout.prop_search(self, 'anim_file', bpy.data, 'texts', text='File', icon='TEXT')  
+
 envi_mat_con = [NodeItem("No_En_Mat_Con", label="Construction Node")]
 envi_mat_lay = [NodeItem("No_En_Mat_Op", label="Opaque layer"),
                 NodeItem("No_En_Mat_Tr", label="Transparency layer"),
@@ -6852,13 +6959,15 @@ envi_mat_sha = [NodeItem("No_En_Mat_Sh", label="Shading layer"),
 envi_mat_sch = [NodeItem("No_En_Mat_Sched", label="Schedule")]
 envi_mat_pv = [NodeItem("No_En_Mat_PV", label="PV"),
                NodeItem("No_En_Mat_PVG", label="PV Generator")] 
+envi_mat_para = [NodeItem("No_En_Mat_Anim", label="Animation")] 
 
 envimatnode_categories = [
         EnViMatNodeCategory("Type", "Type Node", items=envi_mat_con),
         EnViMatNodeCategory("Layer", "Layer Node", items=envi_mat_lay), 
         EnViMatNodeCategory("Shading", "Shading Node", items=envi_mat_sha),
         EnViMatNodeCategory("Schedule", "Schedule Node", items=envi_mat_sch),
-        EnViMatNodeCategory("Power", "PV Node", items=envi_mat_pv)]
+        EnViMatNodeCategory("Power", "PV Node", items=envi_mat_pv),
+        EnViMatNodeCategory("Parametric", "Parametric Node", items=envi_mat_para)]
             
             
 

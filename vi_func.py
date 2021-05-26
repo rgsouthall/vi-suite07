@@ -692,12 +692,12 @@ def retobj(name, fr, node, scene):
         return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
 
 def retelaarea(node):
-    inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
-    outlinks = [sock.links[:] for sock in node.outputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
+    inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('So_En_Net_SSFlow', 'So_En_Net_SFlow') and sock.links]
+    outlinks = [sock.links[:] for sock in node.outputs if sock.bl_idname in ('So_En_Net_SSFlow', 'So_En_Net_SFlow') and sock.links]
     inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone') and link.from_socket.node.zone in [o.name for o in bpy.data.objects]]
     outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone') and link.to_socket.node.zone in [o.name for o in bpy.data.objects]]
 
-    if outosocks or inosocks:
+    if outosocks or inosocks:        
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
         node["_RNA_UI"] = {"ela": {"max":elaarea, "min": 0.0001}}
         
