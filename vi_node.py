@@ -28,7 +28,7 @@ from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwla
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
 from .vi_func import delobj, logentry, ret_camera_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
-from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node
+from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, zrupdate
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
 from numpy import sort, median, array, stack
@@ -185,11 +185,7 @@ class No_Loc(Node, ViNodes):
         newrow(layout, "Source:", self, 'loc')
         
         if self.loc == "1":
-            # newrow(layout, "Weather file:", self, 'weather')
-            row = layout.row()
-            row.label(text = 'Weather file:')
-            row.prop(self, 'weather')
-#            row.prop(self, 'weather_anim')
+            newrow(layout, "Weather file:", self, 'weather')
 
             if self.weather_anim:
                 layout.prop_search(self, 'weather_anim_file', bpy.data, 'texts', text='File', icon='TEXT')
@@ -533,6 +529,7 @@ class No_Li_Con(Node, ViNodes):
 
     def update(self):
         socklink(self.outputs['Context out'], self.id_data.name)
+
         if self.inputs.get('Location in'):
             self.nodeupdate(bpy.context) 
     
@@ -606,7 +603,7 @@ class No_Li_Con(Node, ViNodes):
             if self.skyprog in ('0', '1'):
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {} -O {} {}".format(self.epsilon, self.delta, int(self.spectrummenu), ('', '-C')[self.colour])
 
-                for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):                  
+                for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):                 
                     skytext = livi_sun(scene, self, f) + livi_sky(self['skynum']) + livi_ground(*self.gcol, self.gref)
                     
                     if self['skynum'] < 2 or (self.skyprog == '1' and self.epsilon > 1):
@@ -1427,9 +1424,6 @@ class No_En_Con(Node, ViNodes):
     respvw: bpy.props.BoolProperty(name = 'PV Power', description = 'PV power (W)', default = False)
     respvt: bpy.props.BoolProperty(name = 'PV Temperature', description = 'PV Temperature (degC)', default = False)
     respveff: bpy.props.BoolProperty(name = 'PV Efficiency', description = 'PV efficiency (%)', default = False)
-    # (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
-    #  reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp, resoeg,
-    #  respve, respvw, respvt, respveff) = resnameunits()
      
     def init(self, context):
         self.inputs.new('So_En_Geo', 'Geometry in')
@@ -1703,103 +1697,158 @@ class No_Vi_Chart(Node, ViNodes):
                     row.label(text = "------------------")
 
     def update(self):
-        try:
-            if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists']:
-                class ViEnRXIn(So_En_ResU):
-                    '''Energy geometry out socket'''
-                    bl_idname = 'ViEnRXIn'
-                    bl_label = 'X-axis'    
-                    valid = ['Vi Results']
-                    
-            else:
-                innode = self.inputs['X-axis'].links[0].from_node
-                rl = innode['reslists']
-                zrl = list(zip(*rl))
+        if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists']:
+            class ViEnRXIn(So_En_ResU):
+                '''Energy geometry out socket'''
+                bl_idname = 'ViEnRXIn'
+                bl_label = 'X-axis'    
+                valid = ['Vi Results']
 
-                try:
-                    if len(set(zrl[0])) > 1:
-                        self['pmitems'] = [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
-                    else:
-                        self['pmitems'] = [("0", "Static", "Static results")]
-                except:
-                    self['pmitems'] = [("0", "Static", "Static results")]
-                
-                time.sleep(0.1)
-    
-                if self.parametricmenu == '1' and len(set(zrl[0])) > 1:
-                    frames = [int(k) for k in set(zrl[0]) if k != 'All']
-                    startframe, endframe = min(frames), max(frames)
-                    self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
-                    self['Start'], self['End'] = startframe, endframe
+            bpy.utils.register_class(ViEnRXIn)   
+
+        else:
+            innode = self.inputs['X-axis'].links[0].from_node
+            rl = innode['reslists']
+            zrl = list(zip(*rl))
+
+            try:
+                if len(set(zrl[0])) > 1:
+                    self['pmitems'] = [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
                 else:
-                    if 'Month' in zrl[3]:
-                        startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
-                        endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
-                        self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
-                        self['Start'], self['End'] = startday, endday
-    
-                if self.inputs.get('Y-axis 1'):
-                    self.inputs['Y-axis 1'].hide = False
-    
-                class ViEnRXIn(So_En_Res):
-                    '''Energy geometry out socket'''
-                    bl_idname = 'ViEnRXIn'
-                    bl_label = 'X-axis'
+                    self['pmitems'] = [("0", "Static", "Static results")]
+            except:
+                self['pmitems'] = [("0", "Static", "Static results")]
+            
+            time.sleep(0.1)
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
-                     zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                     chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'X-axis')
-                        
+            if self.parametricmenu == '1' and len(set(zrl[0])) > 1:
+                frames = [int(k) for k in set(zrl[0]) if k != 'All']
+                startframe, endframe = min(frames), max(frames)
+                frame = 'All'
+                self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                self['Start'], self['End'] = startframe, endframe
+            else:
+                if 'Month' in zrl[3]:
+                    startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                    endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                    self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                    self['Start'], self['End'] = startday, endday
+                frame = zrl[0][0]
+            
+            if self.inputs.get('Y-axis 1'):
+                self.inputs['Y-axis 1'].hide = False
+
+            class ViEnRXIn(So_En_Res):
+                '''Energy geometry out socket'''
+                bl_idname = 'ViEnRXIn'
+                bl_label = 'X-axis'
+
+                valid: ['Vi Results']
+                (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, 
+                enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, 
+                powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'X-axis', zrl)
+                framemenu: fmenu
+                rtypemenu: rtypemenu
+                climmenu: climmenu
+                zonemenu: zonemenu
+                zonermenu: zonermenu
+                linkmenu: linkmenu 
+                linkrmenu: linkrmenu
+                enmenu: enmenu
+                enrmenu: enrmenu
+                powmenu: powmenu
+                powrmenu: powrmenu
+                porbemenu: probemenu
+                probermenu: probermenu
+                multmenu: multmenu
+                statmenu: statmenu
+                multfactor: multmenu
+
             bpy.utils.register_class(ViEnRXIn)
-    
+
             if self.inputs.get('Y-axis 1'):
                 if not self.inputs['Y-axis 1'].links or not self.inputs['Y-axis 1'].links[0].from_node['reslists']:
                     class ViEnRY1In(So_En_ResU):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY1In'
                         bl_label = 'Y-axis 1'
-    
+
                     if self.inputs.get('Y-axis 2'):
                         self.inputs['Y-axis 2'].hide = True
                 else:
                     innode = self.inputs['Y-axis 1'].links[0].from_node
-    
+
                     class ViEnRY1In(So_En_Res):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY1In'
                         bl_label = 'Y-axis 1'
-                        (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
-                         zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 1')
-    
+
+                        valid: ['Vi Results']
+                        (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, 
+                        enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, 
+                        powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 1', zrl)
+                        framemenu: fmenu
+                        rtypemenu: rtypemenu
+                        climmenu: climmenu
+                        zonemenu: zonemenu
+                        zonermenu: zonermenu
+                        linkmenu: linkmenu 
+                        linkrmenu: linkrmenu
+                        enmenu: enmenu
+                        enrmenu: enrmenu
+                        powmenu: powmenu
+                        powrmenu: powrmenu
+                        porbemenu: probemenu
+                        probermenu: probermenu
+                        multmenu: multmenu
+                        statmenu: statmenu
+                        multfactor: multmenu
+
                     self.inputs['Y-axis 2'].hide = False
                 bpy.utils.register_class(ViEnRY1In)
-    
+
             if self.inputs.get('Y-axis 2'):
                 if not self.inputs['Y-axis 2'].links or not self.inputs['Y-axis 2'].links[0].from_node['reslists']:
                     class ViEnRY2In(So_En_ResU):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY2In'
                         bl_label = 'Y-axis 2'
-    
+
                     if self.inputs.get('Y-axis 3'):
                         self.inputs['Y-axis 3'].hide = True
                 else:
                     innode = self.inputs[2].links[0].from_node
-    
+
                     class ViEnRY2In(So_En_Res):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY2In'
                         bl_label = 'Y-axis 2'
-    
-                        (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
-                         zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 2')
-    
+
+                        valid: ['Vi Results']
+                        (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, 
+                        enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, 
+                        powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 2', zrl)
+                        framemenu: fmenu
+                        rtypemenu: rtypemenu
+                        climmenu: climmenu
+                        zonemenu: zonemenu
+                        zonermenu: zonermenu
+                        linkmenu: linkmenu 
+                        linkrmenu: linkrmenu
+                        enmenu: enmenu
+                        enrmenu: enrmenu
+                        powmenu: powmenu
+                        powrmenu: powrmenu
+                        porbemenu: probemenu
+                        probermenu: probermenu
+                        multmenu: multmenu
+                        statmenu: statmenu
+                        multfactor: multmenu
+
                     self.inputs['Y-axis 3'].hide = False
-    
+
                 bpy.utils.register_class(ViEnRY2In)
-    
+
             if self.inputs.get('Y-axis 3'):
                 if not self.inputs['Y-axis 3'].links or not self.inputs['Y-axis 3'].links[0].from_node['reslists']:
                     class ViEnRY3In(So_En_ResU):
@@ -1808,19 +1857,34 @@ class No_Vi_Chart(Node, ViNodes):
                         bl_label = 'Y-axis 3'
                 else:
                     innode = self.inputs[3].links[0].from_node
-    
+
                     class ViEnRY3In(So_En_Res):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY3In'
                         bl_label = 'Y-axis 3'
-    
-                        (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, 
-                         zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, 
-                         chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor) = retrmenus(innode, self, 'Y-axis 3')
-    
+
+                        valid: ['Vi Results']
+                        (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, 
+                        enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, 
+                        powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 3', zrl)
+                        framemenu: fmenu
+                        rtypemenu: rtypemenu
+                        climmenu: climmenu
+                        zonemenu: zonemenu
+                        zonermenu: zonermenu
+                        linkmenu: linkmenu 
+                        linkrmenu: linkrmenu
+                        enmenu: enmenu
+                        enrmenu: enrmenu
+                        powmenu: powmenu
+                        powrmenu: powrmenu
+                        porbemenu: probemenu
+                        probermenu: probermenu
+                        multmenu: multmenu
+                        statmenu: statmenu
+                        multfactor: multmenu
+
                 bpy.utils.register_class(ViEnRY3In)
-        except Exception as e:
-            print('Chart node update failure 2 ', e)
 
 def loctype(self, context):
     rmenu = str(self.resmenu)
@@ -2636,8 +2700,7 @@ class So_En_Res(NodeSocket):
 
     def draw(self, context, layout, node, text):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), 
-                    "Linkage":("linkmenu", "linkrmenu"), "External":("enmenu", "enrmenu"), 
-                    "Chimney":("chimmenu", "chimrmenu"), "Position":("posmenu", "posrmenu"), 
+                    "Linkage":("linkmenu", "linkrmenu"), "External":("enmenu", "enrmenu"), "Position":("posmenu", "posrmenu"), 
                     "Camera":("cammenu", "camrmenu"), "Power":("powmenu", "powrmenu"),
                     "Probe":("probemenu", "probermenu")}
         row = layout.row()
@@ -2651,8 +2714,10 @@ class So_En_Res(NodeSocket):
 
             for rtype in typedict[self.rtypemenu]:
                 row.prop(self, rtype)
+
             if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and node.parametricmenu == '0':
                 row.prop(self, "statmenu")
+
             if self.rtypemenu != 'Time':
                 row.prop(self, 'multfactor')
         else:
@@ -4428,15 +4493,20 @@ class No_En_Net_SFlow(Node, EnViNodes):
 
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+
         if self.linkmenu == 'ELA':
             retelaarea(self)
+
         self.extnode = 0
+
         for sock in self.inputs[:] + self.outputs[:]:
             for l in sock.links:
                 if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'No_En_Net_Ext':
                     self.extnode = 1
+
         if self.outputs.get('Node 2'):
             sockhide(self, ('Node 1', 'Node 2'))
+
         self.legal()
 
     def draw_buttons(self, context, layout):
@@ -4955,9 +5025,7 @@ class No_En_Net_Anim(Node, EnViNodes):
     
     def retparams(self, context):
         if self.inputs[0].links:
-            print([(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save])
-            return [(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save]
-            
+            return [(p.identifier, p.description, p.identifier) for p in self.inputs[0].links[0].from_node.bl_rna.properties if p.is_skip_save]            
         else:
             return [('None', 'None', 'None')]
     

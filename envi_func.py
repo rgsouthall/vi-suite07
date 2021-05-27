@@ -357,9 +357,9 @@ def enparametric(self, context):
 
 #def powres():
 #    pass
-def retrmenus(innode, node, axis): 
-    rl = innode['reslists']
-    zrl = list(zip(*rl))
+def retrmenus(innode, node, axis, zrl): 
+    # rl = innode['reslists']
+    # zrl = list(zip(*rl))
     ftype = [(frame, frame, "Plot "+frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']        
     frame = 'All' if node.parametricmenu == '1' and len(ftype) > 1 else zrl[0][0]
 
@@ -369,37 +369,53 @@ def retrmenus(innode, node, axis):
         rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame and zrl[1][ri] != 'Time']))
 
     rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
+    rtype = rtype if rtype else [('None', 'None', 'None')]
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
+    ctype = ctype if ctype else [('None', 'None', 'None')]
     ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
+    ztype = ztype if ztype else [('None', 'None', 'None')]
+
+    try: 
+        zrtype = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == node.zonemenu and zr[0] == node.framemenu] if node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == node.zonemenu and zr[0] == 'All']
+    except Exception as e:
+        zrtype = [('None', 'None', 'None')]
+
     ptypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
     ptype = [(metric, metric, "Plot " + metric) for metric in ptypes]
+    ptype = ptype if ptype else [('None', 'None', 'None')]
     prtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
     prtype = [(metric, metric, "Plot " + metric) for metric in prtypes]
+    prtype = prtype if prtype else [('None', 'None', 'None')]
     camtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Camera' and zrl[0][m] == frame]))
     camtype = [(metric, metric, "Plot " + metric) for metric in camtypes]
+    camtype = camtype if camtype  else [('None', 'None', 'None')]
     camrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Camera' and zrl[0][m] == frame]))
     camrtype = [(metric, metric, "Plot " + metric) for metric in camrtypes]
     ltypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
     ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
+    ltype = ltype if ltype else [('None', 'None', 'None')]
     lrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
     lrtype = [(metric, metric, "Plot " + metric) for metric in lrtypes]
+    lrtype = lrtype if lrtype else [('None', 'None', 'None')]
     entypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'External' and zrl[0][m] == frame]))
     entype = [(metric, metric, "Plot " + metric) for metric in entypes]
+    entype = entype if entype else [('None', 'None', 'None')]
     enrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External' and zrl[0][m] == frame]))       
-    enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]    
-    chimtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Chimney' and zrl[0][m] == frame]))
-    chimtype = [(metric, metric, "Plot " + metric) for metric in chimtypes]
-    chimrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Chimney' and zrl[0][m] == frame]))       
-    chimrtype = [(metric, metric, "Plot " + metric) for metric in chimrtypes]   
+    enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]  
+    enrtype = enrtype if enrtype else [('None', 'None', 'None')]  
     powtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Power' and zrl[0][m] == frame]))
     powtype = [(metric, metric, "Plot " + metric) for metric in powtypes]
+    powtype = powtype if powtype else [('None', 'None', 'None')]
     powrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Power' and zrl[0][m] == frame]))
     powrtype = [(metric, metric, "Plot " + metric) for metric in powrtypes]
+    powrtype = powrtype if powrtype else [('None', 'None', 'None')]
     probetypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Probe' and zrl[0][m] == frame]))
     probetype = [(metric, metric, "Plot " + metric) for metric in probetypes]
+    probetype = probetype if probetype else [('None', 'None', 'None')]
     probertypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Probe' and zrl[0][m] == frame]))
     probertype = [(metric, metric, "Plot " + metric) for metric in probertypes]
+    probertype = probertype if probertype else [('None', 'None', 'None')]
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
@@ -411,8 +427,6 @@ def retrmenus(innode, node, axis):
     linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if ltype else ''
     enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if entype else ''
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if entype else ''
-    chimmenu = bpy.props.EnumProperty(items=chimtype, name="", description="External node result", default = chimtype[0][0]) if chimtype else ''
-    chimrmenu = bpy.props.EnumProperty(items=chimrtype, name="", description="External node result", default = chimrtype[0][0]) if chimtype else ''
     posmenu = bpy.props.EnumProperty(items=ptype, name="", description="Position result", default = ptype[0][0]) if ptype else ''
     posrmenu = bpy.props.EnumProperty(items=prtype, name="", description="Position result", default = prtype[0][0]) if ptypes else ''
     cammenu = bpy.props.EnumProperty(items=camtype, name="", description="Camera result", default = camtype[0][0]) if camtype else ''
@@ -421,9 +435,8 @@ def retrmenus(innode, node, axis):
     powrmenu = bpy.props.EnumProperty(items=powrtype, name="", description="Power result", default = powrtype[0][0]) if powrtype else ''
     probemenu = bpy.props.EnumProperty(items=probetype, name="", description="Probe result", default = probetype[0][0]) if probetype else ''
     probermenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default = probertype[0][0]) if probertype else ''
-    multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = -10000, max = 10000, default = 1)
-    
-    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multfactor)
+    multmenu = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = -10000, max = 10000, default = 1)
+    return (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multmenu, statmenu)
 
 def processh(lines, znlist): 
     hdict = {}

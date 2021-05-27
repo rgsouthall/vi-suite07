@@ -1313,6 +1313,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self._timer = wm.event_timer_add(2, window = context.window)
             wm.modal_handler_add(self)                
             return {'RUNNING_MODAL'}
+
         else:
             self.report({'ERROR'}, "There is no camera in the scene or selected in the node. Create one for rpict image creation")
             return {'FINISHED'}
@@ -1420,7 +1421,7 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
                     poverlay = '-p {}'.format(os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
                     fccmd = 'falsecolor -i "{}" {} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
                     fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE) 
-#                    os.remove(temp_file)
+
                 else:
                     poverlay = '-p <(pcond -e {0} "{1}")' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
                     fccmd = "bash -c 'falsecolor -i \"{}\" {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
@@ -1433,11 +1434,13 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
                     
             if fcim not in [i.filepath for i in bpy.data.images]:
                 bpy.data.images.load(fcim)
+
             else:
                 for i in bpy.data.images:
                     if bpy.path.abspath(i.filepath) == fcim:
                         i.reload()
-                        [area.tag_redraw() for area in bpy.context.screen.areas if area and area.type == "IMAGE_EDITOR" and area.spaces[0].image == i]               
+                        [area.tag_redraw() for area in bpy.context.screen.areas if area and area.type == "IMAGE_EDITOR" and area.spaces[0].image == i]      
+
         fcnode.postsim()                              
         return {'FINISHED'}
             
@@ -1546,9 +1549,26 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         
         node.preexport(scene)
         
-        for frame in range(node.fs, node.fe + 1):
+        for fi, frame in enumerate(range(node.fs, node.fe + 1)):
             scene.frame_set(frame)
+            
+            if locnode.outputs['Parameter'].links:
+                af = bpy.data.texts[locnode.outputs['Parameter'].links[0].to_node.anim_file].as_string()
+                param = locnode.outputs['Parameter'].links[0].to_node.parameter
+
+                for p in locnode.bl_rna.properties:                   
+                    if p.is_skip_save:
+                        if p.identifier == param:
+                            for v in locnode['entries']:
+                                if v[1] == af.split('\n')[fi]:
+                                    try:
+                                        setattr(locnode, param, v[0])
+                                    except Exception as e:
+                                        self.report({'ERROR'}, 'Error in parametric text file')
+                                        return {'CANCELLED'}
+                                        
             shutil.copyfile(locnode.weather, os.path.join(svp['viparams']['newdir'], "in{}.epw".format(frame)))
+        
         scene.frame_set(node.fs)
 
         if context.active_object and not context.active_object.visible_get():

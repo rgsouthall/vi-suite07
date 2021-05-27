@@ -552,7 +552,7 @@ def update_chart_node(dummy):
         for ng in [ng for ng in bpy.data.node_groups if ng.bl_idname == 'ViN']:
             [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
     except Exception as e:
-        print('Chart node update failure:', e)
+        print('Chart node cannot update:', e)
 
 @persistent        
 def update_dir(dummy):

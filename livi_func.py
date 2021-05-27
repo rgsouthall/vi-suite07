@@ -381,7 +381,6 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             illures = geom.layers.float['illu{}'.format(frame)]
             virradm2res = geom.layers.float['virradm2{}'.format(frame)]
         elif svp['liparams']['unit'] == 'DF (%)':
-            print('df', frame)
             geom.layers.float.new('df{}'.format(frame))
             geom.layers.float.new('virradm2{}'.format(frame))
             dfres = geom.layers.float['df{}'.format(frame)]
@@ -436,6 +435,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                     elif svp['liparams']['unit'] == 'DF (%)':
                         gp[dfres] = df[gi].astype(float32) 
                         gp[virradm2res] = virradm2[gi].astype(float32)
+
             curres += len(chunk)
 
             if pfile.check(curres) == 'CANCELLED':
@@ -472,7 +472,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             #     vals = [1 for gp in geom]
             
         if svp['liparams']['unit'] == 'Lux':
-            self['omax']['illu{}'.format(frame)] =  maxoillu
+            self['omax']['illu{}'.format(frame)] = maxoillu
             self['oave']['illu{}'.format(frame)] = aveoillu
             self['omin']['illu{}'.format(frame)] = minoillu
               
@@ -535,12 +535,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             reslists.append(['All', 'Zone', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
             reslists.append(['All', 'Zone', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
             reslists.append(['All', 'Zone', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W)', ' '.join(['{:.3f}'.format(self['oave']['virrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['virrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['virrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['virradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['virradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['virradm2{}'.format(frame)]) for frame in frames])])
+            # reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W)', ' '.join(['{:.3f}'.format(self['oave']['virrad{}'.format(frame)]) for frame in frames])])
+            # reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['virrad{}'.format(frame)]) for frame in frames])])
+            # reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['virrad{}'.format(frame)]) for frame in frames])])
+            # reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['virradm2{}'.format(frame)]) for frame in frames])])
+            # reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['virradm2{}'.format(frame)]) for frame in frames])])
+            # reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['virradm2{}'.format(frame)]) for frame in frames])])
             
             if svp['liparams']['unit'] == 'DF (%)': 
                 reslists.append(['All', 'Zone', self.id_data.name, 'Average DF (lux)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
