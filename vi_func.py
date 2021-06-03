@@ -1863,7 +1863,15 @@ def retdates(sdoy, edoy, y):
     sdate = datetime.datetime(y1, 1, 1) + datetime.timedelta(sdoy - 1)
     edate = datetime.datetime(y2, 1, 1) + datetime.timedelta(edoy - 1)
     return(sdate, edate)
-        
+
+def ret_param(param, val):
+    if isinstance(param, float):
+        return float(val)
+    elif isinstance(param, int):
+        return int(val)
+    else:
+        return str(val)
+
 def li_calcob(ob, li):
     ovp = ob.vi_params
     if not ob.data.materials:

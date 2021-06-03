@@ -26,7 +26,7 @@ from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
-from .vi_func import delobj, logentry, ret_camera_menu
+from .vi_func import delobj, logentry, ret_camera_menu, ret_param
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, zrupdate
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
@@ -4457,7 +4457,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
         ("ELA", "ELA", "Effective leakage area")]
 
     linkmenu: EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA')
-    ela: FloatProperty(default = 0.1, min = 0.00001, max = 1, name = "", description = 'Effective leakage area')
+    ela: FloatProperty(default = 0.1, min = 0.00001, max = 1, name = "", description = 'Effective leakage area', options = {'SKIP_SAVE'})
     of: FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
     ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     dcof: FloatProperty(default = 0.7, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
@@ -4482,8 +4482,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
         self.inputs.new('So_En_Net_SFlow', 'Node 1')
         self.inputs.new('So_En_Net_SFlow', 'Node 2')
         self.outputs.new('So_En_Net_SFlow', 'Node 1')
-        self.outputs.new('So_En_Net_SFlow', 'Node 2')
-        self.outputs.new('So_Anim', 'Parameter')
+        self.outputs.new('So_En_Net_SFlow', 'Node 2')    
+        self.outputs.new('So_Anim', 'Parameter')    
 
     def update(self):
         self.inputs[0].viuid = '{}#{}'.format(self.name, 1)
@@ -4520,21 +4520,25 @@ class No_En_Net_SFlow(Node, EnViNodes):
     def epwrite(self, exp_op, enng):
         fentry, crentry, zn, en, surfentry, crname, snames = '', '', '', '', '', '', []
         paradict = {}
+        print(self.name, [o.name for o in self.outputs])
         
         for p in self.bl_rna.properties:
             if p.is_skip_save and p.identifier in [l.to_node.parameter for l in self.outputs['Parameter'].links]:
                 for l in self.outputs['Parameter'].links:
-                    if p.identifier == l.to_node.parameter:
-                        paradict[p.identifier] = bpy.data.texts[l.to_node.file].read().split('/n')[bpy.context.scene.current_frame]
-
+                    if p.identifier == l.to_node.parameter and l.to_node.anim_file:                        
+                        tf = bpy.data.texts[l.to_node.anim_file]
+                        paradict[p.identifier] = tf.as_string().split('\n')[bpy.context.scene.frame_current]
+#
+#                        if isinstance(getattr(self, p.identifier), float):
+                        setattr(self, p.identifier, ret_param(getattr(self, p.identifier), tf.as_string().split('\n')[bpy.context.scene.frame_current - bpy.context.scene.vi_params['enparams']['fs']]))
             else:
                 paradict[p.identifier] = getattr(self, p.identifier)
 
         print(paradict)
 
 
-        para_dict = {l.to_node.parameter: bpy.data.texts[l.to_node.file].read().split('/n')[bpy.context.scene.current_frame] for l in self.outputs['Parameter'].links}
-        print(para_dict)
+#        para_dict = {l.to_node.parameter: bpy.data.texts[l.to_node.file].read().split('/n')[bpy.context.scene.current_frame] for l in self.outputs['Parameter'].links}
+#        print(para_dict)
 
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
@@ -4927,7 +4931,7 @@ class No_En_Net_Prog(Node, EnViNodes):
             return sentries + aentries + cmentry + pentry
 
 class No_En_Net_EMSZone(Node, EnViNodes):
-    '''Node describing a simulation zone'''
+    '''Node describing a Energy management System routine'''
     bl_idname = 'No_En_Net_EMSZone'
     bl_label = 'EMS Zone'
     bl_icon = 'LIGHTPROBE_CUBEMAP'
@@ -4999,17 +5003,28 @@ class No_En_Net_EMSZone(Node, EnViNodes):
 class No_En_Net_EMSPy(Node, EnViNodes):
     '''Node identifying a Python interface to the EMS'''
     bl_idname = 'No_En_Net_EMSPy'
-    bl_label = 'EMS Zone'
+    bl_label = 'EMS'
     bl_icon = 'FILE_TEXT'
 
-    py_mod: StringProperty(description="Textfile to show")
+    py_mod: StringProperty(description="Python file", options = {'SKIP_SAVE'})
     py_class: StringProperty(name = '', description="Textfile to show")
+
+    def init(self, context):
+        self.outputs.new('So_Anim', 'Parameter')
 
     def draw_buttons(self, context, layout):
         layout.prop_search(self, 'py_mod', bpy.data, 'texts', text='Module', icon='TEXT')
         newrow(layout, "Class:", self, 'py_class')
 
     def epwrite(self):
+        for p in self.bl_rna.properties:
+            if p.is_skip_save and p.identifier in [l.to_node.parameter for l in self.outputs['Parameter'].links]:
+                for l in self.outputs['Parameter'].links:
+                    if p.identifier == l.to_node.parameter and l.to_node.anim_file:                        
+                        tf = bpy.data.texts[l.to_node.anim_file]
+    #                    paradict[p.identifier] = tf.as_string().split('\n')[bpy.context.scene.frame_current]
+                        setattr(self, p.identifier, ret_param(getattr(self, p.identifier), tf.as_string().split('\n')[bpy.context.scene.frame_current - bpy.context.scene.vi_params['enparams']['fs']]))
+
         if self.py_mod and self.py_class:
             pyparams = ('Name', 'Run During Warmup Days', 'Python Module Name', 'Plugin Class Name')
             pyparamvs = ('Apply Discrete Package Sizes to Air System Sizing', 'Yes', self.py_mod, self.py_class)
