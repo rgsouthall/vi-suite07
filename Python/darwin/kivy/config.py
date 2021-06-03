@@ -86,11 +86,6 @@ Available configuration tokens
 
 :kivy:
 
-    `default_font`: list
-        Default fonts used for widgets displaying any text. It defaults to
-        ['Roboto', 'data/fonts/Roboto-Regular.ttf',
-        'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf',
-        'data/fonts/Roboto-BoldItalic.ttf'].
     `desktop`: int, 0 or 1
         This option controls desktop OS specific features, such as enabling
         drag-able scroll-bar in scroll views, disabling of bubbles in
@@ -114,8 +109,6 @@ Available configuration tokens
         * 'systemanddock' - virtual docked keyboard plus input from real
           keyboard.
         * 'systemandmulti' - analogous.
-    `kivy_clock`: one of `default`, `interrupt`, `free_all`, `free_only`
-        The clock type to use with kivy. See :mod:`kivy.clock`.
     `log_dir`: string
         Path of log directory.
     `log_enable`: int, 0 or 1
@@ -235,6 +228,15 @@ Available configuration tokens
         :class:`~kivy.uix.behaviors.buttonbehavior.ButtonBehavior` to
         make sure they display their current visual state for the given
         time.
+    `kivy_clock`: one of `default`, `interrupt`, `free_all`, `free_only`
+        The clock type to use with kivy. See :mod:`kivy.clock`.
+
+    `default_font`: list
+        Default fonts used for widgets displaying any text. It defaults to
+        ['Roboto', 'data/fonts/Roboto-Regular.ttf',
+        'data/fonts/Roboto-Italic.ttf', 'data/fonts/Roboto-Bold.ttf',
+        'data/fonts/Roboto-BoldItalic.ttf'].
+
     `allow_screensaver`: int, one of 0 or 1, defaults to 1
         Allow the device to show a screen saver, or to go to sleep
         on mobile devices. Only works for the sdl2 window provider.
@@ -481,6 +483,9 @@ class ConfigParser(PythonConfigParser, object):
         if not isinstance(value, string_types):
             # might be boolean, int, etc.
             e_value = str(value)
+        if PY2:
+            if isinstance(value, unicode):
+                e_value = value.encode('utf-8')
         ret = PythonConfigParser.set(self, section, option, e_value)
         self._do_callbacks(section, option, value)
         return ret
@@ -619,11 +624,7 @@ class ConfigParser(PythonConfigParser, object):
         '''
         try:
             config = ConfigParser._named_configs[name][0]
-            if config is not None:
-                config = config()
-                if config is not None:
-                    return config
-            del ConfigParser._named_configs[name]
+            return config() if config else None
         except KeyError:
             return None
 
@@ -674,7 +675,7 @@ class ConfigParser(PythonConfigParser, object):
             configs[value] = (ref(self), [])
             return
 
-        if config is not None and config() is not None:
+        if config is not None:
             raise ValueError('A parser named {} already exists'.format(value))
         for widget, prop in props:
             widget = widget()
@@ -903,7 +904,7 @@ if not environ.get('KIVY_DOC_INCLUDE'):
             Logger.exception('Core: Error while saving default config file')
 
     # Load configuration from env
-    if environ.get('KIVY_NO_ENV_CONFIG', '0') != '1':
+    if environ.get('KIVY_NO_ENV_CONFIG', '0') != '0':
         for key, value in environ.items():
             if not key.startswith("KCFG_"):
                 continue

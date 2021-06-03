@@ -11,8 +11,19 @@ import os
 import sys
 import platform as plf
 from time import ctime
-from configparser import ConfigParser
-from io import StringIO
+
+try:
+    # PY3
+    from configparser import ConfigParser
+except ImportError:
+    # PY2
+    from ConfigParser import ConfigParser
+
+try:
+    from StringIO import StringIO
+    input = raw_input
+except ImportError:
+    from io import StringIO
 
 import kivy
 

@@ -106,4 +106,3 @@ cdef class ConfigParserProperty(Property):
 
 cdef class ColorProperty(Property):
     cdef list parse_str(self, EventDispatcher obj, value)
-    cdef object parse_list(self, EventDispatcher obj, value)

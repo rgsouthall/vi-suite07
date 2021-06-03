@@ -32,7 +32,7 @@ the callback function of the on_success event.
 Example of fetching JSON::
 
     def got_json(req, result):
-        for key, value in req.resp_headers.items():
+        for key, value in result['headers'].items():
             print('{}: {}'.format(key, value))
 
     req = UrlRequest('https://httpbin.org/headers', got_json)
@@ -87,7 +87,6 @@ except ImportError:
 from kivy.clock import Clock
 from kivy.weakmethod import WeakMethod
 from kivy.logger import Logger
-from kivy.utils import platform
 
 
 # list to save UrlRequest and prevent GC on un-referenced objects
@@ -187,7 +186,7 @@ class UrlRequest(Thread):
                  timeout=None, method=None, decode=True, debug=False,
                  file_path=None, ca_file=None, verify=True, proxy_host=None,
                  proxy_port=None, proxy_headers=None, user_agent=None,
-                 on_cancel=None, cookies=None):
+                 on_cancel=None):
         super(UrlRequest, self).__init__()
         self._queue = deque()
         self._trigger_result = Clock.create_trigger(self._dispatch_result, 0)
@@ -210,19 +209,12 @@ class UrlRequest(Thread):
         self._chunk_size = chunk_size
         self._timeout = timeout
         self._method = method
+        self.ca_file = ca_file
         self.verify = verify
         self._proxy_host = proxy_host
         self._proxy_port = proxy_port
         self._proxy_headers = proxy_headers
         self._cancel_event = Event()
-        self._user_agent = user_agent
-        self._cookies = cookies
-
-        if platform in ['android', 'ios']:
-            import certifi
-            self.ca_file = ca_file or certifi.where()
-        else:
-            self.ca_file = ca_file
 
         #: Url of the request
         self.url = url
@@ -243,22 +235,12 @@ class UrlRequest(Thread):
         url = self.url
         req_body = self.req_body
         req_headers = self.req_headers or {}
-
-        user_agent = self._user_agent
-        cookies = self._cookies
-
-        if user_agent:
-            req_headers.setdefault('User-Agent', user_agent)
-
-        elif (
+        if (
             Config.has_section('network')
             and 'useragent' in Config.items('network')
         ):
             useragent = Config.get('network', 'useragent')
             req_headers.setdefault('User-Agent', useragent)
-
-        if cookies:
-            req_headers.setdefault("Cookie", cookies)
 
         try:
             result, resp = self._fetch_url(url, req_body, req_headers, q)
@@ -346,8 +328,7 @@ class UrlRequest(Thread):
         if timeout is not None:
             args['timeout'] = timeout
 
-        if (ca_file is not None and hasattr(ssl, 'create_default_context') and
-                parse.scheme == 'https'):
+        if ca_file is not None and hasattr(ssl, 'create_default_context'):
             ctx = ssl.create_default_context(cafile=ca_file)
             ctx.verify_mode = ssl.CERT_REQUIRED
             args['context'] = ctx
@@ -469,7 +450,6 @@ class UrlRequest(Thread):
                     return loads(result)
                 except:
                     return result
-
         return result
 
     def _dispatch_result(self, dt):
@@ -645,14 +625,12 @@ if __name__ == '__main__':
         pprint('Got an error:')
         pprint(error)
 
-    Clock.start_clock()
     req = UrlRequest('https://en.wikipedia.org/w/api.php?format'
         '=json&action=query&titles=Kivy&prop=revisions&rvprop=content',
         on_success, on_error)
     while not req.is_finished:
         sleep(1)
         Clock.tick()
-    Clock.stop_clock()
 
     print('result =', req.result)
     print('error =', req.error)

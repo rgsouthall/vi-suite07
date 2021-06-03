@@ -1,4 +1,3 @@
-import pytest
 import unittest
 import kivy.multistroke
 from kivy.multistroke import Recognizer, MultistrokeGesture
@@ -55,10 +54,6 @@ class MultistrokeTestCase(unittest.TestCase):
             orientation_sensitive=False)
         self.Nbound = MultistrokeGesture('N', [NGesture],
             orientation_sensitive=True)
-
-    @pytest.fixture(autouse=True)
-    def set_clock(self, kivy_clock):
-        self.kivy_clock = kivy_clock
 
 # -----------------------------------------------------------------------------
 # Recognizer scheduling

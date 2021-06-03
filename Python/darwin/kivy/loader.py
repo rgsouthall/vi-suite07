@@ -42,7 +42,6 @@ from kivy.cache import Cache
 from kivy.core.image import ImageLoader, Image
 from kivy.compat import PY2, string_types
 from kivy.config import Config
-from kivy.utils import platform
 
 from collections import deque
 from time import sleep
@@ -50,7 +49,6 @@ from os.path import join
 from os import write, close, unlink, environ
 import threading
 import mimetypes
-
 
 # Register a cache for loader
 Cache.register('kv.loader', limit=500, timeout=60)
@@ -124,10 +122,6 @@ class LoaderBase(object):
         self._start_wanted = False
         self._trigger_update = Clock.create_trigger(self._update)
 
-        if platform in ['android', 'ios']:
-            import certifi
-            environ.setdefault('SSL_CERT_FILE', certifi.where())
-
     def __del__(self):
         if self._trigger_update is not None:
             self._trigger_update.cancel()
@@ -186,7 +180,7 @@ class LoaderBase(object):
 
     def _get_loading_image(self):
         if not self._loading_image:
-            loading_png_fn = join(kivy_data_dir, 'images', 'image-loading.zip')
+            loading_png_fn = join(kivy_data_dir, 'images', 'image-loading.gif')
             self._loading_image = ImageLoader.load(filename=loading_png_fn)
         return self._loading_image
 
@@ -337,7 +331,10 @@ class LoaderBase(object):
             else:
                 # read from internet
                 request = urllib_request.Request(filename)
-                if Config.has_option('network', 'useragent'):
+                if (
+                    Config.has_section('network')
+                    and 'useragent' in Config.items('network')
+                ):
                     useragent = Config.get('network', 'useragent')
                     if useragent:
                         request.add_header('User-Agent', useragent)

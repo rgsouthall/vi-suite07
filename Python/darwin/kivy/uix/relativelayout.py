@@ -30,9 +30,8 @@ Although there are other coordinate systems defined, e.g. local
 and parent coordinates, these coordinate systems are identical to the window
 coordinate system as long as a relative layout type widget is not in the
 widget's parent stack. When widget.pos is read or a touch is received,
-the coordinate values are in parent coordinates. But as mentioned, these are
-identical to window coordinates, even in complex widget stacks as long as
-there's no relative layout type widget in the widget's parent stack.
+the coordinate values are in parent coordinates, but as mentioned, these are
+identical to window coordinates, even in complex widget stacks.
 
 For example:
 
@@ -143,14 +142,6 @@ Now, clicking on the middle button prints::
 
 This is because now the relative widget also expresses the coordinates
 relative to itself.
-
-.. note::
-
-    Although all widgets including :class:`RelativeLayout` receive their touch
-    events in ``on_touch_xxx`` in parent coordinates, these special widgets
-    will transform the touch position to be in local coordinates before it
-    calls ``super``. This may only be noticeable in a complex inheritance
-    class.
 
 Coordinate transformations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -28,7 +28,7 @@ class SoundAvplayer(Sound):
 
     def load(self):
         self.unload()
-        fn = NSString.alloc().initWithUTF8String_(self.source)
+        fn = NSString.alloc().initWithUTF8String_(self.filename)
         url = NSURL.alloc().initFileURLWithPath_(fn)
         self._avplayer = AVAudioPlayer.alloc().initWithContentsOfURL_error_(
             url, None)

@@ -987,7 +987,8 @@ else:
     image_libs += [('pygame', 'img_pygame')]
 image_libs += [
     ('ffpy', 'img_ffpyplayer'),
-    ('pil', 'img_pil')]
+    ('pil', 'img_pil'),
+    ('gif', 'img_gif')]
 
 libs_loaded = core_register_libs('image', image_libs)
 

@@ -63,7 +63,7 @@ class DampedScrollEffect(ScrollEffect):
                 self.value = round(self.value)
             return
 
-        total_force = self.velocity * self.friction * dt / self.std_dt
+        total_force = self.velocity * self.friction
         if abs(self.overscroll) > self.min_overscroll:
             total_force += self.velocity * self.edge_damping
             total_force += self.overscroll * self.spring_constant

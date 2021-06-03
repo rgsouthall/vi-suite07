@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import unittest
-from .common import requires_graphics
 
 
 class FontTestCase(unittest.TestCase):
@@ -24,7 +23,6 @@ class FontTestCase(unittest.TestCase):
 
         print(self.font_name)
 
-    @requires_graphics
     def test_unicode_name(self):
         from kivy.core.text import Label
         lbl = Label(font_name=self.font_name)

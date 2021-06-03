@@ -39,13 +39,13 @@ Kv Example::
 
     FloatLayout:
         Spinner:
-            size_hint: None, None
+            size_hint: None, none
             size: 100, 44
             pos_hint: {'center': (.5, .5)}
             text: 'Home'
             values: 'Home', 'Work', 'Other', 'Custom'
-            on_text:
-                print("The spinner {} has text {}".format(self, self.text))
+            on_value:
+                print: "The spinner {} has text {}".format(self, self.value)
 '''
 
 __all__ = ('Spinner', 'SpinnerOption')

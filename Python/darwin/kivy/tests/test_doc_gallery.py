@@ -1,4 +1,4 @@
-from kivy.tools.gallery import parse_docstring_info
+from doc.gallery import *
 
 
 def test_parse_docstring_info():
