@@ -18,7 +18,7 @@
 
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
 from .vi_func import selobj, facearea, selmesh, create_coll, selobs, logentry
-from .envi_func import epentry, epschedwrite, get_con_node, boundpoly, get_zone_node
+from .envi_func import epentry, epschedwrite, get_con_node, boundpoly, get_zone_node, ret_areas
 from .envi_mat import retuval
 
 dtdf = datetime.date.fromordinal
@@ -36,6 +36,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         gen = 0
         scene.frame_set(frame)
         geo_coll = bpy.data.collections['EnVi Geometry']
+#        geo_coll.vi_params['enparams']['floorarea'] = {}
+
         geo_colls = geo_coll.children
 #        onames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
 #        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
@@ -98,18 +100,17 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             znode = get_zone_node(coll, enng)
             
             if znode:
-                znode.update()
-                
-                cvp = coll.vi_params
-                cvp['enparams']['floorarea'] = sum([o.vi_params['enparams']['floorarea'] for o in coll.objects if o.vi_params.envi_type == '0'])
-    
+                znode.update()                
+                cvp = coll.vi_params                
+                cvp['enparams']['floorarea'][str(frame)] = sum([ret_areas(o) for o in coll.objects if o.vi_params.envi_type == '0'])
+
                 if coll.objects[0].vi_params.envi_type in ('0', '2'):
                     params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                               'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
                     paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
                     en_idf.write(epentry('Zone', params, paramvs))
         
-        geo_coll.vi_params['enparams'] = {'floorarea': sum([float(coll.vi_params['enparams']['floorarea']) for coll in geo_colls])}
+        geo_coll.vi_params['enparams']['floorarea'][str(frame)] = sum([float(coll.vi_params['enparams']['floorarea'][str(frame)]) for coll in geo_colls])
         params = ('Starting Vertex Position', 'Vertex Entry Direction', 'Coordinate System')
         paramvs = ('UpperRightCorner', 'Counterclockwise', 'World')
         en_idf.write(epentry('GlobalGeometryRules', params, paramvs))
@@ -409,6 +410,7 @@ def pregeo(context, op):
         bpy.ops.object.editmode_toggle()
 
     eg = create_coll(context, 'EnVi Geometry')
+    eg.vi_params['enparams']['floorarea'] = {}
 
     for chil in eg.children:
         [bpy.data.objects.remove(o, do_unlink = True, do_id_user=True, do_ui_user=True) for o in chil.objects]
@@ -425,14 +427,14 @@ def pregeo(context, op):
         
         if material.users == 0:
             bpy.data.materials.remove(material)
-                
-    for c in [c for c in bpy.data.collections if c.name != 'EnVi Geometry' and c.name not in [c.name for c in bpy.data.collections['EnVi Geometry'].children]]:
+         
+    for c in [c for c in bpy.data.collections if c.name != 'EnVi Geometry' and c.name not in [c.name for c in eg.children]]:
         c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
         cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH']
 
         if c.vi_params.envi_zone:
-            bpy.data.collections['EnVi Geometry'].children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
+            eg.children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
             
             for o in cobs:
                 if [f for f in o.data.polygons if o.material_slots and \
@@ -466,7 +468,7 @@ def pregeo(context, op):
                     no.name = 'en_{}'.format(c_name) 
                     bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
             
-    for chil in bpy.data.collections['EnVi Geometry'].children: 
+    for chil in eg.children: 
         if chil.objects:
             therm = 0
             for o in chil.objects:
@@ -550,6 +552,7 @@ def pregeo(context, op):
     for coll in eg.children:
         cvp = coll.vi_params
         cvp['enparams'] = {}
+        cvp['enparams']['floorarea'] = {}
         
         if coll.objects:
             for oi, obj in enumerate(coll.objects):
@@ -559,7 +562,8 @@ def pregeo(context, op):
                 for k in ovp.keys():
                     if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica'):
                         del ovp[k]
-                ovp['enparams'] = {}
+#                ovp['enparams'] = {}
+#                ovp['enparams']['floorarea'] = {}
                 omats = [ms.material for ms in obj.material_slots]
         
                 if ovp.envi_type in ('0', '2') and not omats:
@@ -567,18 +571,18 @@ def pregeo(context, op):
                 elif None in omats:
                     op.report({'WARNING'}, 'Object {} has an empty material slot'.format(obj.name))
 
-                if ovp.envi_type in ('0', '2'):
-                    ofa = 0
+                # if ovp.envi_type in ('0', '2'):
+                #     ofa = 0
                     
-                    for face in obj.data.polygons:
-                        if omats[face.material_index] and omats[face.material_index].vi_params.envi_nodes:                            
-                            for node in omats[face.material_index].vi_params.envi_nodes.nodes:
-                                if node.bl_idname == 'No_En_Mat_Con' and node.active:
-                                    if node.envi_con_type =='Floor':
-                                        ofa += facearea(obj, face)
-                            omats[face.material_index].vi_params['enparams']['area'] += facearea(obj, face)
+                #     for face in obj.data.polygons:
+                #         if omats[face.material_index] and omats[face.material_index].vi_params.envi_nodes:                            
+                #             for node in omats[face.material_index].vi_params.envi_nodes.nodes:
+                #                 if node.bl_idname == 'No_En_Mat_Con' and node.active:
+                #                     if node.envi_con_type =='Floor':
+                #                         ofa += facearea(obj, face)
+                #             omats[face.material_index].vi_params['enparams']['area'] += facearea(obj, face)
                 
-                    ovp['enparams']["floorarea"] = ofa
+#                    ovp['enparams']["floorarea"][str(scene.frame_current)] = ofa
                                        
                 for s, sm in enumerate(obj.material_slots): 
                     if sm.material and sm.material not in done_mats:

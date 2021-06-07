@@ -812,6 +812,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
         with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'r') as mgfile: 
             with open(os.path.join(svp['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'w') as bsdffile:
                 self.bsdfrun = Popen(shlex.split(gbcmd), stdin = mgfile, stdout = bsdffile)
+
         mvp['bsdf']['type'] = 'LBNL/Klems Full' if  ovp.li_bsdf_tensor == ' ' else 'Tensor'      
         vl.objects.active = self.o
         wm = context.window_manager
@@ -1659,9 +1660,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                             self.percent = 100 * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy)
                             break
                 except:
-#                    pass
                     logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
-#                    return {self.terminate('CANCELLED', context)}
                 
             if all([esim.poll() is not None for esim in self.esimruns]) and self.e == self.lenframes:
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
@@ -1679,7 +1678,6 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                         if efilename not in [im.name for im in bpy.data.texts]:
                             bpy.data.texts.load(os.path.join(self.nd, efilename))
                         else:
-                            print(bpy.data.texts[efilename].filepath)
                             bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
                         
                         if '** Severe  **' in bpy.data.texts[efilename]:

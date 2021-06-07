@@ -20,8 +20,27 @@ import bpy, mathutils, colorsys, os
 from collections import OrderedDict
 from numpy import arange, array
 from numpy import sum as nsum
-from .vi_func import logentry 
+from .vi_func import logentry, facearea
 from .vi_dicts import rnu, arnu, zresdict, envdict, enresdict, presdict, lresdict
+
+
+def ret_areas(o):
+    ovp = o.vi_params
+    omats = [ms.material for ms in o.material_slots]
+
+    if ovp.envi_type in ('0', '2'):
+        ofa = 0
+        
+        for face in o.data.polygons:
+            if omats[face.material_index] and omats[face.material_index].vi_params.envi_nodes:                            
+                for node in omats[face.material_index].vi_params.envi_nodes.nodes:
+                    if node.bl_idname == 'No_En_Mat_Con' and node.active:
+                        if node.envi_con_type =='Floor':
+                            ofa += facearea(o, face)
+
+                omats[face.material_index].vi_params['enparams']['area'] += facearea(o, face)
+
+    return ofa
 
 def get_mat(node, ee):
     for material in bpy.data.materials:
@@ -549,6 +568,10 @@ def processf(pro_op, node):
         shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Solar gain (W)']
                
         for zn in set(zzonerls[2]):
+            fas = [bpy.data.collections[zn].vi_params['enparams']['floorarea'][str(f)] for f in frames]
+            print(len(fas))
+            allfas = all([fa > 0 for fa in fas])
+
             if temps:
                 areslists.append(['All', 'Zone', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min temp (C)', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
@@ -562,61 +585,77 @@ def processf(pro_op, node):
                 areslists.append(['All', 'Zone', zn, 'Min heating (W)', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Total heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
-                if bpy.data.collections[zn].vi_params['enparams']['floorarea'] > 0:
-                    areslists.append(['All', 'Zone', zn, 'Total heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for h in heats if h[0] == zn])])
+                
+                if allfas:
+                    print(len(heats))
+                    areslists.append(['All', 'Zone', zn, 'Total heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in heats if h[0] == zn])])])
+            
             if cools:
                 areslists.append(['All', 'Zone', zn, 'Max cooling (W)', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min cooling (W)', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg cooling (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Total cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
-                if bpy.data.collections[zn].vi_params['enparams']['floorarea'] > 0:
-                    areslists.append(['All', 'Zone', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(h[1])*0.001/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for h in cools if h[0] == zn])])
+                
+                if allfas:
+                    areslists.append(['All', 'Zone', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate(cools) if c[0] == zn])])
+            
             if aheats:
                 areslists.append(['All', 'Zone', zn, 'Max air heating (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min air heating (W)', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg air heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Total air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
-                if bpy.data.collections[zn].vi_params['enparams']['floorarea'] > 0:
-                    areslists.append(['All', 'Zone', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for h in aheats if h[0] == zn])])
+
+                if allfas:
+                    areslists.append(['All', 'Zone', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate(aheats) if h[0] == zn])])
+            
             if acools:
                 areslists.append(['All', 'Zone', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min air cool (W)', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg air cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
-                if bpy.data.collections[zn].vi_params['enparams']['floorarea'] > 0:
-                    areslists.append(['All', 'Zone', zn, 'Air cooling (kWh/m2)', ' '.join([str(sum(h[1])*0.001/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for h in acools if h[0] == zn])])
+                
+                if allfas:
+                    areslists.append(['All', 'Zone', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate(acools) if c[0] == zn])])
+            
             if co2s:
                 areslists.append(['All', 'Zone', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min CO2 (ppm)', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg CO2 (ppm)', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
+            
             if comfppds:
                 areslists.append(['All', 'Zone', zn, 'Max PPD', ' '.join([str(max(t[1])) for t in comfppds if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min PPD', ' '.join([str(min(t[1])) for t in comfppds if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg PPD', ' '.join([str(sum(t[1])/len(t[1])) for t in comfppds if t[0] == zn])])
+            
             if comfpmvs:
                 areslists.append(['All', 'Zone', zn, 'Max PMV', ' '.join([str(max(t[1])) for t in comfpmvs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min PMV', ' '.join([str(min(t[1])) for t in comfpmvs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg PMV', ' '.join([str(sum(t[1])/len(t[1])) for t in comfpmvs if t[0] == zn])])
+            
             if shgs:
                 areslists.append(['All', 'Zone', zn, 'Max SHG (W)', ' '.join([str(max(t[1])) for t in shgs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min SHG (W)', ' '.join([str(min(t[1])) for t in shgs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Avg SHG (W)', ' '.join([str(sum(t[1])/len(t[1])) for t in shgs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1])*0.001) for t in shgs if t[0] == zn])])
-                if bpy.data.collections[zn].vi_params['enparams']['floorarea'] > 0:
-                    areslists.append(['All', 'Zone', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(t[1])*0.001/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for t in shgs if t[0] == zn])])
+
+                if allfas:
+                    areslists.append(['All', 'Zone', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(t[1])*0.001/fas[si]) for si, s in enumerate(shgs) if t[0] == zn])])
+            
             if heats and cools:
                 try:
                     conds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in heats if h[0] == zn], [sum(h[1])*0.001 for h in cools if h[0] == zn]])]
-                    areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh)', ' '.join([str(cond) for cond in conds])])#join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
-                    if bpy.data.collections[zn].vi_params['enparams']['floorarea'] > 0:
-                        areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for cond in conds])])
+                    areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh)', ' '.join([str(cond) for cond in conds])])
+
+                    if allfas:
+                        areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond/fas[ci]) for ci, cond in enumerate(conds)])])
                 except:
                     pass                
             if aheats and acools:
                 try:
                     aconds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in aheats if h[0] == zn], [sum(h[1])*0.001 for h in acools if h[0] == zn]])]
-                    areslists.append(['All', 'Zone', zn, 'Total air conditioning (kWh)', ' '.join([str(cond) for cond in conds])])#join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
-                    areslists.append(['All', 'Zone', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond/bpy.data.collections[zn].vi_params['enparams']['floorarea']) for acond in aconds])])
+                    areslists.append(['All', 'Zone', zn, 'Total air conditioning (kWh)', ' '.join([str(cond) for cond in conds])])
+                    if allfas:
+                        areslists.append(['All', 'Zone', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond/fas[ai]) for ai, acond in enumerate(aconds)])])
                 except:
                     pass   
                 
