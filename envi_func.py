@@ -597,7 +597,7 @@ def processf(pro_op, node):
                 areslists.append(['All', 'Zone', zn, 'Total cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
                 
                 if allfas:
-                    areslists.append(['All', 'Zone', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate(cools) if c[0] == zn])])
+                    areslists.append(['All', 'Zone', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in cools if c[0] == zn])])])
             
             if aheats:
                 areslists.append(['All', 'Zone', zn, 'Max air heating (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
@@ -606,7 +606,7 @@ def processf(pro_op, node):
                 areslists.append(['All', 'Zone', zn, 'Total air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
 
                 if allfas:
-                    areslists.append(['All', 'Zone', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate(aheats) if h[0] == zn])])
+                    areslists.append(['All', 'Zone', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in aheats if h[0] == zn])])])
             
             if acools:
                 areslists.append(['All', 'Zone', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
@@ -615,7 +615,7 @@ def processf(pro_op, node):
                 areslists.append(['All', 'Zone', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
                 
                 if allfas:
-                    areslists.append(['All', 'Zone', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate(acools) if c[0] == zn])])
+                    areslists.append(['All', 'Zone', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in acools if c[0] == zn])])])
             
             if co2s:
                 areslists.append(['All', 'Zone', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
@@ -639,7 +639,7 @@ def processf(pro_op, node):
                 areslists.append(['All', 'Zone', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1])*0.001) for t in shgs if t[0] == zn])])
 
                 if allfas:
-                    areslists.append(['All', 'Zone', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(t[1])*0.001/fas[si]) for si, s in enumerate(shgs) if t[0] == zn])])
+                    areslists.append(['All', 'Zone', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(t[1])*0.001/fas[si]) for si, s in enumerate([s for s in shgs if s[0] == zn])])])
             
             if heats and cools:
                 try:
@@ -647,7 +647,7 @@ def processf(pro_op, node):
                     areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh)', ' '.join([str(cond) for cond in conds])])
 
                     if allfas:
-                        areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond/fas[ci]) for ci, cond in enumerate(conds)])])
+                        areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond/fas[ci]) for ci, cond in enumerate([c for c in conds if c[0] == zn])])])
                 except:
                     pass                
             if aheats and acools:
@@ -655,7 +655,7 @@ def processf(pro_op, node):
                     aconds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in aheats if h[0] == zn], [sum(h[1])*0.001 for h in acools if h[0] == zn]])]
                     areslists.append(['All', 'Zone', zn, 'Total air conditioning (kWh)', ' '.join([str(cond) for cond in conds])])
                     if allfas:
-                        areslists.append(['All', 'Zone', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond/fas[ai]) for ai, acond in enumerate(aconds)])])
+                        areslists.append(['All', 'Zone', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond/fas[ai]) for ai, acond in enumerate([a for a in aconds if a[0] == zn])])])
                 except:
                     pass   
                 
