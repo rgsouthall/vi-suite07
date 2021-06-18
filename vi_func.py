@@ -1404,7 +1404,7 @@ def retobjs(otypes):
             logentry('Object {} has a "/" in the name and will not be exported'.format(o.name))
     
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.vi_params.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
+        return([o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name)) and o.vi_params.vi_type not in ('4', '5') \
         and o.vi_params.vi_type_string != 'LiVi Res' and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
@@ -1874,10 +1874,12 @@ def ret_param(param, val):
 
 def li_calcob(ob, li):
     ovp = ob.vi_params
+
     if not ob.data.materials:
-        ovp.vi_type_string = 'LiVi Calc'
+        ovp.vi_type_string = ''
     else:
         ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index] and ob.data.materials[face.material_index].vi_params.mattype == '1'] else ''
+    
     return ovp.vi_type_string == 'LiVi Calc'
     
 def sunposh(context, suns):

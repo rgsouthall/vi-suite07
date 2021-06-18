@@ -267,7 +267,8 @@ class No_Li_Geo(Node, ViNodes):
 
     def preexport(self, scene):
         self['Text'] = {}
-        self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
+        self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 
+                            'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
         
     def postexport(self, scene):
         self.id_data.use_fake_user = 1
@@ -1899,7 +1900,6 @@ class No_Vi_HMChart(Node, ViNodes):
     def update(self):
         if self.inputs['Results in'].links:
             innode = self.inputs['Results in'].links[0].from_node
-#            self['times'] = list(set([rl[0] for rl in innode['reslists']]))
             self['times'] = list(dict.fromkeys([rl[0] for rl in innode['reslists']]))
             self['rtypes'] = [rl[1] for rl in innode['reslists']] 
             self['locs'] = [rl[2] for rl in innode['reslists']]
@@ -1981,10 +1981,7 @@ class No_Vi_HMChart(Node, ViNodes):
     hourend: IntProperty(name = '', description = "End hour", default = 24, min = 1, max = 365)
     varmin: IntProperty(name = '', description = "Variable minimum", default = 0)
     varmax: IntProperty(name = '', description = "Varaible maximum", default = 20)
-
-    x = []
-    y = []
-    z = []
+    x, y, z = [], [], []
 
     def init(self, context):
         self['times'] = [('', '', "")]
@@ -1994,7 +1991,6 @@ class No_Vi_HMChart(Node, ViNodes):
         self.inputs.new("So_Vi_Res", "Results in")
 
     def draw_buttons(self, context, layout):
-#        print(self.locmenu, [l[0] for l in self.loctype(context)])
         svp = context.scene.vi_params
 
         if self.inputs['Results in'].links:
