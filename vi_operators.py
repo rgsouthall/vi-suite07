@@ -1632,24 +1632,24 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         
         while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr = PIPE))
-            errtext =  self.esimruns[-1].stderr.read().decode()
+            # errtext =  self.esimruns[-1].stderr.read().decode()
             
-            if 'EnergyPlus Completed Successfully' not in errtext:
-                logentry('Energyplus error: {}'.format(errtext))
-                self.report({'ERROR'}, "Fatal error reported in the EnergyPLus error file. Check the file in Blender's text editor")
+            # if 'EnergyPlus Completed Successfully' not in errtext:
+            #     logentry('Energyplus error: {}'.format(errtext))
+            #     self.report({'ERROR'}, "Fatal error reported in the EnergyPLus error file. Check the file in Blender's text editor")
 
-                for f in range(self.frame, self.frame + len(self.esimruns)):
-                    efilename = "{}{}out.err".format(self.resname, f)
+            #     for f in range(self.frame, self.frame + len(self.esimruns)):
+            #         efilename = "{}{}out.err".format(self.resname, f)
 
-                    if os.path.isfile(os.path.join(self.nd, efilename)):             
-                        if efilename not in [im.name for im in bpy.data.texts]:
-                            bpy.data.texts.load(os.path.join(self.nd, efilename))
-                        else:
-                            bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
+            #         if os.path.isfile(os.path.join(self.nd, efilename)):             
+            #             if efilename not in [im.name for im in bpy.data.texts]:
+            #                 bpy.data.texts.load(os.path.join(self.nd, efilename))
+            #             else:
+            #                 bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
 
-                return {self.terminate('CANCELLED', context)}
+            #     return {self.terminate('CANCELLED', context)}
             self.e += 1
-    
+
         if event.type == 'TIMER':
             if len(self.esimruns) > 1:
                 self.percent = 100 * sum([esim.poll() is not None for esim in self.esimruns])/self.lenframes 
