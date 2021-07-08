@@ -117,7 +117,7 @@ def setscenelivivals(scene):
         res = unit2res[svp['liparams']['unit']]
 
     olist = [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
-    print(olist)
+
     for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
         svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
         svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
