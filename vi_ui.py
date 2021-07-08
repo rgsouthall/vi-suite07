@@ -421,7 +421,7 @@ def rmmenu(layout, cm):
         row.operator("material.save_bsdf", text="Save BSDF")
     if mvp.radmatmenu in ('1', '2', '3', '7'):
         newrow(layout, 'Photon port:', mvp, 'pport')
-    if mvp.radmatmenu in ('0', '1', '2', '3', '6'):
+    if mvp.mattype == '0' and mvp.radmatmenu in ('0', '1', '2', '3', '6'):
         newrow(layout, 'Textured:', mvp, 'radtex')
         if mvp.radtex:
             newrow(layout, 'Normal map:', mvp, 'radnorm')
