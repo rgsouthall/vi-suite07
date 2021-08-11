@@ -2699,7 +2699,7 @@ class NODE_OT_Flo_BM(bpy.types.Operator):
 class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_idname = "node.flovi_ng"
     bl_label = "NetGen export"
-    bl_description = "Export an Openfoam blockmesh"
+    bl_description = "Create a Netgen mesh"
     bl_register = True
     bl_undo = False
 
@@ -2872,7 +2872,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     shutil.copy(os.path.join(svp['flparams']['ofcpfilebase'], file), os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
                                     
                 if expnode.poly and sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
-                    pdm = Popen(shlex.split('foamExec polyDualMesh -case {} -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang)), stdout = PIPE, stderr = PIPE)
+                    os.chdir(svp['flparams']['offilebase'])
+                    pdm = Popen(shlex.split('foamExec polyDualMesh -case {} -noFunctionObjects -noFields -overwrite {}'.format(svp['flparams']['offilebase'], expnode.yang)), stdout = PIPE, stderr = PIPE)
 
                     for line in pdm.stdout:
                         if 'FOAM aborting' in line.decode():

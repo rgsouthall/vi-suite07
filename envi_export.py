@@ -519,7 +519,14 @@ def pregeo(context, op):
                 
             bm = bmesh.new()
             bm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
+            
+#            bmesh.ops.triangulate(bm, faces=bm.faces)
             bm.transform(new_ob.matrix_world)
+            print(bm.calc_volume())
+#            bmesh.ops.connect_verts_nonplanar(bm, angle_limit=0.0175, faces=bm.faces)
+#            print(bm.calc_volume())
+            bmesh.ops.triangulate(bm, faces=bm.faces)
+            print(bm.calc_volume())
             new_ob['auto_volume'] = bm.calc_volume()
             bm.free()
         

@@ -2152,20 +2152,20 @@ class No_Vi_Metrics(Node, ViNodes):
                         row = layout.row()
                         pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
                         row.label(text = "PV (kWh): {}".format(pvkwh))
-                        pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'][str(self.frame_menu)] > 0 else 'N/A' 
+                        pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                         row = layout.row()
                         row.label(text = "PV (kWh/m2): {}".format(pva))
                         row = layout.row()
                         hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
                         row.label(text = "Heating (kWh): {}".format(hkwh))                    
                         row = layout.row()
-                        ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'][str(self.frame_menu)] > 0 else 'N/A' 
+                        ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                         row.label(text = "Heating (kWh/m2): {}".format(ha))
                         row = layout.row()
                         ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
                         row.label(text = "Cooling (kWh): {}".format(ckwh))
                         row = layout.row()
-                        ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'][str(self.frame_menu)] > 0 else 'N/A' 
+                        ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
                         row.label(text = "Cooling (kWh/m2): {}".format(ca))
                         
                         if self.zone_menu == 'All':
@@ -2184,26 +2184,29 @@ class No_Vi_Metrics(Node, ViNodes):
                         if self['res'].get('totkwh'):
                             newrow(layout, 'Type', self, 'riba_menu')
                             tar = 35 if self.riba_menu == '0' else 55
-                            epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'][str(self.frame_menu)] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
-                            shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'][str(self.frame_menu)] > 20 else '(PASS kWh/m2 <= {})'.format(20)
+                            epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
+                            shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
                             # row = layout.row()
                             # row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
                             # row = layout.row()
                             # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
                             row = layout.row()
-                            row.label(text = "Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'][str(self.frame_menu)], epass))
+                            row.label(text = "Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
                         
                         elif self['res'].get('hkwh'):
                             row = layout.row()
                             row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
                             row = layout.row()
-                            row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)]))
+                            row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
 
                             if self['res'].get('ckwh'):
                                 row = layout.row()
                                 row.label(text = "Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
                                 row = layout.row()
-                                row.label(text = "Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa'][str(self.frame_menu)]))
+                                row.label(text = "Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
+                    else:
+                        row = layout.row()
+                        row.label(text = "No floor area")
 
             elif self.metric == '1':
                 if self.light_menu == '0':
@@ -2312,14 +2315,15 @@ class No_Vi_Metrics(Node, ViNodes):
 
             if self.zone_menu == 'All':
                 if geo_coll.vi_params['enparams'].get('floorarea'):
-                    self['res']['fa'] = geo_coll.vi_params['enparams']['floorarea']
+                    self['res']['fa'] = geo_coll.vi_params['enparams']['floorarea'][str(self.frame_menu)]
 
-            elif geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
-                self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea']
+            elif self.zone_menu != 'None':
+                if geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
+                    self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea'][str(self.frame_menu)]
             
             if self.energy_menu == '0':
                 if self['res']['fa'] > 13.9:
-                    occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa'][str(self.frame_menu)] -13.9)**2)) + 0.0013 * (self['res']['fa'][str(self.frame_menu)]  - 13.9)
+                    occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa'] -13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)
                 else:
                     occ = 1
     
@@ -2364,11 +2368,10 @@ class No_Vi_Metrics(Node, ViNodes):
             
             elif self.energy_menu == '1':
                 time = datetime.datetime.now()
-                zrl = zip(self['rl'])
+#                    zrl = zip(self['rl'])
                 for r in self['rl']:
-                    print(datetime.datetime.now() - time)
+                    print(r[0], self.frame_menu, self.zone_menu)
                     if r[0] == self.frame_menu and self.zone_menu == 'All':
-                        print('r')
                         if r[3] == 'PV Power (W)':
                             self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
                         elif r[3] == 'Heating (W)':
@@ -2379,9 +2382,8 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
 
                         self['res']['totkwh'] = (self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] - self['res']['pvkwh'])
-
-                    elif r[0] == self.frame_menu:
-                        
+                        print(self['res']['totkwh'], self['res']['fa'], self['res']['totkwh']/self['res']['fa'])
+                    elif r[0] == self.frame_menu:                            
                         if r[2] == self.zone_menu:
                             if r[3] == 'Heating (W)':
                                 self['res']['hkwh'] = sum(float(p) for p in r[4].split()) * 0.001
@@ -2389,7 +2391,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
                         elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
                                 self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-                    print('r', r[0])
+#                        print('r', r[0])
 
         elif self.metric == '1':
             self['res']['avDF'] = -1
