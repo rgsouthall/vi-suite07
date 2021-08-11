@@ -2962,20 +2962,27 @@ class No_Flo_NG(Node, ViNodes):
         nodecolour(self, 1)
     
     def draw_buttons(self, context, layout): 
-        if self.inputs and self.inputs['Case in'].links:
-            if ng:
-                newrow(layout, 'Cell size:', self, 'maxcs')
-                newrow(layout, 'Position corr:', self, 'pcorr')
-                newrow(layout, 'Angular corr:', self, 'acorr')
-                newrow(layout, 'Distinction angle:', self, 'yang')
-                newrow(layout, 'Inflation:', self, 'grading')
-                newrow(layout, 'Optimisations:', self, 'optimisations')
-                newrow(layout, 'Polygonal:', self, 'poly')
-                row = layout.row()
-                row.operator("node.flovi_ng", text = "Generate")
+        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+        vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
+
+        if os.path.isdir(vi_prefs.ofbin):
+            if self.inputs and self.inputs['Case in'].links:
+                if ng:
+                    newrow(layout, 'Cell size:', self, 'maxcs')
+                    newrow(layout, 'Position corr:', self, 'pcorr')
+                    newrow(layout, 'Angular corr:', self, 'acorr')
+                    newrow(layout, 'Distinction angle:', self, 'yang')
+                    newrow(layout, 'Inflation:', self, 'grading')
+                    newrow(layout, 'Optimisations:', self, 'optimisations')
+                    newrow(layout, 'Polygonal:', self, 'poly')
+                    row = layout.row()
+                    row.operator("node.flovi_ng", text = "Generate")
+                else:
+                    row = layout.row()
+                    row.label(text = 'Netgen not found')
             else:
                 row = layout.row()
-                row.label(text = 'Netgen not found')
+                row.label(text = 'No OpenFOAM directory set')
     
     def update(self):
         if self.outputs.get('Mesh out'):

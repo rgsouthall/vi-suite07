@@ -2821,18 +2821,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         try:
             with TaskManager():    
                 totmesh.GenerateVolumeMesh()
-            logentry("Netgen mesh generated")    
-        
-
-    #        totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')
+            logentry("Netgen mesh generated")            
+            # The below would create a boundary layer but this is nor currently supported in Netgen Python interface
+            # totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
             totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
 
-            # if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):
-            #     subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
-        
-            #     if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
-            #         os.makedirs(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh'))
             if sys.platform == 'linux' and os.path.isdir(vi_prefs.ofbin):           
                 subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
         
