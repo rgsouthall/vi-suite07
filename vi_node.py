@@ -2367,10 +2367,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
             
             elif self.energy_menu == '1':
-                time = datetime.datetime.now()
-#                    zrl = zip(self['rl'])
                 for r in self['rl']:
-                    print(r[0], self.frame_menu, self.zone_menu)
                     if r[0] == self.frame_menu and self.zone_menu == 'All':
                         if r[3] == 'PV Power (W)':
                             self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
@@ -2382,7 +2379,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ckwh'] += sum(float(p) for p in r[4].split()) * 0.001
 
                         self['res']['totkwh'] = (self['res']['hkwh'] + self['res']['ahkwh'] + self['res']['ckwh'] - self['res']['pvkwh'])
-                        print(self['res']['totkwh'], self['res']['fa'], self['res']['totkwh']/self['res']['fa'])
+
                     elif r[0] == self.frame_menu:                            
                         if r[2] == self.zone_menu:
                             if r[3] == 'Heating (W)':
@@ -2391,7 +2388,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
                         elif r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV Power (W)':
                                 self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
-#                        print('r', r[0])
 
         elif self.metric == '1':
             self['res']['avDF'] = -1
