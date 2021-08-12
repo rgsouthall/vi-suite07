@@ -17,7 +17,7 @@ import logging
 
 import numpy as np
 
-from matplotlib import cbook, ticker, units
+from matplotlib import _api, ticker, units
 
 
 _log = logging.getLogger(__name__)
@@ -43,13 +43,14 @@ class StrCategoryConverter(units.ConversionInterface):
 
         Returns
         -------
-        mapped_value : float or ndarray[float]
+        float or ndarray[float]
         """
         if unit is None:
             raise ValueError(
                 'Missing category information for StrCategoryConverter; '
                 'this might be caused by unintendedly mixing categorical and '
                 'numeric data')
+        StrCategoryConverter._validate_unit(unit)
         # dtype = object preserves numerical pass throughs
         values = np.atleast_1d(np.array(value, dtype=object))
         # pass through sequence of non binary numbers
@@ -75,11 +76,12 @@ class StrCategoryConverter(units.ConversionInterface):
 
         Returns
         -------
-        axisinfo : `~matplotlib.units.AxisInfo`
+        `~matplotlib.units.AxisInfo`
             Information to support default tick labeling
 
         .. note: axis is not used
         """
+        StrCategoryConverter._validate_unit(unit)
         # locator and formatter take mapping dict because
         # args need to be pass by reference for updates
         majloc = StrCategoryLocator(unit._mapping)
@@ -99,7 +101,7 @@ class StrCategoryConverter(units.ConversionInterface):
 
         Returns
         -------
-        class : `.UnitData`
+        `.UnitData`
             object storing string to integer mapping
         """
         # the conversion call stack is default_units -> axis_info -> convert
@@ -109,6 +111,13 @@ class StrCategoryConverter(units.ConversionInterface):
             axis.units.update(data)
         return axis.units
 
+    @staticmethod
+    def _validate_unit(unit):
+        if not hasattr(unit, '_mapping'):
+            raise ValueError(
+                f'Provided unit "{unit}" is not valid for a categorical '
+                'converter, as it does not have a _mapping attribute.')
+
 
 class StrCategoryLocator(ticker.Locator):
     """Tick at every integer mapping of the string data."""
@@ -116,14 +125,17 @@ class StrCategoryLocator(ticker.Locator):
         """
         Parameters
         -----------
-        units_mapping : Dict[str, int]
+        units_mapping : dict
+            Mapping of category names (str) to indices (int).
         """
         self._units = units_mapping
 
     def __call__(self):
+        # docstring inherited
         return list(self._units.values())
 
     def tick_values(self, vmin, vmax):
+        # docstring inherited
         return self()
 
 
@@ -133,19 +145,17 @@ class StrCategoryFormatter(ticker.Formatter):
         """
         Parameters
         ----------
-        units_mapping : Dict[Str, int]
+        units_mapping : dict
+            Mapping of category names (str) to indices (int).
         """
         self._units = units_mapping
 
     def __call__(self, x, pos=None):
-        """
-        Return the category label string for tick val *x*.
-
-        The position *pos* is ignored.
-        """
+        # docstring inherited
         return self.format_ticks([x])[0]
 
     def format_ticks(self, values):
+        # docstring inherited
         r_mapping = {v: self._text(k) for k, v in self._units.items()}
         return [r_mapping.get(round(val), '') for val in values]
 
@@ -195,21 +205,19 @@ class UnitData:
 
         Parameters
         ----------
-        data : iterable
-            sequence of string values
+        data : iterable of str or bytes
 
         Raises
         ------
         TypeError
-              If the value in data is not a string, unicode, bytes type
+            If elements in *data* are neither str nor bytes.
         """
         data = np.atleast_1d(np.array(data, dtype=object))
-
         # check if convertible to number:
         convertible = True
         for val in OrderedDict.fromkeys(data):
             # OrderedDict just iterates over unique values in data.
-            cbook._check_isinstance((str, bytes), value=val)
+            _api.check_isinstance((str, bytes), value=val)
             if convertible:
                 # this will only be called so long as convertible is True.
                 convertible = self._str_is_convertible(val)

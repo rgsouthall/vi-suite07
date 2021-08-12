@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     pygments.lexer
     ~~~~~~~~~~~~~~
 
     Base lexer classes.
 
-    :copyright: Copyright 2006-2019 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -148,10 +147,10 @@ class Lexer(metaclass=LexerMeta):
             elif self.encoding == 'chardet':
                 try:
                     import chardet
-                except ImportError:
+                except ImportError as e:
                     raise ImportError('To enable chardet encoding guessing, '
                                       'please install the chardet library '
-                                      'from http://chardet.feedparser.org/')
+                                      'from http://chardet.feedparser.org/') from e
                 # check for BOM first
                 decoded = None
                 for bom, encoding in _encoding_map:
@@ -166,11 +165,11 @@ class Lexer(metaclass=LexerMeta):
                 text = decoded
             else:
                 text = text.decode(self.encoding)
-                if text.startswith(u'\ufeff'):
-                    text = text[len(u'\ufeff'):]
+                if text.startswith('\ufeff'):
+                    text = text[len('\ufeff'):]
         else:
-            if text.startswith(u'\ufeff'):
-                text = text[len(u'\ufeff'):]
+            if text.startswith('\ufeff'):
+                text = text[len('\ufeff'):]
 
         # text now *is* a unicode string
         text = text.replace('\r\n', '\n')
@@ -496,7 +495,7 @@ class RegexLexerMeta(LexerMeta):
                 rex = cls._process_regex(tdef[0], rflags, state)
             except Exception as err:
                 raise ValueError("uncompilable regex %r in state %r of %r: %s" %
-                                 (tdef[0], state, cls, err))
+                                 (tdef[0], state, cls, err)) from err
 
             token = cls._process_token(tdef[1])
 
@@ -628,8 +627,7 @@ class RegexLexer(Lexer, metaclass=RegexLexerMeta):
                         if type(action) is _TokenType:
                             yield pos, action, m.group()
                         else:
-                            for item in action(self, m):
-                                yield item
+                            yield from action(self, m)
                     pos = m.end()
                     if new_state is not None:
                         # state transition
@@ -664,7 +662,7 @@ class RegexLexer(Lexer, metaclass=RegexLexerMeta):
                         # at EOL, reset state to "root"
                         statestack = ['root']
                         statetokens = tokendefs['root']
-                        yield pos, Text, u'\n'
+                        yield pos, Text, '\n'
                         pos += 1
                         continue
                     yield pos, Error, text[pos]
@@ -716,8 +714,7 @@ class ExtendedRegexLexer(RegexLexer):
                             yield ctx.pos, action, m.group()
                             ctx.pos = m.end()
                         else:
-                            for item in action(self, m, ctx):
-                                yield item
+                            yield from action(self, m, ctx)
                             if not new_state:
                                 # altered the state stack?
                                 statetokens = tokendefs[ctx.stack[-1]]
@@ -753,7 +750,7 @@ class ExtendedRegexLexer(RegexLexer):
                         # at EOL, reset state to "root"
                         ctx.stack = ['root']
                         statetokens = tokendefs['root']
-                        yield ctx.pos, Text, u'\n'
+                        yield ctx.pos, Text, '\n'
                         ctx.pos += 1
                         continue
                     yield ctx.pos, Error, text[ctx.pos]
@@ -781,8 +778,7 @@ def do_insertions(insertions, tokens):
         index, itokens = next(insertions)
     except StopIteration:
         # no insertions
-        for item in tokens:
-            yield item
+        yield from tokens
         return
 
     realpos = None
@@ -797,8 +793,9 @@ def do_insertions(insertions, tokens):
         oldi = 0
         while insleft and i + len(v) >= index:
             tmpval = v[oldi:index - i]
-            yield realpos, t, tmpval
-            realpos += len(tmpval)
+            if tmpval:
+                yield realpos, t, tmpval
+                realpos += len(tmpval)
             for it_index, it_token, it_value in itokens:
                 yield realpos, it_token, it_value
                 realpos += len(it_value)
@@ -808,8 +805,9 @@ def do_insertions(insertions, tokens):
             except StopIteration:
                 insleft = False
                 break  # not strictly necessary
-        yield realpos, t, v[oldi:]
-        realpos += len(v) - oldi
+        if oldi < len(v):
+            yield realpos, t, v[oldi:]
+            realpos += len(v) - oldi
 
     # leftover tokens
     while insleft:
@@ -856,8 +854,7 @@ class ProfilingRegexLexer(RegexLexer, metaclass=ProfilingRegexLexerMeta):
     def get_tokens_unprocessed(self, text, stack=('root',)):
         # this needs to be a stack, since using(this) will produce nested calls
         self.__class__._prof_data.append({})
-        for tok in RegexLexer.get_tokens_unprocessed(self, text, stack):
-            yield tok
+        yield from RegexLexer.get_tokens_unprocessed(self, text, stack)
         rawdata = self.__class__._prof_data.pop()
         data = sorted(((s, repr(r).strip('u\'').replace('\\\\', '\\')[:65],
                         n, 1000 * t, 1000 * t / n)

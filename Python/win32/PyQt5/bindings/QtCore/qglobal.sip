@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -29,8 +29,8 @@ int PYQT_VERSION;
 const char *PYQT_VERSION_STR;
 
 %ModuleCode
-static int PYQT_VERSION = 0x050f00;
-static const char *PYQT_VERSION_STR = "5.15.0";
+static int PYQT_VERSION = 0x050f04;
+static const char *PYQT_VERSION_STR = "5.15.4";
 %End
 const int QT_VERSION;
 const char *QT_VERSION_STR;
@@ -160,7 +160,7 @@ typedef void *QFunctionPointer;
 // Mapped type for qintptr.
 // Map qintptr onto sip.voidptr.  This means either an address (on Windows) or
 // an integer file descriptor (on everything else) can be used.
-%MappedType qintptr /TypeHint="sip.voidptr"/
+%MappedType qintptr /TypeHint="PyQt5.sip.voidptr"/
 {
 %TypeHeaderCode
 #include <QtGlobal>
@@ -189,7 +189,7 @@ typedef void *QFunctionPointer;
 // Mapped type for quintptr.
 // Map quintptr onto sip.voidptr.  This means either an address (on Windows) or
 // an integer file descriptor (on everything else) can be used.
-%MappedType quintptr /TypeHint="sip.voidptr"/
+%MappedType quintptr /TypeHint="PyQt5.sip.voidptr"/
 {
 %TypeHeaderCode
 #include <QtGlobal>

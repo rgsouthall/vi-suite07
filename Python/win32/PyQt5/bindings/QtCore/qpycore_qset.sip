@@ -1,7 +1,7 @@
 // This is the SIP interface definition for the majority of the QSet based
 // mapped types.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 

@@ -1,54 +1,54 @@
 import numpy as np
 
-from matplotlib import cbook, ticker as mticker
+from matplotlib import _api, ticker as mticker
 from matplotlib.transforms import Bbox, Transform
 from .clip_path import clip_line_to_rect
 
 
-def _deprecate_factor_none(factor):
-    # After the deprecation period, calls to _deprecate_factor_none can just be
-    # removed.
-    if factor is None:
-        cbook.warn_deprecated(
-            "3.2",
-            message="factor=None is deprecated; use/return factor=1 instead")
-        factor = 1
-    return factor
-
-
-# extremes finder
 class ExtremeFinderSimple:
+    """
+    A helper class to figure out the range of grid lines that need to be drawn.
+    """
+
     def __init__(self, nx, ny):
-        self.nx, self.ny = nx, ny
+        """
+        Parameters
+        ----------
+        nx, ny : int
+            The number of samples in each direction.
+        """
+        self.nx = nx
+        self.ny = ny
 
     def __call__(self, transform_xy, x1, y1, x2, y2):
         """
-        get extreme values.
+        Compute an approximation of the bounding box obtained by applying
+        *transform_xy* to the box delimited by ``(x1, y1, x2, y2)``.
 
-        x1, y1, x2, y2 in image coordinates (0-based)
-        nx, ny : number of division in each axis
+        The intended use is to have ``(x1, y1, x2, y2)`` in axes coordinates,
+        and have *transform_xy* be the transform from axes coordinates to data
+        coordinates; this method then returns the range of data coordinates
+        that span the actual axes.
+
+        The computation is done by sampling ``nx * ny`` equispaced points in
+        the ``(x1, y1, x2, y2)`` box and finding the resulting points with
+        extremal coordinates; then adding some padding to take into account the
+        finite sampling.
+
+        As each sampling step covers a relative range of *1/nx* or *1/ny*,
+        the padding is computed by expanding the span covered by the extremal
+        coordinates by these fractions.
         """
-        x_, y_ = np.linspace(x1, x2, self.nx), np.linspace(y1, y2, self.ny)
-        x, y = np.meshgrid(x_, y_)
-        lon, lat = transform_xy(np.ravel(x), np.ravel(y))
+        x, y = np.meshgrid(
+            np.linspace(x1, x2, self.nx), np.linspace(y1, y2, self.ny))
+        xt, yt = transform_xy(np.ravel(x), np.ravel(y))
+        return self._add_pad(xt.min(), xt.max(), yt.min(), yt.max())
 
-        lon_min, lon_max = lon.min(), lon.max()
-        lat_min, lat_max = lat.min(), lat.max()
-
-        return self._add_pad(lon_min, lon_max, lat_min, lat_max)
-
-    def _add_pad(self, lon_min, lon_max, lat_min, lat_max):
-        """
-        A small amount of padding is added because the current clipping
-        algorithms seems to fail when the gridline ends at the bbox boundary.
-        """
-        dlon = (lon_max - lon_min) / self.nx
-        dlat = (lat_max - lat_min) / self.ny
-
-        lon_min, lon_max = lon_min - dlon, lon_max + dlon
-        lat_min, lat_max = lat_min - dlat, lat_max + dlat
-
-        return lon_min, lon_max, lat_min, lat_max
+    def _add_pad(self, x_min, x_max, y_min, y_max):
+        """Perform the padding mentioned in `__call__`."""
+        dx = (x_max - x_min) / self.nx
+        dy = (y_max - y_min) / self.ny
+        return x_min - dx, x_max + dx, y_min - dy, y_max + dy
 
 
 class GridFinder:
@@ -99,8 +99,8 @@ class GridFinder:
         lon_levs, lon_n, lon_factor = self.grid_locator1(lon_min, lon_max)
         lat_levs, lat_n, lat_factor = self.grid_locator2(lat_min, lat_max)
 
-        lon_values = lon_levs[:lon_n] / _deprecate_factor_none(lon_factor)
-        lat_values = lat_levs[:lat_n] / _deprecate_factor_none(lat_factor)
+        lon_values = lon_levs[:lon_n] / lon_factor
+        lat_values = lat_levs[:lat_n] / lat_factor
 
         lon_lines, lat_lines = self._get_raw_grid_lines(lon_values,
                                                         lat_values,
@@ -176,24 +176,26 @@ class GridFinder:
         return gi
 
     def update_transform(self, aux_trans):
-        if isinstance(aux_trans, Transform):
-            def transform_xy(x, y):
-                ll1 = np.column_stack([x, y])
-                ll2 = aux_trans.transform(ll1)
-                lon, lat = ll2[:, 0], ll2[:, 1]
-                return lon, lat
+        if not isinstance(aux_trans, Transform) and len(aux_trans) != 2:
+            raise TypeError("'aux_trans' must be either a Transform instance "
+                            "or a pair of callables")
+        self._aux_transform = aux_trans
 
-            def inv_transform_xy(x, y):
-                ll1 = np.column_stack([x, y])
-                ll2 = aux_trans.inverted().transform(ll1)
-                lon, lat = ll2[:, 0], ll2[:, 1]
-                return lon, lat
-
+    def transform_xy(self, x, y):
+        aux_trf = self._aux_transform
+        if isinstance(aux_trf, Transform):
+            return aux_trf.transform(np.column_stack([x, y])).T
         else:
-            transform_xy, inv_transform_xy = aux_trans
+            transform_xy, inv_transform_xy = aux_trf
+            return transform_xy(x, y)
 
-        self.transform_xy = transform_xy
-        self.inv_transform_xy = inv_transform_xy
+    def inv_transform_xy(self, x, y):
+        aux_trf = self._aux_transform
+        if isinstance(aux_trf, Transform):
+            return aux_trf.inverted().transform(np.column_stack([x, y])).T
+        else:
+            transform_xy, inv_transform_xy = aux_trf
+            return inv_transform_xy(x, y)
 
     def update(self, **kw):
         for k in kw:
@@ -204,20 +206,7 @@ class GridFinder:
                      "tick_formatter2"]:
                 setattr(self, k, kw[k])
             else:
-                raise ValueError("unknown update property '%s'" % k)
-
-
-@cbook.deprecated("3.2")
-class GridFinderBase(GridFinder):
-    def __init__(self,
-                 extreme_finder,
-                 grid_locator1=None,
-                 grid_locator2=None,
-                 tick_formatter1=None,
-                 tick_formatter2=None):
-        super().__init__((None, None), extreme_finder,
-                         grid_locator1, grid_locator2,
-                         tick_formatter1, tick_formatter2)
+                raise ValueError("Unknown update property '%s'" % k)
 
 
 class MaxNLocator(mticker.MaxNLocator):
@@ -227,19 +216,19 @@ class MaxNLocator(mticker.MaxNLocator):
                  symmetric=False,
                  prune=None):
         # trim argument has no effect. It has been left for API compatibility
-        mticker.MaxNLocator.__init__(self, nbins, steps=steps,
-                                     integer=integer,
-                                     symmetric=symmetric, prune=prune)
+        super().__init__(nbins, steps=steps, integer=integer,
+                         symmetric=symmetric, prune=prune)
         self.create_dummy_axis()
         self._factor = 1
 
     def __call__(self, v1, v2):
         self.set_bounds(v1 * self._factor, v2 * self._factor)
-        locs = mticker.MaxNLocator.__call__(self)
+        locs = super().__call__()
         return np.array(locs), len(locs), self._factor
 
+    @_api.deprecated("3.3")
     def set_factor(self, f):
-        self._factor = _deprecate_factor_none(f)
+        self._factor = f
 
 
 class FixedLocator:
@@ -252,8 +241,9 @@ class FixedLocator:
         locs = np.array([l for l in self._locs if v1 <= l <= v2])
         return locs, len(locs), self._factor
 
+    @_api.deprecated("3.3")
     def set_factor(self, f):
-        self._factor = _deprecate_factor_none(f)
+        self._factor = f
 
 
 # Tick Formatter
@@ -263,11 +253,8 @@ class FormatterPrettyPrint:
         self._fmt = mticker.ScalarFormatter(
             useMathText=useMathText, useOffset=False)
         self._fmt.create_dummy_axis()
-        self._ignore_factor = True
 
     def __call__(self, direction, factor, values):
-        if not self._ignore_factor:
-            values = [v / _deprecate_factor_none(factor) for v in values]
         return self._fmt.format_ticks(values)
 
 

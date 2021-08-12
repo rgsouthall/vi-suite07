@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -20,7 +20,7 @@
 // WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 
 
-class QJsonValue /TypeHintIn="Union[QJsonValue, QJsonValue.Type, QJsonArray, QJsonObject, bool, int, float, QString]"/
+class QJsonValue /AllowNone,TypeHintIn="Union[QJsonValue, QJsonValue.Type, QJsonArray, QJsonObject, bool, int, float, None, QString]"/
 {
 %TypeHeaderCode
 #include <qjsonvalue.h>

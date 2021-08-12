@@ -1,4 +1,4 @@
-# Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+# Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 # 
 # This file is part of PyQt5.
 # 
@@ -29,7 +29,7 @@ def find_qt():
     if not os.path.isfile(dll_dir + qtcore_dll):
         path = os.environ['PATH']
 
-        dll_dir = os.path.dirname(__file__) + '\\Qt\\bin'
+        dll_dir = os.path.dirname(__file__) + '\\Qt5\\bin'
         if os.path.isfile(dll_dir + qtcore_dll):
             path = dll_dir + ';' + path
             os.environ['PATH'] = path

@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -49,7 +49,7 @@ public:
         ArchDataPath,
     };
 
-    static QString location(QLibraryInfo::LibraryLocation);
+    static QString location(QLibraryInfo::LibraryLocation) /ReleaseGIL/;
     static QDate buildDate();
     static bool isDebugBuild();
 %If (Qt_5_8_0 -)

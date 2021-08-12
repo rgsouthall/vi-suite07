@@ -1,10 +1,12 @@
 import datetime
+import platform
 import re
 
 import numpy as np
-from matplotlib.testing.decorators import image_comparison
-from matplotlib import pyplot as plt
 from numpy.testing import assert_array_almost_equal
+import matplotlib as mpl
+from matplotlib.testing.decorators import image_comparison
+from matplotlib import pyplot as plt, rc_context
 from matplotlib.colors import LogNorm
 import pytest
 
@@ -107,34 +109,24 @@ def test_contour_uniform_z():
     assert len(record) == 1
 
 
-@image_comparison(['contour_manual_labels'],
-                  savefig_kwarg={'dpi': 200}, remove_text=True, style='mpl20')
+@image_comparison(['contour_manual_labels'], remove_text=True, style='mpl20')
 def test_contour_manual_labels():
-
     x, y = np.meshgrid(np.arange(0, 10), np.arange(0, 10))
     z = np.max(np.dstack([abs(x), abs(y)]), 2)
 
     plt.figure(figsize=(6, 2), dpi=200)
     cs = plt.contour(x, y, z)
-    pts = np.array([(1.5, 3.0), (1.5, 4.4), (1.5, 6.0)])
+    pts = np.array([(1.0, 3.0), (1.0, 4.4), (1.0, 6.0)])
     plt.clabel(cs, manual=pts)
-
-
-@image_comparison(['contour_labels_size_color.png'],
-                  remove_text=True, style='mpl20')
-def test_contour_labels_size_color():
-
-    x, y = np.meshgrid(np.arange(0, 10), np.arange(0, 10))
-    z = np.max(np.dstack([abs(x), abs(y)]), 2)
-
-    plt.figure(figsize=(6, 2))
-    cs = plt.contour(x, y, z)
-    pts = np.array([(1.5, 3.0), (1.5, 4.4), (1.5, 6.0)])
+    pts = np.array([(2.0, 3.0), (2.0, 4.4), (2.0, 6.0)])
     plt.clabel(cs, manual=pts, fontsize='small', colors=('r', 'g'))
 
 
 @image_comparison(['contour_manual_colors_and_levels.png'], remove_text=True)
 def test_given_colors_levels_and_extends():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     _, axs = plt.subplots(2, 4)
 
     data = np.arange(12).reshape(3, 4)
@@ -188,7 +180,8 @@ def test_contour_datetime_axis():
 
 
 @image_comparison(['contour_test_label_transforms.png'],
-                  remove_text=True, style='mpl20')
+                  remove_text=True, style='mpl20',
+                  tol=0 if platform.machine() == 'x86_64' else 0.08)
 def test_labels():
     # Adapted from pylab_examples example code: contour_demo.py
     # see issues #2475, #2843, and #2818 for explanation
@@ -264,15 +257,15 @@ def test_contourf_symmetric_locator():
      'If mask is set it must be a 2D array with the same dimensions as x.'),
 ])
 def test_internal_cpp_api(args, cls, message):  # Github issue 8197.
-    import matplotlib._contour as _contour
+    from matplotlib import _contour  # noqa: ensure lazy-loaded module *is* loaded.
     with pytest.raises(cls, match=re.escape(message)):
-        _contour.QuadContourGenerator(*args)
+        mpl._contour.QuadContourGenerator(*args)
 
 
 def test_internal_cpp_api_2():
-    import matplotlib._contour as _contour
+    from matplotlib import _contour  # noqa: ensure lazy-loaded module *is* loaded.
     arr = [[0, 1], [2, 3]]
-    qcg = _contour.QuadContourGenerator(arr, arr, arr, None, True, 0)
+    qcg = mpl._contour.QuadContourGenerator(arr, arr, arr, None, True, 0)
     with pytest.raises(
             ValueError, match=r'filled contour levels must be increasing'):
         qcg.create_filled_contour(1, 0)
@@ -280,25 +273,47 @@ def test_internal_cpp_api_2():
 
 def test_circular_contour_warning():
     # Check that almost circular contours don't throw a warning
-    with pytest.warns(None) as record:
-        x, y = np.meshgrid(np.linspace(-2, 2, 4), np.linspace(-2, 2, 4))
-        r = np.hypot(x, y)
+    x, y = np.meshgrid(np.linspace(-2, 2, 4), np.linspace(-2, 2, 4))
+    r = np.hypot(x, y)
+    plt.figure()
+    cs = plt.contour(x, y, r)
+    plt.clabel(cs)
 
-        plt.figure()
-        cs = plt.contour(x, y, r)
-        plt.clabel(cs)
-    assert len(record) == 0
+
+@pytest.mark.parametrize("use_clabeltext, contour_zorder, clabel_zorder",
+                         [(True, 123, 1234), (False, 123, 1234),
+                          (True, 123, None), (False, 123, None)])
+def test_clabel_zorder(use_clabeltext, contour_zorder, clabel_zorder):
+    x, y = np.meshgrid(np.arange(0, 10), np.arange(0, 10))
+    z = np.max(np.dstack([abs(x), abs(y)]), 2)
+
+    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    cs = ax1.contour(x, y, z, zorder=contour_zorder)
+    cs_filled = ax2.contourf(x, y, z, zorder=contour_zorder)
+    clabels1 = cs.clabel(zorder=clabel_zorder, use_clabeltext=use_clabeltext)
+    clabels2 = cs_filled.clabel(zorder=clabel_zorder,
+                                use_clabeltext=use_clabeltext)
+
+    if clabel_zorder is None:
+        expected_clabel_zorder = 2+contour_zorder
+    else:
+        expected_clabel_zorder = clabel_zorder
+
+    for clabel in clabels1:
+        assert clabel.get_zorder() == expected_clabel_zorder
+    for clabel in clabels2:
+        assert clabel.get_zorder() == expected_clabel_zorder
 
 
 @image_comparison(['contour_log_extension.png'],
                   remove_text=True, style='mpl20')
 def test_contourf_log_extension():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     # Test that contourf with lognorm is extended correctly
-    fig = plt.figure(figsize=(10, 5))
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 5))
     fig.subplots_adjust(left=0.05, right=0.95)
-    ax1 = fig.add_subplot(131)
-    ax2 = fig.add_subplot(132)
-    ax3 = fig.add_subplot(133)
 
     # make data set with large range e.g. between 1e-8 and 1e10
     data_exp = np.linspace(-7.5, 9.5, 1200)
@@ -323,8 +338,8 @@ def test_contourf_log_extension():
     cb = plt.colorbar(c2, ax=ax2)
     assert cb.ax.get_ylim() == (1e-4, 1e6)
     cb = plt.colorbar(c3, ax=ax3)
-    assert_array_almost_equal(cb.ax.get_ylim(),
-        [3.162277660168379e-05, 3162277.660168383], 2)
+    assert_array_almost_equal(
+        cb.ax.get_ylim(), [3.162277660168379e-05, 3162277.660168383], 2)
 
 
 @image_comparison(['contour_addlines.png'],
@@ -332,6 +347,9 @@ def test_contourf_log_extension():
 # tolerance is because image changed minutely when tick finding on
 # colorbars was cleaned up...
 def test_contour_addlines():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     fig, ax = plt.subplots()
     np.random.seed(19680812)
     X = np.random.rand(10, 10)*10000
@@ -346,6 +364,9 @@ def test_contour_addlines():
 @image_comparison(baseline_images=['contour_uneven'],
                   extensions=['png'], remove_text=True, style='mpl20')
 def test_contour_uneven():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     z = np.arange(24).reshape(4, 6)
     fig, axs = plt.subplots(1, 2)
     ax = axs[0]
@@ -354,3 +375,26 @@ def test_contour_uneven():
     ax = axs[1]
     cs = ax.contourf(z, levels=[2, 4, 6, 10, 20])
     fig.colorbar(cs, ax=ax, spacing='uniform')
+
+
+@pytest.mark.parametrize(
+    "rc_lines_linewidth, rc_contour_linewidth, call_linewidths, expected", [
+        (1.23, None, None, 1.23),
+        (1.23, 4.24, None, 4.24),
+        (1.23, 4.24, 5.02, 5.02)
+        ])
+def test_contour_linewidth(
+        rc_lines_linewidth, rc_contour_linewidth, call_linewidths, expected):
+
+    with rc_context(rc={"lines.linewidth": rc_lines_linewidth,
+                        "contour.linewidth": rc_contour_linewidth}):
+        fig, ax = plt.subplots()
+        X = np.arange(4*3).reshape(4, 3)
+        cs = ax.contour(X, linewidths=call_linewidths)
+        assert cs.tlinewidths[0][0] == expected
+
+
+@pytest.mark.backend("pdf")
+def test_label_nonagg():
+    # This should not crash even if the canvas doesn't have a get_renderer().
+    plt.clabel(plt.contour([[1, 2], [3, 4]]))

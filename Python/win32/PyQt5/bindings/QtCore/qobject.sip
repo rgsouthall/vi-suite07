@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -751,6 +751,16 @@ private:
 #define sipQtDisconnect             0
 #define sipQtSameSignalSlotName     0
 #define sipQtFindSipslot            0
+%End
+
+%PreInitialisationCode
+#if defined(Q_OS_DARWIN)
+    // This works around a problem (possibly a clash between Qt and Python)
+    // began with Qt v5.11 that causes missed paint events.  Only set the
+    // variable if it hasn't already been given a value.
+    if (qgetenv("QT_MAC_WANTS_LAYER").isNull())
+        qputenv("QT_MAC_WANTS_LAYER", "1");
+#endif
 %End
 
 %InitialisationCode

@@ -2,7 +2,9 @@ import io
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
+from PIL import Image, TiffTags
 import pytest
+
 
 from matplotlib import (
     collections, path, pyplot as plt, transforms as mtransforms, rcParams)
@@ -99,7 +101,7 @@ def test_agg_filter():
         def get_pad(self, dpi):
             return 0
 
-        def process_image(padded_src, dpi):
+        def process_image(self, padded_src, dpi):
             raise NotImplementedError("Should be overridden by subclasses")
 
         def __call__(self, im, dpi):
@@ -159,30 +161,30 @@ def test_agg_filter():
     fig, ax = plt.subplots()
 
     # draw lines
-    l1, = ax.plot([0.1, 0.5, 0.9], [0.1, 0.9, 0.5], "bo-",
-                  mec="b", mfc="w", lw=5, mew=3, ms=10, label="Line 1")
-    l2, = ax.plot([0.1, 0.5, 0.9], [0.5, 0.2, 0.7], "ro-",
-                  mec="r", mfc="w", lw=5, mew=3, ms=10, label="Line 1")
+    line1, = ax.plot([0.1, 0.5, 0.9], [0.1, 0.9, 0.5], "bo-",
+                     mec="b", mfc="w", lw=5, mew=3, ms=10, label="Line 1")
+    line2, = ax.plot([0.1, 0.5, 0.9], [0.5, 0.2, 0.7], "ro-",
+                     mec="r", mfc="w", lw=5, mew=3, ms=10, label="Line 1")
 
     gauss = DropShadowFilter(4)
 
-    for l in [l1, l2]:
+    for line in [line1, line2]:
 
         # draw shadows with same lines with slight offset.
-        xx = l.get_xdata()
-        yy = l.get_ydata()
+        xx = line.get_xdata()
+        yy = line.get_ydata()
         shadow, = ax.plot(xx, yy)
-        shadow.update_from(l)
+        shadow.update_from(line)
 
         # offset transform
-        ot = mtransforms.offset_copy(l.get_transform(), ax.figure,
+        ot = mtransforms.offset_copy(line.get_transform(), ax.figure,
                                      x=4.0, y=-6.0, units='points')
 
         shadow.set_transform(ot)
 
         # adjust zorder of the shadow lines so that it is drawn below the
         # original lines
-        shadow.set_zorder(l.get_zorder() - 0.5)
+        shadow.set_zorder(line.get_zorder() - 0.5)
         shadow.set_agg_filter(gauss)
         shadow.set_rasterized(True)  # to support mixed-mode renderers
 
@@ -217,7 +219,6 @@ def test_chunksize():
 
 @pytest.mark.backend('Agg')
 def test_jpeg_dpi():
-    Image = pytest.importorskip("PIL.Image")
     # Check that dpi is set correctly in jpg files.
     plt.plot([0, 1, 2], [0, 1, 0])
     buf = io.BytesIO()
@@ -227,7 +228,6 @@ def test_jpeg_dpi():
 
 
 def test_pil_kwargs_png():
-    Image = pytest.importorskip("PIL.Image")
     from PIL.PngImagePlugin import PngInfo
     buf = io.BytesIO()
     pnginfo = PngInfo()
@@ -238,11 +238,9 @@ def test_pil_kwargs_png():
 
 
 def test_pil_kwargs_tiff():
-    Image = pytest.importorskip("PIL.Image")
-    from PIL.TiffTags import TAGS_V2 as TAGS
     buf = io.BytesIO()
     pil_kwargs = {"description": "test image"}
     plt.figure().savefig(buf, format="tiff", pil_kwargs=pil_kwargs)
     im = Image.open(buf)
-    tags = {TAGS[k].name: v for k, v in im.tag_v2.items()}
+    tags = {TiffTags.TAGS_V2[k].name: v for k, v in im.tag_v2.items()}
     assert tags["ImageDescription"] == "test image"

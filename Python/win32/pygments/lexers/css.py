@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     pygments.lexers.css
     ~~~~~~~~~~~~~~~~~~~
 
     Lexers for CSS and related stylesheet formats.
 
-    :copyright: Copyright 2006-2019 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -289,8 +288,8 @@ class CssLexer(RegexLexer):
             (r'(@)([\w-]+)', bygroups(Punctuation, Keyword), 'atrule'),
             (r'[\w-]+', Name.Tag),
             (r'[~^*!%&$\[\]()<>|+=@:;,./?-]', Operator),
-            (r'"(\\\\|\\"|[^"])*"', String.Double),
-            (r"'(\\\\|\\'|[^'])*'", String.Single)
+            (r'"(\\\\|\\[^\\]|[^"\\])*"', String.Double),
+            (r"'(\\\\|\\[^\\]|[^'\\])*'", String.Single),
         ],
         'atrule': [
             (r'\{', Punctuation, 'atcontent'),
@@ -310,6 +309,8 @@ class CssLexer(RegexLexer):
             (words(_vendor_prefixes,), Keyword.Pseudo),
             (r'('+r'|'.join(_css_properties)+r')(\s*)(\:)',
              bygroups(Keyword, Text, Punctuation), 'value-start'),
+            (r'([-]+[a-zA-Z_][\w-]*)(\s*)(\:)', bygroups(Name.Variable, Text, Punctuation),
+             'value-start'),
             (r'([a-zA-Z_][\w-]*)(\s*)(\:)', bygroups(Name, Text, Punctuation),
              'value-start'),
 
@@ -335,14 +336,15 @@ class CssLexer(RegexLexer):
 
             (r'[~^*!%&<>|+=@:./?-]+', Operator),
             (r'[\[\](),]+', Punctuation),
-            (r'"(\\\\|\\"|[^"])*"', String.Double),
-            (r"'(\\\\|\\'|[^'])*'", String.Single),
+            (r'"(\\\\|\\[^\\]|[^"\\])*"', String.Double),
+            (r"'(\\\\|\\[^\\]|[^'\\])*'", String.Single),
             (r'[a-zA-Z_][\w-]*', Name),
             (r';', Punctuation, '#pop'),
             (r'\}', Punctuation, '#pop:2'),
         ],
         'function-start': [
             (r'\s+', Text),
+            (r'[-]+([\w+]+[-]*)+', Name.Variable),
             include('urls'),
             (words(_vendor_prefixes,), Keyword.Pseudo),
             (words(_keyword_values, suffix=r'\b'), Keyword.Constant),
@@ -358,9 +360,9 @@ class CssLexer(RegexLexer):
             (r'/\*(?:.|\n)*?\*/', Comment),
             include('numeric-values'),
             (r'[*+/-]', Operator),
-            (r'[,]', Punctuation),
-            (r'"(\\\\|\\"|[^"])*"', String.Double),
-            (r"'(\\\\|\\'|[^'])*'", String.Single),
+            (r',', Punctuation),
+            (r'"(\\\\|\\[^\\]|[^"\\])*"', String.Double),
+            (r"'(\\\\|\\[^\\]|[^'\\])*'", String.Single),
             (r'[a-zA-Z_-]\w*', Name),
             (r'\)', Punctuation, '#pop'),
         ],
@@ -396,7 +398,7 @@ common_sass_tokens = {
             'behind', 'below', 'bidi-override', 'blink', 'block', 'bold', 'bolder', 'both',
             'capitalize', 'center-left', 'center-right', 'center', 'circle',
             'cjk-ideographic', 'close-quote', 'collapse', 'condensed', 'continuous',
-            'crop', 'crosshair', 'cross', 'cursive', 'dashed', 'decimal-leading-zero',
+            'crosshair', 'cross', 'cursive', 'dashed', 'decimal-leading-zero',
             'decimal', 'default', 'digits', 'disc', 'dotted', 'double', 'e-resize', 'embed',
             'extra-condensed', 'extra-expanded', 'expanded', 'fantasy', 'far-left',
             'far-right', 'faster', 'fast', 'fixed', 'georgian', 'groove', 'hebrew', 'help',
@@ -686,6 +688,7 @@ class LessCssLexer(CssLexer):
         ],
         'content': [
             (r'\{', Punctuation, '#push'),
+            (r'//.*\n', Comment.Single),
             inherit,
         ],
     }

@@ -1,3 +1,0 @@
-set NGSCXX_DIR=%~dp0
- call "C:/Program Files (x86)/Microsoft Visual Studio/2017/BuildTools/VC/Auxiliary/Build/vcvarsall.bat" amd64
-cl /c /MD /O2 /Ob2 /DNDEBUG /DWIN32 /D_WINDOWS /W3 /GR /EHsc  /DHAVE_NETGEN_SOURCES /DUSE_TIMEOFDAY /DTCL /DUSE_PARDISO /DLAPACK /DNGS_PYTHON /DUSE_UMFPACK /DNETGEN_PYTHON /DNG_PYTHON /D_WIN32_WINNT=0x1000 /DWNT /DWNT_WINDOW /DNOMINMAX /DMSVC_EXPRESS /D_CRT_SECURE_NO_WARNINGS /DHAVE_STRUCT_TIMESPEC /std:c++17 -DMAX_SYS_DIM=3 /bigobj /MP /W1 /wd4068  /I"C:/Intel/compilers_and_libraries/windows/mkl/include" /I"C:/Python37/include" /I"%NGSCXX_DIR%/../include" /I"%NGSCXX_DIR%/../include/include" %*

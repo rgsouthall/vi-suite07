@@ -16,7 +16,7 @@ The source code for the plot may be included in one of three ways:
 
      .. plot:: path/to/plot.py
 
-        This is the caption for the plot
+        The plot's caption.
 
    Additionally, one may specify the name of a function to call (with
    no arguments) immediately after importing the module::
@@ -36,6 +36,7 @@ The source code for the plot may be included in one of three ways:
 3. Using **doctest** syntax::
 
      .. plot::
+
         A plotting example:
         >>> import matplotlib.pyplot as plt
         >>> plt.plot([1, 2, 3], [4, 5, 6])
@@ -46,20 +47,20 @@ Options
 The ``plot`` directive supports the following options:
 
     format : {'python', 'doctest'}
-        Specify the format of the input
+        The format of the input.
 
     include-source : bool
         Whether to display the source code. The default can be changed
-        using the `plot_include_source` variable in conf.py
+        using the `plot_include_source` variable in :file:`conf.py`.
 
     encoding : str
         If this source file is in a non-UTF8 or non-ASCII encoding, the
-        encoding must be specified using the `:encoding:` option.  The encoding
-        will not be inferred using the ``-*- coding -*-`` metacomment.
+        encoding must be specified using the ``:encoding:`` option.  The
+        encoding will not be inferred using the ``-*- coding -*-`` metacomment.
 
     context : bool or str
         If provided, the code will be run in the context of all previous plot
-        directives for which the `:context:` option was specified.  This only
+        directives for which the ``:context:`` option was specified.  This only
         applies to inline code plot directives, not those run from files. If
         the ``:context: reset`` option is specified, the context is reset
         for this and future plots, and previous figures are closed prior to
@@ -70,9 +71,14 @@ The ``plot`` directive supports the following options:
         If specified, the code block will be run, but no figures will be
         inserted.  This is usually useful with the ``:context:`` option.
 
+    caption : str
+        If specified, the option's argument will be used as a caption for the
+        figure. This overwrites the caption given in the content, when the plot
+        is generated from a file.
+
 Additionally, this directive supports all of the options of the `image`
 directive, except for *target* (since plot will add its own target).  These
-include `alt`, `height`, `width`, `scale`, `align` and `class`.
+include *alt*, *height*, *width*, *scale*, *align* and *class*.
 
 Configuration options
 ---------------------
@@ -115,8 +121,8 @@ The plot directive has the following configuration options:
         be applied before each plot.
 
     plot_apply_rcparams
-        By default, rcParams are applied when `context` option is not used in
-        a plot directive.  This configuration option overrides this behavior
+        By default, rcParams are applied when ``:context:`` option is not used
+        in a plot directive.  This configuration option overrides this behavior
         and applies rcParams before each plot.
 
     plot_working_directory
@@ -150,10 +156,12 @@ import jinja2  # Sphinx dependency.
 import matplotlib
 from matplotlib.backend_bases import FigureManagerBase
 import matplotlib.pyplot as plt
-from matplotlib import _pylab_helpers, cbook
+from matplotlib import _api, _pylab_helpers, cbook
 
 matplotlib.use("agg")
-align = Image.align
+align = _api.deprecated(
+    "3.4", alternative="docutils.parsers.rst.directives.images.Image.align")(
+        Image.align)
 
 __version__ = 2
 
@@ -161,16 +169,6 @@ __version__ = 2
 # -----------------------------------------------------------------------------
 # Registration hook
 # -----------------------------------------------------------------------------
-
-
-@cbook.deprecated("3.1", alternative="PlotDirective")
-def plot_directive(name, arguments, options, content, lineno,
-                   content_offset, block_text, state, state_machine):
-    """Implementation of the ``.. plot::`` directive.
-
-    See the module docstring for details.
-    """
-    return run(arguments, content, options, state_machine, state, lineno)
 
 
 def _option_boolean(arg):
@@ -188,16 +186,11 @@ def _option_boolean(arg):
 def _option_context(arg):
     if arg in [None, 'reset', 'close-figs']:
         return arg
-    raise ValueError("argument should be None or 'reset' or 'close-figs'")
+    raise ValueError("Argument should be None or 'reset' or 'close-figs'")
 
 
 def _option_format(arg):
     return directives.choice(arg, ('python', 'doctest'))
-
-
-def _option_align(arg):
-    return directives.choice(arg, ("top", "middle", "bottom", "left", "center",
-                                   "right"))
 
 
 def mark_plot_labels(app, document):
@@ -231,10 +224,7 @@ def mark_plot_labels(app, document):
 
 
 class PlotDirective(Directive):
-    """Implementation of the ``.. plot::`` directive.
-
-    See the module docstring for details.
-    """
+    """The ``.. plot::`` directive, as documented in the module's docstring."""
 
     has_content = True
     required_arguments = 0
@@ -245,23 +235,33 @@ class PlotDirective(Directive):
         'height': directives.length_or_unitless,
         'width': directives.length_or_percentage_or_unitless,
         'scale': directives.nonnegative_int,
-        'align': _option_align,
+        'align': Image.align,
         'class': directives.class_option,
         'include-source': _option_boolean,
         'format': _option_format,
         'context': _option_context,
         'nofigs': directives.flag,
         'encoding': directives.encoding,
+        'caption': directives.unchanged,
         }
 
     def run(self):
         """Run the plot directive."""
-        return run(self.arguments, self.content, self.options,
-                   self.state_machine, self.state, self.lineno)
+        try:
+            return run(self.arguments, self.content, self.options,
+                       self.state_machine, self.state, self.lineno)
+        except Exception as e:
+            raise self.error(str(e))
+
+
+def _copy_css_file(app, exc):
+    if exc is None and app.builder.format == 'html':
+        src = cbook._get_data_path('plot_directive/plot_directive.css')
+        dst = app.outdir / Path('_static')
+        shutil.copy(src, dst)
 
 
 def setup(app):
-    import matplotlib
     setup.app = app
     setup.config = app.config
     setup.confdir = app.confdir
@@ -276,9 +276,9 @@ def setup(app):
     app.add_config_value('plot_apply_rcparams', False, True)
     app.add_config_value('plot_working_directory', None, True)
     app.add_config_value('plot_template', None, True)
-
     app.connect('doctree-read', mark_plot_labels)
-
+    app.add_css_file('plot_directive.css')
+    app.connect('build-finished', _copy_css_file)
     metadata = {'parallel_read_safe': True, 'parallel_write_safe': True,
                 'version': matplotlib.__version__}
     return metadata
@@ -344,7 +344,6 @@ def split_code_at_show(text):
 # Template
 # -----------------------------------------------------------------------------
 
-
 TEMPLATE = """
 {{ source_code }}
 
@@ -381,7 +380,7 @@ TEMPLATE = """
         )
       {%- endif -%}
 
-      {{ caption }}
+      {{ caption }}  {# appropriate leading whitespace added beforehand #}
    {% endfor %}
 
 .. only:: not html
@@ -390,9 +389,9 @@ TEMPLATE = """
    .. figure:: {{ build_dir }}/{{ img.basename }}.*
       {% for option in options -%}
       {{ option }}
-      {% endfor %}
+      {% endfor -%}
 
-      {{ caption }}
+      {{ caption }}  {# appropriate leading whitespace added beforehand #}
    {% endfor %}
 
 """
@@ -454,11 +453,11 @@ def run_code(code, code_path, ns=None, function_name=None):
         except OSError as err:
             raise OSError(str(err) + '\n`plot_working_directory` option in'
                           'Sphinx configuration file must be a valid '
-                          'directory path')
+                          'directory path') from err
         except TypeError as err:
             raise TypeError(str(err) + '\n`plot_working_directory` option in '
                             'Sphinx configuration file must be a string or '
-                            'None')
+                            'None') from err
     elif code_path is not None:
         dirname = os.path.abspath(os.path.dirname(code_path))
         os.chdir(dirname)
@@ -485,8 +484,8 @@ def run_code(code, code_path, ns=None, function_name=None):
                 if function_name is not None:
                     exec(function_name + "()", ns)
 
-        except (Exception, SystemExit):
-            raise PlotError(traceback.format_exc())
+        except (Exception, SystemExit) as err:
+            raise PlotError(traceback.format_exc()) from err
         finally:
             os.chdir(pwd)
     return ns
@@ -528,7 +527,7 @@ def render_figures(code, code_path, output_dir, output_base, context,
     """
     formats = get_plot_formats(config)
 
-    # -- Try to determine if all images already exist
+    # Try to determine if all images already exist
 
     code_pieces = split_code_at_show(code)
 
@@ -610,8 +609,8 @@ def render_figures(code, code_path, output_dir, output_base, context,
             for fmt, dpi in formats:
                 try:
                     figman.canvas.figure.savefig(img.filename(fmt), dpi=dpi)
-                except Exception:
-                    raise PlotError(traceback.format_exc())
+                except Exception as err:
+                    raise PlotError(traceback.format_exc()) from err
                 img.formats.append(fmt)
 
         results.append((code_piece, images))
@@ -631,6 +630,13 @@ def run(arguments, content, options, state_machine, state, lineno):
     default_fmt = formats[0][0]
 
     options.setdefault('include-source', config.plot_include_source)
+    if 'class' in options:
+        # classes are parsed into a list of string, and output by simply
+        # printing the list, abusing the fact that RST guarantees to strip
+        # non-conforming characters
+        options['class'] = ['plot-directive'] + options['class']
+    else:
+        options.setdefault('class', ['plot-directive'])
     keep_context = 'context' in options
     context_opt = None if not keep_context else options['context']
 
@@ -648,6 +654,16 @@ def run(arguments, content, options, state_machine, state, lineno):
         # If there is content, it will be passed as a caption.
         caption = '\n'.join(content)
 
+        # Enforce unambiguous use of captions.
+        if "caption" in options:
+            if caption:
+                raise ValueError(
+                    'Caption specified in both content and options.'
+                    ' Please remove ambiguity.'
+                )
+            # Use caption option
+            caption = options["caption"]
+
         # If the optional function name is provided, use it
         if len(arguments) == 2:
             function_name = arguments[1]
@@ -664,7 +680,7 @@ def run(arguments, content, options, state_machine, state, lineno):
         base, ext = os.path.splitext(os.path.basename(source_file_name))
         output_base = '%s-%d.py' % (base, counter)
         function_name = None
-        caption = ''
+        caption = options.get('caption', '')
 
     base, source_ext = os.path.splitext(output_base)
     if source_ext in ('.py', '.rst', '.txt'):
@@ -740,8 +756,8 @@ def run(arguments, content, options, state_machine, state, lineno):
         errors = [sm]
 
     # Properly indent the caption
-    caption = '\n'.join('      ' + line.strip()
-                        for line in caption.split('\n'))
+    caption = '\n' + '\n'.join('      ' + line.strip()
+                               for line in caption.split('\n'))
 
     # generate output restructuredtext
     total_lines = []

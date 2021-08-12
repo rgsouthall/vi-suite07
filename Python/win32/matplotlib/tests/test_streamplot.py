@@ -1,8 +1,8 @@
 import sys
-import platform
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal
+import pytest
 import matplotlib.pyplot as plt
 from matplotlib.testing.decorators import image_comparison
 import matplotlib.transforms as mtransforms
@@ -42,14 +42,16 @@ def test_startpoints():
 @image_comparison(['streamplot_colormap'],
                   tol=.04, remove_text=True, style='mpl20')
 def test_colormap():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     X, Y, U, V = velocity_field()
     plt.streamplot(X, Y, U, V, color=U, density=0.6, linewidth=2,
                    cmap=plt.cm.autumn)
     plt.colorbar()
 
 
-@image_comparison(['streamplot_linewidth'], remove_text=True, style='mpl20',
-                  tol={'aarch64': 0.02}.get(platform.machine(), 0.0))
+@image_comparison(['streamplot_linewidth'], remove_text=True, style='mpl20')
 def test_linewidth():
     X, Y, U, V = velocity_field()
     speed = np.hypot(U, V)
@@ -113,3 +115,49 @@ def test_streamplot_limits():
     # datalim.
     assert_array_almost_equal(ax.dataLim.bounds, (20, 30, 15, 6),
                               decimal=1)
+
+
+def test_streamplot_grid():
+    u = np.ones((2, 2))
+    v = np.zeros((2, 2))
+
+    # Test for same rows and columns
+    x = np.array([[10, 20], [10, 30]])
+    y = np.array([[10, 10], [20, 20]])
+
+    with pytest.raises(ValueError, match="The rows of 'x' must be equal"):
+        plt.streamplot(x, y, u, v)
+
+    x = np.array([[10, 20], [10, 20]])
+    y = np.array([[10, 10], [20, 30]])
+
+    with pytest.raises(ValueError, match="The columns of 'y' must be equal"):
+        plt.streamplot(x, y, u, v)
+
+    x = np.array([[10, 20], [10, 20]])
+    y = np.array([[10, 10], [20, 20]])
+    plt.streamplot(x, y, u, v)
+
+    # Test for maximum dimensions
+    x = np.array([0, 10])
+    y = np.array([[[0, 10]]])
+
+    with pytest.raises(ValueError, match="'y' can have at maximum "
+                                         "2 dimensions"):
+        plt.streamplot(x, y, u, v)
+
+    # Test for equal spacing
+    u = np.ones((3, 3))
+    v = np.zeros((3, 3))
+    x = np.array([0, 10, 20])
+    y = np.array([0, 10, 30])
+
+    with pytest.raises(ValueError, match="'y' values must be equally spaced"):
+        plt.streamplot(x, y, u, v)
+
+    # Test for strictly increasing
+    x = np.array([0, 20, 40])
+    y = np.array([0, 20, 10])
+
+    with pytest.raises(ValueError, match="'y' must be strictly increasing"):
+        plt.streamplot(x, y, u, v)

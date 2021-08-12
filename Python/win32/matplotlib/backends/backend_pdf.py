@@ -6,6 +6,7 @@ Author: Jouni K Seppänen <jks@iki.fi>
 import codecs
 import collections
 from datetime import datetime
+from enum import Enum
 from functools import total_ordering
 from io import BytesIO
 import itertools
@@ -20,15 +21,17 @@ import warnings
 import zlib
 
 import numpy as np
+from PIL import Image
 
-from matplotlib import _text_layout, cbook, __version__, rcParams
+import matplotlib as mpl
+from matplotlib import _api, _text_layout, cbook
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import (
-    _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
-    RendererBase)
+    _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
+    GraphicsContextBase, RendererBase, _no_output_draw)
 from matplotlib.backends.backend_mixed import MixedModeRenderer
 from matplotlib.figure import Figure
-from matplotlib.font_manager import findfont, is_opentype_cff_font, get_font
+from matplotlib.font_manager import findfont, get_font
 from matplotlib.afm import AFM
 import matplotlib.type1font as type1font
 import matplotlib.dviread as dviread
@@ -39,8 +42,6 @@ from matplotlib.transforms import Affine2D, BboxBase
 from matplotlib.path import Path
 from matplotlib.dates import UTC
 from matplotlib import _path
-from matplotlib import _png
-from matplotlib import ttconv
 from . import _backend_pdf_ps
 
 _log = logging.getLogger(__name__)
@@ -94,9 +95,12 @@ _log = logging.getLogger(__name__)
 
 
 def fill(strings, linelen=75):
-    """Make one string from sequence of strings, with whitespace
-    in between. The whitespace is chosen to form lines of at most
-    linelen characters, if possible."""
+    """
+    Make one string from sequence of strings, with whitespace in between.
+
+    The whitespace is chosen to form lines of at most *linelen* characters,
+    if possible.
+    """
     currpos = 0
     lasti = 0
     result = []
@@ -129,6 +133,117 @@ def _string_escape(match):
     elif m == b'\r':
         return br'\r'
     assert False
+
+
+def _create_pdf_info_dict(backend, metadata):
+    """
+    Create a PDF infoDict based on user-supplied metadata.
+
+    A default ``Creator``, ``Producer``, and ``CreationDate`` are added, though
+    the user metadata may override it. The date may be the current time, or a
+    time set by the ``SOURCE_DATE_EPOCH`` environment variable.
+
+    Metadata is verified to have the correct keys and their expected types. Any
+    unknown keys/types will raise a warning.
+
+    Parameters
+    ----------
+    backend : str
+        The name of the backend to use in the Producer value.
+
+    metadata : dict[str, Union[str, datetime, Name]]
+        A dictionary of metadata supplied by the user with information
+        following the PDF specification, also defined in
+        `~.backend_pdf.PdfPages` below.
+
+        If any value is *None*, then the key will be removed. This can be used
+        to remove any pre-defined values.
+
+    Returns
+    -------
+    dict[str, Union[str, datetime, Name]]
+        A validated dictionary of metadata.
+    """
+
+    # get source date from SOURCE_DATE_EPOCH, if set
+    # See https://reproducible-builds.org/specs/source-date-epoch/
+    source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
+    if source_date_epoch:
+        source_date = datetime.utcfromtimestamp(int(source_date_epoch))
+        source_date = source_date.replace(tzinfo=UTC)
+    else:
+        source_date = datetime.today()
+
+    info = {
+        'Creator': f'Matplotlib v{mpl.__version__}, https://matplotlib.org',
+        'Producer': f'Matplotlib {backend} backend v{mpl.__version__}',
+        'CreationDate': source_date,
+        **metadata
+    }
+    info = {k: v for (k, v) in info.items() if v is not None}
+
+    def is_string_like(x):
+        return isinstance(x, str)
+    is_string_like.text_for_warning = "an instance of str"
+
+    def is_date(x):
+        return isinstance(x, datetime)
+    is_date.text_for_warning = "an instance of datetime.datetime"
+
+    def check_trapped(x):
+        if isinstance(x, Name):
+            return x.name in (b'True', b'False', b'Unknown')
+        else:
+            return x in ('True', 'False', 'Unknown')
+    check_trapped.text_for_warning = 'one of {"True", "False", "Unknown"}'
+
+    keywords = {
+        'Title': is_string_like,
+        'Author': is_string_like,
+        'Subject': is_string_like,
+        'Keywords': is_string_like,
+        'Creator': is_string_like,
+        'Producer': is_string_like,
+        'CreationDate': is_date,
+        'ModDate': is_date,
+        'Trapped': check_trapped,
+    }
+    for k in info:
+        if k not in keywords:
+            _api.warn_external(f'Unknown infodict keyword: {k!r}. '
+                               f'Must be one of {set(keywords)!r}.')
+        elif not keywords[k](info[k]):
+            _api.warn_external(f'Bad value for infodict keyword {k}. '
+                               f'Got {info[k]!r} which is not '
+                               f'{keywords[k].text_for_warning}.')
+    if 'Trapped' in info:
+        info['Trapped'] = Name(info['Trapped'])
+
+    return info
+
+
+def _datetime_to_pdf(d):
+    """
+    Convert a datetime to a PDF string representing it.
+
+    Used for PDF and PGF.
+    """
+    r = d.strftime('D:%Y%m%d%H%M%S')
+    z = d.utcoffset()
+    if z is not None:
+        z = z.seconds
+    else:
+        if time.daylight:
+            z = time.altzone
+        else:
+            z = time.timezone
+    if z == 0:
+        r += 'Z'
+    elif z < 0:
+        r += "+%02d'%02d'" % ((-z) // 3600, (-z) % 3600)
+    else:
+        r += "-%02d'%02d'" % (z // 3600, z % 3600)
+    return r
 
 
 def pdfRepr(obj):
@@ -195,22 +310,7 @@ def pdfRepr(obj):
 
     # A date.
     elif isinstance(obj, datetime):
-        r = obj.strftime('D:%Y%m%d%H%M%S')
-        z = obj.utcoffset()
-        if z is not None:
-            z = z.seconds
-        else:
-            if time.daylight:
-                z = time.altzone
-            else:
-                z = time.timezone
-        if z == 0:
-            r += 'Z'
-        elif z < 0:
-            r += "+%02d'%02d'" % ((-z) // 3600, (-z) % 3600)
-        else:
-            r += "-%02d'%02d'" % (z // 3600, z % 3600)
-        return pdfRepr(r)
+        return pdfRepr(_datetime_to_pdf(obj))
 
     # A bounding box
     elif isinstance(obj, BboxBase):
@@ -222,7 +322,9 @@ def pdfRepr(obj):
 
 
 class Reference:
-    """PDF reference object.
+    """
+    PDF reference object.
+
     Use PdfFile.reserveObject() to create References.
     """
 
@@ -294,8 +396,7 @@ class Operator:
 
 
 class Verbatim:
-    """Store verbatim PDF command content for later inclusion in the
-    stream."""
+    """Store verbatim PDF command content for later inclusion in the stream."""
     def __init__(self, x):
         self._x = x
 
@@ -304,41 +405,72 @@ class Verbatim:
 
 
 # PDF operators (not an exhaustive list)
-_pdfops = dict(
-    close_fill_stroke=b'b', fill_stroke=b'B', fill=b'f', closepath=b'h',
-    close_stroke=b's', stroke=b'S', endpath=b'n', begin_text=b'BT',
-    end_text=b'ET', curveto=b'c', rectangle=b're', lineto=b'l', moveto=b'm',
-    concat_matrix=b'cm', use_xobject=b'Do', setgray_stroke=b'G',
-    setgray_nonstroke=b'g', setrgb_stroke=b'RG', setrgb_nonstroke=b'rg',
-    setcolorspace_stroke=b'CS', setcolorspace_nonstroke=b'cs',
-    setcolor_stroke=b'SCN', setcolor_nonstroke=b'scn', setdash=b'd',
-    setlinejoin=b'j', setlinecap=b'J', setgstate=b'gs', gsave=b'q',
-    grestore=b'Q', textpos=b'Td', selectfont=b'Tf', textmatrix=b'Tm',
-    show=b'Tj', showkern=b'TJ', setlinewidth=b'w', clip=b'W', shading=b'sh')
+class Op(Operator, Enum):
+    close_fill_stroke = b'b'
+    fill_stroke = b'B'
+    fill = b'f'
+    closepath = b'h',
+    close_stroke = b's'
+    stroke = b'S'
+    endpath = b'n'
+    begin_text = b'BT',
+    end_text = b'ET'
+    curveto = b'c'
+    rectangle = b're'
+    lineto = b'l'
+    moveto = b'm',
+    concat_matrix = b'cm'
+    use_xobject = b'Do'
+    setgray_stroke = b'G',
+    setgray_nonstroke = b'g'
+    setrgb_stroke = b'RG'
+    setrgb_nonstroke = b'rg',
+    setcolorspace_stroke = b'CS'
+    setcolorspace_nonstroke = b'cs',
+    setcolor_stroke = b'SCN'
+    setcolor_nonstroke = b'scn'
+    setdash = b'd',
+    setlinejoin = b'j'
+    setlinecap = b'J'
+    setgstate = b'gs'
+    gsave = b'q',
+    grestore = b'Q'
+    textpos = b'Td'
+    selectfont = b'Tf'
+    textmatrix = b'Tm',
+    show = b'Tj'
+    showkern = b'TJ'
+    setlinewidth = b'w'
+    clip = b'W'
+    shading = b'sh'
 
-Op = types.SimpleNamespace(**{name: Operator(value)
-                              for name, value in _pdfops.items()})
+    @classmethod
+    def paint_path(cls, fill, stroke):
+        """
+        Return the PDF operator to paint a path.
 
-
-def _paint_path(fill, stroke):
-    """Return the PDF operator to paint a path in the following way:
-    fill:   fill the path with the fill color
-    stroke: stroke the outline of the path with the line color"""
-    if stroke:
-        if fill:
-            return Op.fill_stroke
+        Parameters
+        ----------
+        fill : bool
+            Fill the path with the fill color.
+        stroke : bool
+            Stroke the outline of the path with the line color.
+        """
+        if stroke:
+            if fill:
+                return cls.fill_stroke
+            else:
+                return cls.stroke
         else:
-            return Op.stroke
-    else:
-        if fill:
-            return Op.fill
-        else:
-            return Op.endpath
-Op.paint_path = _paint_path
+            if fill:
+                return cls.fill
+            else:
+                return cls.endpath
 
 
 class Stream:
-    """PDF stream object.
+    """
+    PDF stream object.
 
     This has no pdfRepr method. Instead, call begin(), then output the
     contents of the stream by calling write(), and finally call end().
@@ -349,7 +481,6 @@ class Stream:
         """
         Parameters
         ----------
-
         id : int
             Object id of the stream.
         len : Reference or None
@@ -376,8 +507,9 @@ class Stream:
                                'DecodeParms': png})
 
         self.pdfFile.recordXref(self.id)
-        if rcParams['pdf.compression'] and not png:
-            self.compressobj = zlib.compressobj(rcParams['pdf.compression'])
+        if mpl.rcParams['pdf.compression'] and not png:
+            self.compressobj = zlib.compressobj(
+                mpl.rcParams['pdf.compression'])
         if self.len is None:
             self.file = BytesIO()
         else:
@@ -389,7 +521,7 @@ class Stream:
         write(b"%d 0 obj\n" % self.id)
         dict = self.extra
         dict['Length'] = self.len
-        if rcParams['pdf.compression']:
+        if mpl.rcParams['pdf.compression']:
             dict['Filter'] = Name('FlateDecode')
 
         write(pdfRepr(dict))
@@ -429,6 +561,52 @@ class Stream:
             self.compressobj = None
 
 
+def _get_pdf_charprocs(font_path, glyph_ids):
+    font = get_font(font_path, hinting_factor=1)
+    conv = 1000 / font.units_per_EM  # Conversion to PS units (1/1000's).
+    procs = {}
+    for glyph_id in glyph_ids:
+        g = font.load_glyph(glyph_id, LOAD_NO_SCALE)
+        # NOTE: We should be using round(), but instead use
+        # "(x+.5).astype(int)" to keep backcompat with the old ttconv code
+        # (this is different for negative x's).
+        d1 = (np.array([g.horiAdvance, 0, *g.bbox]) * conv + .5).astype(int)
+        v, c = font.get_path()
+        v = (v * 64).astype(int)  # Back to TrueType's internal units (1/64's).
+        # Backcompat with old ttconv code: control points between two quads are
+        # omitted if they are exactly at the midpoint between the control of
+        # the quad before and the quad after, but ttconv used to interpolate
+        # *after* conversion to PS units, causing floating point errors.  Here
+        # we reproduce ttconv's logic, detecting these "implicit" points and
+        # re-interpolating them.  Note that occasionally (e.g. with DejaVu Sans
+        # glyph "0") a point detected as "implicit" is actually explicit, and
+        # will thus be shifted by 1.
+        quads, = np.nonzero(c == 3)
+        quads_on = quads[1::2]
+        quads_mid_on = np.array(
+            sorted({*quads_on} & {*(quads - 1)} & {*(quads + 1)}), int)
+        implicit = quads_mid_on[
+            (v[quads_mid_on]  # As above, use astype(int), not // division
+             == ((v[quads_mid_on - 1] + v[quads_mid_on + 1]) / 2).astype(int))
+            .all(axis=1)]
+        if (font.postscript_name, glyph_id) in [
+                ("DejaVuSerif-Italic", 77),  # j
+                ("DejaVuSerif-Italic", 135),  # \AA
+        ]:
+            v[:, 0] -= 1  # Hard-coded backcompat (FreeType shifts glyph by 1).
+        v = (v * conv + .5).astype(int)  # As above re: truncation vs rounding.
+        v[implicit] = ((  # Fix implicit points; again, truncate.
+            (v[implicit - 1] + v[implicit + 1]) / 2).astype(int))
+        procs[font.get_glyph_name(glyph_id)] = (
+            " ".join(map(str, d1)).encode("ascii") + b" d1\n"
+            + _path.convert_to_string(
+                Path(v, c), None, None, False, None, -1,
+                # no code for quad Beziers triggers auto-conversion to cubics.
+                [b"m", b"l", b"", b"c", b"h"], True)
+            + b"f")
+    return procs
+
+
 class PdfFile:
     """PDF file object."""
 
@@ -436,21 +614,21 @@ class PdfFile:
         """
         Parameters
         ----------
-
         filename : str or path-like or file-like
             Output target; if a string, a file will be opened for writing.
+
         metadata : dict from strings to strings and dates
             Information dictionary object (see PDF reference section 10.2.1
             'Document Information Dictionary'), e.g.:
-            `{'Creator': 'My software', 'Author': 'Me',
-            'Title': 'Awesome fig'}`.
+            ``{'Creator': 'My software', 'Author': 'Me', 'Title': 'Awesome'}``.
 
-            The standard keys are `'Title'`, `'Author'`, `'Subject'`,
-            `'Keywords'`, `'Creator'`, `'Producer'`, `'CreationDate'`,
-            `'ModDate'`, and `'Trapped'`. Values have been predefined
-            for `'Creator'`, `'Producer'` and `'CreationDate'`. They
-            can be removed by setting them to `None`.
+            The standard keys are 'Title', 'Author', 'Subject', 'Keywords',
+            'Creator', 'Producer', 'CreationDate', 'ModDate', and
+            'Trapped'. Values have been predefined for 'Creator', 'Producer'
+            and 'CreationDate'. They can be removed by setting them to `None`.
         """
+        super().__init__()
+
         self._object_seq = itertools.count(1)  # consumed by reserveObject
         self.xrefTable = [[0, 65535, 'the zero object']]
         self.passed_in_file_object = False
@@ -489,31 +667,14 @@ class PdfFile:
                 'Pages': self.pagesObject}
         self.writeObject(self.rootObject, root)
 
-        # get source date from SOURCE_DATE_EPOCH, if set
-        # See https://reproducible-builds.org/specs/source-date-epoch/
-        source_date_epoch = os.getenv("SOURCE_DATE_EPOCH")
-        if source_date_epoch:
-            source_date = datetime.utcfromtimestamp(int(source_date_epoch))
-            source_date = source_date.replace(tzinfo=UTC)
-        else:
-            source_date = datetime.today()
-
-        self.infoDict = {
-            'Creator': 'matplotlib %s, http://matplotlib.org' % __version__,
-            'Producer': 'matplotlib pdf backend %s' % __version__,
-            'CreationDate': source_date
-        }
-        if metadata is not None:
-            self.infoDict.update(metadata)
-        self.infoDict = {k: v for (k, v) in self.infoDict.items()
-                         if v is not None}
+        self.infoDict = _create_pdf_info_dict('pdf', metadata or {})
 
         self.fontNames = {}     # maps filenames to internal font names
         self._internal_font_seq = (Name(f'F{i}') for i in itertools.count(1))
         self.dviFontInfo = {}   # maps dvi font names to embedding information
         # differently encoded Type-1 fonts may share the same descriptor
         self.type1Descriptors = {}
-        self.used_characters = {}
+        self._character_tracker = _backend_pdf_ps.CharacterTracker()
 
         self.alphaStates = {}   # maps alpha values to graphics state objects
         self._alpha_state_seq = (Name(f'A{i}') for i in itertools.count(1))
@@ -533,11 +694,16 @@ class PdfFile:
 
         self.paths = []
 
-        self.pageAnnotations = []  # A list of annotations for the current page
+        # A list of annotations for each page. Each entry is a tuple of the
+        # overall Annots object reference that's inserted into the page object,
+        # followed by a list of the actual annotations.
+        self._annotations = []
+        # For annotations added before a page is created; mostly for the
+        # purpose of newTextnote.
+        self.pageAnnotations = []
 
         # The PDF spec recommends to include every procset
-        procsets = [Name(x)
-                    for x in "PDF Text ImageB ImageC ImageI".split()]
+        procsets = [Name(x) for x in "PDF Text ImageB ImageC ImageI".split()]
 
         # Write resource dictionary.
         # Possibly TODO: more general ExtGState (graphics state dictionaries)
@@ -550,11 +716,17 @@ class PdfFile:
                      'ProcSet': procsets}
         self.writeObject(self.resourceObject, resources)
 
+    @_api.deprecated("3.3")
+    @property
+    def used_characters(self):
+        return self.file._character_tracker.used_characters
+
     def newPage(self, width, height):
         self.endStream()
 
         self.width, self.height = width, height
         contentObject = self.reserveObject('page contents')
+        annotsObject = self.reserveObject('annotations')
         thePage = {'Type': Name('Page'),
                    'Parent': self.pagesObject,
                    'Resources': self.resourceObject,
@@ -563,11 +735,12 @@ class PdfFile:
                    'Group': {'Type': Name('Group'),
                              'S': Name('Transparency'),
                              'CS': Name('DeviceRGB')},
-                   'Annots': self.pageAnnotations,
+                   'Annots': annotsObject,
                    }
         pageObject = self.reserveObject('page')
         self.writeObject(pageObject, thePage)
         self.pageList.append(pageObject)
+        self._annotations.append((annotsObject, self.pageAnnotations))
 
         self.beginStream(contentObject.id,
                          self.reserveObject('length of content stream'))
@@ -585,14 +758,13 @@ class PdfFile:
                    'Contents': text,
                    'Rect': positionRect,
                    }
-        annotObject = self.reserveObject('annotation')
-        self.writeObject(annotObject, theNote)
-        self.pageAnnotations.append(annotObject)
+        self.pageAnnotations.append(theNote)
 
     def finalize(self):
-        "Write out the various deferred objects and the pdf end matter."
+        """Write out the various deferred objects and the pdf end matter."""
 
         self.endStream()
+        self._write_annotations()
         self.writeFonts()
         self.writeExtGSTates()
         self._write_soft_mask_groups()
@@ -622,7 +794,7 @@ class PdfFile:
         self.writeTrailer()
 
     def close(self):
-        "Flush all buffers and free all resources."
+        """Flush all buffers and free all resources."""
 
         self.endStream()
         if self.passed_in_file_object:
@@ -651,6 +823,10 @@ class PdfFile:
             self.currentstream.end()
             self.currentstream = None
 
+    def _write_annotations(self):
+        for annotsObject, annotations in self._annotations:
+            self.writeObject(annotsObject, annotations)
+
     def fontName(self, fontprop):
         """
         Select a font based on fontprop and return a name suitable for
@@ -660,13 +836,9 @@ class PdfFile:
 
         if isinstance(fontprop, str):
             filename = fontprop
-        elif rcParams['pdf.use14corefonts']:
+        elif mpl.rcParams['pdf.use14corefonts']:
             filename = findfont(
                 fontprop, fontext='afm', directory=RendererPdf._afm_font_dir)
-            if filename is None:
-                filename = findfont(
-                    "Helvetica",
-                    fontext='afm', directory=RendererPdf._afm_font_dir)
         else:
             filename = findfont(fontprop)
 
@@ -681,7 +853,7 @@ class PdfFile:
     def dviFontName(self, dvifont):
         """
         Given a dvi font object, return a name suitable for Op.selectfont.
-        This registers the font information in self.dviFontInfo if not yet
+        This registers the font information in ``self.dviFontInfo`` if not yet
         registered.
         """
 
@@ -724,10 +896,9 @@ class PdfFile:
             else:
                 # a normal TrueType font
                 _log.debug('Writing TrueType font.')
-                realpath, stat_key = cbook.get_realpath_and_stat(filename)
-                chars = self.used_characters.get(stat_key)
-                if chars is not None and len(chars[1]):
-                    fonts[Fx] = self.embedTTF(realpath, chars[1])
+                chars = self._character_tracker.used.get(filename)
+                if chars:
+                    fonts[Fx] = self.embedTTF(filename, chars)
         self.writeObject(self.fontObject, fonts)
 
     def _write_afm_font(self, filename):
@@ -762,12 +933,11 @@ class PdfFile:
 
         # Encoding (if needed)
         if fontinfo.encodingfile is not None:
-            enc = dviread.Encoding(fontinfo.encodingfile)
-            differencesArray = [Name(ch) for ch in enc]
-            differencesArray = [0] + differencesArray
-            fontdict['Encoding'] = \
-                {'Type': Name('Encoding'),
-                 'Differences': differencesArray}
+            fontdict['Encoding'] = {
+                'Type': Name('Encoding'),
+                'Differences': [
+                    0, *map(Name, dviread._parse_enc(fontinfo.encodingfile))],
+            }
 
         # If no file is specified, stop short
         if fontinfo.fontfile is None:
@@ -868,9 +1038,11 @@ class PdfFile:
         return fontdescObject
 
     def _get_xobject_symbol_name(self, filename, symbol_name):
-        return "%s-%s" % (
+        Fx = self.fontName(filename)
+        return "-".join([
+            Fx.name.decode(),
             os.path.splitext(os.path.basename(filename))[0],
-            symbol_name)
+            symbol_name])
 
     _identityToUnicodeCMap = b"""/CIDInit /ProcSet findresource begin
 12 dict begin
@@ -897,10 +1069,10 @@ end"""
         """Embed the TTF font from the named file into the document."""
 
         font = get_font(filename)
-        fonttype = rcParams['pdf.fonttype']
+        fonttype = mpl.rcParams['pdf.fonttype']
 
         def cvt(length, upe=font.units_per_EM, nearest=True):
-            "Convert font coordinates to PDF glyph coordinates"
+            """Convert font coordinates to PDF glyph coordinates."""
             value = length / upe * 1000
             if nearest:
                 return round(value)
@@ -979,15 +1151,8 @@ end"""
                 differencesArray.append(Name(name))
                 last_c = c
 
-            # Make the charprocs array (using ttconv to generate the
-            # actual outlines)
-            try:
-                rawcharprocs = ttconv.get_pdf_charprocs(
-                    os.fsencode(filename), glyph_ids)
-            except RuntimeError:
-                _log.warning("The PDF backend does not currently support the "
-                             "selected font.")
-                raise
+            # Make the charprocs array.
+            rawcharprocs = _get_pdf_charprocs(filename, glyph_ids)
             charprocs = {}
             for charname in sorted(rawcharprocs):
                 stream = rawcharprocs[charname]
@@ -1183,15 +1348,6 @@ end"""
             'StemV': 0  # ???
             }
 
-        # The font subsetting to a Type 3 font does not work for
-        # OpenType (.otf) that embed a Postscript CFF font, so avoid that --
-        # save as a (non-subsetted) Type 42 font instead.
-        if is_opentype_cff_font(filename):
-            fonttype = 42
-            _log.warning("%r can not be subsetted into a Type 3 font. The "
-                         "entire font will be embedded in the output.",
-                         os.path.basename(filename))
-
         if fonttype == 3:
             return embedTTFType3(font, characters, descriptor)
         elif fonttype == 42:
@@ -1211,7 +1367,8 @@ end"""
         return name
 
     def _soft_mask_state(self, smask):
-        """Return an ExtGState that sets the soft mask to the given shading.
+        """
+        Return an ExtGState that sets the soft mask to the given shading.
 
         Parameters
         ----------
@@ -1321,7 +1478,7 @@ end"""
                             0, 0, sidelen, sidelen, Op.rectangle,
                             Op.fill)
 
-            self.output(rcParams['hatch.linewidth'], Op.setlinewidth)
+            self.output(mpl.rcParams['hatch.linewidth'], Op.setlinewidth)
 
             self.output(*self.pathOperations(
                 Path.hatch(path),
@@ -1333,7 +1490,8 @@ end"""
         self.writeObject(self.hatchObject, hatchDict)
 
     def addGouraudTriangles(self, points, colors):
-        """Add a Gouraud triangle shading
+        """
+        Add a Gouraud triangle shading.
 
         Parameters
         ----------
@@ -1412,14 +1570,13 @@ end"""
 
     def _unpack(self, im):
         """
-        Unpack the image object im into height, width, data, alpha,
-        where data and alpha are HxWx3 (RGB) or HxWx1 (grayscale or alpha)
-        arrays, except alpha is None if the image is fully opaque.
+        Unpack image array *im* into ``(data, alpha)``, which have shape
+        ``(height, width, 3)`` (RGB) or ``(height, width, 1)`` (grayscale or
+        alpha), except that alpha is None if the image is fully opaque.
         """
-        h, w = im.shape[:2]
         im = im[::-1]
         if im.ndim == 2:
-            return h, w, im, None
+            return im, None
         else:
             rgb = im[:, :, :3]
             rgb = np.array(rgb, order='C')
@@ -1432,50 +1589,78 @@ end"""
                     alpha = np.array(alpha, order='C')
             else:
                 alpha = None
-            return h, w, rgb, alpha
+            return rgb, alpha
 
-    def _writePng(self, data):
+    def _writePng(self, img):
         """
-        Write the image *data* into the pdf file using png
+        Write the image *img* into the pdf file using png
         predictors with Flate compression.
         """
         buffer = BytesIO()
-        _png.write_png(data, buffer)
+        img.save(buffer, format="png")
         buffer.seek(8)
+        png_data = b''
+        bit_depth = palette = None
         while True:
             length, type = struct.unpack(b'!L4s', buffer.read(8))
-            if type == b'IDAT':
+            if type in [b'IHDR', b'PLTE', b'IDAT']:
                 data = buffer.read(length)
                 if len(data) != length:
                     raise RuntimeError("truncated data")
-                self.currentstream.write(data)
+                if type == b'IHDR':
+                    bit_depth = int(data[8])
+                elif type == b'PLTE':
+                    palette = data
+                elif type == b'IDAT':
+                    png_data += data
             elif type == b'IEND':
                 break
             else:
                 buffer.seek(length, 1)
             buffer.seek(4, 1)   # skip CRC
+        return png_data, bit_depth, palette
 
-    def _writeImg(self, data, height, width, grayscale, id, smask=None):
+    def _writeImg(self, data, id, smask=None):
         """
-        Write the image *data* of size *height* x *width*, as grayscale
-        if *grayscale* is true and RGB otherwise, as pdf object *id*
-        and with the soft mask (alpha channel) *smask*, which should be
-        either None or a *height* x *width* x 1 array.
+        Write the image *data*, of shape ``(height, width, 1)`` (grayscale) or
+        ``(height, width, 3)`` (RGB), as pdf object *id* and with the soft mask
+        (alpha channel) *smask*, which should be either None or a ``(height,
+        width, 1)`` array.
         """
-
-        obj = {'Type':             Name('XObject'),
-               'Subtype':          Name('Image'),
-               'Width':            width,
-               'Height':           height,
-               'ColorSpace':       Name('DeviceGray' if grayscale
-                                        else 'DeviceRGB'),
+        height, width, color_channels = data.shape
+        obj = {'Type': Name('XObject'),
+               'Subtype': Name('Image'),
+               'Width': width,
+               'Height': height,
+               'ColorSpace': Name({1: 'DeviceGray',
+                                   3: 'DeviceRGB'}[color_channels]),
                'BitsPerComponent': 8}
         if smask:
             obj['SMask'] = smask
-        if rcParams['pdf.compression']:
-            png = {'Predictor': 10,
-                   'Colors':    1 if grayscale else 3,
-                   'Columns':   width}
+        if mpl.rcParams['pdf.compression']:
+            if data.shape[-1] == 1:
+                data = data.squeeze(axis=-1)
+            img = Image.fromarray(data)
+            img_colors = img.getcolors(maxcolors=256)
+            if color_channels == 3 and img_colors is not None:
+                # Convert to indexed color if there are 256 colors or fewer
+                # This can significantly reduce the file size
+                num_colors = len(img_colors)
+                img = img.convert(mode='P', dither=Image.NONE,
+                                  palette=Image.ADAPTIVE, colors=num_colors)
+                png_data, bit_depth, palette = self._writePng(img)
+                if bit_depth is None or palette is None:
+                    raise RuntimeError("invalid PNG header")
+                palette = palette[:num_colors * 3]  # Trim padding
+                palette = pdfRepr(palette)
+                obj['ColorSpace'] = Verbatim(b'[/Indexed /DeviceRGB '
+                                             + str(num_colors - 1).encode()
+                                             + b' ' + palette + b']')
+                obj['BitsPerComponent'] = bit_depth
+                color_channels = 1
+            else:
+                png_data, _, _ = self._writePng(img)
+            png = {'Predictor': 10, 'Colors': color_channels, 'Columns': width}
         else:
             png = None
         self.beginStream(
@@ -1485,21 +1670,20 @@ end"""
             png=png
             )
         if png:
-            self._writePng(data)
+            self.currentstream.write(png_data)
         else:
             self.currentstream.write(data.tobytes())
         self.endStream()
 
     def writeImages(self):
         for img, name, ob in self._images.values():
-            height, width, data, adata = self._unpack(img)
+            data, adata = self._unpack(img)
             if adata is not None:
                 smaskObject = self.reserveObject("smask")
-                self._writeImg(adata, height, width, True, smaskObject.id)
+                self._writeImg(adata, smaskObject.id)
             else:
                 smaskObject = None
-            self._writeImg(data, height, width, False,
-                           ob.id, smaskObject)
+            self._writeImg(data, ob.id, smaskObject)
 
     def markerObject(self, path, trans, fill, stroke, lw, joinstyle,
                      capstyle):
@@ -1533,7 +1717,14 @@ end"""
     def writeMarkers(self):
         for ((pathops, fill, stroke, joinstyle, capstyle),
              (name, ob, bbox, lw)) in self.markers.items():
-            bbox = bbox.padded(lw * 0.5)
+            # bbox wraps the exact limits of the control points, so half a line
+            # will appear outside it. If the join style is miter and the line
+            # is not parallel to the edge, then the line will extend even
+            # further. From the PDF specification, Section 8.4.3.5, the miter
+            # limit is miterLength / lineWidth and from Table 52, the default
+            # is 10. With half the miter length outside, that works out to the
+            # following padding:
+            bbox = bbox.padded(lw * 5)
             self.beginStream(
                 ob.id, None,
                 {'Type': Name('XObject'), 'Subtype': Name('Form'),
@@ -1594,11 +1785,12 @@ end"""
         self.output(*cmds)
 
     def reserveObject(self, name=''):
-        """Reserve an ID for an indirect object.
+        """
+        Reserve an ID for an indirect object.
+
         The name is used for debugging in case we forget to print out
         the object with writeObject.
         """
-
         id = next(self._object_seq)
         self.xrefTable.append([None, 0, name])
         return Reference(id)
@@ -1626,32 +1818,6 @@ end"""
     def writeInfoDict(self):
         """Write out the info dictionary, checking it for good form"""
 
-        def is_string_like(x):
-            return isinstance(x, str)
-
-        def is_date(x):
-            return isinstance(x, datetime)
-
-        check_trapped = (lambda x: isinstance(x, Name) and
-                         x.name in ('True', 'False', 'Unknown'))
-
-        keywords = {'Title': is_string_like,
-                    'Author': is_string_like,
-                    'Subject': is_string_like,
-                    'Keywords': is_string_like,
-                    'Creator': is_string_like,
-                    'Producer': is_string_like,
-                    'CreationDate': is_date,
-                    'ModDate': is_date,
-                    'Trapped': check_trapped}
-        for k in self.infoDict:
-            if k not in keywords:
-                cbook._warn_external('Unknown infodict keyword: %s' % k)
-            else:
-                if not keywords[k](self.infoDict[k]):
-                    cbook._warn_external(
-                        'Bad value for infodict keyword %s' % k)
-
         self.infoObject = self.reserveObject('info')
         self.writeObject(self.infoObject, self.infoDict)
 
@@ -1668,22 +1834,20 @@ end"""
 
 
 class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
-    @property
-    @cbook.deprecated("3.1")
-    def afm_font_cache(self, _cache=cbook.maxdict(50)):
-        return _cache
 
     _afm_font_dir = cbook._get_data_path("fonts/pdfcorefonts")
     _use_afm_rc_name = "pdf.use14corefonts"
 
     def __init__(self, file, image_dpi, height, width):
-        RendererBase.__init__(self)
-        self.height = height
-        self.width = width
+        super().__init__(width, height)
         self.file = file
         self.gc = self.new_gc()
-        self.mathtext_parser = MathTextParser("Pdf")
         self.image_dpi = image_dpi
+
+    @_api.deprecated("3.4")
+    @property
+    def mathtext_parser(self):
+        return MathTextParser("Pdf")
 
     def finalize(self):
         self.file.output(*self.gc.finalize())
@@ -1715,22 +1879,14 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
         gc._fillcolor = orig_fill
         gc._effective_alphas = orig_alphas
 
-    def track_characters(self, font, s):
-        """Keeps track of which characters are required from each font."""
-        if isinstance(font, str):
-            fname = font
-        else:
-            fname = font.fname
-        realpath, stat_key = cbook.get_realpath_and_stat(fname)
-        used_characters = self.file.used_characters.setdefault(
-            stat_key, (realpath, set()))
-        used_characters[1].update(map(ord, s))
+    @_api.deprecated("3.3")
+    def track_characters(self, *args, **kwargs):
+        """Keep track of which characters are required from each font."""
+        self.file._character_tracker.track(*args, **kwargs)
 
-    def merge_used_characters(self, other):
-        for stat_key, (realpath, charset) in other.items():
-            used_characters = self.file.used_characters.setdefault(
-                stat_key, (realpath, set()))
-            used_characters[1].update(charset)
+    @_api.deprecated("3.3")
+    def merge_used_characters(self, *args, **kwargs):
+        self.file._character_tracker.merge(*args, **kwargs)
 
     def get_image_magnification(self):
         return self.image_dpi/72.0
@@ -1938,14 +2094,23 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
 
     def draw_mathtext(self, gc, x, y, s, prop, angle):
         # TODO: fix positioning and encoding
-        width, height, descent, glyphs, rects, used_characters = \
-            self.mathtext_parser.parse(s, 72, prop)
-        self.merge_used_characters(used_characters)
+        width, height, descent, glyphs, rects = \
+            self._text2path.mathtext_parser.parse(s, 72, prop)
 
-        # When using Type 3 fonts, we can't use character codes higher
-        # than 255, so we use the "Do" command to render those
-        # instead.
-        global_fonttype = rcParams['pdf.fonttype']
+        if gc.get_url() is not None:
+            link_annotation = {
+                'Type': Name('Annot'),
+                'Subtype': Name('Link'),
+                'Rect': (x, y, x + width, y + height),
+                'Border': [0, 0, 0],
+                'A': {
+                    'S': Name('URI'),
+                    'URI': gc.get_url(),
+                },
+            }
+            self.file._annotations[-1][1].append(link_annotation)
+
+        fonttype = mpl.rcParams['pdf.fonttype']
 
         # Set up a global transformation matrix for the whole math expression
         a = math.radians(angle)
@@ -1955,16 +2120,19 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
                          x, y, Op.concat_matrix)
 
         self.check_gc(gc, gc._rgb)
-        self.file.output(Op.begin_text)
         prev_font = None, None
         oldx, oldy = 0, 0
-        for ox, oy, fontname, fontsize, num, symbol_name in glyphs:
-            if is_opentype_cff_font(fontname):
-                fonttype = 42
-            else:
-                fonttype = global_fonttype
+        type3_multibytes = []
 
-            if fonttype == 42 or num <= 255:
+        self.file.output(Op.begin_text)
+        for font, fontsize, num, ox, oy in glyphs:
+            self.file._character_tracker.track(font, chr(num))
+            fontname = font.fname
+            if fonttype == 3 and num > 255:
+                # For Type3 fonts, multibyte characters must be emitted
+                # separately (below).
+                type3_multibytes.append((font, fontsize, ox, oy, num))
+            else:
                 self._setup_textpos(ox, oy, 0, oldx, oldy)
                 oldx, oldy = ox, oy
                 if (fontname, fontsize) != prev_font:
@@ -1975,25 +2143,9 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
                                  Op.show)
         self.file.output(Op.end_text)
 
-        # If using Type 3 fonts, render all of the multi-byte characters
-        # as XObjects using the 'Do' command.
-        if global_fonttype == 3:
-            for ox, oy, fontname, fontsize, num, symbol_name in glyphs:
-                if is_opentype_cff_font(fontname):
-                    fonttype = 42
-                else:
-                    fonttype = global_fonttype
-
-                if fonttype == 3 and num > 255:
-                    self.file.fontName(fontname)
-                    self.file.output(Op.gsave,
-                                     0.001 * fontsize, 0,
-                                     0, 0.001 * fontsize,
-                                     ox, oy, Op.concat_matrix)
-                    name = self.file._get_xobject_symbol_name(
-                        fontname, symbol_name)
-                    self.file.output(Name(name), Op.use_xobject)
-                    self.file.output(Op.grestore)
+        for font, fontsize, ox, oy, num in type3_multibytes:
+            self._draw_xobject_glyph(
+                font, fontsize, font.get_char_index(num), ox, oy)
 
         # Draw any horizontal lines in the math layout
         for ox, oy, width, height in rects:
@@ -2003,6 +2155,7 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
         # Pop off the global transformation
         self.file.output(Op.grestore)
 
+    @_api.delete_parameter("3.3", "ismath")
     def draw_tex(self, gc, x, y, s, prop, angle, ismath='TeX!', mtext=None):
         # docstring inherited
         texmanager = self.get_texmanager()
@@ -2010,6 +2163,19 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
         dvifile = texmanager.make_dvi(s, fontsize)
         with dviread.Dvi(dvifile, 72) as dvi:
             page, = dvi
+
+        if gc.get_url() is not None:
+            link_annotation = {
+                'Type': Name('Annot'),
+                'Subtype': Name('Link'),
+                'Rect': (x, y, x + page.width, y + page.height),
+                'Border': [0, 0, 0],
+                'A': {
+                    'S': Name('URI'),
+                    'URI': gc.get_url(),
+                },
+            }
+            self.file._annotations[-1][1].append(link_annotation)
 
         # Gather font information and do some setup for combining
         # characters into strings. The variable seq will contain a
@@ -2098,52 +2264,67 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
 
         fontsize = prop.get_size_in_points()
 
-        if rcParams['pdf.use14corefonts']:
+        if mpl.rcParams['pdf.use14corefonts']:
             font = self._get_font_afm(prop)
             fonttype = 1
         else:
             font = self._get_font_ttf(prop)
-            self.track_characters(font, s)
-            fonttype = rcParams['pdf.fonttype']
-            # We can't subset all OpenType fonts, so switch to Type 42
-            # in that case.
-            if is_opentype_cff_font(font.fname):
-                fonttype = 42
+            self.file._character_tracker.track(font, s)
+            fonttype = mpl.rcParams['pdf.fonttype']
 
-        # If fonttype != 3 or there are no multibyte characters, emit the whole
-        # string at once.
-        if fonttype != 3 or all(ord(char) <= 255 for char in s):
+        if gc.get_url() is not None:
+            font.set_text(s)
+            width, height = font.get_width_height()
+            link_annotation = {
+                'Type': Name('Annot'),
+                'Subtype': Name('Link'),
+                'Rect': (x, y, x + width / 64, y + height / 64),
+                'Border': [0, 0, 0],
+                'A': {
+                    'S': Name('URI'),
+                    'URI': gc.get_url(),
+                },
+            }
+            self.file._annotations[-1][1].append(link_annotation)
+
+        # If fonttype != 3 emit the whole string at once without manual
+        # kerning.
+        if fonttype != 3:
             self.file.output(Op.begin_text,
                              self.file.fontName(prop), fontsize, Op.selectfont)
             self._setup_textpos(x, y, angle)
-            self.file.output(self.encode_string(s, fonttype), Op.show,
-                             Op.end_text)
+            self.file.output(self.encode_string(s, fonttype),
+                             Op.show, Op.end_text)
 
         # There is no way to access multibyte characters of Type 3 fonts, as
         # they cannot have a CIDMap.  Therefore, in this case we break the
         # string into chunks, where each chunk contains either a string of
-        # consecutive 1-byte characters or a single multibyte character.  Each
-        # chunk is emitted with a separate command: 1-byte characters use the
-        # regular text show command (Tj), whereas multibyte characters use
-        # the XObject command (Do).  (If using Type 42 fonts, all of this
-        # complication is avoided, but of course, those fonts can not be
-        # subsetted.)
+        # consecutive 1-byte characters or a single multibyte character.
+        # A sequence of 1-byte characters is broken into multiple chunks to
+        # adjust the kerning between adjacent chunks.  Each chunk is emitted
+        # with a separate command: 1-byte characters use the regular text show
+        # command (TJ) with appropriate kerning between chunks, whereas
+        # multibyte characters use the XObject command (Do).  (If using Type
+        # 42 fonts, all of this complication is avoided, but of course,
+        # subsetting those fonts is complex/hard to implement.)
         else:
-            singlebyte_chunks = []  # List of (start_x, list-of-1-byte-chars).
-            multibyte_glyphs = []  # List of (start_x, glyph_index).
-            prev_was_singlebyte = False
-            for char, (glyph_idx, glyph_x) in zip(
-                    s,
-                    _text_layout.layout(s, font, kern_mode=KERNING_UNFITTED)):
-                if ord(char) <= 255:
-                    if prev_was_singlebyte:
-                        singlebyte_chunks[-1][1].append(char)
-                    else:
-                        singlebyte_chunks.append((glyph_x, [char]))
-                    prev_was_singlebyte = True
+            # List of (start_x, [prev_kern, char, char, ...]), w/o zero kerns.
+            singlebyte_chunks = []
+            # List of (start_x, glyph_index).
+            multibyte_glyphs = []
+            prev_was_multibyte = True
+            for item in _text_layout.layout(
+                    s, font, kern_mode=KERNING_UNFITTED):
+                if ord(item.char) <= 255:
+                    if prev_was_multibyte:
+                        singlebyte_chunks.append((item.x, []))
+                    if item.prev_kern:
+                        singlebyte_chunks[-1][1].append(item.prev_kern)
+                    singlebyte_chunks[-1][1].append(item.char)
+                    prev_was_multibyte = False
                 else:
-                    multibyte_glyphs.append((glyph_x, glyph_idx))
-                    prev_was_singlebyte = False
+                    multibyte_glyphs.append((item.x, item.glyph_idx))
+                    prev_was_multibyte = True
             # Do the rotation and global translation as a single matrix
             # concatenation up front
             self.file.output(Op.gsave)
@@ -2155,24 +2336,32 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
             self.file.output(Op.begin_text,
                              self.file.fontName(prop), fontsize, Op.selectfont)
             prev_start_x = 0
-            for start_x, chars in singlebyte_chunks:
+            for start_x, kerns_or_chars in singlebyte_chunks:
                 self._setup_textpos(start_x, 0, 0, prev_start_x, 0, 0)
-                self.file.output(self.encode_string(''.join(chars), fonttype),
-                                 Op.show)
+                self.file.output(
+                    # See pdf spec "Text space details" for the 1000/fontsize
+                    # (aka. 1000/T_fs) factor.
+                    [-1000 * next(group) / fontsize if tp == float  # a kern
+                     else self.encode_string("".join(group), fonttype)
+                     for tp, group in itertools.groupby(kerns_or_chars, type)],
+                    Op.showkern)
                 prev_start_x = start_x
             self.file.output(Op.end_text)
             # Then emit all the multibyte characters, one at a time.
             for start_x, glyph_idx in multibyte_glyphs:
-                glyph_name = font.get_glyph_name(glyph_idx)
-                self.file.output(Op.gsave)
-                self.file.output(0.001 * fontsize, 0,
-                                 0, 0.001 * fontsize,
-                                 start_x, 0, Op.concat_matrix)
-                name = self.file._get_xobject_symbol_name(
-                    font.fname, glyph_name)
-                self.file.output(Name(name), Op.use_xobject)
-                self.file.output(Op.grestore)
+                self._draw_xobject_glyph(font, fontsize, glyph_idx, start_x, 0)
             self.file.output(Op.grestore)
+
+    def _draw_xobject_glyph(self, font, fontsize, glyph_idx, x, y):
+        """Draw a multibyte character from a Type 3 font as an XObject."""
+        symbol_name = font.get_glyph_name(glyph_idx)
+        name = self.file._get_xobject_symbol_name(font.fname, symbol_name)
+        self.file.output(
+            Op.gsave,
+            0.001 * fontsize, 0, 0, 0.001 * fontsize, x, y, Op.concat_matrix,
+            Name(name), Op.use_xobject,
+            Op.grestore,
+        )
 
     def new_gc(self):
         # docstring inherited
@@ -2182,7 +2371,7 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
 class GraphicsContextPdf(GraphicsContextBase):
 
     def __init__(self, file):
-        GraphicsContextBase.__init__(self)
+        super().__init__()
         self._fillcolor = (0.0, 0.0, 0.0)
         self._effective_alphas = (1.0, 1.0)
         self.file = file
@@ -2263,7 +2452,7 @@ class GraphicsContextPdf(GraphicsContextBase):
                     name, Op.setcolor_nonstroke]
 
     def rgb_cmd(self, rgb):
-        if rcParams['pdf.inheritcolor']:
+        if mpl.rcParams['pdf.inheritcolor']:
             return []
         if rgb[0] == rgb[1] == rgb[2]:
             return [rgb[0], Op.setgray_stroke]
@@ -2271,7 +2460,7 @@ class GraphicsContextPdf(GraphicsContextBase):
             return [*rgb[:3], Op.setrgb_stroke]
 
     def fillcolor_cmd(self, rgb):
-        if rgb is None or rcParams['pdf.inheritcolor']:
+        if rgb is None or mpl.rcParams['pdf.inheritcolor']:
             return []
         elif rgb[0] == rgb[1] == rgb[2]:
             return [rgb[0], Op.setgray_nonstroke]
@@ -2292,7 +2481,7 @@ class GraphicsContextPdf(GraphicsContextBase):
         return [Op.grestore]
 
     def clip_cmd(self, cliprect, clippath):
-        """Set clip rectangle. Calls self.pop() and self.push()."""
+        """Set clip rectangle. Calls `.pop()` and `.push()`."""
         cmds = []
         # Pop graphics state until we hit the right one or the stack is empty
         while ((self._cliprect, self._clippath) != (cliprect, clippath)
@@ -2367,7 +2556,7 @@ class GraphicsContextPdf(GraphicsContextBase):
         """
         Copy properties of other into self.
         """
-        GraphicsContextBase.copy_properties(self, other)
+        super().copy_properties(other)
         fillcolor = getattr(other, '_fillcolor', self._fillcolor)
         effective_alphas = getattr(other, '_effective_alphas',
                                    self._effective_alphas)
@@ -2416,21 +2605,20 @@ class PdfPages:
             Plots using `PdfPages.savefig` will be written to a file at this
             location. The file is opened at once and any older file with the
             same name is overwritten.
+
         keep_empty : bool, optional
             If set to False, then empty pdf files will be deleted automatically
             when closed.
-        metadata : dictionary, optional
+
+        metadata : dict, optional
             Information dictionary object (see PDF reference section 10.2.1
             'Document Information Dictionary'), e.g.:
-            `{'Creator': 'My software', 'Author': 'Me',
-            'Title': 'Awesome fig'}`
+            ``{'Creator': 'My software', 'Author': 'Me', 'Title': 'Awesome'}``.
 
-            The standard keys are `'Title'`, `'Author'`, `'Subject'`,
-            `'Keywords'`, `'Creator'`, `'Producer'`, `'CreationDate'`,
-            `'ModDate'`, and `'Trapped'`. Values have been predefined
-            for `'Creator'`, `'Producer'` and `'CreationDate'`. They
-            can be removed by setting them to `None`.
-
+            The standard keys are 'Title', 'Author', 'Subject', 'Keywords',
+            'Creator', 'Producer', 'CreationDate', 'ModDate', and
+            'Trapped'. Values have been predefined for 'Creator', 'Producer'
+            and 'CreationDate'. They can be removed by setting them to `None`.
         """
         self._file = PdfFile(filename, metadata=metadata)
         self.keep_empty = keep_empty
@@ -2463,7 +2651,7 @@ class PdfPages:
 
     def savefig(self, figure=None, **kwargs):
         """
-        Saves a `.Figure` to this file as a new page.
+        Save a `.Figure` to this file as a new page.
 
         Any other keyword arguments are passed to `~.Figure.savefig`.
 
@@ -2492,9 +2680,7 @@ class PdfPages:
             figure.canvas = orig_canvas
 
     def get_pagecount(self):
-        """
-        Returns the current number of pages in the multipage pdf file.
-        """
+        """Return the current number of pages in the multipage pdf file."""
         return len(self._file.pageList)
 
     def attach_note(self, text, positionRect=[-100, -100, 0, 0]):
@@ -2508,31 +2694,22 @@ class PdfPages:
 
 
 class FigureCanvasPdf(FigureCanvasBase):
-    """
-    The canvas the figure renders into.  Calls the draw and print fig
-    methods, creates the renderers, etc...
-
-    Attributes
-    ----------
-    figure : `matplotlib.figure.Figure`
-        A high-level Figure instance
-
-    """
+    # docstring inherited
 
     fixed_dpi = 72
-
-    def draw(self):
-        pass
-
     filetypes = {'pdf': 'Portable Document Format'}
 
     def get_default_filetype(self):
         return 'pdf'
 
+    @_check_savefig_extra_args
+    @_api.delete_parameter("3.4", "dpi")
     def print_pdf(self, filename, *,
-                  dpi=72,  # dpi to use for images
-                  bbox_inches_restore=None, metadata=None,
-                  **kwargs):
+                  dpi=None,  # dpi to use for images
+                  bbox_inches_restore=None, metadata=None):
+
+        if dpi is None:  # always use this branch after deprecation elapses.
+            dpi = self.figure.get_dpi()
         self.figure.set_dpi(72)            # there are 72 pdf points to an inch
         width, height = self.figure.get_size_inches()
         if isinstance(filename, PdfPages):
@@ -2554,6 +2731,10 @@ class FigureCanvasPdf(FigureCanvasBase):
                 file.endStream()
             else:            # we opened the file above; now finish it off
                 file.close()
+
+    def draw(self):
+        _no_output_draw(self.figure)
+        return super().draw()
 
 
 FigureManagerPdf = FigureManagerBase

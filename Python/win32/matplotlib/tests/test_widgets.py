@@ -1,74 +1,12 @@
-from types import SimpleNamespace
-
+import matplotlib.colors as mcolors
 import matplotlib.widgets as widgets
 import matplotlib.pyplot as plt
 from matplotlib.testing.decorators import image_comparison
+from matplotlib.testing.widgets import do_event, get_ax
 
 from numpy.testing import assert_allclose
 
 import pytest
-
-
-def get_ax():
-    fig, ax = plt.subplots(1, 1)
-    ax.plot([0, 200], [0, 200])
-    ax.set_aspect(1.0)
-    ax.figure.canvas.draw()
-    return ax
-
-
-def do_event(tool, etype, button=1, xdata=0, ydata=0, key=None, step=1):
-    """
-     *name*
-        the event name
-
-    *canvas*
-        the FigureCanvas instance generating the event
-
-    *guiEvent*
-        the GUI event that triggered the matplotlib event
-
-    *x*
-        x position - pixels from left of canvas
-
-    *y*
-        y position - pixels from bottom of canvas
-
-    *inaxes*
-        the :class:`~matplotlib.axes.Axes` instance if mouse is over axes
-
-    *xdata*
-        x coord of mouse in data coords
-
-    *ydata*
-        y coord of mouse in data coords
-
-     *button*
-        button pressed None, 1, 2, 3, 'up', 'down' (up and down are used
-        for scroll events)
-
-    *key*
-        the key depressed when the mouse event triggered (see
-        :class:`KeyEvent`)
-
-    *step*
-        number of scroll steps (positive for 'up', negative for 'down')
-    """
-    event = SimpleNamespace()
-    event.button = button
-    ax = tool.ax
-    event.x, event.y = ax.transData.transform([(xdata, ydata),
-                                               (xdata, ydata)])[00]
-    event.xdata, event.ydata = xdata, ydata
-    event.inaxes = ax
-    event.canvas = ax.figure.canvas
-    event.key = key
-    event.step = step
-    event.guiEvent = None
-    event.name = 'Custom'
-
-    func = getattr(tool, etype)
-    func(event)
 
 
 def check_rectangle(**kwargs):
@@ -168,7 +106,9 @@ def test_rectangle_handles():
         pass
 
     tool = widgets.RectangleSelector(ax, onselect=onselect,
-                                     maxdist=10, interactive=True)
+                                     maxdist=10, interactive=True,
+                                     marker_props={'markerfacecolor': 'r',
+                                                   'markeredgecolor': 'b'})
     tool.extents = (100, 150, 100, 150)
 
     assert tool.corners == (
@@ -195,6 +135,12 @@ def test_rectangle_handles():
     do_event(tool, 'onmove', xdata=100, ydata=100)
     do_event(tool, 'release', xdata=100, ydata=100)
     assert tool.extents == (10, 100, 10, 100)
+
+    # Check that marker_props worked.
+    assert mcolors.same_color(
+        tool._corner_handles.artist.get_markerfacecolor(), 'r')
+    assert mcolors.same_color(
+        tool._corner_handles.artist.get_markeredgecolor(), 'b')
 
 
 def check_span(*args, **kwargs):
@@ -321,6 +267,17 @@ def test_slider_valmin_valmax():
     assert slider.val == slider.valmax
 
 
+def test_slider_valstep_snapping():
+    fig, ax = plt.subplots()
+    slider = widgets.Slider(ax=ax, label='', valmin=0.0, valmax=24.0,
+                            valinit=11.4, valstep=1)
+    assert slider.val == 11
+
+    slider = widgets.Slider(ax=ax, label='', valmin=0.0, valmax=24.0,
+                            valinit=11.4, valstep=[0, 1, 5.5, 19.7])
+    assert slider.val == 5.5
+
+
 def test_slider_horizontal_vertical():
     fig, ax = plt.subplots()
     slider = widgets.Slider(ax=ax, label='', valmin=0, valmax=24,
@@ -341,8 +298,40 @@ def test_slider_horizontal_vertical():
     assert_allclose(box.bounds, [0, 0, 1, 10/24])
 
 
+@pytest.mark.parametrize("orientation", ["horizontal", "vertical"])
+def test_range_slider(orientation):
+    if orientation == "vertical":
+        idx = [1, 0, 3, 2]
+    else:
+        idx = [0, 1, 2, 3]
+
+    fig, ax = plt.subplots()
+
+    slider = widgets.RangeSlider(
+        ax=ax, label="", valmin=0.0, valmax=1.0, orientation=orientation,
+        valinit=[0.1, 0.34]
+    )
+    box = slider.poly.get_extents().transformed(ax.transAxes.inverted())
+    assert_allclose(box.get_points().flatten()[idx], [0.1, 0, 0.34, 1])
+
+    # Check initial value is set correctly
+    assert_allclose(slider.val, (0.1, 0.34))
+
+    slider.set_val((0.2, 0.6))
+    assert_allclose(slider.val, (0.2, 0.6))
+    box = slider.poly.get_extents().transformed(ax.transAxes.inverted())
+    assert_allclose(box.get_points().flatten()[idx], [0.2, 0, 0.6, 1])
+
+    slider.set_val((0.2, 0.1))
+    assert_allclose(slider.val, (0.1, 0.2))
+
+    slider.set_val((-1, 10))
+    assert_allclose(slider.val, (0, 1))
+
+
 def check_polygon_selector(event_sequence, expected_result, selections_count):
-    """Helper function to test Polygon Selector
+    """
+    Helper function to test Polygon Selector.
 
     Parameters
     ----------

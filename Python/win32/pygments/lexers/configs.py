@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     pygments.lexers.configs
     ~~~~~~~~~~~~~~~~~~~~~~~
 
     Lexers for configuration file formats.
 
-    :copyright: Copyright 2006-2019 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -13,7 +12,7 @@ import re
 
 from pygments.lexer import RegexLexer, default, words, bygroups, include, using
 from pygments.token import Text, Comment, Operator, Keyword, Name, String, \
-    Number, Punctuation, Whitespace, Literal
+    Number, Punctuation, Whitespace, Literal, Generic
 from pygments.lexers.shell import BashLexer
 from pygments.lexers.data import JsonLexer
 
@@ -21,7 +20,8 @@ __all__ = ['IniLexer', 'RegeditLexer', 'PropertiesLexer', 'KconfigLexer',
            'Cfengine3Lexer', 'ApacheConfLexer', 'SquidConfLexer',
            'NginxConfLexer', 'LighttpdConfLexer', 'DockerLexer',
            'TerraformLexer', 'TermcapLexer', 'TerminfoLexer',
-           'PkgConfigLexer', 'PacmanConfLexer', 'AugeasLexer', 'TOMLLexer']
+           'PkgConfigLexer', 'PacmanConfLexer', 'AugeasLexer', 'TOMLLexer',
+           'NestedTextLexer', 'SingularityLexer']
 
 
 class IniLexer(RegexLexer):
@@ -39,7 +39,7 @@ class IniLexer(RegexLexer):
             (r'\s+', Text),
             (r'[;#].*', Comment.Single),
             (r'\[.*?\]$', Keyword),
-            (r'(.*?)([ \t]*)(=)([ \t]*)(.*(?:\n[ \t].+)*)',
+            (r'(.*?)([ \t]*)(=)([ \t]*)([^\t\n]*)',
              bygroups(Name.Attribute, Text, Operator, Text, String)),
             # standalone option, supported by some INI parsers
             (r'(.+?)$', Name.Attribute),
@@ -155,7 +155,7 @@ class KconfigLexer(RegexLexer):
     name = 'Kconfig'
     aliases = ['kconfig', 'menuconfig', 'linux-config', 'kernel-config']
     # Adjust this if new kconfig file names appear in your environment
-    filenames = ['Kconfig', '*Config.in*', 'external.in*',
+    filenames = ['Kconfig*', '*Config.in*', 'external.in*',
                  'standard-modules.in']
     mimetypes = ['text/x-kconfig']
     # No re.MULTILINE, indentation-aware help text needs line-by-line handling
@@ -301,8 +301,10 @@ class ApacheConfLexer(RegexLexer):
         'root': [
             (r'\s+', Text),
             (r'#(.*\\\n)+.*$|(#.*?)$', Comment),
-            (r'(<[^\s>]+)(?:(\s+)(.*))?(>)',
+            (r'(<[^\s>/][^\s>]*)(?:(\s+)(.*))?(>)',
              bygroups(Name.Tag, Text, String, Name.Tag)),
+            (r'(</[^\s>]+)(>)',
+             bygroups(Name.Tag, Name.Tag)),
             (r'[a-z]\w*', Name.Builtin, 'value'),
             (r'\.+', Text),
         ],
@@ -318,7 +320,7 @@ class ApacheConfLexer(RegexLexer):
              r'os|productonly|full|emerg|alert|crit|error|warn|'
              r'notice|info|debug|registry|script|inetd|standalone|'
              r'user|group)\b', Keyword),
-            (r'"([^"\\]*(?:\\(.|[\n])[^"\\]*)*)"', String.Double),
+            (r'"([^"\\]*(?:\\(.|\n)[^"\\]*)*)"', String.Double),
             (r'[^\s"\\]+', Text)
         ],
     }
@@ -347,7 +349,7 @@ class SquidConfLexer(RegexLexer):
         "cache_effective_user", "cache_host", "cache_host_acl",
         "cache_host_domain", "cache_log", "cache_mem", "cache_mem_high",
         "cache_mem_low", "cache_mgr", "cachemgr_passwd", "cache_peer",
-        "cache_peer_access", "cahce_replacement_policy", "cache_stoplist",
+        "cache_peer_access", "cache_replacement_policy", "cache_stoplist",
         "cache_stoplist_pattern", "cache_store_log", "cache_swap",
         "cache_swap_high", "cache_swap_log", "cache_swap_low", "client_db",
         "client_lifetime", "client_netmask", "connect_timeout", "coredump_dir",
@@ -507,8 +509,8 @@ class LighttpdConfLexer(RegexLexer):
     .. versionadded:: 0.11
     """
     name = 'Lighttpd configuration file'
-    aliases = ['lighty', 'lighttpd']
-    filenames = []
+    aliases = ['lighttpd', 'lighty']
+    filenames = ['lighttpd.conf']
     mimetypes = ['text/x-lighttpd-conf']
 
     tokens = {
@@ -575,56 +577,113 @@ class TerraformLexer(RegexLexer):
     filenames = ['*.tf']
     mimetypes = ['application/x-tf', 'application/x-terraform']
 
-    embedded_keywords = ('ingress', 'egress', 'listener', 'default',
-                         'connection', 'alias', 'terraform', 'tags', 'vars',
-                         'config', 'lifecycle', 'timeouts')
+    classes = ('backend', 'data', 'module', 'output', 'provider',
+             'provisioner', 'resource', 'variable')
+    classes_re = "({})".format(('|').join(classes))
+
+    types = ('string', 'number', 'bool', 'list', 'tuple', 'map', 'object', 'null')
+
+    numeric_functions = ('abs', 'ceil', 'floor', 'log', 'max',
+                         'mix', 'parseint', 'pow', 'signum')
+
+    string_functions = ('chomp', 'format', 'formatlist', 'indent',
+                        'join', 'lower', 'regex', 'regexall', 'replace',
+                        'split', 'strrev', 'substr', 'title', 'trim',
+                        'trimprefix', 'trimsuffix', 'trimspace', 'upper'
+                        )
+
+    collection_functions = ('alltrue', 'anytrue', 'chunklist', 'coalesce',
+                            'coalescelist', 'compact', 'concat', 'contains',
+                            'distinct', 'element', 'flatten', 'index', 'keys',
+                            'length', 'list', 'lookup', 'map', 'matchkeys',
+                            'merge', 'range', 'reverse', 'setintersection',
+                            'setproduct', 'setsubtract', 'setunion', 'slice',
+                            'sort', 'sum', 'transpose', 'values', 'zipmap'
+                            )
+
+    encoding_functions = ('base64decode', 'base64encode', 'base64gzip',
+                          'csvdecode', 'jsondecode', 'jsonencode', 'textdecodebase64',
+                          'textencodebase64', 'urlencode', 'yamldecode', 'yamlencode')
+
+
+    filesystem_functions = ('abspath', 'dirname', 'pathexpand', 'basename',
+                            'file', 'fileexists', 'fileset', 'filebase64', 'templatefile')
+
+    date_time_functions = ('formatdate', 'timeadd', 'timestamp')
+
+    hash_crypto_functions = ('base64sha256', 'base64sha512', 'bcrypt', 'filebase64sha256',
+                             'filebase64sha512', 'filemd5', 'filesha1', 'filesha256', 'filesha512',
+                             'md5', 'rsadecrypt', 'sha1', 'sha256', 'sha512', 'uuid', 'uuidv5')
+
+    ip_network_functions = ('cidrhost', 'cidrnetmask', 'cidrsubnet', 'cidrsubnets')
+
+    type_conversion_functions = ('can', 'defaults', 'tobool', 'tolist', 'tomap',
+                                 'tonumber', 'toset', 'tostring', 'try')
+
+    builtins = numeric_functions + string_functions + collection_functions + encoding_functions +\
+        filesystem_functions + date_time_functions + hash_crypto_functions + ip_network_functions +\
+        type_conversion_functions
+    builtins_re = "({})".format(('|').join(builtins))
 
     tokens = {
         'root': [
-            include('string'),
-            include('punctuation'),
-            include('curly'),
             include('basic'),
             include('whitespace'),
+
+            # Strings
+            (r'(".*")', bygroups(String.Double)),
+
+            # Constants
+            (words(('true', 'false'), prefix=r'\b', suffix=r'\b'), Name.Constant),
+
+            # Types
+            (words(types, prefix=r'\b', suffix=r'\b'), Keyword.Type),
+
+            include('identifier'),
+            include('punctuation'),
             (r'[0-9]+', Number),
         ],
         'basic': [
-            (words(('true', 'false'), prefix=r'\b', suffix=r'\b'), Keyword.Type),
             (r'\s*/\*', Comment.Multiline, 'comment'),
             (r'\s*#.*\n', Comment.Single),
-            (r'(.*?)(\s*)(=)', bygroups(Name.Attribute, Text, Operator)),
-            (words(('variable', 'resource', 'provider', 'provisioner', 'module',
-                    'backend', 'data', 'output'), prefix=r'\b', suffix=r'\b'),
-             Keyword.Reserved, 'function'),
-            (words(embedded_keywords, prefix=r'\b', suffix=r'\b'),
-             Keyword.Declaration),
-            (r'\$\{', String.Interpol, 'var_builtin'),
+            include('whitespace'),
+
+            # e.g. terraform {
+            # e.g. egress {
+            (r'(\s*)([0-9a-zA-Z-_]+)(\s*)(=?)(\s*)(\{)',
+             bygroups(Text, Name.Builtin, Text, Operator, Text, Punctuation)),
+
+            # Assignment with attributes, e.g. something = ...
+            (r'(\s*)([0-9a-zA-Z-_]+)(\s*)(=)(\s*)',
+             bygroups(Text, Name.Attribute, Text, Operator, Text)),
+
+            # Assignment with environment variables and similar, e.g. "something" = ...
+            # or key value assignment, e.g. "SlotName" : ...
+            (r'(\s*)("\S+")(\s*)([=:])(\s*)',
+             bygroups(Text, Literal.String.Double, Text, Operator, Text)),
+
+            # Functions, e.g. jsonencode(element("value"))
+            (builtins_re + r'(\()', bygroups(Name.Function, Punctuation)),
+
+            # List of attributes, e.g. ignore_changes = [last_modified, filename]
+            (r'(\[)([a-z_,\s]+)(\])', bygroups(Punctuation, Name.Builtin, Punctuation)),
+
+            # e.g. resource "aws_security_group" "allow_tls" {
+            # e.g. backend "consul" {
+            (classes_re + r'(\s+)', bygroups(Keyword.Reserved, Text), 'blockname'),
         ],
-        'function': [
-            (r'(\s+)(".*")(\s+)', bygroups(Text, String, Text)),
-            include('punctuation'),
-            include('curly'),
+        'blockname': [
+            # e.g. resource "aws_security_group" "allow_tls" {
+            # e.g. backend "consul" {
+            (r'(\s*)("[0-9a-zA-Z-_]+")?(\s*)("[0-9a-zA-Z-_]+")(\s+)(\{)',
+             bygroups(Text, Name.Class, Text, Name.Variable, Text, Punctuation)),
         ],
-        'var_builtin': [
-            (r'\$\{', String.Interpol, '#push'),
-            (words(('concat', 'file', 'join', 'lookup', 'element'),
-                   prefix=r'\b', suffix=r'\b'), Name.Builtin),
-            include('string'),
-            include('punctuation'),
-            (r'\s+', Text),
-            (r'\}', String.Interpol, '#pop'),
-        ],
-        'string': [
-            (r'(".*")', bygroups(String.Double)),
+        'identifier': [
+            (r'\b(var\.[0-9a-zA-Z-_\.\[\]]+)\b', bygroups(Name.Variable)),
+            (r'\b([0-9a-zA-Z-_\[\]]+\.[0-9a-zA-Z-_\.\[\]]+)\b', bygroups(Name.Variable)),
         ],
         'punctuation': [
-            (r'[\[\](),.]', Punctuation),
-        ],
-        # Keep this seperate from punctuation - we sometimes want to use different
-        # Tokens for { }
-        'curly': [
-            (r'\{', Text.Punctuation),
-            (r'\}', Text.Punctuation),
+            (r'[\[\]()\{\},.?:!=]', Punctuation),
         ],
         'comment': [
             (r'[^*/]', Comment.Multiline),
@@ -908,7 +967,7 @@ class TOMLLexer(RegexLexer):
             (r'\s+', Text),
             (r'#.*?$', Comment.Single),
             # Basic string
-            (r'"(\\\\|\\"|[^"])*"', String),
+            (r'"(\\\\|\\[^\\]|[^"\\])*"', String),
             # Literal string
             (r'\'\'\'(.*)\'\'\'', String),
             (r'\'[^\']*\'', String),
@@ -937,3 +996,72 @@ class TOMLLexer(RegexLexer):
 
         ]
     }
+
+class NestedTextLexer(RegexLexer):
+    """
+    Lexer for `NextedText <https://nestedtext.org>`_, a human-friendly data 
+    format.
+    
+    .. versionadded:: 2.9
+    """
+
+    name = 'NestedText'
+    aliases = ['nestedtext', 'nt']
+    filenames = ['*.nt']
+
+    _quoted_dict_item = r'^(\s*)({0})(.*?)({0}: ?)(.*?)(\s*)$'
+
+    tokens = {
+        'root': [
+            (r'^(\s*)(#.*?)$', bygroups(Text, Comment)),
+            (r'^(\s*)(> ?)(.*?)(\s*)$', bygroups(Text, Punctuation, String, Whitespace)),
+            (r'^(\s*)(- ?)(.*?)(\s*)$', bygroups(Text, Punctuation, String, Whitespace)),
+            (_quoted_dict_item.format("'"), bygroups(Text, Punctuation, Name, Punctuation, String, Whitespace)),
+            (_quoted_dict_item.format('"'), bygroups(Text, Punctuation, Name, Punctuation, String, Whitespace)),
+            (r'^(\s*)(.*?)(: ?)(.*?)(\s*)$', bygroups(Text, Name, Punctuation, String, Whitespace)),
+        ],
+    }
+        
+
+class SingularityLexer(RegexLexer):
+    """
+    Lexer for `Singularity definition files
+    <https://www.sylabs.io/guides/3.0/user-guide/definition_files.html>`_.
+
+    .. versionadded:: 2.6
+    """
+
+    name = 'Singularity'
+    aliases = ['singularity']
+    filenames = ['*.def', 'Singularity']
+    flags = re.IGNORECASE | re.MULTILINE | re.DOTALL
+
+    _headers = r'^(\s*)(bootstrap|from|osversion|mirrorurl|include|registry|namespace|includecmd)(:)'
+    _section = r'^%(?:pre|post|setup|environment|help|labels|test|runscript|files|startscript)\b'
+    _appsect = r'^%app(?:install|help|run|labels|env|test|files)\b'
+
+    tokens = {
+        'root': [
+            (_section, Generic.Heading, 'script'),
+            (_appsect, Generic.Heading, 'script'),
+            (_headers, bygroups(Text, Keyword, Text)),
+            (r'\s*#.*?\n', Comment),
+            (r'\b(([0-9]+\.?[0-9]*)|(\.[0-9]+))\b', Number),
+            (r'(?!^\s*%).', Text),
+        ],
+        'script': [
+            (r'(.+?(?=^\s*%))|(.*)', using(BashLexer), '#pop'),
+        ],
+    }
+
+    def analyse_text(text):
+        """This is a quite simple script file, but there are a few keywords
+        which seem unique to this language."""
+        result = 0
+        if re.search(r'\b(?:osversion|includecmd|mirrorurl)\b', text, re.IGNORECASE):
+            result += 0.5
+
+        if re.search(SingularityLexer._section[1:], text):
+            result += 0.49
+
+        return result

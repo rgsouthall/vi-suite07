@@ -9,7 +9,7 @@ from os.path import join, isdir, dirname
 
 __all__ = ('dep_bins', )
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 
 
 

@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
     pygments.lexers.mime
     ~~~~~~~~~~~~~~~~~~~~
 
     Lexer for Multipurpose Internet Mail Extensions (MIME) data.
 
-    :copyright: Copyright 2006-2019 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -22,20 +21,20 @@ __all__ = ["MIMELexer"]
 class MIMELexer(RegexLexer):
     """
     Lexer for Multipurpose Internet Mail Extensions (MIME) data. This lexer is
-    designed to process the nested mulitpart data.
+    designed to process nested multipart data.
 
     It assumes that the given data contains both header and body (and is
-    splitted by empty line). If no valid header is found, then the entire data
-    would be treated as body.
+    split at an empty line). If no valid header is found, then the entire data
+    will be treated as body.
 
     Additional options accepted:
 
     `MIME-max-level`
-        Max recurssion level for nested MIME structure. Any negative number
+        Max recursion level for nested MIME structure. Any negative number
         would treated as unlimited. (default: -1)
 
     `Content-Type`
-        Treat the data as specific content type. Useful when header is
+        Treat the data as a specific content type. Useful when header is
         missing, or this lexer would try to parse from header. (default:
         `text/plain`)
 
@@ -45,7 +44,7 @@ class MIMELexer(RegexLexer):
         would try to parse from header by default. (default: None)
 
     `Content-Transfer-Encoding`
-        Treat the data as specific encoding. Or this lexer would try to parse
+        Treat the data as a specific encoding. Or this lexer would try to parse
         from header by default. (default: None)
 
     .. versionadded:: 2.5
@@ -58,26 +57,11 @@ class MIMELexer(RegexLexer):
                  "multipart/alternative"]
 
     def __init__(self, **options):
-        super(MIMELexer, self).__init__(**options)
+        super().__init__(**options)
         self.boundary = options.get("Multipart-Boundary")
         self.content_transfer_encoding = options.get("Content_Transfer_Encoding")
         self.content_type = options.get("Content_Type", "text/plain")
         self.max_nested_level = get_int_opt(options, "MIME-max-level", -1)
-
-    def analyse_text(text):
-        try:
-            header, body = text.strip().split("\n\n", 1)
-            if not body.strip():
-                return 0.1
-
-            invalid_headers = MIMELexer.tokens["header"].sub("", header)
-            if invalid_headers.strip():
-                return 0.1
-            else:
-                return 1
-
-        except ValueError:
-            return 0.1
 
     def get_header_tokens(self, match):
         field = match.group(1)
@@ -100,7 +84,7 @@ class MIMELexer(RegexLexer):
 
         # skip first newline
         if entire_body[0] == '\n':
-            yield pos_body_start, Text.Whitespace, u'\n'
+            yield pos_body_start, Text.Whitespace, '\n'
             pos_body_start = pos_body_start + 1
             entire_body = entire_body[1:]
 
@@ -176,7 +160,7 @@ class MIMELexer(RegexLexer):
         prefix_len = match.start(1) - match.start(0)
         yield match.start(0), Text.Whitespace, match.group(0)[:prefix_len]
         yield match.start(1), Name.Label, match.group(2)
-        yield match.end(2), String.Delimiter, u"/"
+        yield match.end(2), String.Delimiter, '/'
         yield match.start(3), Name.Label, match.group(3)
 
     def get_content_type_subtokens(self, match):

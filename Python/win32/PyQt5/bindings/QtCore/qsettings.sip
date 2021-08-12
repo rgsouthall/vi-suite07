@@ -2,7 +2,7 @@
 //
 // This file is part of the QtCore Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -47,17 +47,17 @@ public:
         SystemScope,
     };
 
-    QSettings(const QString &organization, const QString &application = QString(), QObject *parent /TransferThis/ = 0);
-    QSettings(QSettings::Scope scope, const QString &organization, const QString &application = QString(), QObject *parent /TransferThis/ = 0);
-    QSettings(QSettings::Format format, QSettings::Scope scope, const QString &organization, const QString &application = QString(), QObject *parent /TransferThis/ = 0);
-    QSettings(const QString &fileName, QSettings::Format format, QObject *parent /TransferThis/ = 0);
+    QSettings(const QString &organization, const QString &application = QString(), QObject *parent /TransferThis/ = 0) /ReleaseGIL/;
+    QSettings(QSettings::Scope scope, const QString &organization, const QString &application = QString(), QObject *parent /TransferThis/ = 0) /ReleaseGIL/;
+    QSettings(QSettings::Format format, QSettings::Scope scope, const QString &organization, const QString &application = QString(), QObject *parent /TransferThis/ = 0) /ReleaseGIL/;
+    QSettings(const QString &fileName, QSettings::Format format, QObject *parent /TransferThis/ = 0) /ReleaseGIL/;
 %If (Qt_5_13_0 -)
-    QSettings(QSettings::Scope scope, QObject *parent /TransferThis/ = 0);
+    QSettings(QSettings::Scope scope, QObject *parent /TransferThis/ = 0) /ReleaseGIL/;
 %End
-    explicit QSettings(QObject *parent /TransferThis/ = 0);
-    virtual ~QSettings();
-    void clear();
-    void sync();
+    explicit QSettings(QObject *parent /TransferThis/ = 0) /ReleaseGIL/;
+    virtual ~QSettings() /ReleaseGIL/;
+    void clear() /ReleaseGIL/;
+    void sync() /ReleaseGIL/;
     QSettings::Status status() const;
     void beginGroup(const QString &prefix);
     void endGroup();
@@ -66,11 +66,11 @@ public:
     void beginWriteArray(const QString &prefix, int size = -1);
     void endArray();
     void setArrayIndex(int i);
-    QStringList allKeys() const;
-    QStringList childKeys() const;
-    QStringList childGroups() const;
+    QStringList allKeys() const /ReleaseGIL/;
+    QStringList childKeys() const /ReleaseGIL/;
+    QStringList childGroups() const /ReleaseGIL/;
     bool isWritable() const;
-    void setValue(const QString &key, const QVariant &value);
+    void setValue(const QString &key, const QVariant &value) /ReleaseGIL/;
     SIP_PYOBJECT value(const QString &key, const QVariant &defaultValue = QVariant(), SIP_PYOBJECT type /TypeHint="type", TypeHintValue="None"/ = 0) const /ReleaseGIL/;
 %MethodCode
         QVariant value;
@@ -86,12 +86,12 @@ public:
         sipIsErr = !sipRes;
 %End
 
-    void remove(const QString &key);
-    bool contains(const QString &key) const;
+    void remove(const QString &key) /ReleaseGIL/;
+    bool contains(const QString &key) const /ReleaseGIL/;
     void setFallbacksEnabled(bool b);
     bool fallbacksEnabled() const;
     QString fileName() const;
-    static void setPath(QSettings::Format format, QSettings::Scope scope, const QString &path);
+    static void setPath(QSettings::Format format, QSettings::Scope scope, const QString &path) /ReleaseGIL/;
     QSettings::Format format() const;
     QSettings::Scope scope() const;
     QString organizationName() const;

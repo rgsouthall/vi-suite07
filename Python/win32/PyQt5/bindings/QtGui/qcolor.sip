@@ -2,7 +2,7 @@
 //
 // This file is part of the QtGui Python extension module.
 //
-// Copyright (c) 2020 Riverbank Computing Limited <info@riverbankcomputing.com>
+// Copyright (c) 2021 Riverbank Computing Limited <info@riverbankcomputing.com>
 // 
 // This file is part of PyQt5.
 // 
@@ -199,6 +199,7 @@ public:
 QDataStream &operator<<(QDataStream &, const QColor & /Constrained/) /ReleaseGIL/;
 QDataStream &operator>>(QDataStream &, QColor & /Constrained/) /ReleaseGIL/;
 %If (Qt_5_14_0 -)
+%If (PyQt_CONSTEXPR)
 
 namespace QColorConstants
 {
@@ -383,4 +384,5 @@ namespace QColorConstants
     };
 };
 
+%End
 %End

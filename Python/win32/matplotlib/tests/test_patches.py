@@ -5,13 +5,13 @@ import numpy as np
 from numpy.testing import assert_almost_equal, assert_array_equal
 import pytest
 
-from matplotlib.cbook import MatplotlibDeprecationWarning
-from matplotlib.patches import Polygon, Rectangle, FancyArrowPatch
+from matplotlib.patches import Patch, Polygon, Rectangle, FancyArrowPatch
 from matplotlib.testing.decorators import image_comparison, check_figures_equal
+from matplotlib.transforms import Bbox
 import matplotlib.pyplot as plt
 from matplotlib import (
     collections as mcollections, colors as mcolors, patches as mpatches,
-    path as mpath, style as mstyle, transforms as mtransforms)
+    path as mpath, style as mstyle, transforms as mtransforms, rcParams)
 
 import sys
 on_win = (sys.platform == 'win32')
@@ -86,9 +86,7 @@ def test_negative_rect():
 
 @image_comparison(['clip_to_bbox'])
 def test_clip_to_bbox():
-    fig = plt.figure()
-
-    ax = fig.add_subplot(111)
+    fig, ax = plt.subplots()
     ax.set_xlim([-18, 20])
     ax.set_ylim([-150, 100])
 
@@ -198,16 +196,16 @@ def test_patch_custom_linestyle():
     cut_star2 = mpath.Path(verts + 1, codes)
 
     ax = plt.axes()
-    patch = mpatches.PathPatch(cut_star1,
-                   linewidth=5, linestyle=(0.0, (5.0, 7.0, 10.0, 7.0)),
-                   facecolor=(1, 0, 0),
-                   edgecolor=(0, 0, 1))
+    patch = mpatches.PathPatch(
+        cut_star1,
+        linewidth=5, linestyle=(0, (5, 7, 10, 7)),
+        facecolor=(1, 0, 0), edgecolor=(0, 0, 1))
     ax.add_patch(patch)
 
-    col = mcollections.PathCollection([cut_star2],
-                  linewidth=5, linestyles=[(0.0, (5.0, 7.0, 10.0, 7.0))],
-                  facecolor=(1, 0, 0),
-                  edgecolor=(0, 0, 1))
+    col = mcollections.PathCollection(
+        [cut_star2],
+        linewidth=5, linestyles=[(0, (5, 7, 10, 7))],
+        facecolor=(1, 0, 0), edgecolor=(0, 0, 1))
     ax.add_collection(col)
 
     ax.set_xlim([-1, 2])
@@ -226,8 +224,7 @@ def test_patch_linestyle_accents():
     linestyles = ["-", "--", "-.", ":",
                   "solid", "dashed", "dashdot", "dotted"]
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig, ax = plt.subplots()
     for i, ls in enumerate(linestyles):
         star = mpath.Path(verts + i, codes)
         patch = mpatches.PathPatch(star,
@@ -239,6 +236,32 @@ def test_patch_linestyle_accents():
     ax.set_xlim([-1, i + 1])
     ax.set_ylim([-1, i + 1])
     fig.canvas.draw()
+
+
+@check_figures_equal(extensions=['png'])
+def test_patch_linestyle_none(fig_test, fig_ref):
+    circle = mpath.Path.unit_circle()
+
+    ax_test = fig_test.add_subplot()
+    ax_ref = fig_ref.add_subplot()
+    for i, ls in enumerate(['none', 'None', ' ', '']):
+        path = mpath.Path(circle.vertices + i, circle.codes)
+        patch = mpatches.PathPatch(path,
+                                   linewidth=3, linestyle=ls,
+                                   facecolor=(1, 0, 0),
+                                   edgecolor=(0, 0, 1))
+        ax_test.add_patch(patch)
+
+        patch = mpatches.PathPatch(path,
+                                   linewidth=3, linestyle='-',
+                                   facecolor=(1, 0, 0),
+                                   edgecolor='none')
+        ax_ref.add_patch(patch)
+
+    ax_test.set_xlim([-1, i + 1])
+    ax_test.set_ylim([-1, i + 1])
+    ax_ref.set_xlim([-1, i + 1])
+    ax_ref.set_ylim([-1, i + 1])
 
 
 def test_wedge_movement():
@@ -320,16 +343,15 @@ def test_patch_str():
     assert str(p) == "FancyBboxPatch((1, 2), width=3, height=4)"
 
     # Further nice __str__ which cannot be `eval`uated:
-    path_data = [([1, 2], mpath.Path.MOVETO), ([2, 2], mpath.Path.LINETO),
-                 ([1, 2], mpath.Path.CLOSEPOLY)]
-    p = mpatches.PathPatch(mpath.Path(*zip(*path_data)))
+    path = mpath.Path([(1, 2), (2, 2), (1, 2)], closed=True)
+    p = mpatches.PathPatch(path)
     assert str(p) == "PathPatch3((1, 2) ...)"
 
     data = [[1, 2], [2, 2], [1, 2]]
     p = mpatches.Polygon(data)
     assert str(p) == "Polygon3((1, 2) ...)"
 
-    p = mpatches.FancyArrowPatch(path=mpath.Path(*zip(*path_data)))
+    p = mpatches.FancyArrowPatch(path=path)
     assert str(p)[:27] == "FancyArrowPatch(Path(array("
 
     p = mpatches.FancyArrowPatch((1, 2), (3, 4))
@@ -392,20 +414,31 @@ def test_connection_patch():
     coordsA = "axes fraction"
     coordsB = ax2.get_yaxis_transform()
     con = mpatches.ConnectionPatch(xyA=xyA, xyB=xyB, coordsA=coordsA,
-                                    coordsB=coordsB, arrowstyle="-")
+                                   coordsB=coordsB, arrowstyle="-")
     ax2.add_artist(con)
 
 
-def test_connection_patch_fig():
-    # Test that connection patch can be added as figure artist
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    xy = (0.3, 0.2)
-    con = mpatches.ConnectionPatch(xyA=xy, xyB=xy,
-                                   coordsA="data", coordsB="data",
-                                   axesA=ax1, axesB=ax2,
-                                   arrowstyle="->", shrinkB=5)
-    fig.add_artist(con)
-    fig.canvas.draw()
+@check_figures_equal(extensions=["png"])
+def test_connection_patch_fig(fig_test, fig_ref):
+    # Test that connection patch can be added as figure artist, and that figure
+    # pixels count negative values from the top right corner (this API may be
+    # changed in the future).
+    ax1, ax2 = fig_test.subplots(1, 2)
+    con = mpatches.ConnectionPatch(
+        xyA=(.3, .2), coordsA="data", axesA=ax1,
+        xyB=(-30, -20), coordsB="figure pixels",
+        arrowstyle="->", shrinkB=5)
+    fig_test.add_artist(con)
+
+    ax1, ax2 = fig_ref.subplots(1, 2)
+    bb = fig_ref.bbox
+    # Necessary so that pixel counts match on both sides.
+    plt.rcParams["savefig.dpi"] = plt.rcParams["figure.dpi"]
+    con = mpatches.ConnectionPatch(
+        xyA=(.3, .2), coordsA="data", axesA=ax1,
+        xyB=(bb.width - 30, bb.height - 20), coordsB="figure pixels",
+        arrowstyle="->", shrinkB=5)
+    fig_ref.add_artist(con)
 
 
 def test_datetime_rectangle():
@@ -547,3 +580,49 @@ def test_rotated_arcs():
         ax.axvline(0, color="k")
         ax.set_axis_off()
         ax.set_aspect("equal")
+
+
+def test_degenerate_polygon():
+    point = [0, 0]
+    correct_extents = Bbox([point, point]).extents
+    assert np.all(Polygon([point]).get_extents().extents == correct_extents)
+
+
+@pytest.mark.parametrize('kwarg', ('edgecolor', 'facecolor'))
+def test_color_override_warning(kwarg):
+    with pytest.warns(UserWarning,
+                      match="Setting the 'color' property will override "
+                            "the edgecolor or facecolor properties."):
+        Patch(color='black', **{kwarg: 'black'})
+
+
+def test_empty_verts():
+    poly = Polygon(np.zeros((0, 2)))
+    assert poly.get_verts() == []
+
+
+def test_default_antialiased():
+    patch = Patch()
+
+    patch.set_antialiased(not rcParams['patch.antialiased'])
+    assert patch.get_antialiased() == (not rcParams['patch.antialiased'])
+    # Check that None resets the state
+    patch.set_antialiased(None)
+    assert patch.get_antialiased() == rcParams['patch.antialiased']
+
+
+def test_default_linestyle():
+    patch = Patch()
+    patch.set_linestyle('--')
+    patch.set_linestyle(None)
+    assert patch.get_linestyle() == 'solid'
+
+
+def test_default_capstyle():
+    patch = Patch()
+    assert patch.get_capstyle() == 'butt'
+
+
+def test_default_joinstyle():
+    patch = Patch()
+    assert patch.get_joinstyle() == 'miter'

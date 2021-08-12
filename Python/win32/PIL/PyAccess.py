@@ -23,21 +23,27 @@
 import logging
 import sys
 
-from cffi import FFI
+try:
+    from cffi import FFI
+
+    defs = """
+    struct Pixel_RGBA {
+        unsigned char r,g,b,a;
+    };
+    struct Pixel_I16 {
+        unsigned char l,r;
+    };
+    """
+    ffi = FFI()
+    ffi.cdef(defs)
+except ImportError as ex:
+    # Allow error import for doc purposes, but error out when accessing
+    # anything in core.
+    from ._util import deferred_error
+
+    FFI = ffi = deferred_error(ex)
 
 logger = logging.getLogger(__name__)
-
-
-defs = """
-struct Pixel_RGBA {
-    unsigned char r,g,b,a;
-};
-struct Pixel_I16 {
-    unsigned char l,r;
-};
-"""
-ffi = FFI()
-ffi.cdef(defs)
 
 
 class PyAccess:
@@ -48,6 +54,7 @@ class PyAccess:
         self.image32 = ffi.cast("int **", vals["image32"])
         self.image = ffi.cast("unsigned char **", vals["image"])
         self.xsize, self.ysize = img.im.size
+        self._img = img
 
         # Keep pointer to im object to prevent dereferencing.
         self._im = img.im
@@ -87,7 +94,7 @@ class PyAccess:
             and len(color) in [3, 4]
         ):
             # RGB or RGBA value for a P image
-            color = self._palette.getcolor(color)
+            color = self._palette.getcolor(color, self._img)
 
         return self.set_pixel(x, y, color)
 

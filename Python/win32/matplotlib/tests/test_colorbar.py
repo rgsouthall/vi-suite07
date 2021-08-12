@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import (BoundaryNorm, LogNorm, PowerNorm, Normalize,
                                TwoSlopeNorm)
 from matplotlib.colorbar import ColorbarBase, _ColorbarLogLocator
-from matplotlib.ticker import LogLocator, LogFormatter, FixedLocator
+from matplotlib.ticker import FixedLocator
 
 
 def _get_cmap_norms():
@@ -21,10 +21,10 @@ def _get_cmap_norms():
     Helper function for _colorbar_extension_shape and
     colorbar_extension_length.
     """
-    # Create a color map and specify the levels it represents.
+    # Create a colormap and specify the levels it represents.
     cmap = cm.get_cmap("RdBu", lut=5)
     clevs = [-5., -2.5, -.5, .5, 1.5, 3.5]
-    # Define norms for the color maps.
+    # Define norms for the colormaps.
     norms = dict()
     norms['neither'] = BoundaryNorm(clevs, len(clevs) - 1)
     norms['min'] = BoundaryNorm([-10] + clevs[1:], len(clevs) - 1)
@@ -34,12 +34,12 @@ def _get_cmap_norms():
 
 
 def _colorbar_extension_shape(spacing):
-    '''
+    """
     Produce 4 colorbars with rectangular extensions for either uniform
     or proportional spacing.
 
     Helper function for test_colorbar_extension_shape.
-    '''
+    """
     # Get a colormap and appropriate norms for each extension type.
     cmap, norms = _get_cmap_norms()
     # Create a figure and adjust whitespace for subplots.
@@ -49,6 +49,8 @@ def _colorbar_extension_shape(spacing):
         # Get the appropriate norm and use it to get colorbar boundaries.
         norm = norms[extension_type]
         boundaries = values = norm.boundaries
+        # note that the last value was silently dropped pre 3.3:
+        values = values[:-1]
         # Create a subplot.
         cax = fig.add_subplot(4, 1, i + 1)
         # Generate the colorbar.
@@ -64,12 +66,12 @@ def _colorbar_extension_shape(spacing):
 
 
 def _colorbar_extension_length(spacing):
-    '''
+    """
     Produce 12 colorbars with variable length extensions for either
     uniform or proportional spacing.
 
     Helper function for test_colorbar_extension_length.
-    '''
+    """
     # Get a colormap and appropriate norms for each extension type.
     cmap, norms = _get_cmap_norms()
     # Create a figure and adjust whitespace for subplots.
@@ -79,6 +81,7 @@ def _colorbar_extension_length(spacing):
         # Get the appropriate norm and use it to get colorbar boundaries.
         norm = norms[extension_type]
         boundaries = values = norm.boundaries
+        values = values[:-1]
         for j, extendfrac in enumerate((None, 'auto', 0.1)):
             # Create a subplot.
             cax = fig.add_subplot(12, 1, i*3 + j + 1)
@@ -97,21 +100,29 @@ def _colorbar_extension_length(spacing):
 @image_comparison(['colorbar_extensions_shape_uniform.png',
                    'colorbar_extensions_shape_proportional.png'])
 def test_colorbar_extension_shape():
-    '''Test rectangular colorbar extensions.'''
+    """Test rectangular colorbar extensions."""
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     # Create figures for uniform and proportionally spaced colorbars.
     _colorbar_extension_shape('uniform')
     _colorbar_extension_shape('proportional')
 
 
 @image_comparison(['colorbar_extensions_uniform.png',
-                   'colorbar_extensions_proportional.png'])
+                   'colorbar_extensions_proportional.png'],
+                  tol=1.0)
 def test_colorbar_extension_length():
-    '''Test variable length colorbar extensions.'''
+    """Test variable length colorbar extensions."""
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     # Create figures for uniform and proportionally spaced colorbars.
     _colorbar_extension_length('uniform')
     _colorbar_extension_length('proportional')
 
 
+@pytest.mark.parametrize('use_gridspec', [True, False])
 @image_comparison(['cbar_with_orientation',
                    'cbar_locationing',
                    'double_cbar',
@@ -119,21 +130,24 @@ def test_colorbar_extension_length():
                    ],
                   extensions=['png'], remove_text=True,
                   savefig_kwarg={'dpi': 40})
-def test_colorbar_positioning():
+def test_colorbar_positioning(use_gridspec):
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     data = np.arange(1200).reshape(30, 40)
     levels = [0, 200, 400, 600, 800, 1000, 1200]
 
     # -------------------
     plt.figure()
     plt.contourf(data, levels=levels)
-    plt.colorbar(orientation='horizontal', use_gridspec=False)
+    plt.colorbar(orientation='horizontal', use_gridspec=use_gridspec)
 
     locations = ['left', 'right', 'top', 'bottom']
     plt.figure()
     for i, location in enumerate(locations):
         plt.subplot(2, 2, i + 1)
         plt.contourf(data, levels=levels)
-        plt.colorbar(location=location, use_gridspec=False)
+        plt.colorbar(location=location, use_gridspec=use_gridspec)
 
     # -------------------
     plt.figure()
@@ -149,9 +163,9 @@ def test_colorbar_positioning():
     plt.contour(hatch_mappable, colors='black')
 
     plt.colorbar(color_mappable, location='left', label='variable 1',
-                 use_gridspec=False)
+                 use_gridspec=use_gridspec)
     plt.colorbar(hatch_mappable, location='right', label='variable 2',
-                 use_gridspec=False)
+                 use_gridspec=use_gridspec)
 
     # -------------------
     plt.figure()
@@ -163,11 +177,11 @@ def test_colorbar_positioning():
     plt.contourf(data, levels=levels)
 
     plt.colorbar(ax=[ax2, ax3, ax1], location='right', pad=0.0, shrink=0.5,
-                 panchor=False, use_gridspec=False)
+                 panchor=False, use_gridspec=use_gridspec)
     plt.colorbar(ax=[ax2, ax3, ax1], location='left', shrink=0.5,
-                 panchor=False, use_gridspec=False)
+                 panchor=False, use_gridspec=use_gridspec)
     plt.colorbar(ax=[ax1], location='bottom', panchor=False,
-                 anchor=(0.8, 0.5), shrink=0.6, use_gridspec=False)
+                 anchor=(0.8, 0.5), shrink=0.6, use_gridspec=use_gridspec)
 
 
 @image_comparison(['cbar_with_subplots_adjust.png'], remove_text=True,
@@ -211,23 +225,26 @@ def test_remove_from_figure(use_gridspec):
     fig, ax = plt.subplots()
     sc = ax.scatter([1, 2], [3, 4], cmap="spring")
     sc.set_array(np.array([5, 6]))
-    pre_figbox = np.array(ax.figbox)
+    pre_position = ax.get_position()
     cb = fig.colorbar(sc, use_gridspec=use_gridspec)
     fig.subplots_adjust()
     cb.remove()
     fig.subplots_adjust()
-    post_figbox = np.array(ax.figbox)
-    assert (pre_figbox == post_figbox).all()
+    post_position = ax.get_position()
+    assert (pre_position.get_points() == post_position.get_points()).all()
 
 
 def test_colorbarbase():
     # smoke test from #3805
     ax = plt.gca()
-    ColorbarBase(ax, plt.cm.bone)
+    ColorbarBase(ax, cmap=plt.cm.bone)
 
 
 @image_comparison(['colorbar_closed_patch'], remove_text=True)
 def test_colorbar_closed_patch():
+    # Remove this line when this test image is regenerated.
+    plt.rcParams['pcolormesh.snap'] = False
+
     fig = plt.figure(figsize=(8, 6))
     ax1 = fig.add_axes([0.05, 0.85, 0.9, 0.1])
     ax2 = fig.add_axes([0.1, 0.65, 0.75, 0.1])
@@ -243,8 +260,7 @@ def test_colorbar_closed_patch():
     # because it is matched to the data range in the image and to
     # the number of colors in the LUT.
     values = np.linspace(0, 10, 5)
-    cbar_kw = dict(cmap=cmap, orientation='horizontal', values=values,
-                   ticks=[])
+    cbar_kw = dict(orientation='horizontal', values=values, ticks=[])
 
     # The wide line is to show that the closed path is being handled
     # correctly.  See PR #4186.
@@ -264,9 +280,8 @@ def test_colorbar_ticks():
     Z = X * Y
     clevs = np.array([-12, -5, 0, 5, 12], dtype=float)
     colors = ['r', 'g', 'b', 'c']
-    cs = ax.contourf(X, Y, Z, clevs, colors=colors)
-    cbar = fig.colorbar(cs, ax=ax, extend='neither',
-                        orientation='horizontal', ticks=clevs)
+    cs = ax.contourf(X, Y, Z, clevs, colors=colors, extend='neither')
+    cbar = fig.colorbar(cs, ax=ax, orientation='horizontal', ticks=clevs)
     assert len(cbar.ax.xaxis.get_ticklocs()) == len(clevs)
 
 
@@ -281,27 +296,22 @@ def test_colorbar_minorticks_on_off():
         im = ax.pcolormesh(data, vmin=-2.3, vmax=3.3)
 
         cbar = fig.colorbar(im, extend='both')
-        cbar.minorticks_on()
-        correct_minorticklocs = np.array([-2.2, -1.8, -1.6, -1.4, -1.2, -0.8,
-                                          -0.6, -0.4, -0.2, 0.2, 0.4, 0.6,
-                                           0.8, 1.2, 1.4, 1.6, 1.8, 2.2, 2.4,
-                                           2.6, 2.8, 3.2])
         # testing after minorticks_on()
-        np.testing.assert_almost_equal(cbar.ax.yaxis.get_minorticklocs(),
-                                       correct_minorticklocs)
-        cbar.minorticks_off()
+        cbar.minorticks_on()
+        np.testing.assert_almost_equal(
+            cbar.ax.yaxis.get_minorticklocs(),
+            [-2.2, -1.8, -1.6, -1.4, -1.2, -0.8, -0.6, -0.4, -0.2,
+             0.2, 0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8, 2.2, 2.4, 2.6, 2.8, 3.2])
         # testing after minorticks_off()
-        np.testing.assert_almost_equal(cbar.ax.yaxis.get_minorticklocs(),
-                                       np.array([]))
+        cbar.minorticks_off()
+        np.testing.assert_almost_equal(cbar.ax.yaxis.get_minorticklocs(), [])
 
         im.set_clim(vmin=-1.2, vmax=1.2)
         cbar.minorticks_on()
-        correct_minorticklocs = np.array([-1.2, -1.1, -0.9, -0.8, -0.7, -0.6,
-                                          -0.4, -0.3, -0.2, -0.1,  0.1, 0.2,
-                                           0.3,  0.4,  0.6,  0.7,  0.8,  0.9,
-                                           1.1,  1.2])
-        np.testing.assert_almost_equal(cbar.ax.yaxis.get_minorticklocs(),
-                                       correct_minorticklocs)
+        np.testing.assert_almost_equal(
+            cbar.ax.yaxis.get_minorticklocs(),
+            [-1.2, -1.1, -0.9, -0.8, -0.7, -0.6, -0.4, -0.3, -0.2, -0.1,
+             0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 1.1, 1.2])
 
     # tests for github issue #13257 and PR #13265
     data = np.random.uniform(low=1, high=10, size=(20, 20))
@@ -326,6 +336,34 @@ def test_colorbar_minorticks_on_off():
     np.testing.assert_equal(cbar.ax.yaxis.get_minorticklocs(), [])
 
 
+def test_cbar_minorticks_for_rc_xyminortickvisible():
+    """
+    issue gh-16468.
+
+    Making sure that minor ticks on the colorbar are turned on
+    (internally) using the cbar.minorticks_on() method when
+    rcParams['xtick.minor.visible'] = True (for horizontal cbar)
+    rcParams['ytick.minor.visible'] = True (for vertical cbar).
+    Using cbar.minorticks_on() ensures that the minor ticks
+    don't overflow into the extend regions of the colorbar.
+    """
+
+    plt.rcParams['ytick.minor.visible'] = True
+    plt.rcParams['xtick.minor.visible'] = True
+
+    vmin, vmax = 0.4, 2.6
+    fig, ax = plt.subplots()
+    im = ax.pcolormesh([[1, 2]], vmin=vmin, vmax=vmax)
+
+    cbar = fig.colorbar(im, extend='both', orientation='vertical')
+    assert cbar.ax.yaxis.get_minorticklocs()[0] >= vmin
+    assert cbar.ax.yaxis.get_minorticklocs()[-1] <= vmax
+
+    cbar = fig.colorbar(im, extend='both', orientation='horizontal')
+    assert cbar.ax.xaxis.get_minorticklocs()[0] >= vmin
+    assert cbar.ax.xaxis.get_minorticklocs()[-1] <= vmax
+
+
 def test_colorbar_autoticks():
     # Test new autotick modes. Needs to be classic because
     # non-classic doesn't go this route.
@@ -335,17 +373,18 @@ def test_colorbar_autoticks():
         y = np.arange(-4.0, 3.001)
         X, Y = np.meshgrid(x, y)
         Z = X * Y
+        Z = Z[:-1, :-1]
         pcm = ax[0].pcolormesh(X, Y, Z)
         cbar = fig.colorbar(pcm, ax=ax[0], extend='both',
                             orientation='vertical')
 
         pcm = ax[1].pcolormesh(X, Y, Z)
         cbar2 = fig.colorbar(pcm, ax=ax[1], extend='both',
-                            orientation='vertical', shrink=0.4)
+                             orientation='vertical', shrink=0.4)
         np.testing.assert_almost_equal(cbar.ax.yaxis.get_ticklocs(),
-                np.arange(-10, 11., 5.))
+                                       np.arange(-10, 11, 5))
         np.testing.assert_almost_equal(cbar2.ax.yaxis.get_ticklocs(),
-                np.arange(-10, 11., 10.))
+                                       np.arange(-10, 11, 10))
 
 
 def test_colorbar_autotickslog():
@@ -356,17 +395,18 @@ def test_colorbar_autotickslog():
         y = np.arange(-4.0, 3.001)
         X, Y = np.meshgrid(x, y)
         Z = X * Y
+        Z = Z[:-1, :-1]
         pcm = ax[0].pcolormesh(X, Y, 10**Z, norm=LogNorm())
         cbar = fig.colorbar(pcm, ax=ax[0], extend='both',
                             orientation='vertical')
 
         pcm = ax[1].pcolormesh(X, Y, 10**Z, norm=LogNorm())
         cbar2 = fig.colorbar(pcm, ax=ax[1], extend='both',
-                            orientation='vertical', shrink=0.4)
+                             orientation='vertical', shrink=0.4)
         np.testing.assert_almost_equal(cbar.ax.yaxis.get_ticklocs(),
-                10**np.arange(-12, 12.2, 4.))
+                                       10**np.arange(-12., 12.2, 4.))
         np.testing.assert_almost_equal(cbar2.ax.yaxis.get_ticklocs(),
-                10**np.arange(-12, 13., 12.))
+                                       10**np.arange(-12., 13., 12.))
 
 
 def test_colorbar_get_ticks():
@@ -496,6 +536,7 @@ def test_colorbar_scale_reset():
     fig, ax = plt.subplots()
     pcm = ax.pcolormesh(z, cmap='RdBu_r', rasterized=True)
     cbar = fig.colorbar(pcm, ax=ax)
+    cbar.outline.set_edgecolor('red')
     assert cbar.ax.yaxis.get_scale() == 'linear'
 
     pcm.set_norm(LogNorm(vmin=1, vmax=100))
@@ -503,15 +544,15 @@ def test_colorbar_scale_reset():
     pcm.set_norm(Normalize(vmin=-20, vmax=20))
     assert cbar.ax.yaxis.get_scale() == 'linear'
 
+    assert cbar.outline.get_edgecolor() == mcolors.to_rgba('red')
+
 
 def test_colorbar_get_ticks_2():
-    with rc_context({'_internal.classic_mode': False}):
-
-        fig, ax = plt.subplots()
-        np.random.seed(19680801)
-        pc = ax.pcolormesh(np.random.rand(30, 30))
-        cb = fig.colorbar(pc)
-        np.testing.assert_allclose(cb.get_ticks(), [0.2, 0.4, 0.6, 0.8])
+    plt.rcParams['_internal.classic_mode'] = False
+    fig, ax = plt.subplots()
+    pc = ax.pcolormesh([[.05, .95]])
+    cb = fig.colorbar(pc)
+    np.testing.assert_allclose(cb.get_ticks(), [0.2, 0.4, 0.6, 0.8])
 
 
 def test_colorbar_inverted_ticks():
@@ -537,17 +578,9 @@ def test_colorbar_inverted_ticks():
 def test_extend_colorbar_customnorm():
     # This was a funny error with TwoSlopeNorm, maybe with other norms,
     # when extend='both'
-    N = 100
-    X, Y = np.mgrid[-3:3:complex(0, N), -2:2:complex(0, N)]
-    Z1 = np.exp(-X**2 - Y**2)
-    Z2 = np.exp(-(X - 1)**2 - (Y - 1)**2)
-    Z = (Z1 - Z2) * 2
-
-    fig, ax = plt.subplots(2, 1)
-    pcm = ax[0].pcolormesh(X, Y, Z,
-                           norm=TwoSlopeNorm(vcenter=0., vmin=-2, vmax=1),
-                           cmap='RdBu_r')
-    cb = fig.colorbar(pcm, ax=ax[0], extend='both')
+    fig, (ax0, ax1) = plt.subplots(2, 1)
+    pcm = ax0.pcolormesh([[0]], norm=TwoSlopeNorm(vcenter=0., vmin=-2, vmax=1))
+    cb = fig.colorbar(pcm, ax=ax0, extend='both')
     np.testing.assert_allclose(cb.ax.get_position().extents,
                                [0.78375, 0.536364, 0.796147, 0.9], rtol=1e-3)
 
@@ -590,3 +623,85 @@ def test_colorbar_int(clim):
     im = ax.imshow([[*map(np.int16, clim)]])
     fig.colorbar(im)
     assert (im.norm.vmin, im.norm.vmax) == clim
+
+
+def test_anchored_cbar_position_using_specgrid():
+    data = np.arange(1200).reshape(30, 40)
+    levels = [0, 200, 400, 600, 800, 1000, 1200]
+    shrink = 0.5
+    anchor_y = 0.3
+    # right
+    fig, ax = plt.subplots()
+    cs = ax.contourf(data, levels=levels)
+    cbar = plt.colorbar(
+            cs, ax=ax, use_gridspec=True,
+            location='right', anchor=(1, anchor_y), shrink=shrink)
+
+    # the bottom left corner of one ax is (x0, y0)
+    # the top right corner of one ax is (x1, y1)
+    # p0: the vertical / horizontal position of anchor
+    x0, y0, x1, y1 = ax.get_position().extents
+    cx0, cy0, cx1, cy1 = cbar.ax.get_position().extents
+    p0 = (y1 - y0) * anchor_y + y0
+
+    np.testing.assert_allclose(
+            [cy1, cy0],
+            [y1 * shrink + (1 - shrink) * p0, p0 * (1 - shrink) + y0 * shrink])
+
+    # left
+    fig, ax = plt.subplots()
+    cs = ax.contourf(data, levels=levels)
+    cbar = plt.colorbar(
+            cs, ax=ax, use_gridspec=True,
+            location='left', anchor=(1, anchor_y), shrink=shrink)
+
+    # the bottom left corner of one ax is (x0, y0)
+    # the top right corner of one ax is (x1, y1)
+    # p0: the vertical / horizontal position of anchor
+    x0, y0, x1, y1 = ax.get_position().extents
+    cx0, cy0, cx1, cy1 = cbar.ax.get_position().extents
+    p0 = (y1 - y0) * anchor_y + y0
+
+    np.testing.assert_allclose(
+            [cy1, cy0],
+            [y1 * shrink + (1 - shrink) * p0, p0 * (1 - shrink) + y0 * shrink])
+
+    # top
+    shrink = 0.5
+    anchor_x = 0.3
+    fig, ax = plt.subplots()
+    cs = ax.contourf(data, levels=levels)
+    cbar = plt.colorbar(
+            cs, ax=ax, use_gridspec=True,
+            location='top', anchor=(anchor_x, 1), shrink=shrink)
+
+    # the bottom left corner of one ax is (x0, y0)
+    # the top right corner of one ax is (x1, y1)
+    # p0: the vertical / horizontal position of anchor
+    x0, y0, x1, y1 = ax.get_position().extents
+    cx0, cy0, cx1, cy1 = cbar.ax.get_position().extents
+    p0 = (x1 - x0) * anchor_x + x0
+
+    np.testing.assert_allclose(
+            [cx1, cx0],
+            [x1 * shrink + (1 - shrink) * p0, p0 * (1 - shrink) + x0 * shrink])
+
+    # bottom
+    shrink = 0.5
+    anchor_x = 0.3
+    fig, ax = plt.subplots()
+    cs = ax.contourf(data, levels=levels)
+    cbar = plt.colorbar(
+            cs, ax=ax, use_gridspec=True,
+            location='bottom', anchor=(anchor_x, 1), shrink=shrink)
+
+    # the bottom left corner of one ax is (x0, y0)
+    # the top right corner of one ax is (x1, y1)
+    # p0: the vertical / horizontal position of anchor
+    x0, y0, x1, y1 = ax.get_position().extents
+    cx0, cy0, cx1, cy1 = cbar.ax.get_position().extents
+    p0 = (x1 - x0) * anchor_x + x0
+
+    np.testing.assert_allclose(
+            [cx1, cx0],
+            [x1 * shrink + (1 - shrink) * p0, p0 * (1 - shrink) + x0 * shrink])

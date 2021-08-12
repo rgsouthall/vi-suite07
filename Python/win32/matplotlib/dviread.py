@@ -22,13 +22,15 @@ import enum
 from functools import lru_cache, partial, wraps
 import logging
 import os
+from pathlib import Path
 import re
 import struct
+import sys
 import textwrap
 
 import numpy as np
 
-from matplotlib import cbook, rcParams
+from matplotlib import _api, cbook, rcParams
 
 _log = logging.getLogger(__name__)
 
@@ -68,45 +70,55 @@ Box = namedtuple('Box', 'x y height width')
 # argument bytes in this delta.
 
 def _arg_raw(dvi, delta):
-    """Return *delta* without reading anything more from the dvi file"""
+    """Return *delta* without reading anything more from the dvi file."""
     return delta
 
 
-def _arg(bytes, signed, dvi, _):
-    """Read *bytes* bytes, returning the bytes interpreted as a
-    signed integer if *signed* is true, unsigned otherwise."""
-    return dvi._arg(bytes, signed)
+def _arg(nbytes, signed, dvi, _):
+    """
+    Read *nbytes* bytes, returning the bytes interpreted as a signed integer
+    if *signed* is true, unsigned otherwise.
+    """
+    return dvi._arg(nbytes, signed)
 
 
 def _arg_slen(dvi, delta):
-    """Signed, length *delta*
+    """
+    Signed, length *delta*
 
-    Read *delta* bytes, returning None if *delta* is zero, and
-    the bytes interpreted as a signed integer otherwise."""
+    Read *delta* bytes, returning None if *delta* is zero, and the bytes
+    interpreted as a signed integer otherwise.
+    """
     if delta == 0:
         return None
     return dvi._arg(delta, True)
 
 
 def _arg_slen1(dvi, delta):
-    """Signed, length *delta*+1
+    """
+    Signed, length *delta*+1
 
-    Read *delta*+1 bytes, returning the bytes interpreted as signed."""
+    Read *delta*+1 bytes, returning the bytes interpreted as signed.
+    """
     return dvi._arg(delta+1, True)
 
 
 def _arg_ulen1(dvi, delta):
-    """Unsigned length *delta*+1
+    """
+    Unsigned length *delta*+1
 
-    Read *delta*+1 bytes, returning the bytes interpreted as unsigned."""
+    Read *delta*+1 bytes, returning the bytes interpreted as unsigned.
+    """
     return dvi._arg(delta+1, False)
 
 
 def _arg_olen1(dvi, delta):
-    """Optionally signed, length *delta*+1
+    """
+    Optionally signed, length *delta*+1
 
     Read *delta*+1 bytes, returning the bytes interpreted as
-    unsigned integer for 0<=*delta*<3 and signed if *delta*==3."""
+    unsigned integer for 0<=*delta*<3 and signed if *delta*==3.
+    """
     return dvi._arg(delta + 1, delta == 3)
 
 
@@ -121,7 +133,8 @@ _arg_mapping = dict(raw=_arg_raw,
 
 
 def _dispatch(table, min, max=None, state=None, args=('raw',)):
-    """Decorator for dispatch by opcode. Sets the values in *table*
+    """
+    Decorator for dispatch by opcode. Sets the values in *table*
     from *min* to *max* to this method, adds a check that the Dvi state
     matches *state* if not None, reads arguments from the file according
     to *args*.
@@ -202,20 +215,15 @@ class Dvi:
         self.baseline = self._get_baseline(filename)
 
     def _get_baseline(self, filename):
-        if rcParams['text.latex.preview']:
-            base, ext = os.path.splitext(filename)
-            baseline_filename = base + ".baseline"
-            if os.path.exists(baseline_filename):
-                with open(baseline_filename, 'rb') as fd:
-                    l = fd.read().split()
-                height, depth, width = l
+        if dict.__getitem__(rcParams, 'text.latex.preview'):
+            baseline = Path(filename).with_suffix(".baseline")
+            if baseline.exists():
+                height, depth, width = baseline.read_bytes().split()
                 return float(depth)
         return None
 
     def __enter__(self):
-        """
-        Context manager enter method, does nothing.
-        """
+        """Context manager enter method, does nothing."""
         return self
 
     def __exit__(self, etype, evalue, etrace):
@@ -244,9 +252,7 @@ class Dvi:
             yield self._output()
 
     def close(self):
-        """
-        Close the underlying file if it is open.
-        """
+        """Close the underlying file if it is open."""
         if not self.file.closed:
             self.file.close()
 
@@ -307,18 +313,26 @@ class Dvi:
         #   xxx comment
         #   down
         #   push
-        #     down, down
+        #     down
+        #     <push, push, xxx, right, xxx, pop, pop>  # if using xcolor
+        #     down
         #     push
         #       down (possibly multiple)
         #       push  <=  here, v is the baseline position.
         #         etc.
         # (dviasm is useful to explore this structure.)
+        # Thus, we use the vertical position at the first time the stack depth
+        # reaches 3, while at least three "downs" have been executed, as the
+        # baseline (the "down" count is necessary to handle xcolor).
+        downs = 0
         self._baseline_v = None
         while True:
             byte = self.file.read(1)[0]
             self._dtable[byte](self, byte)
+            downs += self._dtable[byte].__name__ == "_down"
             if (self._baseline_v is None
-                    and len(getattr(self, "stack", [])) == 3):
+                    and len(getattr(self, "stack", [])) == 3
+                    and downs >= 4):
                 self._baseline_v = self.v
             if byte == 140:                         # end of page
                 return True
@@ -331,12 +345,12 @@ class Dvi:
         Read and return an integer argument *nbytes* long.
         Signedness is determined by the *signed* keyword.
         """
-        str = self.file.read(nbytes)
-        value = str[0]
+        buf = self.file.read(nbytes)
+        value = buf[0]
         if signed and value >= 0x80:
             value = value - 0x100
-        for i in range(1, nbytes):
-            value = 0x100*value + str[i]
+        for b in buf[1:]:
+            value = 0x100*value + b
         return value
 
     @_dispatch(min=0, max=127, state=_dvistate.inpage)
@@ -480,14 +494,14 @@ class Dvi:
         if i != 2:
             raise ValueError("Unknown dvi format %d" % i)
         if num != 25400000 or den != 7227 * 2**16:
-            raise ValueError("nonstandard units in dvi file")
+            raise ValueError("Nonstandard units in dvi file")
             # meaning: TeX always uses those exact values, so it
             # should be enough for us to support those
             # (There are 72.27 pt to an inch so 7227 pt =
             # 7227 * 2**16 sp to 100 in. The numerator is multiplied
             # by 10^5 to get units of 10**-7 meters.)
         if mag != 1000:
-            raise ValueError("nonstandard magnification in dvi file")
+            raise ValueError("Nonstandard magnification in dvi file")
             # meaning: LaTeX seems to frown on setting \mag, so
             # I think we can assume this is constant
         self.state = _dvistate.outer
@@ -504,7 +518,7 @@ class Dvi:
 
     @_dispatch(min=250, max=255)
     def _malformed(self, offset):
-        raise ValueError("unknown command: byte %d", 250 + offset)
+        raise ValueError(f"unknown command: byte {250 + offset}")
 
 
 class DviFont:
@@ -525,10 +539,9 @@ class DviFont:
     tfm : Tfm
         TeX font metrics for this font
     texname : bytes
-       Name of the font as used internally by TeX and friends, as an
-       ASCII bytestring. This is usually very different from any external
-       font names, and :class:`dviread.PsfontsMap` can be used to find
-       the external name of the font.
+       Name of the font as used internally by TeX and friends, as an ASCII
+       bytestring.  This is usually very different from any external font
+       names; `PsfontsMap` can be used to find the external name of the font.
     vf : Vf
        A TeX "virtual font" file, or None if this font is not virtual.
 
@@ -546,7 +559,7 @@ class DviFont:
     __slots__ = ('texname', 'size', 'widths', '_scale', '_vf', '_tfm')
 
     def __init__(self, scale, tfm, texname, vf):
-        cbook._check_isinstance(bytes, texname=texname)
+        _api.check_isinstance(bytes, texname=texname)
         self._scale = scale
         self._tfm = tfm
         self.texname = texname
@@ -589,18 +602,19 @@ class DviFont:
                 result.append(0)
             else:
                 result.append(_mul2012(value, self._scale))
+        # cmsyXX (symbols font) glyph 0 ("minus") has a nonzero descent
+        # so that TeX aligns equations properly
+        # (https://tex.stackexchange.com/questions/526103/),
+        # but we actually care about the rasterization depth to align
+        # the dvipng-generated images.
+        if re.match(br'^cmsy\d+$', self.texname) and char == 0:
+            result[-1] = 0
         return result
 
 
 class Vf(Dvi):
     r"""
     A virtual font (\*.vf file) containing subroutines for dvi files.
-
-    Usage::
-
-      vf = Vf(filename)
-      glyph = vf[code]
-      glyph.text, glyph.boxes, glyph.width
 
     Parameters
     ----------
@@ -612,10 +626,18 @@ class Vf(Dvi):
     http://mirrors.ctan.org/info/knuth/virtual-fonts
     This class reuses some of the machinery of `Dvi`
     but replaces the `_read` loop and dispatch mechanism.
+
+    Examples
+    --------
+    ::
+
+        vf = Vf(filename)
+        glyph = vf[code]
+        glyph.text, glyph.boxes, glyph.width
     """
 
     def __init__(self, filename):
-        Dvi.__init__(self, filename, 0)
+        super().__init__(filename, 0)
         try:
             self._first_font = None
             self._chars = {}
@@ -675,7 +697,7 @@ class Vf(Dvi):
             elif byte == 248:       # postamble (just some number of 248s)
                 break
             else:
-                raise ValueError("unknown vf opcode %d" % byte)
+                raise ValueError("Unknown vf opcode %d" % byte)
 
     def _init_packet(self, pl):
         if self.state != _dvistate.outer:
@@ -769,26 +791,12 @@ class Tfm:
             self.depth[char] = _fix2comp(depths[byte1 & 0xf])
 
 
-PsFont = namedtuple('Font', 'texname psname effects encoding filename')
+PsFont = namedtuple('PsFont', 'texname psname effects encoding filename')
 
 
 class PsfontsMap:
     """
     A psfonts.map formatted file, mapping TeX fonts to PS fonts.
-
-    Usage::
-
-     >>> map = PsfontsMap(find_tex_file('pdftex.map'))
-     >>> entry = map[b'ptmbo8r']
-     >>> entry.texname
-     b'ptmbo8r'
-     >>> entry.psname
-     b'Times-Bold'
-     >>> entry.encoding
-     '/usr/local/texlive/2008/texmf-dist/fonts/enc/dvips/base/8r.enc'
-     >>> entry.effects
-     {'slant': 0.16700000000000001}
-     >>> entry.filename
 
     Parameters
     ----------
@@ -815,6 +823,20 @@ class PsfontsMap:
     the Times-Bold example above), while the pdf-related files perhaps
     only avoid the "Base 14" pdf fonts. But the user may have
     configured these files differently.
+
+    Examples
+    --------
+    >>> map = PsfontsMap(find_tex_file('pdftex.map'))
+    >>> entry = map[b'ptmbo8r']
+    >>> entry.texname
+    b'ptmbo8r'
+    >>> entry.psname
+    b'Times-Bold'
+    >>> entry.encoding
+    '/usr/local/texlive/2008/texmf-dist/fonts/enc/dvips/base/8r.enc'
+    >>> entry.effects
+    {'slant': 0.16700000000000001}
+    >>> entry.filename
     """
     __slots__ = ('_font', '_filename')
 
@@ -938,11 +960,12 @@ class PsfontsMap:
                 encoding=encoding, filename=filename)
 
 
+@_api.deprecated("3.3")
 class Encoding:
     r"""
-    Parses a \*.enc file referenced from a psfonts.map style file.
-    The format this class understands is a very limited subset of
-    PostScript.
+    Parse a \*.enc file referenced from a psfonts.map style file.
+
+    The format this class understands is a very limited subset of PostScript.
 
     Usage (subject to change)::
 
@@ -1003,12 +1026,11 @@ def _parse_enc(path):
 
     Returns
     -------
-    encoding : list
+    list
         The nth entry of the list is the PostScript glyph name of the nth
         glyph.
     """
-    with open(path, encoding="ascii") as file:
-        no_comments = "\n".join(line.split("%")[0].rstrip() for line in file)
+    no_comments = re.sub("%.*", "", Path(path).read_text(encoding="ascii"))
     array = re.search(r"(?s)\[(.*)\]", no_comments).group(1)
     lines = [line for line in array.split() if line]
     if all(line.startswith("/") for line in lines):
@@ -1034,7 +1056,7 @@ def find_tex_file(filename, format=None):
     ----------
     filename : str or path-like
     format : str or bytes
-        Used as the value of the `--format` option to :program:`kpsewhich`.
+        Used as the value of the ``--format`` option to :program:`kpsewhich`.
         Could be e.g. 'tfm' or 'vf' to limit the search to that type of files.
 
     References
@@ -1054,9 +1076,11 @@ def find_tex_file(filename, format=None):
         # On Windows only, kpathsea can use utf-8 for cmd args and output.
         # The `command_line_encoding` environment variable is set to force it
         # to always use utf-8 encoding.  See Matplotlib issue #11848.
-        kwargs = dict(env=dict(os.environ, command_line_encoding='utf-8'))
-    else:
-        kwargs = {}
+        kwargs = {'env': {**os.environ, 'command_line_encoding': 'utf-8'},
+                  'encoding': 'utf-8'}
+    else:  # On POSIX, run through the equivalent of os.fsdecode().
+        kwargs = {'encoding': sys.getfilesystemencoding(),
+                  'errors': 'surrogatescape'}
 
     cmd = ['kpsewhich']
     if format is not None:
@@ -1064,12 +1088,9 @@ def find_tex_file(filename, format=None):
     cmd += [filename]
     try:
         result = cbook._check_and_log_subprocess(cmd, _log, **kwargs)
-    except RuntimeError:
+    except (FileNotFoundError, RuntimeError):
         return ''
-    if os.name == 'nt':
-        return result.decode('utf-8').rstrip('\r\n')
-    else:
-        return os.fsdecode(result).rstrip('\n')
+    return result.rstrip('\n')
 
 
 @lru_cache()

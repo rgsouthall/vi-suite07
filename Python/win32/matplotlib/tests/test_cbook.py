@@ -1,7 +1,7 @@
 import itertools
 import pickle
+
 from weakref import ref
-import warnings
 from unittest.mock import patch, Mock
 
 from datetime import datetime
@@ -11,17 +11,10 @@ from numpy.testing import (assert_array_equal, assert_approx_equal,
                            assert_array_almost_equal)
 import pytest
 
+from matplotlib import _api
 import matplotlib.cbook as cbook
 import matplotlib.colors as mcolors
-from matplotlib.cbook import MatplotlibDeprecationWarning, delete_masked_points
-
-
-def test_is_hashable():
-    with pytest.warns(MatplotlibDeprecationWarning):
-        s = 'string'
-        assert cbook.is_hashable(s)
-        lst = ['list', 'of', 'stings']
-        assert not cbook.is_hashable(lst)
+from matplotlib.cbook import delete_masked_points
 
 
 class Test_delete_masked_points:
@@ -152,7 +145,6 @@ class Test_boxplot_stats:
     def test_results_withlabels(self):
         labels = ['Test1', 2, 'ardvark', 4]
         results = cbook.boxplot_stats(self.data, labels=labels)
-        res = results[0]
         for lab, res in zip(labels, results):
             assert res['label'] == lab
 
@@ -190,18 +182,32 @@ class Test_callback_registry:
         self.signal = 'test'
         self.callbacks = cbook.CallbackRegistry()
 
-    def connect(self, s, func):
-        return self.callbacks.connect(s, func)
+    def connect(self, s, func, pickle):
+        cid = self.callbacks.connect(s, func)
+        if pickle:
+            self.callbacks._pickled_cids.add(cid)
+        return cid
+
+    def disconnect(self, cid):
+        return self.callbacks.disconnect(cid)
+
+    def count(self):
+        count1 = len(self.callbacks._func_cid_map.get(self.signal, []))
+        count2 = len(self.callbacks.callbacks.get(self.signal))
+        assert count1 == count2
+        return count1
 
     def is_empty(self):
         assert self.callbacks._func_cid_map == {}
         assert self.callbacks.callbacks == {}
+        assert self.callbacks._pickled_cids == set()
 
     def is_not_empty(self):
         assert self.callbacks._func_cid_map != {}
         assert self.callbacks.callbacks != {}
 
-    def test_callback_complete(self):
+    @pytest.mark.parametrize('pickle', [True, False])
+    def test_callback_complete(self, pickle):
         # ensure we start with an empty registry
         self.is_empty()
 
@@ -209,12 +215,12 @@ class Test_callback_registry:
         mini_me = Test_callback_registry()
 
         # test that we can add a callback
-        cid1 = self.connect(self.signal, mini_me.dummy)
+        cid1 = self.connect(self.signal, mini_me.dummy, pickle)
         assert type(cid1) == int
         self.is_not_empty()
 
         # test that we don't add a second callback
-        cid2 = self.connect(self.signal, mini_me.dummy)
+        cid2 = self.connect(self.signal, mini_me.dummy, pickle)
         assert cid1 == cid2
         self.is_not_empty()
         assert len(self.callbacks._func_cid_map) == 1
@@ -225,6 +231,68 @@ class Test_callback_registry:
         # check we now have no callbacks registered
         self.is_empty()
 
+    @pytest.mark.parametrize('pickle', [True, False])
+    def test_callback_disconnect(self, pickle):
+        # ensure we start with an empty registry
+        self.is_empty()
+
+        # create a class for testing
+        mini_me = Test_callback_registry()
+
+        # test that we can add a callback
+        cid1 = self.connect(self.signal, mini_me.dummy, pickle)
+        assert type(cid1) == int
+        self.is_not_empty()
+
+        self.disconnect(cid1)
+
+        # check we now have no callbacks registered
+        self.is_empty()
+
+    @pytest.mark.parametrize('pickle', [True, False])
+    def test_callback_wrong_disconnect(self, pickle):
+        # ensure we start with an empty registry
+        self.is_empty()
+
+        # create a class for testing
+        mini_me = Test_callback_registry()
+
+        # test that we can add a callback
+        cid1 = self.connect(self.signal, mini_me.dummy, pickle)
+        assert type(cid1) == int
+        self.is_not_empty()
+
+        self.disconnect("foo")
+
+        # check we still have callbacks registered
+        self.is_not_empty()
+
+    @pytest.mark.parametrize('pickle', [True, False])
+    def test_registration_on_non_empty_registry(self, pickle):
+        # ensure we start with an empty registry
+        self.is_empty()
+
+        # setup the registry with a callback
+        mini_me = Test_callback_registry()
+        self.connect(self.signal, mini_me.dummy, pickle)
+
+        # Add another callback
+        mini_me2 = Test_callback_registry()
+        self.connect(self.signal, mini_me2.dummy, pickle)
+
+        # Remove and add the second callback
+        mini_me2 = Test_callback_registry()
+        self.connect(self.signal, mini_me2.dummy, pickle)
+
+        # We still have 2 references
+        self.is_not_empty()
+        assert self.count() == 2
+
+        # Removing the last 2 references
+        mini_me = None
+        mini_me2 = None
+        self.is_empty()
+
     def dummy(self):
         pass
 
@@ -233,42 +301,63 @@ class Test_callback_registry:
                        "callbacks")
 
 
+def test_callbackregistry_default_exception_handler(capsys, monkeypatch):
+    cb = cbook.CallbackRegistry()
+    cb.connect("foo", lambda: None)
+
+    monkeypatch.setattr(
+        cbook, "_get_running_interactive_framework", lambda: None)
+    with pytest.raises(TypeError):
+        cb.process("foo", "argument mismatch")
+    outerr = capsys.readouterr()
+    assert outerr.out == outerr.err == ""
+
+    monkeypatch.setattr(
+        cbook, "_get_running_interactive_framework", lambda: "not-none")
+    cb.process("foo", "argument mismatch")  # No error in that case.
+    outerr = capsys.readouterr()
+    assert outerr.out == ""
+    assert "takes 0 positional arguments but 1 was given" in outerr.err
+
+
 def raising_cb_reg(func):
     class TestException(Exception):
         pass
 
-    def raising_function():
+    def raise_runtime_error():
         raise RuntimeError
+
+    def raise_value_error():
+        raise ValueError
 
     def transformer(excp):
         if isinstance(excp, RuntimeError):
             raise TestException
         raise excp
 
-    # default behavior
-    cb = cbook.CallbackRegistry()
-    cb.connect('foo', raising_function)
-
     # old default
     cb_old = cbook.CallbackRegistry(exception_handler=None)
-    cb_old.connect('foo', raising_function)
+    cb_old.connect('foo', raise_runtime_error)
 
     # filter
     cb_filt = cbook.CallbackRegistry(exception_handler=transformer)
-    cb_filt.connect('foo', raising_function)
+    cb_filt.connect('foo', raise_runtime_error)
+
+    # filter
+    cb_filt_pass = cbook.CallbackRegistry(exception_handler=transformer)
+    cb_filt_pass.connect('foo', raise_value_error)
 
     return pytest.mark.parametrize('cb, excp',
-                                   [[cb, None],
-                                    [cb_old, RuntimeError],
-                                    [cb_filt, TestException]])(func)
+                                   [[cb_old, RuntimeError],
+                                    [cb_filt, TestException],
+                                    [cb_filt_pass, ValueError]])(func)
 
 
 @raising_cb_reg
-def test_callbackregistry_process_exception(cb, excp):
-    if excp is not None:
-        with pytest.raises(excp):
-            cb.process('foo')
-    else:
+def test_callbackregistry_custom_exception_handler(monkeypatch, cb, excp):
+    monkeypatch.setattr(
+        cbook, "_get_running_interactive_framework", lambda: None)
+    with pytest.raises(excp):
         cb.process('foo')
 
 
@@ -287,19 +376,16 @@ def test_sanitize_sequence():
 fail_mapping = (
     ({'a': 1}, {'forbidden': ('a')}),
     ({'a': 1}, {'required': ('b')}),
-    ({'a': 1, 'b': 2}, {'required': ('a'), 'allowed': ()})
-)
-
-warn_passing_mapping = (
-    ({'a': 1, 'b': 2}, {'a': 1}, {'alias_mapping': {'a': ['b']}}, 1),
-    ({'a': 1, 'b': 2}, {'a': 1},
-     {'alias_mapping': {'a': ['b']}, 'allowed': ('a',)}, 1),
-    ({'a': 1, 'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['a', 'b']}}, 1),
-    ({'a': 1, 'b': 2, 'c': 3}, {'a': 1, 'c': 3},
-     {'alias_mapping': {'a': ['b']}, 'required': ('a', )}, 1),
+    ({'a': 1, 'b': 2}, {'required': ('a'), 'allowed': ()}),
+    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['b']}}),
+    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['b']}, 'allowed': ('a',)}),
+    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['a', 'b']}}),
+    ({'a': 1, 'b': 2, 'c': 3},
+     {'alias_mapping': {'a': ['b']}, 'required': ('a', )}),
 )
 
 pass_mapping = (
+    (None, {}, {}),
     ({'a': 1, 'b': 2}, {'a': 1, 'b': 2}, {}),
     ({'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['a', 'b']}}),
     ({'b': 2}, {'a': 2},
@@ -319,33 +405,24 @@ pass_mapping = (
 
 @pytest.mark.parametrize('inp, kwargs_to_norm', fail_mapping)
 def test_normalize_kwargs_fail(inp, kwargs_to_norm):
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError), \
+         _api.suppress_matplotlib_deprecation_warning():
         cbook.normalize_kwargs(inp, **kwargs_to_norm)
-
-
-@pytest.mark.parametrize('inp, expected, kwargs_to_norm, warn_count',
-                         warn_passing_mapping)
-def test_normalize_kwargs_warn(inp, expected, kwargs_to_norm, warn_count):
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        assert expected == cbook.normalize_kwargs(inp, **kwargs_to_norm)
-        assert len(w) == warn_count
 
 
 @pytest.mark.parametrize('inp, expected, kwargs_to_norm',
                          pass_mapping)
 def test_normalize_kwargs_pass(inp, expected, kwargs_to_norm):
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with _api.suppress_matplotlib_deprecation_warning():
+        # No other warning should be emitted.
         assert expected == cbook.normalize_kwargs(inp, **kwargs_to_norm)
-        assert len(w) == 0
 
 
 def test_warn_external_frame_embedded_python():
     with patch.object(cbook, "sys") as mock_sys:
         mock_sys._getframe = Mock(return_value=None)
         with pytest.warns(UserWarning, match=r"\Adummy\Z"):
-            cbook._warn_external("dummy")
+            _api.warn_external("dummy")
 
 
 def test_to_prestep():
@@ -355,9 +432,9 @@ def test_to_prestep():
 
     xs, y1s, y2s = cbook.pts_to_prestep(x, y1, y2)
 
-    x_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype='float')
-    y1_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype='float')
-    y2_target = np.asarray([3, 2, 2, 1, 1, 0, 0], dtype='float')
+    x_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype=float)
+    y1_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype=float)
+    y2_target = np.asarray([3, 2, 2, 1, 1, 0, 0], dtype=float)
 
     assert_array_equal(x_target, xs)
     assert_array_equal(y1_target, y1s)
@@ -380,9 +457,9 @@ def test_to_poststep():
 
     xs, y1s, y2s = cbook.pts_to_poststep(x, y1, y2)
 
-    x_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype='float')
-    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype='float')
-    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0], dtype='float')
+    x_target = np.asarray([0, 1, 1, 2, 2, 3, 3], dtype=float)
+    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3], dtype=float)
+    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0], dtype=float)
 
     assert_array_equal(x_target, xs)
     assert_array_equal(y1_target, y1s)
@@ -405,9 +482,9 @@ def test_to_midstep():
 
     xs, y1s, y2s = cbook.pts_to_midstep(x, y1, y2)
 
-    x_target = np.asarray([0, .5, .5, 1.5, 1.5, 2.5, 2.5, 3], dtype='float')
-    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3, 3], dtype='float')
-    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0, 0], dtype='float')
+    x_target = np.asarray([0, .5, .5, 1.5, 1.5, 2.5, 2.5, 3], dtype=float)
+    y1_target = np.asarray([0, 0, 1, 1, 2, 2, 3, 3], dtype=float)
+    y2_target = np.asarray([3, 3, 2, 2, 1, 1, 0, 0], dtype=float)
 
     assert_array_equal(x_target, xs)
     assert_array_equal(y1_target, y1s)
@@ -434,9 +511,9 @@ def test_step_fails(args):
 
 
 def test_grouper():
-    class dummy:
+    class Dummy:
         pass
-    a, b, c, d, e = objs = [dummy() for j in range(5)]
+    a, b, c, d, e = objs = [Dummy() for _ in range(5)]
     g = cbook.Grouper()
     g.join(*objs)
     assert set(list(g)[0]) == set(objs)
@@ -454,9 +531,9 @@ def test_grouper():
 
 
 def test_grouper_private():
-    class dummy:
+    class Dummy:
         pass
-    objs = [dummy() for j in range(5)]
+    objs = [Dummy() for _ in range(5)]
     g = cbook.Grouper()
     g.join(*objs)
     # reach in and touch the internals !
@@ -484,13 +561,13 @@ def test_flatiter():
 
 def test_reshape2d():
 
-    class dummy:
+    class Dummy:
         pass
 
     xnew = cbook._reshape_2D([], 'x')
     assert np.shape(xnew) == (1, 0)
 
-    x = [dummy() for j in range(5)]
+    x = [Dummy() for _ in range(5)]
 
     xnew = cbook._reshape_2D(x, 'x')
     assert np.shape(xnew) == (1, 5)
@@ -499,7 +576,7 @@ def test_reshape2d():
     xnew = cbook._reshape_2D(x, 'x')
     assert np.shape(xnew) == (1, 5)
 
-    x = [[dummy() for j in range(5)] for i in range(3)]
+    x = [[Dummy() for _ in range(5)] for _ in range(3)]
     xnew = cbook._reshape_2D(x, 'x')
     assert np.shape(xnew) == (3, 5)
 
@@ -507,6 +584,14 @@ def test_reshape2d():
     x = np.random.rand(3, 5)
     xnew = cbook._reshape_2D(x, 'x')
     assert np.shape(xnew) == (5, 3)
+
+    # Test a list of lists which are all of length 1
+    x = [[1], [2], [3]]
+    xnew = cbook._reshape_2D(x, 'x')
+    assert isinstance(xnew, list)
+    assert isinstance(xnew[0], np.ndarray) and xnew[0].shape == (1,)
+    assert isinstance(xnew[1], np.ndarray) and xnew[1].shape == (1,)
+    assert isinstance(xnew[2], np.ndarray) and xnew[2].shape == (1,)
 
     # Now test with a list of lists with different lengths, which means the
     # array will internally be converted to a 1D object array of lists
@@ -543,6 +628,29 @@ def test_reshape2d():
     assert len(xnew) == 1
     assert isinstance(xnew[0], ArraySubclass)
 
+    # check list of strings:
+    x = ['a', 'b', 'c', 'c', 'dd', 'e', 'f', 'ff', 'f']
+    xnew = cbook._reshape_2D(x, 'x')
+    assert len(xnew[0]) == len(x)
+    assert isinstance(xnew[0], np.ndarray)
+
+
+def test_reshape2d_pandas(pd):
+    # separate to allow the rest of the tests to run if no pandas...
+    X = np.arange(30).reshape(10, 3)
+    x = pd.DataFrame(X, columns=["a", "b", "c"])
+    Xnew = cbook._reshape_2D(x, 'x')
+    # Need to check each row because _reshape_2D returns a list of arrays:
+    for x, xnew in zip(X.T, Xnew):
+        np.testing.assert_array_equal(x, xnew)
+
+    X = np.arange(30).reshape(10, 3)
+    x = pd.DataFrame(X, columns=["a", "b", "c"])
+    Xnew = cbook._reshape_2D(x, 'x')
+    # Need to check each row because _reshape_2D returns a list of arrays:
+    for x, xnew in zip(X.T, Xnew):
+        np.testing.assert_array_equal(x, xnew)
+
 
 def test_contiguous_regions():
     a, b, c = 3, 4, 5
@@ -574,21 +682,129 @@ def test_safe_first_element_pandas_series(pd):
     assert actual == 0
 
 
-def test_make_keyword_only(recwarn):
-    @cbook._make_keyword_only("3.0", "arg")
-    def func(pre, arg, post=None):
-        pass
-
-    func(1, arg=2)
-    assert len(recwarn) == 0
-
-    with pytest.warns(MatplotlibDeprecationWarning):
-        func(1, 2)
-    with pytest.warns(MatplotlibDeprecationWarning):
-        func(1, 2, 3)
-
-
 def test_warn_external(recwarn):
-    cbook._warn_external("oops")
+    _api.warn_external("oops")
     assert len(recwarn) == 1
     assert recwarn[0].filename == __file__
+
+
+def test_array_patch_perimeters():
+    # This compares the old implementation as a reference for the
+    # vectorized one.
+    def check(x, rstride, cstride):
+        rows, cols = x.shape
+        row_inds = [*range(0, rows-1, rstride), rows-1]
+        col_inds = [*range(0, cols-1, cstride), cols-1]
+        polys = []
+        for rs, rs_next in zip(row_inds[:-1], row_inds[1:]):
+            for cs, cs_next in zip(col_inds[:-1], col_inds[1:]):
+                # +1 ensures we share edges between polygons
+                ps = cbook._array_perimeter(x[rs:rs_next+1, cs:cs_next+1]).T
+                polys.append(ps)
+        polys = np.asarray(polys)
+        assert np.array_equal(polys,
+                              cbook._array_patch_perimeters(
+                                  x, rstride=rstride, cstride=cstride))
+
+    def divisors(n):
+        return [i for i in range(1, n + 1) if n % i == 0]
+
+    for rows, cols in [(5, 5), (7, 14), (13, 9)]:
+        x = np.arange(rows * cols).reshape(rows, cols)
+        for rstride, cstride in itertools.product(divisors(rows - 1),
+                                                  divisors(cols - 1)):
+            check(x, rstride=rstride, cstride=cstride)
+
+
+def test_setattr_cm():
+    class A:
+        cls_level = object()
+        override = object()
+
+        def __init__(self):
+            self.aardvark = 'aardvark'
+            self.override = 'override'
+            self._p = 'p'
+
+        def meth(self):
+            ...
+
+        @classmethod
+        def classy(cls):
+            ...
+
+        @staticmethod
+        def static():
+            ...
+
+        @property
+        def prop(self):
+            return self._p
+
+        @prop.setter
+        def prop(self, val):
+            self._p = val
+
+    class B(A):
+        ...
+
+    other = A()
+
+    def verify_pre_post_state(obj):
+        # When you access a Python method the function is bound
+        # to the object at access time so you get a new instance
+        # of MethodType every time.
+        #
+        # https://docs.python.org/3/howto/descriptor.html#functions-and-methods
+        assert obj.meth is not obj.meth
+        # normal attribute should give you back the same instance every time
+        assert obj.aardvark is obj.aardvark
+        assert a.aardvark == 'aardvark'
+        # and our property happens to give the same instance every time
+        assert obj.prop is obj.prop
+        assert obj.cls_level is A.cls_level
+        assert obj.override == 'override'
+        assert not hasattr(obj, 'extra')
+        assert obj.prop == 'p'
+        assert obj.monkey == other.meth
+        assert obj.cls_level is A.cls_level
+        assert 'cls_level' not in obj.__dict__
+        assert 'classy' not in obj.__dict__
+        assert 'static' not in obj.__dict__
+
+    a = B()
+
+    a.monkey = other.meth
+    verify_pre_post_state(a)
+    with cbook._setattr_cm(
+            a, prop='squirrel',
+            aardvark='moose', meth=lambda: None,
+            override='boo', extra='extra',
+            monkey=lambda: None, cls_level='bob',
+            classy='classy', static='static'):
+        # because we have set a lambda, it is normal attribute access
+        # and the same every time
+        assert a.meth is a.meth
+        assert a.aardvark is a.aardvark
+        assert a.aardvark == 'moose'
+        assert a.override == 'boo'
+        assert a.extra == 'extra'
+        assert a.prop == 'squirrel'
+        assert a.monkey != other.meth
+        assert a.cls_level == 'bob'
+        assert a.classy == 'classy'
+        assert a.static == 'static'
+
+    verify_pre_post_state(a)
+
+
+def test_format_approx():
+    f = cbook._format_approx
+    assert f(0, 1) == '0'
+    assert f(0, 2) == '0'
+    assert f(0, 3) == '0'
+    assert f(-0.0123, 1) == '-0'
+    assert f(1e-7, 5) == '0'
+    assert f(0.0012345600001, 5) == '0.00123'
+    assert f(-0.0012345600001, 5) == '-0.00123'
+    assert f(0.0012345600001, 8) == f(0.0012345600001, 10) == '0.00123456'

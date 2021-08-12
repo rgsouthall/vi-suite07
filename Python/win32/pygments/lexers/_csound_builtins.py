@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """
     pygments.lexers._csound_builtins
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    :copyright: Copyright 2006-2019 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2021 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -200,6 +199,7 @@ adsyn
 adsynt
 adsynt2
 aftouch
+allpole
 alpass
 alwayson
 ampdb
@@ -207,6 +207,10 @@ ampdbfs
 ampmidi
 ampmidicurve
 ampmidid
+apoleparams
+arduinoRead
+arduinoStart
+arduinoStop
 areson
 aresonk
 atone
@@ -229,6 +233,7 @@ binit
 biquad
 biquada
 birnd
+bob
 bpf
 bpfcos
 bqrez
@@ -286,6 +291,11 @@ clockoff
 clockon
 cmp
 cmplxprod
+cntCreate
+cntCycles
+cntRead
+cntReset
+cntState
 comb
 combinv
 compilecsd
@@ -305,6 +315,8 @@ cosinv
 cosseg
 cossegb
 cossegr
+count
+count_i
 cps2pch
 cpsmidi
 cpsmidib
@@ -492,7 +504,9 @@ ftresizei
 ftsamplebank
 ftsave
 ftsavek
+ftset
 ftslice
+ftslicei
 ftsr
 gain
 gainslider
@@ -757,6 +771,8 @@ la_k_upper_solve_mc
 la_k_upper_solve_mr
 la_k_vc_set
 la_k_vr_set
+lag
+lagud
 lastcycle
 lenarray
 lfo
@@ -803,6 +819,8 @@ loscilx
 lowpass2
 lowres
 lowresx
+lpcanal
+lpcfilter
 lpf18
 lpform
 lpfreson
@@ -826,6 +844,7 @@ lua_ikopcall_off
 lua_iopcall
 lua_iopcall_off
 lua_opdef
+lufs
 mac
 maca
 madsr
@@ -1053,12 +1072,11 @@ printk
 printk2
 printks
 printks2
+println
 prints
+printsk
 product
 pset
-ptable
-ptable3
-ptablei
 ptablew
 ptrack
 puts
@@ -1075,6 +1093,7 @@ pvsanal
 pvsarp
 pvsbandp
 pvsbandr
+pvsbandwidth
 pvsbin
 pvsblur
 pvsbuffer
@@ -1083,6 +1102,7 @@ pvsbufread2
 pvscale
 pvscent
 pvsceps
+pvscfs
 pvscross
 pvsdemix
 pvsdiskin
@@ -1102,6 +1122,7 @@ pvsin
 pvsinfo
 pvsinit
 pvslock
+pvslpc
 pvsmaska
 pvsmix
 pvsmooth
@@ -1227,6 +1248,7 @@ remove
 repluck
 reshapearray
 reson
+resonbnk
 resonk
 resonr
 resonx
@@ -1244,6 +1266,7 @@ rifft
 rms
 rnd
 rnd31
+rndseed
 round
 rspline
 rtclock
@@ -1352,6 +1375,7 @@ spsend
 sqrt
 squinewave
 statevar
+sterrain
 stix
 strcat
 strcatk
@@ -1463,6 +1487,8 @@ trcross
 trfilter
 trhighest
 trigger
+trighold
+trigphasor
 trigseq
 trim
 trim_i
@@ -1545,6 +1571,7 @@ vpow
 vpow_i
 vpowv
 vpowv_i
+vps
 vpvoc
 vrandh
 vrandi
@@ -1630,6 +1657,9 @@ maxtab
 mintab
 pop
 pop_f
+ptable
+ptable3
+ptablei
 ptableiw
 push
 push_f

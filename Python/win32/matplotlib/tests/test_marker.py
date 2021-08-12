@@ -7,27 +7,49 @@ from matplotlib.testing.decorators import check_figures_equal
 import pytest
 
 
-def test_markers_valid():
-    marker_style = markers.MarkerStyle()
-    mrk_array = np.array([[-0.5, 0],
-                          [0.5, 0]])
+def test_marker_fillstyle():
+    marker_style = markers.MarkerStyle(marker='o', fillstyle='none')
+    assert marker_style.get_fillstyle() == 'none'
+    assert not marker_style.is_filled()
+
+
+@pytest.mark.parametrize('marker', [
+    'o',
+    'x',
+    '',
+    'None',
+    None,
+    r'$\frac{1}{2}$',
+    "$\u266B$",
+    1,
+    markers.TICKLEFT,
+    [[-1, 0], [1, 0]],
+    np.array([[-1, 0], [1, 0]]),
+    Path([[0, 0], [1, 0]], [Path.MOVETO, Path.LINETO]),
+    (5, 0),  # a pentagon
+    (7, 1),  # a 7-pointed star
+    (5, 2),  # asterisk
+    (5, 0, 10),  # a pentagon, rotated by 10 degrees
+    (7, 1, 10),  # a 7-pointed star, rotated by 10 degrees
+    (5, 2, 10),  # asterisk, rotated by 10 degrees
+    markers.MarkerStyle(),
+    markers.MarkerStyle('o'),
+])
+def test_markers_valid(marker):
     # Checking this doesn't fail.
-    marker_style.set_marker(mrk_array)
+    markers.MarkerStyle(marker)
 
 
-def test_markers_invalid():
-    marker_style = markers.MarkerStyle()
-    mrk_array = np.array([[-0.5, 0, 1, 2, 3]])
-    # Checking this does fail.
+@pytest.mark.parametrize('marker', [
+    'square',  # arbitrary string
+    np.array([[-0.5, 0, 1, 2, 3]]),  # 1D array
+    (1,),
+    (5, 3),  # second parameter of tuple must be 0, 1, or 2
+    (1, 2, 3, 4),
+])
+def test_markers_invalid(marker):
     with pytest.raises(ValueError):
-        marker_style.set_marker(mrk_array)
-
-
-def test_marker_path():
-    marker_style = markers.MarkerStyle()
-    path = Path([[0, 0], [1, 0]], [Path.MOVETO, Path.LINETO])
-    # Checking this doesn't fail.
-    marker_style.set_marker(path)
+        markers.MarkerStyle(marker)
 
 
 class UnsnappedMarkerStyle(markers.MarkerStyle):
@@ -133,3 +155,44 @@ def test_asterisk_marker(fig_test, fig_ref, request):
 
     ax_test.set(xlim=(-0.5, 1.5), ylim=(-0.5, 1.5))
     ax_ref.set(xlim=(-0.5, 1.5), ylim=(-0.5, 1.5))
+
+
+@check_figures_equal()
+def test_marker_clipping(fig_ref, fig_test):
+    # Plotting multiple markers can trigger different optimized paths in
+    # backends, so compare single markers vs multiple to ensure they are
+    # clipped correctly.
+    marker_count = len(markers.MarkerStyle.markers)
+    marker_size = 50
+    ncol = 7
+    nrow = marker_count // ncol + 1
+
+    width = 2 * marker_size * ncol
+    height = 2 * marker_size * nrow * 2
+    fig_ref.set_size_inches((width / fig_ref.dpi, height / fig_ref.dpi))
+    ax_ref = fig_ref.add_axes([0, 0, 1, 1])
+    fig_test.set_size_inches((width / fig_test.dpi, height / fig_ref.dpi))
+    ax_test = fig_test.add_axes([0, 0, 1, 1])
+
+    for i, marker in enumerate(markers.MarkerStyle.markers):
+        x = i % ncol
+        y = i // ncol * 2
+
+        # Singular markers per call.
+        ax_ref.plot([x, x], [y, y + 1], c='k', linestyle='-', lw=3)
+        ax_ref.plot(x, y, c='k',
+                    marker=marker, markersize=marker_size, markeredgewidth=10,
+                    fillstyle='full', markerfacecolor='white')
+        ax_ref.plot(x, y + 1, c='k',
+                    marker=marker, markersize=marker_size, markeredgewidth=10,
+                    fillstyle='full', markerfacecolor='white')
+
+        # Multiple markers in a single call.
+        ax_test.plot([x, x], [y, y + 1], c='k', linestyle='-', lw=3,
+                     marker=marker, markersize=marker_size, markeredgewidth=10,
+                     fillstyle='full', markerfacecolor='white')
+
+    ax_ref.set(xlim=(-0.5, ncol), ylim=(-0.5, 2 * nrow))
+    ax_test.set(xlim=(-0.5, ncol), ylim=(-0.5, 2 * nrow))
+    ax_ref.axis('off')
+    ax_test.axis('off')
