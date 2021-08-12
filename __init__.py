@@ -72,10 +72,10 @@ else:
             else:
                 os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
         
-            if sys.platform == 'win32':
-                print(os.path.join(addonpath, 'Python', sys.platform), os.path.join(addonpath, 'Python', sys.platform, 'bin'))
-                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
-                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, 'bin'))
+#            if sys.platform == 'win32':
+#                print(os.path.join(addonpath, 'Python', sys.platform), os.path.join(addonpath, 'Python', sys.platform, 'bin'))
+#                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+#                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, 'bin'))
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
