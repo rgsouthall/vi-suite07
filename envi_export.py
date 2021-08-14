@@ -410,6 +410,7 @@ def pregeo(context, op):
         bpy.ops.object.editmode_toggle()
 
     eg = create_coll(context, 'EnVi Geometry')
+    eg.vi_params['enparams'] = {}
     eg.vi_params['enparams']['floorarea'] = {}
 
     for chil in eg.children:

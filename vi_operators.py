@@ -1632,7 +1632,12 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         
         while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr = PIPE))
-            # errtext =  self.esimruns[-1].stderr.read().decode()
+            errtext =  self.esimruns[-1].stderr.read().decode()
+
+            if 'Fatal' in errtext:
+                logentry('There is something wrong with the Energyplus installation. Check the message below')
+                logentry(errtext)
+                return {self.terminate('CANCELLED', context)}
             
             # if 'EnergyPlus Completed Successfully' not in errtext:
             #     logentry('Energyplus error: {}'.format(errtext))

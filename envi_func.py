@@ -456,7 +456,7 @@ def retrmenus(innode, node, axis, zrl):
     return (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multmenu, statmenu)
 
 def processh(lines, znlist): 
-    hdict = {}
+    hdict, l = {}, 0
     for l, line in enumerate(lines):
         linesplit = line.strip('\n').split(',')
         if len(linesplit) > 3:
