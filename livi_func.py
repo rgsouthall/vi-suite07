@@ -273,7 +273,10 @@ def cbdmhdr(node, scene):
                 Popen(shlex.split('pcomb -s {} "{}"'.format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j)))), stdout = psfile).wait()
         
         with open(targethdr, 'w') as epwhdr:
-            Popen(shlex.split('pcomb -h {}'.format(pcombfiles)), stdout = epwhdr).wait()
+            if sys.platform == 'win32':
+                Popen("pcomb -h {}".format(pcombfiles), stdout = epwhdr).wait()
+            else:
+                Popen(shlex.split('pcomb -h {}'.format(pcombfiles)), stdout = epwhdr).wait()
         
         [os.remove(os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (patches)]
         [os.remove(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (patches)]

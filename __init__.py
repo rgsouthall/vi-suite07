@@ -57,8 +57,8 @@ else:
                     os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
                 elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
                     os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)  
-                    sys.argv = [bpy.app.binary_path] 
-                    os.execv(sys.argv[0], sys.argv)
+#                    sys.argv = [bpy.app.binary_path] 
+#                    os.execv(sys.argv[0], sys.argv)
 
             elif sys.platform == 'darwin':
                 if not os.environ.get('DYLD_LIBRARY_PATH'):
@@ -72,10 +72,8 @@ else:
             else:
                 os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
         
-#            if sys.platform == 'win32':
-#                print(os.path.join(addonpath, 'Python', sys.platform), os.path.join(addonpath, 'Python', sys.platform, 'bin'))
-#                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
-#                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, 'bin'))
+            if sys.platform == 'win32':
+                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
