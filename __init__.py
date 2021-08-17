@@ -165,7 +165,7 @@ def unititems(self, context):
             return [('df', 'DF (%)', 'Daylight factor'), 
                     ('virrad', 'Watts', 'Visible spectrum illuminance')]
         elif svp['liparams']['unit'] == 'klxh':
-            return [('illuh', 'klux-hours', 'kilolux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible)')]
+            return [('illuh', 'klux-hours', 'kilolux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible spectrum)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible spectrum)')]
         elif svp['liparams']['unit'] == 'kWh (f)':
             return [('firradh', 'kWh (f)', 'kilo-Watt hours (solar spectrum)'), 
                     ('firradhm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]

@@ -229,7 +229,7 @@ def cbdmmtx(self, scene, locnode, export_op):
                 ls = line.split()
                 if len(ls) != 5:
                     weafile.write(line)
-                elif csh <= float(ls[2]) <= ceh and sdoy <= datetime.datetime(svp['viparams']['year'], int(ls[0]), int(ls[1])).timetuple().tm_yday <= edoy and datetime.datetime(svp['viparams']['year'], int(ls[0]), int(ls[1])).weekday() <= (6, 4)[self.weekdays]:
+                elif csh <= float(ls[2]) <= ceh and sdoy <= datetime.datetime(svp['year'], int(ls[0]), int(ls[1])).timetuple().tm_yday <= edoy and datetime.datetime(svp['year'], int(ls[0]), int(ls[1])).weekday() <= (6, 4)[self.weekdays]:
                     weafile.write(line)
                 
         gdmcmd = ("gendaymtx -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']], 
@@ -253,7 +253,7 @@ def cbdmhdr(node, scene):
     skyentry = hdrsky(node.hdrname, '1', 0, 1000) if node.sourcemenu == '1' and  node.cbanalysismenu == '0' else hdrsky(targethdr, '1', 0, 1000)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
-        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(svp['viparams']['year'], 1, 1).weekday(), node, node.times)
+        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(patches)])
         vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
         rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f reinhart{}.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'], 
@@ -603,12 +603,12 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['omax']['illuh{}'.format(frame)] = maxoillu
             self['omin']['illuh{}'.format(frame)] = minoillu
             self['oave']['illuh{}'.format(frame)] = aveoillu
-            self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illuh{}'.format(frame)]), '{:.1f}'.format(self['oave']['illuh{}'.format(frame)]), '{:.1f}'.format(self['omax']['illuh{}'.format(frame)])]])
-            self['tablevim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradhm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradhm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradhm2{}'.format(frame)])]])
-            self['tablevi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradh{}'.format(frame)])]])
+#            self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+#                 ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illuh{}'.format(frame)]), '{:.1f}'.format(self['oave']['illuh{}'.format(frame)]), '{:.1f}'.format(self['omax']['illuh{}'.format(frame)])]])
+#            self['tablevim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+#                 ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradhm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradhm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradhm2{}'.format(frame)])]])
+#            self['tablevi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+#                 ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradh{}'.format(frame)])]])
 
         elif simnode['coptions']['unit'] == 'kWh (f)':
             ofirradm2 = array([g[firradm2res] for g in gps])
@@ -625,10 +625,10 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['omax']['firradhm2{}'.format(frame)] = maxofirradm2
             self['omin']['firradhm2{}'.format(frame)] = minofirradm2
             self['oave']['firradhm2{}'.format(frame)] = aveofirradm2
-            self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradhm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradhm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradhm2{}'.format(frame)])]])
-            self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                 ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradh{}'.format(frame)])]])
+#            self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+#                 ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradhm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradhm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradhm2{}'.format(frame)])]])
+#            self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+#                 ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firradh{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradh{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradh{}'.format(frame)])]])
             
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
@@ -637,10 +637,12 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         reslists.append([str(frame), 'Zone', self.id_data.name, 'Area', ' '.join([str(a) for a in areas])])
         
         if simnode['coptions']['unit'] == 'klxh':
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (Mlxh)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance (kwh)', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (klxh)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance (kwh/m2)', ' '.join([str(g[virradm2res]) for g in geom if g[cindex] > 0])])
         elif simnode['coptions']['unit'] == 'kWh (f)':    
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (kwh)', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (kwh/m2)', ' '.join([str(g[firradm2res]) for g in geom if g[cindex] > 0])])
 
     bm.to_mesh(self.id_data.data)
     bm.free()

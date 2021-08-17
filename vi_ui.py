@@ -53,8 +53,6 @@ class VI_PT_3D(bpy.types.Panel):
         if cao:
             covp = cao.vi_params
 
-#        try:
-#        print(cao.active_material.vi_params.get('bsdf'), cao.active_material.vi_params['bsdf']['type'], covp.vi_type)
         if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
             if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':                
                 row = layout.row()
@@ -67,9 +65,6 @@ class VI_PT_3D(bpy.types.Panel):
                     newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
         
-#        except Exception as e:
-#            logentry("Problem with BSDF panel display: {}".format(e))
-
         if svp.get('viparams') and svp['viparams'].get('vidisp'): 
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
                 row = layout.row()

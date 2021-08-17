@@ -32,23 +32,15 @@ from .livi_export import radgexport, createoconv, createradfile, gen_octree, rad
 from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied
-
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
-
 from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
 from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
-
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll
 from .livi_func import retpmap
-#from .vi_display import wr_legend, wr_scatter, wr_table, wr_disp
-#from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp, hmchart_disp
 from .vi_dicts import rvuerrdict, pmerrdict
-
-#from .vi_display import wr_legend, results_bar, wr_table, wr_scatter, svf_legend
-#from .vi_display import li_display, linumdisplay, ss_legend, ss_scatter, livi_legend#, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
 
 try:
     import netgen
@@ -202,7 +194,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
         rl = locnode['reslists']
         cdoys = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
         cwd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
-#        cws = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]] 
 
         if simnode.temp:
             cd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Temperature (degC)'][0]]  
@@ -212,17 +203,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
         doys = list(range(simnode.sdoy, simnode.edoy + 1)) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
         awd = array([wd for di, wd in enumerate(cwd) if cdoys[di] in doys])
         ad = array([d for di, d in enumerate(cd) if cdoys[di] in doys])
-
-#        if simnode.temp:
-#            at = array([t for di, t in enumerate(ct) if cdoys[di] in doys])
-
         validdata = where(awd > 0) if max(cwd) == 360 else where(awd > -1)
         vawd = awd[validdata]
         vad = ad[validdata]
-
-        # if simnode.temp:
-        #     vat = at[validdata]
-
         simnode['maxres'], simnode['minres'], simnode['avres'] = max(cd), min(cd), sum(cd)/len(cd)
         fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
         rect = [0.1, 0.1, 0.8, 0.8]
@@ -278,8 +261,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         simnode['d'] = array(cd).reshape(365, 24).T.tolist()
         simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()        
         simnode['days'] = arange(1, 366, dtype = float)
-        simnode['hours'] = arange(1, 25, dtype = float)    
-           
+        simnode['hours'] = arange(1, 25, dtype = float)               
         return {'FINISHED'}
     
 class NODE_OT_SVF(bpy.types.Operator):
