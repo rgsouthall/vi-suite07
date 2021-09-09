@@ -5040,9 +5040,11 @@ class No_En_Net_EMSPy(Node, EnViNodes):
                         setattr(self, p.identifier, ret_param(getattr(self, p.identifier), tf.as_string().split('\n')[bpy.context.scene.frame_current - bpy.context.scene.vi_params['enparams']['fs']]))
 
         if self.py_mod and self.py_class:
+            pysparams = ('Name', 'Add Current Working Directory to Search Path', 'Add Input File Directory to Search Path', 'Search Path N')
+            pysparamvs = ('Module_search_path', 'No', 'Yes', '')
             pyparams = ('Name', 'Run During Warmup Days', 'Python Module Name', 'Plugin Class Name')
-            pyparamvs = ('Apply Discrete Package Sizes to Air System Sizing', 'Yes', self.py_mod, self.py_class)
-            return epentry('PythonPlugin:Instance', pyparams, pyparamvs)
+            pyparamvs = ('Python_module', 'Yes', self.py_mod, self.py_class)
+            return epentry('PythonPlugin:SearchPaths', pysparams, pysparamvs) + epentry('PythonPlugin:Instance', pyparams, pyparamvs)
         else:
             return ''
 

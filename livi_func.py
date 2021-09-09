@@ -396,10 +396,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 if svp['liparams']['unit'] == 'W/m2 (f)':
                     firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)   
                 elif svp['liparams']['unit'] == 'Lux':
-                    illu = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 179
+                    illu = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 179
                     virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1) 
                 elif svp['liparams']['unit'] == 'DF (%)':
-                    df = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 1.79
+                    df = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 1.79
                     virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)
 
                 for gi, gp in enumerate(chunk):  
@@ -559,7 +559,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
             if simnode['coptions']['unit'] == 'klxh':
                 virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1) * 1e-3
-                illu = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 0.179
+                illu = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 0.179
                 virrad = virradm2 * careas
                 
             elif simnode['coptions']['unit'] == 'kWh (f)':
