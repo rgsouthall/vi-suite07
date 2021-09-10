@@ -562,10 +562,14 @@ class results_bar():
                 bgl.glDisable(bgl.GL_BLEND)
             else:
                 im = bpy.data.images[self.images[si - 2]]
+
                 if im.gl_load():
                     raise Exception()
+                
                 bgl.glActiveTexture(bgl.GL_TEXTURE0)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
                 s.uniform_int("image", 0)
                 self.batches[si].draw(s)
     
@@ -921,6 +925,8 @@ class draw_bsdf(Base_Display):
                 
             bgl.glActiveTexture(bgl.GL_TEXTURE0)
             bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
             self.image_shader.uniform_int("image", 0)
             self.image_batch.draw(self.image_shader)
             
@@ -934,6 +940,8 @@ class draw_bsdf(Base_Display):
                 
             bgl.glActiveTexture(bgl.GL_TEXTURE0)
             bgl.glBindTexture(bgl.GL_TEXTURE_2D, iim.bindcode)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
             self.iimage_shader.uniform_int("image", 0)
             self.iimage_batch.draw(self.iimage_shader)
             self.arc_shader.bind()
@@ -1118,7 +1126,7 @@ class wr_table(Base_Display):
     def update(self, context):
         self.cao = context.active_object
         
-        if self.cao and self.cao.vi_params.get('ws'):
+        if self.cao and self.cao.vi_params['VIType'] == 'Wind_Plane':
             self.rcarray = array(self.cao.vi_params['table']) 
         else:
             self.rcarray = array([['Invalid object']])
@@ -1355,6 +1363,8 @@ class draw_scatter(Base_Display):
                     
                 bgl.glActiveTexture(bgl.GL_TEXTURE0)
                 bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
                 self.image_shader.uniform_int("image", 0)
                 self.image_batch.draw(self.image_shader)
 
@@ -1566,6 +1576,8 @@ def draw_icon_new(self):
     def draw():
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)   
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
         shader.bind()
         shader.uniform_int("image", 0)
         batch.draw(shader)
@@ -2394,6 +2406,8 @@ class wr_scatter(Base_Display):
 
             bgl.glActiveTexture(bgl.GL_TEXTURE0)
             bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
             self.image_shader.uniform_int("image", 0)
             self.image_batch.draw(self.image_shader)
             
