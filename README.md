@@ -1,2 +1,2 @@
-# vi-suite061
-VI-Suite release for Blender 2.93 (experimental)
+# vi-suite07
+VI-Suite release for Blender 3.0 (experimental)
