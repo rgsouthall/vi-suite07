@@ -20,8 +20,8 @@
 bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
-    "version": (0, 6, 1),
-    "blender": (2, 93),
+    "version": (0, 7, 0),
+    "blender": (3, 0),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",

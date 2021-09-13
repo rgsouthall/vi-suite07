@@ -289,8 +289,8 @@ def li_display(disp_op, simnode):
             bpy.context.object.active_shape_key_index = 0
             bpy.ops.object.shape_key_remove(all=True)
             
-        cv = ores.cycles_visibility
-        cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
+#        cv = ores.cycles_visibility
+        ores.visible_diffuse, ores.visible_glossy, ores.visible_transmission, ores.visible_volume_scatter, ores.visible_shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
         ores.vi_params.vi_type_string == 'LiVi Res'
         # svp['liparams']['livir'] = [ores.name]
@@ -963,7 +963,8 @@ class wr_legend(Base_Display):
     def update(self, context):
         scene = context.scene
         svp = scene.vi_params
-        simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]        
+        simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]  
+        self.unit = self.unit if not simnode.temp else 'Temperature (C)'      
         self.cao = context.active_object
 
         if self.cao and self.cao.get('VIType') and self.cao['VIType'] == 'Wind_Plane':            
@@ -1027,7 +1028,7 @@ class wr_legend(Base_Display):
             blf.color(self.font_id, 0, 0, 0, 1)      
             blf.draw(self.font_id, self.unit)
             blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
-            blf.size(self.font_id, 12, int((self.dpi - 50)/fontscale))
+            blf.size(self.font_id, 14, int((self.dpi - 50)/fontscale))
             
             for i in range(self.levels):
                 num = self.resvals[i]            
@@ -2241,7 +2242,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
             selobj(context.view_layer, spathob)
             joinobj(context.view_layer, [spathob])
-            spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission, spathob.cycles_visibility.scatter = [False] * 5
+            spathob.visible_diffuse, spathob.visible_shadow, spathob.visible_glossy, spathob.visible_transmission, spathob.visible_scatter = [False] * 5
             spathob.show_transparent = True
         
         for s, sun in enumerate(suns):

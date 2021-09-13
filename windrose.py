@@ -186,7 +186,6 @@ class WindroseAxes(PolarAxes):
 
         #Set the global information dictionnary
         self._info['dir'], self._info['bins'], self._info['table'] = histogram(dir, var, bins, nsector, normed, blowto)
-
         return bins, nbins, nsector, colors, angles, kwargs
 
 

@@ -1123,7 +1123,7 @@ def windnum(maxws, loc, scale, wr):
         txts.append(txt)
 
     joinobj(bpy.context.view_layer, txts + [wr]).name = 'Wind Rose'
-    bpy.context.active_object.cycles_visibility.shadow = False
+    bpy.context.active_object.visible_shadow = False
     bpy.context.active_object.display.show_shadows = False
     bpy.context.active_object['rpe']  = 'Wind_Plane'
 

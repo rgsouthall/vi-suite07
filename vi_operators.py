@@ -206,17 +206,18 @@ class NODE_OT_WindRose(bpy.types.Operator):
         validdata = where(awd > 0) if max(cwd) == 360 else where(awd > -1)
         vawd = awd[validdata]
         vad = ad[validdata]
-        simnode['maxres'], simnode['minres'], simnode['avres'] = max(cd), min(cd), sum(cd)/len(cd)
-        fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
-        rect = [0.1, 0.1, 0.8, 0.8]
-        ax = WindroseAxes(fig, rect, facecolor='w')
-        fig.add_axes(ax)
-        sbinvals = arange(0,int(ceil(max(cd))),2)
+        simnode['maxres'], simnode['minres'], simnode['avres'] = max(cd), min(cd), sum(cd)/len(cd)    
+        maxf = simnode.max_freq_val if simnode.max_freq == '1' else 0
+        sbinvals = arange(0,int(ceil(max(vad))),2)
         dbinvals = arange(-11.25,372.25,22.5)
         dfreq = histogram(awd, bins=dbinvals)[0]
         adfreq = histogram(cd, bins=dbinvals)[0]
         dfreq[0] = dfreq[0] + dfreq[-1]
-        dfreq = dfreq[:-1]        
+        dfreq = dfreq[:-1]  
+        fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
+        rect = [0.1, 0.1, 0.8, 0.8]
+        ax = WindroseAxes(fig, rect, facecolor='w')
+        fig.add_axes(ax)      
         
         if simnode.wrtype == '0':
             ax.bar(vawd, vad, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(svp.vi_scatt_col))
@@ -228,8 +229,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
         if simnode.max_freq == '1':
             ax.set_rmax(simnode.max_freq_val)
         else:
-            ax.set_rmax(100*numpy.max(dfreq)/len(awd))
-          
+            ax.set_rmax(100*numpy.max(dfreq)/len(awd) + 0.5)
+ 
         plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg') 
         wrme = bpy.data.meshes.new("Wind_rose")   
         wro = bpy.data.objects.new('Wind_rose', wrme) 
@@ -241,13 +242,13 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 
         selobj(context.view_layer, wro)    
             
-        (wro, scale) = wind_rose(wro, simnode['maxres'], svp['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
+        (wro, scale) = wind_rose(wro, (simnode['maxres'], simnode.max_freq_val)[simnode.max_freq == '1'], svp['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
         
         wro = joinobj(context.view_layer, wro)  
         ovp = wro.vi_params
         ovp['maxres'], ovp['minres'], ovp['avres'], ovp['nbins'], ovp['VIType'] = max(ad), min(ad), sum(ad)/len(ad), len(sbinvals), 'Wind_Plane'
-        simnode['maxfreq'] = 100*numpy.max(adfreq)/len(vawd) if simnode.max_freq == '0' else simnode.max_freq_val
-        windnum(100*numpy.max(dfreq)/len(awd), (0,0,0), scale, wind_compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))        
+        simnode['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
+        windnum((100*numpy.max(dfreq)/len(awd) + 0.5, simnode.max_freq_val)[simnode.max_freq == '1'], (0,0,0), scale, wind_compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))        
         plt.close()        
         ovp['table'] = array([["", 'Minimum', 'Average', 'Maximum'], 
                              ['Speed (m/s)', ovp['minres'], '{:.1f}'.format(ovp['avres']), ovp['maxres']], 
