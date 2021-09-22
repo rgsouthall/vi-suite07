@@ -308,7 +308,7 @@ class VI_PT_Mat(bpy.types.Panel):
                 newrow(layout, "Probe:", mvp, "flovi_probe")
                 
 class VI_PT_Ob(bpy.types.Panel):
-    bl_label = "VI-Suite Object Definition"
+    bl_label = "VI-Suite Object"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "object"
@@ -427,7 +427,31 @@ def rmmenu(layout, cm):
 
     row = layout.row()
     row.label(text = "-----------------------------------------")
-    
+
+class VI_PT_Col(bpy.types.Panel):
+    bl_label = "VI-Suite Collection"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "collection"
+
+    @classmethod
+    def poll(cls, context):
+        if context.collection:
+            return True
+
+    def draw(self, context):         
+        layout = self.layout
+
+        try: 
+            fa = context.collection.vi_params['enparams']['floorarea'][str(context.scene.frame_current)]
+        except:
+            fa = 'N/A'
+
+        row = layout.row()
+        row.label(text = 'EnergyPlus Metrics:')
+        row = layout.row()
+        row.label(text = 'Floor area (m2): {:.2f}'.format(fa))
+
 class VI_PT_Gridify(bpy.types.Panel):
     bl_label = "VI Gridify"
     bl_space_type = "VIEW_3D"

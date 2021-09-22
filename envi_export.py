@@ -36,11 +36,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         gen = 0
         scene.frame_set(frame)
         geo_coll = bpy.data.collections['EnVi Geometry']
-#        geo_coll.vi_params['enparams']['floorarea'] = {}
-
         geo_colls = geo_coll.children
-#        onames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '0'] 
-#        tcnames = [o.name for coll in geo_colls for o in coll.objects if o.vi_params.envi_type == '2']
         zonenames = [c.name for c in geo_colls]
         en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
@@ -520,14 +516,8 @@ def pregeo(context, op):
                 
             bm = bmesh.new()
             bm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
-            
-#            bmesh.ops.triangulate(bm, faces=bm.faces)
             bm.transform(new_ob.matrix_world)
-            print(bm.calc_volume())
-#            bmesh.ops.connect_verts_nonplanar(bm, angle_limit=0.0175, faces=bm.faces)
-#            print(bm.calc_volume())
             bmesh.ops.triangulate(bm, faces=bm.faces)
-            print(bm.calc_volume())
             new_ob['auto_volume'] = bm.calc_volume()
             bm.free()
         
@@ -550,8 +540,7 @@ def pregeo(context, op):
     enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
     enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0, 'pcm':0}
-    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]
-         
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]         
     dcdict = {'Wall':(1, 1, 1, 1), 'Partition':(1, 1, 0, 1), 'Window':(0, 1, 1, 1), 'Roof':(0, 1, 0, 1), 'Ceiling':(1, 1, 0, 1), 'Floor':(0.44,0.185,0.07, 1), 'Shading':(1, 0, 0, 1)}
     ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'} 
     pva = 0
@@ -563,36 +552,23 @@ def pregeo(context, op):
         cvp['enparams']['floorarea'] = {}
         
         if coll.objects:
-            for oi, obj in enumerate(coll.objects):
+            for oi, ob in enumerate(coll.objects):
                 done_mats = []
-                ovp = obj.vi_params
-                
-                for k in ovp.keys():
-                    if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica'):
-                        del ovp[k]
-#                ovp['enparams'] = {}
-#                ovp['enparams']['floorarea'] = {}
-                omats = [ms.material for ms in obj.material_slots]
-        
-                if ovp.envi_type in ('0', '2') and not omats:
-                    op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))
-                elif None in omats:
-                    op.report({'WARNING'}, 'Object {} has an empty material slot'.format(obj.name))
+                ovp = ob.vi_params
+                omats = [ms.material for ms in ob.material_slots]
+                keys = [k for k in ovp.keys() if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica')]
 
-                # if ovp.envi_type in ('0', '2'):
-                #     ofa = 0
-                    
-                #     for face in obj.data.polygons:
-                #         if omats[face.material_index] and omats[face.material_index].vi_params.envi_nodes:                            
-                #             for node in omats[face.material_index].vi_params.envi_nodes.nodes:
-                #                 if node.bl_idname == 'No_En_Mat_Con' and node.active:
-                #                     if node.envi_con_type =='Floor':
-                #                         ofa += facearea(obj, face)
-                #             omats[face.material_index].vi_params['enparams']['area'] += facearea(obj, face)
-                
-#                    ovp['enparams']["floorarea"][str(scene.frame_current)] = ofa
-                                       
-                for s, sm in enumerate(obj.material_slots): 
+                for k in keys:
+                    del ovp[k]
+
+                if ovp.envi_type in ('0', '2') and not omats:
+                    op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(ob.name))
+                elif None in omats:
+                    op.report({'WARNING'}, 'Object {} has an empty material slot'.format(ob.name))
+
+#                ovp['enparams']["floorarea"][str(scene.frame_current)] = ret_areas(ob)
+                                      
+                for s, sm in enumerate(ob.material_slots): 
                     if sm.material and sm.material not in done_mats:
                         done_mats.append(sm.material)
                         mat = sm.material
@@ -622,7 +598,10 @@ def pregeo(context, op):
                                 mat.diffuse_color = dcdict[mct] 
                             if emnode.inputs['PV'].links:
                                 mat.diffuse_color = (1, 1, 0, 1)
-                         
+
+#            cvp['enparams']['floorarea'] = {str()}
+
+
             for link in enng.links:
                 if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):
                     linklist.append([link.from_socket.node.name, link.from_socket.viuid, link.to_socket.node.name, link.to_socket.viuid])
@@ -649,13 +628,13 @@ def pregeo(context, op):
                     enng.use_fake_user = 1
         else:
             bpy.data.collections.remove(coll)
+
     for ll in linklist:
         try:
             for outs in [o for o in enng.nodes[ll[0]].outputs if o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
                 for ins in [i for i in enng.nodes[ll[2]].inputs if i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]:
                     if outs.viuid == ll[1] and ins.viuid == ll[3] and outs.bl_idname == ins.bl_idname:
                         enng.links.new(outs, ins)
-                        print(outs.viuid, ins.viuid)
 
         except Exception as e:
             print('Link', e)

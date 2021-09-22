@@ -200,21 +200,18 @@ def livires_update(self, context):
                 
 def rendview(i):
     for scrn in bpy.data.screens:
-        if scrn.name == 'Default':
-            bpy.context.window.screen = scrn
-            for area in scrn.areas:
-                if area.type == 'VIEW_3D':
-                    for space in area.spaces:
-                        if space.type == 'VIEW_3D':
-                            space.clip_start = 0.1
-                            bpy.context.scene['cs'] = space.clip_start
+        for area in scrn.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == 'VIEW_3D':
+                        space.clip_start = 0.1
+                        bpy.context.scene['cs'] = space.clip_start
                             
 def li_display(disp_op, simnode):    
     scene, obreslist, obcalclist = bpy.context.scene, [], []
     dp = bpy.context.evaluated_depsgraph_get()
     svp = scene.vi_params
     svp.li_disp_menu = unit2res[svp['liparams']['unit']]
-#    svp['liparams']['livir'] = []
     setscenelivivals(scene)
 
     try:
@@ -289,11 +286,9 @@ def li_display(disp_op, simnode):
             bpy.context.object.active_shape_key_index = 0
             bpy.ops.object.shape_key_remove(all=True)
             
-#        cv = ores.cycles_visibility
         ores.visible_diffuse, ores.visible_glossy, ores.visible_transmission, ores.visible_volume_scatter, ores.visible_shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
         ores.vi_params.vi_type_string == 'LiVi Res'
-        # svp['liparams']['livir'] = [ores.name]
         orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave'] 
         selobj(bpy.context.view_layer, ores)
         cmap(svp)
@@ -1803,6 +1798,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             uniform vec4 colour2;
             uniform vec4 colour3;
             in vec3 position;
+            //in vec3 nposition;
             in float arcLength;
             in uint line_break;
             
@@ -1811,6 +1807,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             out vec4 v_colour3;
             out float v_ArcLength;
             out float zpos;
+            //out vec3 np;
             flat out uint lb;
             
             void main()
@@ -1822,6 +1819,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
                 zpos = vec3(position)[2];
                 lb = line_break;
+                //np = nposition;
             }
         '''
         
@@ -1833,14 +1831,23 @@ class NODE_OT_SunPath(bpy.types.Operator):
             in vec4 v_colour2;
             in vec4 v_colour3;
             in float v_ArcLength;
+            //in vec3 np;
             flat in uint lb;
             out vec4 FragColour;
- 
+
             void main()
             {
                 if (zpos < 0) {discard;}
                 else if (lb == uint(1)) {discard;}
                 else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColour = v_colour1;} else {FragColour = v_colour2;}
+//                vec2 pos = gl_PointCoord - vec2(1.0);
+ //               if (length(pos) < 0.8) {FragColour = v_colour2;}
+   //             if (length(pos) <= 1.0) {
+     //               FragColour = v_colour2;
+       //             FragColour[3] = (1.0 - length(pos)) * 10;
+         //           }
+           //     if (length(pos) > 1.0) {FragColour = v_colour2;}
+            //    if (length(pos) > 1.0) {discard;}
                 if (lb == uint(2)) {FragColour = v_colour3;}
             }
         '''
@@ -1919,6 +1926,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             '''
             
         self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader) 
+#        self.sp_shader = gpu.shader.from_builtin('3D_POLYLINE_UNIFORM_COLOR')
         self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)  
         self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader) 
         self.range_shader = gpu.types.GPUShader(range_vertex_shader, range_fragment_shader)
@@ -2242,7 +2250,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
             selobj(context.view_layer, spathob)
             joinobj(context.view_layer, [spathob])
-            spathob.visible_diffuse, spathob.visible_shadow, spathob.visible_glossy, spathob.visible_transmission, spathob.visible_scatter = [False] * 5
+            spathob.visible_diffuse, spathob.visible_shadow, spathob.visible_glossy, spathob.visible_transmission, spathob.visible_volume_scatter = [False] * 5
             spathob.show_transparent = True
         
         for s, sun in enumerate(suns):
@@ -2277,6 +2285,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp['viparams']['drivers'] = ['sp', 'spnum']
         context.window_manager.modal_handler_add(self)
         svp.vi_display = 1
+        rendview(1)
         return {'RUNNING_MODAL'}
         
 class wr_scatter(Base_Display):
@@ -2447,7 +2456,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             self.xdata = self.cao.vi_params['days']
             self.ydata = self.cao.vi_params['hours']
             self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
-            self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
+            self.scatt_legend = ('Speed (m/s)', 'Direction ($^o$ deg from north)')[int(svp.wind_type)]
             self.xtitle = 'Days'
             self.ytitle = 'Hours'
 
@@ -2493,7 +2502,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         
         if updates[2]:
             self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
-            self.scatt_legend = ('Speed (m/s)', 'Direction (deg from north')[int(svp.wind_type)]
+            self.scatt_legend = ('Speed (m/s)', 'Direction ($^o$ from north)')[int(svp.wind_type)]
             self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
             self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val

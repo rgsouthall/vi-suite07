@@ -251,7 +251,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         windnum((100*numpy.max(dfreq)/len(awd) + 0.5, simnode.max_freq_val)[simnode.max_freq == '1'], (0,0,0), scale, wind_compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))        
         plt.close()        
         ovp['table'] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                             ['Speed (m/s)', ovp['minres'], '{:.1f}'.format(ovp['avres']), ovp['maxres']], 
+                             [('Speed (m/s)', 'Temperature (C)')[simnode.temp], ovp['minres'], '{:.1f}'.format(ovp['avres']), ovp['maxres']], 
                              ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
         ovp['d'] = ad.reshape(len(doys), 24).T.tolist()
         ovp['wd'] = awd.reshape(len(doys), 24).T.tolist()

@@ -1911,7 +1911,6 @@ class No_Vi_HMChart(Node, ViNodes):
             self['metrics'] = [('0', 'None', "")]
 
     def ftype(self, context):
-        print(self['times'])
         return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['times'])) if res != 'All'] 
 
     def loctype(self, context):
@@ -2078,48 +2077,57 @@ class No_Vi_Metrics(Node, ViNodes):
             return [('None', 'None', 'None')]
         
     
-    metric: EnumProperty(items=[("0", "Energy", "Energy results"), ("1", "Lighting", "Lighting results"), 
-                                ("2", "Flow", "Flow results"), ("3", "Embodied", "Embodied carbon results")],
-                name="", description="Results type", default="0", update=zupdate)   
+    metric: EnumProperty(items=[("0", "Energy", "Energy results"), 
+                                ("1", "Lighting", "Lighting results"), 
+                                ("2", "Flow", "Flow results"), 
+                                ("3", "Embodied", "Embodied carbon results"),
+                                ("4", "Comfort", "Comfort results"),
+                                ("5", "IAQ", "IAQ results")], 
+                                name="", description="Results type", default="0", update=zupdate)   
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results"),
                                     ("1", "RIBA 2030", "RIBA 2030 results")],
-                name="", description="Results metric", default="0", update=zupdate)
+                                    name="", description="Results metric", default="0", update=zupdate)
     light_menu: EnumProperty(items=[("0", "BREEAM", "BREEAM HEA1 results"),
                                     ("1", "LEED", "LEED v4 results"),
                                     ("2", "RIBA 2030", "RIBA 2030 results")],
-                name="", description="Results metric", default="0", update=zupdate)
+                                    name="", description="Results metric", default="0", update=zupdate)
     em_menu: EnumProperty(items=[("0", "Object", "Calculate from objects"),
-                                    ("1", "Layer", "Calculate from EnVi layers")],
-                name="", description="Results metric", default="0", update=zupdate)
+                                ("1", "Layer", "Calculate from EnVi layers")],
+                                name="", description="Results metric", default="0", update=zupdate)
     leed_menu: BoolProperty(name = "", description = "LEED space type", default = 0)
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
-                                    ("1", "Non-domestic", "Non-domestic scenario")],
-                name="", description="Results metric", default="0", update=zupdate)
+                                    ("1", "Office", "Office scenario"),
+                                    ("2", "School", "School scenario")],
+                                    name="", description="RIBA building class", default="0", update=zupdate)
     breeam_menu: EnumProperty(items=[("0", "Education", "Education scenario"),
                                     ("1", "Healthcare", "Healthcare scenario"),
                                     ("2", "Multi-residential", "Multi-residential scenario"),
                                     ("3", "Retail", "Retail scenario"),
                                     ("4", "Other", "Other scenario")],
-                name="", description="BREEAM space type", default="0", update=zupdate)
+                                    name="", description="BREEAM space type", default="0", update=zupdate)
     breeam_edumenu: EnumProperty(items=[("0", "School", "School context"),
                                         ("1", "Higher education", "Higher education scenario")],
-                name="", description="BREEAM education space type", default="0", update=zupdate)  
+                                        name="", description="BREEAM education space type", default="0", update=zupdate)  
     breeam_healthmenu: EnumProperty(items=[("0", "Staff/public", "Staff/public context"),
                                         ("1", "Patient", "Patient scenario")],
-                name="", description="BREEAM healthcare space type", default="0", update=zupdate)   
+                                        name="", description="BREEAM healthcare space type", default="0", update=zupdate)   
     breeam_multimenu: EnumProperty(items=[("0", "Kitchen", "Staff/public context"),
                                         ("1", "Living", "Patient scenario"),
                                         ("2", "Communal", "Patient scenario")],
-                name="", description="BREEAM multi-residential space type", default="0", update=zupdate) 
+                                        name="", description="BREEAM multi-residential space type", default="0", update=zupdate) 
     breeam_retailmenu: EnumProperty(items=[("0", "Sales", "Staff/public context"),
                                         ("1", "Other", "Patient scenario")],
-                name="", description="BREEAM retail space type", default="0", update=zupdate) 
+                                    name="", description="BREEAM retail space type", default="0", update=zupdate) 
     breeam_othermenu: EnumProperty(items=[("0", "Cells", "Custody cells context"),
                                         ("1", "Atrium", "Communal area scenario"),
                                         ("2", "Care", "Patient care scenario"),
                                         ("3", "Lecture", "Lecture scenario"),
                                         ("4", "Other", "All other scenario")],
-                name="", description="BREEAM other space type", default="0", update=zupdate)   
+                                        name="", description="BREEAM other space type", default="0", update=zupdate)   
+    com_menu: EnumProperty(items=[("0", "Overheating", "Overheating analysis")],
+                                name="", description="Comfort type", default="0", update=zupdate) 
+    iaq_menu: EnumProperty(items=[("0", "CO2", "CO2 analysis")],
+                                name="", description="IAQ type", default="0", update=zupdate) 
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
     frame_menu: EnumProperty(items=frames,
@@ -2132,6 +2140,7 @@ class No_Vi_Metrics(Node, ViNodes):
     def init(self, context):
         self['res'] = {}
         self.inputs.new('So_Vi_Res', 'Results in') 
+        self['riba_en'] = {'0': 35, '1': 55, '2': 60}
         
     def draw_buttons(self, context, layout):
         if self.inputs[0].links:
@@ -2183,7 +2192,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     if self['res']:
                         if self['res'].get('totkwh'):
                             newrow(layout, 'Type', self, 'riba_menu')
-                            tar = 35 if self.riba_menu == '0' else 55
+                            tar = self['riba_en'][self.riba_menu]
                             epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
                             shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
                             # row = layout.row()
@@ -2292,6 +2301,12 @@ class No_Vi_Metrics(Node, ViNodes):
                     row = layout.row()
                     row.label(text = 'N/A')
 
+            elif self.metric == '4':
+                newrow(layout, 'Comfort type:', self, "com_menu")
+
+            elif self.metric == '5':
+                newrow(layout, 'IAQ type:', self, "iaq_menu")
+
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
@@ -2299,6 +2314,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
             znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone'])))
             self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+            self.res_update()
         else:
             self['rl'] = []
             self['frames'] = [('None', 'None', 'None')]
@@ -2353,7 +2369,9 @@ class No_Vi_Metrics(Node, ViNodes):
                         epcnum = (92, 81, 69, 55, 39, 21, 1)
                         
                         for ei, en in enumerate(epcnum):
-                            if self['res']['EPC'] > en:
+                            if self['res']['EPC'] < epcnum[-1]:
+                                self['res']['EPCL'] = 'U'
+                            elif self['res']['EPC'] > en:
                                 self['res']['EPCL'] = epcletts[ei]
                                 break                        
                     
@@ -2508,7 +2526,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['zvelocity'] = {}
             self['res']['yvelocity'] = {}
             self['res']['wpc'] = {}
-            znames = set([z[2] for z in rl if z[1] == 'Zone'])
+            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
 
             for zn in znames:
                 for r in self['rl']:
@@ -2529,6 +2547,23 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['ec'] = {o.name: o.vi_params['ecdict']['ec'] for o in bpy.context.visible_objects if o.vi_params.get('ecdict')}
             elif self.em_menu == '1':
                 self['res']['ec'] = {'':''}
+        
+        elif self.metric == '4':
+            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
+            for zn in znames:
+                for r in self['rl']:
+                    if r[2] == zn:
+                        if r[3] == 'Temperature':
+                            self['res']['temperature'][zn] = float(r[4].split()[-1])
+        
+        elif self.metric == '5':
+            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
+            for zn in znames:
+                for r in self['rl']:
+                    if r[2] == zn:
+                        if r[3] == 'CO2':
+                            self['res']['co2'][zn] = float(r[4].split()[-1])
+
         else:
             if self.zone_menu != 'None':
                 self.zone_menu = 'None'        
@@ -4534,25 +4569,13 @@ class No_En_Net_SFlow(Node, EnViNodes):
     def epwrite(self, exp_op, enng):
         fentry, crentry, zn, en, surfentry, crname, snames = '', '', '', '', '', '', []
         paradict = {}
-        print(self.name, [o.name for o in self.outputs])
         
         for p in self.bl_rna.properties:
             if p.is_skip_save and p.identifier in [l.to_node.parameter for l in self.outputs['Parameter'].links]:
                 for l in self.outputs['Parameter'].links:
                     if p.identifier == l.to_node.parameter and l.to_node.anim_file:                        
                         tf = bpy.data.texts[l.to_node.anim_file]
-#                        paradict[p.identifier] = tf.as_string().split('\n')[bpy.context.scene.frame_current]
-#
-#                        if isinstance(getattr(self, p.identifier), float):
                         setattr(self, p.identifier, ret_param(getattr(self, p.identifier), tf.as_string().split('\n')[bpy.context.scene.frame_current - bpy.context.scene.vi_params['enparams']['fs']]))
-#            else:
-#                paradict[p.identifier] = getattr(self, p.identifier)
-
-#        print(paradict)
-
-
-#        para_dict = {l.to_node.parameter: bpy.data.texts[l.to_node.file].read().split('/n')[bpy.context.scene.current_frame] for l in self.outputs['Parameter'].links}
-#        print(para_dict)
 
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
@@ -5310,6 +5333,29 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             get_mat(self, 0).vi_params.envi_type = self.envi_con_type   
             self.pv_update()
             self.update()
+
+    # def t_update(self, context):
+    #     con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
+
+    #     for l, layername in enumerate(envi_cons.propdict[con_type][self.envi_con_list]):    
+    #         row = layout.row()
+            
+    #         if layername in envi_mats.wgas_dat:
+    #             row.label(text = '{} ({})'.format(layername, "14mm"))
+    #             row.prop(self, "lt{}".format(l))
+
+    #         elif layername in envi_mats.gas_dat:
+    #             row.label(text = '{} ({})'.format(layername, "20-50mm"))
+    #             row.prop(self, "lt{}".format(l))
+
+    #         elif layername in envi_mats.glass_dat:
+    #             row.label(text = '{} ({})'.format(layername, "{}mm".format(float(envi_mats.matdat[layername][3])*1000)))
+    #             row.prop(self, "lt{}".format(l))
+
+    #         else:
+    #             row.label(text = '{} ({})'.format(layername, "{}mm".format(envi_mats.matdat[layername][7])))
+    #             row.prop(self, "lt{}".format(l))
+        
         
     def pv_update(self):
         if (self.envi_con_type in ('Wall', 'Roof') and self.envi_con_con != 'Thermal mass') or self.envi_con_type == 'Shading':
