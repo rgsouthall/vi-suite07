@@ -1749,6 +1749,15 @@ def selobj(vl, geo):
         bpy.context.view_layer.objects.active
         ob.select_set(1) if ob == geo else ob.select_set(0)
     vl.objects.active = geo
+
+def actselobj(vl, act, geos):
+    if vl.objects.active and vl.objects.active.hide_viewport == 'False':
+        bpy.ops.object.mode_set(mode = 'OBJECT') 
+    for ob in vl.objects:
+        bpy.context.view_layer.objects.active
+        ob.select_set(1) if ob.name in geos else ob.select_set(0)
+    act.select_set(1)
+    vl.objects.active = act
     
 def selobs(vl, geos):    
     if vl.objects.active and vl.objects.active.hide_viewport == 'False':
@@ -2052,11 +2061,11 @@ def find_materials_in_groupinstances(empty):
 
 def material_on_sel_obj(mat):
     obj = bpy.context.active_object
-#    for obj in selection:
-#    if obj.name != "Matalogue Dummy Object":
+
     for slot in obj.material_slots:
         if slot.material == mat:
             return True
+
     return False
     
 def get_materials():

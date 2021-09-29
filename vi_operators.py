@@ -37,7 +37,7 @@ from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, f
 from .flovi_func import  fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
-from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, actselobj
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp
 from .vi_dicts import rvuerrdict, pmerrdict
@@ -2706,9 +2706,39 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         meshes = []
         mats = []
         dp = bpy.context.evaluated_depsgraph_get()
-        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
+        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get()]
         obs = dobs + gobs
+
+        for ob in obs:
+            bm = bmesh.new()
+            bm.from_object(ob, dp)
+
+            if not all([e.is_manifold for e in bm.edges]) or not all([v.is_manifold for v in bm.verts]):
+                bm.free()
+                logentry('FloVi error: {} is not manifold'.format(ob.name))
+                self.report({'ERROR'},'FloVi error: {} is not manifold'.format(ob.name))
+                return {'CANCELLED'}
+
+            bm.free()
+
+        if expnode.geo_join and gobs:
+            for d in gobs[1:]:
+                ubool = gobs[0].modifiers.new(name='union', type='BOOLEAN')
+                ubool.object = d
+                ubool.operation = 'UNION'
+                bpy.ops.object.modifier_apply(modifier=ubool.name)
+
+            gobs = [gobs[0]]
+            obs = dobs + gobs
+
+            if expnode.d_diff:
+                dbool = dobs[0].modifiers.new(name='diff', type='BOOLEAN')
+                dbool.object = gobs[0]
+                dbool.operation = 'DIFFERENCE'
+                bpy.ops.object.modifier_apply(modifier=dbool.name)
+                obs = [dobs[0]]
+
         omats = []
         mns = [0]
         fds = []
@@ -2748,6 +2778,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             bm = bmesh.new()
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
+            bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
             bm.normal_update()
             tris = bm.calc_loop_triangles()
         
@@ -2799,16 +2830,20 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             
         for mi, m in enumerate(meshes):   
             pmap1 = { }
+
             for e in m.Elements2D():
                 for v in e.vertices:
                     if (v not in pmap1):
                         pmap1[v] = totmesh.Add(m[v])
+                        
                 totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
+
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
 
         try:
             with TaskManager():    
                 totmesh.GenerateVolumeMesh()
+
             logentry("Netgen mesh generated")            
             # The below would create a boundary layer but this is nor currently supported in Netgen Python interface
             # totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')

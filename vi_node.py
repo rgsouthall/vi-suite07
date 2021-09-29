@@ -37,17 +37,21 @@ from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 import matplotlib
 matplotlib.use('qt5agg', force = True)
 import matplotlib.pyplot as plt
+cur_dir = os.getcwd()
 
 try:
+    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    os.chdir(os.path.join(addonpath, 'Python', sys.platform, 'netgen'))
     import netgen
     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
     from netgen.stl import STLGeometry
     from pyngcore import SetNumThreads, TaskManager
     ng = 1
 except Exception as e:
-    print(e)
+    print('Problem with Netgen installation: {}'.format(e))
     ng = 0
 
+os.chdir(cur_dir)
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
 envi_ec = envi_embodied()
@@ -2989,6 +2993,8 @@ class No_Flo_NG(Node, ViNodes):
     processors: IntProperty(name = "", description = "Number of processers", min = 0, max = 32, default = 1, update = nodeupdate)
     optimisations: IntProperty(name = "", description = "Number of optimisation steps", min = 0, max = 32, default = 3, update = nodeupdate)
     fang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 30, update = nodeupdate)
+    geo_join: BoolProperty(name = '', description = 'Join Geometries', default = 0, update = nodeupdate)
+    d_diff: BoolProperty(name = '', description = 'Extract geometries from domain', default = 0, update = nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -3003,6 +3009,9 @@ class No_Flo_NG(Node, ViNodes):
         if os.path.isdir(vi_prefs.ofbin):
             if self.inputs and self.inputs['Case in'].links:
                 if ng:
+                    # newrow(layout, 'Join geometries:', self, 'geo_join')
+                    # if self.geo_join:
+                    #     newrow(layout, 'Domain extraction:', self, 'd_diff')
                     newrow(layout, 'Cell size:', self, 'maxcs')
                     newrow(layout, 'Position corr:', self, 'pcorr')
                     newrow(layout, 'Angular corr:', self, 'acorr')
@@ -3015,9 +3024,9 @@ class No_Flo_NG(Node, ViNodes):
                 else:
                     row = layout.row()
                     row.label(text = 'Netgen not found')
-            else:
-                row = layout.row()
-                row.label(text = 'No OpenFOAM directory set')
+        else:
+            row = layout.row()
+            row.label(text = 'No OpenFOAM directory set')
     
     def update(self):
         if self.outputs.get('Mesh out'):

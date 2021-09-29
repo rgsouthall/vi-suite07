@@ -3,7 +3,7 @@ import sys
 
 _netgen_bin_dir=os.path.realpath(os.path.join(os.path.dirname(__file__),'..','../../../bin'))
 _netgen_lib_dir=os.path.realpath(os.path.join(os.path.dirname(__file__),'..','../../netgen'))
-
+os.environ['LD_LIBRARY_PATH'] += ':./'
 if sys.platform.startswith('win'):
     if sys.version >= '3.8':
         os.add_dll_directory(_netgen_bin_dir)
@@ -13,7 +13,11 @@ if sys.platform.startswith('win'):
 del sys
 del os
 
-from . import libngpy
+try:
+    from . import libngpy
+except Exception as e:
+    print('error', e)
+
 
 def Redraw(*args, **kwargs):
     try:

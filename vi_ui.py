@@ -443,14 +443,14 @@ class VI_PT_Col(bpy.types.Panel):
         layout = self.layout
 
         try: 
-            fa = context.collection.vi_params['enparams']['floorarea'][str(context.scene.frame_current)]
+            fa = '{:.2f}'.format(context.collection.vi_params['enparams']['floorarea'][str(context.scene.frame_current)])
         except:
             fa = 'N/A'
 
         row = layout.row()
         row.label(text = 'EnergyPlus Metrics:')
         row = layout.row()
-        row.label(text = 'Floor area (m2): {:.2f}'.format(fa))
+        row.label(text = 'Floor area (m2): {}'.format(fa))
 
 class VI_PT_Gridify(bpy.types.Panel):
     bl_label = "VI Gridify"
