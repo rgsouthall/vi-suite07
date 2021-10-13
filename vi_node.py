@@ -1020,6 +1020,7 @@ class No_Li_Sim(Node, ViNodes):
     validparams: BoolProperty(name = '', default = True)
     illu: BoolProperty(name = '', default = False)
     camera: EnumProperty(items=ret_camera_menu, name = '', description = 'Camera')
+    new_res: BoolProperty(name = '', default = False)
 
     def init(self, context):
         self['simdict'] = {'Basic': 'simacc', 'Compliance':'csimacc', 'CBDM':'csimacc'}
@@ -1091,6 +1092,13 @@ class No_Li_Sim(Node, ViNodes):
     def postsim(self):
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
+        self.new_res = 1
+
+        if self.outputs[0].links:
+           for l in self.outputs[0].links:
+                if l.to_node.bl_idname == 'No_Vi_Metrics':
+                    l.to_node.update()
+                    self.new_res = 0
         
 class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -1101,10 +1109,8 @@ class No_Vi_SP(Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.suns)])
     
     suns: EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=nodeupdate)
-#    res: FloatProperty(name="", description="Calc point offset", min=1, max=10, default=6, update = nodeupdate)
 
     def init(self, context):
-#        self['nodeid'] = nodeid(self)
         self.inputs.new('So_Vi_Loc', 'Location in')
         self['exportstate'] = '0'
         nodecolour(self, 1)
@@ -2148,170 +2154,176 @@ class No_Vi_Metrics(Node, ViNodes):
         
     def draw_buttons(self, context, layout):
         if self.inputs[0].links:
-            newrow(layout, 'Type:', self, "metric")
+            if self.inputs[0].links[0].from_node.get('new_res'):
+                row = layout.row()
+                row.label(text = "**Reconnect Node**")
 
-            if self.metric == '0':
-                newrow(layout, 'Metric:', self, "energy_menu")
-            elif self.metric == '1':
-                newrow(layout, 'Metric:', self, "light_menu")
+            else:
+                newrow(layout, 'Type:', self, "metric")
 
-            newrow(layout, 'Frame', self, "frame_menu")
-            newrow(layout, 'Zone', self, "zone_menu")
+                if self.metric == '0':
+                    newrow(layout, 'Metric:', self, "energy_menu")
+                elif self.metric == '1':
+                    newrow(layout, 'Metric:', self, "light_menu")
 
-            if self.metric == '0':
-                if self.energy_menu == '0':
-                    if self['res'] and self['res'].get('hkwh'):
-                        newrow(layout, 'Modifier', self, 'mod')
+                newrow(layout, 'Frame', self, "frame_menu")
+                newrow(layout, 'Zone', self, "zone_menu")
+
+                if self.metric == '0':
+                    if self.energy_menu == '0':
+                        if self['res'] and self['res'].get('hkwh'):
+                            newrow(layout, 'Modifier', self, 'mod')
+                            row = layout.row()
+                            pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
+                            row.label(text = "PV (kWh): {}".format(pvkwh))
+                            pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                            row = layout.row()
+                            row.label(text = "PV (kWh/m2): {}".format(pva))
+                            row = layout.row()
+                            hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
+                            row.label(text = "Heating (kWh): {}".format(hkwh))                    
+                            row = layout.row()
+                            ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                            row.label(text = "Heating (kWh/m2): {}".format(ha))
+                            row = layout.row()
+                            ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
+                            row.label(text = "Cooling (kWh): {}".format(ckwh))
+                            row = layout.row()
+                            ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                            row.label(text = "Cooling (kWh/m2): {}".format(ca))
+                            
+                            if self.zone_menu == 'All':
+                                row = layout.row()
+                                wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
+                                row.label(text = "Hot water (kWh): {}".format(wkwh))
+                                row = layout.row()
+                                ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A' 
+                                row.label(text = "ECF: {}".format(ecf))
+                                row = layout.row()
+                                epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
+                                row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
+                    
+                    elif self.energy_menu == '1':
+                        if self['res']:
+                            if self['res'].get('totkwh'):
+                                newrow(layout, 'Type', self, 'riba_menu')
+                                tar = self['riba_en'][self.riba_menu]
+                                epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
+                                shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
+                                # row = layout.row()
+                                # row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
+                                # row = layout.row()
+                                # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
+                                row = layout.row()
+                                row.label(text = "Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
+                            
+                            elif self['res'].get('hkwh'):
+                                row = layout.row()
+                                row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
+                                row = layout.row()
+                                row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
+
+                                if self['res'].get('ckwh'):
+                                    row = layout.row()
+                                    row.label(text = "Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
+                                    row = layout.row()
+                                    row.label(text = "Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
+                        else:
+                            row = layout.row()
+                            row.label(text = "No floor area")
+
+                elif self.metric == '1':
+                    if self.light_menu == '0':
+                        newrow(layout, 'Space:', self, "breeam_menu")
+                        if self.breeam_menu == '0':
+                            newrow(layout, 'Education space:', self, "breeam_edumenu")
+                        elif self.breeam_menu == '1':
+                            newrow(layout, 'Health space:', self, "breeam_healthmenu")
+                        elif self.breeam_menu == '2':
+                            newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
+                        elif self.breeam_menu == '3':
+                            newrow(layout, 'Retail space:', self, "breeam_retailmenu")
+                        elif self.breeam_menu == '4':
+                            newrow(layout, 'Other space:', self, "breeam_othermenu")
+
+                        areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']                    
                         row = layout.row()
-                        pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
-                        row.label(text = "PV (kWh): {}".format(pvkwh))
-                        pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
+                        row.label(text = "Compliant area: {}%".format(areaDF))
+                        
+                    elif self.light_menu == '1':
+                        newrow(layout, 'Healthcare', self, 'leed_menu')
+                        (l, h) = (75, 90) if self.leed_menu else (55, 75)
+                        
+                        if self['res'] and self['res'].get('ase'): 
+                            if self['res']['ase'] < 0:
+                                (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
+                            else:
+                                (sda, ase, o1) = ('sDA300 (%): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], (l, h), ('Pass', 'Fail')[self['res']['sda'] < 55]),
+                                'ASE1000 (hours): {:.0f} | < 250 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]), 
+                                'Total credits: {}'.format(self['res']['o1']))
+                            row = layout.row()
+                            row.label(text = "Option 1:")
+                            row = layout.row()
+                            row.label(text = ase)
+                            row = layout.row()
+                            row.label(text = sda)
+                            row = layout.row()
+                            row.label(text = o1)
+
+                    elif self.light_menu == '2':
+                        if self['res']['avDF'] < 0:
+                            (dfpass, udfpass, avDF, uDF) = ('N/A', 'N/A', 'N/A', 'N/A')
+                        else:
+                            dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
+                            udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
+                            avDF = self['res']['avDF']
+                            uDF = self['res']['ratioDF']
+                            
                         row = layout.row()
-                        row.label(text = "PV (kWh/m2): {}".format(pva))
+                        row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
                         row = layout.row()
-                        hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
-                        row.label(text = "Heating (kWh): {}".format(hkwh))                    
+                        row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
+
+                elif self.metric == '2':
+                    newrow(layout, 'Wind speed', self, "ws")
+
+                    if self.zone_menu == 'All':
+                        newrow(layout, 'Metric', self, "probe_menu")
+
+                    if self.zone_menu == 'All':
+                        for z in self['res'][self.probe_menu]:
+                            row = layout.row()
+                            row.label(text = "{}: {}".format(z, self['res'][self.probe_menu][z]))
+                    else:
+                        if self['res']: 
+                            for m in self['res']:
+                                if self['res'][m].get(self.zone_menu):
+                                    row = layout.row()
+                                    row.label(text = "{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+
+                elif self.metric == '3':
+                    newrow(layout, 'Embodied type:', self, "em_menu")
+
+                    if self.em_menu == '0':
                         row = layout.row()
-                        ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
-                        row.label(text = "Heating (kWh/m2): {}".format(ha))
-                        row = layout.row()
-                        ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
-                        row.label(text = "Cooling (kWh): {}".format(ckwh))
-                        row = layout.row()
-                        ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A' 
-                        row.label(text = "Cooling (kWh/m2): {}".format(ca))
                         
                         if self.zone_menu == 'All':
-                            row = layout.row()
-                            wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
-                            row.label(text = "Hot water (kWh): {}".format(wkwh))
-                            row = layout.row()
-                            ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A' 
-                            row.label(text = "ECF: {}".format(ecf))
-                            row = layout.row()
-                            epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A' 
-                            row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
-                
-                elif self.energy_menu == '1':
-                    if self['res']:
-                        if self['res'].get('totkwh'):
-                            newrow(layout, 'Type', self, 'riba_menu')
-                            tar = self['riba_en'][self.riba_menu]
-                            epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > 35 else '(PASS kWh/m2 <= {})'.format(tar)
-                            shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
-                            # row = layout.row()
-                            # row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
-                            # row = layout.row()
-                            # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
-                            row = layout.row()
-                            row.label(text = "Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
-                        
-                        elif self['res'].get('hkwh'):
-                            row = layout.row()
-                            row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
-                            row = layout.row()
-                            row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
-
-                            if self['res'].get('ckwh'):
-                                row = layout.row()
-                                row.label(text = "Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
-                                row = layout.row()
-                                row.label(text = "Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
-                    else:
-                        row = layout.row()
-                        row.label(text = "No floor area")
-
-            elif self.metric == '1':
-                if self.light_menu == '0':
-                    newrow(layout, 'Space:', self, "breeam_menu")
-                    if self.breeam_menu == '0':
-                        newrow(layout, 'Education space:', self, "breeam_edumenu")
-                    elif self.breeam_menu == '1':
-                        newrow(layout, 'Health space:', self, "breeam_healthmenu")
-                    elif self.breeam_menu == '2':
-                        newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
-                    elif self.breeam_menu == '3':
-                        newrow(layout, 'Retail space:', self, "breeam_retailmenu")
-                    elif self.breeam_menu == '4':
-                        newrow(layout, 'Other space:', self, "breeam_othermenu")
-
-                    areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']                    
-                    row = layout.row()
-                    row.label(text = "Compliant area: {}%".format(areaDF))
-                    
-                elif self.light_menu == '1':
-                    newrow(layout, 'Healthcare', self, 'leed_menu')
-                    (l, h) = (75, 90) if self.leed_menu else (55, 75)
-                    
-                    if self['res'] and self['res'].get('ase'): 
-                        if self['res']['ase'] < 0:
-                            (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
+                            row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
                         else:
-                            (sda, ase, o1) = ('sDA300 (%): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], (l, h), ('Pass', 'Fail')[self['res']['sda'] < 55]),
-                            'ASE1000 (hours): {:.0f} | < 250 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]), 
-                            'Total credits: {}'.format(self['res']['o1']))
+                            row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
+                            
+                    elif self.em_menu == '0':
                         row = layout.row()
-                        row.label(text = "Option 1:")
-                        row = layout.row()
-                        row.label(text = ase)
-                        row = layout.row()
-                        row.label(text = sda)
-                        row = layout.row()
-                        row.label(text = o1)
+                        row.label(text = 'N/A')
 
-                elif self.light_menu == '2':
-                    if self['res']['avDF'] < 0:
-                        (dfpass, udfpass, avDF, uDF) = ('N/A', 'N/A', 'N/A', 'N/A')
-                    else:
-                        dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
-                        udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
-                        avDF = self['res']['avDF']
-                        uDF = self['res']['ratioDF']
-                        
-                    row = layout.row()
-                    row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
-                    row = layout.row()
-                    row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
+                elif self.metric == '4':
+                    newrow(layout, 'Comfort type:', self, "com_menu")
 
-            elif self.metric == '2':
-                newrow(layout, 'Wind speed', self, "ws")
-
-                if self.zone_menu == 'All':
-                    newrow(layout, 'Metric', self, "probe_menu")
-
-                if self.zone_menu == 'All':
-                    for z in self['res'][self.probe_menu]:
-                        row = layout.row()
-                        row.label(text = "{}: {}".format(z, self['res'][self.probe_menu][z]))
-                else:
-                    if self['res']: 
-                        for m in self['res']:
-                            if self['res'][m].get(self.zone_menu):
-                                row = layout.row()
-                                row.label(text = "{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
-
-            elif self.metric == '3':
-                newrow(layout, 'Embodied type:', self, "em_menu")
-
-                if self.em_menu == '0':
-                    row = layout.row()
-                    
-                    if self.zone_menu == 'All':
-                        row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
-                    else:
-                        row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
-                        
-                elif self.em_menu == '0':
-                    row = layout.row()
-                    row.label(text = 'N/A')
-
-            elif self.metric == '4':
-                newrow(layout, 'Comfort type:', self, "com_menu")
-
-            elif self.metric == '5':
-                newrow(layout, 'IAQ type:', self, "iaq_menu")
+                elif self.metric == '5':
+                    newrow(layout, 'IAQ type:', self, "iaq_menu")
 
     def update(self):
+        print('update node')
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
             frames = list(dict.fromkeys([z[0] for z in self['rl']]))
@@ -2323,8 +2335,11 @@ class No_Vi_Metrics(Node, ViNodes):
             self['rl'] = []
             self['frames'] = [('None', 'None', 'None')]
             self['znames'] = [('None', 'None', 'None')]
+        
+        self.inputs[0].links[0].from_node.new_res = 0
 
-    def res_update(self):    
+    def res_update(self): 
+        print('update res') 
         if self.metric == '0' and bpy.data.collections.get('EnVi Geometry'):                
             self['res']['pvkwh'] = 0
             self['res']['hkwh'] = 0

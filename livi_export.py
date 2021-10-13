@@ -133,8 +133,6 @@ def radgexport(export_op, node, **kwargs):
     frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     svp['liparams']['cp'] = node.cpoint
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
-
-    print([o.name for o in geooblist], [o.name for o in caloblist])
             
     for o in caloblist:
         if any([s < 0 for s in o.scale]):
@@ -143,7 +141,6 @@ def radgexport(export_op, node, **kwargs):
             
     svp['liparams']['livig'], svp['liparams']['livic'], svp['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
     eolist = set(geooblist + caloblist)
-#    mats = set([item for sublist in [o.data.materials for o in eolist] for item in sublist])
     mats = bpy.data.materials
 
     for o in eolist:  
@@ -153,11 +150,14 @@ def radgexport(export_op, node, **kwargs):
         if not node.animated:
             o.animation_data_clear()
             o.data.animation_data_clear()
-        for k in o.keys():
+
+        for k in [k for k in ovp.keys()]:
             del o[k]
+        
         if o in caloblist:
             o.vi_params['rtpoints'] = {}
             o.vi_params['lisenseareas'] = {}
+        
         o.vi_params.vi_type = ovt
 
     for frame in frames:

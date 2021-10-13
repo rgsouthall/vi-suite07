@@ -341,7 +341,7 @@ class NODE_OT_SVF(bpy.types.Operator):
 
         for o in calcobs:
             ovp = o.vi_params
-            for k in ovp.keys():
+            for k in [k for k in ovp.keys()]:
                 del ovp[k]
                 
             if any([s < 0 for s in o.scale]):
