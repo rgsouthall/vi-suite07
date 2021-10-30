@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, itertools
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, delete
+from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, delete, ndarray
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -41,6 +41,7 @@ from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp
 from .vi_dicts import rvuerrdict, pmerrdict
+from PyQt5.QtGui import QImage, QColor
 
 try:
     import netgen
@@ -1619,6 +1620,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
 
             if 'Fatal' in errtext:
                 logentry('There is something wrong with the Energyplus installation. Check the message below')
+                logentry('If using EMS a local installation of EnergyPlus is required')
                 logentry(errtext)
                 return {self.terminate('CANCELLED', context)}
             
@@ -1726,6 +1728,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
     def terminate(self, condition, context):
         scene = context.scene
         svp = scene.vi_params
+        print('term')
         self.simnode.postsim(self, condition)
         
         for f in range(self.frame, self.frame + self.e):
@@ -1788,20 +1791,12 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
         vs = fs[0].verts[:]
         es = fs[0].edges[:]        
-#        print(vs, es, fs[0])
         gs = vs + es + fs
           
         while res1:
             res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos + ngs1 * self.upv, plane_no = self.upv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
             res1 = res['geom_cut']
-#            print([v.co for v in res1 if isinstance(v, bmesh.types.BMVert)])
-#            for v in mesh.verts:
             dissvs = [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
-#                if v not in [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]:
-#                    print('diss', bmesh.utils.vert_dissolve(v))
-            print(dissvs)
-#            for v in dissvs:
-#                print('diss', bmesh.utils.vert_dissolve(v))
             bmesh.ops.dissolve_verts(mesh, verts = dissvs)
                     
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
@@ -1811,16 +1806,10 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
             res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos2 + ngs2 * self.acv, plane_no = self.acv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
             res2 = res['geom_cut']
             dissvs = [v for v in res2 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
-#            for v in dissvs:
-#                print('diss', bmesh.utils.vert_dissolve(v))
             bmesh.ops.dissolve_verts(mesh, verts = dissvs)
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs2 += gs2
         
-#        for vert in [v for v in res['geom'] if isinstance(v, bmesh.types.BMVert)]:
-#            if len(vert.link_edges) == 2:
-#                bmesh.utils.vert_dissolve(vert)
-
         mesh.transform(self.o.matrix_world.inverted())
         bmesh.update_edit_mesh(self.o.data)
         mesh.free()
@@ -1944,12 +1933,74 @@ class NODE_OT_HMChart(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
 
         # Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)
-        # Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)
-        # Shour = dt.fromordinal(dt(year, 1, 1).toordinal() + node['HStart'] - 1)
-        # Ehour = dt.fromordinal(dt(year, 1, 1).toordinal() + node['HEnd'] - 1)
+        # Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)for x in range(20):
         hmchart_disp(self, plt, node, context.scene.vi_params.vi_leg_col)
         return {'FINISHED'}
-    
+
+class NODE_OT_MInfo(bpy.types.Operator):
+    bl_idname = "node.metinfo"
+    bl_label = "Graphic"
+    bl_description = "Creates an Infographic of the choden metric"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        metnode = context.node
+        svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+    <svg width="300" height="300" viewBox="0 0 300 300" id="smile" version="1.1">
+        <path
+            style="fill:#aaaaff"
+            d="M 150,0 A 150,150 0 0 0 0,150 150,150 0 0 0 150,300 150,150 0 0 0 
+                300,150 150,150 0 0 0 150,0 Z M 72,65 A 21,29.5 0 0 1 93,94.33 
+                21,29.5 0 0 1 72,124 21,29.5 0 0 1 51,94.33 21,29.5 0 0 1 72,65 Z 
+                m 156,0 a 21,29.5 0 0 1 21,29.5 21,29.5 0 0 1 -21,29.5 21,29.5 0 0 1 
+                -21,-29.5 21,29.5 0 0 1 21,-29.5 z m -158.75,89.5 161.5,0 c 0,44.67 
+                -36.125,80.75 -80.75,80.75 -44.67,0 -80.75,-36.125 -80.75,-80.75 z"
+        />
+    </svg>
+    """
+
+        svg_bytes = bytearray(svg_str, encoding='utf-8')
+        qimage = QImage.fromData(svg_bytes)
+        
+        rgba= ndarray(shape = (300, 300, 4), dtype = uint8)
+
+        for x in range(300):
+            for y in range(300):
+                rgba[299 - y][x] = QColor(qimage.pixel(x, y)).getRgbF()
+
+        imname = "test.png"
+        ipheight, ipwidth = 300, 300     
+        
+        if imname not in [im.name for im in bpy.data.images]:
+            bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True, generated_type='BLANK', float=False, use_stereo_3d=False)
+            im = bpy.data.images[imname]
+
+        else:
+            im = bpy.data.images[imname] 
+            im.gl_free()
+            im.buffers_free()
+
+            if (im.generated_width, im.generated_height) != (ipwidth, ipheight):
+                im.generated_width = ipwidth
+                im.generated_height = ipheight
+
+            if im.size[:] != (ipwidth, ipheight):
+                im.scale(ipwidth, ipheight)
+            
+        im.pixels.foreach_set(rgba.ravel().astype(float32))
+
+        # Opens new image window
+        # area = bpy.context.area
+        # t = area.type
+        # area.type = 'IMAGE_EDITOR'
+        # bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
+        #win = bpy.context.window_manager.windows[-1]
+        #win.screen.areas[0].spaces[0].show_region_header = 0
+        #win.screen.areas[0].spaces[0].show_region_ui = 0
+        # area.type = t
+
+
 class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     bl_idname = "view3d.endisplay"
     bl_label = "EnVi display"

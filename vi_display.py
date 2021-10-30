@@ -87,12 +87,12 @@ def leg_update(self, context):
         bm.from_mesh(o.data)
         cmap(self)
 
-        if len(o.material_slots) != svp.vi_leg_levels + 1:
-            for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels + 1)]:
+        if len(o.material_slots) != svp.vi_leg_levels:
+            for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels)]:
                 if bpy.data.materials[matname] not in o.data.materials[:]:
                     bpy.ops.object.material_slot_add()
                     o.material_slots[-1].material = bpy.data.materials[matname]
-            while len(o.material_slots) > svp.vi_leg_levels + 1:
+            while len(o.material_slots) > svp.vi_leg_levels:
                 bpy.ops.object.material_slot_remove()
 
         for f, frame in enumerate(frames):
@@ -293,7 +293,7 @@ def li_display(disp_op, simnode):
         selobj(bpy.context.view_layer, ores)
         cmap(svp)
         
-        for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels + 1)]:
+        for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
             if bpy.data.materials[matname] not in ores.data.materials[:]:
                 bpy.ops.object.material_slot_add()
                 ores.material_slots[-1].material = bpy.data.materials[matname]
@@ -318,8 +318,7 @@ def li_display(disp_op, simnode):
             for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
-                
-#    svp['liparams']['livir'] = [o.name for o in obreslist]          
+        
     skframe('', scene, obreslist)                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(svp['liparams']['fs'])
@@ -1385,7 +1384,7 @@ class draw_legend(Base_Display):
 
         if svp.li_disp_menu != 'None':  
             self.levels = svp.vi_leg_levels
-            self.lh = 1/(self.levels + 1.25)
+            self.lh = 1/(self.levels + 1.5)
             self.cao = context.active_object        
             self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
             (self.minres, self.maxres) = leg_min_max(svp)
@@ -1408,22 +1407,26 @@ class draw_legend(Base_Display):
             else:
                 self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
                 
-            self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]                
+            self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(5)][:-1]  
             blf.size(self.font_id, 12, self.dpi)        
             self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
             self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
             self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
 
     def ret_coords(self):      
-        lh = 1/(self.levels + 1.25) 
-        vl_coords = self.v_coords[:]
-        fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
-        fl2_indices = [tuple(array((2, 3, 0)) + 4 * i) for i in range(self.levels)]
-        fl_indices = list(fl1_indices) + list(fl2_indices)
+        lh = 1/(self.levels + 1.5) 
+        vl_coords = []
+        fl1_indices = [tuple(array((0, 1, 2)) + 5 * i) for i in range(self.levels)]
+        fl2_indices = [tuple(array((2, 3, 4)) + 5 * i) for i in range(self.levels - 1)]
+        fl3_indices = [tuple(array((0, 2, (3, 4)[i < self.levels - 1])) + 5 * i) for i in range(self.levels)]
+        fl_indices = list(fl1_indices) + list(fl2_indices) + list(fl3_indices)
         
         for i in range(0, self.levels):
-            vl_coords += [(0, i * lh), (0.5, i * lh), (0.5, (i + 1) * lh), (0, (i + 1) * lh)]
-        
+            if i < self.levels - 1:
+                vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.5, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
+            else:
+                vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
+
         return (vl_coords, fl_indices)
     
     def draw(self, context):
@@ -1450,14 +1453,19 @@ class draw_legend(Base_Display):
             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.base_shader.uniform_float("spos", self.lspos)
             self.base_shader.uniform_float("colour", self.hl)      
-            self.base_batch.draw(self.base_shader)                  
+            self.base_batch.draw(self.base_shader)    
+            self.basel_shader.bind()
+            self.basel_shader.uniform_float("size", (self.xdiff, self.ydiff))
+            self.basel_shader.uniform_float("spos", self.lspos)
+            self.basel_shader.uniform_float("colour", [0, 0, 0, 1])      
+            self.basel_batch.draw(self.basel_shader)              
             self.unit = svp.vi_leg_unit if svp.vi_leg_unit else res2unit[svp.li_disp_menu]
             
             if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
                 self.update(context)
                 (vl_coords, fl_indices) = self.ret_coords()
                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-                self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+                self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords, "colour": self.colours}, indices = fl_indices)
 
             self.col_shader.bind()
             self.col_shader.uniform_float("size", (self.xdiff, self.ydiff))
@@ -1469,27 +1477,28 @@ class draw_legend(Base_Display):
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))      
             self.line_batch.draw(self.line_shader)
             
-            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.4), self.mydimen * 1.25/(self.lh * self.ydiff))
-            blf.enable(0, 4)
+            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.5), self.mydimen * 1.15/(self.lh * self.ydiff))
             blf.enable(0, 8)
-            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-            blf.shadow_offset(self.font_id, 1, 1)
+            blf.enable(self.font_id, blf.SHADOW)
+            blf.shadow(self.font_id, 0, 0.2, 0.2, 0.2, 1)
+            blf.shadow_offset(self.font_id, 0, 0)
             blf.size(self.font_id, int(12/fontscale), self.dpi)
-            blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.6 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.5, 0) 
+            blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45, self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.5, 0) 
             blf.color(self.font_id, 0, 0, 0, 1)   
             blf.draw(self.font_id, self.unit)
-            blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)    
+#            blf.shadow(self.font_id, 5, 0.2, 0.2, 0.2, 1)    
             blf.size(self.font_id, int(11/fontscale), self.dpi)
             
             for i in range(1, self.levels):
                 num = self.resvals[i]            
                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
 #                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.5), 0)
-                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff - ndimen[1]*0.5), 0)
+                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + (i + 0.25) * self.lh * self.ydiff - ndimen[1]*0.5), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
-                
+
+            blf.disable(self.font_id, blf.SHADOW)    
             blf.disable(0, 8)  
-            blf.disable(0, 4)
+            
            
     def create_batch(self):
         base_vertex_shader = '''
@@ -1547,12 +1556,14 @@ class draw_legend(Base_Display):
             '''  
             
         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
+        self.basel_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader) 
         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
         (vl_coords, fl_indices) = self.ret_coords()
         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
+        self.basel_batch = batch_for_shader(self.basel_shader, 'LINE_LOOP', {"position": self.v_coords})
         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
+        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords, "colour": self.colours}, indices = fl_indices)
             
 def draw_icon_new(self):    
     image = bpy.data.images[self.image]

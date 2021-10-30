@@ -206,10 +206,10 @@ def retcols(cmap, levels):
     return rgbas
 
 def cmap(svp):
-    cols = [(0.0, 0.0, 0.0, 1.0)] + retcols(ret_mcm().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
+    cols = retcols(ret_mcm().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
     cols = [[col[0], col[1], col[2], svp.vi_disp_trans] for col in cols]
 
-    for i in range(svp.vi_leg_levels + 1):   
+    for i in range(svp.vi_leg_levels):   
         matname = '{}#{}'.format('vi-suite', i)
         
         if not bpy.data.materials.get(matname):

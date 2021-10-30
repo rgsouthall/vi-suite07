@@ -152,7 +152,7 @@ def radgexport(export_op, node, **kwargs):
             o.data.animation_data_clear()
 
         for k in [k for k in ovp.keys()]:
-            del o[k]
+            del ovp[k]
         
         if o in caloblist:
             o.vi_params['rtpoints'] = {}

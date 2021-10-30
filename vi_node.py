@@ -31,7 +31,7 @@ from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunpos
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, zrupdate
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
-from numpy import sort, median, array, stack
+from numpy import sort, median, array, stack, where
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 import matplotlib
@@ -1092,13 +1092,11 @@ class No_Li_Sim(Node, ViNodes):
     def postsim(self):
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
-        self.new_res = 1
 
-        if self.outputs[0].links:
-           for l in self.outputs[0].links:
+        if self.outputs[0].links:            
+            for l in self.outputs[0].links:
                 if l.to_node.bl_idname == 'No_Vi_Metrics':
                     l.to_node.update()
-                    self.new_res = 0
         
 class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -1537,19 +1535,19 @@ class No_En_Sim(Node, ViNodes):
     def update(self):
         if self.outputs.get('Results out'):
             socklink(self.outputs['Results out'], self.id_data.name)
-
+        
+        self.run = -1
+            
     def presim(self, context):
         innode = self.inputs['Context in'].links[0].from_node
         self['frames'] = range(context.scene.vi_params['enparams']['fs'], context.scene.vi_params['enparams']['fe'] + 1)
         self.resfilename = os.path.join(context.scene.vi_params['viparams']['newdir'], self.resname+'.eso')
-#        self['year'] = innode['year']
-        self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
+        self.dsdoy = innode.sdoy 
         self.dedoy = innode.edoy
         self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy}, "End": {"min":innode.sdoy, "max":innode.edoy}, 
             "AStart": {"name": '', "min": context.scene.vi_params['enparams']['fs'], "max": context.scene.vi_params['enparams']['fe']}, 
             "AEnd": {"min":context.scene.vi_params['enparams']['fs'], "max":context.scene.vi_params['enparams']['fe']}}
         self['Start'], self['End'] = innode.sdoy, innode.edoy
-#        self["_RNA_UI"] = {"AStart": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
         self['AStart'], self['AEnd'] = context.scene.vi_params['enparams']['fs'], context.scene.vi_params['enparams']['fe']
      
     def postsim(self, sim_op, condition):
@@ -1558,6 +1556,11 @@ class No_En_Sim(Node, ViNodes):
 
         if condition == 'FINISHED':
             processf(sim_op, self)
+
+            if self.outputs[0].links:            
+                for l in self.outputs[0].links:
+                    if l.to_node.bl_idname == 'No_Vi_Metrics':
+                        l.to_node.update()
 
 class No_En_IF(Node, ViNodes):
     '''Node for EnergyPlus input file selection'''
@@ -1568,7 +1571,6 @@ class No_En_IF(Node, ViNodes):
         context.scene['enparams']['fs'] = context.scene['enparams']['fe'] = context.scene.frame_current            
         shutil.copyfile(self.idffilename, os.path.join(context.scene['viparams']['newdir'], 'in{}.idf'.format(context.scene.frame_current)))
         locnode = self.inputs['Location in'].links[0].from_node
-#        self['year'] = locnode['year']
         shutil.copyfile(locnode.weather, os.path.join(context.scene['viparams']['newdir'], 'in{}.epw'.format(context.scene.frame_current)))
 
         with open(self.idffilename, 'r', errors='ignore') as idff:
@@ -1623,10 +1625,8 @@ class No_En_RF(Node, ViNodes):
     dsdoy, dedoy = IntProperty(), IntProperty()
     
     def init(self, context):
-#        self['nodeid'] = nodeid(self)
         self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
-#        self['year'] = 2015        
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -2136,7 +2136,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                         name="", description="BREEAM other space type", default="0", update=zupdate)   
     com_menu: EnumProperty(items=[("0", "Overheating", "Overheating analysis")],
                                 name="", description="Comfort type", default="0", update=zupdate) 
-    iaq_menu: EnumProperty(items=[("0", "CO2", "CO2 analysis")],
+    iaq_menu: EnumProperty(items=[("0", "RIBA 2030", "RIBA 2030 CO2 Criteria")],
                                 name="", description="IAQ type", default="0", update=zupdate) 
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
@@ -2319,11 +2319,27 @@ class No_Vi_Metrics(Node, ViNodes):
                 elif self.metric == '4':
                     newrow(layout, 'Comfort type:', self, "com_menu")
 
+                    if self.com_menu == '0':
+                        row = layout.row()
+                        if self['res']['oh2'] > 0:
+                            row.label(text = "Time above 28degC: {:.1f}%".format(self['res']['oh2']))
+                            row = layout.row()
+                        if self['res']['oh'] >= 0:                            
+                            row.label(text = "Time between 25-28degC: {:.1f}%".format(self['res']['oh']))
+                        else:
+                            row.label(text = "Overheating data not available")
+
                 elif self.metric == '5':
                     newrow(layout, 'IAQ type:', self, "iaq_menu")
 
+                    if self.iaq_menu == '0':
+                        row = layout.row()
+                        if self['res']['co2'] >= 0:                            
+                            row.label(text = "Time CO2 below 900ppm: {:.1f}%".format(self['res']['co2']))
+                        else:
+                            row.label(text = "CO2 data not available")
+
     def update(self):
-        print('update node')
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
             frames = list(dict.fromkeys([z[0] for z in self['rl']]))
@@ -2339,7 +2355,6 @@ class No_Vi_Metrics(Node, ViNodes):
         self.inputs[0].links[0].from_node.new_res = 0
 
     def res_update(self): 
-        print('update res') 
         if self.metric == '0' and bpy.data.collections.get('EnVi Geometry'):                
             self['res']['pvkwh'] = 0
             self['res']['hkwh'] = 0
@@ -2436,6 +2451,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['areaDF'] = -1
             self['res']['ratioDF'] = -1
             
+
             if self.light_menu == '0':
                 if self.breeam_menu == '0':
                     mDF = 2
@@ -2473,9 +2489,9 @@ class No_Vi_Metrics(Node, ViNodes):
                 for r in self['rl']:
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
-                            if r[3] == 'Areas (m2)' and r[0] == self.frame_menu:
+                            if r[3] == 'Areas (m2)':
                                 dfareas = array([float(p) for p in r[4].split()])
-                            elif r[3] == 'DF (%)' and r[0] == self.frame_menu:
+                            elif r[3] == 'DF (%)':
                                 df = array([float(p) for p in r[4].split()])
 
                 try:
@@ -2501,9 +2517,9 @@ class No_Vi_Metrics(Node, ViNodes):
                 for r in self['rl']:
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
-                            if r[3] == 'Areas (m2)' and r[0] == self.frame_menu:
+                            if r[3] == 'Areas (m2)':
                                 dfareas = array([float(p) for p in r[4].split()])
-                            elif r[3] == 'DF (%)' and r[0] == self.frame_menu:
+                            elif r[3] == 'DF (%)':
                                 df = array([float(p) for p in r[4].split()])
 
                 try:
@@ -2545,6 +2561,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['zvelocity'] = {}
             self['res']['yvelocity'] = {}
             self['res']['wpc'] = {}
+            self['res']['wpc'] = {}
             znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
 
             for zn in znames:
@@ -2567,21 +2584,38 @@ class No_Vi_Metrics(Node, ViNodes):
             elif self.em_menu == '1':
                 self['res']['ec'] = {'':''}
         
-        elif self.metric == '4':
-            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
-            for zn in znames:
-                for r in self['rl']:
-                    if r[2] == zn:
-                        if r[3] == 'Temperature':
-                            self['res']['temperature'][zn] = float(r[4].split()[-1])
+        elif self.metric == '4':            
+            self['res']['oh'] = -1
+            self['res']['oh2'] = -1
+
+            for r in self['rl']:
+                if r[0] == self.frame_menu:
+                    if r[2] == self.zone_menu:
+                        if r[3] == 'Temperature (degC)':
+                            temps = array([float(p) for p in r[4].split()])
+                        elif r[3] == 'Occupancy':
+                            occs = array([float(p) for p in r[4].split()])
+                                
+            self['res']['oh'] = 100 * len(where(where(occs > 0, temps, 0) > 25)[0])/len(where(occs > 0)[0])
+            self['res']['oh2'] = 100 * len(where(where(occs > 0, temps, 0) > 28)[0])/len(where(occs > 0)[0])
         
         elif self.metric == '5':
-            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
-            for zn in znames:
-                for r in self['rl']:
-                    if r[2] == zn:
-                        if r[3] == 'CO2':
-                            self['res']['co2'][zn] = float(r[4].split()[-1])
+            self['res']['co2'] = -1
+
+            for r in self['rl']:
+                if r[0] == self.frame_menu:
+                    if r[2] == self.zone_menu:
+                        if r[3] == 'CO2 (ppm)':
+                            if self.iaq_menu == '0':
+                                co2s = array([float(p) for p in r[4].split()])
+                                self['res']['co2'] = 100 * len(where(co2s < 900)[0])/len(co2s)
+            
+            # znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
+            # for zn in znames:
+            #     for r in self['rl']:
+            #         if r[2] == zn:
+            #             if r[3] == 'CO2':
+            #                 self['res']['co2'][zn] = float(r[4].split()[-1])
 
         else:
             if self.zone_menu != 'None':
