@@ -932,8 +932,8 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}-{}'.format(self.pmfile, frame), 'w')
-                pmcmd = 'mkpmap {8} -t 2 -e "{1}" {6} -fo+ -bv+ -apD 0.1 {0} -apg "{7}-{2}.gpm" {3} {4} {5} "{7}-{2}.oct"'.format(pportentry, '{}-{}'.format(self.pmfile, frame), frame, 
-                        self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], svp['viparams']['filebase'], self.simnode.pmapoptions)
+                pmcmd = 'mkpmap {8} -t 2 -e "{1}" {6} -fo+ -bv{9} -apD 0.1 {0} -apg "{7}-{2}.gpm" {3} {4} {5} "{7}-{2}.oct"'.format(pportentry, '{}-{}'.format(self.pmfile, frame), frame, 
+                        self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], svp['viparams']['filebase'], self.simnode.pmapoptions, ('-', '+')[self.simnode.bfv])
                 logentry('Photon map command: {}'.format(pmcmd))
                 os.chdir(svp['viparams']['newdir'])
                 pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE)
@@ -1071,6 +1071,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             frame = svp['liparams']['fe'] if frame > svp['liparams']['fe'] else frame
             frame = svp['liparams']['fs'] if frame < svp['liparams']['fs'] else frame
             self.report({'WARNING'}, "Current frame is not within the exported frame range and has been adjusted")
+
             if createradfile(scene, frame, self, simnode) == 'CANCELLED' or createoconv(scene, frame, self, simnode) == 'CANCELLED':
                 return {'CANCELLED'}
         
@@ -1080,7 +1081,11 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             self.report({'ERROR'},"Simulation was cancelled. See log file")
             return {'CANCELLED'}
         else:
-            simnode['reslists'] = calcout
+            try:
+                simnode['reslists'] = calcout
+            except:
+                self.report({'ERROR'}, "Previous instance of rvu still running?")
+                return {'CANCELLED'}
 
         svp['viparams']['vidisp'] = 'li'
         svp['viparams']['resnode'] = simnode.name

@@ -1007,11 +1007,8 @@ class No_Li_Sim(Node, ViNodes):
     cusacc: StringProperty(
             name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     
-#    rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
-#    rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
-#    rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
-#    rvuadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
-    pmap: BoolProperty(name = '', default = False, update = nodeupdate)
+    pmap: BoolProperty(name = '', description="Turn on photon mapping", default = False, update = nodeupdate)
+    bfv: BoolProperty(name = '', description="Turn on back face visibility (may cause light bleed but deals with planar geometry", default = False, update = nodeupdate)
     pmapgno: IntProperty(name = '', default = 50000, update = nodeupdate)
     pmapcno: IntProperty(name = '', default = 0, update = nodeupdate)
     pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
@@ -1045,6 +1042,7 @@ class No_Li_Sim(Node, ViNodes):
             if self.pmap:
                newrow(layout, 'Global photons:', self, 'pmapgno')
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
+               newrow(layout, 'Back face visability:', self, 'bfv')
                newrow(layout, 'Photon options:', self, 'pmapoptions')
                newrow(layout, 'Preview photons:', self, 'pmappreview')
                        
@@ -2272,7 +2270,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     elif self.light_menu == '2':
                         if self['res']['avDF'] < 0:
-                            (dfpass, udfpass, avDF, uDF) = ('N/A', 'N/A', 'N/A', 'N/A')
+                            (dfpass, udfpass, avDF, uDF) = ('', '', 'N/A', 'N/A')
                         else:
                             dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
                             udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
@@ -2280,9 +2278,9 @@ class No_Vi_Metrics(Node, ViNodes):
                             uDF = self['res']['ratioDF']
                             
                         row = layout.row()
-                        row.label(text = "Average DF: {} {}".format(self['res']['avDF'], dfpass))
+                        row.label(text = "Average DF: {} {}".format(avDF, dfpass))
                         row = layout.row()
-                        row.label(text = "Uniformity: {} {}".format(self['res']['ratioDF'], udfpass))
+                        row.label(text = "Uniformity: {} {}".format(uDF, udfpass))
 
                 elif self.metric == '2':
                     newrow(layout, 'Wind speed', self, "ws")

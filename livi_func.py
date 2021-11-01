@@ -181,6 +181,7 @@ def radmat(self, scene):
                 
         except Exception as e:
             logentry('Problem with texture export {}'.format(e))
+    
     if self.radtransmenu == '0':
         tn = self.radtrans
     else:
