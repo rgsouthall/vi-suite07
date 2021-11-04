@@ -36,7 +36,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     subcontext = simnode['coptions']['Type']
     patches = simnode['coptions']['cbdm_res']
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
-    frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
+    
     os.chdir(svp['viparams']['newdir'])
     rtcmds, rccmds = [], []
     builddict = {'0': ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other'), '2': ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other'), '3': ('Office/Education/Commercial', 'Healthcare')}

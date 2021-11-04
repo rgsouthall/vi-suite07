@@ -270,6 +270,7 @@ class No_Li_Geo(Node, ViNodes):
         socklink(self.outputs['Geometry out'], self.id_data.name)
 
     def preexport(self, scene):
+        self.hide = 1
         self['Text'] = {}
         self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 
                             'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
@@ -278,6 +279,7 @@ class No_Li_Geo(Node, ViNodes):
         self.id_data.use_fake_user = 1
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
+        self.hide = 0
 
 class No_Li_Sen(Node, ViNodes):
     '''Node for creating LiVi sensing geometry'''
@@ -1035,8 +1037,7 @@ class No_Li_Sim(Node, ViNodes):
             cinnode = self.inputs['Context in'].links[0].from_node
             ginnode = self.inputs['Geometry in'].links[0].from_node
             row = layout.row()
-            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
-            
+            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))            
             newrow(layout, 'Photon map:', self, 'pmap')
     
             if self.pmap:
@@ -1072,6 +1073,7 @@ class No_Li_Sim(Node, ViNodes):
         self.run = 0
     
     def presim(self):
+        self.hide = 1
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
@@ -1081,21 +1083,23 @@ class No_Li_Sim(Node, ViNodes):
             self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])
         else:
             self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rtracecbdmparams[k][int(self.simacc) - 1]) for k in rtracecbdmparams])
-            self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])
-           
+            self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])        
+   
     def sim(self, scene):
         svp = scene.vi_params
         self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         
-    def postsim(self):
-        self['exportstate'] = self.ret_params()
-        nodecolour(self, 0)
-
+    def postsim(self, calcout):
         if self.outputs[0].links:            
             for l in self.outputs[0].links:
                 if l.to_node.bl_idname == 'No_Vi_Metrics':
                     l.to_node.update()
-        
+
+        self['exportstate'] = self.ret_params()
+        self['reslists'] = calcout
+        nodecolour(self, 0)
+        self.hide = 0
+
 class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
     bl_idname = 'No_Vi_SP'

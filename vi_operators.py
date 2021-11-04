@@ -292,7 +292,6 @@ class NODE_OT_SVF(bpy.types.Operator):
             return {'CANCELLED'}
             
         calcobs = retobjs('ssc')
-        print([o.name for o in calcobs])
 
         if not calcobs:
             self.report({'ERROR'},"No objects have a light sensor material attached.")
@@ -592,7 +591,7 @@ class NODE_OT_Li_Geo(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "LiVi geometry export"
 
-    def invoke(self, context, event):
+    def execute(self, context):
         scene = context.scene
         svp = scene.vi_params
         svp.vi_display = 0
@@ -906,20 +905,24 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
         
         objmode()
         self.simnode = context.node
-        frame = scene.frame_current
-        self.simnode.presim()
-        self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
-        svp['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
-        svp['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
-
-        if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-            frame = svp['liparams']['fe'] if frame > svp['liparams']['fe'] else frame
-            frame = svp['liparams']['fs'] if frame < svp['liparams']['fs'] else frame
-            self.report({'WARNING'}, "Current frame is not within the exported frame range and has been adjusted")
-            
         cam = bpy.data.objects[self.simnode.camera.lstrip()]
-        
-        if cam:
+
+        if not cam:
+            self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
+            return {'CANCELLED'}
+        else:
+            frame = scene.frame_current
+            self.simnode.presim()
+            self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
+            svp['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+            svp['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+
+            if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+                frame = svp['liparams']['fe'] if frame > svp['liparams']['fe'] else frame
+                frame = svp['liparams']['fs'] if frame < svp['liparams']['fs'] else frame
+                scene.frame_set(frame)
+                self.report({'WARNING'}, "Current frame is not within the exported frame range and has been adjusted")
+
             curres = 0.1
             createradfile(scene, frame, self, self.simnode)
             createoconv(scene, frame, self, self.simnode)
@@ -953,7 +956,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             break
                                 
                     if self.pfile.check(curres) == 'CANCELLED': 
-                        pmrun.kill()                                   
+                        pmrun.kill()    
                         return {'CANCELLED'}
                 
                 if self.kivyrun.poll() is None:
@@ -1026,15 +1029,12 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
             logentry('Rvu command: {}'.format(rvucmd))
             self.rvurun = Popen(shlex.split(rvucmd), stdout = PIPE, stderr = PIPE)
-            self.simnode.run = 1
+            context.node.run = 1
             wm = context.window_manager
             self._timer = wm.event_timer_add(1, window = context.window)
             wm.modal_handler_add(self)
+            self.simnode.hide = 0
             return {'RUNNING_MODAL'}
-
-        else:
-            self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
-            return {'CANCELLED'}
 
 class NODE_OT_Li_Sim(bpy.types.Operator):
     bl_idname = "node.livicalc"
@@ -1042,8 +1042,16 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
+    def modal(self, context, event):
+        if self.kivyrun.poll() is not None:
+            self.simnode.postsim(reslists)
+            self.report({'INFO'}, "Simulation is finished")
+            return {'CANCELLED'}
+
     def invoke(self, context, event):
         scene = context.scene
+        vl = context.view_layer
+        frame = scene.frame_current
         svp = scene.vi_params
         svp.vi_display = 0
 
@@ -1052,47 +1060,168 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     
         objmode()
         clearscene(scene, self)
-        simnode = context.node
-        simnode.presim()
+        self.simnode = context.node
+        self.simnode.presim()
         contextdict = {'Basic': 'LiVi Basic', 'CBDM': 'LiVi CBDM'}        
         
         # Set scene parameters
-        svp['viparams']['visimcontext'] = contextdict[simnode['coptions']['Context']]
-        svp['liparams']['fs'] = min((simnode['coptions']['fs'], simnode['goptions']['fs'])) 
-        svp['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
-        svp['liparams']['cp'] = simnode['goptions']['cp']
-        svp['liparams']['unit'] = simnode['coptions']['unit']
-        svp['liparams']['type'] = simnode['coptions']['Type']
-        scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
-        
-        simnode.sim(scene)
+        svp['viparams']['visimcontext'] = contextdict[self.simnode['coptions']['Context']]
+        svp['liparams']['fs'] = min((self.simnode['coptions']['fs'], self.simnode['goptions']['fs'])) 
+        svp['liparams']['fe'] = max((self.simnode['coptions']['fe'], self.simnode['goptions']['fe'])) 
+        svp['liparams']['cp'] = self.simnode['goptions']['cp']
+        svp['liparams']['unit'] = self.simnode['coptions']['unit']
+        svp['liparams']['type'] =self. simnode['coptions']['Type']
+        scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']       
+        self.simnode.sim(scene)
+        pfs, epfs, curres = [], [], 0
+        rtcmds, rccmds = [], []
+        context = self.simnode['coptions']['Context']
+        subcontext = self.simnode['coptions']['Type']
+        patches = self.simnode['coptions']['cbdm_res']
+        svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
 
-        for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+        if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
             frame = svp['liparams']['fe'] if frame > svp['liparams']['fe'] else frame
             frame = svp['liparams']['fs'] if frame < svp['liparams']['fs'] else frame
+            scene.frame_set(frame)
             self.report({'WARNING'}, "Current frame is not within the exported frame range and has been adjusted")
-
-            if createradfile(scene, frame, self, simnode) == 'CANCELLED' or createoconv(scene, frame, self, simnode) == 'CANCELLED':
+        
+        frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
+        
+        for f, frame in enumerate(frames):
+            if createradfile(scene, frame, self, self.simnode) == 'CANCELLED' or createoconv(scene, frame, self, self.simnode) == 'CANCELLED':
                 return {'CANCELLED'}
         
-        calcout = li_calc(self, simnode, livisimacc(simnode))
+            if self.simnode.pmap:
+                pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
+                pmappfile.close()
+                pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+                self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon map')
+                errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry",
+                            'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
+                            'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
+                            'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
+                            'fatal - no valid photon ports found\n': 'Re-export the geometry'}
+                amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
+                open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
-        if calcout == 'CANCELLED':
-            self.report({'ERROR'},"Simulation was cancelled. See log file")
+                if context == 'Basic' or (context == 'CBDM' and subcontext == '0'):
+                    pmcmd = 'mkpmap -n {6} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
+                else:
+                    pmcmd = 'mkpmap -n {3} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
+            
+                logentry('Generating photon map: {}'.format(pmcmd))
+                pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE)
+                
+                while pmrun.poll() is None:   
+                    sleep(10)
+                    with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:
+                        for line in vip.readlines()[::-1]:
+                            if '%' in line:
+                                curres = float(line.split()[6][:-2])/len(frames)
+                                break
+                                    
+                    if pfile.check(curres) == 'CANCELLED': 
+                        pmrun.kill()                                   
+                        return {'CANCELLED'}
+                
+                if self.kivyrun.poll() is None:
+                    self.kivyrun.kill()
+                        
+                with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as pmapfile:
+                    pmlines = pmapfile.readlines()
+                    if pmlines:
+                        for line in pmlines:
+                            if line in errdict:
+                                calc_op.report({'ERROR'}, errdict[line])
+                                return {'CANCELLED'}
+                            if 'fatal - ' in line:
+                                calc_op.report({'ERROR'}, line)
+                                return {'CANCELLED'}
+                    else:
+                        calc_op.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
+                        return {'CANCELLED'}
+                
+                if context == 'Basic' or (context == 'CBDM' and subcontext == '0'):# or (context == 'Compliance' and int(subcontext) < 3):
+                    if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
+                        os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
+                    if self.simnode.pmap:
+                        rtcmds.append('rtrace -n {0} -w {1} -ap "{2}-{3}.gpm" 50 {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    else:
+                        rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                else:
+                    if self.simnode.pmap:
+                        rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
+                    else:   
+                        rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
+
+        try:
+            tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+        except:
+            calc_op.report({'ERROR'}, 'Re-export the LiVi geometry')
             return {'CANCELLED'}
-        else:
-            try:
-                simnode['reslists'] = calcout
-            except:
-                self.report({'ERROR'}, "Previous instance of rvu still running?")
-                return {'CANCELLED'}
+
+        calcsteps = sum(tpoints) * len(frames)
+        pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
+        self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Lighting')
+        reslists = []
+        obs = [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+
+        for oi, o in enumerate(obs):
+            ovp = o.vi_params
+            curres = sum(tpoints[:oi] * len(frames))
+            selobj(vl, o)
+            ovp['omax'], ovp['omin'], ovp['oave']  = {}, {}, {}
+            
+            if context == 'Basic':
+                bccout = ovp.basiccalcapply(scene, frames, rtcmds, self.simnode, curres, pfile)
+                if bccout == 'CANCELLED':
+                    if self.kivyrun.poll() is None:
+                       self.kivyrun.kill()
+                    return {'CANCELLED'}
+                else:
+                    reslists += bccout
+                    
+            elif context == 'CBDM' and subcontext == '0':
+                lhout = ovp.lhcalcapply(scene, frames, rtcmds, self.simnode, curres, pfile)
+                if lhout  == 'CANCELLED':
+                    if self.kivyrun.poll() is None:
+                        self.kivyrun.kill()
+                    return {'CANCELLED'}
+                else:
+                    reslists += lhout
+            
+            elif (context == 'CBDM' and subcontext in ('1', '2')):# or (context == 'Compliance' and subcontext == '3'):
+                cbdmout = ovp.udidacalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
+                if cbdmout == 'CANCELLED':
+                    if self.kivyrun.poll() is None:
+                        self.kivyrun.kill()
+                    return {'CANCELLED'}
+                else:
+                    reslists += cbdmout
+            
+        if self.kivyrun.poll() is None:
+            self.kivyrun.kill()
+#        calcout = li_calc(self, simnode, livisimacc(simnode))
+        # context.evaluated_depsgraph_get()
+        # simnode = context.node
+
+        # if calcout == 'CANCELLED':
+        #     self.report({'ERROR'},"Simulation was cancelled. See log file")
+        #     return {'CANCELLED'}
+        # else:
+        #     try:
+        #         simnode['reslists'] = calcout
+        #     except:
+        #         self.report({'ERROR'}, "Previous instance of rvu still running?")
+        #         logentry('ID problem')
+        #         return {'CANCELLED'}
 
         svp['viparams']['vidisp'] = 'li'
-        svp['viparams']['resnode'] = simnode.name
-        svp['viparams']['restree'] = simnode.id_data.name
-        simnode.postsim()
-        self.report({'INFO'},"Simulation is finished")
-        return {'FINISHED'}
+        svp['viparams']['resnode'] = self.simnode.name
+        svp['viparams']['restree'] = self.simnode.id_data.name
+        
+        return {'RUNNING_MODAL'}
     
 class NODE_OT_Li_Im(bpy.types.Operator):
     bl_idname = "node.radimage"

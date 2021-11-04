@@ -1743,6 +1743,7 @@ def gentarget(tarnode, result):
         return(0)
 
 def selobj(vl, geo):
+    vl = bpy.context.view_layer
     if vl.objects.active and vl.objects.active.hide_viewport == 'False':
         bpy.ops.object.mode_set(mode = 'OBJECT') 
     for ob in vl.objects:
