@@ -35,15 +35,15 @@ def sunposlivi(scene, skynode, frames, sun, stime):
         times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]  
         solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, svp.latitude, svp.longitude) for t in times]
         beamvals = [(0, 3)[solposs[t][0] > 0] for t in range(len(times))] if skynode['skynum'] < 2  or (skynode.skyprog == '1' and skynode.epsilon > 1) else [0 for t in range(len(times))]
-        skyvals = [5 for t in range(len(times))]
+        skyvals = [1 for t in range(len(times))]
         
     elif skynode['skynum'] == 3 and skynode.skyprog == '0': 
         times = [datetime.datetime(2015, 3, 20, 12, 0)]
         solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, 0, 0) for t in times]
         beamvals = [0 for t in range(len(times))]
-        skyvals = [5 for t in range(len(times))]
+        skyvals = [1 for t in range(len(times))]
        
-    shaddict = {'0': 0.01, '1': 2, '2': 5, '3': 5}
+    shaddict = {'0': 0.01, '1': 1, '2': 1, '3': 1}
     values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames, skynode.sdist)
     
@@ -111,10 +111,10 @@ def setscenelivivals(scene):
     svp = scene.vi_params
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
 
-    if svp.li_disp_menu and svp.li_disp_menu != 'None':
-        res = svp.li_disp_menu
-    else:
-        res = unit2res[svp['liparams']['unit']]
+#    if svp.li_disp_menu and svp.li_disp_menu != 'None':
+    res = svp.li_disp_menu
+#    else:
+#        res = unit2res[svp['liparams']['unit']]
 
     olist = [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
 
@@ -354,8 +354,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     cindex = geom.layers.int['cindex']
     
     for f, frame in enumerate(frames):
-        self['res{}'.format(frame)] = {}
-        
+        self['res{}'.format(frame)] = {}        
         if svp['liparams']['unit'] == 'Lux':
             geom.layers.float.new('illu{}'.format(frame))
             geom.layers.float.new('virradm2{}'.format(frame))
@@ -396,12 +395,14 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
                 if svp['liparams']['unit'] == 'W/m2 (f)':
                     firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)   
-                elif svp['liparams']['unit'] == 'Lux':
-                    illu = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 179
+                elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):
                     virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1) 
-                elif svp['liparams']['unit'] == 'DF (%)':
-                    df = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 1.79
-                    virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1)
+
+                    if svp['liparams']['unit'] == 'Lux':
+                        illu = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 179                        
+                    elif svp['liparams']['unit'] == 'DF (%)':
+                        df = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 1.79
+
 
                 for gi, gp in enumerate(chunk):  
                     gparea = gp.calc_area() if svp['liparams']['cp'] == '0' else vertarea(bm, gp) 
@@ -409,12 +410,13 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                     if svp['liparams']['unit'] == 'W/m2 (f)':
                         gp[firradm2res] = firradm2[gi].astype(float32)
                         gp[firradres] = (firradm2[gi] * gparea).astype(float32)
-                    elif svp['liparams']['unit'] == 'Lux':   
-                        gp[illures] = illu[gi].astype(float32)  
+                    elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):
                         gp[virradm2res] = virradm2[gi].astype(float32)
-                    elif svp['liparams']['unit'] == 'DF (%)':
-                        gp[dfres] = df[gi].astype(float32) 
-                        gp[virradm2res] = virradm2[gi].astype(float32)
+                        
+                        if svp['liparams']['unit'] == 'Lux':   
+                            gp[illures] = illu[gi].astype(float32)                              
+                        elif svp['liparams']['unit'] == 'DF (%)':
+                            gp[dfres] = df[gi].astype(float32) 
 
             curres += len(chunk)
 
@@ -422,37 +424,43 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 bm.free()
                 return 'CANCELLED'
 
-        if svp['liparams']['unit'] == 'Lux':
-            oillu = array([g[illures] for g in geom]).astype(float64) 
-            maxoillu, minoillu, aveoillu = nmax(oillu), nmin(oillu), nmean(oillu)
-        elif svp['liparams']['unit'] == 'W/m2 (f)':
-            oirrad = array([g[firradm2res] for g in geom]).astype(float64)
-            maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
-        elif svp['liparams']['unit'] == 'DF (%)':
-            odf = array([g[dfres] for g in geom]).astype(float64)
-            maxodf, minodf, aveodf = nmax(odf), nmin(odf), nmean(odf)
-               
         if svp['liparams']['unit'] == 'W/m2 (f)':
             oirradm2 = array([g[firradm2res] for g in geom]).astype(float64)
+            maxoirradm2, minoirradm2, aveoirradm2 = nmax(oirradm2), nmin(oirradm2), nmean(oirradm2)
             oirrad = array([g[firradres] for g in geom]).astype(float64)
             maxoirrad, minoirrad, aveoirrad = nmax(oirrad), nmin(oirrad), nmean(oirrad)
-            maxoirradm2, minoirradm2, aveoirradm2 = nmax(oirradm2), nmin(oirradm2), nmean(oirradm2)
+        elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):
+            ovirrad = array([g[virradm2res] for g in geom]).astype(float64) 
+            maxovirrad, minovirrad, aveovirrad = nmax(ovirrad), nmin(ovirrad), nmean(ovirrad)
+
+            if svp['liparams']['unit'] == 'Lux':
+                oillu = array([g[illures] for g in geom]).astype(float64) 
+                maxoillu, minoillu, aveoillu = nmax(oillu), nmin(oillu), nmean(oillu)
+            elif svp['liparams']['unit'] == 'DF (%)':
+                odf = array([g[dfres] for g in geom]).astype(float64)
+                maxodf, minodf, aveodf = nmax(odf), nmin(odf), nmean(odf)
+            
+               
+        if svp['liparams']['unit'] == 'W/m2 (f)':
             self['omax']['firrad{}'.format(frame)] = maxoirrad
             self['oave']['firrad{}'.format(frame)] = aveoirrad            
             self['omin']['firrad{}'.format(frame)] = minoirrad
             self['omax']['firradm2{}'.format(frame)] = maxoirradm2
             self['oave']['firradm2{}'.format(frame)] = aveoirradm2            
             self['omin']['firradm2{}'.format(frame)] = minoirradm2
-            
-        if svp['liparams']['unit'] == 'Lux':
-            self['omax']['illu{}'.format(frame)] = maxoillu
-            self['oave']['illu{}'.format(frame)] = aveoillu
-            self['omin']['illu{}'.format(frame)] = minoillu
-              
-        elif svp['liparams']['unit'] == 'DF (%)':
-            self['omax']['df{}'.format(frame)] = maxodf
-            self['omin']['df{}'.format(frame)] = minodf
-            self['oave']['df{}'.format(frame)] = aveodf
+        elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):  
+            self['omax']['virradm2{}'.format(frame)] = maxovirrad
+            self['oave']['virradm2{}'.format(frame)] = aveovirrad          
+            self['omin']['virradm2{}'.format(frame)] = minovirrad  
+        
+            if svp['liparams']['unit'] == 'Lux':
+                self['omax']['illu{}'.format(frame)] = maxoillu
+                self['oave']['illu{}'.format(frame)] = aveoillu
+                self['omin']['illu{}'.format(frame)] = minoillu              
+            elif svp['liparams']['unit'] == 'DF (%)':
+                self['omax']['df{}'.format(frame)] = maxodf
+                self['omin']['df{}'.format(frame)] = minodf
+                self['oave']['df{}'.format(frame)] = aveodf
 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 0]
         rgeom = [g for g in geom if g[cindex] > 0]
@@ -465,36 +473,40 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         if svp['liparams']['unit'] == 'W/m2 (f)':
             firradbinvals = [self['omin']['firrad{}'.format(frame)] + (self['omax']['firrad{}'.format(frame)] - self['omin']['firrad{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
             self['livires']['valbins'] = firradbinvals
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (W)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradm2res]) for g in rgeom])])
+        
+        elif svp['liparams']['unit'] in ('Lux', 'DF (%)'): 
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradm2res]) for g in rgeom])])
 
-        elif svp['liparams']['unit'] == 'Lux':
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
-
-        elif svp['liparams']['unit'] == 'DF (%)': 
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[dfres] * 100) for g in rgeom])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[dfres]/1.79) for g in rgeom])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
+            if svp['liparams']['unit'] == 'Lux':
+                reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
+            elif svp['liparams']['unit'] == 'DF (%)': 
+                reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
 
     if len(frames) > 1:
         reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
 
         if svp['liparams']['unit'] == 'W/m2 (f)':
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['firradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['firradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['firradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average irradiance (W)', ' '.join(['{:.3f}'.format(self['oave']['firrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['firrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Average full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['firradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['firradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['firradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Average full irradiance (W)', ' '.join(['{:.3f}'.format(self['oave']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum full irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum full irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['firrad{}'.format(frame)]) for frame in frames])])
 
         elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):            
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
-            
-            if svp['liparams']['unit'] == 'DF (%)': 
-                reslists.append(['All', 'Zone', self.id_data.name, 'Average DF (lux)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
-                reslists.append(['All', 'Zone', self.id_data.name, 'Maximum DF (lux)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
-                reslists.append(['All', 'Zone', self.id_data.name, 'Minimum DF (lux)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Average visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['virradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['virradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['virradm2{}'.format(frame)]) for frame in frames])])
+            if svp['liparams']['unit'] == 'Lux':
+                reslists.append(['All', 'Zone', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
+            elif svp['liparams']['unit'] == 'DF (%)': 
+                reslists.append(['All', 'Zone', self.id_data.name, 'Average DF (%)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone', self.id_data.name, 'Maximum DF (%)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone', self.id_data.name, 'Minimum DF (%)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
                 
             ir = []
             

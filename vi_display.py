@@ -3101,7 +3101,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         if li_display(self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
 
-        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r2h, 0)[0], r2w, r2h, 125, 400, 20)
+        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r2h, 0)[0], r2w, r2h, 75, 400, 20)
         self.legend_num = linumdisplay(self, context)
         self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')   
         bpy.app.driver_namespace["li"] = self.draw_handle_linum  

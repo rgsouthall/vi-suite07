@@ -270,7 +270,7 @@ class No_Li_Geo(Node, ViNodes):
         socklink(self.outputs['Geometry out'], self.id_data.name)
 
     def preexport(self, scene):
-        self.hide = 1
+#        self.hide = 1
         self['Text'] = {}
         self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 
                             'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
@@ -279,7 +279,7 @@ class No_Li_Geo(Node, ViNodes):
         self.id_data.use_fake_user = 1
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
-        self.hide = 0
+#        self.hide = 0
 
 class No_Li_Sen(Node, ViNodes):
     '''Node for creating LiVi sensing geometry'''
@@ -473,6 +473,10 @@ class No_Li_Con(Node, ViNodes):
                 
         elif self.contextmenu == 'CBDM':
             newrow(layout, 'Type:', self, 'cbanalysismenu')
+            
+            if self.cbanalysismenu == '0':
+                newrow(layout, "Spectrum:", self, 'spectrummenu')
+            
             newrow(layout, 'All year:', self, 'ay')
             newrow(layout, 'Weekdays only:', self, 'weekdays')
 
@@ -480,9 +484,6 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, 'LEED v4:', self, 'leed4')
             
             if self.cbanalysismenu in ('0', '1') or (self.cbanalysismenu == '2' and not self.leed4):
-                if self.cbanalysismenu == '0':
-                    newrow(layout, "Spectrum:", self, 'spectrummenu')
-
                 if not self.ay:
                     newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
@@ -1073,7 +1074,7 @@ class No_Li_Sim(Node, ViNodes):
         self.run = 0
     
     def presim(self):
-        self.hide = 1
+#        self.hide = 1
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
@@ -1090,15 +1091,16 @@ class No_Li_Sim(Node, ViNodes):
         self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         
     def postsim(self, calcout):
+        self['exportstate'] = self.ret_params()
+        self['reslists'] = calcout
+
         if self.outputs[0].links:            
             for l in self.outputs[0].links:
                 if l.to_node.bl_idname == 'No_Vi_Metrics':
                     l.to_node.update()
 
-        self['exportstate'] = self.ret_params()
-        self['reslists'] = calcout
         nodecolour(self, 0)
-        self.hide = 0
+#        self.hide = 0
 
 class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -2344,17 +2346,17 @@ class No_Vi_Metrics(Node, ViNodes):
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
+            print([z[0] for z in self['rl']])
             frames = list(dict.fromkeys([z[0] for z in self['rl']]))
             self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
             znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone'])))
             self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
             self.res_update()
+            self.inputs[0].links[0].from_node.new_res = 0
         else:
             self['rl'] = []
             self['frames'] = [('None', 'None', 'None')]
-            self['znames'] = [('None', 'None', 'None')]
-        
-        self.inputs[0].links[0].from_node.new_res = 0
+            self['znames'] = [('None', 'None', 'None')]        
 
     def res_update(self): 
         if self.metric == '0' and bpy.data.collections.get('EnVi Geometry'):                

@@ -158,14 +158,14 @@ def unititems(self, context):
         svp = scene.vi_params
         
         if svp['liparams']['unit'] == 'W/m2 (f)':
-            return [('firradm2', 'W/m2', 'Full spectrum irradiance per metre square'),
-                    ('firrad', 'W', 'Full spectrum irradiance')]
+            return [('firradm2', 'W/m2 (f)', 'Full spectrum irradiance per metre square'),
+                    ('firrad', 'W (f)', 'Full spectrum irradiance')]
         elif svp['liparams']['unit'] == 'Lux':
             return [('illu', 'Lux', 'Illuminance'), 
-                    ('virrad', 'Watts', 'Visible spectrum illuminance')]
+                    ('virradm2', 'W/m2 (v)', 'Visible spectrum irradiance')]
         elif svp['liparams']['unit'] == 'DF (%)':
             return [('df', 'DF (%)', 'Daylight factor'), 
-                    ('virrad', 'Watts', 'Visible spectrum illuminance')]
+                    ('virradm2', 'W/m2 (v)', 'Visible spectrum irradiance')]
         elif svp['liparams']['unit'] == 'klxh':
             return [('illuh', 'klux-hours', 'kilolux-hours'), ('virradh', 'kWh (v)', 'kilo-Watt hours (visible spectrum)'), ('virradhm2', 'kWh/m2 (v)', 'kilo-Watt hours per square metre (visible spectrum)')]
         elif svp['liparams']['unit'] == 'kWh (f)':

@@ -29,7 +29,7 @@ from time import sleep
 from mathutils import Euler, Vector, Matrix
 from xml.dom.minidom import parse, parseString
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
-from .livi_calc  import li_calc
+#from .livi_calc  import li_calc
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass, livisimacc
@@ -1043,10 +1043,10 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
     bl_undo = False
 
     def modal(self, context, event):
-        if self.kivyrun.poll() is not None:
-            self.simnode.postsim(reslists)
-            self.report({'INFO'}, "Simulation is finished")
-            return {'CANCELLED'}
+#        if self.kivyrun.poll() is not None:
+        self.simnode.postsim(self.reslists)
+        self.report({'INFO'}, "Simulation is finished")
+        return {'FINISHED'}
 
     def invoke(self, context, event):
         scene = context.scene
@@ -1075,7 +1075,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         self.simnode.sim(scene)
         pfs, epfs, curres = [], [], 0
         rtcmds, rccmds = [], []
-        context = self.simnode['coptions']['Context']
+        scontext = self.simnode['coptions']['Context']
         subcontext = self.simnode['coptions']['Type']
         patches = self.simnode['coptions']['cbdm_res']
         svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
@@ -1105,7 +1105,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
-                if context == 'Basic' or (context == 'CBDM' and subcontext == '0'):
+                if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                     pmcmd = 'mkpmap -n {6} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
                 else:
                     pmcmd = 'mkpmap -n {3} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
@@ -1142,18 +1142,18 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                         calc_op.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
                         return {'CANCELLED'}
                 
-                if context == 'Basic' or (context == 'CBDM' and subcontext == '0'):# or (context == 'Compliance' and int(subcontext) < 3):
-                    if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
-                        os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
-                    if self.simnode.pmap:
-                        rtcmds.append('rtrace -n {0} -w {1} -ap "{2}-{3}.gpm" 50 {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                    else:
-                        rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+            if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):# or (context == 'Compliance' and int(subcontext) < 3):
+                if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
+                    os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
+                if self.simnode.pmap:
+                    rtcmds.append('rtrace -n {0} -w {1} -ap "{2}-{3}.gpm" 50 {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 else:
-                    if self.simnode.pmap:
-                        rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
-                    else:   
-                        rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
+                    rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+            else:
+                if self.simnode.pmap:
+                    rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
+                else:   
+                    rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
 
         try:
             tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
@@ -1164,7 +1164,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         calcsteps = sum(tpoints) * len(frames)
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Lighting')
-        reslists = []
+        self.reslists = []
         obs = [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
 
         for oi, o in enumerate(obs):
@@ -1173,32 +1173,32 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             selobj(vl, o)
             ovp['omax'], ovp['omin'], ovp['oave']  = {}, {}, {}
             
-            if context == 'Basic':
+            if scontext == 'Basic':
                 bccout = ovp.basiccalcapply(scene, frames, rtcmds, self.simnode, curres, pfile)
                 if bccout == 'CANCELLED':
                     if self.kivyrun.poll() is None:
                        self.kivyrun.kill()
                     return {'CANCELLED'}
                 else:
-                    reslists += bccout
+                    self.reslists += bccout
                     
-            elif context == 'CBDM' and subcontext == '0':
+            elif scontext == 'CBDM' and subcontext == '0':
                 lhout = ovp.lhcalcapply(scene, frames, rtcmds, self.simnode, curres, pfile)
                 if lhout  == 'CANCELLED':
                     if self.kivyrun.poll() is None:
                         self.kivyrun.kill()
                     return {'CANCELLED'}
                 else:
-                    reslists += lhout
+                    self.reslists += lhout
             
-            elif (context == 'CBDM' and subcontext in ('1', '2')):# or (context == 'Compliance' and subcontext == '3'):
+            elif (scontext == 'CBDM' and subcontext in ('1', '2')):# or (context == 'Compliance' and subcontext == '3'):
                 cbdmout = ovp.udidacalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
                 if cbdmout == 'CANCELLED':
                     if self.kivyrun.poll() is None:
                         self.kivyrun.kill()
                     return {'CANCELLED'}
                 else:
-                    reslists += cbdmout
+                    self.reslists += cbdmout
             
         if self.kivyrun.poll() is None:
             self.kivyrun.kill()
@@ -1219,8 +1219,8 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
         svp['viparams']['vidisp'] = 'li'
         svp['viparams']['resnode'] = self.simnode.name
-        svp['viparams']['restree'] = self.simnode.id_data.name
-        
+        svp['viparams']['restree'] = self.simnode.id_data.name   
+        context.window_manager.modal_handler_add(self)    
         return {'RUNNING_MODAL'}
     
 class NODE_OT_Li_Im(bpy.types.Operator):
