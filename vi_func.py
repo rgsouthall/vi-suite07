@@ -62,22 +62,27 @@ def create_coll(c, name):
     for lcc in c.view_layer.layer_collection.children:
         if lcc.name == name:
             c.view_layer.active_layer_collection = lcc
+    
+    c.view_layer.layer_collection.children[coll.name].exclude = 1
     return coll
 
 def create_empty_coll(c, name):
     coll = create_coll(c, name)
-    
+    c.view_layer.layer_collection.children[coll.name].exclude = 0
+
     for o in coll.objects:
         if name == 'LiVi Results' and o.vi_params.vi_type_string == 'LiVi Res':
             bpy.data.objects.remove(o)
     
+    c.view_layer.layer_collection.children[coll.name].exclude = 1
     return coll
 
 def move_to_coll(context, coll, o):
     if o.parent:
         o.parent = None
     collection = create_coll(context, coll)
-    
+    context.view_layer.layer_collection.children[coll].exclude = 0
+
     if o.name not in collection.objects:
         collection.objects.link(o)
         for c in bpy.data.collections:
@@ -85,15 +90,20 @@ def move_to_coll(context, coll, o):
                 c.objects.unlink(o)
         if o.name in context.scene.collection.objects:
             context.scene.collection.objects.unlink(o)
-        
-def clear_coll(coll):
+    
+    context.view_layer.layer_collection.children[coll].exclude = 1    
+
+def clear_coll(c, coll):
+    c.view_layer.layer_collection.children[coll.name].exclude = 0
+
     for o in coll.objects:
         if coll.name == 'LiVi Results' and o.vi_params.vi_type_string != 'LiVi Res':
-            print(coll.name, o.vi_params.vi_type_string)
             pass
         else:
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
+
+    c.view_layer.layer_collection.children[coll.name].exclude = 1
         
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03, 
 2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02, 
@@ -551,11 +561,11 @@ def lividisplay(self, scene):
                     for g in geom:
                         g[res] = g[livires]  
                         
-                if svp['liparams']['unit'] == 'Sky View':
+                if svp['liparams']['unit'] == 'SVF (%)X':
                     nmatis = [(0, ll - 1)[v == 1] for v in vals]
                 else:
-                    bins = array([increment * i for i in range(ll + 1)])
-                    nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None) + 1
+                    bins = array([increment * i for i in range(ll)])
+                    nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None)
                     
                 bm.to_mesh(self.id_data.data)
                 bm.free()
@@ -769,17 +779,28 @@ def clearfiles(filebase):
             except:
                 pass
                     
-def clearscene(scene, op):
+def clearscene(context, op):
+    scene = context.scene
     svp = scene.vi_params
     svp['viparams']['vidisp'] = ''
-    
-    for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
-        if ob.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode = 'OBJECT')
 
-        if ob.vi_params.vi_type_string == 'LiVi Res':
-            delobj(bpy.context.view_layer, ob)
-        elif ob.vi_params.vi_type_string != 'LiVi Calc':
+    if context.mode == 'EDIT_MESH':
+        bpy.ops.object.mode_set(mode = 'OBJECT')
+
+    if context.view_layer.layer_collection.children.get('LiVi Results'):
+        context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
+        
+        for ob in context.view_layer.layer_collection.children['LiVi Results'].collection.objects:
+            if ob.vi_params.vi_type_string == 'LiVi Res':                
+                delobj(context.view_layer, ob)
+
+        context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
+
+    for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
+        # if ob.mode != 'OBJECT':
+        #     bpy.ops.object.mode_set(mode = 'OBJECT')
+
+        if ob.vi_params.vi_type_string != 'LiVi Calc':
             v, f, svv, svf = [0] * 4 
             
             if 'export' in op.name or 'simulation' in op.name:

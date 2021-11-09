@@ -207,9 +207,9 @@ def rendview(i):
                         space.clip_start = 0.1
                         bpy.context.scene['cs'] = space.clip_start
                             
-def li_display(disp_op, simnode):    
-    scene, obreslist, obcalclist = bpy.context.scene, [], []
-    dp = bpy.context.evaluated_depsgraph_get()
+def li_display(context, disp_op, simnode):    
+    scene, obreslist, obcalclist = context.scene, [], []
+    dp = context.evaluated_depsgraph_get()
     svp = scene.vi_params
     svp.li_disp_menu = unit2res[svp['liparams']['unit']]
     setscenelivivals(scene)
@@ -223,7 +223,7 @@ def li_display(disp_op, simnode):
 
     for geo in scene.objects:
         geo.vi_params.vi_type_string == ''
-        bpy.context.view_layer.objects.active = geo
+        context.view_layer.objects.active = geo
         
         if getattr(geo, 'mode') != 'OBJECT':
             bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -239,7 +239,7 @@ def li_display(disp_op, simnode):
             obcalclist.append(o)
     
     scene.frame_set(svp['liparams']['fs'])
-    bpy.context.view_layer.objects.active = None
+    context.view_layer.objects.active = None
     
     for i, o in enumerate([o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']):        
         bm = bmesh.new()
@@ -265,32 +265,34 @@ def li_display(disp_op, simnode):
         for v in bm.verts:
             v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis = 0))).normalized()  * simnode['goptions']['offset']
         
-        selobj(bpy.context.view_layer, o)
+        selobj(context.view_layer, o)
         bpy.ops.object.duplicate() 
         
         for face in bm.faces:
             face.select = True 
         
-        if not bpy.context.active_object:
+        if not context.active_object:
             disp_op.report({'ERROR'},"No display object. If in local view switch to global view and/or re-export the geometry")
             return 'CANCELLED'
             
-        ores = bpy.context.active_object
+        ores = context.active_object
         ores.name, ores.show_wire, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 'SOLID', ores.vi_params, 'LiVi Res'
-        move_to_coll(bpy.context, 'LiVi Results', ores)
+        move_to_coll(context, 'LiVi Results', ores)
+        context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
+        context.view_layer.objects.active = ores
         
         while ores.material_slots:
             bpy.ops.object.material_slot_remove()
         
         while ores.data.shape_keys:
-            bpy.context.object.active_shape_key_index = 0
+            context.object.active_shape_key_index = 0
             bpy.ops.object.shape_key_remove(all=True)
             
         ores.visible_diffuse, ores.visible_glossy, ores.visible_transmission, ores.visible_volume_scatter, ores.visible_shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
         ores.vi_params.vi_type_string == 'LiVi Res'
         orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave'] 
-        selobj(bpy.context.view_layer, ores)
+        selobj(context.view_layer, ores)
         cmap(svp)
         
         for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
@@ -312,7 +314,7 @@ def li_display(disp_op, simnode):
         ores.vi_params.lividisplay(scene)
                 
         if svp.vi_disp_3d == 1 and ores.data.shape_keys == None:
-            selobj(bpy.context.view_layer, ores)
+            selobj(context.view_layer, ores)
             bpy.ops.object.shape_key_add(from_mix = False)
             
             for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -2104,6 +2106,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 bpy.app.handlers.frame_change_post.remove(h)
                 
             [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.vi_params.get('VIType') and o.vi_params['VIType'] in ('SunMesh', 'SkyMesh')]
+            context.view_layer.layer_collection.children[self.spcoll.name].exclude = 1
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
     
@@ -2200,7 +2203,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp['viparams'] = {}
         svp['spparams'] = {}
         svp['spparams']['suns'] = node.suns
-        spcoll = create_coll(context, 'SunPath')            
+        self.spcoll = create_coll(context, 'SunPath')    
+        context.view_layer.layer_collection.children[self.spcoll.name].exclude = 0        
         sd = 100
         
         # Set the node colour
@@ -2208,7 +2212,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
         svp['viparams']['resnode'], svp['viparams']['restree'] = node.name, node.id_data.name
         scene.cursor.location = (0.0, 0.0, 0.0)
-        suns = [ob for ob in spcoll.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']
+        suns = [ob for ob in self.spcoll.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']
         requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
         matdict = {'SPBase': (0, 0, 0, 1), 'SPPlat': (1, 1, 1, 1), 'SPGrey': (0.25, 0.25, 0.25, 1)}
         
@@ -2253,8 +2257,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else:
             spathob = compass((0,0,0.01), sd, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'], bpy.data.materials['SPGrey'])
         
-            if spathob.name not in spcoll.objects:
-                spcoll.objects.link(spathob)
+            if spathob.name not in self.spcoll.objects:
+                self.spcoll.objects.link(spathob)
                 if spathob.name in scene.collection.objects:
                     scene.collection.objects.unlink(spathob)
     
@@ -2265,8 +2269,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
             spathob.show_transparent = True
         
         for s, sun in enumerate(suns):
-            if sun.name not in spcoll.objects:
-                spcoll.objects.link(sun)
+            if sun.name not in self.spcoll.objects:
+                self.spcoll.objects.link(sun)
                 scene.collection.objects.unlink(sun)
                 
             sun.data.shadow_soft_size = 0.01            
@@ -2610,12 +2614,14 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         r2h = r2.height
         r2w = r2.width
         svp = context.scene.vi_params
-        create_empty_coll(context, 'LiVi Results')
+        self.livi_coll = create_empty_coll(context, 'LiVi Results')
+        context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 0
+        print(context.view_layer.layer_collection.children[self.livi_coll.name].exclude)
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'svf'
         svp['viparams']['drivers'] = ['svf']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        li_display(self, self.simnode)
+        li_display(context, self, self.simnode)
         self.results_bar = results_bar(('legend.png',))
         legend_icon_pos = self.results_bar.ret_coords(r2w, r2h, 0)[0]
         self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, rw, r2h, 100, 400, 20)
@@ -2647,7 +2653,8 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
            
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or not context.area:
             svp.vi_display = 0
-            
+            context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 1
+
             if context.area:
                 context.area.tag_redraw()
                 
@@ -2740,7 +2747,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.xtitle = 'Days'
         self.ytitle = 'Hours'                
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        li_display(self, self.simnode)
+        li_display(context, self, self.simnode)
         self.images = ('legend.png', 'scatter.png')
         self.results_bar = results_bar(self.images)
         legend_icon_pos = self.results_bar.ret_coords(r2w, r2h, 0)[0]
@@ -3014,7 +3021,8 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
                 context.area.tag_redraw()
             else:
                 logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". Do not maximise a window while the display operator is running.')
-
+            
+            context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
             return {'CANCELLED'}        
         
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
@@ -3089,8 +3097,8 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         r2w = r2.width
         self.scene = context.scene
         svp = context.scene.vi_params
-        svp.vi_display, svp.vi_disp_wire = 1, 1        
-        clearscene(self.scene, self)
+        svp.vi_display, svp.vi_disp_wire = 1, 1      
+        clearscene(context, self)
         svp['viparams']['vidisp'] = 'li' 
         svp['viparams']['drivers'] = ['li']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]        
@@ -3098,7 +3106,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         self.results_bar = results_bar(self.images)
         self.frame = self.scene.frame_current
         
-        if li_display(self, self.simnode) == 'CANCELLED':
+        if li_display(context, self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r2h, 0)[0], r2w, r2h, 75, 400, 20)

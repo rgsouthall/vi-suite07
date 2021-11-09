@@ -129,7 +129,7 @@ def radgexport(export_op, node, **kwargs):
     dp = bpy.context.evaluated_depsgraph_get()
     scene = bpy.context.scene
     svp = scene.vi_params
-    clearscene(scene, export_op)
+    clearscene(bpy.context, export_op)
     frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     svp['liparams']['cp'] = node.cpoint
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')

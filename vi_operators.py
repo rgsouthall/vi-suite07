@@ -282,14 +282,18 @@ class NODE_OT_SVF(bpy.types.Operator):
         if viparams(self, scene):            
             return {'CANCELLED'}
         
-        for o in scene.objects:
-            o.vi_params.vi_type_string = ''
-
         shadobs = retobjs('livig')
 
         if not shadobs:
             self.report({'ERROR'},"No shading objects with a material attached.")
             return {'CANCELLED'}
+            
+        simnode = context.node
+        svp['viparams']['restree'] = simnode.id_data.name
+        clearscene(context, self)
+
+        for o in scene.objects:
+            o.vi_params.vi_type_string = ''
             
         calcobs = retobjs('ssc')
 
@@ -297,10 +301,6 @@ class NODE_OT_SVF(bpy.types.Operator):
             self.report({'ERROR'},"No objects have a light sensor material attached.")
             return {'CANCELLED'}
 
-        simnode = context.node
-        svp['viparams']['restree'] = simnode.id_data.name
-        clearscene(scene, self)
-        
         svp['viparams']['visimcontext'] = 'SVF'
 
         if not svp.get('liparams'):
@@ -454,7 +454,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
-        clearscene(scene, self)        
+        clearscene(context, self)        
         svp['viparams']['visimcontext'] = 'Shadow'
 
         if not svp.get('liparams'):
@@ -1059,7 +1059,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             return {'CANCELLED'}
                     
         objmode()
-        clearscene(scene, self)
+        clearscene(context, self)
         self.simnode = context.node
         self.simnode.presim()
         contextdict = {'Basic': 'LiVi Basic', 'CBDM': 'LiVi CBDM'}        
@@ -1133,13 +1133,13 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     if pmlines:
                         for line in pmlines:
                             if line in errdict:
-                                calc_op.report({'ERROR'}, errdict[line])
+                                self.report({'ERROR'}, errdict[line])
                                 return {'CANCELLED'}
                             if 'fatal - ' in line:
-                                calc_op.report({'ERROR'}, line)
+                                self.report({'ERROR'}, line)
                                 return {'CANCELLED'}
                     else:
-                        calc_op.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
+                        self.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
                         return {'CANCELLED'}
                 
             if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):# or (context == 'Compliance' and int(subcontext) < 3):
@@ -1158,7 +1158,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         try:
             tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
         except:
-            calc_op.report({'ERROR'}, 'Re-export the LiVi geometry')
+            self.report({'ERROR'}, 'Re-export the LiVi geometry')
             return {'CANCELLED'}
 
         calcsteps = sum(tpoints) * len(frames)
@@ -2883,7 +2883,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         vl = context.view_layer
         expnode = context.node
         meshcoll = create_coll(context, 'FloVi Mesh')
-        clear_coll(meshcoll)
+        clear_coll(context, meshcoll)
         SetNumThreads(int(svp['viparams']['nproc']))
         maxh = expnode.maxcs
         st = '0'
