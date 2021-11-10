@@ -701,7 +701,9 @@ class No_Li_Im(Node, ViNodes):
     bl_label = 'LiVi Image'
     
     def nodeupdate(self, context):
-        self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene.vi_params['viparams']['nproc']), "name": ""}}
+        if self.processors > int(context.scene.vi_params['viparams']['nproc']):
+            self.processors = int(context.scene.vi_params['viparams']['nproc'])
+
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
                    self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
                    self.x, self.y)])
@@ -733,6 +735,7 @@ class No_Li_Im(Node, ViNodes):
     camera: StringProperty(description="Textfile to show", update = nodeupdate)
     fisheye: BoolProperty(name = '', default = 0, update = nodeupdate)
     fov: FloatProperty(name = '', default = 180, min = 1, max = 180, update = nodeupdate)
+    processors: IntProperty(name = '', default = 1, min = 1, max = 128, update = nodeupdate)
     processes: IntProperty(name = '', default = 1, min = 1, max = 1000, update = nodeupdate)
     
     def retframes(self):
@@ -784,14 +787,15 @@ class No_Li_Im(Node, ViNodes):
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview') 
+            
             newrow(layout, 'X resolution:', self, 'x')
             newrow(layout, 'Y resolution:', self, 'y')            
             
             if sys.platform != 'win32':
                 newrow(layout, 'Multi-thread:', self, 'mp')
+
                 if self.mp:
-                    row = layout.row()
-                    row.prop(self, '["Processors"]')
+                    newrow(layout, 'Processors:', self, 'processors')
                     newrow(layout, 'Processes:', self, 'processes')
 
             if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:

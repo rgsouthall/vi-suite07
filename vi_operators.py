@@ -1392,7 +1392,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.frame = self.fs
             self.frameold = self.frame
             self.rpruns, self.pmruns = [], []   
-            self.processors = simnode['Processors']
+            self.processors = simnode.processors
             self.processes = simnode.processes
             self.radparams = simnode['rpictparams']
             self.viewparams = simnode['viewparams']
