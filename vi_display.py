@@ -2616,7 +2616,6 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         svp = context.scene.vi_params
         self.livi_coll = create_empty_coll(context, 'LiVi Results')
         context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 0
-        print(context.view_layer.layer_collection.children[self.livi_coll.name].exclude)
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'svf'
         svp['viparams']['drivers'] = ['svf']
