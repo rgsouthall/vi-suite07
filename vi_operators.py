@@ -1513,7 +1513,7 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
         svp = scene.vi_params
         fcnode = context.node
         fcnode.presim()
-        imnode = fcnode.inputs['Image'].links[0].from_node 
+        imnode = fcnode.inputs['Image'].links[0].from_node if fcnode.inputs['Image'].links else fcnode
         lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
         scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades) 
         mult = '-m {}'.format(eval('{}{}'.format(1, fcnode.multiplier))) if fcnode.multiplier else ''

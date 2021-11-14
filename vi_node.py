@@ -695,6 +695,28 @@ class No_Li_Con(Node, ViNodes):
         self.outputs['Context out'].hide = False
         self['exportstate'] = self.ret_params()
 
+class No_Vi_Im(Node, ViNodes):
+    '''Image node'''
+    bl_idname = 'No_Vi_Im'
+    bl_label = 'Image'
+
+    def nodeupdate(self, context):
+        self['images'] = [bpy.data.images[self.image].filepath]
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.image)])
+
+    image: StringProperty(description="Select image", update = nodeupdate)
+
+    def init(self, context):
+        self['exportstate'] = ''
+        self.outputs.new('So_Li_Im', 'Image')
+
+    def draw_buttons(self, context, layout): 
+        layout.prop_search(self, 'image', bpy.data, 'images', text='Image', icon='NONE')
+
+    def update(self):  
+        if self.outputs.get('Image'):
+            socklink(self.outputs['Image'], self.id_data.name)   
+    
 class No_Li_Im(Node, ViNodes):
     '''Node describing a LiVi image generation'''
     bl_idname = 'No_Li_Im'
@@ -732,7 +754,7 @@ class No_Li_Im(Node, ViNodes):
     illu: BoolProperty(name = '', default = True, update = nodeupdate)
     validparams: BoolProperty(name = '', default = True)
     mp: BoolProperty(name = '', default = False, update = nodeupdate)
-    camera: StringProperty(description="Textfile to show", update = nodeupdate)
+    camera: StringProperty(description="Select camera", update = nodeupdate)
     fisheye: BoolProperty(name = '', default = 0, update = nodeupdate)
     fov: FloatProperty(name = '', default = 180, min = 1, max = 180, update = nodeupdate)
     processors: IntProperty(name = '', default = 1, min = 1, max = 128, update = nodeupdate)
@@ -750,7 +772,6 @@ class No_Li_Im(Node, ViNodes):
         self.inputs.new('So_Li_Geo', 'Geometry in')
         self.inputs.new('So_Li_Con', 'Context in')
         self.outputs.new('So_Li_Im', 'Image')
-        self['Processors'] = 1
         
     def draw_buttons(self, context, layout):       
         sf, ef = self.retframes()
@@ -915,6 +936,7 @@ class No_Li_Fc(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands, self.ofile, self.hdrfile)])
+        self['images'] = [bpy.path.abspath(self.hdrfile)]
 
     basename: StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)    
     colour: EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
@@ -950,7 +972,7 @@ class No_Li_Fc(Node, ViNodes):
             row = layout.row()
             row.prop(self, 'hdrfile')
 
-        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(self.hdrfile): 
+        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)): 
             newrow(layout, 'Base name:', self, 'basename')
             newrow(layout, 'Unit:', self, 'unit_name')
 
@@ -981,9 +1003,9 @@ class No_Li_Fc(Node, ViNodes):
 
                     newrow(layout, 'Bands:', self, 'bands') 
     
-                if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
-                    row = layout.row()
-                    row.operator("node.livifc", text = 'Process')
+#                if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
+                row = layout.row()
+                row.operator("node.livifc", text = 'Process')
             
     def presim(self):
         self['basename'] = self.basename if self.basename else 'fc'
@@ -3268,7 +3290,8 @@ vi_gen = []
 vi_anim = [NodeItem("No_Anim", label="Parametric")]
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_HMChart", label="Heatmap"), NodeItem("No_Vi_Metrics", label="Metrics")]
 vi_out = [NodeItem("No_CSV", label="CSV")]
-vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
+vi_image = [NodeItem("No_Vi_Im", label="Image"), NodeItem("No_Li_Im", label="LiVi Image"), 
+            NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
 
 vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out), 

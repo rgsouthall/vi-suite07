@@ -127,6 +127,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
 
 def radgexport(export_op, node, **kwargs):
     dp = bpy.context.evaluated_depsgraph_get()
+    mats = bpy.data.materials
     scene = bpy.context.scene
     svp = scene.vi_params
     clearscene(bpy.context, export_op)
@@ -138,11 +139,16 @@ def radgexport(export_op, node, **kwargs):
         if any([s < 0 for s in o.scale]):
             logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
             export_op.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
-            
+    
+    if not node.mesh:
+        for m in mats:
+            if m.vi_params.radtex:
+                logentry('Mesh option not selected so the texture on material {} will not be applied'.format(m.name))
+                export_op.report({'WARNING'}, 'Mesh export has not been selected so the texture on material {} will not be applied'.format(m.name))
+
     svp['liparams']['livig'], svp['liparams']['livic'], svp['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
     eolist = set(geooblist + caloblist)
-    mats = bpy.data.materials
-
+    
     for o in eolist:  
         ovp = o.vi_params
         ovt = ovp.vi_type
@@ -300,7 +306,7 @@ def gen_octree(scene, o, op, mesh, tri):
         tempmatfile.write(mradfile)  
         
     gradfile = bmesh2mesh(scene, bm, o, scene.frame_current, mf, mesh, tri)
-    print(gradfile + mradfile)
+
     with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
         try:
             ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
