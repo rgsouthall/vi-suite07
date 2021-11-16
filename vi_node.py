@@ -180,9 +180,9 @@ class No_Loc(Node, ViNodes):
             pass
         
     def update(self):
-        if self.outputs.get('Location out'):
-            socklink(self.outputs['Location out'], self.id_data.name)
-        
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+    
         nodecolour(self, self.ready())
         
     def draw_buttons(self, context, layout):
@@ -267,7 +267,8 @@ class No_Li_Geo(Node, ViNodes):
         row.operator("node.ligexport", text = "Export")
 
     def update(self):
-        socklink(self.outputs['Geometry out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
     def preexport(self, scene):
 #        self.hide = 1
@@ -536,7 +537,8 @@ class No_Li_Con(Node, ViNodes):
             row.operator("node.liexport", text = "Export")
 
     def update(self):
-        socklink(self.outputs['Context out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
         if self.inputs.get('Location in'):
             self.nodeupdate(bpy.context) 
@@ -714,21 +716,25 @@ class No_Vi_Im(Node, ViNodes):
         layout.prop_search(self, 'image', bpy.data, 'images', text='Image', icon='NONE')
 
     def update(self):  
-        if self.outputs.get('Image'):
-            socklink(self.outputs['Image'], self.id_data.name)   
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)  
     
 class No_Li_Im(Node, ViNodes):
     '''Node describing a LiVi image generation'''
     bl_idname = 'No_Li_Im'
     bl_label = 'LiVi Image'
+
+    def ret_params(self):
+        return [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
+                   self.mp, self.processors, self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
+                   self.x, self.y)]
     
     def nodeupdate(self, context):
         if self.processors > int(context.scene.vi_params['viparams']['nproc']):
             self.processors = int(context.scene.vi_params['viparams']['nproc'])
 
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
-                   self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
-                   self.x, self.y)])
+        nodecolour(self, self['exportstate'] != self.ret_params())
+
         if bpy.data.objects.get(self.camera):
             context.scene.camera = bpy.data.objects[self.camera]
         
@@ -747,6 +753,7 @@ class No_Li_Im(Node, ViNodes):
     pmapvno: IntProperty(name = '', description = "Number of visualised photons", min = 100, max = 5000, default = 500)
     pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
     pmappreview: BoolProperty(name = '', default = 0, update = nodeupdate)
+    bfv: BoolProperty(name = '', description="Turn on back face visibility (may cause light bleed but deals with planar geometry)", default = True, update = nodeupdate)
     x: IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y: IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
     basename: StringProperty(name="", description="Base name for image files", default="", update = nodeupdate)
@@ -798,12 +805,12 @@ class No_Li_Im(Node, ViNodes):
             if self.pmap:
                newrow(layout, 'Global photons:', self, 'pmapgno')
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
+               newrow(layout, 'Back face visability:', self, 'bfv')
                newrow(layout, 'Photons options:', self, 'pmapoptions')
                newrow(layout, 'Preview photons:', self, 'pmappreview')
                
                if self.pmappreview:
                    newrow(layout, 'Visualised photons:', self, 'pmapvno')
-
                
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
@@ -824,8 +831,8 @@ class No_Li_Im(Node, ViNodes):
                 row.operator("node.radimage", text = 'Image')
         
     def update(self):  
-        if self.outputs.get('Image'):
-            socklink(self.outputs['Image'], self.id_data.name)     
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)    
 
         self.run = 0
         
@@ -885,9 +892,7 @@ class No_Li_Im(Node, ViNodes):
     def postsim(self, images):
         self['images'] = images
         self.run = 0
-        self['exportstate'] = [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
-                                self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, 
-                                self.pmapgno, self.pmapcno, self.x, self.y)]
+        self['exportstate'] = self.ret_params()
         logentry('Time to render: {}'.format(datetime.datetime.now() - self.time))
         nodecolour(self, 0)  
 
@@ -896,8 +901,11 @@ class No_Li_Gl(Node, ViNodes):
     bl_idname = 'No_Li_Gl'
     bl_label = 'LiVi Glare' 
 
+    def ret_params(self):
+        return [str(x) for x in (self.hdrname, self.rand, self.gc)]
+
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.rand, self.gc)])
+        nodecolour(self, self['exportstate'] != self.ret_params())
 
     hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update = nodeupdate)    
     gc: FloatVectorProperty(size = 3, name = '', attr = 'Color', default = [1, 0, 0], subtype = 'COLOR', update = nodeupdate)
@@ -925,7 +933,7 @@ class No_Li_Gl(Node, ViNodes):
                 Popen('evalglare {}'.format(im), stdout = glfile)
 
     def postsim(self):
-        self['exportstate'] = [str(x) for x in (self.hdrname, self.rand, self.gc)]
+        self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
 
 class No_Li_Fc(Node, ViNodes):
@@ -941,7 +949,7 @@ class No_Li_Fc(Node, ViNodes):
     basename: StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)    
     colour: EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)             
-    lmax: IntProperty(name = '', min = 0, max = 100000, default = 1000, update = nodeupdate)
+    lmax: IntProperty(name = '', description="Legend max: 0 for auto", min = 0, max = 100000, default = 1000, update = nodeupdate)
     unit: EnumProperty(items=[("0", "Lux", "Spectral color mapping"),("1", "Candelas", "Thermal colour mapping"), ("2", "DF", "PM3D colour mapping"), ("3", "Irradiance(v)", "PM3D colour mapping")],
             name="", description="Unit", default="0", update = nodeupdate)
     nscale: EnumProperty(items=[("0", "Linear", "Linear mapping"),("1", "Log", "Logarithmic mapping")],
@@ -1037,7 +1045,7 @@ class No_Li_Sim(Node, ViNodes):
             name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     
     pmap: BoolProperty(name = '', description="Turn on photon mapping", default = False, update = nodeupdate)
-    bfv: BoolProperty(name = '', description="Turn on back face visibility (may cause light bleed but deals with planar geometry", default = False, update = nodeupdate)
+    bfv: BoolProperty(name = '', description="Turn on back face visibility (may cause light bleed but deals with planar geometry", default = True, update = nodeupdate)
     pmapgno: IntProperty(name = '', default = 50000, update = nodeupdate)
     pmapcno: IntProperty(name = '', default = 0, update = nodeupdate)
     pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
@@ -1095,8 +1103,8 @@ class No_Li_Sim(Node, ViNodes):
                     row.operator("node.livicalc", text = 'Calculate')
 
     def update(self):
-        if self.outputs.get('Results out'):
-            socklink(self.outputs['Results out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
         self.run = 0
     
     def presim(self):
@@ -1253,8 +1261,8 @@ class No_Vi_SVF(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)]
 
     def update(self):
-        if self.outputs.get('Results out'):
-            socklink(self.outputs['Results out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
         
 class No_Vi_SS(Node, ViNodes):
     '''Node to create a VI-Suite shadow map'''
@@ -1319,9 +1327,8 @@ class No_Vi_SS(Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
     
     def update(self):
-#        bpy.context.scene.vi_params['viparams']['year'] = self['year']
-        if self.outputs.get('Results out'):
-            socklink(self.outputs['Results out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
 # Edit nodes
 class No_Text(Node, ViNodes):
@@ -1348,7 +1355,9 @@ class No_Text(Node, ViNodes):
                 row.operator('node.textupdate', text = 'Update')
 
     def update(self):
-        socklink(self.outputs['Text out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         if self.inputs and self.inputs['Text in'].links:
             self['Options'] = self.inputs['Text in'].links[0].from_node['Options']
             self['Text'] = self.inputs['Text in'].links[0].from_node['Text']
@@ -1392,7 +1401,8 @@ class No_En_Geo(Node, ViNodes):
         row.operator("node.engexport", text = "Export")
 
     def update(self):
-        socklink(self.outputs['Geometry out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
         
     def preexport(self, scene):
         pass
@@ -1509,8 +1519,8 @@ class No_En_Con(Node, ViNodes):
             row.operator("node.encon", text = 'Export')
 
     def update(self):
-        if self.inputs.get('Location in') and self.outputs.get('Context out'):
-            socklink(self.outputs['Context out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 #            self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
     
     def preexport(self, scene):
@@ -1563,8 +1573,8 @@ class No_En_Sim(Node, ViNodes):
             row.operator("node.ensim", text = 'Calculate')
 
     def update(self):
-        if self.outputs.get('Results out'):
-            socklink(self.outputs['Results out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
         
         self.run = -1
             
@@ -1667,7 +1677,8 @@ class No_En_RF(Node, ViNodes):
         row.operator("node.fileprocess", text = 'Process file').nodeid = self['nodeid']
 
     def update(self):
-        socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
     def export(self):
         self['exportstate'] = [self.resfilename]
@@ -3041,8 +3052,8 @@ class No_Flo_Case(Node, ViNodes):
             row.operator("node.flovi_case", text = "Export")
 
     def update(self):
-        if self.outputs.get('Case out'):
-            socklink(self.outputs['Case out'], self.id_data.name) 
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
     
     def pre_case(self, context):
         self.nodeupdate(context)
@@ -3108,8 +3119,8 @@ class No_Flo_NG(Node, ViNodes):
             row.label(text = 'No OpenFOAM directory set')
     
     def update(self):
-        if self.outputs.get('Mesh out'):
-            socklink(self.outputs['Mesh out'], self.id_data.name) 
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
     def post_export(self):
         self['exportstate'] = self.ret_params()
@@ -3139,8 +3150,8 @@ class No_Flo_Bound(Node, ViNodes):
             row.operator("node.flovi_bound", text = "Generate")
     
     def update(self):
-        if self.outputs.get('Context out'):
-            socklink(self.outputs['Context out'], self.id_data.name)  
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)  
         
     def post_export(self):
         self['exportstate'] = [str(self.pv)]
@@ -3230,8 +3241,8 @@ class No_Flo_BMesh(Node, ViNodes):
         row.operator("node.flovi_bm", text = "Export")
     
     def update(self):
-        if self.outputs.get('Mesh out'):
-            socklink(self.outputs['Mesh out'], self.id_data.name)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
     def export(self):
         self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
@@ -3262,8 +3273,8 @@ class No_Flo_Sim(Node, ViNodes):
         row.operator("node.flovi_sim", text = "Calculate")
     
     def update(self):
-        if self.outputs.get('Results out'):
-            socklink(self.outputs['Results out'], self.id_data.name) 
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
     def presim(self):
         expnode = self.inputs['Context in'].links[0].from_node
@@ -4421,8 +4432,8 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                     if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'No_En_Net_Ext':
                         self.extnode = 1
 
-            if self.outputs.get('Node 2'):
-                sockhide(self, ('Node 1', 'Node 2'))
+            if self.outputs.get('Parameter'):
+                sockhide(self, ('Node 1', 'Node 2', 'Parameter'))
 
             self.legal()
 
@@ -4642,8 +4653,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
                 if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'No_En_Net_Ext':
                     self.extnode = 1
 
-        if self.outputs.get('Node 2'):
-            sockhide(self, ('Node 1', 'Node 2'))
+        if self.outputs.get('Parameter'):
+            sockhide(self, ('Node 1', 'Node 2', 'Parameter'))
 
         self.legal()
 
@@ -4930,6 +4941,7 @@ class No_En_Net_Sched(Node, EnViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+
         self.id_data.interface_update(bpy.context)
 
     def epwrite(self, name, stype):
@@ -5021,7 +5033,8 @@ class No_En_Net_Prog(Node, EnViNodes):
 
     def update(self):
         for sock in self.outputs:
-            socklink2(sock, self.id_data.name)
+            socklink(sock, self.id_data.name)
+
         nodecolour(self, not all([sock.links for sock in self.outputs]) and any([sock.links for sock in self.outputs]))
 
     def epwrite(self):
@@ -6010,7 +6023,6 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
         except Exception as e:
             self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
-            print('embodied error: {}'.format(e))
                  
     lay_name: StringProperty(name = '', description = 'Custom layer name', update = lay_update)
     layer: EnumProperty(items = [("0", "Database", "Select from database"), 
@@ -6121,7 +6133,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         envi_mats.lay_save()
         
     def update(self):
-        socklink2(self.outputs['Layer'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         if self.outputs['Layer'].links:
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'So_En_Mat_Fr' else 'Frame'
         self.valid()
@@ -6238,7 +6252,8 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                 row.operator('node.lay_save', text = "Layer Save")
             
     def update(self):
-        socklink2(self.outputs['Layer'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
 
         if self.outputs['Layer'].links:
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type
@@ -6343,7 +6358,9 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
                 newrow(layout, "SHR:", self, "shr")
 
     def update(self):
-        socklink2(self.outputs['Layer'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         if self.outputs['Layer'].links:
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type
         self.valid()
@@ -6432,7 +6449,9 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
             nodecolour(self, 0)
             
     def update(self):
-        socklink2(self.outputs['Layer'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         self.valid()
         
     def ep_write(self, ln, mn):
@@ -6503,7 +6522,9 @@ class No_En_Mat_Sc(Node, EnViMatNodes):
             nodecolour(self, 0)
             
     def update(self):
-        socklink2(self.outputs['Outer Layer'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         self.valid()
         
     def ep_write(self, ln):
@@ -6600,7 +6621,9 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
             nodecolour(self, 0)
             
     def update(self):
-        socklink2(self.outputs['Layer'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         self.valid()
         
     def ep_write(self, ln):
@@ -6752,7 +6775,9 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             nodecolour(self, 0)
             
     def update(self):
-        socklink2(self.outputs['Control'], self.id_data)
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
 #        socklink2(self.outputs['Layer'], self.id_data)
 #        if self.outputs['Control'].links and self.outputs['Control'].links[0].to_node.bl_idname == 'envi_tl_node':
 #            self.outputs['Layer'].hide = False
@@ -7100,6 +7125,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+            
         self.id_data.interface_update(bpy.context)
 
     def epwrite(self, name, stype):
