@@ -905,18 +905,36 @@ class No_Li_Gl(Node, ViNodes):
         return [str(x) for x in (self.hdrname, self.rand, self.gc)]
 
     def nodeupdate(self, context):
+        self['images'] = [bpy.path.abspath(self.hdrfile)]
         nodecolour(self, self['exportstate'] != self.ret_params())
 
-    hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update = nodeupdate)    
+    hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update = nodeupdate)  
+    hdrfile: StringProperty(name="", description="Location of the HDR image", default="", subtype="FILE_PATH", update = nodeupdate)  
     gc: FloatVectorProperty(size = 3, name = '', attr = 'Color', default = [1, 0, 0], subtype = 'COLOR', update = nodeupdate)
     rand: BoolProperty(name = '', default = True, update = nodeupdate)
+    x: IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
+    y: IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
+    month: IntProperty(name = '', min = 1, max = 12, default = 1, update = nodeupdate)
+    day: IntProperty(name = '', min = 1, max = 31, default = 1, update = nodeupdate)
+    hour: IntProperty(name = '', min = 1, max = 24, default = 1, update = nodeupdate)
+    minutes: IntProperty(name = '', min = 0, max = 59, default = 0, update = nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
         self.inputs.new('So_Li_Im', 'Image')
                 
     def draw_buttons(self, context, layout):
-        if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
+        # if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
+        #     row = layout.row()
+        #     row.prop(self, 'hdrfile')
+        #     newrow(layout, 'Month:', self, 'month')
+        #     newrow(layout, 'Day:', self, 'day')
+        #     newrow(layout, 'Hour:', self, 'hour')
+        #     newrow(layout, 'Minutes:', self, 'minutes')
+        #     newrow(layout, 'X dimen.:', self, 'x')
+        #     newrow(layout, 'Y dimen.:', self, 'y')
+
+        if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):# or os.path.isfile(bpy.path.abspath(self.hdrfile)):
             newrow(layout, 'Base name:', self, 'hdrname')
             newrow(layout, 'Random:', self, 'rand')
             if not self.rand:

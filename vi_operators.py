@@ -1450,22 +1450,27 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
         res = []
         reslists = []
         glnode = context.node
-        imnode = glnode.inputs[0].links[0].from_node
+        imnode = glnode.inputs['Image'].links[0].from_node if glnode.inputs['Image'].links else glnode
+        # imnode = glnode.inputs[0].links[0].from_node
         glnode.presim()
         
         for i, im in enumerate(imnode['images']):
             glfile = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + svp['liparams']['fs']))
             egcmd = 'evalglare {} -c {}'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
-
+            print(im)
             with open(im, 'r') as hdrfile:
                 egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE, stderr = PIPE)
-
-            time = datetime.datetime(2019, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
-                datetime.datetime(2019, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
-                                  seconds = int(60*(imnode['coptions']['interval']*i - int(imnode['coptions']['interval']*i))))
+            
+            if imnode != glnode:
+                time = datetime.datetime(2019, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
+                    datetime.datetime(2019, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
+                                    seconds = int(60*(imnode['coptions']['interval']*i - int(imnode['coptions']['interval']*i))))
+            else:
+                time = datetime.datetime(2019, 1, 1, 1)
             
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "w") as glaretf:
                 for line in egrun.stderr:
+                    logentry("Evalglare message: {}".format(line.decode()))
                     if 'perspective' in line.decode():
                         self.report({'ERROR'}, 'Images are not in fisheye format')
                         return {'CANCELLED'}
