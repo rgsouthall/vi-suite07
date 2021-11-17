@@ -1277,12 +1277,13 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
                 try:
                     if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
-                        self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
-                        if self.frame < self.fe:
-                            self.frame += 1
+                        if os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)) not in self.images:
+                            self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
+                            if self.frame < self.fe:
+                                self.frame += 1
                 except:
                     print('Frame passing')
-                                        
+                           
         if event.type == 'TIMER':            
             f = self.frame if self.frame <= self.fe else self.fe
             if self.pmfin and not self.rpruns:
@@ -1368,7 +1369,10 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
         self.simnode.postsim(self.images)
         if os.path.isfile(self.rpictfile):
-            os.remove(self.rpictfile)
+            try:
+                os.remove(self.rpictfile)
+            except:
+                pass
         return 'FINISHED'
 
     def execute(self, context):        
@@ -1379,12 +1383,14 @@ class NODE_OT_Li_Im(bpy.types.Operator):
         simnode = context.node
         self.fs, self.fe = simnode.retframes()
         self.simnode = simnode
-        
+
         if simnode.camera and bpy.data.cameras.get(simnode.camera.lstrip()):
             self.percent = 0
             self.reslists, self.images = [], []
             self.res = []
             self.rpictfile = os.path.join(svp['viparams']['newdir'], 'rpictprogress')
+            if os.path.isfile(self.rpictfile):
+                os.remove(self.rpictfile)
             self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
             simnode.presim()
             svp['liparams']['fs'], svp['liparams']['fe'] =  simnode.retframes()
@@ -1456,11 +1462,11 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
         
         for i, im in enumerate(imnode['images']):
             glfile = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + svp['liparams']['fs']))
-            egcmd = 'evalglare {} -c {}'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
-            print(im)
+            egcmd = 'evalglare {} -c "{}"'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
+
             with open(im, 'r') as hdrfile:
-                egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE, stderr = PIPE)
-            
+                egrun = Popen(shlex.split(egcmd), stdin = hdrfile, stdout = PIPE, stderr = PIPE)
+
             if imnode != glnode:
                 time = datetime.datetime(2019, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
                     datetime.datetime(2019, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), 
@@ -1489,7 +1495,7 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                                       [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'LV', '{[5]}'.format(res)]]
                   
             with open('{}.temphdr'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare')), 'w') as temphdr:
-                pcondcmd = "pcond -h+ -u 300 {}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs']))))
+                pcondcmd = 'pcond -h+ -u 300 "{}.hdr"'.format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs']))))
                 Popen(shlex.split(pcondcmd), stdout = temphdr).communicate()
 
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "r") as catfile:
@@ -1497,11 +1503,14 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                 psignrun = Popen(shlex.split(psigncmd), stdin = catfile, stdout = PIPE, stderr = PIPE) 
 
             with open("{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs'])))), 'w') as ghdr:
-                pcompcmd = "pcompos {0}.temphdr 0 0 - {1} {2}".format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
+                pcompcmd = 'pcompos "{0}.temphdr" 0 0 - {1} {2}'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
                 Popen(shlex.split(pcompcmd), stdin = psignrun.stdout, stdout = ghdr).communicate()
 
-            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'))  
-            os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'temp.glare')) 
+            try:
+                os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'))  
+                os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'temp.glare')) 
+            except:
+                pass
             glnode.postsim()    
                                      
         return {'FINISHED'}
@@ -1542,7 +1551,7 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
                     for line in pcrun.stderr:
                         logentry('Pcond error: {}'.format(line))
 
-                    poverlay = '-p {}'.format(os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
+                    poverlay = '-p "{}"'.format(os.path.join(svp['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
                     fccmd = 'falsecolor -i "{}" {} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
                     fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE) 
 
