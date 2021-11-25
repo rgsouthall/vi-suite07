@@ -61,7 +61,7 @@ class ViNetwork(NodeTree):
     bl_idname = 'ViN'
     bl_label = 'VI-Suite Nodes'
     bl_icon = 'NODETREE'
-    viparams = {}
+#    viparams = {}
         
 class ViNodes:
     @classmethod
@@ -271,7 +271,6 @@ class No_Li_Geo(Node, ViNodes):
             socklink(sock, self.id_data.name)
 
     def preexport(self, scene):
-#        self.hide = 1
         self['Text'] = {}
         self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 
                             'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
@@ -280,7 +279,6 @@ class No_Li_Geo(Node, ViNodes):
         self.id_data.use_fake_user = 1
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
-#        self.hide = 0
 
 class No_Li_Sen(Node, ViNodes):
     '''Node for creating LiVi sensing geometry'''
@@ -701,6 +699,7 @@ class No_Vi_Im(Node, ViNodes):
     '''Image node'''
     bl_idname = 'No_Vi_Im'
     bl_label = 'Image'
+    bl_icon = 'IMAGE'
 
     def nodeupdate(self, context):
         self['images'] = [bpy.data.images[self.image].filepath]
@@ -723,6 +722,7 @@ class No_Li_Im(Node, ViNodes):
     '''Node describing a LiVi image generation'''
     bl_idname = 'No_Li_Im'
     bl_label = 'LiVi Image'
+    bl_icon = 'IMAGE'
 
     def ret_params(self):
         return [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
@@ -900,6 +900,7 @@ class No_Li_Gl(Node, ViNodes):
     '''Node describing a LiVi glare analysis'''
     bl_idname = 'No_Li_Gl'
     bl_label = 'LiVi Glare' 
+    bl_icon = 'IMAGE'
 
     def ret_params(self):
         return [str(x) for x in (self.hdrname, self.rand, self.gc)]
@@ -924,6 +925,7 @@ class No_Li_Gl(Node, ViNodes):
         self.inputs.new('So_Li_Im', 'Image')
                 
     def draw_buttons(self, context, layout):
+        # These are here to provide ancilliary info for a regular HDR but Blender does not save HDRs with the required header information
         # if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
         #     row = layout.row()
         #     row.prop(self, 'hdrfile')
@@ -937,8 +939,10 @@ class No_Li_Gl(Node, ViNodes):
         if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):# or os.path.isfile(bpy.path.abspath(self.hdrfile)):
             newrow(layout, 'Base name:', self, 'hdrname')
             newrow(layout, 'Random:', self, 'rand')
+
             if not self.rand:
                 newrow(layout, 'Colour:', self, 'gc')
+
             row = layout.row()
             row.operator("node.liviglare", text = 'Glare')
     
@@ -958,6 +962,7 @@ class No_Li_Fc(Node, ViNodes):
     '''Node describing a LiVi false colour image generation'''
     bl_idname = 'No_Li_Fc'
     bl_label = 'LiVi False Colour' 
+    bl_icon = 'IMAGE'
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
@@ -1028,8 +1033,7 @@ class No_Li_Fc(Node, ViNodes):
                         newrow(layout, 'Overlay exposure:', self, 'disp')
 
                     newrow(layout, 'Bands:', self, 'bands') 
-    
-#                if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
+
                 row = layout.row()
                 row.operator("node.livifc", text = 'Process')
             
@@ -1126,7 +1130,6 @@ class No_Li_Sim(Node, ViNodes):
         self.run = 0
     
     def presim(self):
-#        self.hide = 1
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
@@ -1152,7 +1155,6 @@ class No_Li_Sim(Node, ViNodes):
                     l.to_node.update()
 
         nodecolour(self, 0)
-#        self.hide = 0
 
 class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -1215,8 +1217,10 @@ class No_Vi_WR(Node, ViNodes):
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Colour:', context.scene.vi_params, 'vi_scatt_col')
             newrow(layout, 'Max frequency:', self, 'max_freq')
+
             if self.max_freq == '1':
                newrow(layout, 'Frequency:', self, 'max_freq_val') 
+
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose")
         else:
@@ -1258,12 +1262,14 @@ class No_Vi_SVF(Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Ignore sensor:', self, "signore")
         newrow(layout, 'Animation:', self, "animmenu")
+
         if self.animmenu != 'Static': 
             row = layout.row(align=True)
             row.alignment = 'EXPAND'
             row.label(text = 'Frames:')
             row.prop(self, 'startframe')
             row.prop(self, 'endframe')
+
         newrow(layout, 'Sky patches:', self, "skypatches")
         newrow(layout, 'Result point:', self, "cpoint")
         newrow(layout, 'Offset:', self, 'offset')
@@ -1404,13 +1410,12 @@ class No_En_Geo(Node, ViNodes):
     bl_idname = 'No_En_Geo'
     bl_label = 'EnVi Geometry'
     
-    geo_offset: FloatVectorProperty(name="", description="", default=(0.0, 0.0, 0.0), min=sys.float_info.min, max=sys.float_info.max, soft_min=sys.float_info.min, soft_max=sys.float_info.max, step=3, precision=1, subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
-#    def nodeupdate(self, context):
-#        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu)])
+    geo_offset: FloatVectorProperty(name="", description="", default=(0.0, 0.0, 0.0), min=sys.float_info.min, 
+                                    max=sys.float_info.max, soft_min=sys.float_info.min, soft_max=sys.float_info.max, step=3, precision=1, 
+                                    subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
     
     def init(self, context):
         self.outputs.new('So_En_Geo', 'Geometry out')
-#        self['exportstate'] = ''
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -1424,7 +1429,6 @@ class No_En_Geo(Node, ViNodes):
         
     def preexport(self, scene):
         pass
-#         objmode()
                
     def postexport(self):
         nodecolour(self, 0)
@@ -1498,7 +1502,6 @@ class No_En_Con(Node, ViNodes):
         self.outputs.new('So_En_Con', 'Context out')
         self.outputs.new('So_Anim', 'Parameter')
         self['exportstate'] = ''
-#        self['year'] = 2015
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -1539,7 +1542,6 @@ class No_En_Con(Node, ViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
-#            self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
     
     def preexport(self, scene):
         (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
@@ -1584,8 +1586,10 @@ class No_En_Sim(Node, ViNodes):
         elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
             if svp['enparams']['fe'] > svp['enparams']['fs']:
                 newrow(layout, 'Multi-core:', self, 'mp')
+
                 if self.mp:
                     newrow(layout, 'Processors:', self, 'processors')
+
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate')
@@ -1772,6 +1776,7 @@ class No_Vi_Chart(Node, ViNodes):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'    
+
                 valid = ['Vi Results']
 
             bpy.utils.register_class(ViEnRXIn)   
@@ -1813,7 +1818,7 @@ class No_Vi_Chart(Node, ViNodes):
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
 
-                valid: ['Vi Results']
+                valid = ['Vi Results']
                 (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, 
                 enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, 
                 powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'X-axis', zrl)
@@ -1853,7 +1858,7 @@ class No_Vi_Chart(Node, ViNodes):
                         bl_idname = 'ViEnRY1In'
                         bl_label = 'Y-axis 1'
 
-                        valid: ['Vi Results']
+                        valid = ['Vi Results']
                         (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, 
                         enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, 
                         powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 1', zrl)
@@ -2688,6 +2693,7 @@ class No_CSV(Node, ViNodes):
     '''CSV Export Node'''
     bl_idname = 'No_CSV'
     bl_label = 'VI CSV Export'
+    bl_icon = 'SPREADSHEET'
     
     animated: BoolProperty(name = '', description = 'Animated results', default = 0)
 
@@ -2719,6 +2725,7 @@ class So_Anim(NodeSocket):
     '''Vi Animation socket'''
     bl_idname = 'So_Anim'
     bl_label = 'Animation socket'
+
     valid = ['Animation']
 
     def draw(self, context, layout, node, text):
@@ -2734,6 +2741,7 @@ class So_Vi_Loc(NodeSocket):
     '''Vi Location socket'''
     bl_idname = 'So_Vi_Loc'
     bl_label = 'Location socket'
+
     valid = ['Location']
 
     def draw(self, context, layout, node, text):
@@ -2911,7 +2919,8 @@ class No_Flo_Case(Node, ViNodes):
         params = ''
     
         if self.buoyancy:
-            params += 't'            
+            params += 't'   
+
             if self.buossinesq:
                 params += 'b'
             if self.radiation:
@@ -2919,6 +2928,7 @@ class No_Flo_Case(Node, ViNodes):
                     params+= 'p'
                 else:
                     params+= 'f'
+
         if self.turbulence == 'laminar':
             params += 'l'
         elif self.turbulence == 'kEpsilon':
@@ -2942,7 +2952,7 @@ class No_Flo_Case(Node, ViNodes):
                                       ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
                                       ('kOmega', 'k-Omega', 'Transient turbulence solver'), 
                                       ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", 
-                             default = 'kEpsilon', update = nodeupdate)
+                                        default = 'kEpsilon', update = nodeupdate)
     buoyancy: BoolProperty(name = '', description = 'Thermal', default = 0, update = nodeupdate)
     radiation: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
     solar: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
@@ -3100,6 +3110,7 @@ class No_Flo_NG(Node, ViNodes):
     grading: FloatProperty(name = "", description = "Small to large cell inflation", min = 0, max = 5, default = 0.3, update = nodeupdate)
     processors: IntProperty(name = "", description = "Number of processers", min = 0, max = 32, default = 1, update = nodeupdate)
     optimisations: IntProperty(name = "", description = "Number of optimisation steps", min = 0, max = 32, default = 3, update = nodeupdate)
+    maxsteps: IntProperty(name = "", description = "Number of attempts", min = 0, max = 10, default = 3, update = nodeupdate)
     fang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 30, update = nodeupdate)
     geo_join: BoolProperty(name = '', description = 'Join Geometries', default = 0, update = nodeupdate)
     d_diff: BoolProperty(name = '', description = 'Extract geometries from domain', default = 0, update = nodeupdate)
@@ -3126,6 +3137,7 @@ class No_Flo_NG(Node, ViNodes):
                     newrow(layout, 'Distinction angle:', self, 'yang')
                     newrow(layout, 'Inflation:', self, 'grading')
                     newrow(layout, 'Optimisations:', self, 'optimisations')
+                    newrow(layout, 'Attempts:', self, 'maxsteps')
                     newrow(layout, 'Polygonal:', self, 'poly')
                     row = layout.row()
                     row.operator("node.flovi_ng", text = "Generate")
@@ -3315,16 +3327,16 @@ vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", labe
              NodeItem("No_Li_Sim", label="LiVi Simulation"), NodeItem("No_En_Sim", label="EnVi Simulation"), 
              NodeItem("No_Flo_Sim", label="FloVi Simulation")]
 
-vi_gen = []
 vi_anim = [NodeItem("No_Anim", label="Parametric")]
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_HMChart", label="Heatmap"), NodeItem("No_Vi_Metrics", label="Metrics")]
 vi_out = [NodeItem("No_CSV", label="CSV")]
-vi_image = [NodeItem("No_Vi_Im", label="Image"), NodeItem("No_Li_Im", label="LiVi Image"), 
+vi_image = [NodeItem("No_Li_Im", label="LiVi Image"), 
             NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
 
+# Names must be unique
 vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vi_out), 
-                     ViNodeCategory("Parametric", "Parametric Nodes", items=vi_anim),
+                     ViNodeCategory("ViPara", "Parametric Nodes", items=vi_anim),
                      ViNodeCategory("Edit", "Edit Nodes", items=vi_edit), 
                      ViNodeCategory("Image", "Image Nodes", items=vi_image), 
                      ViNodeCategory("Display", "Display Nodes", items=vi_display), 
@@ -3340,7 +3352,7 @@ class EnViNetwork(NodeTree):
     bl_idname = 'EnViN'
     bl_label = 'EnVi Network'
     bl_icon = 'FORCE_WIND'
-    nodetypes = {}
+#    nodetypes = {}
 
 class EnViNodes:
     @classmethod
@@ -3368,9 +3380,9 @@ class So_En_Net_Bound(NodeSocket):
     def ret_valid(self, node):
         return ['Boundary']
     
-class So_En_Sched(NodeSocket):
+class So_En_Net_Sched(NodeSocket):
     '''Fraction schedule socket'''
-    bl_idname = 'So_En_Sched'
+    bl_idname = 'So_En_Net_Sched'
     bl_label = 'Schedule socket'
     bl_color = (1.0, 1.0, 0.0, 0.75)
 
@@ -3568,35 +3580,7 @@ class So_En_Net_Sense(NodeSocket):
     
     def ret_valid(self, node):
         return ['Sensor']
-    
-#class So_En_Net_SFlow(NodeSocket):
-#    '''A surface flow socket'''
-#    bl_idname = 'So_En_Net_SFlow'
-#    bl_label = 'Surface flow socket'
-#
-#    sn = StringProperty()
-#    valid = ['Surface']
-#
-#    def draw(self, context, layout, node, text):
-#        layout.label(text)
-#
-#    def draw_color(self, context, node):
-#        return (1.0, 0.2, 0.2, 0.75)
-#
-#class So_En_Net_SSFlow(NodeSocket):
-#    '''A surface or sub-surface flow socket'''
-#    bl_idname = 'So_En_Net_SSFlow'
-#    bl_label = '(Sub-)Surface flow socket'
-#
-#    sn = StringProperty()
-#    valid = ['(Sub)Surface']
-#
-#    def draw(self, context, layout, node, text):
-#        layout.label(text)
-#
-#    def draw_color(self, context, node):
-#        return (1.0, 1.0, 0.2, 0.75)
-    
+       
 class No_En_Net_Zone(Node, EnViNodes):
     '''Node describing a simulation zone'''
     bl_idname = 'No_En_Net_Zone'
@@ -3608,21 +3592,10 @@ class No_En_Net_Zone(Node, EnViNodes):
         col = bpy.data.collections[self.zone]
 
         for obj in col.objects:  
-            # bm = bmesh.new()
-            # bm.from_mesh(obj.to_mesh())  
-            # obj.to_mesh_clear()         
             odm = [m.material for m in obj.material_slots]
-#            olinks = [(o.name, o.links[0].to_node.name, o.links[0].to_socket.name) for o in self.outputs if o.links and o.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
-#            ilinks = [(i.name, i.links[0].from_node.name, i.links[0].from_socket.name) for i in self.inputs if i.links and i.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]
-#            viuid = bm.faces.layers.int['viuid']
-#            bpy.data.meshes['Cube.001'].polygon_layers_int["viuid"]
             bfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con == 'Zone'], key=lambda face: -face.center[2])
-#            bsocklist = ['{}_{}_b_{}'.format(odm[face.material_index].name, face.index) for face in bfacelist]
-#            buidlist = [face[viuid] for face in bfacelist]
             sfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type not in ('Window', 'Door')], key=lambda face: -face.center[2])
-#            ssocklist = ['{}_{}_s_{}'.format(odm[face.material_index].name, face.index, face[viuid]) for face in sfacelist]
             ssfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type in ('Window', 'Door')], key=lambda face: -face.center[2])
-#            sssocklist = ['{}_{}_ss_{}'.format(odm[face.material_index].name, face.index, face[viuid]) for face in ssfacelist]
             [self.outputs.remove(oname) for oname in self.outputs if oname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and oname not in bsocklist + ssocklist + sssocklist]
             [self.inputs.remove(iname) for iname in self.inputs if iname.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow')]# and iname not in bsocklist + ssocklist + sssocklist]
             
@@ -3650,18 +3623,6 @@ class No_En_Net_Zone(Node, EnViNodes):
                 self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[ssface.index].value)   
                 self.inputs[-1].link_limit = 1        
 
-            # for olink in olinks:
-            #     try:
-            #         self.id_data.links.new(self.outputs[olink[0]], self.id_data.nodes[olink[1]].inputs[olink[2]])
-            #     except:
-            #         pass
-
-            # for ilink in ilinks:
-            #     try:
-            #         self.id_data.links.new(self.id_data.nodes[ilink[1]].outputs[ilink[2]], self.inputs[ilink[0]])
-            #     except:
-            #         pass
-            # bm.free()
         self.vol_update(context)
         self['nbound'] = len(bfacelist)
         self['nsflow'] = len(sfacelist)
@@ -3703,8 +3664,8 @@ class No_En_Net_Zone(Node, EnViNodes):
         self.inputs.new('So_En_Net_Occ', 'Occupancy')
         self.inputs.new('So_En_Net_Eq', 'Equipment')
         self.inputs.new('So_En_Net_Inf', 'Infiltration')
-        self.inputs.new('So_En_Sched', 'TSPSchedule')
-        self.inputs.new('So_En_Sched', 'VASchedule')
+        self.inputs.new('So_En_Net_Sched', 'TSPSchedule')
+        self.inputs.new('So_En_Net_Sched', 'VASchedule')
 
     def update(self):
         sflowdict = {'So_En_Net_SFlow': 'Envi surface flow', 'So_En_Net_SSFlow': 'Envi sub-surface flow'}
@@ -3795,15 +3756,6 @@ class No_En_Net_Zone(Node, EnViNodes):
         paramvs = (self.zone, self.control, tempschedname, mvof, lowerlim, upperlim, '0.0', '300000.0', vaschedname)
         return epentry('AirflowNetwork:MultiZone:Zone', params, paramvs)
     
-#    def tc_epwrite(self):
-#        params =  ('Name of Thermal Chimney System', 'Name of Thermal Chimney Zone',
-#                   'Availability Schedule Name', 'Width of the Absorber Wall',
-#                   'Cross Sectional Area of Air Channel Outlet', 'Discharge Coefficient',
-#                   'Zone Name 1', 'Distance from the Top of the Thermal Chimney to Inlet 1',
-#                   'Relative Ratios of Air Flow Rates Passing through Zone 1', 'Cross Sectional Areas of Air Channel Inlet 1',
-#                   'Zone Name 2', 'Distance from the Top of the Thermal Chimney to Inlet 2',
-#                   'Relative Ratios of Air Flow Rates Passing through Zone 2', ' Cross Sectional Areas of Air Channel Inlet 2')
-
 class No_En_Net_TC(Node, EnViNodes):
     '''Zone Thermal Chimney node'''
     bl_idname = 'No_En_Net_TC'
@@ -3845,7 +3797,7 @@ class No_En_Net_TC(Node, EnViNodes):
     odc: FloatProperty(name = '', min = 0.001, default = 0.6)
 
     def init(self, context):
-        self.inputs.new('So_En_Sched', 'Schedule')
+        self.inputs.new('So_En_Net_Sched', 'Schedule')
         self['zonenames'] = []
 
     def draw_buttons(self, context, layout):
@@ -3963,7 +3915,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
         self['ctdict'] = {'DualSetpoint': 4, 'SingleHeating': 1, 'SingleCooling': 2}
         self['limittype'] = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit', '4': ''}
         self.outputs.new('So_En_Net_Hvac', 'HVAC')
-        self.inputs.new('So_En_Sched', 'Schedule')
+        self.inputs.new('So_En_Net_Sched', 'Schedule')
         self.inputs.new('So_En_Net_TSched', 'HSchedule')
         self.inputs.new('So_En_Net_TSched', 'CSchedule')
 
@@ -4109,11 +4061,11 @@ class No_En_Net_Occ(Node, EnViNodes):
 
     def init(self, context):
         self.outputs.new('So_En_Net_Occ', 'Occupancy')
-        self.inputs.new('So_En_Sched', 'OSchedule')
-        self.inputs.new('So_En_Sched', 'ASchedule')
-        self.inputs.new('So_En_Sched', 'WSchedule')
-        self.inputs.new('So_En_Sched', 'VSchedule')
-        self.inputs.new('So_En_Sched', 'CSchedule')
+        self.inputs.new('So_En_Net_Sched', 'OSchedule')
+        self.inputs.new('So_En_Net_Sched', 'ASchedule')
+        self.inputs.new('So_En_Net_Sched', 'WSchedule')
+        self.inputs.new('So_En_Net_Sched', 'VSchedule')
+        self.inputs.new('So_En_Net_Sched', 'CSchedule')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_occtype")
@@ -4164,7 +4116,7 @@ class No_En_Net_Eq(Node, EnViNodes):
 
     def init(self, context):
         self.outputs.new('So_En_Net_Eq', 'Equipment')
-        self.inputs.new('So_En_Sched', 'Schedule')
+        self.inputs.new('So_En_Net_Sched', 'Schedule')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_equiptype")
@@ -4198,7 +4150,7 @@ class No_En_Net_Inf(Node, EnViNodes):
 
     def init(self, context):
         self.outputs.new('So_En_Net_Inf', 'Infiltration')
-        self.inputs.new('So_En_Sched', 'Schedule')
+        self.inputs.new('So_En_Net_Sched', 'Schedule')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_inftype")
@@ -4220,119 +4172,6 @@ class No_En_Net_Inf(Node, EnViNodes):
                 'Velocity Term Coefficient', 'Velocity Squared Term Coefficient')
         paramvs = [zn + '_infiltration', zn, zn + '_infsched', infildict[self.envi_inftype]] + inflist + [1, 0, 0, 0]
         return epentry('ZoneInfiltration:DesignFlowRate', params, paramvs)
-
-#class No_En_Net_TC(Node, EnViNodes):
-#    '''EnVi Thermal Chimney node'''
-#    bl_idname = 'No_En_Net_TC'
-#    bl_label = 'Chimney'
-#    bl_icon = 'SOUND'
-#
-#    def zupdate(self, context):
-#        zonenames= []
-#        obj = bpy.data.objects[self.zone]
-#        odm = obj.data.materials
-#        bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if get_con_node(odm[face.material_index]).envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
-#
-#        for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
-#            self.outputs.remove(oname)
-#            
-#        for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'EnViBoundSocket']:
-#            self.inputs.remove(iname)
-#            
-#        for sock in sorted(set(bsocklist)):
-#            if not self.outputs.get(sock):
-#                self.outputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
-#            if not self.inputs.get(sock):
-#                self.inputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
-#                
-#        for sock in (self.inputs[:] + self.outputs[:]):
-#            if sock.bl_idname == 'So_En_Net_Bound' and sock.links:
-#                zonenames += [(link.from_node.zone, link.to_node.zone)[sock.is_output] for link in sock.links]
-#
-#        nodecolour(self, all([get_con_node(mat).envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials if mat]))
-#        self['zonenames'] = zonenames
-#
-#    def supdate(self, context):
-#        self.inputs.new['Schedule'].hide = False if self.sched == 'Sched' else True
-#
-#    zone: StringProperty(name = '', default = "en_Chimney")
-#    sched: EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
-#    waw: FloatProperty(name = '', min = 0.001, default = 1)
-#    ocs: FloatProperty(name = '', min = 0.001, default = 1)
-#    odc: FloatProperty(name = '', min = 0.001, default = 0.6)
-#
-#    def init(self, context):
-#        self.inputs.new('So_En_Sched', 'Schedule')
-#        self['zonenames'] = []
-#
-#    def draw_buttons(self, context, layout):
-#        newrow(layout, 'Zone:', self, 'zone')
-#        newrow(layout, 'Schedule:', self, 'sched')
-#        newrow(layout, 'Width Absorber:', self, 'waw')
-#        newrow(layout, 'Outlet area:', self, 'ocs')
-#        newrow(layout, 'Outlet DC:', self, 'odc')
-#
-#        for z, zn in enumerate(self['zonenames']):
-#            row=layout.row()
-#            row.label(zn)
-#            row=layout.row()
-#            row.prop(self, '["Distance {}"]'.format(z))
-#            row=layout.row()
-#            row.prop(self, '["Relative Ratio {}"]'.format(z))
-#            row=layout.row()
-#            row.prop(self, '["Cross Section {}"]'.format(z))
-#
-#    def update(self):
-#        bi, bo = 1, 1
-#        zonenames, fheights, fareas = [], [], []
-#        for inp in [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound']:
-#            self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
-#
-#        for outp in [outp for outp in self.outputs if outp.bl_idname in 'So_En_Net_Bound']:
-#            self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
-#
-#        if [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound' and not inp.hide and not inp.links]:
-#            bi = 0
-#                
-#        if [outp for outp in self.outputs if outp.bl_idname == 'So_En_Net_Bound' and not outp.hide and not outp.links]:
-#            bo = 0
-#        
-#        nodecolour(self, not all((bi, bo)))
-#        
-#        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.bl_idname == 'So_En_Net_Bound']:
-#            if sock.links and self.zone in [o.name for o in bpy.data.objects]:
-#                zonenames += [link.to_node.zone for link in sock.links]
-#                fheights += [max([(bpy.data.objects[self.zone].matrix_world * vert.co)[2] for vert in bpy.data.objects[self.zone].data.vertices]) - (bpy.data.objects[link.to_node.zone].matrix_world * bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)].center)[2] for link in sock.links]
-#                fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in sock.links]
-#    
-#            self['zonenames'] = zonenames
-#            for z, zn in enumerate(self['zonenames']):
-#                self['Distance {}'.format(z)] = fheights[z]
-#                self['Relative Ratio {}'.format(z)] = 1.0
-#                self['Cross Section {}'.format(z)] = fareas[z]
-#                
-#        for sock in self.outputs:
-#            socklink(sock, self.id_data.name)
-#
-#    def uvsockupdate(self):
-#        for sock in self.outputs:
-#            socklink(sock, self.id_data.name)
-#            
-#            if sock.bl_idname == 'EnViBoundSocket':
-#                uvsocklink(sock, self.id_data.name)
-#                
-#    def epwrite(self):
-#        scheduled = 1 if self.inputs['Schedule'].links and not self.inputs['Schedule'].links[0].to_node.use_custom_color else 0
-#        paramvs = ('{}_TC'.format(self.zone), self.zone, ('', '{}_TCSched'.format(self.zone))[scheduled], self.waw, self.ocs, self.odc)
-#        params = ('Name of Thermal Chimney System', 'Name of Thermal Chimney Zone', 'Availability Schedule Name', 'Width of the Absorber Wall',
-#                  'Cross Sectional Area of Air Channel Outlet', 'Discharge Coefficient')
-#
-#        for z, zn in enumerate(self['zonenames']):
-#            params += (' Zone Name {}'.format(z + 1), 'Distance from the Top of the Thermal Chimney to Inlet {}'.format(z + 1), 'Relative Ratios of Air Flow Rates Passing through Zone {}'.format(z + 1),
-#                       'Cross Sectional Areas of Air Channel Inlet {}'.format(z + 1))
-#            paramvs += (zn, self['Distance {}'.format(z)], self['Relative Ratio {}'.format(z)], self['Cross Section {}'.format(z)])
-#
-#        return epentry('ZoneThermalChimney', params, paramvs)
 
 class No_En_Net_SSFlow(Node, EnViNodes):
     '''Sub-surface airflow node'''
@@ -4415,8 +4254,8 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     def init(self, context):
         self['init'] = 1
         self['ela'] = 1.0
-        self.inputs.new('So_En_Sched', 'VASchedule')
-        self.inputs.new('So_En_Sched', 'TSPSchedule')
+        self.inputs.new('So_En_Net_Sched', 'VASchedule')
+        self.inputs.new('So_En_Net_Sched', 'TSPSchedule')
         self.inputs['TSPSchedule'].hide = True
         self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 1
         self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
@@ -4933,7 +4772,7 @@ class No_En_Net_Sched(Node, EnViNodes):
     t4: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
 
     def init(self, context):
-        self.outputs.new('So_En_Sched', 'Schedule')
+        self.outputs.new('So_En_Net_Sched', 'Schedule')
         self['scheddict'] = {'TSPSchedule': 'Any Number', 'VASchedule': 'Fraction', 'Fan Schedule': 'Fraction', 'HSchedule': 'Temperature', 'CSchedule': 'Temperature'}
         self.tupdate(context)
         nodecolour(self, 1)
@@ -4948,8 +4787,6 @@ class No_En_Net_Sched(Node, EnViNodes):
             newrow(layout, 'Columns', self, 'cn')
             newrow(layout, 'Skip rows', self, 'rtsat')
             newrow(layout, 'Delimiter', self, 'delim')
-#        elif self.file == "2":
-#            newrow(layout, 'Generate', self, 'generate_file')
 
         if self.source != "1":        
             while uvals[u] and tvals[u] < 365:
@@ -4965,69 +4802,55 @@ class No_En_Net_Sched(Node, EnViNodes):
     def epwrite(self, name, stype):
         if self.source == '0':            
             schedtext, ths = '', []
+
             for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
                 if not schedtext:
                     for t in (self.t1, self.t2, self.t3, self.t4):
                         ths.append(t)
                         if t == 365:
                             break
-    #                ths = [self.t1, self.t2, self.t3, self.t4]
+    
                     fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
                     uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
                     ts, fs, us = rettimes(ths, fos, uns)
-                    
-    #                if self.file == '0':
                     schedtext = epschedwrite(name, stype, ts, fs, us)
             return schedtext
         else:
             params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
             paramvs = (name, 'Any number', bpy.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
             schedtext = epentry('Schedule:File', params, paramvs)
-            '''    Schedule:File,
-            elecTDVfromCZ01res, !- Name
-            Any Number, !- ScheduleType
-            TDV_kBtu_CTZ01.csv, !- Name of File
-            2, !- Column Number
-            4, !- Rows to Skip at Top
-            8760, !- Number of Hours of Data
-            Comma; !- Column Separator'''
             return schedtext
             
     def epwrite_sel_file(self, name):               
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
         schedtext = epentry('Schedule:File', params, paramvs)
-        '''    Schedule:File,
-        elecTDVfromCZ01res, !- Name
-        Any Number, !- ScheduleType
-        TDV_kBtu_CTZ01.csv, !- Name of File
-        2, !- Column Number
-        4, !- Rows to Skip at Top
-        8760, !- Number of Hours of Data
-        Comma; !- Column Separator'''
         return schedtext
     
     def epwrite_gen_file(self, name, data, newdir):
         schedtext, ths = '', []
+
         for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
             if not schedtext:
                 for t in (self.t1, self.t2, self.t3, self.t4):
                     ths.append(t)
                     if t == 365:
                         break
-#                ths = [self.t1, self.t2, self.t3, self.t4]
+
                 fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
                 uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
                 ts, fs, us = rettimes(ths, fos, uns)
+
         for t in ts:
             for f in fs:
                 for u in us:
                     for hi, h in enumerate((datetime.datetime(2015, 1, 1, 0, 00) - datetime.datetime(2014, 1, 1, 0, 00)).hours):
                         if h.day <= self.ts:
-#                            if f == 'Weekday'
                             data[hi] = 1
+
         with open(os.path.join(newdir, name), 'w') as sched_file:
             sched_file.write(',\n'.join([d for d in data]))
+
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim) 
         schedtext = epentry('Schedule:File', params, paramvs)    
@@ -5236,17 +5059,7 @@ envinode_categories = [EnViNodeCategory("Zone", "Zone Nodes", items=envi_zone),
                        EnViNodeCategory("Schedule_Net", "Schedule Nodes", items=envi_sched),
                        EnViNodeCategory("Airflow", "Airflow Nodes", items=envi_airflow),
                        EnViNodeCategory("EMS", "EMS Nodes", items=envi_ems),
-                       EnViNodeCategory("Parametric", "Parametric Nodes", items=envi_ems)]
-
-        
-#        EnViNodeCategory("Control", "Control Node", items=[NodeItem("AFNCon", label="Control Node"), NodeItem("EnViWPCA", label="WPCA Node"), NodeItem("EnViCrRef", label="Crack Reference")]),
-#        EnViNodeCategory("Nodes", "Zone Nodes", items=[NodeItem("EnViZone", label="Zone Node"), NodeItem("EnViExt", label="External Node"), NodeItem("EnViOcc", label="Ocupancy Node")
-#        , NodeItem("EnViEq", label="Equipment Node"), NodeItem("EnViHvac", label="HVAC Node"), NodeItem("EnViInf", label="Infiltration Node"), NodeItem("EnViTC", label="Thermal Chimney Node")]),
-#        EnViNodeCategory("LinkNodes", "Airflow Link Nodes", items=[
-#            NodeItem("EnViSSFlow", label="Sub-surface Flow Node"), NodeItem("EnViSFlow", label="Surface Flow Node")]),
-#        EnViNodeCategory("SchedNodes", "Schedule Nodes", items=[NodeItem("EnViSched", label="Schedule")]),
-#        EnViNodeCategory("EMSNodes", "EMS Nodes", items=[NodeItem("EnViProg", label="Program"), NodeItem("EnViEMSZone", label="Zone")])]
-
+                       EnViNodeCategory("EnNPara", "Parametric Nodes", items=envi_para)]
 
 class EnViMatNodes:
     @classmethod
@@ -5258,17 +5071,33 @@ class EnViMatNetwork(NodeTree):
     bl_idname = 'EnViMatN'
     bl_label = 'EnVi Material'
     bl_icon = 'IMGDISPLAY'
-    nodetypes = {}
+#    nodetypes = {}
     
 class EnViMatNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type == 'EnViMatN'
 
+class So_En_Mat_Sched(NodeSocket):
+    '''Fraction schedule socket'''
+    bl_idname = 'So_En_Mat_Sched'
+    bl_label = 'Schedule socket'
+    bl_color = (1.0, 1.0, 0.0, 0.75)
+
+    valid = ['Schedule']
+    schedule = ['Fraction']
+
+    def draw(self, context, layout, node, text):
+        layout.label(text = text)
+
+    def draw_color(self, context, node):
+        return (1.0, 1.0, 0.0, 0.75)
+
 class So_En_Mat_Op(NodeSocket):
     '''EnVi opaque layer socket'''
     bl_idname = 'So_En_Mat_Op'
     bl_label = 'Opaque layer socket'
+
     valid = ['OLayer']
 
     def draw(self, context, layout, node, text):
@@ -5284,6 +5113,7 @@ class So_En_Mat_Ou(NodeSocket):
     '''EnVi outer layer socket'''
     bl_idname = 'So_En_Mat_Ou'
     bl_label = 'Outer layer socket'
+
     valid = ['OLayer', 'Tlayer', 'ScreenLayer']
 
     def draw(self, context, layout, node, text):
@@ -5320,6 +5150,7 @@ class So_En_Mat_Fr(NodeSocket):
     '''EnVi frame socket'''
     bl_idname = 'So_En_Mat_Fr'
     bl_label = 'Window frame socket'
+
     valid = ['Olayer']
 
     def draw(self, context, layout, node, text):
@@ -5335,6 +5166,7 @@ class So_En_Mat_Gas(NodeSocket):
     '''EnVi gas layer socket'''
     bl_idname = 'So_En_Mat_Gas'
     bl_label = 'Gas layer socket'
+
     valid = ['GLayer']
 
     def draw(self, context, layout, node, text):
@@ -5350,6 +5182,7 @@ class So_En_Mat_Sh(NodeSocket):
     '''EnVi shade layer socket'''
     bl_idname = 'So_En_Mat_Sh'
     bl_label = 'Shade layer socket'
+
     valid = ['GLayer', 'Tlayer']
 
     def draw(self, context, layout, node, text):
@@ -5365,6 +5198,7 @@ class So_En_Mat_Sc(NodeSocket):
     '''EnVi screen layer socket'''
     bl_idname = 'So_En_Mat_Sc'
     bl_label = 'External screen layer socket'
+
     valid = ['ScreenLayer']
 
     def draw(self, context, layout, node, text):
@@ -5407,6 +5241,7 @@ class So_En_Mat_PV(NodeSocket):
     '''EnVi Photovoltaic socket'''
     bl_idname = 'So_En_Mat_PV'
     bl_label = 'PV socket'
+
     valid = ['PV']
 
     def draw(self, context, layout, node, text):
@@ -5419,6 +5254,7 @@ class So_En_Mat_PVG(NodeSocket):
     '''EnVi Photovoltaic generator socket'''
     bl_idname = 'So_En_Mat_PVG'
     bl_label = 'PV Generator socket'
+
     valid = ['PVG']
 
     def draw(self, context, layout, node, text):
@@ -5633,7 +5469,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         self.inputs['PV'].hide = True
         self.inputs.new('So_En_Mat_Ou', 'Outer layer')
         self.inputs['Outer layer'].hide = True
-        self.inputs.new('So_En_Sched', 'Schedule')
+        self.inputs.new('So_En_Mat_Sched', 'Schedule')
         self.inputs['Schedule'].hide = True
         self.inputs.new('So_En_Mat_Fr', 'Outer frame layer')
         self.inputs['Outer frame layer'].hide = True
@@ -6777,7 +6613,7 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         self.outputs.new('envi_sgl_sock', 'Layer')
         self.outputs['Layer'].hide = True
         self.outputs.new('So_En_Mat_ShC', 'Control')
-        self.inputs.new('So_En_Sched', 'Schedule')
+        self.inputs.new('So_En_Mat_Sched', 'Schedule')
 
     def draw_buttons(self, context, layout):
         newrow(layout, "Shading device:", self, 'ctype')
@@ -6929,7 +6765,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
             mat.vi_params['enparams'] = {'area' : -1} 
         self['area'] = 0
         self.inputs.new('So_En_Mat_PVG', 'PV Generator')
-        self.inputs.new('So_En_Sched', 'PV Schedule')
+        self.inputs.new('So_En_Mat_Sched', 'PV Schedule')
 #        self.inputs['PV Schedule'].hide = True
         self.outputs.new('So_En_Mat_PV', 'PV')
         
@@ -7054,11 +6890,8 @@ class No_En_Mat_PVG(Node, EnViMatNodes):
     rf: FloatProperty(name = "", description = "Fraction", min = 0, max = 1, default = 0.1)
     maxload: IntProperty(name = "", description = "Max Power (W)", max = 10, default = 1000)
     
-#    def elc_write()
-
     def init(self, context):
-        self.inputs.new('So_En_Sched', 'Schedule')
-#        self.inputs['PV Schedule'].hide = True
+        self.inputs.new('So_En_Mat_Sched', 'Schedule')
         self.outputs.new('So_En_Mat_PVG', 'PV Gen')
         
     def draw_buttons(self, context, layout):
@@ -7117,7 +6950,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
     (t1, t2, t3, t4) = [IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
 
     def init(self, context):
-        self.outputs.new('So_En_Sched', 'Schedule')
+        self.outputs.new('So_En_Net_Sched', 'Schedule')
         self['scheddict'] = {'TSPSchedule': 'Any Number', 'VASchedule': 'Fraction', 'Fan Schedule': 'Fraction', 'HSchedule': 'Temperature', 'CSchedule': 'Temperature'}
         self.tupdate(context)
         nodecolour(self, 1)

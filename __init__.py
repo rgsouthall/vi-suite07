@@ -15,7 +15,6 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
-#exec env LD_LIBRARY_PATH=/some/path/to/lib /path/to/specific/python -x "$0" "$@"
 
 bl_info = {
     "name": "VI-Suite",
@@ -103,7 +102,7 @@ else:
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
     from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op, No_En_Mat_Sched
-    from .vi_node import So_En_Net_Occ, So_En_Sched, No_En_Net_Sched, No_En_Sim, No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
+    from .vi_node import So_En_Net_Occ, So_En_Net_Sched, So_En_Mat_Sched, No_En_Net_Sched, No_En_Sim, No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
     from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Mat_Fr, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
@@ -353,7 +352,6 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
      resazlmaxf_disp, resazlminf_disp, resazlavef_disp,
      resazmaxshg_disp, resazminshg_disp, resazaveshg_disp,
      resaztshg_disp, resaztshgm_disp)  = aresnameunits() 
-#    envi_flink: bprop("", "Associate flow results with the nearest object", False)
     
 class VI_Params_Object(bpy.types.PropertyGroup): 
     # VI-Suite object definitions
@@ -374,7 +372,6 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     ies_colmenu: eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
     ies_rgb: fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
     ies_ct: iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
-#    licalc: bprop("", "", False)
     limerr: bprop("", "", False)
     manip: bprop("", "", False) 
     bsdf_proxy: bprop("", "", False)
@@ -633,12 +630,14 @@ def path_update():
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, os.pathsep, os.path.join(addonpath, 'RadFiles', 'lib'))
         else:
             os.environ["RAYPATH"] = radldir
+
         if radbdir not in os.environ["PATH"]:
             native_path = os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin')
             if native_path in os.environ["PATH"]:
                 os.environ["PATH"].replace(native_path, radbdir)
             else:
                os.environ["PATH"] += '{0}{1}'.format(os.pathsep, radbdir)
+
         os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(os.pathsep, epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin')) 
         sys.path.append(ofbdir)
         
@@ -649,7 +648,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            No_Vi_Im, No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
-           NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
+           NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Net_Sched, So_En_Mat_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
            No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Fr, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con, 
            So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
            No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, NODE_OT_Chart, NODE_OT_HMChart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Sched, No_En_Net_Inf,
@@ -661,7 +660,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, NODE_OT_Flo_BM, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
            No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col)
-                     
+                    
 def register():
     for cl in classes:
         bpy.utils.register_class(cl)
@@ -687,11 +686,11 @@ def register():
         
     path_update()
 
-def unregister():
+def unregister():    
     nodeitems_utils.unregister_node_categories("EnVi Material Nodes")
-    nodeitems_utils.unregister_node_categories("EnVi Nodes")
-    nodeitems_utils.unregister_node_categories("Vi Nodes")
-        
+    nodeitems_utils.unregister_node_categories("EnVi Nodes")  
+    nodeitems_utils.unregister_node_categories("Vi Nodes")      
+         
     for cl in reversed(classes):
         bpy.utils.unregister_class(cl)
 
@@ -703,61 +702,3 @@ def unregister():
         
     if update_dir in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_dir)
-
-
-#    ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'lib')
-#    ofedir = os.path.abspath(vi_prefs.ofetc) if vi_prefs and os.path.isdir(vi_prefs.ofetc) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform))
-#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
-#    os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], '/opt/OpenFOAM/OpenFOAM-8/bin')
-#    if vi_prefs and os.path.isdir(vi_prefs.ofbin):
-#        print('PATH')
-#        os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.abspath(ofbdir))
-#         
-        # if not os.environ.get("LD_LIBRARY_PATH"):
-        #     os.environ["LD_LIBRARY_PATH"] = "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
-        # else:
-        #     os.environ["LD_LIBRARY_PATH"] += "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
-#        os.environ["WM_PROJECT_DIR"] = ofedir
-    # if sys.platform == 'linux' and os.path.isfile(os.path.join(ofedir, 'bashrc')):
-    #     Popen(shlex.split('/bin/sh {}'.format(os.path.join(ofedir, 'bashrc'))))
-    #     Popen('/opt/OpenFOAM/OpenFOAM-8/etc/bashrc', shell=True, executable="/bin/bash")
-    # if sys.platform =='win32' and os.path.isfile(os.path.join(ofedir, 'batchrc.bat')):
-    #     print(os.path.join(ofedir, 'batchrc.bat'))
-    #     call(os.path.join(ofedir, 'batchrc.bat')) 
-        
-
-#def tupdate(self, context):
-#    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
-#        o.show_transparent = 1
-#    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_leg_levels + 1)]:
-#        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
-#    cmap(self)
-#        
-#def wupdate(self, context):
-#    o = context.active_object
-#    if o and o.type == 'MESH':
-#        (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_disp_wire else (0, 0)
-#
-#    
-#def liviresupdate(self, context):
-#    setscenelivivals(context.scene)
-#    for o in [o for o in bpy.data.objects if o.lires]:
-#        o.lividisplay(context.scene)  
-#    e_update(self, context)
-#
-#def script_update(self, context):
-#    if context.scene.vi_params.vi_res_process == '2':
-#        script = bpy.data.texts[context.scene.script_file]
-#        exec(script.as_string())
-
-# @persistent
-# def clear_modals(dummy):
-#     if bpy.context.scene.vi_params.vi_display:
-#         bpy.context.scene.vi_params.vi_display = 0
-#         bpy.context.area.tag_redraw()
-# #        time.sleep(1)
-# #    for mod in bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_wrnum, 'WINDOW')
-#         print("Turning off display")
-
-
-# bpy.app.handlers.load_pre.append(clear_modals)
