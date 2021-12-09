@@ -45,7 +45,7 @@ from PyQt5.QtGui import QImage, QColor
 
 try:
     import netgen
-    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep
     from netgen.stl import STLGeometry
     from pyngcore import SetNumThreads, TaskManager
 
@@ -2896,8 +2896,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         svp = scene.vi_params
         self.vl = context.view_layer
         self.expnode = context.node
-#        self.maxcs = expnode.maxcs
-        
+        self.curcoll = context.collection
         meshcoll = create_coll(context, 'FloVi Mesh')
         clear_coll(context, meshcoll)
         dp = bpy.context.evaluated_depsgraph_get()
@@ -2953,7 +2952,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             mats = []
             fds = []
             
-
             if self.expnode.geo_join and gobs:
                 for d in gobs[1:]:
                     ubool = gobs[0].modifiers.new(name='union', type='BOOLEAN')
@@ -3032,7 +3030,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #                ngpyfile.write("m = geo.GenerateMesh(mp = mp)\n") 
 
                 with TaskManager():
-                    m = geo.GenerateMesh(mp = mp)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
+                    m = geo.GenerateMesh(mp = mp, perfstepsend=MeshingStep.MESHSURFACE)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
                 
 #                ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
 
@@ -3085,15 +3083,24 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #            totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
             ngpyfile.write("totmesh.Export('{}', format='Neutral Format')".format(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))
 #            totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
+        self.expnode.running = 1
         self.ng_mesh = Popen(shlex.split('{} {}'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout = PIPE)  
-        self._timer = context.window_manager.event_timer_add(5, window = context.window)
+        self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+        self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Volume Mesh')
+        self._timer = context.window_manager.event_timer_add(2, window = context.window)
 #        wm.modal_handler_add(self)       
         context.window_manager.modal_handler_add(self)
         return{'RUNNING_MODAL'}
 
     def modal(self, context, event): 
         if self.ng_mesh.poll() is None:
-            return{'PASS_THROUGH'}
+            if self.kivyrun.poll() is None:
+                return{'PASS_THROUGH'}
+            else:
+                self.ng_mesh.kill()
+                self.kivyrun.kill()
+                self.expnode.running = 0
+                return{'CANCELLED'}
         else: 
             st = '0'
             pdm_error = 0
@@ -3197,6 +3204,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #        except Exception as e:
 #                logentry("Netgen error: {}".format(e))
 #                return {'CANCELLED'}
+            self.kivyrun.kill()
+            create_coll(context, self.curcoll.name)
+            self.expnode.running = 0
             return {'FINISHED'}
     
 class NODE_OT_Flo_Bound(bpy.types.Operator):

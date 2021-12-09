@@ -3059,7 +3059,7 @@ class No_Flo_Case(Node, ViNodes):
                     newrow(layout, 'G value:', self, 'Gval')
 
             newrow(layout, 'Nut Value:', self, 'nutval')
-#        newrow(layout, 'Pressure rel:', self, 'pnormval')     
+  
         newrow(layout, 'Velocity val:', self, 'uval')    
         newrow(layout, 'p Residual:', self, 'presid')
         newrow(layout, 'U Residual:', self, 'uresid')
@@ -3114,6 +3114,7 @@ class No_Flo_NG(Node, ViNodes):
     fang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 30, update = nodeupdate)
     geo_join: BoolProperty(name = '', description = 'Join Geometries', default = 0, update = nodeupdate)
     d_diff: BoolProperty(name = '', description = 'Extract geometries from domain', default = 0, update = nodeupdate)
+    running: BoolProperty(name = '', description = '', default = 0) 
 
     def init(self, context):
         self['exportstate'] = ''
@@ -3139,8 +3140,10 @@ class No_Flo_NG(Node, ViNodes):
                     newrow(layout, 'Optimisations:', self, 'optimisations')
                     newrow(layout, 'Attempts:', self, 'maxsteps')
                     newrow(layout, 'Polygonal:', self, 'poly')
-                    row = layout.row()
-                    row.operator("node.flovi_ng", text = "Generate")
+
+                    if not self.running:
+                        row = layout.row()
+                        row.operator("node.flovi_ng", text = "Generate")
                 else:
                     row = layout.row()
                     row.label(text = 'Netgen not found')
@@ -3151,6 +3154,7 @@ class No_Flo_NG(Node, ViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+        self.running = 0
 
     def post_export(self):
         self['exportstate'] = self.ret_params()

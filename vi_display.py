@@ -2115,7 +2115,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
         for sun in suns:
             sunbm = bmesh.new()
-            bmesh.ops.create_uvsphere(sunbm, u_segments = 12, v_segments = 12, diameter = dia, matrix = sun.matrix_world, calc_uvs = 0)
+            bmesh.ops.create_uvsphere(sunbm, u_segments = 12, v_segments = 12, radius = dia, matrix = sun.matrix_world, calc_uvs = 0)
             bmesh.ops.triangulate(sunbm, faces = sunbm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
             sun_v_coords += [v.co[:] for v in sunbm.verts]
             sun_f_indices += [[v.index for v in face.verts] for face in sunbm.faces]
@@ -2126,7 +2126,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         midalt = solarPosition(79, 12, lat, long)[2]
         globebm = bmesh.new()
         altrot = mathutils.Matrix().Rotation(midalt, 4, 'X')
-        bmesh.ops.create_uvsphere(globebm, u_segments = 48, v_segments = 48, diameter = 100, 
+        bmesh.ops.create_uvsphere(globebm, u_segments = 48, v_segments = 48, radius = 100, 
                                   matrix = altrot, calc_uvs = 0)        
         bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.01, 
                                plane_co = (0, 0, 0), plane_no = (0, 0, 1), use_snap_center = False, clear_outer = False, clear_inner = True)
@@ -3126,6 +3126,8 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         except Exception as e:
             logentry('Quitting LiVi display {}'.format(e))
             context.scene.vi_params.vi_display = 0
+
+#        return context
 
 
 #class svf_legend(Base_Display):
