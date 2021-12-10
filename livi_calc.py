@@ -115,7 +115,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
     kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Lighting')
     reslists = []
-    obs = [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+    obs = [o for o in bpy.data.objects if o.vi_type_string == 'LiVi Calc']
 
     for oi, o in enumerate(obs):
         ovp = o.vi_params

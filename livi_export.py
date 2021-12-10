@@ -125,7 +125,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
     bm.free()       
     return gradfile
 
-def radgexport(export_op, node, **kwargs):
+def radgexport(export_op, node):
     dp = bpy.context.evaluated_depsgraph_get()
     mats = bpy.data.materials
     scene = bpy.context.scene
@@ -161,8 +161,9 @@ def radgexport(export_op, node, **kwargs):
             del ovp[k]
         
         if o in caloblist:
-            o.vi_params['rtpoints'] = {}
-            o.vi_params['lisenseareas'] = {}
+            ovp['rtpoints'] = {}
+            ovp['lisenseareas'] = {}
+            ovp.vi_type_string = 'LiVi Calc'
         
         o.vi_params.vi_type = ovt
 
@@ -190,10 +191,12 @@ def radgexport(export_op, node, **kwargs):
           
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
+
                 if frame == frames[0]:
                     clearlayers(bm, 'a')                                    
                     geom.layers.int.new('cindex')
                     o.vi_params['cpoint'] = node.cpoint
+
                 geom.layers.string.new('rt{}'.format(frame))
                 ovp.rtpoints(bm, node.offset, str(frame))
                 bm.transform(o.matrix_world.inverted())
@@ -340,11 +343,11 @@ def livi_sun(scene, node, frame):
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, svp.latitude, svp.longitude)
         
         if node.skyprog == '0':
-            gscmd = "gensky -ang {} {} {} -t {} -g {}".format(solalt, solazi, node['skytypeparams'], node.turb, node.gref)            
+            gscmd = "gensky -ang {:.3f} {:.3f} {} -t {} -g {}".format(solalt, solazi, node['skytypeparams'], node.turb, node.gref)            
         else:
-            gscmd = "gendaylit -ang {} {} {} -g {}".format(solalt, solazi, node['skytypeparams'], node.gref)
+            gscmd = "gendaylit -ang {:.3f} {:.3f} {} -g {}".format(solalt, solazi, node['skytypeparams'], node.gref)
     else:
-        gscmd = "gensky -ang {} {} {} -g {}".format(45, 0, node['skytypeparams'], node.gref)
+        gscmd = "gensky -ang {:.3f} {:.3f} {} -g {}".format(45, 0, node['skytypeparams'], node.gref)
         
     logentry('Generating sky with the command: {}'.format(gscmd))
     gsrun = Popen(gscmd.split(), stdout = PIPE) 

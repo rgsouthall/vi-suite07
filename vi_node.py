@@ -1120,7 +1120,7 @@ class No_Li_Sim(Node, ViNodes):
                     if self.camera != 'None':
                         row.operator("node.radpreview", text = 'Preview')
     
-                if [o for o in scene.objects if o.name in svp['liparams']['livic']]:
+                if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
                     row = layout.row()
                     row.operator("node.livicalc", text = 'Calculate')
 

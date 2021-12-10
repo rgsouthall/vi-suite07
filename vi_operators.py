@@ -1274,7 +1274,9 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     
                     with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f), 'w') as imfile:
                         self.rpruns.append(Popen(shlex.split(self.rpictcmds[len(self.rpruns)]), stdout=imfile, stderr = PIPE))
-
+                    
+                    logentry('rpict command: {}'.format(self.rpictcmds[self.frame - self.fs]))
+                    
                 try:
                     if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
                         if os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)) not in self.images:
@@ -1389,8 +1391,10 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.reslists, self.images = [], []
             self.res = []
             self.rpictfile = os.path.join(svp['viparams']['newdir'], 'rpictprogress')
+
             if os.path.isfile(self.rpictfile):
                 os.remove(self.rpictfile)
+
             self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
             simnode.presim()
             svp['liparams']['fs'], svp['liparams']['fe'] =  simnode.retframes()
@@ -1415,6 +1419,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             for frame in range(self.fs, self.fe + 1):
                 createradfile(scene, frame, self, simnode)
                 createoconv(scene, frame, self, simnode)
+
                 with open('{}-{}'.format(self.pmfile, frame), 'w'):
                     pass
                 

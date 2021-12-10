@@ -221,8 +221,8 @@ def li_display(context, disp_op, simnode):
 
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 
-    for geo in scene.objects:
-        geo.vi_params.vi_type_string == ''
+    for geo in context.view_layer.objects:
+#        geo.vi_params.vi_type_string == ''
         context.view_layer.objects.active = geo
         
         if getattr(geo, 'mode') != 'OBJECT':
@@ -233,7 +233,7 @@ def li_display(context, disp_op, simnode):
     if not bpy.app.handlers.frame_change_post:
         bpy.app.handlers.frame_change_post.append(livi_export.cyfc1)
         
-    for o in scene.objects:
+    for o in context.view_layer.objects:
         if o.type == "MESH" and o.vi_params.vi_type_string == 'LiVi Calc' and o.hide_viewport == False:
             bpy.ops.object.select_all(action = 'DESELECT')
             obcalclist.append(o)
