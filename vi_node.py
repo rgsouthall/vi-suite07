@@ -2298,21 +2298,76 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 elif self.metric == '1':
                     if self.light_menu == '0':
+                        areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF'] 
+                        avDF = 'N/A' if self['res']['avDF'] < 0 else self['res']['avDF'] 
+                        minDF = 'N/A' if self['res']['minDF'] < 0 else self['res']['minDF'] 
+                        ratioDF = 'N/A' if self['res']['ratioDF'] < 0 else self['res']['ratioDF'] 
+                        credits = 0
                         newrow(layout, 'Space:', self, "breeam_menu")
-                        if self.breeam_menu == '0':
-                            newrow(layout, 'Education space:', self, "breeam_edumenu")
-                        elif self.breeam_menu == '1':
-                            newrow(layout, 'Health space:', self, "breeam_healthmenu")
-                        elif self.breeam_menu == '2':
-                            newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
-                        elif self.breeam_menu == '3':
-                            newrow(layout, 'Retail space:', self, "breeam_retailmenu")
-                        elif self.breeam_menu == '4':
-                            newrow(layout, 'Other space:', self, "breeam_othermenu")
 
-                        areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']                    
+                        if 'N/A' not in (areaDF, avDF):
+                            if self.breeam_menu == '0':
+                                if avDF >= 2 and ratioDF >= 0.3:
+                                    newrow(layout, 'Education space:', self, "breeam_edumenu")
+                                    if self.breeam_edumenu == '0':
+                                        if areaDF >= 80:
+                                            credits = 2
+                                    elif self.breeam_edumenu == '1':
+                                        if areaDF >= 60:
+                                            credits = 1
+                                        if areaDF >= 80:
+                                            credits = 2
+                            elif self.breeam_menu == '1':
+                                if ratioDF >= 0.3:
+                                    newrow(layout, 'Health space:', self, "breeam_healthmenu")
+                                    if self.breeam_healthmenu == '0':
+                                        if avDF >= 2 and areaDF >= 80:
+                                            credits = 2
+                                    elif self.breeam_healthmenu == '1':
+                                        if avDF >= 3 and areaDF >= 80:
+                                            credits = 2
+                            elif self.breeam_menu == '2':
+                                if ratioDF >= 0.3:
+                                    newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
+                                    if avDF >=2 and areaDF >= 80:
+                                        credits = 1
+
+                            elif self.breeam_menu == '3':
+                                newrow(layout, 'Retail space:', self, "breeam_retailmenu")
+                                if self.breeam_retailmenu == '0':
+                                    if areaDF >= 35:
+                                        credits = 1
+                                elif self.breeam_retailmenu == '1':
+                                    if areaDF >= 80 and ratioDF >= 0.3 and avDF >= 2:
+                                        credits = 1
+                            elif self.breeam_menu == '4':
+                                newrow(layout, 'Other space:', self, "breeam_othermenu")
+                                if self.breeam_othermenu == '0':
+                                    if avDF >= 1.5 and areaDF >= 80:
+                                        credits = 1
+                                elif self.breeam_othermenu == '1':
+                                    if avDF >= 3 and areaDF >= 80 and (ratioDF >= 0.7 or minDF > 2.1):
+                                        credits = 1
+                                elif self.breeam_othermenu == '2':
+                                    if avDF >= 3 and areaDF >= 80:
+                                        credits = 1
+                                elif self.breeam_othermenu == '3':
+                                    if avDF >= 2 and areaDF >= 80:
+                                        credits = 1
+                                elif self.breeam_othermenu == '4':
+                                    if avDF >= 2 and areaDF >= 80:
+                                        credits = 1
+
+                        row = layout.row()
+                        row.label(text = "Average DF: {}%".format(avDF))
+                        row = layout.row()
+                        row.label(text = "Minimum DF: {}%".format(minDF))
+                        row = layout.row()
+                        row.label(text = "Uniformity: {}".format(ratioDF))
                         row = layout.row()
                         row.label(text = "Compliant area: {}%".format(areaDF))
+                        row = layout.row()
+                        row.label(text = "Credits: {}".format(credits))
                         
                     elif self.light_menu == '1':
                         newrow(layout, 'Healthcare', self, 'leed_menu')
@@ -2513,7 +2568,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['auto'] = -1
             self['res']['o1'] = -1
             self['res']['areaDF'] = -1
-            self['res']['ratioDF'] = -1
+            self['res']['minDF'] = -1
             
 
             if self.light_menu == '0':
@@ -2573,7 +2628,8 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     self['res']['areaDF'] = round(100 * rarea/nsum(dfareas), 2)
                     self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
-                
+                    self['res']['minDF'] = min(df)
+
                 except Exception as e:
                     print(e)
 

@@ -2085,30 +2085,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
             blf.disable(0, 4)
         else:
             return
-        
-    def modal(self, context, event):
-        scene = context.scene
-        svp = scene.vi_params
-       
-        if context.area:
-            context.area.tag_redraw()
-            
-        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp' or not context.scene.objects.get('SPathMesh'):
-            try:
-                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
-                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
-            except:
-                pass
-            svp.vi_display = 0
-            svp['viparams']['vidisp'] = ''
-            
-            for h in bpy.app.handlers.frame_change_post:
-                bpy.app.handlers.frame_change_post.remove(h)
-                
-            [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.vi_params.get('VIType') and o.vi_params['VIType'] in ('SunMesh', 'SkyMesh')]
-            context.view_layer.layer_collection.children[self.spcoll.name].exclude = 1
-            return {'CANCELLED'}
-        return {'PASS_THROUGH'}
     
     def ret_sun_geometry(self, dia, suns):
         sun_v_coords, sun_f_indices = [], []
@@ -2200,6 +2176,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         node = context.node
         scene.display.shadow_focus = 1
         svp = scene.vi_params
+        svp.vi_display = 0
         svp['viparams'] = {}
         svp['spparams'] = {}
         svp['spparams']['suns'] = node.suns
@@ -2302,6 +2279,32 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp.vi_display = 1
         rendview(1)
         return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        scene = context.scene
+        svp = scene.vi_params
+       
+        if context.area:
+            context.area.tag_redraw()
+        print(svp.vi_display, svp['viparams']['vidisp'], context.scene.objects.get('SPathMesh'))    
+        if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp' or not context.scene.objects.get('SPathMesh'):
+            try:
+                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
+                bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_spnum, 'WINDOW')
+            except:
+                pass
+
+            svp.vi_display = 0
+#            svp['viparams']['vidisp'] = ''
+            
+            for h in bpy.app.handlers.frame_change_post:
+                bpy.app.handlers.frame_change_post.remove(h)
+                
+            [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.vi_params.get('VIType') and o.vi_params['VIType'] in ('SunMesh', 'SkyMesh')]
+            context.view_layer.layer_collection.children[self.spcoll.name].exclude = 1
+            return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
         
 class wr_scatter(Base_Display):
     def __init__(self, context, pos, width, height, xdiff, ydiff):

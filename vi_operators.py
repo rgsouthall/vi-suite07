@@ -1218,6 +1218,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         #         return {'CANCELLED'}
 
         svp['viparams']['vidisp'] = 'li'
+        print('disp', svp['viparams']['vidisp'])
         svp['viparams']['resnode'] = self.simnode.name
         svp['viparams']['restree'] = self.simnode.id_data.name   
         context.window_manager.modal_handler_add(self)    

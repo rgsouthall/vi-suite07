@@ -85,7 +85,7 @@ class VI_PT_3D(bpy.types.Panel):
                 if svp.vi_scatt_min == '1':
                     newrow(layout, 'Min value:', svp, 'vi_scatt_min_val')
 
-                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh') 
+#                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh') 
                 
             elif svp['viparams']['vidisp'] == 'sp' and svp.vi_display:
                 row = layout.row()
@@ -185,7 +185,7 @@ class VI_PT_3D(bpy.types.Panel):
                                 
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
-                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
+#                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
                                             
             if svp.vi_display:            
                 newrow(layout, 'Display active', svp, 'vi_display')
