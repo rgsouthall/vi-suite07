@@ -29,8 +29,9 @@ from .livi_func import setscenelivivals
 from .livi_export import spfc
 from .vi_dicts import res2unit, unit2res
 from . import livi_export
+from .vi_svg import vi_info
 from math import pi, log10, atan2, sin, cos
-from numpy import array, repeat, logspace, multiply, digitize
+from numpy import array, repeat, logspace, multiply, digitize, frombuffer, ubyte, float32
 from numpy import min as nmin
 from numpy import max as nmax
 from numpy import sum as nsum
@@ -38,6 +39,7 @@ from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
 from bpy.app.handlers import persistent
+from PyQt5.QtGui import QImage
 
 try:
     import matplotlib
@@ -3130,6 +3132,59 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             logentry('Quitting LiVi display {}'.format(e))
             context.scene.vi_params.vi_display = 0
 
+class NODE_OT_Vi_Info(bpy.types.Operator):
+    '''Display result infographics'''
+    bl_idname = "node.vi_info"
+    bl_label = "Inforgraphic display"
+    bl_description = "Display infographics"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        dim = 1000
+        node = context.node
+        imname , svg_bytes = vi_info(node, dim)
+#        svg_bytes = bytearray(svg_str, encoding='utf-8')
+        image = QImage.fromData(svg_bytes)
+#        image.save('/home/ryan/test.png')
+        image = image.convertToFormat(17)
+        image = image.mirrored(1)
+        bs = image.bits()
+        bs.setsize(image.byteCount())
+        strbs = bs.asstring()
+        buf = memoryview(bs)
+        arr = frombuffer(buf, dtype = ubyte).astype(float32)
+#        imname = "test.png"
+        ipheight, ipwidth = dim, dim     
+        
+        if imname not in [im.name for im in bpy.data.images]:
+            bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True, generated_type='BLANK', float=False, use_stereo_3d=False)
+            im = bpy.data.images[imname]
+
+        else:
+            im = bpy.data.images[imname] 
+            im.gl_free()
+            im.buffers_free()
+
+            if (im.generated_width, im.generated_height) != (ipwidth, ipheight):
+                im.generated_width = ipwidth
+                im.generated_height = ipheight
+
+            if im.size[:] != (ipwidth, ipheight):
+                im.scale(ipwidth, ipheight)
+            
+        im.pixels.foreach_set((arr/255))
+        area = context.area
+        t = area.type
+        area.type = 'IMAGE_EDITOR'
+        area.spaces.active.image = im
+        bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
+        win = bpy.context.window_manager.windows[-1]
+        #win.screen.areas[0].width = 200
+        win.screen.areas[0].spaces[0].show_region_header = 0
+        win.screen.areas[0].spaces[0].show_region_ui = 0
+        area.type = t
+        return {'FINISHED'}
 #        return context
 
 
