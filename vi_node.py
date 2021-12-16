@@ -2461,7 +2461,6 @@ class No_Vi_Metrics(Node, ViNodes):
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
-            print([z[0] for z in self['rl']])
             frames = list(dict.fromkeys([z[0] for z in self['rl']]))
             self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
             znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone'])))
@@ -2570,7 +2569,6 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['areaDF'] = -1
             self['res']['minDF'] = -1
             
-
             if self.light_menu == '0':
                 if self.breeam_menu == '0':
                     mDF = 2
@@ -2628,7 +2626,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     self['res']['areaDF'] = round(100 * rarea/nsum(dfareas), 2)
                     self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
-                    self['res']['minDF'] = min(df)
+                    self['res']['minDF'] = round(min(df), 2)
 
                 except Exception as e:
                     print(e)
