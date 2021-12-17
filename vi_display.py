@@ -3141,14 +3141,15 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        dim = 1000
+        dim = 800
         node = context.node
-        imname , svg_bytes = vi_info(node, dim)
+        imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratio'], aDF = node['res']['avDF'])
 #        svg_bytes = bytearray(svg_str, encoding='utf-8')
         image = QImage.fromData(svg_bytes)
 #        image.save('/home/ryan/test.png')
         image = image.convertToFormat(17)
-        image = image.mirrored(1)
+        image = image.mirrored(0, 1)
+#        image = image.mirrored(0)
         bs = image.bits()
         bs.setsize(image.byteCount())
         strbs = bs.asstring()

@@ -2459,8 +2459,9 @@ class No_Vi_Metrics(Node, ViNodes):
                             row.label(text = "CO2 data not available")
 
         if self.metric == '1' and self.light_menu == '2':
-            row = layout.row()
-            row.operator('node.vi_info', text = 'Infographic')
+            if self['res']['ratioDF'] >= 0:
+                row = layout.row()
+                row.operator('node.vi_info', text = 'Infographic')
 
     def update(self):
         if self.inputs[0].links:
