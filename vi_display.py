@@ -2288,7 +2288,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
        
         if context.area:
             context.area.tag_redraw()
-        print(svp.vi_display, svp['viparams']['vidisp'], context.scene.objects.get('SPathMesh'))    
+ 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp' or not context.scene.objects.get('SPathMesh'):
             try:
                 bpy.types.SpaceView3D.draw_handler_remove(self.draw_handle_sp, "WINDOW")
@@ -2297,8 +2297,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 pass
 
             svp.vi_display = 0
-#            svp['viparams']['vidisp'] = ''
-            
+
             for h in bpy.app.handlers.frame_change_post:
                 bpy.app.handlers.frame_change_post.remove(h)
                 
@@ -3143,7 +3142,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
     def execute(self, context):
         dim = 800
         node = context.node
-        imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratio'], aDF = node['res']['avDF'])
+        imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratioDF'], aDF = node['res']['avDF'])
 #        svg_bytes = bytearray(svg_str, encoding='utf-8')
         image = QImage.fromData(svg_bytes)
 #        image.save('/home/ryan/test.png')
