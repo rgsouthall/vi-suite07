@@ -312,7 +312,7 @@ class No_Li_Con(Node, ViNodes):
                 self.ehour = self.shour
         
         self['skynum'] = int(self.skymenu)         
-        suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN'] 
+        suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.visible_get()] 
                 
         if self.contextmenu == 'Basic' and ((self.skyprog == '0' and self['skynum'] < 2) or (self.skyprog == '1' and self.epsilon > 1)):
             starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)                                       
@@ -533,6 +533,10 @@ class No_Li_Con(Node, ViNodes):
         elif self.inputs['Location in'].links and self.inputs['Location in'].links[0].from_node.loc == '1' and self.inputs['Location in'].links[0].from_node.weather != 'None':
             row = layout.row()
             row.operator("node.liexport", text = "Export")
+        else:
+            row = layout.row()
+            row.label(text = "ERROR: No valid EPW file")
+
 
     def update(self):
         for sock in self.outputs:
@@ -559,11 +563,11 @@ class No_Li_Con(Node, ViNodes):
             (sdoy, edoy) = (self.sdoy, self.edoy)
         elif self.contextmenu == 'CBDM':
             if self.cbanalysismenu == '2' and self.leed4:
-                (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour) 
+                (shour, ehour) = (self.cbdm_start_hour - 1, self.cbdm_end_hour - 1) 
             elif self.ay:
-                (shour, ehour) = (1, 24) 
+                (shour, ehour) = (0, 23) 
             else:
-                (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour) 
+                (shour, ehour) = (self.cbdm_start_hour - 1, self.cbdm_end_hour - 1) 
             (sdoy, edoy) = (self.sdoy, self.edoy) if not self.ay else (1, 365)
 
         interval = 1     
@@ -584,7 +588,9 @@ class No_Li_Con(Node, ViNodes):
             ctime += datetime.timedelta(hours = interval)
             
             if self.contextmenu == 'CBDM':
-                if shour <= ctime.hour < ehour:
+                
+                if shour <= ctime.hour <= ehour:
+                    print(ctime.hour, ehour)
                     times.append(ctime)
             else:
                 times.append(ctime)
@@ -603,6 +609,7 @@ class No_Li_Con(Node, ViNodes):
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.animated else scene.frame_current
         self['mtxfile'] = ''
+        self['mtxfilens'] = ''
         self['preview'] = 0
         
         if self.contextmenu == "Basic":  
@@ -655,7 +662,8 @@ class No_Li_Con(Node, ViNodes):
         
         elif self.contextmenu == "CBDM":
             if (self.cbanalysismenu =='0' and self.sourcemenu == '0') or (self.cbanalysismenu != '0' and self.sourcemenu2 == '0'):
-                self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
+                (self['mtxfile'], self['mtxfilens']) = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
+
             elif self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
                 self['mtxfile'] = self.mtxname
 
@@ -688,7 +696,7 @@ class No_Li_Con(Node, ViNodes):
             'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': csh, 
             'cbdm_eh': ceh, 'cbdm_sd': sdoy, 'cbdm_ed': edoy, 'weekdays': (7, 5)[self.weekdays], 
             'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-            'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 
+            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times], 
             'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
             'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
         nodecolour(self, 0)
@@ -2373,19 +2381,20 @@ class No_Vi_Metrics(Node, ViNodes):
                         newrow(layout, 'Healthcare', self, 'leed_menu')
                         (l, h) = (75, 90) if self.leed_menu else (55, 75)
                         
-                        if self['res'] and self['res'].get('ase'): 
+                        if self['res'] and self['res'].get('ase') > -1: 
                             if self['res']['ase'] < 0:
                                 (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
                             else:
-                                (sda, ase, o1) = ('sDA300 (%): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], (l, h), ('Pass', 'Fail')[self['res']['sda'] < 55]),
-                                'ASE1000 (hours): {:.0f} | < 250 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 250]), 
+                                (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], (l, h), ('Pass', 'Fail')[self['res']['sda'] < 55]),
+                                'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]), 
                                 'Total credits: {}'.format(self['res']['o1']))
+                            
                             row = layout.row()
                             row.label(text = "Option 1:")
                             row = layout.row()
-                            row.label(text = ase)
-                            row = layout.row()
                             row.label(text = sda)
+                            row = layout.row()
+                            row.label(text = ase)
                             row = layout.row()
                             row.label(text = o1)
 
@@ -2579,15 +2588,19 @@ class No_Vi_Metrics(Node, ViNodes):
                     mDF = 2
                     mA = 0.8
                     cred = 2
+
                     if self.breeam_edumenu == '1':
                         mA = 0.6
                         cred = 1
+
                 elif self.breeam_menu == '1': 
                     cred = 2
                     mA = 0.8
                     mDF = 2
+
                     if self.breeam_healthmenu == '1':
                         mDF = 3
+
                 elif self.breeam_menu == '2': 
                     cred = 1
                     mDF = 2
@@ -2596,11 +2609,14 @@ class No_Vi_Metrics(Node, ViNodes):
                     cred = 1
                     mDF = 2
                     mA = 0.8
+
                     if self.breeam_retailmenu == '0':
                         mA = 0.35
+
                 elif self.breeam_menu == '4': 
                     cred = 1
                     mA = 0.8
+
                     if self.breeam_othermenu == '0':
                         mDF = 1.5
                     elif self.breeam_othermenu in ('1', '2'):
@@ -2656,8 +2672,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
                             if r[3] == 'Annual Sunlight Exposure (% area)':
-                                aseareas = array([float(p) for p in r[4].split()])
-                                self['res']['ase'] = len(aseareas[aseareas > 10])
+                                self['res']['ase'] = 100 * bpy.data.objects['{}'.format(self.zone_menu)].vi_params['livires']['ase{}'.format(self.frame_menu)]
                             elif r[3] == 'Spatial Daylight Autonomy (% area)': 
                                 sdaareas = array([float(p) for p in r[4].split()])                                
                                 self['res']['sda'] = median(sort(sdaareas))                                
@@ -2668,7 +2683,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['udiam'] = udiaareas[im]
                                 self['res']['udiae'] = udiaareas[ie]
 
-                if self['res']['ase'] < 250:
+                if self['res']['ase'] < 10:
                     if self['res']['sda'] > (55, 75)[self.leed_menu]:
                         self['res']['o1'] = (2, 1)[self.leed_menu]  
                     if self['res']['sda'] > (75, 90)[self.leed_menu]:
