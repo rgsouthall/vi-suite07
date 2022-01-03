@@ -590,7 +590,6 @@ class No_Li_Con(Node, ViNodes):
             if self.contextmenu == 'CBDM':
                 
                 if shour <= ctime.hour <= ehour:
-                    print(ctime.hour, ehour)
                     times.append(ctime)
             else:
                 times.append(ctime)
@@ -2379,18 +2378,20 @@ class No_Vi_Metrics(Node, ViNodes):
                         
                     elif self.light_menu == '1':
                         newrow(layout, 'Healthcare', self, 'leed_menu')
-                        (l, h) = (75, 90) if self.leed_menu else (55, 75)
+                        self['res']['sdapass'] = (75, 90) if self.leed_menu else (55, 75)
                         
                         if self['res'] and self['res'].get('ase') > -1: 
                             if self['res']['ase'] < 0:
                                 (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
                             else:
-                                (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], (l, h), ('Pass', 'Fail')[self['res']['sda'] < 55]),
+                                (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], self['res']['sdapass'], ('Pass', 'Fail')[self['res']['sda'] < self['res']['sdapass'][0]]),
                                 'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]), 
                                 'Total credits: {}'.format(self['res']['o1']))
                             
-                            row = layout.row()
-                            row.label(text = "Option 1:")
+                            if self.leed_menu:
+                                row = layout.row()
+                                row.label(text = 'Perimeter area: {:.1f}'.format(self['res']['sv']))
+
                             row = layout.row()
                             row.label(text = sda)
                             row = layout.row()
@@ -2467,11 +2468,16 @@ class No_Vi_Metrics(Node, ViNodes):
                         else:
                             row.label(text = "CO2 data not available")
 
-        if self.metric == '1' and self.light_menu == '2':
-            if self['res']['ratioDF'] >= 0:
-                row = layout.row()
-                row.operator('node.vi_info', text = 'Infographic')
-
+        if self.metric == '1':
+            if self.light_menu == '2':
+                if self['res']['ratioDF'] >= 0:
+                    row = layout.row()
+                    row.operator('node.vi_info', text = 'Infographic')
+            elif self.light_menu == '1':
+                if self['res']['sda'] >= 0:
+                    row = layout.row()
+                    row.operator('node.vi_info', text = 'Infographic')
+            
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
@@ -2578,6 +2584,9 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['ratioDF'] = -1
             self['res']['ase'] = -1
             self['res']['sda'] = -1
+            self['res']['asepass'] = -1
+            self['res']['sdapass'] = -1
+            self['res']['sv'] = -1
             self['res']['auto'] = -1
             self['res']['o1'] = -1
             self['res']['areaDF'] = -1
@@ -2671,17 +2680,25 @@ class No_Vi_Metrics(Node, ViNodes):
                 for r in self['rl']:
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
+                            res_ob = bpy.data.objects['{}'.format(self.zone_menu)]
                             if r[3] == 'Annual Sunlight Exposure (% area)':
-                                self['res']['ase'] = 100 * bpy.data.objects['{}'.format(self.zone_menu)].vi_params['livires']['ase{}'.format(self.frame_menu)]
+                                self['res']['ase'] = 100 * res_ob.vi_params['livires']['ase{}'.format(self.frame_menu)]
+                                self['res']['asepass'] = 10
                             elif r[3] == 'Spatial Daylight Autonomy (% area)': 
-                                sdaareas = array([float(p) for p in r[4].split()])                                
-                                self['res']['sda'] = median(sort(sdaareas))                                
+                                self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
+                                #sdaareas = array([float(p) for p in r[4].split()])                                
+                                #self['res']['sda'] = median(sort(sdaareas)) 
+                                #self['res']['sdapass'] = (75, 90) if self.leed_menu else (55, 75)  
+                            elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':  
+                                self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
                             elif r[3] == 'UDI-a Area (%)':
                                 udiaareas = array([float(p) for p in r[4].split()]) 
                                 im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
                                 ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
                                 self['res']['udiam'] = udiaareas[im]
                                 self['res']['udiae'] = udiaareas[ie]
+
+                            self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
 
                 if self['res']['ase'] < 10:
                     if self['res']['sda'] > (55, 75)[self.leed_menu]:

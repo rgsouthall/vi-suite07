@@ -700,8 +700,10 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
         for restype in restypes:
             geom.layers.float.new('{}{}'.format(restype, frame))
-
+        
+        geom.layers.int.new('sv{}'.format(frame))
         (resda, ressda, resase, res, resudilow, resudisup, resudiauto, resudihi, firrad, firradm2, maxillu, minillu, aveillu) = [geom.layers.float['{}{}'.format(r, frame)] for r in restypes]
+        sv = geom.layers.int['sv{}'.format(frame)]
         
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
@@ -745,10 +747,13 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':   
                 illuarray = nsum(resarray*illumod, axis = 2).astype(float32)                
                 finalillu = inner(illuarray, vecvals).astype(float32)
-                sensrunns = Popen(shlex.split(rccmds[f][:36]+ '0' + rccmds[f][37:]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
-                resarrayns = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
+                sensrunns = Popen(shlex.split(rccmds[f][:36]+ '1' + rccmds[f][37:]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+                resarrayns = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
                 illuarrayns = nsum(resarrayns*illumod, axis = 2).astype(float32)  
                 finalilluns = inner(illuarrayns, vecvalsns).astype(float32)
+                sensrunpa = Popen(shlex.split(rccmds[f][:36]+ '1' + rccmds[f][37:]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+                resarraypa = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunpa[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
+                
                 sdabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
                 asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)  
                 dabool = choose(finalillu >= simnode['coptions']['dalux'], [0, 1]).astype(int8)
@@ -756,6 +761,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
                 udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
                 udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)   
+                svbool = choose(nsum(nsum(resarraypa, axis = 1), axis = 1) > 0, [0, 1]).astype(int8)
                 daareares = (dabool.T*chareas).T             
                 udilareares = (udilbool.T*chareas).T
                 udisareares = (udisbool.T*chareas).T
@@ -780,6 +786,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     totudiharea = nsum(100 * udihareares/totarea, axis = 0)                
                     totsdaarea = nsum(sdaareares, axis = 0)
                     totasearea = nsum(aseareares, axis = 0)
+                    svarea = nsum(chareas * svbool)
+#                    print(svarea)
                 else:
                     nappend(totfinalillu, finalillu)
                     totdaarea += nsum(100 * daareares/totarea, axis = 0)
@@ -789,6 +797,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     totudiharea += nsum(100 * udihareares/totarea, axis = 0)
                     totsdaarea += nsum(sdaareares, axis = 0)
                     totasearea += nsum(aseareares, axis = 0)
+                    svarea += nsum(chareas * svbool)
                 
                 for gi, gp in enumerate(chunk):
                     gp[resda] = dares[gi]                
@@ -802,6 +811,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     gp[aveillu] = nmean(finalillu[gi])
                     gp[ressda] = sdares[gi]
                     gp[resase] = aseres[gi]
+                    gp[sv] = svbool[gi]
                          
             curres += len(chunk)
 
@@ -862,18 +872,18 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['livires']['udilarea{}'.format(frame)] = totudilarea.reshape(dno, hno).transpose().tolist()
             self['livires']['udiharea{}'.format(frame)] = totudiharea.reshape(dno, hno).transpose().tolist()
             
-            self['tableudil{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['UDI-l (% area)', '{:.1f}'.format(self['omin']['udilow{}'.format(frame)]), '{:.1f}'.format(self['oave']['udilow{}'.format(frame)]), '{:.1f}'.format(self['omax']['udilow{}'.format(frame)])]])
-            self['tableudis{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['UDI-s (% area)', '{:.1f}'.format(self['omin']['udisup{}'.format(frame)]), '{:.1f}'.format(self['oave']['udisup{}'.format(frame)]), '{:.1f}'.format(self['omax']['udisup{}'.format(frame)])]])
-            self['tableudia{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['UDI-a (% area)', '{:.1f}'.format(self['omin']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['oave']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['omax']['udiauto{}'.format(frame)])]])
-            self['tableudie{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['UDI-e (% area)', '{:.1f}'.format(self['omin']['udihi{}'.format(frame)]), '{:.1f}'.format(self['oave']['udihi{}'.format(frame)]), '{:.1f}'.format(self['omax']['udihi{}'.format(frame)])]])
-            self['tableillu{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['Illuminance (lux)', '{:.1f}'.format(self['omin']['minlux{}'.format(frame)]), '{:.1f}'.format(self['oave']['avelux{}'.format(frame)]), '{:.1f}'.format(self['omax']['maxlux{}'.format(frame)])]])
-            self['tableda{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['Daylight availability (% time)', '{:.1f}'.format(self['omin']['da{}'.format(frame)]), '{:.1f}'.format(self['oave']['da{}'.format(frame)]), '{:.1f}'.format(self['omax']['da{}'.format(frame)])]])
+            # self['tableudil{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['UDI-l (% area)', '{:.1f}'.format(self['omin']['udilow{}'.format(frame)]), '{:.1f}'.format(self['oave']['udilow{}'.format(frame)]), '{:.1f}'.format(self['omax']['udilow{}'.format(frame)])]])
+            # self['tableudis{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['UDI-s (% area)', '{:.1f}'.format(self['omin']['udisup{}'.format(frame)]), '{:.1f}'.format(self['oave']['udisup{}'.format(frame)]), '{:.1f}'.format(self['omax']['udisup{}'.format(frame)])]])
+            # self['tableudia{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['UDI-a (% area)', '{:.1f}'.format(self['omin']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['oave']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['omax']['udiauto{}'.format(frame)])]])
+            # self['tableudie{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['UDI-e (% area)', '{:.1f}'.format(self['omin']['udihi{}'.format(frame)]), '{:.1f}'.format(self['oave']['udihi{}'.format(frame)]), '{:.1f}'.format(self['omax']['udihi{}'.format(frame)])]])
+            # self['tableillu{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['Illuminance (lux)', '{:.1f}'.format(self['omin']['minlux{}'.format(frame)]), '{:.1f}'.format(self['oave']['avelux{}'.format(frame)]), '{:.1f}'.format(self['omax']['maxlux{}'.format(frame)])]])
+            # self['tableda{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            #     ['Daylight availability (% time)', '{:.1f}'.format(self['omin']['da{}'.format(frame)]), '{:.1f}'.format(self['oave']['da{}'.format(frame)]), '{:.1f}'.format(self['omax']['da{}'.format(frame)])]])
             
             reslists.append([str(frame), 'Zone', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([str(p) for p in totdaarea])])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-a Area (%)', ' '.join([str(p) for p in totudiaarea])])
@@ -881,10 +891,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-l Area (%)', ' '.join([str(p) for p in totudilarea])])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-h Area (%)', ' '.join([str(p) for p in totudiharea])])
         
-            if svp['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
-                overallsdaarea = sum([g.calc_area() for g in geom if g[rt] and g[ressv]]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[ressv]]) 
-            else:
-                overallsdaarea = totarea
+
+            overallasearea = sum([g.calc_area() for g in geom if g[rt] and g[sv]]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[sv]]) 
+            overallsdaarea = totarea
 
             self['omax']['sda{}'.format(frame)] = max(sdas)
             self['omin']['sda{}'.format(frame)] = min(sdas)
@@ -894,13 +903,18 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['oave']['ase{}'.format(frame)] = sum(ases)/reslen
             self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose().tolist()
             self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, hno).transpose().tolist()
+            self['livires']['totarea{}'.format(frame)] = totarea
+            self['livires']['svarea{}'.format(frame)] = svarea
             # self['tablesda{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
             #     ['sDA (% hours)', '{:.1f}'.format(self['omin']['sda{}'.format(frame)]), '{:.1f}'.format(self['oave']['sda{}'.format(frame)]), '{:.1f}'.format(self['omax']['sda{}'.format(frame)])]])
             # self['tablease{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
             #     ['ASE (hrs)', '{:.1f}'.format(self['omin']['ase{}'.format(frame)]), '{:.1f}'.format(self['oave']['ase{}'.format(frame)]), '{:.1f}'.format(self['omax']['ase{}'.format(frame)])]])
             self['livires']['ase{}'.format(frame)] = sum(where(aseres <= 250, 0, areas))/totarea
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/overallsdaarea])])
+            self['livires']['sda{}'.format(frame)] = sum(where(aseres <= 250, 0, areas))/totarea
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/totarea])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([str(p) for p in 100 * totsdaarea/svarea])])
             reslists.append([str(frame), 'Zone', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join(['{:.2f}'.format(p) for p in 100 * totasearea/totarea])])
+            # reslists.append([str(frame), 'Zone', self.id_data.name, 'Annual Sunlight Exposure (% perimeter area)', ' '.join(['{:.2f}'.format(p) for p in 100 * totasearea/overallasearea])])
 #            reslists.append([str(frame), 'Zone', self.id_data.name, 'Annual Sunlight Exposure', '{:.2f}'.format(sum(where(aseres <= 250, 0, areas))/totarea)])
     bm.transform(self.id_data.matrix_world.inverted())        
     bm.to_mesh(self.id_data.data)

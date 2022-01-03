@@ -3142,7 +3142,10 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
     def execute(self, context):
         dim = 800
         node = context.node
-        imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratioDF'], aDF = node['res']['avDF'])
+        if node.metric == '1' and node.light_menu == '2':
+            imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratioDF'], aDF = node['res']['avDF'])
+        elif node.metric == '1' and node.light_menu == '1':
+            imname, svg_bytes = vi_info(node, dim, sda = node['res']['sda'], sdapass = node['res']['sdapass'], ase = node['res']['ase'], asepass = node['res']['asepass'], o1 = node['res']['o1'])
 #        svg_bytes = bytearray(svg_str, encoding='utf-8')
         image = QImage.fromData(svg_bytes)
 #        image.save('/home/ryan/test.png')

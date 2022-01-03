@@ -80,3 +80,53 @@ def vi_info(node, dim, **kwargs):
         print(svg_str)
 
         return imname, bytearray(svg_str, encoding='utf-8')
+
+    elif node.metric == '1' and node.light_menu == '1':
+        sda = kwargs['sda']
+        sdapass = kwargs['sdapass']
+        ase = kwargs['ase']
+        asepass = kwargs['asepass']
+        credits = kwargs['o1']
+        imname = "LEED_lighting_{}".format(node.zone_menu)
+
+        svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <svg
+        id="svg5"
+        version="1.1"
+        viewBox="0 0 {0} {0}"
+        height="{0}"
+        width="{0}"
+        xmlns="http://www.w3.org/2000/svg"
+        xmlns:svg="http://www.w3.org/2000/svg">
+        <rect style="fill:rgb(255, 255, 255)" width="{0}" height="{0}"/>
+        <text text-anchor="middle" x="400" y="50" style="font-size: 32px">LEED v4 (Option 1) Daylighting Analysis</text>
+        <text x="450" y="100" style="font-size: 20px">Sensor name: {1}</text>
+        <text x="450" y="125" style="font-size: 20px">Floor area: {1}</text>
+        <text text-anchor="middle" x="250" y="375" style="font-size: 24px">Spatial Daylight Autonomy</text>
+        <text text-anchor="middle" x="250" y="725" style="font-size: 24px">Annual Sunlight Exposure</text>
+        """.format(dim, node.zone_menu)
+
+        for b in range(20):
+            bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else "128, 255, 128" 
+            alpha = 1.0 if -5 <= sda - ((b + 1) * 5) < 0 else 0.25
+
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 100 + int(b%4) * 75, 300 - int(b/4) * 50, 75, 50)
+            
+            if alpha == 1.0:
+                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(137.5 + int(b%4) * 75, 333 - int(b/4) * 50, sda)
+
+            
+        
+        for b in range(20):
+            bfill = "255, 128, 128" if (b + 1) * 5 > asepass else "128, 255, 128" 
+            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) < 0 else 0.25
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 100 + int(b%4) * 75, 650 - int(b/4) * 50, 75, 50)
+            
+            if alpha == 1.0:
+                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(137.5 + int(b%4) * 75, 683 - int(b/4) * 50, ase)
+        
+        svg_str += '        <text text-anchor="middle" x="600" y="775" style="font-size: 32px">Credits: {}</text>'.format(credits)
+        svg_str += "</svg>"
+
+        print(svg_str)
+        return imname, bytearray(svg_str, encoding='utf-8')
