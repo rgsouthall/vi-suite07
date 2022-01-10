@@ -146,7 +146,7 @@ def vi_info(node, dim, **kwargs):
         for b in range(20):
             bfill = "128, 128, 255" if (b + 1) * 5 <= sdapass[1] else "128, 255, 128"
             bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else bfill
-            alpha = 0.9 if -5 <= sda - ((b + 1) * 5) < 0 else 0.4
+            alpha = 0.9 if -5 <= sda - ((b + 1) * 5) <= 0 else 0.4
             svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, (100 + int(b%4) * 75, 325 - int(b%4) * 75)[int(b/4%2)], 650 - int(b/4) * 50, 75, 50)
             
             if alpha == 0.9:
@@ -154,7 +154,7 @@ def vi_info(node, dim, **kwargs):
 
         for b in range(20):
             bfill = "255, 128, 128" if (b + 1) * 5 > asepass else "128, 255, 128" 
-            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) < 0 else 0.4
+            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) <= 0 else 0.4
             svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 100 + int(b%4) * 75, 325 - int(b/4) * 50, 75, 50)
             
             if alpha == 1.0:

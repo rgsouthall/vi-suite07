@@ -3144,24 +3144,21 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
     def execute(self, context):
         dim = 800
         node = context.node
+        
         if node.metric == '1' and node.light_menu == '2':
             imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratioDF'], aDF = node['res']['avDF'])
         elif node.metric == '1' and node.light_menu == '1':
             imname, svg_bytes = vi_info(node, dim, sda = node['res']['sda'], sdapass = node['res']['sdapass'], ase = node['res']['ase'], asepass = node['res']['asepass'], o1 = node['res']['o1'],
             tc = node['res']['tc'], totarea = node['res']['totarea'], svarea = node['res']['svarea'])
-#        svg_bytes = bytearray(svg_str, encoding='utf-8')
-        print(svg_bytes)
+
         image = QImage.fromData(svg_bytes)
-        print(image.save('C:/Users/ryan/test.png'))
         image = image.convertToFormat(17)
         image = image.mirrored(0, 1)
-#        image = image.mirrored(0)
         bs = image.bits()
         bs.setsize(image.byteCount())
         strbs = bs.asstring()
         buf = memoryview(bs)
         arr = frombuffer(buf, dtype = ubyte).astype(float32)
-#        imname = "test.png"
         ipheight, ipwidth = dim, dim     
         
         if imname not in [im.name for im in bpy.data.images]:
@@ -3187,12 +3184,10 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         area.spaces.active.image = im
         bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
         win = bpy.context.window_manager.windows[-1]
-        #win.screen.areas[0].width = 200
         win.screen.areas[0].spaces[0].show_region_header = 0
         win.screen.areas[0].spaces[0].show_region_ui = 0
         area.type = t
         return {'FINISHED'}
-#        return context
 
 
 #class svf_legend(Base_Display):
