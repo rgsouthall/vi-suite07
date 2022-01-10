@@ -1,4 +1,5 @@
 from math import sin, cos, pi
+import bpy
 
 def vi_info(node, dim, **kwargs):
     if node.metric == '1' and node.light_menu == '3':
@@ -86,9 +87,23 @@ def vi_info(node, dim, **kwargs):
         sdapass = kwargs['sdapass']
         ase = kwargs['ase']
         asepass = kwargs['asepass']
+        tcredits = kwargs['tc']
         credits = kwargs['o1']
+        totarea = kwargs['totarea']
+        svarea = kwargs['svarea']
         imname = "LEED_lighting_{}".format(node.zone_menu)
 
+        if node.leed_menu:
+            sda1points = 1 if sda >= sdapass[0] else 0
+        else:
+            sda1points = 2 if sda >= sdapass[0] else 0
+
+        sda2points = 1 if sda >= sdapass[1] else 0
+
+        hc_svg = '''<text x="450" y="115" style="font-size: 20px;font-family:Nimbus Sans Narrow">Perimeter area: {:.2f}m<tspan dy = "-10">2</tspan></text>
+        <text x="450" y="140" style="font-size: 20px;font-family:Nimbus Sans Narrow">Perimeter area: {:.2f}%</text>
+        <text x="450" y="165" style="font-size: 20px;font-family:Nimbus Sans Narrow">Perimeter area >= 90%: {}</text>'''.format(svarea, 100 * svarea/totarea, ('Fail', 'Pass')[svarea/totarea >= 0.9]) if node.leed_menu else ""
+        
         svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
         <svg
         id="svg5"
@@ -99,34 +114,35 @@ def vi_info(node, dim, **kwargs):
         xmlns="http://www.w3.org/2000/svg"
         xmlns:svg="http://www.w3.org/2000/svg">
         <rect style="fill:rgb(255, 255, 255)" width="{0}" height="{0}"/>
-        <text text-anchor="middle" x="400" y="50" style="font-size: 32px">LEED v4 (Option 1) Daylighting Analysis</text>
-        <text x="450" y="100" style="font-size: 20px">Sensor name: {1}</text>
-        <text x="450" y="125" style="font-size: 20px">Floor area: {1}</text>
-        <text text-anchor="middle" x="250" y="375" style="font-size: 24px">Spatial Daylight Autonomy</text>
-        <text text-anchor="middle" x="250" y="725" style="font-size: 24px">Annual Sunlight Exposure</text>
-        """.format(dim, node.zone_menu)
+        <text text-anchor="middle" x="400" y="50" style="font-size: 32px;font-family:Nimbus Sans Narrow">LEED v4 (Option 1) Daylighting Analysis</text>
+        <text x="100" y="90" style="font-size: 20px;font-family:Nimbus Sans Narrow">Zone sensor: {1}</text>
+        <text x="450" y="90" style="font-size: 20px;font-family:Nimbus Sans Narrow">Floor area: {2:.2f}m<tspan dy = "-10">2</tspan></text>{3}        
+        <text x="450" y="255" style="font-size: 20px;font-family:Nimbus Sans Narrow">ASE &lt;= {4}%: {5}</text>
+        <text x="450" y="570" style="font-size: 20px;font-family:Nimbus Sans Narrow">sDA >= {6}%: {7} ({8} Points)</text>
+        <text x="450" y="595" style="font-size: 20px;font-family:Nimbus Sans Narrow">sDA >= {9}%: {10} ({11} Points)</text>
+        <text text-anchor="middle" x="250" y="725" style="font-size: 22px;font-family:Nimbus Sans Narrow">Spatial Daylight Autonomy (300/50%)</text>
+        <text text-anchor="middle" x="250" y="400" style="font-size: 22px;font-family:Nimbus Sans Narrow">Annual Sunlight Exposure (1000/250)</text>
+        """.format(dim, node.zone_menu, totarea, hc_svg, asepass, ('Pass', 'Fail')[ase >= asepass], sdapass[0], ('Fail', 'Pass')[sda >= sdapass[0]], sda1points,
+                    sdapass[1], ('Fail', 'Pass')[sda >= sdapass[1]], sda2points)
 
         for b in range(20):
-            bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else "128, 255, 128" 
-            alpha = 1.0 if -5 <= sda - ((b + 1) * 5) < 0 else 0.25
-
-            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 100 + int(b%4) * 75, 300 - int(b/4) * 50, 75, 50)
+            bfill = "128, 128, 255" if (b + 1) * 5 <= sdapass[1] else "128, 255, 128"
+            bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else bfill
+            alpha = 0.9 if -5 <= sda - ((b + 1) * 5) < 0 else 0.4
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, (100 + int(b%4) * 75, 325 - int(b%4) * 75)[int(b/4%2)], 650 - int(b/4) * 50, 75, 50)
             
-            if alpha == 1.0:
-                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(137.5 + int(b%4) * 75, 333 - int(b/4) * 50, sda)
+            if alpha == 0.9:
+                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(137.5 + int(b%4) * 75, 683 - int(b/4) * 50, sda)
 
-            
-        
         for b in range(20):
             bfill = "255, 128, 128" if (b + 1) * 5 > asepass else "128, 255, 128" 
-            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) < 0 else 0.25
-            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 100 + int(b%4) * 75, 650 - int(b/4) * 50, 75, 50)
+            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) < 0 else 0.4
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 100 + int(b%4) * 75, 325 - int(b/4) * 50, 75, 50)
             
             if alpha == 1.0:
-                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(137.5 + int(b%4) * 75, 683 - int(b/4) * 50, ase)
+                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(137.5 + int(b%4) * 75, 358 - int(b/4) * 50, ase)
         
-        svg_str += '        <text text-anchor="middle" x="600" y="775" style="font-size: 32px">Credits: {}</text>'.format(credits)
+        svg_str += '        <text x="450" y="750" style="font-size: 30px">Total points: {} of {}</text>'.format(credits, tcredits)
+        
         svg_str += "</svg>"
-
-        print(svg_str)
         return imname, bytearray(svg_str, encoding='utf-8')

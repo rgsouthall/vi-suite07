@@ -196,8 +196,10 @@ def w_update(self, context):
 
 def livires_update(self, context):
     setscenelivivals(context.scene)
+
     for o in [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
-        o.vi_params.lividisplay(context.scene)  
+        o.vi_params.lividisplay(context.scene) 
+
     e_update(self, context)
                 
 def rendview(i):
@@ -3145,7 +3147,8 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         if node.metric == '1' and node.light_menu == '2':
             imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratioDF'], aDF = node['res']['avDF'])
         elif node.metric == '1' and node.light_menu == '1':
-            imname, svg_bytes = vi_info(node, dim, sda = node['res']['sda'], sdapass = node['res']['sdapass'], ase = node['res']['ase'], asepass = node['res']['asepass'], o1 = node['res']['o1'])
+            imname, svg_bytes = vi_info(node, dim, sda = node['res']['sda'], sdapass = node['res']['sdapass'], ase = node['res']['ase'], asepass = node['res']['asepass'], o1 = node['res']['o1'],
+            tc = node['res']['tc'], totarea = node['res']['totarea'], svarea = node['res']['svarea'])
 #        svg_bytes = bytearray(svg_str, encoding='utf-8')
         image = QImage.fromData(svg_bytes)
 #        image.save('/home/ryan/test.png')

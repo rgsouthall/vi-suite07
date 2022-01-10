@@ -31,7 +31,7 @@ from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunpos
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node, zrupdate
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
-from numpy import sort, median, array, stack, where
+from numpy import sort, median, array, stack, where, unique
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 import matplotlib
@@ -2032,20 +2032,24 @@ class No_Vi_HMChart(Node, ViNodes):
                     if r[1] == 'Time':
                         if r[3] == 'DOS':
                             self.x = (array([float(r) for r in r[4].split()]) + 0.5)
-                            self.x = self.x.reshape(365, 24)
+                            dno = len(unique(self.x))
+                            
                         elif r[3] == 'Hour':
                             self.y = (array([float(r) for r in r[4].split()]) + 0.5)
-                            self.y = self.y.reshape(365, 24)
+                            hno = len(unique(self.y))
 
                     elif r[1] == self.resmenu:
                         if self.resmenu == 'Climate':
                             if r[3] == self.metricmenu:
                                 self.z = array([float(r) for r in r[4].split()])
-                                self.z = self.z.reshape(365, 24)  
+ 
                         elif r[3] == self.metricmenu and r[2] == self.locmenu:
-                                self.z = array([float(r) for r in r[4].split()])
-                                self.z = self.z.reshape(365, 24)  
-    
+                            self.z = array([float(r) for r in r[4].split()])
+                                
+            self.x = self.x.reshape(dno, hno)
+            self.y = self.y.reshape(dno, hno)
+            self.z = self.z.reshape(dno, hno) 
+
     dpi: IntProperty(name = 'DPI', description = "DPI of the shown figure", default = 92, min = 92)
     framemenu: EnumProperty(items=ftype, name="", description="Frame number") 
     resmenu: EnumProperty(items=restype, name="", description="Result type", update=mupdate)  
@@ -2378,19 +2382,32 @@ class No_Vi_Metrics(Node, ViNodes):
                         
                     elif self.light_menu == '1':
                         newrow(layout, 'Healthcare', self, 'leed_menu')
-                        self['res']['sdapass'] = (75, 90) if self.leed_menu else (55, 75)
+                        (self['res']['sdapass'], self['res']['tc']) = ((75, 90), 2) if self.leed_menu else ((55, 75), 3)
                         
                         if self['res'] and self['res'].get('ase') > -1: 
                             if self['res']['ase'] < 0:
                                 (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
                             else:
-                                (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(self['res']['sda'], self['res']['sdapass'], ('Pass', 'Fail')[self['res']['sda'] < self['res']['sdapass'][0]]),
+                                sdares = self['res']['sdapa'] if self.leed_menu else self['res']['sda']
+                                
+                                if self['res']['ase'] <= 10:
+                                    if round(sdares, 3) >= (55, 75)[self.leed_menu]:
+                                        self['res']['o1'] = (2, 1)[self.leed_menu] 
+                                    else:
+                                        self['res']['o1'] = 0
+                                        
+                                    if round(sdares, 3) >= (75, 90)[self.leed_menu]:
+                                        self['res']['o1'] = (3, 2)[self.leed_menu]
+                                else:
+                                    self['res']['o1'] = 0
+
+                                (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(sdares, self['res']['sdapass'], ('Pass', 'Fail')[round(sdares, 3) < self['res']['sdapass'][0]]),
                                 'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]), 
                                 'Total credits: {}'.format(self['res']['o1']))
                             
                             if self.leed_menu:
                                 row = layout.row()
-                                row.label(text = 'Perimeter area: {:.1f}'.format(self['res']['sv']))
+                                row.label(text = 'Perimeter area: {:.1f} | {}'.format(self['res']['sv'], ('Pass', 'Fail')[self['res']['sv'] < 90]))
 
                             row = layout.row()
                             row.label(text = sda)
@@ -2681,16 +2698,16 @@ class No_Vi_Metrics(Node, ViNodes):
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
                             res_ob = bpy.data.objects['{}'.format(self.zone_menu)]
+                            self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+                            self['res']['svarea'] = res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]
+
                             if r[3] == 'Annual Sunlight Exposure (% area)':
                                 self['res']['ase'] = 100 * res_ob.vi_params['livires']['ase{}'.format(self.frame_menu)]
                                 self['res']['asepass'] = 10
                             elif r[3] == 'Spatial Daylight Autonomy (% area)': 
                                 self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
-                                #sdaareas = array([float(p) for p in r[4].split()])                                
-                                #self['res']['sda'] = median(sort(sdaareas)) 
-                                #self['res']['sdapass'] = (75, 90) if self.leed_menu else (55, 75)  
                             elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':  
-                                self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
+                                self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
                             elif r[3] == 'UDI-a Area (%)':
                                 udiaareas = array([float(p) for p in r[4].split()]) 
                                 im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
@@ -2699,14 +2716,11 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['udiae'] = udiaareas[ie]
 
                             self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+                        
+#                        elif r[2] == "All":
+#                            pass
 
-                if self['res']['ase'] < 10:
-                    if self['res']['sda'] > (55, 75)[self.leed_menu]:
-                        self['res']['o1'] = (2, 1)[self.leed_menu]  
-                    if self['res']['sda'] > (75, 90)[self.leed_menu]:
-                        self['res']['o1'] = (3, 2)[self.leed_menu]
-                else:
-                    self['res']['o1'] = 0
+                
 
         elif self.metric == '2':        
             self['res']['pressure'] = {}
