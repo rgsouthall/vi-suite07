@@ -3150,8 +3150,9 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             imname, svg_bytes = vi_info(node, dim, sda = node['res']['sda'], sdapass = node['res']['sdapass'], ase = node['res']['ase'], asepass = node['res']['asepass'], o1 = node['res']['o1'],
             tc = node['res']['tc'], totarea = node['res']['totarea'], svarea = node['res']['svarea'])
 #        svg_bytes = bytearray(svg_str, encoding='utf-8')
+        print(svg_bytes)
         image = QImage.fromData(svg_bytes)
-#        image.save('/home/ryan/test.png')
+        print(image.save('C:/Users/ryan/test.png'))
         image = image.convertToFormat(17)
         image = image.mirrored(0, 1)
 #        image = image.mirrored(0)
