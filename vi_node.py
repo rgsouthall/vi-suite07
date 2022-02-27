@@ -122,13 +122,17 @@ class No_Loc(Node, ViNodes):
                         if wfl.split(',')[0].upper() == 'LOCATION':
                             entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
                             break
+                        elif wfl.split(',')[0].upper() ==  "B'LOCATION":
+                            logentry("Byte formatting found in file {}. Remove leading b', end ' and all /r line endings".format(wfile))
+                            pass
             
             self['entries'] = entries if entries else [('None', 'None', 'None')]
             
             if os.path.isfile(self.weather):            
-                with open(self.weather, 'r') as epwfile:                
+                with open(self.weather, 'r') as epwfile:       
                     self['frames'] = ['0']
-                    epwlines = epwfile.readlines()[8:]
+                    llist = epwfile.readlines()
+                    epwlines = llist[8:] if llist[0][:2] != "b'" else llist[8:-1]                    
                     epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
                     svp.year = 2019 if len(epwlines) == 8760 else 2020
                     times = ('Month', 'Day', 'Hour', 'DOS')
@@ -146,11 +150,14 @@ class No_Loc(Node, ViNodes):
                 self.outputs['Location out']['epwtext'] = ''
                 self.outputs['Location out']['valid'] = ['Location']
 
-        socklink2(self.outputs['Location out'], self.id_data)
+        socklink(self.outputs['Location out'], self.id_data.name)
         self['reslists'] = reslists
         (svp.latitude, svp.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (svp.latitude, svp.longitude)
 
         for node in [l.to_node for l in self.outputs['Location out'].links]:
+            
+            # if node.bl_idname != 'No_Vi_Chart':
+            #     print(node.bl_idname)
             node.update()
                 
     def retentries(self, context):
@@ -4399,7 +4406,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                         self.extnode = 1
 
             if self.outputs.get('Parameter'):
-                sockhide(self, ('Node 1', 'Node 2', 'Parameter'))
+                sockhide(self, ('Node 1', 'Node 2'))
 
             self.legal()
 
@@ -4620,7 +4627,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
                     self.extnode = 1
 
         if self.outputs.get('Parameter'):
-            sockhide(self, ('Node 1', 'Node 2', 'Parameter'))
+            sockhide(self, ('Node 1', 'Node 2'))
 
         self.legal()
 
@@ -5545,7 +5552,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                                     default = "0", update = con_update)
     
     fthi: FloatProperty(name = "m", description = "Frame thickness", min = 0.001, max = 10, default = 0.05)
-    farea: FloatProperty(name = "%", description = "Frame area percentage", min = 0.001, max = 100, default = 10)
+    farea: FloatProperty(name = "%", description = "Frame area percentage", min = 0.01, max = 100, default = 10)
     fw: FloatProperty(name = "m", description = "Frame Width", min = 0.0, max = 10, default = 0.2)
     fop: FloatProperty(name = "m", description = "Frame Outside Projection", min = 0.01, max = 10, default = 0.1)
     fip: FloatProperty(name = "m", description = "Frame Inside Projection", min = 0.01, max = 10, default = 0.1)
