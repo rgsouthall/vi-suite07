@@ -2228,7 +2228,8 @@ class No_Vi_Metrics(Node, ViNodes):
     probe_menu: EnumProperty(items=probes,
                 name="", description="Probe results", update=zupdate)
     ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
-    
+    occ: BoolProperty(name="", description="Only occupied hours", update=zupdate)
+
     def init(self, context):
         self['res'] = {}
         self.inputs.new('So_Vi_Res', 'Results in') 
@@ -2335,6 +2336,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                             credits = 1
                                         if areaDF >= 80:
                                             credits = 2
+
                             elif self.breeam_menu == '1':
                                 if ratioDF >= 0.3:
                                     newrow(layout, 'Health space:', self, "breeam_healthmenu")
@@ -2344,6 +2346,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     elif self.breeam_healthmenu == '1':
                                         if avDF >= 3 and areaDF >= 80:
                                             credits = 2
+
                             elif self.breeam_menu == '2':
                                 if ratioDF >= 0.3:
                                     newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
@@ -2355,23 +2358,29 @@ class No_Vi_Metrics(Node, ViNodes):
                                 if self.breeam_retailmenu == '0':
                                     if areaDF >= 35:
                                         credits = 1
+
                                 elif self.breeam_retailmenu == '1':
                                     if areaDF >= 80 and ratioDF >= 0.3 and avDF >= 2:
                                         credits = 1
+
                             elif self.breeam_menu == '4':
                                 newrow(layout, 'Other space:', self, "breeam_othermenu")
                                 if self.breeam_othermenu == '0':
                                     if avDF >= 1.5 and areaDF >= 80:
                                         credits = 1
+
                                 elif self.breeam_othermenu == '1':
                                     if avDF >= 3 and areaDF >= 80 and (ratioDF >= 0.7 or minDF > 2.1):
                                         credits = 1
+
                                 elif self.breeam_othermenu == '2':
                                     if avDF >= 3 and areaDF >= 80:
                                         credits = 1
+
                                 elif self.breeam_othermenu == '3':
                                     if avDF >= 2 and areaDF >= 80:
                                         credits = 1
+                                        
                                 elif self.breeam_othermenu == '4':
                                     if avDF >= 2 and areaDF >= 80:
                                         credits = 1
@@ -2440,15 +2449,16 @@ class No_Vi_Metrics(Node, ViNodes):
                 elif self.metric == '2':
                     newrow(layout, 'Wind speed', self, "ws")
 
-                    if self.zone_menu == 'All':
-                        newrow(layout, 'Metric', self, "probe_menu")
+                    if self['res']['pressure']:
+                        if self.zone_menu == 'All':
+                            newrow(layout, 'Metric', self, "probe_menu")
 
                     if self.zone_menu == 'All':
                         for z in self['res'][self.probe_menu]:
                             row = layout.row()
                             row.label(text = "{}: {}".format(z, self['res'][self.probe_menu][z]))
                     else:
-                        if self['res']: 
+                        if self['res']:
                             for m in self['res']:
                                 if self['res'][m].get(self.zone_menu):
                                     row = layout.row()
@@ -2457,29 +2467,37 @@ class No_Vi_Metrics(Node, ViNodes):
                 elif self.metric == '3':
                     newrow(layout, 'Embodied type:', self, "em_menu")
 
-                    if self.em_menu == '0':
-                        row = layout.row()
+                    if self['res']['ec']:
+                        if self.em_menu == '0':
+                            row = layout.row()
                         
-                        if self.zone_menu == 'All':
-                            row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
+                            if self.zone_menu == 'All':
+                                row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
+                            else:
+                                row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
+                                
                         else:
-                            row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
-                            
-                    elif self.em_menu == '0':
-                        row = layout.row()
-                        row.label(text = 'N/A')
+                            row = layout.row()
+                            row.label(text = 'N/A')
 
                 elif self.metric == '4':
                     newrow(layout, 'Comfort type:', self, "com_menu")
 
                     if self.com_menu == '0':
-                        row = layout.row()
-                        if self['res']['oh2'] > 0:
-                            row.label(text = "Time above 28degC: {:.1f}%".format(self['res']['oh2']))
+                        if self['res']['ooh'] >= 0: 
+                            newrow(layout, 'Occupied', self, "occ")
+
+                        (r1, r2) = ('ooh', 'ooh2') if self.occ else ('oh', 'oh2')
+                        
+                        if self['res'][r2] >= 0:
                             row = layout.row()
-                        if self['res']['oh'] >= 0:                            
-                            row.label(text = "Time between 25-28degC: {:.1f}%".format(self['res']['oh']))
+                            row.label(text = "Time above 28degC: {:.1f}%".format(self['res'][r2]))
+
+                        if self['res'][r1] >= 0:  
+                            row = layout.row()                          
+                            row.label(text = "Time between 25-28degC: {:.1f}%".format(self['res'][r1]))
                         else:
+                            row = layout.row()
                             row.label(text = "Overheating data not available")
 
                 elif self.metric == '5':
@@ -2723,11 +2741,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['udiae'] = udiaareas[ie]
 
                             self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
-                        
-#                        elif r[2] == "All":
-#                            pass
-
-                
 
         elif self.metric == '2':        
             self['res']['pressure'] = {}
@@ -2763,6 +2776,10 @@ class No_Vi_Metrics(Node, ViNodes):
         elif self.metric == '4':            
             self['res']['oh'] = -1
             self['res']['oh2'] = -1
+            self['res']['ooh'] = -1
+            self['res']['ooh2'] = -1
+            temps = array([])
+            occs = array([])
 
             for r in self['rl']:
                 if r[0] == self.frame_menu:
@@ -2772,8 +2789,13 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Occupancy':
                             occs = array([float(p) for p in r[4].split()])
                                 
-            self['res']['oh'] = 100 * len(where(where(occs > 0, temps, 0) > 25)[0])/len(where(occs > 0)[0])
-            self['res']['oh2'] = 100 * len(where(where(occs > 0, temps, 0) > 28)[0])/len(where(occs > 0)[0])
+            if len(temps):
+                self['res']['oh'] = 100 * len(where(temps > 25)[0])/len(temps)
+                self['res']['oh2'] = 100 * len(where(temps > 28)[0])/len(temps)
+
+                if len(occs):
+                    self['res']['ooh'] = 100 * len(where(where(occs > 0, temps, 0) > 25)[0])/len(where(occs > 0)[0])
+                    self['res']['ooh2'] = 100 * len(where(where(occs > 0, temps, 0) > 28)[0])/len(where(occs > 0)[0])
         
         elif self.metric == '5':
             self['res']['co2'] = -1
@@ -2795,7 +2817,10 @@ class No_Vi_Metrics(Node, ViNodes):
 
         else:
             if self.zone_menu != 'None':
-                self.zone_menu = 'None'        
+                try:
+                    self.zone_menu = 'None'
+                except:
+                    pass        
 
     def ret_metrics(self):
         if self.inputs['Results in'].links:

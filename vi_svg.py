@@ -164,3 +164,6 @@ def vi_info(node, dim, **kwargs):
         
         svg_str += "</svg>"
         return imname, bytearray(svg_str, encoding='utf-8')
+
+    elif node.metric == '0' and node.energy_menu == '0':
+        pass
