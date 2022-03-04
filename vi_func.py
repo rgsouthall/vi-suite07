@@ -592,9 +592,9 @@ def viparams(op, scene):
     if not bdfp:
         op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
-    if " "  in bdfp:
-        op.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces in the file name or the directory path")
-        return 'Rename file'
+    #if " "  in bdfp:
+    #    op.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces in the file name or the directory path")
+    #    return 'Rename file'
 
     isascii = lambda s: len(s) == len(s.encode())
     if not isascii(bdfp):

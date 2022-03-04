@@ -18,7 +18,7 @@
 
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect
 import subprocess
-import numpy
+# import numpy
 from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE, call
