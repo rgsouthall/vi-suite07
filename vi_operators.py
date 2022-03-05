@@ -989,10 +989,10 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     create_empty_coll(context, 'LiVi Results')
                     gpmbm = bmesh.new()
 
-                    for l, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)), stdout = PIPE, stderr = PIPE).stdout):
+                    for l, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)), stdout=PIPE, stderr=PIPE).stdout):
                         dl = line.decode().split()
                         matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
-                        bmesh.ops.create_icosphere(gpmbm, subdivisions = 2, diameter = 0.05, matrix = matrix, calc_uvs = False)
+                        bmesh.ops.create_icosphere(gpmbm, subdivisions=2, diameter=0.05, matrix=matrix, calc_uvs=False)
 
                         if l > self.simnode.pmapvno:
                             break
@@ -1011,7 +1011,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                         for l, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)), stdout = PIPE, stderr = PIPE).stdout):
                             dl = line.decode().split()
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
-                            bmesh.ops.create_icosphere(cpmbm, subdivisions = 2, diameter = 0.05, matrix = matrix, calc_uvs = False)
+                            bmesh.ops.create_icosphere(cpmbm, subdivisions=2, diameter=0.05, matrix=matrix, calc_uvs=False)
 
                             if l > self.simnode.pmapvno:
                                 break
@@ -1172,7 +1172,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
 
         try:
-            tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+            tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
         except Exception as e:
             self.report({'ERROR'}, 'Re-export the LiVi geometry: {}'.format(e))
             return {'CANCELLED'}
@@ -1181,7 +1181,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Lighting')
         self.reslists = []
-        obs = [o for o in bpy.data.objects if o.name in svp['liparams']['livic']]
+        obs = [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
 
         for oi, o in enumerate(obs):
             ovp = o.vi_params
