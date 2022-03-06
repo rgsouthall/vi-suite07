@@ -45,7 +45,9 @@ def radpoints(o, faces, sks):
             ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format(v.co) for v in face.verts])
 
         fentries[f] = ''.join((mentry, fentry, ventries+'\n'))
+
     return ''.join(fentries)
+
 
 def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
     svp = scene.vi_params
@@ -53,24 +55,23 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
     bm = obmesh.copy()
 
     if tri:
-        bmesh.ops.triangulate(bm, faces = [f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
     if not m:
-#        gradfile += radpoints(o, [f for f in bm.faces if f.calc_area() >= 0.0], 0)
+        # gradfile += radpoints(o, [f for f in bm.faces if f.calc_area() >= 0.0], 0)
         gradfile += radpoints(o, bm.faces, 0)
-#        for f in [f for f in bm.faces if f.calc_area() == 0.0]:
-#            logentry('Object {} face {} has not been exported as it is too small'.format(o.name, f.index))
+        # for f in [f for f in bm.faces if f.calc_area() == 0.0]:
+        #   logentry('Object {} face {} has not been exported as it is too small'.format(o.name, f.index))
     else:
         mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
         mpps = array([not m.vi_params.pport for m in o.data.materials])
         mnpps = where(mpps, 0, 1)
         mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))
-        fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert = True)
+        fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert=True)
         mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
         ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]
         mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
-
 
         if o.data.polygons and o.data.polygons[0].use_smooth:
             vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
@@ -84,13 +85,12 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
             uv_layer = bm.loops.layers.uv.values()[0]
             bm.faces.ensure_lookup_table()
             vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
-
             li = 1
 
             for face in bm.faces:
                 for loop in face.loops:
                     loop.index = li
-                    li +=1
+                    li += 1
 
             if mfaces:
                 for mat in mmats:
@@ -109,8 +109,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
 
             with open(mfile, 'w') as mesh:
                 logentry('Running obj2mesh: {}'.format('obj2mesh -w -a {} '.format(tmf)))
-                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE, universal_newlines=True).communicate(input = (otext + vtext + ftext))
-
+                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout=mesh, stdin=PIPE, stderr=PIPE, universal_newlines=True).communicate(input=(otext + vtext + ftext))
 
             if os.path.getsize(mfile) and not o2mrun[1]:
                 gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
@@ -120,7 +119,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
                     logentry('Obj2mesh error: {}. Using mesh geometry export on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
 
                 gradfile += radpoints(o, mfaces, 0)
-#    print(gradfile)
 
     bm.free()
     return gradfile
@@ -238,12 +236,12 @@ def radgexport(export_op, node):
                         # bm.free()
 
                         for p, part in enumerate(particles):
-                           nv = mathutils.Vector((1, 0, 0))
-                           nv.rotate(part.rotation)
-                           rdiff = dob_axis_glo.rotation_difference(nv).to_euler()
-                           gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
-                                        p, [-p for p in dob.location], part.location, part.size, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
-                                        os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
+                            nv = mathutils.Vector((1, 0, 0))
+                            nv.rotate(part.rotation)
+                            rdiff = dob_axis_glo.rotation_difference(nv).to_euler()
+                            gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
+                                         p, [-p for p in dob.location], part.location, part.size, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
+                                         os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
 
                 o.particle_systems[0].settings.hair_length = hl
 
@@ -297,6 +295,7 @@ def radgexport(export_op, node):
 
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
+
 
 def gen_octree(scene, o, op, mesh, tri):
     dg = bpy.context.evaluated_depsgraph_get()

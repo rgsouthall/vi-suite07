@@ -825,7 +825,7 @@ class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
     filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
     filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
 
-    def draw(self,context):
+    def draw(self, context):
         layout = self.layout
         row = layout.row()
         row.label(text="Import BSDF XML file with the file browser", icon='WORLD_DATA')
@@ -842,7 +842,7 @@ class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
                 context.material['bsdf']['filepath'] = self.filepath
             return {'FINISHED'}
 
-    def invoke(self,context,event):
+    def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -869,7 +869,7 @@ class MATERIAL_OT_Li_SBSDF(bpy.types.Operator, ExportHelper):
     filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
     filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
 
-    def draw(self,context):
+    def draw(self, context):
         layout = self.layout
         row = layout.row()
         row.label(text="Save BSDF XML file with the file browser", icon='WORLD_DATA')
@@ -879,8 +879,8 @@ class MATERIAL_OT_Li_SBSDF(bpy.types.Operator, ExportHelper):
             bsdfsave.write(context.material.vi_params['bsdf']['xml'])
         return {'FINISHED'}
 
-    def invoke(self,context,event):
-        self.filepath= '{}.xml'.format(context.material.name)
+    def invoke(self, context, event):
+        self.filepath = '{}.xml'.format(context.material.name)
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -898,7 +898,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 self.simnode.run = 0
 
                 for line in self.rvurun.stderr:
-                    if  b'fatal IO error' not in line and b'events remaining' not in line and b'Broken pipe' not in line and b'explicit kill' not in line:
+                    if b'fatal IO error' not in line and b'events remaining' not in line and b'Broken pipe' not in line and b'explicit kill' not in line:
                         logentry(line)
                     for rvuerr in rvuerrdict:
                         if rvuerr in line.decode():
