@@ -2,14 +2,17 @@
 A PostScript backend, which can produce both PostScript .ps and .eps.
 """
 
+import codecs
 import datetime
 from enum import Enum
+import functools
 import glob
 from io import StringIO, TextIOWrapper
 import logging
 import math
 import os
 import pathlib
+import tempfile
 import re
 import shutil
 from tempfile import TemporaryDirectory
@@ -18,15 +21,14 @@ import time
 import numpy as np
 
 import matplotlib as mpl
-from matplotlib import _api, cbook, _path
-from matplotlib import _text_layout
+from matplotlib import _api, cbook, _path, _text_helpers
 from matplotlib.afm import AFM
 from matplotlib.backend_bases import (
     _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
-    GraphicsContextBase, RendererBase, _no_output_draw)
+    GraphicsContextBase, RendererBase)
 from matplotlib.cbook import is_writable_file_like, file_requires_unicode
 from matplotlib.font_manager import get_font
-from matplotlib.ft2font import LOAD_NO_HINTING, LOAD_NO_SCALE
+from matplotlib.ft2font import LOAD_NO_HINTING, LOAD_NO_SCALE, FT2Font
 from matplotlib._ttconv import convert_ttf_to_ps
 from matplotlib.mathtext import MathTextParser
 from matplotlib._mathtext_data import uni2type1
@@ -39,8 +41,7 @@ from . import _backend_pdf_ps
 _log = logging.getLogger(__name__)
 
 backend_version = 'Level II'
-
-debugPS = 0
+debugPS = False
 
 
 class PsBackendHelper:
@@ -87,22 +88,8 @@ def _get_papertype(w, h):
     return 'a0'
 
 
-def _num_to_str(val):
-    if isinstance(val, str):
-        return val
-
-    ival = int(val)
-    if val == ival:
-        return str(ival)
-
-    s = "%1.3f" % val
-    s = s.rstrip("0")
-    s = s.rstrip(".")
-    return s
-
-
 def _nums_to_str(*args):
-    return ' '.join(map(_num_to_str, args))
+    return " ".join(f"{arg:1.3f}".rstrip("0").rstrip(".") for arg in args)
 
 
 def quote_ps_string(s):
@@ -134,16 +121,16 @@ def _move_path_to_path_or_stream(src, dst):
         shutil.move(src, dst, copy_function=shutil.copyfile)
 
 
-def _font_to_ps_type3(font_path, glyph_ids):
+def _font_to_ps_type3(font_path, chars):
     """
-    Subset *glyph_ids* from the font at *font_path* into a Type 3 font.
+    Subset *chars* from the font at *font_path* into a Type 3 font.
 
     Parameters
     ----------
     font_path : path-like
         Path to the font to be subsetted.
-    glyph_ids : list of int
-        The glyph indices to include in the subsetted font.
+    chars : str
+        The characters to include in the subsetted font.
 
     Returns
     -------
@@ -152,6 +139,7 @@ def _font_to_ps_type3(font_path, glyph_ids):
         verbatim into a PostScript file.
     """
     font = get_font(font_path, hinting_factor=1)
+    glyph_ids = [font.get_char_index(c) for c in chars]
 
     preamble = """\
 %!PS-Adobe-3.0 Resource-Font
@@ -214,6 +202,58 @@ FontName currentdict end definefont pop
     return preamble + "\n".join(entries) + postamble
 
 
+def _font_to_ps_type42(font_path, chars, fh):
+    """
+    Subset *chars* from the font at *font_path* into a Type 42 font at *fh*.
+
+    Parameters
+    ----------
+    font_path : path-like
+        Path to the font to be subsetted.
+    chars : str
+        The characters to include in the subsetted font.
+    fh : file-like
+        Where to write the font.
+    """
+    subset_str = ''.join(chr(c) for c in chars)
+    _log.debug("SUBSET %s characters: %s", font_path, subset_str)
+    try:
+        fontdata = _backend_pdf_ps.get_glyphs_subset(font_path, subset_str)
+        _log.debug("SUBSET %s %d -> %d", font_path, os.stat(font_path).st_size,
+                   fontdata.getbuffer().nbytes)
+
+        # Give ttconv a subsetted font along with updated glyph_ids.
+        font = FT2Font(fontdata)
+        glyph_ids = [font.get_char_index(c) for c in chars]
+        with TemporaryDirectory() as tmpdir:
+            tmpfile = os.path.join(tmpdir, "tmp.ttf")
+
+            with open(tmpfile, 'wb') as tmp:
+                tmp.write(fontdata.getvalue())
+
+            # TODO: allow convert_ttf_to_ps to input file objects (BytesIO)
+            convert_ttf_to_ps(os.fsencode(tmpfile), fh, 42, glyph_ids)
+    except RuntimeError:
+        _log.warning(
+            "The PostScript backend does not currently "
+            "support the selected font.")
+        raise
+
+
+def _log_if_debug_on(meth):
+    """
+    Wrap `RendererPS` method *meth* to emit a PS comment with the method name,
+    if the global flag `debugPS` is set.
+    """
+    @functools.wraps(meth)
+    def wrapper(self, *args, **kwargs):
+        if debugPS:
+            self._pswriter.write(f"% {meth.__name__}\n")
+        return meth(self, *args, **kwargs)
+
+    return wrapper
+
+
 class RendererPS(_backend_pdf_ps.RendererPDFPSBase):
     """
     The renderer handles all the drawing primitives using a graphics
@@ -225,8 +265,6 @@ class RendererPS(_backend_pdf_ps.RendererPDFPSBase):
 
     mathtext_parser = _api.deprecated("3.4")(property(
         lambda self: MathTextParser("PS")))
-    used_characters = _api.deprecated("3.3")(property(
-        lambda self: self._character_tracker.used_characters))
 
     def __init__(self, width, height, pswriter, imagedpi=72):
         # Although postscript itself is dpi independent, we need to inform the
@@ -253,23 +291,27 @@ class RendererPS(_backend_pdf_ps.RendererPDFPSBase):
         self._path_collection_id = 0
 
         self._character_tracker = _backend_pdf_ps.CharacterTracker()
+        self._logwarn_once = functools.lru_cache(None)(_log.warning)
 
-    @_api.deprecated("3.3")
-    def track_characters(self, *args, **kwargs):
-        """Keep track of which characters are required from each font."""
-        self._character_tracker.track(*args, **kwargs)
-
-    @_api.deprecated("3.3")
-    def merge_used_characters(self, *args, **kwargs):
-        self._character_tracker.merge(*args, **kwargs)
+    def _is_transparent(self, rgb_or_rgba):
+        if rgb_or_rgba is None:
+            return True  # Consistent with rgbFace semantics.
+        elif len(rgb_or_rgba) == 4:
+            if rgb_or_rgba[3] == 0:
+                return True
+            if rgb_or_rgba[3] != 1:
+                self._logwarn_once(
+                    "The PostScript backend does not support transparency; "
+                    "partially transparent artists will be rendered opaque.")
+            return False
+        else:  # len() == 3.
+            return False
 
     def set_color(self, r, g, b, store=True):
         if (r, g, b) != self.color:
-            if r == g and r == b:
-                self._pswriter.write("%1.3f setgray\n" % r)
-            else:
-                self._pswriter.write(
-                    "%1.3f %1.3f %1.3f setrgbcolor\n" % (r, g, b))
+            self._pswriter.write(f"{r:1.3f} setgray\n"
+                                 if r == g == b else
+                                 f"{r:1.3f} {g:1.3f} {b:1.3f} setrgbcolor\n")
             if store:
                 self.color = (r, g, b)
 
@@ -312,11 +354,10 @@ class RendererPS(_backend_pdf_ps.RendererPDFPSBase):
             if np.array_equal(seq, oldseq) and oldo == offset:
                 return
 
-        if seq is not None and len(seq):
-            s = "[%s] %d setdash\n" % (_nums_to_str(*seq), offset)
-            self._pswriter.write(s)
-        else:
-            self._pswriter.write("[] 0 setdash\n")
+        self._pswriter.write(f"[{_nums_to_str(*seq)}]"
+                             f" {_nums_to_str(offset)} setdash\n"
+                             if seq is not None and len(seq) else
+                             "[] 0 setdash\n")
         if store:
             self.linedash = (offset, seq)
 
@@ -388,7 +429,7 @@ class RendererPS(_backend_pdf_ps.RendererPDFPSBase):
             key = (path, id(trf))
             custom_clip_cmd = self._clip_paths.get(key)
             if custom_clip_cmd is None:
-                custom_clip_cmd = "c%x" % len(self._clip_paths)
+                custom_clip_cmd = "c%d" % len(self._clip_paths)
                 self._pswriter.write(f"""\
 /{custom_clip_cmd} {{
 {self._convert_path(path, trf, simplify=False)}
@@ -400,6 +441,7 @@ newpath
             clip.append(f"{custom_clip_cmd}\n")
         return "".join(clip)
 
+    @_log_if_debug_on
     def draw_image(self, gc, x, y, im, transform=None):
         # docstring inherited
 
@@ -442,6 +484,7 @@ currentfile DataString readhexstring pop
 grestore
 """)
 
+    @_log_if_debug_on
     def draw_path(self, gc, path, transform, rgbFace=None):
         # docstring inherited
         clip = rgbFace is None and gc.get_hatch_path() is None
@@ -449,16 +492,14 @@ grestore
         ps = self._convert_path(path, transform, clip=clip, simplify=simplify)
         self._draw_ps(ps, gc, rgbFace)
 
+    @_log_if_debug_on
     def draw_markers(
             self, gc, marker_path, marker_trans, path, trans, rgbFace=None):
         # docstring inherited
 
-        if debugPS:
-            self._pswriter.write('% draw_markers \n')
-
         ps_color = (
             None
-            if _is_transparent(rgbFace)
+            if self._is_transparent(rgbFace)
             else '%1.3f setgray' % rgbFace[0]
             if rgbFace[0] == rgbFace[1] == rgbFace[2]
             else '%1.3f %1.3f %1.3f setrgbcolor' % rgbFace[:3])
@@ -504,6 +545,7 @@ grestore
         ps = '\n'.join(ps_cmd)
         self._draw_ps(ps, gc, rgbFace, fill=False, stroke=False)
 
+    @_log_if_debug_on
     def draw_path_collection(self, gc, master_transform, paths, all_transforms,
                              offsets, offsetTrans, facecolors, edgecolors,
                              linewidths, linestyles, antialiaseds, urls,
@@ -528,7 +570,7 @@ grestore
         path_codes = []
         for i, (path, transform) in enumerate(self._iter_collection_raw_paths(
                 master_transform, paths, all_transforms)):
-            name = 'p%x_%x' % (self._path_collection_id, i)
+            name = 'p%d_%d' % (self._path_collection_id, i)
             path_bytes = self._convert_path(path, transform, simplify=False)
             self._pswriter.write(f"""\
 /{name} {{
@@ -548,11 +590,14 @@ translate
 
         self._path_collection_id += 1
 
-    @_api.delete_parameter("3.3", "ismath")
-    def draw_tex(self, gc, x, y, s, prop, angle, ismath='TeX!', mtext=None):
+    @_log_if_debug_on
+    def draw_tex(self, gc, x, y, s, prop, angle, *, mtext=None):
         # docstring inherited
+        if self._is_transparent(gc.get_rgb()):
+            return  # Special handling for fully transparent.
+
         if not hasattr(self, "psfrag"):
-            _log.warning(
+            self._logwarn_once(
                 "The PS backend determines usetex status solely based on "
                 "rcParams['text.usetex'] and does not support having "
                 "usetex=True only for some elements; this element will thus "
@@ -570,19 +615,11 @@ translate
         s = fontcmd % s
         tex = r'\color[rgb]{%s} %s' % (color, s)
 
-        corr = 0  # w/2*(fontsize-10)/10
-        if dict.__getitem__(mpl.rcParams, 'text.latex.preview'):
-            # use baseline alignment!
-            pos = _nums_to_str(x-corr, y)
-            self.psfrag.append(
-                r'\psfrag{%s}[Bl][Bl][1][%f]{\fontsize{%f}{%f}%s}' % (
-                    thetext, angle, fontsize, fontsize*1.25, tex))
-        else:
-            # Stick to the bottom alignment.
-            pos = _nums_to_str(x-corr, y-bl)
-            self.psfrag.append(
-                r'\psfrag{%s}[bl][bl][1][%f]{\fontsize{%f}{%f}%s}' % (
-                    thetext, angle, fontsize, fontsize*1.25, tex))
+        # Stick to the bottom alignment.
+        pos = _nums_to_str(x, y-bl)
+        self.psfrag.append(
+            r'\psfrag{%s}[bl][bl][1][%f]{\fontsize{%f}{%f}%s}' % (
+                thetext, angle, fontsize, fontsize*1.25, tex))
 
         self._pswriter.write(f"""\
 gsave
@@ -593,13 +630,11 @@ grestore
 """)
         self.textcnt += 1
 
+    @_log_if_debug_on
     def draw_text(self, gc, x, y, s, prop, angle, ismath=False, mtext=None):
         # docstring inherited
 
-        if debugPS:
-            self._pswriter.write("% text\n")
-
-        if _is_transparent(gc.get_rgb()):
+        if self._is_transparent(gc.get_rgb()):
             return  # Special handling for fully transparent.
 
         if ismath == 'TeX':
@@ -633,7 +668,7 @@ grestore
             font.set_text(s, 0, flags=LOAD_NO_HINTING)
             self._character_tracker.track(font, s)
             xs_names = [(item.x, font.get_glyph_name(item.glyph_idx))
-                        for item in _text_layout.layout(s, font)]
+                        for item in _text_helpers.layout(s, font)]
 
         self.set_color(*gc.get_rgb())
         ps_name = (font.postscript_name
@@ -650,11 +685,9 @@ gsave
 grestore
 """)
 
+    @_log_if_debug_on
     def draw_mathtext(self, gc, x, y, s, prop, angle):
         """Draw the math text using matplotlib.mathtext."""
-        if debugPS:
-            self._pswriter.write("% mathtext\n")
-
         width, height, descent, glyphs, rects = \
             self._text2path.mathtext_parser.parse(
                 s, 72, prop,
@@ -666,7 +699,7 @@ grestore
             f"{angle:f} rotate\n")
         lastfont = None
         for font, fontsize, num, ox, oy in glyphs:
-            self._character_tracker.track(font, chr(num))
+            self._character_tracker.track_glyph(font, num)
             if (font.postscript_name, fontsize) != lastfont:
                 lastfont = font.postscript_name, fontsize
                 self._pswriter.write(
@@ -681,10 +714,12 @@ grestore
             self._pswriter.write(f"{ox} {oy} {w} {h} rectfill\n")
         self._pswriter.write("grestore\n")
 
+    @_log_if_debug_on
     def draw_gouraud_triangle(self, gc, points, colors, trans):
         self.draw_gouraud_triangles(gc, points.reshape((1, 3, 2)),
                                     colors.reshape((1, 3, 4)), trans)
 
+    @_log_if_debug_on
     def draw_gouraud_triangles(self, gc, points, colors, trans):
         assert len(points) == len(colors)
         assert points.ndim == 3
@@ -728,25 +763,21 @@ shfill
 grestore
 """)
 
-    def _draw_ps(self, ps, gc, rgbFace, fill=True, stroke=True, command=None):
+    def _draw_ps(self, ps, gc, rgbFace, *, fill=True, stroke=True):
         """
-        Emit the PostScript snippet 'ps' with all the attributes from 'gc'
-        applied.  'ps' must consist of PostScript commands to construct a path.
+        Emit the PostScript snippet *ps* with all the attributes from *gc*
+        applied.  *ps* must consist of PostScript commands to construct a path.
 
-        The fill and/or stroke kwargs can be set to False if the
-        'ps' string already includes filling and/or stroking, in
-        which case _draw_ps is just supplying properties and
-        clipping.
+        The *fill* and/or *stroke* kwargs can be set to False if the *ps*
+        string already includes filling and/or stroking, in which case
+        `_draw_ps` is just supplying properties and clipping.
         """
-        # local variable eliminates all repeated attribute lookups
         write = self._pswriter.write
-        if debugPS and command:
-            write("% "+command+"\n")
         mightstroke = (gc.get_linewidth() > 0
-                       and not _is_transparent(gc.get_rgb()))
+                       and not self._is_transparent(gc.get_rgb()))
         if not mightstroke:
             stroke = False
-        if _is_transparent(rgbFace):
+        if self._is_transparent(rgbFace):
             fill = False
         hatch = gc.get_hatch()
 
@@ -760,7 +791,6 @@ grestore
 
         write(self._get_clip_cmd(gc))
 
-        # Jochen, is the strip necessary? - this could be a honking big string
         write(ps.strip())
         write("\n")
 
@@ -782,21 +812,6 @@ grestore
             write("stroke\n")
 
         write("grestore\n")
-
-
-def _is_transparent(rgb_or_rgba):
-    if rgb_or_rgba is None:
-        return True  # Consistent with rgbFace semantics.
-    elif len(rgb_or_rgba) == 4:
-        if rgb_or_rgba[3] == 0:
-            return True
-        if rgb_or_rgba[3] != 1:
-            _log.warning(
-                "The PostScript backend does not support transparency; "
-                "partially transparent artists will be rendered opaque.")
-        return False
-    else:  # len() == 3.
-        return False
 
 
 @_api.deprecated("3.4", alternative="GraphicsContextBase")
@@ -823,15 +838,17 @@ class FigureCanvasPS(FigureCanvasBase):
     def get_default_filetype(self):
         return 'ps'
 
+    @_api.delete_parameter("3.5", "args")
     def print_ps(self, outfile, *args, **kwargs):
-        return self._print_ps(outfile, 'ps', *args, **kwargs)
+        return self._print_ps(outfile, 'ps', **kwargs)
 
+    @_api.delete_parameter("3.5", "args")
     def print_eps(self, outfile, *args, **kwargs):
-        return self._print_ps(outfile, 'eps', *args, **kwargs)
+        return self._print_ps(outfile, 'eps', **kwargs)
 
     @_api.delete_parameter("3.4", "dpi")
     def _print_ps(
-            self, outfile, format, *args,
+            self, outfile, format, *,
             dpi=None, metadata=None, papertype=None, orientation='portrait',
             **kwargs):
 
@@ -884,12 +901,8 @@ class FigureCanvasPS(FigureCanvasBase):
         generated from the *metadata* parameter to `.print_figure`.
         """
         is_eps = format == 'eps'
-        if isinstance(outfile, (str, os.PathLike)):
-            outfile = os.fspath(outfile)
-            passed_in_file_object = False
-        elif is_writable_file_like(outfile):
-            passed_in_file_object = True
-        else:
+        if not (isinstance(outfile, (str, os.PathLike))
+                or is_writable_file_like(outfile)):
             raise ValueError("outfile must be a path or a file-like object")
 
         # find the appropriate papertype
@@ -960,24 +973,15 @@ class FigureCanvasPS(FigureCanvasBase):
                         in ps_renderer._character_tracker.used.items():
                     if not chars:
                         continue
-                    font = get_font(font_path)
-                    glyph_ids = [font.get_char_index(c) for c in chars]
                     fonttype = mpl.rcParams['ps.fonttype']
                     # Can't use more than 255 chars from a single Type 3 font.
-                    if len(glyph_ids) > 255:
+                    if len(chars) > 255:
                         fonttype = 42
                     fh.flush()
                     if fonttype == 3:
-                        fh.write(_font_to_ps_type3(font_path, glyph_ids))
-                    else:
-                        try:
-                            convert_ttf_to_ps(os.fsencode(font_path),
-                                              fh, fonttype, glyph_ids)
-                        except RuntimeError:
-                            _log.warning(
-                                "The PostScript backend does not currently "
-                                "support the selected font.")
-                            raise
+                        fh.write(_font_to_ps_type3(font_path, chars))
+                    else:  # Type 42 only.
+                        _font_to_ps_type42(font_path, chars, fh)
             print("end", file=fh)
             print("%%EndProlog", file=fh)
 
@@ -1016,23 +1020,11 @@ class FigureCanvasPS(FigureCanvasBase):
                                  tmpfile, is_eps, ptype=papertype, bbox=bbox)
                 _move_path_to_path_or_stream(tmpfile, outfile)
 
-        else:
-            # Write directly to outfile.
-            if passed_in_file_object:
-                requires_unicode = file_requires_unicode(outfile)
-
-                if not requires_unicode:
-                    fh = TextIOWrapper(outfile, encoding="latin-1")
-                    # Prevent the TextIOWrapper from closing the underlying
-                    # file.
-                    fh.close = lambda: None
-                else:
-                    fh = outfile
-
-                print_figure_impl(fh)
-            else:
-                with open(outfile, 'w', encoding='latin-1') as fh:
-                    print_figure_impl(fh)
+        else:  # Write directly to outfile.
+            with cbook.open_file_cm(outfile, "w", encoding="latin-1") as file:
+                if not file_requires_unicode(file):
+                    file = codecs.getwriter("latin-1")(file)
+                print_figure_impl(file)
 
     @_check_savefig_extra_args
     def _print_figure_tex(
@@ -1130,7 +1122,7 @@ showpage
             _move_path_to_path_or_stream(tmpfile, outfile)
 
     def draw(self):
-        _no_output_draw(self.figure)
+        self.figure.draw_without_rendering()
         return super().draw()
 
 
@@ -1146,8 +1138,9 @@ def convert_psfrags(tmpfile, psfrags, font_preamble, custom_preamble,
     with mpl.rc_context({
             "text.latex.preamble":
             mpl.rcParams["text.latex.preamble"] +
-            r"\usepackage{psfrag,color}""\n"
-            r"\usepackage[dvips]{graphicx}""\n"
+            mpl.texmanager._usepackage_if_not_loaded("color") +
+            mpl.texmanager._usepackage_if_not_loaded("graphicx") +
+            mpl.texmanager._usepackage_if_not_loaded("psfrag") +
             r"\geometry{papersize={%(width)sin,%(height)sin},margin=0in}"
             % {"width": paper_width, "height": paper_height}
     }):
@@ -1348,8 +1341,8 @@ FigureManagerPS = FigureManagerBase
 # the matplotlib primitives and some abbreviations.
 #
 # References:
-# http://www.adobe.com/products/postscript/pdfs/PLRM.pdf
-# http://www.mactech.com/articles/mactech/Vol.09/09.04/PostscriptTutorial/
+# https://www.adobe.com/content/dam/acom/en/devnet/actionscript/articles/PLRM.pdf
+# http://preserve.mactech.com/articles/mactech/Vol.09/09.04/PostscriptTutorial
 # http://www.math.ubc.ca/people/faculty/cass/graphics/text/www/
 #
 

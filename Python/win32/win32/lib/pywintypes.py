@@ -1,5 +1,7 @@
 # Magic utility that "redirects" to pywintypesxx.dll
 import importlib.util, importlib.machinery, sys, os
+
+
 def __import_pywin32_system_module__(modname, globs):
     # This has been through a number of iterations.  The problem: how to
     # locate pywintypesXX.dll when it may be in a number of places, and how
@@ -18,9 +20,13 @@ def __import_pywin32_system_module__(modname, globs):
     # on pywintypesXX.dll.  It then can check if the DLL we are looking for
     # lib is already loaded.
     # See if this is a debug build.
-    suffix = '_d' if '_d.pyd' in importlib.machinery.EXTENSION_SUFFIXES else ''
-    filename = "%s%d%d%s.dll" % \
-               (modname, sys.version_info[0], sys.version_info[1], suffix)
+    suffix = "_d" if "_d.pyd" in importlib.machinery.EXTENSION_SUFFIXES else ""
+    filename = "%s%d%d%s.dll" % (
+        modname,
+        sys.version_info[0],
+        sys.version_info[1],
+        suffix,
+    )
     if hasattr(sys, "frozen"):
         # If we are running from a frozen program (py2exe, McMillan, freeze)
         # then we try and load the DLL from our sys.path
@@ -35,10 +41,13 @@ def __import_pywin32_system_module__(modname, globs):
             if os.path.isfile(found):
                 break
         else:
-            raise ImportError("Module '%s' isn't in frozen sys.path %s" % (modname, sys.path))
+            raise ImportError(
+                "Module '%s' isn't in frozen sys.path %s" % (modname, sys.path)
+            )
     else:
         # First see if it already in our process - if so, we must use that.
         import _win32sysloader
+
         found = _win32sysloader.GetModuleFilename(filename)
         if found is None:
             # We ask Windows to load it next.  This is in an attempt to
@@ -70,18 +79,32 @@ def __import_pywin32_system_module__(modname, globs):
             # easy_install...
             if os.path.isfile(os.path.join(os.path.dirname(__file__), filename)):
                 found = os.path.join(os.path.dirname(__file__), filename)
+
+        # There are 2 site-packages directories - one "global" and one "user".
+        # We could be in either, or both (but with different versions!). Factors include
+        # virtualenvs, post-install script being run or not, `setup.py install` flags, etc.
+
+        # In a worst-case, it means, say 'python -c "import win32api"'
+        # will not work but 'python -c "import pywintypes, win32api"' will,
+        # but it's better than nothing.
+        # We prefer the "user" site-packages if it exists...
         if found is None:
-            # We might have been installed via PIP and without the post-install
-            # script having been run, so they might be in the
-            # lib/site-packages/pywin32_system32 directory.
-            # This isn't ideal as it means, say 'python -c "import win32api"'
-            # will not work but 'python -c "import pywintypes, win32api"' will,
-            # but it's better than nothing...
-            import distutils.sysconfig
-            maybe = os.path.join(distutils.sysconfig.get_python_lib(plat_specific=1),
-                                 "pywin32_system32", filename)
+            import site
+
+            maybe = os.path.join(site.USER_SITE, "pywin32_system32", filename)
             if os.path.isfile(maybe):
                 found = maybe
+
+        # Or the "global" site-packages.
+        if found is None:
+            import sysconfig
+
+            maybe = os.path.join(
+                sysconfig.get_paths()["platlib"], "pywin32_system32", filename
+            )
+            if os.path.isfile(maybe):
+                found = maybe
+
         if found is None:
             # give up in disgust.
             raise ImportError("No system module '%s' (%s)" % (modname, filename))
@@ -101,5 +124,6 @@ def __import_pywin32_system_module__(modname, globs):
     # as above - re-reset to the *old* module object then update globs.
     sys.modules[modname] = old_mod
     globs.update(mod.__dict__)
+
 
 __import_pywin32_system_module__("pywintypes", globals())

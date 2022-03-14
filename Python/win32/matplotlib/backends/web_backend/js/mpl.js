@@ -63,7 +63,9 @@ mpl.figure = function (figure_id, websocket, ondownload, parent_element) {
         fig.send_message('supports_binary', { value: fig.supports_binary });
         fig.send_message('send_image_mode', {});
         if (fig.ratio !== 1) {
-            fig.send_message('set_dpi_ratio', { dpi_ratio: fig.ratio });
+            fig.send_message('set_device_pixel_ratio', {
+                device_pixel_ratio: fig.ratio,
+            });
         }
         fig.send_message('refresh', {});
     };
@@ -442,22 +444,7 @@ mpl.figure.prototype.handle_figure_label = function (fig, msg) {
 };
 
 mpl.figure.prototype.handle_cursor = function (fig, msg) {
-    var cursor = msg['cursor'];
-    switch (cursor) {
-        case 0:
-            cursor = 'pointer';
-            break;
-        case 1:
-            cursor = 'default';
-            break;
-        case 2:
-            cursor = 'crosshair';
-            break;
-        case 3:
-            cursor = 'move';
-            break;
-    }
-    fig.rubberband_canvas.style.cursor = cursor;
+    fig.rubberband_canvas.style.cursor = msg['cursor'];
 };
 
 mpl.figure.prototype.handle_message = function (fig, msg) {
@@ -569,7 +556,7 @@ mpl.figure.prototype._make_on_message_function = function (fig) {
     };
 };
 
-// from http://stackoverflow.com/questions/1114465/getting-mouse-location-in-canvas
+// from https://stackoverflow.com/questions/1114465/getting-mouse-location-in-canvas
 mpl.findpos = function (e) {
     //this section is from http://www.quirksmode.org/js/events_properties.html
     var targ;
@@ -597,7 +584,7 @@ mpl.findpos = function (e) {
 /*
  * return a copy of an object with only non-object keys
  * we need this to avoid circular references
- * http://stackoverflow.com/a/24161582/3208463
+ * https://stackoverflow.com/a/24161582/3208463
  */
 function simpleKeys(original) {
     return Object.keys(original).reduce(function (obj, key) {

@@ -12,10 +12,10 @@ import contextlib
 import functools
 import gzip
 import itertools
+import math
 import operator
 import os
 from pathlib import Path
-import re
 import shlex
 import subprocess
 import sys
@@ -51,20 +51,27 @@ def _get_running_interactive_framework():
     Returns
     -------
     Optional[str]
-        One of the following values: "qt5", "qt4", "gtk3", "wx", "tk",
+        One of the following values: "qt", "gtk3", "gtk4", "wx", "tk",
         "macosx", "headless", ``None``.
     """
-    QtWidgets = (sys.modules.get("PyQt5.QtWidgets")
-                 or sys.modules.get("PySide2.QtWidgets"))
+    # Use ``sys.modules.get(name)`` rather than ``name in sys.modules`` as
+    # entries can also have been explicitly set to None.
+    QtWidgets = (
+        sys.modules.get("PyQt6.QtWidgets")
+        or sys.modules.get("PySide6.QtWidgets")
+        or sys.modules.get("PyQt5.QtWidgets")
+        or sys.modules.get("PySide2.QtWidgets")
+    )
     if QtWidgets and QtWidgets.QApplication.instance():
-        return "qt5"
-    QtGui = (sys.modules.get("PyQt4.QtGui")
-             or sys.modules.get("PySide.QtGui"))
-    if QtGui and QtGui.QApplication.instance():
-        return "qt4"
+        return "qt"
     Gtk = sys.modules.get("gi.repository.Gtk")
-    if Gtk and Gtk.main_level():
-        return "gtk3"
+    if Gtk:
+        if Gtk.MAJOR_VERSION == 4:
+            from gi.repository import GLib
+            if GLib.main_depth():
+                return "gtk4"
+        if Gtk.MAJOR_VERSION == 3 and Gtk.main_level():
+            return "gtk3"
     wx = sys.modules.get("wx")
     if wx and wx.GetApp():
         return "wx"
@@ -76,9 +83,9 @@ def _get_running_interactive_framework():
                 if frame.f_code in codes:
                     return "tk"
                 frame = frame.f_back
-    if 'matplotlib.backends._macosx' in sys.modules:
-        if sys.modules["matplotlib.backends._macosx"].event_loop_is_running():
-            return "macosx"
+    macosx = sys.modules.get("matplotlib.backends._macosx")
+    if macosx and macosx.event_loop_is_running():
+        return "macosx"
     if not _c_internal_utils.display_is_valid():
         return "headless"
     return None
@@ -121,7 +128,8 @@ def _weak_or_strong_ref(func, callback):
 
 class CallbackRegistry:
     """
-    Handle registering and disconnecting for a set of signals and callbacks:
+    Handle registering, processing, blocking, and disconnecting
+    for a set of signals and callbacks:
 
         >>> def oneat(x):
         ...    print('eat', x)
@@ -139,8 +147,14 @@ class CallbackRegistry:
         >>> callbacks.process('eat', 456)
         eat 456
         >>> callbacks.process('be merry', 456) # nothing will be called
+
         >>> callbacks.disconnect(id_eat)
         >>> callbacks.process('eat', 456)      # nothing will be called
+
+        >>> with callbacks.blocked(signal='drink'):
+        ...     callbacks.process('drink', 123) # nothing will be called
+        >>> callbacks.process('drink', 123)
+        drink 123
 
     In practice, one should always disconnect all callbacks when they are
     no longer needed to avoid dangling references (and thus memory leaks).
@@ -200,6 +214,9 @@ class CallbackRegistry:
     @_api.rename_parameter("3.4", "s", "signal")
     def connect(self, signal, func):
         """Register *func* to be called when signal *signal* is generated."""
+        if signal == "units finalize":
+            _api.warn_deprecated(
+                "3.5", name=signal, obj_type="signal", alternative="units")
         self._func_cid_map.setdefault(signal, {})
         proxy = _weak_or_strong_ref(func, self._remove_proxy)
         if proxy in self._func_cid_map[signal]:
@@ -276,6 +293,31 @@ class CallbackRegistry:
                     else:
                         raise
 
+    @contextlib.contextmanager
+    def blocked(self, *, signal=None):
+        """
+        Block callback signals from being processed.
+
+        A context manager to temporarily block/disable callback signals
+        from being processed by the registered listeners.
+
+        Parameters
+        ----------
+        signal : str, optional
+            The callback signal to block. The default is to block all signals.
+        """
+        orig = self.callbacks
+        try:
+            if signal is None:
+                # Empty out the callbacks
+                self.callbacks = {}
+            else:
+                # Only remove the specific signal
+                self.callbacks = {k: orig[k] for k in orig if k != signal}
+            yield
+        finally:
+            self.callbacks = orig
+
 
 class silent_list(list):
     """
@@ -309,54 +351,6 @@ class silent_list(list):
             return f"<a list of {len(self)} {tp} objects>"
         else:
             return "<an empty list>"
-
-
-@_api.deprecated("3.3")
-class IgnoredKeywordWarning(UserWarning):
-    """
-    A class for issuing warnings about keyword arguments that will be ignored
-    by Matplotlib.
-    """
-    pass
-
-
-@_api.deprecated("3.3", alternative="normalize_kwargs")
-def local_over_kwdict(local_var, kwargs, *keys):
-    """
-    Enforces the priority of a local variable over potentially conflicting
-    argument(s) from a kwargs dict. The following possible output values are
-    considered in order of priority::
-
-        local_var > kwargs[keys[0]] > ... > kwargs[keys[-1]]
-
-    The first of these whose value is not None will be returned. If all are
-    None then None will be returned. Each key in keys will be removed from the
-    kwargs dict in place.
-
-    Parameters
-    ----------
-    local_var : any object
-        The local variable (highest priority).
-
-    kwargs : dict
-        Dictionary of keyword arguments; modified in place.
-
-    keys : str(s)
-        Name(s) of keyword arguments to process, in descending order of
-        priority.
-
-    Returns
-    -------
-    any object
-        Either local_var or one of kwargs[key] for key in keys.
-
-    Raises
-    ------
-    IgnoredKeywordWarning
-        For each key in keys that is removed from kwargs but not used as
-        the output value.
-    """
-    return _local_over_kwdict(local_var, kwargs, *keys, IgnoredKeywordWarning)
 
 
 def _local_over_kwdict(
@@ -445,16 +439,11 @@ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
     """
     if isinstance(fname, os.PathLike):
         fname = os.fspath(fname)
-    if "U" in flag:
-        _api.warn_deprecated(
-            "3.3", message="Passing a flag containing 'U' to to_filehandle() "
-            "is deprecated since %(since)s and will be removed %(removal)s.")
-        flag = flag.replace("U", "")
     if isinstance(fname, str):
         if fname.endswith('.gz'):
             fh = gzip.open(fname, flag)
         elif fname.endswith('.bz2'):
-            # python may not be complied with bz2 support,
+            # python may not be compiled with bz2 support,
             # bury import until we need it
             import bz2
             fh = bz2.BZ2File(fname, flag)
@@ -471,15 +460,10 @@ def to_filehandle(fname, flag='r', return_opened=False, encoding=None):
     return fh
 
 
-@contextlib.contextmanager
 def open_file_cm(path_or_file, mode="r", encoding=None):
     r"""Pass through file objects and context-manage path-likes."""
     fh, opened = to_filehandle(path_or_file, mode, True, encoding)
-    if opened:
-        with fh:
-            yield fh
-    else:
-        yield fh
+    return fh if opened else contextlib.nullcontext(fh)
 
 
 def is_scalar_or_string(val):
@@ -556,23 +540,6 @@ def flatten(seq, scalarp=is_scalar_or_string):
             yield from flatten(item, scalarp)
 
 
-@_api.deprecated("3.3", alternative="os.path.realpath and os.stat")
-@functools.lru_cache()
-def get_realpath_and_stat(path):
-    realpath = os.path.realpath(path)
-    stat = os.stat(realpath)
-    stat_key = (stat.st_ino, stat.st_dev)
-    return realpath, stat_key
-
-
-# A regular expression used to determine the amount of space to
-# remove.  It looks for the first sequence of spaces immediately
-# following the first newline, or at the beginning of the string.
-_find_dedent_regex = re.compile(r"(?:(?:\n\r?)|^)( *)\S")
-# A cache to hold the regexs that actually remove the indent.
-_dedent_regex = {}
-
-
 class maxdict(dict):
     """
     A dictionary with a maximum size.
@@ -582,18 +549,15 @@ class maxdict(dict):
     This doesn't override all the relevant methods to constrain the size,
     just ``__setitem__``, so use with caution.
     """
+
     def __init__(self, maxsize):
-        dict.__init__(self)
+        super().__init__()
         self.maxsize = maxsize
-        self._killkeys = []
 
     def __setitem__(self, k, v):
-        if k not in self:
-            if len(self) >= self.maxsize:
-                del self[self._killkeys[0]]
-                del self._killkeys[0]
-            self._killkeys.append(k)
-        dict.__setitem__(self, k, v)
+        super().__setitem__(k, v)
+        while len(self) >= self.maxsize:
+            del self[next(iter(self))]
 
 
 class Stack:
@@ -702,6 +666,7 @@ class Stack:
                 self.push(elem)
 
 
+@_api.deprecated("3.5", alternative="psutil.virtual_memory")
 def report_memory(i=0):  # argument may go away
     """Return the memory consumed by the process."""
     def call(command, os_name):
@@ -1502,7 +1467,7 @@ def violin_stats(X, method, points=100, quantiles=None):
     # Want quantiles to be as the same shape as data sequences
     if quantiles is not None and len(quantiles) != 0:
         quantiles = _reshape_2D(quantiles, "quantiles")
-    # Else, mock quantiles if is none or empty
+    # Else, mock quantiles if it's none or empty
     else:
         quantiles = [[]] * len(X)
 
@@ -1723,23 +1688,9 @@ def sanitize_sequence(data):
             else data)
 
 
-@_api.delete_parameter("3.3", "required")
-@_api.delete_parameter("3.3", "forbidden")
-@_api.delete_parameter("3.3", "allowed")
-def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
-                     allowed=None):
+def normalize_kwargs(kw, alias_mapping=None):
     """
     Helper function to normalize kwarg inputs.
-
-    The order they are resolved are:
-
-    1. aliasing
-    2. required
-    3. forbidden
-    4. allowed
-
-    This order means that only the canonical names need appear in
-    *allowed*, *forbidden*, *required*.
 
     Parameters
     ----------
@@ -1749,32 +1700,20 @@ def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
         the form ``props=None``.
 
     alias_mapping : dict or Artist subclass or Artist instance, optional
-        A mapping between a canonical name to a list of
-        aliases, in order of precedence from lowest to highest.
+        A mapping between a canonical name to a list of aliases, in order of
+        precedence from lowest to highest.
 
-        If the canonical value is not in the list it is assumed to have
-        the highest priority.
+        If the canonical value is not in the list it is assumed to have the
+        highest priority.
 
         If an Artist subclass or instance is passed, use its properties alias
         mapping.
 
-    required : list of str, optional
-        A list of keys that must be in *kws*.  This parameter is deprecated.
-
-    forbidden : list of str, optional
-        A list of keys which may not be in *kw*.  This parameter is deprecated.
-
-    allowed : list of str, optional
-        A list of allowed fields.  If this not None, then raise if
-        *kw* contains any keys not in the union of *required*
-        and *allowed*.  To allow only the required fields pass in
-        an empty tuple ``allowed=()``.  This parameter is deprecated.
-
     Raises
     ------
     TypeError
-        To match what python raises if invalid args/kwargs are passed to
-        a callable.
+        To match what Python raises if invalid arguments/keyword arguments are
+        passed to a callable.
     """
     from matplotlib.artist import Artist
 
@@ -1801,25 +1740,6 @@ def normalize_kwargs(kw, alias_mapping=None, required=(), forbidden=(),
                             f"{k!r}, which are aliases of one another")
         canonical_to_seen[canonical] = k
         ret[canonical] = v
-
-    fail_keys = [k for k in required if k not in ret]
-    if fail_keys:
-        raise TypeError("The required keys {keys!r} "
-                        "are not in kwargs".format(keys=fail_keys))
-
-    fail_keys = [k for k in forbidden if k in ret]
-    if fail_keys:
-        raise TypeError("The forbidden keys {keys!r} "
-                        "are in kwargs".format(keys=fail_keys))
-
-    if allowed is not None:
-        allowed_set = {*required, *allowed}
-        fail_keys = [k for k in ret if k not in allowed_set]
-        if fail_keys:
-            raise TypeError(
-                "kwargs contains {keys!r} which are not in the required "
-                "{req!r} or allowed {allow!r} keys".format(
-                    keys=fail_keys, req=required, allow=allowed))
 
     return ret
 
@@ -1913,7 +1833,7 @@ def _define_aliases(alias_d, cls=None):
     exception will be raised.
 
     The alias map is stored as the ``_alias_map`` attribute on the class and
-    can be used by `~.normalize_kwargs` (which assumes that higher priority
+    can be used by `.normalize_kwargs` (which assumes that higher priority
     aliases come last).
     """
     if cls is None:  # Return the actual class decorator.
@@ -2156,7 +2076,7 @@ class _OrderedSet(collections.abc.MutableSet):
         self._od.pop(key, None)
 
 
-# Agg's buffers are unmultiplied RGBA8888, which neither PyQt4 nor cairo
+# Agg's buffers are unmultiplied RGBA8888, which neither PyQt5 nor cairo
 # support; however, both do support premultiplied ARGB32.
 
 
@@ -2287,6 +2207,27 @@ def _format_approx(number, precision):
     return f'{number:.{precision}f}'.rstrip('0').rstrip('.') or '0'
 
 
+def _g_sig_digits(value, delta):
+    """
+    Return the number of significant digits to %g-format *value*, assuming that
+    it is known with an error of *delta*.
+    """
+    if delta == 0:
+        # delta = 0 may occur when trying to format values over a tiny range;
+        # in that case, replace it by the distance to the closest float.
+        delta = np.spacing(value)
+    # If e.g. value = 45.67 and delta = 0.02, then we want to round to 2 digits
+    # after the decimal point (floor(log10(0.02)) = -2); 45.67 contributes 2
+    # digits before the decimal point (floor(log10(45.67)) + 1 = 2): the total
+    # is 4 significant digits.  A value of 0 contributes 1 "digit" before the
+    # decimal point.
+    # For inf or nan, the precision doesn't matter.
+    return max(
+        0,
+        (math.floor(math.log10(abs(value))) + 1 if value else 1)
+        - math.floor(math.log10(delta))) if math.isfinite(value) else 0
+
+
 def _unikey_or_keysym_to_mplkey(unikey, keysym):
     """
     Convert a Unicode key or X keysym to a Matplotlib key name.
@@ -2310,3 +2251,57 @@ def _unikey_or_keysym_to_mplkey(unikey, keysym):
         "next": "pagedown",  # Used by tk.
     }.get(key, key)
     return key
+
+
+@functools.lru_cache(None)
+def _make_class_factory(mixin_class, fmt, attr_name=None):
+    """
+    Return a function that creates picklable classes inheriting from a mixin.
+
+    After ::
+
+        factory = _make_class_factory(FooMixin, fmt, attr_name)
+        FooAxes = factory(Axes)
+
+    ``Foo`` is a class that inherits from ``FooMixin`` and ``Axes`` and **is
+    picklable** (picklability is what differentiates this from a plain call to
+    `type`).  Its ``__name__`` is set to ``fmt.format(Axes.__name__)`` and the
+    base class is stored in the ``attr_name`` attribute, if not None.
+
+    Moreover, the return value of ``factory`` is memoized: calls with the same
+    ``Axes`` class always return the same subclass.
+    """
+
+    @functools.lru_cache(None)
+    def class_factory(axes_class):
+        # if we have already wrapped this class, declare victory!
+        if issubclass(axes_class, mixin_class):
+            return axes_class
+
+        # The parameter is named "axes_class" for backcompat but is really just
+        # a base class; no axes semantics are used.
+        base_class = axes_class
+
+        class subcls(mixin_class, base_class):
+            # Better approximation than __module__ = "matplotlib.cbook".
+            __module__ = mixin_class.__module__
+
+            def __reduce__(self):
+                return (_picklable_class_constructor,
+                        (mixin_class, fmt, attr_name, base_class),
+                        self.__getstate__())
+
+        subcls.__name__ = subcls.__qualname__ = fmt.format(base_class.__name__)
+        if attr_name is not None:
+            setattr(subcls, attr_name, base_class)
+        return subcls
+
+    class_factory.__module__ = mixin_class.__module__
+    return class_factory
+
+
+def _picklable_class_constructor(mixin_class, fmt, attr_name, base_class):
+    """Internal helper for _make_class_factory."""
+    factory = _make_class_factory(mixin_class, fmt, attr_name)
+    cls = factory(base_class)
+    return cls.__new__(cls)

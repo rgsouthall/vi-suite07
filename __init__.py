@@ -46,7 +46,7 @@ else:
         print('VI-Suite: Using system libraries')
     except:
         print('VI-Suite: Using buit-in libraries')
-        if sys.version_info[1] == 9:    
+        if sys.version_info[1] >= 9:    
             if os.environ.get('PYTHONPATH'):
                 if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
                     os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)

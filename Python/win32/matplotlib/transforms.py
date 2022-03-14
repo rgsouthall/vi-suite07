@@ -493,14 +493,6 @@ class BboxBase(TransformNode):
             [pts[0], [pts[0, 0], pts[1, 1]], [pts[1, 0], pts[0, 1]]]))
         return Bbox([ll, [lr[0], ul[1]]])
 
-    @_api.deprecated("3.3", alternative="transformed(transform.inverted())")
-    def inverse_transformed(self, transform):
-        """
-        Construct a `Bbox` by statically transforming this one by the inverse
-        of *transform*.
-        """
-        return self.transformed(transform.inverted())
-
     coefs = {'C':  (0.5, 0.5),
              'SW': (0, 0),
              'S':  (0.5, 0),
@@ -513,26 +505,21 @@ class BboxBase(TransformNode):
 
     def anchored(self, c, container=None):
         """
-        Return a copy of the `Bbox` shifted to position *c* within *container*.
+        Return a copy of the `Bbox` anchored to *c* within *container*.
 
         Parameters
         ----------
-        c : (float, float) or str
-            May be either:
-
-            * A sequence (*cx*, *cy*) where *cx* and *cy* range from 0
-              to 1, where 0 is left or bottom and 1 is right or top
-
-            * a string:
-              - 'C' for centered
-              - 'S' for bottom-center
-              - 'SE' for bottom-left
-              - 'E' for left
-              - etc.
-
+        c : (float, float) or {'C', 'SW', 'S', 'SE', 'E', 'NE', ...}
+            Either an (*x*, *y*) pair of relative coordinates (0 is left or
+            bottom, 1 is right or top), 'C' (center), or a cardinal direction
+            ('SW', southwest, is bottom left, etc.).
         container : `Bbox`, optional
             The box within which the `Bbox` is positioned; it defaults
             to the initial `Bbox`.
+
+        See Also
+        --------
+        .Axes.set_anchor
         """
         if container is None:
             container = self
@@ -807,6 +794,12 @@ class Bbox(BboxBase):
             self._check(self._points)
             super().invalidate()
 
+    def frozen(self):
+        # docstring inherited
+        frozen_bbox = super().frozen()
+        frozen_bbox._minpos = self.minpos.copy()
+        return frozen_bbox
+
     @staticmethod
     def unit():
         """Create a new unit `Bbox` from (0, 0) to (1, 1)."""
@@ -909,11 +902,51 @@ class Bbox(BboxBase):
                 self._points[:, 1] = points[:, 1]
                 self._minpos[1] = minpos[1]
 
+    def update_from_data_x(self, x, ignore=None):
+        """
+        Update the x-bounds of the `Bbox` based on the passed in data. After
+        updating, the bounds will have positive *width*, and *x0* will be the
+        minimal value.
+
+        Parameters
+        ----------
+        x : ndarray
+            Array of x-values.
+
+        ignore : bool, optional
+           - When ``True``, ignore the existing bounds of the `Bbox`.
+           - When ``False``, include the existing bounds of the `Bbox`.
+           - When ``None``, use the last value passed to :meth:`ignore`.
+        """
+        x = np.ravel(x)
+        self.update_from_data_xy(np.column_stack([x, np.ones(x.size)]),
+                                 ignore=ignore, updatey=False)
+
+    def update_from_data_y(self, y, ignore=None):
+        """
+        Update the y-bounds of the `Bbox` based on the passed in data. After
+        updating, the bounds will have positive *height*, and *y0* will be the
+        minimal value.
+
+        Parameters
+        ----------
+        y : ndarray
+            Array of y-values.
+
+        ignore : bool, optional
+           - When ``True``, ignore the existing bounds of the `Bbox`.
+           - When ``False``, include the existing bounds of the `Bbox`.
+           - When ``None``, use the last value passed to :meth:`ignore`.
+        """
+        y = np.array(y).ravel()
+        self.update_from_data_xy(np.column_stack([np.ones(y.size), y]),
+                                 ignore=ignore, updatex=False)
+
     def update_from_data_xy(self, xy, ignore=None, updatex=True, updatey=True):
         """
-        Update the bounds of the `Bbox` based on the passed in
-        data.  After updating, the bounds will have positive *width*
-        and *height*; *x0* and *y0* will be the minimal values.
+        Update the bounds of the `Bbox` based on the passed in data. After
+        updating, the bounds will have positive *width* and *height*;
+        *x0* and *y0* will be the minimal values.
 
         Parameters
         ----------
@@ -1881,7 +1914,14 @@ class Affine2D(Affine2DBase):
         self._mtx = matrix.copy()
         self._invalid = 0
 
-    __str__ = _make_str_method("_mtx")
+    _base_str = _make_str_method("_mtx")
+
+    def __str__(self):
+        return (self._base_str()
+                if (self._mtx != np.diag(np.diag(self._mtx))).any()
+                else f"Affine2D().scale({self._mtx[0, 0]}, {self._mtx[1, 1]})"
+                if self._mtx[0, 0] != self._mtx[1, 1]
+                else f"Affine2D().scale({self._mtx[0, 0]})")
 
     @staticmethod
     def from_values(a, b, c, d, e, f):

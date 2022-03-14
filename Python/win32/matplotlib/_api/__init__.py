@@ -3,13 +3,14 @@ Helper functions for managing the Matplotlib API.
 
 This documentation is only relevant for Matplotlib developers, not for users.
 
-.. warning:
+.. warning::
 
     This module and its submodules are for internal use only.  Do not use them
     in your own code.  We may change the API at any time with no warning.
 
 """
 
+import functools
 import itertools
 import re
 import sys
@@ -122,12 +123,10 @@ def check_in_list(_values, *, _print_supported_values=True, **kwargs):
     values = _values
     for key, val in kwargs.items():
         if val not in values:
+            msg = f"{val!r} is not a valid value for {key}"
             if _print_supported_values:
-                raise ValueError(
-                    f"{val!r} is not a valid value for {key}; "
-                    f"supported values are {', '.join(map(repr, values))}")
-            else:
-                raise ValueError(f"{val!r} is not a valid value for {key}")
+                msg += f"; supported values are {', '.join(map(repr, values))}"
+            raise ValueError(msg)
 
 
 def check_shape(_shape, **kwargs):
@@ -189,6 +188,93 @@ def check_getitem(_mapping, **kwargs):
         raise ValueError(
             "{!r} is not a valid value for {}; supported values are {}"
             .format(v, k, ', '.join(map(repr, mapping)))) from None
+
+
+def caching_module_getattr(cls):
+    """
+    Helper decorator for implementing module-level ``__getattr__`` as a class.
+
+    This decorator must be used at the module toplevel as follows::
+
+        @caching_module_getattr
+        class __getattr__:  # The class *must* be named ``__getattr__``.
+            @property  # Only properties are taken into account.
+            def name(self): ...
+
+    The ``__getattr__`` class will be replaced by a ``__getattr__``
+    function such that trying to access ``name`` on the module will
+    resolve the corresponding property (which may be decorated e.g. with
+    ``_api.deprecated`` for deprecating module globals).  The properties are
+    all implicitly cached.  Moreover, a suitable AttributeError is generated
+    and raised if no property with the given name exists.
+    """
+
+    assert cls.__name__ == "__getattr__"
+    # Don't accidentally export cls dunders.
+    props = {name: prop for name, prop in vars(cls).items()
+             if isinstance(prop, property)}
+    instance = cls()
+
+    @functools.lru_cache(None)
+    def __getattr__(name):
+        if name in props:
+            return props[name].__get__(instance)
+        raise AttributeError(
+            f"module {cls.__module__!r} has no attribute {name!r}")
+
+    return __getattr__
+
+
+def select_matching_signature(funcs, *args, **kwargs):
+    """
+    Select and call the function that accepts ``*args, **kwargs``.
+
+    *funcs* is a list of functions which should not raise any exception (other
+    than `TypeError` if the arguments passed do not match their signature).
+
+    `select_matching_signature` tries to call each of the functions in *funcs*
+    with ``*args, **kwargs`` (in the order in which they are given).  Calls
+    that fail with a `TypeError` are silently skipped.  As soon as a call
+    succeeds, `select_matching_signature` returns its return value.  If no
+    function accepts ``*args, **kwargs``, then the `TypeError` raised by the
+    last failing call is re-raised.
+
+    Callers should normally make sure that any ``*args, **kwargs`` can only
+    bind a single *func* (to avoid any ambiguity), although this is not checked
+    by `select_matching_signature`.
+
+    Notes
+    -----
+    `select_matching_signature` is intended to help implementing
+    signature-overloaded functions.  In general, such functions should be
+    avoided, except for back-compatibility concerns.  A typical use pattern is
+    ::
+
+        def my_func(*args, **kwargs):
+            params = select_matching_signature(
+                [lambda old1, old2: locals(), lambda new: locals()],
+                *args, **kwargs)
+            if "old1" in params:
+                warn_deprecated(...)
+                old1, old2 = params.values()  # note that locals() is ordered.
+            else:
+                new, = params.values()
+            # do things with params
+
+    which allows *my_func* to be called either with two parameters (*old1* and
+    *old2*) or a single one (*new*).  Note that the new signature is given
+    last, so that callers get a `TypeError` corresponding to the new signature
+    if the arguments they passed in do not match any signature.
+    """
+    # Rather than relying on locals() ordering, one could have just used func's
+    # signature (``bound = inspect.signature(func).bind(*args, **kwargs);
+    # bound.apply_defaults(); return bound``) but that is significantly slower.
+    for i, func in enumerate(funcs):
+        try:
+            return func(*args, **kwargs)
+        except TypeError:
+            if i == len(funcs) - 1:
+                raise
 
 
 def warn_external(message, category=None):

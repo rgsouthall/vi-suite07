@@ -1,11 +1,12 @@
 """
-A Cairo backend for matplotlib
+A Cairo backend for Matplotlib
 ==============================
 :Author: Steve Chaplin and others
 
 This backend depends on cairocffi or pycairo.
 """
 
+import functools
 import gzip
 import math
 
@@ -122,8 +123,6 @@ _f_angles = {
 
 
 class RendererCairo(RendererBase):
-    fontweights = _api.deprecated("3.3")(property(lambda self: {*_f_weights}))
-    fontangles = _api.deprecated("3.3")(property(lambda self: {*_f_angles}))
     mathtext_parser = _api.deprecated("3.4")(
         property(lambda self: MathTextParser('Cairo')))
 
@@ -246,7 +245,7 @@ class RendererCairo(RendererBase):
 
             ctx.save()
             ctx.select_font_face(*_cairo_font_args_from_font_prop(prop))
-            ctx.set_font_size(prop.get_size_in_points() * self.dpi / 72)
+            ctx.set_font_size(self.points_to_pixels(prop.get_size_in_points()))
             opts = cairo.FontOptions()
             opts.set_antialias(
                 cairo.ANTIALIAS_DEFAULT if mpl.rcParams["text.antialiased"]
@@ -272,7 +271,7 @@ class RendererCairo(RendererBase):
             ctx.move_to(ox, -oy)
             ctx.select_font_face(
                 *_cairo_font_args_from_font_prop(ttfFontProperty(font)))
-            ctx.set_font_size(fontsize * self.dpi / 72)
+            ctx.set_font_size(self.points_to_pixels(fontsize))
             ctx.show_text(chr(idx))
 
         for ox, oy, w, h in rects:
@@ -304,9 +303,7 @@ class RendererCairo(RendererBase):
         # save/restore prevents the problem
         ctx.save()
         ctx.select_font_face(*_cairo_font_args_from_font_prop(prop))
-        # Cairo (says it) uses 1/96 inch user space units, ref: cairo_gstate.c
-        # but if /96.0 is used the font is too small
-        ctx.set_font_size(prop.get_size_in_points() * self.dpi / 72)
+        ctx.set_font_size(self.points_to_pixels(prop.get_size_in_points()))
 
         y_bearing, w, h = ctx.text_extents(s)[1:4]
         ctx.restore()
@@ -473,20 +470,8 @@ class FigureCanvasCairo(FigureCanvasBase):
         self.figure.draw(renderer)
         return surface
 
-    def print_pdf(self, fobj, *args, **kwargs):
-        return self._save(fobj, 'pdf', *args, **kwargs)
-
-    def print_ps(self, fobj, *args, **kwargs):
-        return self._save(fobj, 'ps', *args, **kwargs)
-
-    def print_svg(self, fobj, *args, **kwargs):
-        return self._save(fobj, 'svg', *args, **kwargs)
-
-    def print_svgz(self, fobj, *args, **kwargs):
-        return self._save(fobj, 'svgz', *args, **kwargs)
-
     @_check_savefig_extra_args
-    def _save(self, fo, fmt, *, orientation='portrait'):
+    def _save(self, fmt, fobj, *, orientation='portrait'):
         # save PDF/PS/SVG
 
         dpi = 72
@@ -502,22 +487,22 @@ class FigureCanvasCairo(FigureCanvasBase):
             if not hasattr(cairo, 'PSSurface'):
                 raise RuntimeError('cairo has not been compiled with PS '
                                    'support enabled')
-            surface = cairo.PSSurface(fo, width_in_points, height_in_points)
+            surface = cairo.PSSurface(fobj, width_in_points, height_in_points)
         elif fmt == 'pdf':
             if not hasattr(cairo, 'PDFSurface'):
                 raise RuntimeError('cairo has not been compiled with PDF '
                                    'support enabled')
-            surface = cairo.PDFSurface(fo, width_in_points, height_in_points)
+            surface = cairo.PDFSurface(fobj, width_in_points, height_in_points)
         elif fmt in ('svg', 'svgz'):
             if not hasattr(cairo, 'SVGSurface'):
                 raise RuntimeError('cairo has not been compiled with SVG '
                                    'support enabled')
             if fmt == 'svgz':
-                if isinstance(fo, str):
-                    fo = gzip.GzipFile(fo, 'wb')
+                if isinstance(fobj, str):
+                    fobj = gzip.GzipFile(fobj, 'wb')
                 else:
-                    fo = gzip.GzipFile(None, 'wb', fileobj=fo)
-            surface = cairo.SVGSurface(fo, width_in_points, height_in_points)
+                    fobj = gzip.GzipFile(None, 'wb', fileobj=fobj)
+            surface = cairo.SVGSurface(fobj, width_in_points, height_in_points)
         else:
             raise ValueError("Unknown format: {!r}".format(fmt))
 
@@ -537,7 +522,12 @@ class FigureCanvasCairo(FigureCanvasBase):
         ctx.show_page()
         surface.finish()
         if fmt == 'svgz':
-            fo.close()
+            fobj.close()
+
+    print_pdf = functools.partialmethod(_save, "pdf")
+    print_ps = functools.partialmethod(_save, "ps")
+    print_svg = functools.partialmethod(_save, "svg")
+    print_svgz = functools.partialmethod(_save, "svgz")
 
 
 @_Backend.export

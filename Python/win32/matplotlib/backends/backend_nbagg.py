@@ -1,4 +1,4 @@
-"""Interactive figures in the IPython notebook"""
+"""Interactive figures in the IPython notebook."""
 # Note: There is a notebook in
 # lib/matplotlib/backends/web_backend/nbagg_uat.ipynb to help verify
 # that changes made maintain expected behaviour.
@@ -22,7 +22,8 @@ from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import _Backend, NavigationToolbar2
 from matplotlib.backends.backend_webagg_core import (
     FigureCanvasWebAggCore, FigureManagerWebAgg, NavigationToolbar2WebAgg,
-    TimerTornado)
+    TimerTornado, TimerAsyncio
+)
 
 
 def connection_info():
@@ -44,8 +45,8 @@ def connection_info():
 
 
 # Note: Version 3.2 and 4.x icons
-# http://fontawesome.io/3.2.1/icons/
-# http://fontawesome.io/
+# https://fontawesome.com/v3.2/icons/
+# https://fontawesome.com/v4.7/icons/
 # the `fa fa-xxx` part targets font-awesome 4, (IPython 3.x)
 # the icon-xxx targets font awesome 3.21 (IPython 2.x)
 _FONT_AWESOME_CLASSES = {

@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import copy
 import os
 from pathlib import Path
@@ -16,9 +15,9 @@ import matplotlib.colors as mcolors
 import numpy as np
 from matplotlib.rcsetup import (
     validate_bool,
-    validate_bool_maybe_none,
     validate_color,
     validate_colorlist,
+    _validate_color_or_linecolor,
     validate_cycler,
     validate_float,
     validate_fontweight,
@@ -119,8 +118,6 @@ def test_rcparams_init():
 
 def test_Bug_2543():
     # Test that it possible to add all values to itself / deepcopy
-    # This was not possible because validate_bool_maybe_none did not
-    # accept None as an argument.
     # https://github.com/matplotlib/matplotlib/issues/2543
     # We filter warnings at this stage since a number of them are raised
     # for deprecated rcparams as they should. We don't want these in the
@@ -132,11 +129,6 @@ def test_Bug_2543():
                 mpl.rcParams[key] = _copy[key]
         with mpl.rc_context():
             copy.deepcopy(mpl.rcParams)
-        # real test is that this does not raise
-        assert validate_bool_maybe_none(None) is None
-        assert validate_bool_maybe_none("none") is None
-        with pytest.raises(ValueError):
-            validate_bool_maybe_none("blah")
     with pytest.raises(ValueError):
         validate_bool(None)
     with pytest.raises(ValueError):
@@ -233,11 +225,11 @@ def generate_validator_testcases(valid):
                      (('a', 'b'), ['a', 'b']),
                      (iter(['a', 'b']), ['a', 'b']),
                      (np.array(['a', 'b']), ['a', 'b']),
-                     ((1, 2), ['1', '2']),
-                     (np.array([1, 2]), ['1', '2']),
                      ),
          'fail': ((set(), ValueError),
                   (1, ValueError),
+                  ((1, 2), _api.MatplotlibDeprecationWarning),
+                  (np.array([1, 2]), _api.MatplotlibDeprecationWarning),
                   )
          },
         {'validator': _listify_validator(validate_int, n=2),
@@ -286,6 +278,17 @@ def generate_validator_testcases(valid):
                   ('cycler("bleh, [])', ValueError),  # syntax error
                   ('Cycler("linewidth", [1, 2, 3])',
                    ValueError),  # only 'cycler()' function is allowed
+                  # do not allow dunder in string literals
+                  ("cycler('c', [j.__class__(j) for j in ['r', 'b']])",
+                   ValueError),
+                  ("cycler('c', [j. __class__(j) for j in ['r', 'b']])",
+                   ValueError),
+                  ("cycler('c', [j.\t__class__(j) for j in ['r', 'b']])",
+                   ValueError),
+                  ("cycler('c', [j.\u000c__class__(j) for j in ['r', 'b']])",
+                   ValueError),
+                  ("cycler('c', [j.__class__(j).lower() for j in ['r', 'b']])",
+                   ValueError),
                   ('1 + 2', ValueError),  # doesn't produce a Cycler object
                   ('os.system("echo Gotcha")', ValueError),  # os not available
                   ('import os', ValueError),  # should not be able to import
@@ -337,6 +340,17 @@ def generate_validator_testcases(valid):
                   ('(0, 1, none)', ValueError),  # cannot cast none to float
                   ('(0, 1, "0.5")', ValueError),  # last one not a float
                   ),
+         },
+        {'validator': _validate_color_or_linecolor,
+         'success': (('linecolor', 'linecolor'),
+                     ('markerfacecolor', 'markerfacecolor'),
+                     ('mfc', 'markerfacecolor'),
+                     ('markeredgecolor', 'markeredgecolor'),
+                     ('mec', 'markeredgecolor')
+                     ),
+         'fail': (('line', ValueError),
+                  ('marker', ValueError)
+                  )
          },
         {'validator': validate_hist_bins,
          'success': (('auto', 'auto'),
@@ -398,6 +412,7 @@ def generate_validator_testcases(valid):
                   ([1, 2, 3], ValueError),  # sequence with odd length
                   (1.23, ValueError),  # not a sequence
                   (("a", [1, 2]), ValueError),  # wrong explicit offset
+                  ((None, [1, 2]), ValueError),  # wrong explicit offset
                   ((1, [1, 2, 3]), ValueError),  # odd length sequence
                   (([1, 2], 1), ValueError),  # inverted offset/onoff
                   )
@@ -467,8 +482,7 @@ def test_rcparams_reset_after_fail():
     with mpl.rc_context(rc={'text.usetex': False}):
         assert mpl.rcParams['text.usetex'] is False
         with pytest.raises(KeyError):
-            with mpl.rc_context(rc=OrderedDict([('text.usetex', True),
-                                                ('test.blah', True)])):
+            with mpl.rc_context(rc={'text.usetex': True, 'test.blah': True}):
                 pass
         assert mpl.rcParams['text.usetex'] is False
 
@@ -481,11 +495,11 @@ def test_backend_fallback_headless(tmpdir):
     with pytest.raises(subprocess.CalledProcessError):
         subprocess.run(
             [sys.executable, "-c",
-             ("import matplotlib;" +
-              "matplotlib.use('tkagg');" +
-              "import matplotlib.pyplot")
+             "import matplotlib;"
+             "matplotlib.use('tkagg');"
+             "import matplotlib.pyplot"
              ],
-            env=env, check=True)
+            env=env, check=True, stderr=subprocess.DEVNULL)
 
 
 @pytest.mark.skipif(
@@ -496,7 +510,13 @@ def test_backend_fallback_headful(tmpdir):
     env = {**os.environ, "MPLBACKEND": "", "MPLCONFIGDIR": str(tmpdir)}
     backend = subprocess.check_output(
         [sys.executable, "-c",
-         "import matplotlib.pyplot; print(matplotlib.get_backend())"],
+         "import matplotlib as mpl; "
+         "sentinel = mpl.rcsetup._auto_backend_sentinel; "
+         # Check that access on another instance does not resolve the sentinel.
+         "assert mpl.RcParams({'backend': sentinel})['backend'] == sentinel; "
+         "assert dict.__getitem__(mpl.rcParams, 'backend') == sentinel; "
+         "import matplotlib.pyplot; "
+         "print(matplotlib.get_backend())"],
         env=env, universal_newlines=True)
     # The actual backend will depend on what's installed, but at least tkagg is
     # present.

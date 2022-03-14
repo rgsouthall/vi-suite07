@@ -1,16 +1,17 @@
-import io
+from collections import Counter
 from pathlib import Path
+import io
 import re
 import tempfile
 
 import pytest
 
+from matplotlib import cbook, patheffects
+from matplotlib.cbook import MatplotlibDeprecationWarning
+from matplotlib.figure import Figure
+from matplotlib.testing.decorators import check_figures_equal, image_comparison
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib import cbook, patheffects
-from matplotlib.testing.decorators import check_figures_equal, image_comparison
-from matplotlib.cbook import MatplotlibDeprecationWarning
-
 
 needs_ghostscript = pytest.mark.skipif(
     "eps" not in mpl.testing.compare.converter,
@@ -68,6 +69,8 @@ def test_savefig_to_stringio(format, use_log, rcParams, orientation):
         except tuple(allowable_exceptions) as exc:
             pytest.skip(str(exc))
 
+        assert not s_buf.closed
+        assert not b_buf.closed
         s_val = s_buf.getvalue().encode('ascii')
         b_val = b_buf.getvalue()
 
@@ -116,6 +119,16 @@ def test_transparency():
     ax.text(.5, .5, "foo", color="r", alpha=0)
 
 
+@needs_usetex
+@image_comparison(["empty.eps"])
+def test_transparency_tex():
+    mpl.rcParams['text.usetex'] = True
+    fig, ax = plt.subplots()
+    ax.set_axis_off()
+    ax.plot([0, 1], color="r", alpha=0)
+    ax.text(.5, .5, "foo", color="r", alpha=0)
+
+
 def test_bbox():
     fig, ax = plt.subplots()
     with io.BytesIO() as buf:
@@ -147,10 +160,22 @@ def test_failing_latex():
 @needs_usetex
 def test_partial_usetex(caplog):
     caplog.set_level("WARNING")
-    plt.figtext(.5, .5, "foo", usetex=True)
+    plt.figtext(.1, .1, "foo", usetex=True)
+    plt.figtext(.2, .2, "bar", usetex=True)
     plt.savefig(io.BytesIO(), format="ps")
-    assert caplog.records and all("as if usetex=False" in record.getMessage()
-                                  for record in caplog.records)
+    record, = caplog.records  # asserts there's a single record.
+    assert "as if usetex=False" in record.getMessage()
+
+
+@needs_usetex
+def test_usetex_preamble(caplog):
+    mpl.rcParams.update({
+        "text.usetex": True,
+        # Check that these don't conflict with the packages loaded by default.
+        "text.latex.preamble": r"\usepackage{color,graphicx,textcomp}",
+    })
+    plt.figtext(.5, .5, "foo")
+    plt.savefig(io.BytesIO(), format="ps")
 
 
 @image_comparison(["useafm.eps"])
@@ -184,3 +209,59 @@ def test_d_glyph(tmp_path):
     out = tmp_path / "test.eps"
     fig.savefig(out)
     mpl.testing.compare.convert(out, cache=False)  # Should not raise.
+
+
+@image_comparison(["type42_without_prep.eps"], style='mpl20')
+def test_type42_font_without_prep():
+    # Test whether Type 42 fonts without prep table are properly embedded
+    mpl.rcParams["ps.fonttype"] = 42
+    mpl.rcParams["mathtext.fontset"] = "stix"
+
+    plt.figtext(0.5, 0.5, "Mass $m$")
+
+
+@pytest.mark.parametrize('fonttype', ["3", "42"])
+def test_fonttype(fonttype):
+    mpl.rcParams["ps.fonttype"] = fonttype
+    fig, ax = plt.subplots()
+
+    ax.text(0.25, 0.5, "Forty-two is the answer to everything!")
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="ps")
+
+    test = b'/FontType ' + bytes(f"{fonttype}", encoding='utf-8') + b' def'
+
+    assert re.search(test, buf.getvalue(), re.MULTILINE)
+
+
+def test_linedash():
+    """Test that dashed lines do not break PS output"""
+    fig, ax = plt.subplots()
+
+    ax.plot([0, 1], linestyle="--")
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="ps")
+
+    assert buf.tell() > 0
+
+
+def test_no_duplicate_definition():
+
+    fig = Figure()
+    axs = fig.subplots(4, 4, subplot_kw=dict(projection="polar"))
+    for ax in axs.flat:
+        ax.set(xticks=[], yticks=[])
+        ax.plot([1, 2])
+    fig.suptitle("hello, world")
+
+    buf = io.StringIO()
+    fig.savefig(buf, format='eps')
+    buf.seek(0)
+
+    wds = [ln.partition(' ')[0] for
+           ln in buf.readlines()
+           if ln.startswith('/')]
+
+    assert max(Counter(wds).values()) == 1

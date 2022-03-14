@@ -22,7 +22,6 @@ import logging
 import numpy as np
 from matplotlib.transforms import Bbox
 
-
 _log = logging.getLogger(__name__)
 
 
@@ -39,7 +38,9 @@ class LayoutGrid:
         self.parent = parent
         self.parent_pos = parent_pos
         self.parent_inner = parent_inner
-        self.name = name
+        self.name = name + seq_id()
+        if parent is not None:
+            self.name = f'{parent.name}.{self.name}'
         self.nrows = nrows
         self.ncols = ncols
         self.height_ratios = np.atleast_1d(height_ratios)
@@ -168,7 +169,8 @@ class LayoutGrid:
                 self.solver.addConstraint(c | 'required')
 
     def add_child(self, child, i=0, j=0):
-        self.children[i, j] = child
+        # np.ix_ returns the cross product of i and j indices
+        self.children[np.ix_(np.atleast_1d(i), np.atleast_1d(j))] = child
 
     def parent_constraints(self):
         # constraints that are due to the parent...
@@ -508,13 +510,14 @@ def print_children(lb):
         print_children(child)
 
 
-def plot_children(fig, lg, level=0, printit=False):
+def plot_children(fig, lg=None, level=0, printit=False):
     """Simple plotting to show where boxes are."""
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
 
-    fig.canvas.draw()
-
+    if lg is None:
+        _layoutgrids = fig.execute_constrained_layout()
+        lg = _layoutgrids[fig]
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
     col = colors[level]
     for i in range(lg.nrows):

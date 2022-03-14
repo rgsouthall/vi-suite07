@@ -172,7 +172,7 @@ class Line3D(lines.Line2D):
     def set_3d_properties(self, zs=0, zdir='z'):
         xs = self.get_xdata()
         ys = self.get_ydata()
-        zs = np.broadcast_to(zs, xs.shape)
+        zs = np.broadcast_to(zs, len(xs))
         self._verts3d = juggle_axes(xs, ys, zs, zdir)
         self.stale = True
 
@@ -462,6 +462,7 @@ class Patch3DCollection(PatchCollection):
             xs = []
             ys = []
         self._offsets3d = juggle_axes(xs, ys, np.atleast_1d(zs), zdir)
+        self._z_markers_idx = slice(-1)
         self._vzs = None
         self.stale = True
 
@@ -713,6 +714,12 @@ class Poly3DCollection(PolyCollection):
         and _edgecolors properties.
         """
         super().__init__(verts, *args, **kwargs)
+        if isinstance(verts, np.ndarray):
+            if verts.ndim != 3:
+                raise ValueError('verts must be a list of (N, 3) array-like')
+        else:
+            if any(len(np.shape(vert)) != 2 for vert in verts):
+                raise ValueError('verts must be a list of (N, 3) array-like')
         self.set_zsort(zsort)
         self._codes3d = None
 
@@ -792,13 +799,11 @@ class Poly3DCollection(PolyCollection):
             #
             # We hold the 3D versions in a fixed order (the order the user
             # passed in) and sort the 2D version by view depth.
-            copy_state = self._update_dict['array']
             self.update_scalarmappable()
-            if copy_state:
-                if self._face_is_mapped:
-                    self._facecolor3d = self._facecolors
-                if self._edge_is_mapped:
-                    self._edgecolor3d = self._edgecolors
+            if self._face_is_mapped:
+                self._facecolor3d = self._facecolors
+            if self._edge_is_mapped:
+                self._edgecolor3d = self._edgecolors
         txs, tys, tzs = proj3d._proj_transform_vec(self._vec, self.axes.M)
         xyzlist = [(txs[sl], tys[sl], tzs[sl]) for sl in self._segslices]
 

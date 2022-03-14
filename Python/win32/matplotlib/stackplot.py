@@ -1,9 +1,9 @@
 """
 Stacked area plot for 1D arrays inspired by Douglas Y'barbo's stackoverflow
 answer:
-http://stackoverflow.com/questions/2225995/how-can-i-create-stacked-line-graph-with-matplotlib
+https://stackoverflow.com/q/2225995/
 
-(http://stackoverflow.com/users/66549/doug)
+(https://stackoverflow.com/users/66549/doug)
 """
 
 import numpy as np
@@ -52,6 +52,9 @@ def stackplot(axes, x, *args,
         beginning.
 
         If not specified, the colors from the Axes property cycle will be used.
+
+    data : indexable object, optional
+        DATA_PARAMETER_PLACEHOLDER
 
     **kwargs
         All other keyword arguments are passed to `.Axes.fill_between`.

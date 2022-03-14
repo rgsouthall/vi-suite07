@@ -45,49 +45,24 @@ except ImportError:
     ElementTree = None
 
 # VERSION was removed in Pillow 6.0.0.
-# PILLOW_VERSION is deprecated and will be removed in a future release.
+# PILLOW_VERSION was removed in Pillow 9.0.0.
 # Use __version__ instead.
-from . import (
-    ImageMode,
-    TiffTags,
-    UnidentifiedImageError,
-    __version__,
-    _plugins,
-    _raise_version_warning,
-)
+from . import ImageMode, TiffTags, UnidentifiedImageError, __version__, _plugins
 from ._binary import i32le
 from ._util import deferred_error, isPath
 
-if sys.version_info >= (3, 7):
 
-    def __getattr__(name):
-        if name == "PILLOW_VERSION":
-            _raise_version_warning()
-            return __version__
-        else:
-            categories = {"NORMAL": 0, "SEQUENCE": 1, "CONTAINER": 2}
-            if name in categories:
-                warnings.warn(
-                    "Image categories are deprecated and will be removed in Pillow 10 "
-                    "(2023-01-02). Use is_animated instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                return categories[name]
-        raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-
-
-else:
-
-    from . import PILLOW_VERSION
-
-    # Silence warning
-    assert PILLOW_VERSION
-
-    # categories
-    NORMAL = 0
-    SEQUENCE = 1
-    CONTAINER = 2
+def __getattr__(name):
+    categories = {"NORMAL": 0, "SEQUENCE": 1, "CONTAINER": 2}
+    if name in categories:
+        warnings.warn(
+            "Image categories are deprecated and will be removed in Pillow 10 "
+            "(2023-07-01). Use is_animated instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return categories[name]
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 logger = logging.getLogger(__name__)
@@ -162,8 +137,6 @@ def isImageType(t):
 
 #
 # Constants
-
-NONE = 0
 
 # transpose
 FLIP_LEFT_RIGHT = 0
@@ -538,7 +511,7 @@ class Image:
         if name == "category":
             warnings.warn(
                 "Image categories are deprecated and will be removed in Pillow 10 "
-                "(2023-01-02). Use is_animated instead.",
+                "(2023-07-01). Use is_animated instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -681,6 +654,10 @@ class Image:
             raise ValueError("Could not save to PNG for display") from e
         return b.getvalue()
 
+    class _ArrayData:
+        def __init__(self, new):
+            self.__array_interface__ = new
+
     def __array__(self, dtype=None):
         # numpy array interface support
         import numpy as np
@@ -697,10 +674,7 @@ class Image:
         else:
             new["data"] = self.tobytes()
 
-        class ArrayData:
-            __array_interface__ = new
-
-        return np.array(ArrayData(), dtype)
+        return np.array(self._ArrayData(new), dtype)
 
     def __getstate__(self):
         return [self.info, self.mode, self.size, self.getpalette(), self.tobytes()]
@@ -838,7 +812,7 @@ class Image:
             palette_length = self.im.putpalette(mode, arr)
             self.palette.dirty = 0
             self.palette.rawmode = None
-            if "transparency" in self.info and mode in ("RGBA", "LA", "PA"):
+            if "transparency" in self.info and mode in ("LA", "PA"):
                 if isinstance(self.info["transparency"], int):
                     self.im.putpalettealpha(self.info["transparency"], 0)
                 else:
@@ -914,16 +888,18 @@ class Image:
 
         self.load()
 
+        has_transparency = self.info.get("transparency") is not None
         if not mode and self.mode == "P":
             # determine default mode
             if self.palette:
                 mode = self.palette.mode
             else:
                 mode = "RGB"
+            if mode == "RGB" and has_transparency:
+                mode = "RGBA"
         if not mode or (mode == self.mode and not matrix):
             return self.copy()
 
-        has_transparency = self.info.get("transparency") is not None
         if matrix:
             # matrix conversion
             if mode not in ("L", "RGB"):
@@ -941,12 +917,8 @@ class Image:
                     transparency = convert_transparency(matrix, transparency)
                 elif len(mode) == 3:
                     transparency = tuple(
-                        [
-                            convert_transparency(
-                                matrix[i * 4 : i * 4 + 4], transparency
-                            )
-                            for i in range(0, len(transparency))
-                        ]
+                        convert_transparency(matrix[i * 4 : i * 4 + 4], transparency)
+                        for i in range(0, len(transparency))
                     )
                 new.info["transparency"] = transparency
             return new
@@ -1005,7 +977,7 @@ class Image:
                             trns_im = trns_im.convert("RGB")
                         trns = trns_im.getpixel((0, 0))
 
-            elif self.mode == "P" and mode == "RGBA":
+            elif self.mode == "P" and mode in ("LA", "PA", "RGBA"):
                 t = self.info["transparency"]
                 delete_trns = True
 
@@ -1128,14 +1100,17 @@ class Image:
                     "only RGB or L mode images can be quantized to a palette"
                 )
             im = self.im.convert("P", dither, palette.im)
-            return self._new(im)
+            new_im = self._new(im)
+            new_im.palette = palette.palette.copy()
+            return new_im
 
         im = self._new(self.im.quantize(colors, method, kmeans))
 
         from . import ImagePalette
 
         mode = im.im.getpalettemode()
-        im.palette = ImagePalette.ImagePalette(mode, im.im.getpalette(mode, mode))
+        palette = im.im.getpalette(mode, mode)[: colors * len(mode)]
+        im.palette = ImagePalette.ImagePalette(mode, palette)
 
         return im
 
@@ -1731,13 +1706,14 @@ class Image:
 
     def putdata(self, data, scale=1.0, offset=0.0):
         """
-        Copies pixel data to this image.  This method copies data from a
-        sequence object into the image, starting at the upper left
-        corner (0, 0), and continuing until either the image or the
-        sequence ends.  The scale and offset values are used to adjust
-        the sequence values: **pixel = value*scale + offset**.
+        Copies pixel data from a flattened sequence object into the image. The
+        values should start at the upper left corner (0, 0), continue to the
+        end of the line, followed directly by the first value of the second
+        line, and so on. Data will be read until either the image or the
+        sequence ends. The scale and offset values are used to adjust the
+        sequence values: **pixel = value*scale + offset**.
 
-        :param data: A sequence object.
+        :param data: A flattened sequence object.
         :param scale: An optional scale value.  The default is 1.0.
         :param offset: An optional offset value.  The default is 0.0.
         """
@@ -1751,14 +1727,19 @@ class Image:
         Attaches a palette to this image.  The image must be a "P", "PA", "L"
         or "LA" image.
 
-        The palette sequence must contain at most 768 integer values, or 1024
-        integer values if alpha is included. Each group of values represents
-        the red, green, blue (and alpha if included) values for the
-        corresponding pixel index. Instead of an integer sequence, you can use
-        an 8-bit string.
+        The palette sequence must contain at most 256 colors, made up of one
+        integer value for each channel in the raw mode.
+        For example, if the raw mode is "RGB", then it can contain at most 768
+        values, made up of red, green and blue values for the corresponding pixel
+        index in the 256 colors.
+        If the raw mode is "RGBA", then it can contain at most 1024 values,
+        containing red, green, blue and alpha values.
+
+        Alternatively, an 8-bit string may be used instead of an integer sequence.
 
         :param data: A palette sequence (either a list or a string).
-        :param rawmode: The raw mode of the palette.
+        :param rawmode: The raw mode of the palette. Either "RGB", "RGBA", or a
+           mode that can be transformed to "RGB" (e.g. "R", "BGR;15", "RGBA;L").
         """
         from . import ImagePalette
 
@@ -1832,18 +1813,16 @@ class Image:
         if source_palette is None:
             if self.mode == "P":
                 self.load()
-                real_source_palette = self.im.getpalette("RGB")[:768]
+                source_palette = self.im.getpalette("RGB")[:768]
             else:  # L-mode
-                real_source_palette = bytearray(i // 3 for i in range(768))
-        else:
-            real_source_palette = source_palette
+                source_palette = bytearray(i // 3 for i in range(768))
 
         palette_bytes = b""
         new_positions = [0] * 256
 
         # pick only the used colors from the palette
         for i, oldPosition in enumerate(dest_map):
-            palette_bytes += real_source_palette[oldPosition * 3 : oldPosition * 3 + 3]
+            palette_bytes += source_palette[oldPosition * 3 : oldPosition * 3 + 3]
             new_positions[oldPosition] = i
 
         # replace the palette color id of all pixel with the new id
@@ -1944,7 +1923,7 @@ class Image:
             message = f"Unknown resampling filter ({resample})."
 
             filters = [
-                "{} ({})".format(filter[1], filter[0])
+                f"{filter[1]} ({filter[0]})"
                 for filter in (
                     (NEAREST, "Image.NEAREST"),
                     (LANCZOS, "Image.LANCZOS"),
@@ -2076,10 +2055,8 @@ class Image:
                 return self.copy()
             if angle == 180:
                 return self.transpose(ROTATE_180)
-            if angle == 90 and expand:
-                return self.transpose(ROTATE_90)
-            if angle == 270 and expand:
-                return self.transpose(ROTATE_270)
+            if angle in (90, 270) and (expand or self.width == self.height):
+                return self.transpose(ROTATE_90 if angle == 90 else ROTATE_270)
 
         # Calculate the affine matrix.  Note that this is the reverse
         # transformation (from destination image to source) because we
@@ -2182,11 +2159,11 @@ class Image:
 
         filename = ""
         open_fp = False
-        if isPath(fp):
-            filename = fp
-            open_fp = True
-        elif isinstance(fp, Path):
+        if isinstance(fp, Path):
             filename = str(fp)
+            open_fp = True
+        elif isPath(fp):
+            filename = fp
             open_fp = True
         elif fp == sys.stdout:
             try:
@@ -2259,7 +2236,7 @@ class Image:
         if frame != 0:
             raise EOFError
 
-    def show(self, title=None, command=None):
+    def show(self, title=None):
         """
         Displays this image. This method is mainly intended for debugging purposes.
 
@@ -2279,14 +2256,7 @@ class Image:
         :param title: Optional title to use for the image window, where possible.
         """
 
-        if command is not None:
-            warnings.warn(
-                "The command parameter is deprecated and will be removed in Pillow 9 "
-                "(2022-01-02). Use a subclass of ImageShow.Viewer instead.",
-                DeprecationWarning,
-            )
-
-        _show(self, title=title, command=command)
+        _show(self, title=title)
 
     def split(self):
         """
@@ -2481,6 +2451,8 @@ class Image:
             raise ValueError("missing method data")
 
         im = new(self.mode, size, fillcolor)
+        if self.mode == "P" and self.palette:
+            im.palette = self.palette.copy()
         im.info = self.info.copy()
         if method == MESH:
             # list of quads
@@ -2546,7 +2518,7 @@ class Image:
                 message = f"Unknown resampling filter ({resample})."
 
             filters = [
-                "{} ({})".format(filter[1], filter[0])
+                f"{filter[1]} ({filter[0]})"
                 for filter in (
                     (NEAREST, "Image.NEAREST"),
                     (BILINEAR, "Image.BILINEAR"),
@@ -2801,7 +2773,7 @@ def fromarray(obj, mode=None):
 
       from PIL import Image
       import numpy as np
-      im = Image.open('hopper.jpg')
+      im = Image.open("hopper.jpg")
       a = np.asarray(im)
 
     Then this can be used to convert it to a Pillow image::
@@ -2809,8 +2781,21 @@ def fromarray(obj, mode=None):
       im = Image.fromarray(a)
 
     :param obj: Object with array interface
-    :param mode: Mode to use (will be determined from type if None)
-      See: :ref:`concept-modes`.
+    :param mode: Optional mode to use when reading ``obj``. Will be determined from
+      type if ``None``.
+
+      This will not be used to convert the data after reading, but will be used to
+      change how the data is read::
+
+        from PIL import Image
+        import numpy as np
+        a = np.full((1, 1), 300)
+        im = Image.fromarray(a, mode="L")
+        im.getpixel((0, 0))  # 44
+        im = Image.fromarray(a, mode="RGB")
+        im.getpixel((0, 0))  # (44, 1, 0)
+
+      See: :ref:`concept-modes` for general information about modes.
     :returns: An image object.
 
     .. versionadded:: 1.1.6
@@ -3243,22 +3228,9 @@ def register_encoder(name, encoder):
 
 
 def _show(image, **options):
-    options["_internal_pillow"] = True
-    _showxv(image, **options)
-
-
-def _showxv(image, title=None, **options):
     from . import ImageShow
 
-    if "_internal_pillow" in options:
-        del options["_internal_pillow"]
-    else:
-        warnings.warn(
-            "_showxv is deprecated and will be removed in Pillow 9 (2022-01-02). "
-            "Use Image.show instead.",
-            DeprecationWarning,
-        )
-    ImageShow.show(image, title, **options)
+    ImageShow.show(image, **options)
 
 
 # --------------------------------------------------------------------

@@ -6,10 +6,11 @@ kivy when it imports this package.
 import sys
 import os
 from os.path import join, isdir, dirname
+import site
 
 __all__ = ('dep_bins', )
 
-__version__ = '0.3.1'
+__version__ = '0.4.5'
 
 
 
@@ -18,13 +19,12 @@ dep_bins = []
 Can be used e.g. with pyinstaller to ensure it copies all the binaries.
 """
 
-_root = sys.prefix
-dep_bins = [join(_root, 'share', 'sdl2', 'bin')]
-if isdir(dep_bins[0]):
-    os.environ["PATH"] = dep_bins[0] + os.pathsep + os.environ["PATH"]
-    if hasattr(os, 'add_dll_directory'):
-        os.add_dll_directory(dep_bins[0])
-else:
-    dep_bins = []
+for d in [sys.prefix, site.USER_BASE]:
+    p = join(d, 'share', 'sdl2', 'bin')
+    if isdir(p):
+        os.environ["PATH"] = p + os.pathsep + os.environ["PATH"]
+        if hasattr(os, 'add_dll_directory'):
+            os.add_dll_directory(p)
+        dep_bins.append(p)
 
 

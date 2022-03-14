@@ -1,19 +1,26 @@
 try:
     import unicodedata2 as unicodedata
 except ImportError:
-    import unicodedata
+    import unicodedata  # type: ignore[no-redef]
 
-from codecs import IncrementalDecoder
-from re import findall
-from typing import Optional, Tuple, Union, List, Set
 import importlib
-from _multibytecodec import MultibyteIncrementalDecoder  # type: ignore
-
+import logging
+from codecs import IncrementalDecoder
 from encodings.aliases import aliases
 from functools import lru_cache
+from re import findall
+from typing import List, Optional, Set, Tuple, Union
 
-from charset_normalizer.constant import UNICODE_RANGES_COMBINED, UNICODE_SECONDARY_RANGE_KEYWORD, \
-    RE_POSSIBLE_ENCODING_INDICATION, ENCODING_MARKS, UTF8_MAXIMAL_ALLOCATION, IANA_SUPPORTED_SIMILAR
+from _multibytecodec import MultibyteIncrementalDecoder  # type: ignore
+
+from .constant import (
+    ENCODING_MARKS,
+    IANA_SUPPORTED_SIMILAR,
+    RE_POSSIBLE_ENCODING_INDICATION,
+    UNICODE_RANGES_COMBINED,
+    UNICODE_SECONDARY_RANGE_KEYWORD,
+    UTF8_MAXIMAL_ALLOCATION,
+)
 
 
 @lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
@@ -22,7 +29,14 @@ def is_accentuated(character: str) -> bool:
         description = unicodedata.name(character)  # type: str
     except ValueError:
         return False
-    return "WITH GRAVE" in description or "WITH ACUTE" in description or "WITH CEDILLA" in description or "WITH DIAERESIS" in description or "WITH CIRCUMFLEX" in description
+    return (
+        "WITH GRAVE" in description
+        or "WITH ACUTE" in description
+        or "WITH CEDILLA" in description
+        or "WITH DIAERESIS" in description
+        or "WITH CIRCUMFLEX" in description
+        or "WITH TILDE" in description
+    )
 
 
 @lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
@@ -33,12 +47,7 @@ def remove_accent(character: str) -> str:
 
     codes = decomposed.split(" ")  # type: List[str]
 
-    return chr(
-        int(
-            codes[0],
-            16
-        )
-    )
+    return chr(int(codes[0], 16))
 
 
 @lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
@@ -71,6 +80,7 @@ def is_ascii(character: str) -> bool:
         return False
     return True
 
+
 @lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
 def is_punctuation(character: str) -> bool:
     character_category = unicodedata.category(character)  # type: str
@@ -102,8 +112,18 @@ def is_symbol(character: str) -> bool:
 
 
 @lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
+def is_emoticon(character: str) -> bool:
+    character_range = unicode_range(character)  # type: Optional[str]
+
+    if character_range is None:
+        return False
+
+    return "Emoticons" in character_range
+
+
+@lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
 def is_separator(character: str) -> bool:
-    if character.isspace() or character in ["｜", "+", ",", ";", "<", ">"]:
+    if character.isspace() or character in {"｜", "+", ",", ";", "<", ">"}:
         return True
 
     character_category = unicodedata.category(character)  # type: str
@@ -119,7 +139,7 @@ def is_case_variable(character: str) -> bool:
 def is_private_use_only(character: str) -> bool:
     character_category = unicodedata.category(character)  # type: str
 
-    return "Co" == character_category
+    return character_category == "Co"
 
 
 @lru_cache(maxsize=UTF8_MAXIMAL_ALLOCATION)
@@ -174,11 +194,7 @@ def is_thai(character: str) -> bool:
 
 @lru_cache(maxsize=len(UNICODE_RANGES_COMBINED))
 def is_unicode_range_secondary(range_name: str) -> bool:
-    for keyword in UNICODE_SECONDARY_RANGE_KEYWORD:
-        if keyword in range_name:
-            return True
-
-    return False
+    return any(keyword in range_name for keyword in UNICODE_SECONDARY_RANGE_KEYWORD)
 
 
 def any_specified_encoding(sequence: bytes, search_zone: int = 4096) -> Optional[str]:
@@ -192,14 +208,14 @@ def any_specified_encoding(sequence: bytes, search_zone: int = 4096) -> Optional
 
     results = findall(
         RE_POSSIBLE_ENCODING_INDICATION,
-        sequence[:seq_len if seq_len <= search_zone else search_zone].decode('ascii', errors='ignore')
+        sequence[: min(seq_len, search_zone)].decode("ascii", errors="ignore"),
     )  # type: List[str]
 
     if len(results) == 0:
         return None
 
     for specified_encoding in results:
-        specified_encoding = specified_encoding.lower().replace('-', '_')
+        specified_encoding = specified_encoding.lower().replace("-", "_")
 
         for encoding_alias, encoding_iana in aliases.items():
             if encoding_alias == specified_encoding:
@@ -215,9 +231,19 @@ def is_multi_byte_encoding(name: str) -> bool:
     """
     Verify is a specific encoding is a multi byte one based on it IANA name
     """
-    return name in {"utf_8", "utf_8_sig", "utf_16", "utf_16_be", "utf_16_le", "utf_32", "utf_32_le", "utf_32_be", "utf_7"} or issubclass(
-        importlib.import_module('encodings.{}'.format(name)).IncrementalDecoder,  # type: ignore
-        MultibyteIncrementalDecoder
+    return name in {
+        "utf_8",
+        "utf_8_sig",
+        "utf_16",
+        "utf_16_be",
+        "utf_16_le",
+        "utf_32",
+        "utf_32_le",
+        "utf_32_be",
+        "utf_7",
+    } or issubclass(
+        importlib.import_module("encodings.{}".format(name)).IncrementalDecoder,  # type: ignore
+        MultibyteIncrementalDecoder,
     )
 
 
@@ -244,10 +270,10 @@ def should_strip_sig_or_bom(iana_encoding: str) -> bool:
 
 
 def iana_name(cp_name: str, strict: bool = True) -> str:
-    cp_name = cp_name.lower().replace('-', '_')
+    cp_name = cp_name.lower().replace("-", "_")
 
     for encoding_alias, encoding_iana in aliases.items():
-        if cp_name == encoding_alias or cp_name == encoding_iana:
+        if cp_name in [encoding_alias, encoding_iana]:
             return encoding_iana
 
     if strict:
@@ -265,9 +291,7 @@ def range_scan(decoded_sequence: str) -> List[str]:
         if character_range is None:
             continue
 
-        ranges.add(
-            character_range
-        )
+        ranges.add(character_range)
 
     return list(ranges)
 
@@ -275,17 +299,17 @@ def range_scan(decoded_sequence: str) -> List[str]:
 def cp_similarity(iana_name_a: str, iana_name_b: str) -> float:
 
     if is_multi_byte_encoding(iana_name_a) or is_multi_byte_encoding(iana_name_b):
-        return 0.
+        return 0.0
 
-    decoder_a = importlib.import_module('encodings.{}'.format(iana_name_a)).IncrementalDecoder  # type: ignore
-    decoder_b = importlib.import_module('encodings.{}'.format(iana_name_b)).IncrementalDecoder  # type: ignore
+    decoder_a = importlib.import_module("encodings.{}".format(iana_name_a)).IncrementalDecoder  # type: ignore
+    decoder_b = importlib.import_module("encodings.{}".format(iana_name_b)).IncrementalDecoder  # type: ignore
 
     id_a = decoder_a(errors="ignore")  # type: IncrementalDecoder
     id_b = decoder_b(errors="ignore")  # type: IncrementalDecoder
 
     character_match_count = 0  # type: int
 
-    for i in range(0, 255):
+    for i in range(255):
         to_be_decoded = bytes([i])  # type: bytes
         if id_a.decode(to_be_decoded) == id_b.decode(to_be_decoded):
             character_match_count += 1
@@ -298,4 +322,21 @@ def is_cp_similar(iana_name_a: str, iana_name_b: str) -> bool:
     Determine if two code page are at least 80% similar. IANA_SUPPORTED_SIMILAR dict was generated using
     the function cp_similarity.
     """
-    return iana_name_a in IANA_SUPPORTED_SIMILAR and iana_name_b in IANA_SUPPORTED_SIMILAR[iana_name_a]
+    return (
+        iana_name_a in IANA_SUPPORTED_SIMILAR
+        and iana_name_b in IANA_SUPPORTED_SIMILAR[iana_name_a]
+    )
+
+
+def set_logging_handler(
+    name: str = "charset_normalizer",
+    level: int = logging.INFO,
+    format_string: str = "%(asctime)s | %(levelname)s | %(message)s",
+) -> None:
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(format_string))
+    logger.addHandler(handler)

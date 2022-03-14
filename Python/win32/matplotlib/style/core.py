@@ -19,23 +19,26 @@ import re
 import warnings
 
 import matplotlib as mpl
-from matplotlib import _api, rc_params_from_file, rcParamsDefault
+from matplotlib import _api, docstring, rc_params_from_file, rcParamsDefault
 
 _log = logging.getLogger(__name__)
 
 __all__ = ['use', 'context', 'available', 'library', 'reload_library']
 
 
+@_api.caching_module_getattr  # module-level deprecations
+class __getattr__:
+    STYLE_FILE_PATTERN = _api.deprecated("3.5", obj_type="")(property(
+        lambda self: re.compile(r'([\S]+).%s$' % STYLE_EXTENSION)))
+
+
 BASE_LIBRARY_PATH = os.path.join(mpl.get_data_path(), 'stylelib')
 # Users may want multiple library paths, so store a list of paths.
 USER_LIBRARY_PATHS = [os.path.join(mpl.get_configdir(), 'stylelib')]
 STYLE_EXTENSION = 'mplstyle'
-STYLE_FILE_PATTERN = re.compile(r'([\S]+).%s$' % STYLE_EXTENSION)
-
-
 # A list of rcParams that should not be applied from styles
 STYLE_BLACKLIST = {
-    'interactive', 'backend', 'backend.qt4', 'webagg.port', 'webagg.address',
+    'interactive', 'backend', 'webagg.port', 'webagg.address',
     'webagg.port_retries', 'webagg.open_in_browser', 'backend_fallback',
     'toolbar', 'timezone', 'datapath', 'figure.max_open_warning',
     'figure.raise_window', 'savefig.directory', 'tk.window_focus',
@@ -48,8 +51,8 @@ def _remove_blacklisted_style_params(d, warn=True):
         if key in STYLE_BLACKLIST:
             if warn:
                 _api.warn_external(
-                    "Style includes a parameter, '{0}', that is not related "
-                    "to style.  Ignoring".format(key))
+                    f"Style includes a parameter, {key!r}, that is not "
+                    "related to style.  Ignoring this parameter.")
         else:
             o[key] = d[key]
     return o
@@ -59,6 +62,9 @@ def _apply_style(d, warn=True):
     mpl.rcParams.update(_remove_blacklisted_style_params(d, warn=warn))
 
 
+@docstring.Substitution(
+    "\n".join(map("- {}".format, sorted(STYLE_BLACKLIST, key=str.lower)))
+)
 def use(style):
     """
     Use Matplotlib style settings from a style specification.
@@ -78,7 +84,7 @@ def use(style):
 
         +------+-------------------------------------------------------------+
         | str  | The name of a style or a path/URL to a style file. For a    |
-        |      | list of available style names, see `style.available`.       |
+        |      | list of available style names, see `.style.available`.      |
         +------+-------------------------------------------------------------+
         | dict | Dictionary with valid key/value pairs for                   |
         |      | `matplotlib.rcParams`.                                      |
@@ -89,6 +95,12 @@ def use(style):
         |      | first to last in the list.                                  |
         +------+-------------------------------------------------------------+
 
+    Notes
+    -----
+    The following `.rcParams` are not related to style and will be ignored if
+    found in a style specification:
+
+    %s
     """
     style_alias = {'mpl20': 'default',
                    'mpl15': 'classic'}
@@ -133,7 +145,7 @@ def context(style, after_reset=False):
 
         +------+-------------------------------------------------------------+
         | str  | The name of a style or a path/URL to a style file. For a    |
-        |      | list of available style names, see `style.available`.       |
+        |      | list of available style names, see `.style.available`.      |
         +------+-------------------------------------------------------------+
         | dict | Dictionary with valid key/value pairs for                   |
         |      | `matplotlib.rcParams`.                                      |
@@ -155,12 +167,14 @@ def context(style, after_reset=False):
         yield
 
 
+@_api.deprecated("3.5")
 def load_base_library():
     """Load style library defined in this package."""
     library = read_style_directory(BASE_LIBRARY_PATH)
     return library
 
 
+@_api.deprecated("3.5")
 def iter_user_libraries():
     for stylelib_path in USER_LIBRARY_PATHS:
         stylelib_path = os.path.expanduser(stylelib_path)
@@ -170,7 +184,7 @@ def iter_user_libraries():
 
 def update_user_library(library):
     """Update style library with user-defined rc files."""
-    for stylelib_path in iter_user_libraries():
+    for stylelib_path in map(os.path.expanduser, USER_LIBRARY_PATHS):
         styles = read_style_directory(stylelib_path)
         update_nested_dict(library, styles)
     return library
@@ -204,10 +218,8 @@ def update_nested_dict(main_dict, new_dict):
 
 # Load style library
 # ==================
-_base_library = load_base_library()
-
+_base_library = read_style_directory(BASE_LIBRARY_PATH)
 library = None
-
 available = []
 
 

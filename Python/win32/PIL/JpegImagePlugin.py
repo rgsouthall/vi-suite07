@@ -168,11 +168,11 @@ def APP(self, marker):
                 # 1 dpcm = 2.54 dpi
                 dpi *= 2.54
             self.info["dpi"] = dpi, dpi
-        except (KeyError, SyntaxError, ValueError, ZeroDivisionError):
+        except (TypeError, KeyError, SyntaxError, ValueError, ZeroDivisionError):
             # SyntaxError for invalid/unreadable EXIF
             # KeyError for dpi not included
             # ZeroDivisionError for invalid dpi rational value
-            # ValueError for dpi being an invalid float
+            # ValueError or TypeError for dpi being an invalid float
             self.info["dpi"] = 72, 72
 
 
@@ -401,9 +401,10 @@ class JpegImageFile(ImageFile.ImageFile):
         """
         s = self.fp.read(read_bytes)
 
-        if not s and ImageFile.LOAD_TRUNCATED_IMAGES:
+        if not s and ImageFile.LOAD_TRUNCATED_IMAGES and not hasattr(self, "_ended"):
             # Premature EOF.
             # Pretend file is finished adding EOI marker
+            self._ended = True
             return b"\xFF\xD9"
 
         return s
@@ -603,7 +604,7 @@ samplings = {
 def convert_dict_qtables(qtables):
     warnings.warn(
         "convert_dict_qtables is deprecated and will be removed in Pillow 10"
-        "(2023-01-02). Conversion is no longer needed.",
+        "(2023-07-01). Conversion is no longer needed.",
         DeprecationWarning,
     )
     return qtables

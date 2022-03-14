@@ -69,29 +69,6 @@
 */
 #define PYWIN_ATTR_CONVERT (char *)_PyUnicode_AsString
 
-/* Some API functions changed/removed in python 3.0
-    Definitions for the string functions are in stringobject.h,
-    but comments indicate that this header is likely to go away in 3.1.
-*/
-#define PyString_Check PyBytes_Check
-#define PyString_Size PyBytes_Size
-#define PyString_AsString PyBytes_AsString
-#define PyString_AsStringAndSize PyBytes_AsStringAndSize
-#define PyString_FromString PyBytes_FromString
-#define PyString_FromStringAndSize PyBytes_FromStringAndSize
-#define _PyString_Resize _PyBytes_Resize
-#define PyString_AS_STRING PyBytes_AS_STRING
-#define PyString_GET_SIZE PyBytes_GET_SIZE
-#define PyString_Concat PyBytes_Concat
-#define PyInt_Check PyLong_Check
-#define PyInt_FromLong PyLong_FromLong
-#define PyInt_AsLong PyLong_AsLong
-#define PyInt_AS_LONG PyLong_AS_LONG
-#define PyInt_FromSsize_t PyLong_FromSsize_t
-#define PyInt_AsSsize_t PyLong_AsSsize_t
-#define PyInt_AsUnsignedLongMask PyLong_AsUnsignedLongMask
-#define PyNumber_Int PyNumber_Long
-
 typedef Py_ssize_t Py_hash_t;
 
 // This only enables runtime checks in debug builds - so we use
@@ -647,9 +624,11 @@ extern PYWINTYPES_EXPORT void PyWin_MakePendingCalls();
 
 class CEnterLeavePython {
    public:
-    CEnterLeavePython() { acquire(); }
+    CEnterLeavePython() : released(TRUE) { acquire(); }
     void acquire(void)
     {
+        if (!released)
+            return;
         state = PyGILState_Ensure();
         released = FALSE;
     }
