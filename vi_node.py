@@ -1725,6 +1725,38 @@ class No_En_RF(Node, ViNodes):
         self['exportstate'] = [self.resfilename]
         nodecolour(self, 0)
 
+class So_En_ResU(NodeSocket):
+    '''Vi unlinked results socket'''
+    bl_idname = 'So_En_ResU'
+    bl_label = 'Axis'
+    valid = ['Vi Results']
+
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 0.0, 0.75)
+
+    def draw(self, context, layout, node, text):
+        layout.label(text = self.bl_label)
+
+class ViEnRXIn(So_En_ResU):
+    '''Chart input socket'''
+    bl_idname = 'ViEnRXIn'
+    bl_label = 'X-axis'
+
+class ViEnRY1In(So_En_ResU):
+    '''Chart input socket'''
+    bl_idname = 'ViEnRY1In'
+    bl_label = 'Y-axis 1'
+
+class ViEnRY2In(So_En_ResU):
+    '''Chart input socket'''
+    bl_idname = 'ViEnRY2In'
+    bl_label = 'Y-axis 2'
+
+class ViEnRY3In(So_En_ResU):
+    '''Chart input socket'''
+    bl_idname = 'ViEnRY3In'
+    bl_label = 'Y-axis 3'
+
 class No_Vi_Chart(Node, ViNodes):
     '''Node for 2D results plotting'''
     bl_idname = 'No_Vi_Chart'
@@ -1791,15 +1823,8 @@ class No_Vi_Chart(Node, ViNodes):
 
     def update(self):
         if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists']:
-            class ViEnRXIn(So_En_ResU):
-                '''Energy geometry out socket'''
-                bl_idname = 'ViEnRXIn'
-                bl_label = 'X-axis'
-
-                valid = ['Vi Results']
-
-            bpy.utils.register_class(ViEnRXIn)
-
+            if self.inputs.get('Y-axis 1'):
+                self.inputs['Y-axis 1'].hide = True
         else:
             innode = self.inputs['X-axis'].links[0].from_node
             rl = innode['reslists']
@@ -1829,15 +1854,12 @@ class No_Vi_Chart(Node, ViNodes):
                     self['Start'], self['End'] = startday, endday
                 frame = zrl[0][0]
 
-            if self.inputs.get('Y-axis 1'):
-                self.inputs['Y-axis 1'].hide = False
-
             class ViEnRXIn(So_En_Res):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
+                valid: ['Vi Results']
 
-                valid = ['Vi Results']
                 (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
                 enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
                 powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'X-axis', zrl)
@@ -1861,23 +1883,18 @@ class No_Vi_Chart(Node, ViNodes):
             bpy.utils.register_class(ViEnRXIn)
 
             if self.inputs.get('Y-axis 1'):
-                if not self.inputs['Y-axis 1'].links or not self.inputs['Y-axis 1'].links[0].from_node['reslists']:
-                    class ViEnRY1In(So_En_ResU):
-                        '''Energy geometry out socket'''
-                        bl_idname = 'ViEnRY1In'
-                        bl_label = 'Y-axis 1'
+                self.inputs['Y-axis 1'].hide = False
 
-                    if self.inputs.get('Y-axis 2'):
-                        self.inputs['Y-axis 2'].hide = True
-                else:
+            if self.inputs.get('Y-axis 1'):
+                if self.inputs['Y-axis 1'].links and self.inputs['Y-axis 1'].links[0].from_node['reslists']:
                     innode = self.inputs['Y-axis 1'].links[0].from_node
 
                     class ViEnRY1In(So_En_Res):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY1In'
                         bl_label = 'Y-axis 1'
+                        valid: ['Vi Results']
 
-                        valid = ['Vi Results']
                         (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
                         enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
                         powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 1', zrl)
@@ -1898,19 +1915,17 @@ class No_Vi_Chart(Node, ViNodes):
                         statmenu: statmenu
                         multfactor: multmenu
 
-                    self.inputs['Y-axis 2'].hide = False
-                bpy.utils.register_class(ViEnRY1In)
+                    bpy.utils.register_class(ViEnRY1In)
+
+                    if self.inputs.get('Y-axis 2'):
+                        self.inputs['Y-axis 2'].hide = False
+
+                else:
+                    if self.inputs.get('Y-axis 2'):
+                        self.inputs['Y-axis 2'].hide = True
 
             if self.inputs.get('Y-axis 2'):
-                if not self.inputs['Y-axis 2'].links or not self.inputs['Y-axis 2'].links[0].from_node['reslists']:
-                    class ViEnRY2In(So_En_ResU):
-                        '''Energy geometry out socket'''
-                        bl_idname = 'ViEnRY2In'
-                        bl_label = 'Y-axis 2'
-
-                    if self.inputs.get('Y-axis 3'):
-                        self.inputs['Y-axis 3'].hide = True
-                else:
+                if self.inputs['Y-axis 2'].links and self.inputs['Y-axis 2'].links[0].from_node['reslists']:
                     innode = self.inputs[2].links[0].from_node
 
                     class ViEnRY2In(So_En_Res):
@@ -1939,17 +1954,15 @@ class No_Vi_Chart(Node, ViNodes):
                         statmenu: statmenu
                         multfactor: multmenu
 
-                    self.inputs['Y-axis 3'].hide = False
+                    bpy.utils.register_class(ViEnRY2In)
 
-                bpy.utils.register_class(ViEnRY2In)
+                    if self.inputs.get('Y-axis 3'):
+                        self.inputs['Y-axis 3'].hide = False
+                else:
+                    self.inputs['Y-axis 3'].hide = True
 
             if self.inputs.get('Y-axis 3'):
-                if not self.inputs['Y-axis 3'].links or not self.inputs['Y-axis 3'].links[0].from_node['reslists']:
-                    class ViEnRY3In(So_En_ResU):
-                        '''Energy geometry out socket'''
-                        bl_idname = 'ViEnRY3In'
-                        bl_label = 'Y-axis 3'
-                else:
+                if self.inputs['Y-axis 3'].links and self.inputs['Y-axis 3'].links[0].from_node['reslists']:
                     innode = self.inputs[3].links[0].from_node
 
                     class ViEnRY3In(So_En_Res):
@@ -1978,7 +1991,7 @@ class No_Vi_Chart(Node, ViNodes):
                         statmenu: statmenu
                         multfactor: multmenu
 
-                bpy.utils.register_class(ViEnRY3In)
+                    bpy.utils.register_class(ViEnRY3In)
 
 def loctype(self, context):
     rmenu = str(self.resmenu)
@@ -2946,7 +2959,7 @@ class So_Vi_Res(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text = self.bl_label)
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
@@ -3025,22 +3038,12 @@ class So_En_Res(NodeSocket):
             if self.rtypemenu != 'Time':
                 row.prop(self, 'multfactor')
         else:
-            row.label(text = 'No results')
+            layout.label(text = self.bl_label)
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
-class So_En_ResU(NodeSocket):
-    '''Vi unlinked results socket'''
-    bl_idname = 'So_En_ResU'
-    bl_label = 'Axis'
-    valid = ['Vi Results']
 
-    def draw_color(self, context, node):
-        return (0.0, 1.0, 0.0, 0.75)
-
-    def draw(self, context, layout, node, text):
-        layout.label(text = self.bl_label)
 
 # Openfoam nodes
 

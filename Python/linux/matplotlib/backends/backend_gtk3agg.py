@@ -18,9 +18,10 @@ class FigureCanvasGTK3Agg(backend_gtk3.FigureCanvasGTK3,
         self._bbox_queue = []
 
     def on_draw_event(self, widget, ctx):
-        """GtkDrawable draw event, like expose_event in GTK 2.X."""
+        scale = self.device_pixel_ratio
         allocation = self.get_allocation()
-        w, h = allocation.width, allocation.height
+        w = allocation.width * scale
+        h = allocation.height * scale
 
         if not len(self._bbox_queue):
             Gtk.render_background(
@@ -43,7 +44,8 @@ class FigureCanvasGTK3Agg(backend_gtk3.FigureCanvasGTK3,
                 np.asarray(self.copy_from_bbox(bbox)))
             image = cairo.ImageSurface.create_for_data(
                 buf.ravel().data, cairo.FORMAT_ARGB32, width, height)
-            ctx.set_source_surface(image, x, y)
+            image.set_device_scale(scale, scale)
+            ctx.set_source_surface(image, x / scale, y / scale)
             ctx.paint()
 
         if len(self._bbox_queue):
@@ -57,23 +59,21 @@ class FigureCanvasGTK3Agg(backend_gtk3.FigureCanvasGTK3,
         if bbox is None:
             bbox = self.figure.bbox
 
+        scale = self.device_pixel_ratio
         allocation = self.get_allocation()
-        x = int(bbox.x0)
-        y = allocation.height - int(bbox.y1)
-        width = int(bbox.x1) - int(bbox.x0)
-        height = int(bbox.y1) - int(bbox.y0)
+        x = int(bbox.x0 / scale)
+        y = allocation.height - int(bbox.y1 / scale)
+        width = (int(bbox.x1) - int(bbox.x0)) // scale
+        height = (int(bbox.y1) - int(bbox.y0)) // scale
 
         self._bbox_queue.append(bbox)
         self.queue_draw_area(x, y, width, height)
 
     def draw(self):
+        # Call these explicitly because GTK's draw is a GObject method which
+        # isn't cooperative with Python class methods.
         backend_agg.FigureCanvasAgg.draw(self)
-        super().draw()
-
-    def print_png(self, filename, *args, **kwargs):
-        # Do this so we can save the resolution of figure in the PNG file
-        agg = self.switch_backends(backend_agg.FigureCanvasAgg)
-        return agg.print_png(filename, *args, **kwargs)
+        backend_gtk3.FigureCanvasGTK3.draw(self)
 
 
 class FigureManagerGTK3Agg(backend_gtk3.FigureManagerGTK3):

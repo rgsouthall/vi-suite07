@@ -150,9 +150,9 @@ return 0;
 
 %PickleCode
     #if PY_MAJOR_VERSION >= 3
-    sipRes = Py_BuildValue((char *)"(y#)", sipCpp->data(), sipCpp->size());
+    sipRes = Py_BuildValue((char *)"(y#)", sipCpp->data(), static_cast<Py_ssize_t>(sipCpp->size()));
     #else
-    sipRes = Py_BuildValue((char *)"(s#)", sipCpp->data(), sipCpp->size());
+    sipRes = Py_BuildValue((char *)"(s#)", sipCpp->data(), static_cast<Py_ssize_t>(sipCpp->size()));
     #endif
 %End
 

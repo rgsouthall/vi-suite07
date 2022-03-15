@@ -29,8 +29,8 @@ int PYQT_VERSION;
 const char *PYQT_VERSION_STR;
 
 %ModuleCode
-static int PYQT_VERSION = 0x050f04;
-static const char *PYQT_VERSION_STR = "5.15.4";
+static int PYQT_VERSION = 0x050f06;
+static const char *PYQT_VERSION_STR = "5.15.6";
 %End
 const int QT_VERSION;
 const char *QT_VERSION_STR;

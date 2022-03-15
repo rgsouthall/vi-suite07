@@ -1,6 +1,9 @@
+import platform
+import sys
+
 import numpy as np
 import pytest
-import sys
+
 from matplotlib import pyplot as plt
 from matplotlib.testing.decorators import image_comparison
 
@@ -15,6 +18,8 @@ def draw_quiver(ax, **kw):
     return Q
 
 
+@pytest.mark.skipif(platform.python_implementation() != 'CPython',
+                    reason='Requires CPython')
 def test_quiver_memory_leak():
     fig, ax = plt.subplots()
 
@@ -27,6 +32,8 @@ def test_quiver_memory_leak():
     assert sys.getrefcount(ttX) == 2
 
 
+@pytest.mark.skipif(platform.python_implementation() != 'CPython',
+                    reason='Requires CPython')
 def test_quiver_key_memory_leak():
     fig, ax = plt.subplots()
 
@@ -200,6 +207,17 @@ def test_barbs_flip():
     ax.barbs(X, Y, U, V, fill_empty=True, rounding=False, pivot=1.7,
              sizes=dict(emptybarb=0.25, spacing=0.2, height=0.3),
              flip_barb=Y < 0)
+
+
+def test_barb_copy():
+    fig, ax = plt.subplots()
+    u = np.array([1.1])
+    v = np.array([2.2])
+    b0 = ax.barbs([1], [1], u, v)
+    u[0] = 0
+    assert b0.u[0] == 1.1
+    v[0] = 0
+    assert b0.v[0] == 2.2
 
 
 def test_bad_masked_sizes():

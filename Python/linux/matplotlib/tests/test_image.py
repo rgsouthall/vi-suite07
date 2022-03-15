@@ -11,6 +11,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from PIL import Image
 
+import matplotlib as mpl
 from matplotlib import (
     _api, colors, image as mimage, patches, pyplot as plt, style, rcParams)
 from matplotlib.image import (AxesImage, BboxImage, FigureImage,
@@ -114,12 +115,12 @@ def test_imshow_antialiased(fig_test, fig_ref,
     A = np.random.rand(int(dpi * img_size), int(dpi * img_size))
     for fig in [fig_test, fig_ref]:
         fig.set_size_inches(fig_size, fig_size)
-    axs = fig_test.subplots()
-    axs.set_position([0, 0, 1, 1])
-    axs.imshow(A, interpolation='antialiased')
-    axs = fig_ref.subplots()
-    axs.set_position([0, 0, 1, 1])
-    axs.imshow(A, interpolation=interpolation)
+    ax = fig_test.subplots()
+    ax.set_position([0, 0, 1, 1])
+    ax.imshow(A, interpolation='antialiased')
+    ax = fig_ref.subplots()
+    ax.set_position([0, 0, 1, 1])
+    ax.imshow(A, interpolation=interpolation)
 
 
 @check_figures_equal(extensions=['png'])
@@ -130,14 +131,14 @@ def test_imshow_zoom(fig_test, fig_ref):
     A = np.random.rand(int(dpi * 3), int(dpi * 3))
     for fig in [fig_test, fig_ref]:
         fig.set_size_inches(2.9, 2.9)
-    axs = fig_test.subplots()
-    axs.imshow(A, interpolation='antialiased')
-    axs.set_xlim([10, 20])
-    axs.set_ylim([10, 20])
-    axs = fig_ref.subplots()
-    axs.imshow(A, interpolation='nearest')
-    axs.set_xlim([10, 20])
-    axs.set_ylim([10, 20])
+    ax = fig_test.subplots()
+    ax.imshow(A, interpolation='antialiased')
+    ax.set_xlim([10, 20])
+    ax.set_ylim([10, 20])
+    ax = fig_ref.subplots()
+    ax.imshow(A, interpolation='nearest')
+    ax.set_xlim([10, 20])
+    ax.set_ylim([10, 20])
 
 
 @check_figures_equal()
@@ -286,11 +287,11 @@ def test_cursor_data():
 
     # Hmm, something is wrong here... I get 0, not None...
     # But, this works further down in the tests with extents flipped
-    #x, y = 0.1, -0.1
-    #xdisp, ydisp = ax.transData.transform([x, y])
-    #event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
-    #z = im.get_cursor_data(event)
-    #assert z is None, "Did not get None, got %d" % z
+    # x, y = 0.1, -0.1
+    # xdisp, ydisp = ax.transData.transform([x, y])
+    # event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
+    # z = im.get_cursor_data(event)
+    # assert z is None, "Did not get None, got %d" % z
 
     ax.clear()
     # Now try with the extents flipped.
@@ -336,11 +337,13 @@ def test_cursor_data():
 
 
 @pytest.mark.parametrize(
-    "data, text_without_colorbar, text_with_colorbar", [
-        ([[10001, 10000]], "[1e+04]", "[10001]"),
-        ([[.123, .987]], "[0.123]", "[0.123]"),
-])
-def test_format_cursor_data(data, text_without_colorbar, text_with_colorbar):
+    "data, text", [
+        ([[10001, 10000]], "[10001.000]"),
+        ([[.123, .987]], "[0.123]"),
+        ([[np.nan, 1, 2]], "[]"),
+        ([[1, 1+1e-15]], "[1.0000000000000000]"),
+    ])
+def test_format_cursor_data(data, text):
     from matplotlib.backend_bases import MouseEvent
 
     fig, ax = plt.subplots()
@@ -348,16 +351,7 @@ def test_format_cursor_data(data, text_without_colorbar, text_with_colorbar):
 
     xdisp, ydisp = ax.transData.transform([0, 0])
     event = MouseEvent('motion_notify_event', fig.canvas, xdisp, ydisp)
-    assert im.get_cursor_data(event) == data[0][0]
-    assert im.format_cursor_data(im.get_cursor_data(event)) \
-        == text_without_colorbar
-
-    fig.colorbar(im)
-    fig.canvas.draw()  # This is necessary to set up the colorbar formatter.
-
-    assert im.get_cursor_data(event) == data[0][0]
-    assert im.format_cursor_data(im.get_cursor_data(event)) \
-        == text_with_colorbar
+    assert im.format_cursor_data(im.get_cursor_data(event)) == text
 
 
 @image_comparison(['image_clip'], style='mpl20')
@@ -506,6 +500,18 @@ def test_image_composite_alpha():
     ax.set_ylim([5, 0])
 
 
+@check_figures_equal(extensions=["pdf"])
+def test_clip_path_disables_compositing(fig_test, fig_ref):
+    t = np.arange(9).reshape((3, 3))
+    for fig in [fig_test, fig_ref]:
+        ax = fig.add_subplot()
+        ax.imshow(t, clip_path=(mpl.path.Path([(0, 0), (0, 1), (1, 0)]),
+                                ax.transData))
+        ax.imshow(t, clip_path=(mpl.path.Path([(1, 1), (1, 2), (2, 1)]),
+                                ax.transData))
+    fig_ref.suppressComposite = True
+
+
 @image_comparison(['rasterize_10dpi'],
                   extensions=['pdf', 'svg'], remove_text=True, style='mpl20')
 def test_rasterize_dpi():
@@ -636,7 +642,7 @@ def test_jpeg_alpha():
     # If this fails, there will be only one color (all black). If this
     # is working, we should have all 256 shades of grey represented.
     num_colors = len(image.getcolors(256))
-    assert 175 <= num_colors <= 185
+    assert 175 <= num_colors <= 210
     # The fully transparent part should be red.
     corner_pixel = image.getpixel((0, 0))
     assert corner_pixel == (254, 0, 0)
@@ -980,6 +986,13 @@ def test_empty_imshow(make_norm):
         im.make_image(fig._cachedRenderer)
 
 
+def test_imshow_float16():
+    fig, ax = plt.subplots()
+    ax.imshow(np.zeros((3, 3), dtype=np.float16))
+    # Ensure that drawing doesn't cause crash.
+    fig.canvas.draw()
+
+
 def test_imshow_float128():
     fig, ax = plt.subplots()
     ax.imshow(np.zeros((3, 3), dtype=np.longdouble))
@@ -997,8 +1010,8 @@ def test_imshow_bool():
 def test_full_invalid():
     fig, ax = plt.subplots()
     ax.imshow(np.full((10, 10), np.nan))
-    with pytest.warns(UserWarning):
-        fig.canvas.draw()
+
+    fig.canvas.draw()
 
 
 @pytest.mark.parametrize("fmt,counted",
@@ -1097,7 +1110,7 @@ def test_image_array_alpha_validation():
         plt.imshow(np.zeros((2, 2)), alpha=[1, 1])
 
 
-@pytest.mark.style('mpl20')
+@mpl.style.context('mpl20')
 def test_exact_vmin():
     cmap = copy(plt.cm.get_cmap("autumn_r"))
     cmap.set_under(color="lightgrey")
@@ -1214,22 +1227,51 @@ def test_imshow_quantitynd():
 
 
 @check_figures_equal(extensions=['png'])
-def test_huge_range_log(fig_test, fig_ref):
-    data = np.full((5, 5), -1, dtype=np.float64)
+def test_norm_change(fig_test, fig_ref):
+    # LogNorm should not mask anything invalid permanently.
+    data = np.full((5, 5), 1, dtype=np.float64)
+    data[0:2, :] = -1
+
+    masked_data = np.ma.array(data, mask=False)
+    masked_data.mask[0:2, 0:2] = True
+
+    cmap = plt.get_cmap('viridis').with_extremes(under='w')
+
+    ax = fig_test.subplots()
+    im = ax.imshow(data, norm=colors.LogNorm(vmin=0.5, vmax=1),
+                   extent=(0, 5, 0, 5), interpolation='nearest', cmap=cmap)
+    im.set_norm(colors.Normalize(vmin=-2, vmax=2))
+    im = ax.imshow(masked_data, norm=colors.LogNorm(vmin=0.5, vmax=1),
+                   extent=(5, 10, 5, 10), interpolation='nearest', cmap=cmap)
+    im.set_norm(colors.Normalize(vmin=-2, vmax=2))
+    ax.set(xlim=(0, 10), ylim=(0, 10))
+
+    ax = fig_ref.subplots()
+    ax.imshow(data, norm=colors.Normalize(vmin=-2, vmax=2),
+              extent=(0, 5, 0, 5), interpolation='nearest', cmap=cmap)
+    ax.imshow(masked_data, norm=colors.Normalize(vmin=-2, vmax=2),
+              extent=(5, 10, 5, 10), interpolation='nearest', cmap=cmap)
+    ax.set(xlim=(0, 10), ylim=(0, 10))
+
+
+@pytest.mark.parametrize('x', [-1, 1])
+@check_figures_equal(extensions=['png'])
+def test_huge_range_log(fig_test, fig_ref, x):
+    # parametrize over bad lognorm -1 values and large range 1 -> 1e20
+    data = np.full((5, 5), x, dtype=np.float64)
     data[0:2, :] = 1E20
 
     ax = fig_test.subplots()
-    im = ax.imshow(data, norm=colors.LogNorm(vmin=100, vmax=data.max()),
-                   interpolation='nearest', cmap='viridis')
+    ax.imshow(data, norm=colors.LogNorm(vmin=1, vmax=data.max()),
+              interpolation='nearest', cmap='viridis')
 
-    data = np.full((5, 5), -1, dtype=np.float64)
+    data = np.full((5, 5), x, dtype=np.float64)
     data[0:2, :] = 1000
 
-    cmap = copy(plt.get_cmap('viridis'))
-    cmap.set_under('w')
     ax = fig_ref.subplots()
-    im = ax.imshow(data, norm=colors.Normalize(vmin=100, vmax=data.max()),
-                   interpolation='nearest', cmap=cmap)
+    cmap = plt.get_cmap('viridis').with_extremes(under='w')
+    ax.imshow(data, norm=colors.Normalize(vmin=1, vmax=data.max()),
+              interpolation='nearest', cmap=cmap)
 
 
 @check_figures_equal()
@@ -1263,3 +1305,74 @@ def test_spy_box(fig_test, fig_ref):
         ax_ref[i].yaxis.set_major_locator(
             mticker.MaxNLocator(nbins=9, steps=[1, 2, 5, 10], integer=True)
         )
+
+
+@image_comparison(["nonuniform_and_pcolor.png"], style="mpl20")
+def test_nonuniform_and_pcolor():
+    axs = plt.figure(figsize=(3, 3)).subplots(3, sharex=True, sharey=True)
+    for ax, interpolation in zip(axs, ["nearest", "bilinear"]):
+        im = NonUniformImage(ax, interpolation=interpolation)
+        im.set_data(np.arange(3) ** 2, np.arange(3) ** 2,
+                    np.arange(9).reshape((3, 3)))
+        ax.add_image(im)
+    axs[2].pcolorfast(  # PcolorImage
+        np.arange(4) ** 2, np.arange(4) ** 2, np.arange(9).reshape((3, 3)))
+    for ax in axs:
+        ax.set_axis_off()
+        # NonUniformImage "leaks" out of extents, not PColorImage.
+        ax.set(xlim=(0, 10))
+
+
+@image_comparison(["rgba_antialias.png"], style="mpl20",
+                  remove_text=True)
+def test_rgba_antialias():
+    fig, axs = plt.subplots(2, 2, figsize=(3.5, 3.5), sharex=False,
+                            sharey=False, constrained_layout=True)
+    N = 250
+    aa = np.ones((N, N))
+    aa[::2, :] = -1
+
+    x = np.arange(N) / N - 0.5
+    y = np.arange(N) / N - 0.5
+
+    X, Y = np.meshgrid(x, y)
+    R = np.sqrt(X**2 + Y**2)
+    f0 = 10
+    k = 75
+    # aliased concentric circles
+    a = np.sin(np.pi * 2 * (f0 * R + k * R**2 / 2))
+
+    # stripes on lhs
+    a[:int(N/2), :][R[:int(N/2), :] < 0.4] = -1
+    a[:int(N/2), :][R[:int(N/2), :] < 0.3] = 1
+    aa[:, int(N/2):] = a[:, int(N/2):]
+
+    # set some over/unders and NaNs
+    aa[20:50, 20:50] = np.NaN
+    aa[70:90, 70:90] = 1e6
+    aa[70:90, 20:30] = -1e6
+    aa[70:90, 195:215] = 1e6
+    aa[20:30, 195:215] = -1e6
+
+    cmap = copy(plt.cm.RdBu_r)
+    cmap.set_over('yellow')
+    cmap.set_under('cyan')
+
+    axs = axs.flatten()
+    # zoom in
+    axs[0].imshow(aa, interpolation='nearest', cmap=cmap, vmin=-1.2, vmax=1.2)
+    axs[0].set_xlim([N/2-25, N/2+25])
+    axs[0].set_ylim([N/2+50, N/2-10])
+
+    # no anti-alias
+    axs[1].imshow(aa, interpolation='nearest', cmap=cmap, vmin=-1.2, vmax=1.2)
+
+    # data antialias: Note no purples, and white in circle.  Note
+    # that alternating red and blue stripes become white.
+    axs[2].imshow(aa, interpolation='antialiased', interpolation_stage='data',
+                  cmap=cmap, vmin=-1.2, vmax=1.2)
+
+    # rgba antialias: Note purples at boundary with circle.  Note that
+    # alternating red and blue stripes become purple
+    axs[3].imshow(aa, interpolation='antialiased', interpolation_stage='rgba',
+                  cmap=cmap, vmin=-1.2, vmax=1.2)

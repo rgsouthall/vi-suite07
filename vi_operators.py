@@ -19,7 +19,9 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray
+from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray, place, zeros, average
+from numpy import sum as nsum
+from numpy import max as nmax
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -235,7 +237,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         if simnode.max_freq == '1':
             ax.set_rmax(simnode.max_freq_val)
         else:
-            ax.set_rmax(100*numpy.max(dfreq)/len(awd) + 0.5)
+            ax.set_rmax(100*nmax(dfreq)/len(awd) + 0.5)
 
         plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg')
         wrme = bpy.data.meshes.new("Wind_rose")
@@ -253,8 +255,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wro = joinobj(context.view_layer, wro)
         ovp = wro.vi_params
         ovp['maxres'], ovp['minres'], ovp['avres'], ovp['nbins'], ovp['VIType'] = max(ad), min(ad), sum(ad)/len(ad), len(sbinvals), 'Wind_Plane'
-        simnode['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
-        windnum((100*numpy.max(dfreq)/len(awd) + 0.5, simnode.max_freq_val)[simnode.max_freq == '1'], (0, 0, 0), scale, wind_compass((0, 0, 0), scale, wro, wro.data.materials['wr-000000']))
+        simnode['maxfreq'] = 100*nmax(dfreq)/len(awd)
+        windnum((100*nmax(dfreq)/len(awd) + 0.5, simnode.max_freq_val)[simnode.max_freq == '1'], (0, 0, 0), scale, wind_compass((0, 0, 0), scale, wro, wro.data.materials['wr-000000']))
         plt.close()
         ovp['table'] = array([["", 'Minimum', 'Average', 'Maximum'],
                              [('Speed (m/s)', 'Temperature (C)')[simnode.temp], ovp['minres'], '{:.1f}'.format(ovp['avres']), ovp['maxres']],
@@ -263,7 +265,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         ovp['wd'] = awd.reshape(len(doys), 24).T.tolist()
         ovp['days'] = array(doys, dtype = float)
         ovp['hours'] = arange(1, 25, dtype = float)
-        ovp['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
+        ovp['maxfreq'] = 100*nmax(dfreq)/len(awd)
         simnode['nbins'] = len(sbinvals)
         simnode['d'] = array(cd).reshape(365, 24).T.tolist()
         simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()
@@ -387,7 +389,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                     for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
-                            gp[shadres] = (100*(numpy.sum(pointres)/lvaldirecs)).astype(int8)
+                            gp[shadres] = (100*(nsum(pointres)/lvaldirecs)).astype(int8)
                             g += 1
 
                         curres += len(chunk)
@@ -544,20 +546,20 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
                 if gpoints:
                     posis = [gp.calc_center_median() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
-                    allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
+                    allpoints = zeros((len(gpoints), len(direcs)), dtype=int8)
 
                     for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in valdirecs], dtype = int8)
-                            numpy.place(allpoints[g], valmask == 1, pointres)
-                            gp[shadres] = (100 * (numpy.sum(pointres) * ilvaldirecs)).astype(float16)
+                            place(allpoints[g], valmask == 1, pointres)
+                            gp[shadres] = (100 * (nsum(pointres) * ilvaldirecs)).astype(float16)
                             g += 1
 
                         curres += len(chunk)
                         if pfile.check(curres) == 'CANCELLED':
                             return {'CANCELLED'}
 
-                    ap = numpy.average(allpoints, axis=0)
+                    ap = average(allpoints, axis=0)
                     shadres = [gp[shadres] for gp in gpoints]
                     ovp['ss{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
                     ovp['omin']['sm{}'.format(frame)] = min(shadres)

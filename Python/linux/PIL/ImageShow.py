@@ -15,7 +15,6 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 from shlex import quote
 
 from PIL import Image
@@ -106,9 +105,19 @@ class Viewer:
         return self.show_file(self.save_image(image), **options)
 
     def show_file(self, file, **options):
-        """Display the given file."""
+        """Display given file"""
         os.system(self.get_command(file, **options))
         return 1
+
+    def _remove_file_after_delay(self, file):
+        subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import os, sys, time; time.sleep(20); os.remove(sys.argv[1])",
+                file,
+            ]
+        )
 
 
 # --------------------------------------------------------------------
@@ -133,7 +142,7 @@ if sys.platform == "win32":
 
 
 class MacViewer(Viewer):
-    """The default viewer on MacOS using ``Preview.app``."""
+    """The default viewer on macOS using ``Preview.app``."""
 
     format = "PNG"
     options = {"compress_level": 1}
@@ -147,16 +156,8 @@ class MacViewer(Viewer):
 
     def show_file(self, file, **options):
         """Display given file"""
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "w") as f:
-            f.write(file)
-        with open(path) as f:
-            subprocess.Popen(
-                ["im=$(cat); open -a Preview.app $im; sleep 20; rm -f $im"],
-                shell=True,
-                stdin=f,
-            )
-        os.remove(path)
+        subprocess.call(["open", "-a", "Preview.app", file])
+        self._remove_file_after_delay(file)
         return 1
 
 
@@ -172,26 +173,45 @@ class UnixViewer(Viewer):
         command = self.get_command_ex(file, **options)[0]
         return f"({command} {quote(file)}; rm -f {quote(file)})&"
 
+
+class XDGViewer(UnixViewer):
+    """
+    The freedesktop.org ``xdg-open`` command.
+    """
+
+    def get_command_ex(self, file, **options):
+        command = executable = "xdg-open"
+        return command, executable
+
     def show_file(self, file, **options):
         """Display given file"""
-        fd, path = tempfile.mkstemp()
-        with os.fdopen(fd, "w") as f:
-            f.write(file)
-        with open(path) as f:
-            command = self.get_command_ex(file, **options)[0]
-            subprocess.Popen(
-                ["im=$(cat);" + command + " $im; rm -f $im"], shell=True, stdin=f
-            )
-        os.remove(path)
+        subprocess.Popen(["xdg-open", file])
+        self._remove_file_after_delay(file)
         return 1
 
 
 class DisplayViewer(UnixViewer):
-    """The ImageMagick ``display`` command."""
+    """
+    The ImageMagick ``display`` command.
+    This viewer supports the ``title`` parameter.
+    """
 
-    def get_command_ex(self, file, **options):
+    def get_command_ex(self, file, title=None, **options):
         command = executable = "display"
+        if title:
+            command += f" -name {quote(title)}"
         return command, executable
+
+    def show_file(self, file, **options):
+        """Display given file"""
+        args = ["display"]
+        if "title" in options:
+            args += ["-name", options["title"]]
+        args.append(file)
+
+        subprocess.Popen(args)
+        os.remove(file)
+        return 1
 
 
 class GmDisplayViewer(UnixViewer):
@@ -202,13 +222,26 @@ class GmDisplayViewer(UnixViewer):
         command = "gm display"
         return command, executable
 
+    def show_file(self, file, **options):
+        """Display given file"""
+        subprocess.Popen(["gm", "display", file])
+        os.remove(file)
+        return 1
+
 
 class EogViewer(UnixViewer):
     """The GNOME Image Viewer ``eog`` command."""
 
     def get_command_ex(self, file, **options):
-        command = executable = "eog"
+        executable = "eog"
+        command = "eog -n"
         return command, executable
+
+    def show_file(self, file, **options):
+        """Display given file"""
+        subprocess.Popen(["eog", "-n", file])
+        os.remove(file)
+        return 1
 
 
 class XVViewer(UnixViewer):
@@ -225,8 +258,21 @@ class XVViewer(UnixViewer):
             command += f" -name {quote(title)}"
         return command, executable
 
+    def show_file(self, file, **options):
+        """Display given file"""
+        args = ["xv"]
+        if "title" in options:
+            args += ["-name", options["title"]]
+        args.append(file)
+
+        subprocess.Popen(args)
+        os.remove(file)
+        return 1
+
 
 if sys.platform not in ("win32", "darwin"):  # unixoids
+    if shutil.which("xdg-open"):
+        register(XDGViewer)
     if shutil.which("display"):
         register(DisplayViewer)
     if shutil.which("gm"):
@@ -256,7 +302,7 @@ else:
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        print("Syntax: python ImageShow.py imagefile [title]")
+        print("Syntax: python3 ImageShow.py imagefile [title]")
         sys.exit()
 
     with Image.open(sys.argv[1]) as im:

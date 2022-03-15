@@ -1,5 +1,4 @@
 import contextlib
-from distutils.version import StrictVersion
 import functools
 import inspect
 import os
@@ -10,6 +9,8 @@ import sys
 import unittest
 import warnings
 
+from packaging.version import parse as parse_version
+
 import matplotlib.style
 import matplotlib.units
 import matplotlib.testing
@@ -17,7 +18,6 @@ from matplotlib import cbook
 from matplotlib import ft2font
 from matplotlib import pyplot as plt
 from matplotlib import ticker
-
 from .compare import comparable_formats, compare_images, make_test_filename
 from .exceptions import ImageComparisonFailure
 
@@ -92,20 +92,20 @@ def check_freetype_version(ver):
 
     if isinstance(ver, str):
         ver = (ver, ver)
-    ver = [StrictVersion(x) for x in ver]
-    found = StrictVersion(ft2font.__freetype_version__)
+    ver = [parse_version(x) for x in ver]
+    found = parse_version(ft2font.__freetype_version__)
 
     return ver[0] <= found <= ver[1]
 
 
 def _checked_on_freetype_version(required_freetype_version):
     import pytest
-    reason = ("Mismatched version of freetype. "
-              "Test requires '%s', you have '%s'" %
-              (required_freetype_version, ft2font.__freetype_version__))
     return pytest.mark.xfail(
         not check_freetype_version(required_freetype_version),
-        reason=reason, raises=ImageComparisonFailure, strict=False)
+        reason=f"Mismatched version of freetype. "
+               f"Test requires '{required_freetype_version}', "
+               f"you have '{ft2font.__freetype_version__}'",
+        raises=ImageComparisonFailure, strict=False)
 
 
 def remove_ticks_and_titles(figure):
@@ -139,32 +139,6 @@ def _raise_on_image_difference(expected, actual, tol):
         raise ImageComparisonFailure(
             ('images not close (RMS %(rms).3f):'
                 '\n\t%(actual)s\n\t%(expected)s\n\t%(diff)s') % err)
-
-
-def _skip_if_format_is_uncomparable(extension):
-    import pytest
-    return pytest.mark.skipif(
-        extension not in comparable_formats(),
-        reason='Cannot compare {} files on this system'.format(extension))
-
-
-def _mark_skip_if_format_is_uncomparable(extension):
-    import pytest
-    if isinstance(extension, str):
-        name = extension
-        marks = []
-    elif isinstance(extension, tuple):
-        # Extension might be a pytest ParameterSet instead of a plain string.
-        # Unfortunately, this type is not exposed, so since it's a namedtuple,
-        # check for a tuple instead.
-        name, = extension.values
-        marks = [*extension.marks]
-    else:
-        # Extension might be a pytest marker instead of a plain string.
-        name, = extension.args
-        marks = [extension.mark]
-    return pytest.param(name,
-                        marks=[*marks, _skip_if_format_is_uncomparable(name)])
 
 
 class _ImageComparisonBase:
@@ -238,7 +212,6 @@ def _pytest_image_comparison(baseline_images, extensions, tol,
     """
     import pytest
 
-    extensions = map(_mark_skip_if_format_is_uncomparable, extensions)
     KEYWORD_ONLY = inspect.Parameter.KEYWORD_ONLY
 
     def decorator(func):
@@ -246,7 +219,7 @@ def _pytest_image_comparison(baseline_images, extensions, tol,
 
         @functools.wraps(func)
         @pytest.mark.parametrize('extension', extensions)
-        @pytest.mark.style(style)
+        @matplotlib.style.context(style)
         @_checked_on_freetype_version(freetype_version)
         @functools.wraps(func)
         def wrapper(*args, extension, request, **kwargs):
@@ -255,6 +228,9 @@ def _pytest_image_comparison(baseline_images, extensions, tol,
                 kwargs['extension'] = extension
             if 'request' in old_sig.parameters:
                 kwargs['request'] = request
+
+            if extension not in comparable_formats():
+                pytest.skip(f"Cannot compare {extension} files on this system")
 
             img = _ImageComparisonBase(func, tol=tol, remove_text=remove_text,
                                        savefig_kwargs=savefig_kwargs)
@@ -503,7 +479,7 @@ def _image_directories(func):
     ``$(pwd)/result_images/test_baz``.  The result directory is created if it
     doesn't exist.
     """
-    module_path = Path(sys.modules[func.__module__].__file__)
+    module_path = Path(inspect.getfile(func))
     baseline_dir = module_path.parent / "baseline_images" / module_path.stem
     result_dir = Path().resolve() / "result_images" / module_path.stem
     result_dir.mkdir(parents=True, exist_ok=True)

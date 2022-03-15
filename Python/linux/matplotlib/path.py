@@ -9,6 +9,7 @@ such as `.PathPatch` and `.PathCollection`, can be used for convenient `Path`
 visualisation.
 """
 
+import copy
 from functools import lru_cache
 from weakref import WeakValueDictionary
 
@@ -28,11 +29,11 @@ class Path:
     The underlying storage is made up of two parallel numpy arrays:
 
     - *vertices*: an Nx2 float array of vertices
-    - *codes*: an N-length uint8 array of vertex types, or None
+    - *codes*: an N-length uint8 array of path codes, or None
 
     These two arrays always have the same length in the first
     dimension.  For example, to represent a cubic curve, you must
-    provide three vertices as well as three codes ``CURVE3``.
+    provide three vertices and three ``CURVE4`` codes.
 
     The code types are:
 
@@ -108,7 +109,7 @@ class Path:
             handled correctly by the Agg PathIterator and other consumers of
             path data, such as :meth:`iter_segments`.
         codes : array-like or None, optional
-            n-length array integers representing the codes of the path.
+            N-length array of integers representing the codes of the path.
             If not None, codes must be the same length as vertices.
             If None, *vertices* will be treated as a series of line segments.
         _interpolation_steps : int, optional
@@ -161,7 +162,7 @@ class Path:
     @classmethod
     def _fast_from_codes_and_verts(cls, verts, codes, internals_from=None):
         """
-        Creates a Path instance without the expense of calling the constructor.
+        Create a Path instance without the expense of calling the constructor.
 
         Parameters
         ----------
@@ -259,15 +260,12 @@ class Path:
         """
         return self._readonly
 
-    def __copy__(self):
+    def copy(self):
         """
         Return a shallow copy of the `Path`, which will share the
         vertices and codes with the source `Path`.
         """
-        import copy
         return copy.copy(self)
-
-    copy = __copy__
 
     def __deepcopy__(self, memo=None):
         """
@@ -290,7 +288,7 @@ class Path:
         Make a compound path object to draw a number
         of polygons with equal numbers of sides XY is a (numpolys x
         numsides x 2) numpy array of vertices.  Return object is a
-        :class:`Path`
+        :class:`Path`.
 
         .. plot:: gallery/misc/histogram_path.py
 
@@ -316,8 +314,8 @@ class Path:
     @classmethod
     def make_compound_path(cls, *args):
         """
-        Make a compound path from a list of Path objects. Blindly removes all
-        Path.STOP control points.
+        Make a compound path from a list of `Path` objects. Blindly removes
+        all `Path.STOP` control points.
         """
         # Handle an empty list in args (i.e. no args).
         if not args:
@@ -458,9 +456,8 @@ class Path:
                 raise ValueError("Invalid Path.code_type: " + str(code))
             prev_vert = verts[-2:]
 
-    @_api.delete_parameter("3.3", "quantize")
     def cleaned(self, transform=None, remove_nans=False, clip=None,
-                quantize=False, simplify=False, curves=False,
+                *, simplify=False, curves=False,
                 stroke_width=1.0, snap=False, sketch=None):
         """
         Return a new Path with vertices and codes cleaned according to the
@@ -920,8 +917,8 @@ class Path:
     @classmethod
     def arc(cls, theta1, theta2, n=None, is_wedge=False):
         """
-        Return the unit circle arc from angles *theta1* to *theta2* (in
-        degrees).
+        Return a `Path` for the unit circle arc from angles *theta1* to
+        *theta2* (in degrees).
 
         *theta2* is unwrapped to produce the shortest arc within 360 degrees.
         That is, if *theta2* > *theta1* + 360, the arc will be from *theta1* to
@@ -999,8 +996,8 @@ class Path:
     @classmethod
     def wedge(cls, theta1, theta2, n=None):
         """
-        Return the unit circle wedge from angles *theta1* to *theta2* (in
-        degrees).
+        Return a `Path` for the unit circle wedge from angles *theta1* to
+        *theta2* (in degrees).
 
         *theta2* is unwrapped to produce the shortest wedge within 360 degrees.
         That is, if *theta2* > *theta1* + 360, the wedge will be from *theta1*
@@ -1045,18 +1042,18 @@ class Path:
 def get_path_collection_extents(
         master_transform, paths, transforms, offsets, offset_transform):
     r"""
-    Given a sequence of `Path`\s, `~.Transform`\s objects, and offsets, as
-    found in a `~.PathCollection`, returns the bounding box that encapsulates
+    Given a sequence of `Path`\s, `.Transform`\s objects, and offsets, as
+    found in a `.PathCollection`, returns the bounding box that encapsulates
     all of them.
 
     Parameters
     ----------
-    master_transform : `~.Transform`
+    master_transform : `.Transform`
         Global transformation applied to all paths.
     paths : list of `Path`
-    transforms : list of `~.Affine2D`
+    transforms : list of `.Affine2D`
     offsets : (N, 2) array-like
-    offset_transform : `~.Affine2D`
+    offset_transform : `.Affine2D`
         Transform applied to the offsets before offsetting the path.
 
     Notes

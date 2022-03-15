@@ -556,7 +556,7 @@ class CodeGenerator(NodeVisitor):
             visitor.tests,
             "tests",
         ):
-            for name in names:
+            for name in sorted(names):
                 if name not in id_map:
                     id_map[name] = self.temporary_identifier()
 
@@ -1090,10 +1090,8 @@ class CodeGenerator(NodeVisitor):
             self.write(
                 f"{f_name}(context.get_all(), True, {self.dump_local_context(frame)})"
             )
-        elif self.environment.is_async:
-            self.write("_get_default_module_async()")
         else:
-            self.write("_get_default_module(context)")
+            self.write(f"_get_default_module{self.choose_async('_async')}(context)")
 
     def visit_Import(self, node: nodes.Import, frame: Frame) -> None:
         """Visit regular imports."""
@@ -1289,6 +1287,11 @@ class CodeGenerator(NodeVisitor):
                 self.write(")")
             self.write(", loop)")
             self.end_write(frame)
+
+        # at the end of the iteration, clear any assignments made in the
+        # loop from the top level
+        if self._assign_stack:
+            self._assign_stack[-1].difference_update(loop_frame.symbols.stores)
 
     def visit_If(self, node: nodes.If, frame: Frame) -> None:
         if_frame = frame.soft()

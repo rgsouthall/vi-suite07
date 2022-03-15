@@ -262,7 +262,7 @@ class TestDetrend:
         ([], 255, 33, -1, -1, None),
         ([], 256, 128, -1, 256, 256),
         ([], None, -1, 32, -1, -1),
-   ],
+    ],
     ids=[
         'nosig',
         'Fs4',
@@ -354,7 +354,7 @@ class TestSpectral:
                                              num=pad_to_spectrum_real // 2 + 1)
         else:
             # frequencies for specgram, psd, and csd
-            # need to handle even and odd differentl
+            # need to handle even and odd differently
             if pad_to_density_real % 2:
                 freqs_density = np.linspace(-Fs / 2, Fs / 2,
                                             num=2 * pad_to_density_real,
@@ -858,11 +858,11 @@ def test_cohere():
     assert np.isreal(np.mean(cohsq))
 
 
-#*****************************************************************
-# These Tests where taken from SCIPY with some minor modifications
+# *****************************************************************
+# These Tests were taken from SCIPY with some minor modifications
 # this can be retrieved from:
 # https://github.com/scipy/scipy/blob/master/scipy/stats/tests/test_kdeoth.py
-#*****************************************************************
+# *****************************************************************
 
 class TestGaussianKDE:
 

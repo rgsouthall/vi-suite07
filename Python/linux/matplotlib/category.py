@@ -54,9 +54,15 @@ class StrCategoryConverter(units.ConversionInterface):
         # dtype = object preserves numerical pass throughs
         values = np.atleast_1d(np.array(value, dtype=object))
         # pass through sequence of non binary numbers
-        if all(units.ConversionInterface.is_numlike(v)
-               and not isinstance(v, (str, bytes))
-               for v in values):
+        with _api.suppress_matplotlib_deprecation_warning():
+            is_numlike = all(units.ConversionInterface.is_numlike(v)
+                             and not isinstance(v, (str, bytes))
+                             for v in values)
+        if is_numlike:
+            _api.warn_deprecated(
+                "3.5", message="Support for passing numbers through unit "
+                "converters is deprecated since %(since)s and support will be "
+                "removed %(removal)s; use Axis.convert_units instead.")
             return np.asarray(values, dtype=float)
         # force an update so it also does type checking
         unit.update(values)
@@ -74,12 +80,13 @@ class StrCategoryConverter(units.ConversionInterface):
         axis : `~matplotlib.axis.Axis`
             axis for which information is being set
 
+            .. note:: *axis* is not used
+
         Returns
         -------
         `~matplotlib.units.AxisInfo`
             Information to support default tick labeling
 
-        .. note: axis is not used
         """
         StrCategoryConverter._validate_unit(unit)
         # locator and formatter take mapping dict because
@@ -124,7 +131,7 @@ class StrCategoryLocator(ticker.Locator):
     def __init__(self, units_mapping):
         """
         Parameters
-        -----------
+        ----------
         units_mapping : dict
             Mapping of category names (str) to indices (int).
         """

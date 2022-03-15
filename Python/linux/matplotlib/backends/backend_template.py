@@ -29,6 +29,7 @@ method), you can register it as the default handler for a given file type::
     plt.savefig("figure.xyz")
 """
 
+from matplotlib import _api
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import (
      FigureCanvasBase, FigureManagerBase, GraphicsContextBase, RendererBase)
@@ -100,9 +101,9 @@ class RendererTemplate(RendererBase):
         # if backend doesn't have dpi, e.g., postscript or svg
         return points
         # elif backend assumes a value for pixels_per_inch
-        #return points/72.0 * self.dpi.get() * pixels_per_inch/72.0
+        # return points/72.0 * self.dpi.get() * pixels_per_inch/72.0
         # else
-        #return points/72.0 * self.dpi.get()
+        # return points/72.0 * self.dpi.get()
 
 
 class GraphicsContextTemplate(GraphicsContextBase):
@@ -209,6 +210,7 @@ class FigureCanvasTemplate(FigureCanvasBase):
     # you should add it to the class-scope filetypes dictionary as follows:
     filetypes = {**FigureCanvasBase.filetypes, 'foo': 'My magic Foo format'}
 
+    @_api.delete_parameter("3.5", "args")
     def print_foo(self, filename, *args, **kwargs):
         """
         Write out format foo.

@@ -1855,16 +1855,17 @@ def sockhide(node, lsocknames):
         print('sockhide', e)
 
 def socklink(sock, ng):
-    try:
-        valid1 = sock.valid if not sock.get('valid') else sock['valid']
-        for link in sock.links:
-            valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid']
-            valset = set(valid1)&set(valid2)
-            if not valset or len(valset) < min((len(valid1), len(valid2))):# or sock.node.use_custom_color:
-                bpy.data.node_groups[ng].links.remove(link)
-    except:
-        if sock.links:
-            bpy.data.node_groups[ng].links.remove(sock.links[-1])
+    if ng in [g.name for g in bpy.data.node_groups]:
+        try:
+            valid1 = sock.valid if not sock.get('valid') else sock['valid']
+            for link in sock.links:
+                valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid']
+                valset = set(valid1) & set(valid2)
+                if not valset or len(valset) < min((len(valid1), len(valid2))):
+                    bpy.data.node_groups[ng].links.remove(link)
+        except:
+            if sock.links:
+                bpy.data.node_groups[ng].links.remove(sock.links[-1])
 
 def socklink2(sock, ng):
     try:
@@ -1872,9 +1873,9 @@ def socklink2(sock, ng):
 
         for link in sock.links:
             valid2 = link.to_socket.ret_valid(link.to_socket.node)
-            valset = set(valid1)&set(valid2)
+            valset = set(valid1) & set(valid2)
 
-            if not valset or len(valset) < min((len(valid1), len(valid2))):# or sock.node.use_custom_color:
+            if not valset or len(valset) < min((len(valid1), len(valid2))):
                 ng.links.remove(link)
     except:
         if sock.links:

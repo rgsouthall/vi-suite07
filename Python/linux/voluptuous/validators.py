@@ -352,7 +352,7 @@ class Match(object):
     >>> validate = Schema(Match(r'^0x[A-F0-9]+$'))
     >>> validate('0x123EF4')
     '0x123EF4'
-    >>> with raises(MultipleInvalid, "does not match regular expression"):
+    >>> with raises(MultipleInvalid, 'does not match regular expression ^0x[A-F0-9]+$'):
     ...   validate('123EF4')
 
     >>> with raises(MultipleInvalid, 'expected string or buffer'):
@@ -377,7 +377,7 @@ class Match(object):
         except TypeError:
             raise MatchInvalid("expected string or buffer")
         if not match:
-            raise MatchInvalid(self.msg or 'does not match regular expression')
+            raise MatchInvalid(self.msg or 'does not match regular expression {}'.format(self.pattern.pattern))
         return v
 
     def __repr__(self):
@@ -435,7 +435,7 @@ def Email(v):
             raise EmailInvalid("Invalid email address")
         user_part, domain_part = v.rsplit('@', 1)
 
-        if not (USER_REGEX.match(user_part) and DOMAIN_REGEX.match(domain_part)):
+        if not (USER_REGEX.fullmatch(user_part) and DOMAIN_REGEX.fullmatch(domain_part)):
             raise EmailInvalid("Invalid email address")
         return v
     except:
@@ -555,7 +555,7 @@ def Maybe(validator, msg=None):
     ...  s("string")
 
     """
-    return Any(validator, None, msg=msg)
+    return Any(None, validator, msg=msg)
 
 
 class Range(object):

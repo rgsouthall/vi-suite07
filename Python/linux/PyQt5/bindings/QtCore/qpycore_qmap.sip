@@ -347,6 +347,8 @@ template<_TYPE1_, _TYPE2_>
     PyErr_SetString(PyExc_NotImplementedError,
             "converting to QMultiMap<_TYPE1_, _TYPE2_> is unsupported");
 
+    *sipIsErr = 1;
+
     return 0;
 %End
 };

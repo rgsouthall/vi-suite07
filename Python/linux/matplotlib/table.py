@@ -9,6 +9,11 @@
 """
 Tables drawing.
 
+.. note::
+    The table implementation in Matplotlib is lightly maintained. For a more
+    featureful table implementation, you may wish to try `blume
+    <https://github.com/swfiua/blume>`_.
+
 Use the factory function `~matplotlib.table.table` to create a ready-made
 table from texts. If you need more control, use the `.Table` class and its
 methods.
@@ -19,7 +24,7 @@ The cell (0, 0) is positioned at the top left.
 Thanks to John Gill for providing the class and table.
 """
 
-from . import _api, artist, docstring
+from . import _api, docstring
 from .artist import Artist, allow_rasterization
 from .patches import Rectangle
 from .text import Text
@@ -177,7 +182,7 @@ class Cell(Rectangle):
 
         Valid keyword arguments are:
 
-        %(Text_kwdoc)s
+        %(Text:kwdoc)s
         """
         self._text.update(kwargs)
         self.stale = True
@@ -442,7 +447,7 @@ class Table(Artist):
         return list(self._cells.values())
 
     def get_window_extent(self, renderer):
-        """Return the bounding box of the table in window coords."""
+        # docstring inherited
         self._update_positions(renderer)
         boxes = [cell.get_window_extent(renderer)
                  for cell in self._cells.values()]
@@ -639,9 +644,6 @@ class Table(Artist):
         return self._cells
 
 
-docstring.interpd.update(Table_kwdoc=artist.kwdoc(Table))
-
-
 @docstring.dedent_interpd
 def table(ax,
           cellText=None, cellColours=None,
@@ -723,7 +725,7 @@ def table(ax,
     **kwargs
         `.Table` properties.
 
-    %(Table_kwdoc)s
+    %(Table:kwdoc)s
     """
 
     if cellColours is None and cellText is None:

@@ -1,8 +1,11 @@
 """
-Numerical python functions written for compatibility with MATLAB
-commands with the same names. Most numerical python functions can be found in
-the `numpy` and `scipy` libraries. What remains here is code for performing
-spectral computations.
+Numerical Python functions written for compatibility with MATLAB
+commands with the same names. Most numerical Python functions can be found in
+the `NumPy`_ and `SciPy`_ libraries. What remains here is code for performing
+spectral computations and kernel density estimations.
+
+.. _NumPy: https://numpy.org
+.. _SciPy: https://www.scipy.org
 
 Spectral functions
 ------------------
@@ -187,10 +190,6 @@ def detrend_linear(y):
     y : 0-D or 1-D array or sequence
         Array or sequence containing the data
 
-    axis : int
-        The axis along which to take the mean.  See numpy.mean for a
-        description of this argument.
-
     See Also
     --------
     detrend_mean : Another detrend algorithm.
@@ -241,9 +240,9 @@ def stride_windows(x, n, noverlap=None, axis=0):
     References
     ----------
     `stackoverflow: Rolling window for 1D arrays in Numpy?
-    <http://stackoverflow.com/a/6811241>`_
+    <https://stackoverflow.com/a/6811241>`_
     `stackoverflow: Using strides for an efficient moving average filter
-    <http://stackoverflow.com/a/4947453>`_
+    <https://stackoverflow.com/a/4947453>`_
     """
     if noverlap is None:
         noverlap = 0
@@ -510,7 +509,7 @@ NFFT : int, default: 256
 detrend : {'none', 'mean', 'linear'} or callable, default: 'none'
     The function applied to each segment before fft-ing, designed to remove
     the mean or linear trend.  Unlike in MATLAB, where the *detrend* parameter
-    is a vector, in Matplotlib is it a function.  The :mod:`~matplotlib.mlab`
+    is a vector, in Matplotlib it is a function.  The :mod:`~matplotlib.mlab`
     module defines `.detrend_none`, `.detrend_mean`, and `.detrend_linear`,
     but you can use a custom function as well.  You can also use a string to
     choose one of the functions: 'none' calls `.detrend_none`. 'mean' calls

@@ -1,10 +1,9 @@
-from collections import OrderedDict
 from contextlib import contextmanager
-import gc
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import sys
 
+import numpy as np
 import pytest
 
 import matplotlib as mpl
@@ -138,10 +137,9 @@ def test_context_with_union_of_dict_and_namedstyle():
 def test_context_with_badparam():
     original_value = 'gray'
     other_value = 'blue'
-    d = OrderedDict([(PARAM, original_value), ('badparam', None)])
     with style.context({PARAM: other_value}):
         assert mpl.rcParams[PARAM] == other_value
-        x = style.context([d])
+        x = style.context({PARAM: original_value, 'badparam': None})
         with pytest.raises(KeyError):
             with x:
                 pass
@@ -167,7 +165,7 @@ def test_xkcd_no_cm():
     assert mpl.rcParams["path.sketch"] is None
     plt.xkcd()
     assert mpl.rcParams["path.sketch"] == (1, 100, 2)
-    gc.collect()
+    np.testing.break_cycles()
     assert mpl.rcParams["path.sketch"] == (1, 100, 2)
 
 
