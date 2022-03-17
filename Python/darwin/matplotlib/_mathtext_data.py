@@ -1166,6 +1166,8 @@ tex2uni = {
     'combiningtilde'           : 771,
     'combiningrightarrowabove' : 8407,
     'combiningdotabove'        : 775,
+    'combiningthreedotsabove'  : 8411,
+    'combiningfourdotsabove'   : 8412,
     'to'                       : 8594,
     'succeq'                   : 8829,
     'emptyset'                 : 8709,
@@ -1382,3 +1384,11 @@ stix_virtual_fonts = {
         (0x0061, 0x007a, 'rm', 0x1d68a)  # a-z
         ],
     }
+
+
+# Fix some incorrect glyphs.
+stix_glyph_fixes = {
+    # Cap and Cup glyphs are swapped.
+    0x22d2: 0x22d3,
+    0x22d3: 0x22d2,
+}

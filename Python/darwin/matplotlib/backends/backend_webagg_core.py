@@ -8,8 +8,9 @@ Displays Agg images in the browser, with interactivity
 #   way over a web socket.
 #
 # - `backend_webagg.py` contains a concrete implementation of a basic
-#   application, implemented with tornado.
+#   application, implemented with asyncio.
 
+import asyncio
 import datetime
 from io import BytesIO, StringIO
 import json
@@ -19,9 +20,8 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-import tornado
 
-from matplotlib import _api, backend_bases
+from matplotlib import _api, backend_bases, backend_tools
 from matplotlib.backends import backend_agg
 from matplotlib.backend_bases import _Backend
 
@@ -85,6 +85,8 @@ class TimerTornado(backend_bases.TimerBase):
         super().__init__(*args, **kwargs)
 
     def _timer_start(self):
+        import tornado
+
         self._timer_stop()
         if self._single:
             ioloop = tornado.ioloop.IOLoop.instance()
@@ -98,6 +100,8 @@ class TimerTornado(backend_bases.TimerBase):
             self._timer.start()
 
     def _timer_stop(self):
+        import tornado
+
         if self._timer is None:
             return
         elif self._single:
@@ -114,8 +118,43 @@ class TimerTornado(backend_bases.TimerBase):
             self._timer_start()
 
 
+class TimerAsyncio(backend_bases.TimerBase):
+    def __init__(self, *args, **kwargs):
+        self._task = None
+        super().__init__(*args, **kwargs)
+
+    async def _timer_task(self, interval):
+        while True:
+            try:
+                await asyncio.sleep(interval)
+                self._on_timer()
+
+                if self._single:
+                    break
+            except asyncio.CancelledError:
+                break
+
+    def _timer_start(self):
+        self._timer_stop()
+
+        self._task = asyncio.ensure_future(
+            self._timer_task(max(self.interval / 1_000., 1e-6))
+        )
+
+    def _timer_stop(self):
+        if self._task is not None:
+            self._task.cancel()
+        self._task = None
+
+    def _timer_set_interval(self):
+        # Only stop and restart it if the timer has already been started
+        if self._task is not None:
+            self._timer_stop()
+            self._timer_start()
+
+
 class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
-    _timer_cls = TimerTornado
+    _timer_cls = TimerAsyncio
     # Webagg and friends having the right methods, but still
     # having bugs in practice.  Do not advertise that it works until
     # we can debug this.
@@ -138,10 +177,6 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
         # to the connected clients.
         self._current_image_mode = 'full'
 
-        # Store the DPI ratio of the browser.  This is the scaling that
-        # occurs automatically for all images on a HiDPI display.
-        self._dpi_ratio = 1
-
     def show(self):
         # show the figure window
         from matplotlib.pyplot import show
@@ -160,6 +195,19 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
 
     def draw_idle(self):
         self.send_event("draw")
+
+    def set_cursor(self, cursor):
+        # docstring inherited
+        cursor = _api.check_getitem({
+            backend_tools.Cursors.HAND: 'pointer',
+            backend_tools.Cursors.POINTER: 'default',
+            backend_tools.Cursors.SELECT_REGION: 'crosshair',
+            backend_tools.Cursors.MOVE: 'move',
+            backend_tools.Cursors.WAIT: 'wait',
+            backend_tools.Cursors.RESIZE_HORIZONTAL: 'ew-resize',
+            backend_tools.Cursors.RESIZE_VERTICAL: 'ns-resize',
+        }, cursor=cursor)
+        self.send_event('cursor', cursor=cursor)
 
     def set_image_mode(self, mode):
         """
@@ -311,8 +359,8 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
         self.draw_idle()
 
     def handle_resize(self, event):
-        x, y = event.get('width', 800), event.get('height', 800)
-        x, y = int(x) * self._dpi_ratio, int(y) * self._dpi_ratio
+        x = int(event.get('width', 800)) * self.device_pixel_ratio
+        y = int(event.get('height', 800)) * self.device_pixel_ratio
         fig = self.figure
         # An attempt at approximating the figure size in pixels.
         fig.set_size_inches(x / fig.dpi, y / fig.dpi, forward=False)
@@ -327,14 +375,15 @@ class FigureCanvasWebAggCore(backend_agg.FigureCanvasAgg):
         # The client requests notification of what the current image mode is.
         self.send_event('image_mode', mode=self._current_image_mode)
 
+    def handle_set_device_pixel_ratio(self, event):
+        self._handle_set_device_pixel_ratio(event.get('device_pixel_ratio', 1))
+
     def handle_set_dpi_ratio(self, event):
-        dpi_ratio = event.get('dpi_ratio', 1)
-        if dpi_ratio != self._dpi_ratio:
-            # We don't want to scale up the figure dpi more than once.
-            if not hasattr(self.figure, '_original_dpi'):
-                self.figure._original_dpi = self.figure.dpi
-            self.figure.dpi = dpi_ratio * self.figure._original_dpi
-            self._dpi_ratio = dpi_ratio
+        # This handler is for backwards-compatibility with older ipympl.
+        self._handle_set_device_pixel_ratio(event.get('dpi_ratio', 1))
+
+    def _handle_set_device_pixel_ratio(self, device_pixel_ratio):
+        if self._set_device_pixel_ratio(device_pixel_ratio):
             self._force_full = True
             self.draw_idle()
 
@@ -365,9 +414,11 @@ class NavigationToolbar2WebAgg(backend_bases.NavigationToolbar2):
         if name_of_method in _ALLOWED_TOOL_ITEMS
     ]
 
+    cursor = _api.deprecate_privatize_attribute("3.5")
+
     def __init__(self, canvas):
         self.message = ''
-        self.cursor = 0
+        self._cursor = None  # Remove with deprecation.
         super().__init__(canvas)
 
     def set_message(self, message):
@@ -375,19 +426,11 @@ class NavigationToolbar2WebAgg(backend_bases.NavigationToolbar2):
             self.canvas.send_event("message", message=message)
         self.message = message
 
-    def set_cursor(self, cursor):
-        if cursor != self.cursor:
-            self.canvas.send_event("cursor", cursor=cursor)
-        self.cursor = cursor
-
     def draw_rubberband(self, event, x0, y0, x1, y1):
-        self.canvas.send_event(
-            "rubberband", x0=x0, y0=y0, x1=x1, y1=y1)
+        self.canvas.send_event("rubberband", x0=x0, y0=y0, x1=x1, y1=y1)
 
-    def release_zoom(self, event):
-        super().release_zoom(event)
-        self.canvas.send_event(
-            "rubberband", x0=-1, y0=-1, x1=-1, y1=-1)
+    def remove_rubberband(self):
+        self.canvas.send_event("rubberband", x0=-1, y0=-1, x1=-1, y1=-1)
 
     def save_figure(self, *args):
         """Save the current figure"""
@@ -426,7 +469,8 @@ class FigureManagerWebAgg(backend_bases.FigureManagerBase):
     def resize(self, w, h, forward=True):
         self._send_event(
             'resize',
-            size=(w / self.canvas._dpi_ratio, h / self.canvas._dpi_ratio),
+            size=(w / self.canvas.device_pixel_ratio,
+                  h / self.canvas.device_pixel_ratio),
             forward=forward)
 
     def set_window_title(self, title):

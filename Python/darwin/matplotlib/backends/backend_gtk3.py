@@ -9,7 +9,8 @@ from matplotlib import _api, backend_tools, cbook
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, NavigationToolbar2,
-    StatusbarBase, TimerBase, ToolContainerBase, cursors)
+    TimerBase, ToolContainerBase)
+from matplotlib.backend_tools import Cursors
 from matplotlib.figure import Figure
 from matplotlib.widgets import SubplotTool
 
@@ -28,62 +29,49 @@ except ValueError as e:
     raise ImportError from e
 
 from gi.repository import Gio, GLib, GObject, Gtk, Gdk
+from ._backend_gtk import (
+    _create_application, _shutdown_application,
+    backend_version, _BackendGTK, _NavigationToolbar2GTK,
+    TimerGTK as TimerGTK3,
+    ConfigureSubplotsGTK as ConfigureSubplotsGTK3,
+    RubberbandGTK as RubberbandGTK3,
+)
 
 
 _log = logging.getLogger(__name__)
 
-backend_version = "%s.%s.%s" % (
-    Gtk.get_major_version(), Gtk.get_micro_version(), Gtk.get_minor_version())
 
-try:
-    _display = Gdk.Display.get_default()
-    cursord = {
-        cursors.MOVE:          Gdk.Cursor.new_from_name(_display, "move"),
-        cursors.HAND:          Gdk.Cursor.new_from_name(_display, "pointer"),
-        cursors.POINTER:       Gdk.Cursor.new_from_name(_display, "default"),
-        cursors.SELECT_REGION: Gdk.Cursor.new_from_name(_display, "crosshair"),
-        cursors.WAIT:          Gdk.Cursor.new_from_name(_display, "wait"),
-    }
-except TypeError as exc:
-    # Happens when running headless.  Convert to ImportError to cooperate with
-    # backend switching.
-    raise ImportError(exc) from exc
+@_api.caching_module_getattr  # module-level deprecations
+class __getattr__:
+    @_api.deprecated("3.5", obj_type="")
+    @property
+    def cursord(self):
+        try:
+            new_cursor = functools.partial(
+                Gdk.Cursor.new_from_name, Gdk.Display.get_default())
+            return {
+                Cursors.MOVE:          new_cursor("move"),
+                Cursors.HAND:          new_cursor("pointer"),
+                Cursors.POINTER:       new_cursor("default"),
+                Cursors.SELECT_REGION: new_cursor("crosshair"),
+                Cursors.WAIT:          new_cursor("wait"),
+            }
+        except TypeError as exc:
+            return {}
 
 
-class TimerGTK3(TimerBase):
-    """Subclass of `.TimerBase` using GTK3 timer events."""
-
-    def __init__(self, *args, **kwargs):
-        self._timer = None
-        super().__init__(*args, **kwargs)
-
-    def _timer_start(self):
-        # Need to stop it, otherwise we potentially leak a timer id that will
-        # never be stopped.
-        self._timer_stop()
-        self._timer = GLib.timeout_add(self._interval, self._on_timer)
-
-    def _timer_stop(self):
-        if self._timer is not None:
-            GLib.source_remove(self._timer)
-            self._timer = None
-
-    def _timer_set_interval(self):
-        # Only stop and restart it if the timer has already been started
-        if self._timer is not None:
-            self._timer_stop()
-            self._timer_start()
-
-    def _on_timer(self):
-        super()._on_timer()
-
-        # Gtk timeout_add() requires that the callback returns True if it
-        # is to be called again.
-        if self.callbacks and not self._single:
-            return True
-        else:
-            self._timer = None
-            return False
+@functools.lru_cache()
+def _mpl_to_gtk_cursor(mpl_cursor):
+    name = _api.check_getitem({
+        Cursors.MOVE: "move",
+        Cursors.HAND: "pointer",
+        Cursors.POINTER: "default",
+        Cursors.SELECT_REGION: "crosshair",
+        Cursors.WAIT: "wait",
+        Cursors.RESIZE_HORIZONTAL: "ew-resize",
+        Cursors.RESIZE_VERTICAL: "ns-resize",
+    }, cursor=mpl_cursor)
+    return Gdk.Cursor.new_from_name(Gdk.Display.get_default(), name)
 
 
 class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
@@ -99,7 +87,6 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
                   | Gdk.EventMask.ENTER_NOTIFY_MASK
                   | Gdk.EventMask.LEAVE_NOTIFY_MASK
                   | Gdk.EventMask.POINTER_MOTION_MASK
-                  | Gdk.EventMask.POINTER_MOTION_HINT_MASK
                   | Gdk.EventMask.SCROLL_MASK)
 
     def __init__(self, figure=None):
@@ -114,6 +101,8 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         self.connect('button_press_event',   self.button_press_event)
         self.connect('button_release_event', self.button_release_event)
         self.connect('configure_event',      self.configure_event)
+        self.connect('screen-changed',       self._update_device_pixel_ratio)
+        self.connect('notify::scale-factor', self._update_device_pixel_ratio)
         self.connect('draw',                 self.on_draw_event)
         self.connect('draw',                 self._post_draw)
         self.connect('key_press_event',      self.key_press_event)
@@ -133,43 +122,46 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         style_ctx.add_provider(css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         style_ctx.add_class("matplotlib-canvas")
 
-        renderer_init = _api.deprecate_method_override(
-            __class__._renderer_init, self, allow_empty=True, since="3.3",
-            addendum="Please initialize the renderer, if needed, in the "
-            "subclass' __init__; a fully empty _renderer_init implementation "
-            "may be kept for compatibility with earlier versions of "
-            "Matplotlib.")
-        if renderer_init:
-            renderer_init()
-
-    @_api.deprecated("3.3", alternative="__init__")
-    def _renderer_init(self):
-        pass
-
     def destroy(self):
-        #Gtk.DrawingArea.destroy(self)
         self.close_event()
 
+    def set_cursor(self, cursor):
+        # docstring inherited
+        window = self.get_property("window")
+        if window is not None:
+            window.set_cursor(_mpl_to_gtk_cursor(cursor))
+            context = GLib.MainContext.default()
+            context.iteration(True)
+
+    def _mouse_event_coords(self, event):
+        """
+        Calculate mouse coordinates in physical pixels.
+
+        GTK use logical pixels, but the figure is scaled to physical pixels for
+        rendering.  Transform to physical pixels so that all of the down-stream
+        transforms work as expected.
+
+        Also, the origin is different and needs to be corrected.
+        """
+        x = event.x * self.device_pixel_ratio
+        # flip y so y=0 is bottom of canvas
+        y = self.figure.bbox.height - event.y * self.device_pixel_ratio
+        return x, y
+
     def scroll_event(self, widget, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.get_allocation().height - event.y
+        x, y = self._mouse_event_coords(event)
         step = 1 if event.direction == Gdk.ScrollDirection.UP else -1
         FigureCanvasBase.scroll_event(self, x, y, step, guiEvent=event)
         return False  # finish event propagation?
 
     def button_press_event(self, widget, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.get_allocation().height - event.y
+        x, y = self._mouse_event_coords(event)
         FigureCanvasBase.button_press_event(
             self, x, y, event.button, guiEvent=event)
         return False  # finish event propagation?
 
     def button_release_event(self, widget, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.get_allocation().height - event.y
+        x, y = self._mouse_event_coords(event)
         FigureCanvasBase.button_release_event(
             self, x, y, event.button, guiEvent=event)
         return False  # finish event propagation?
@@ -185,13 +177,7 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         return True  # stop event propagation
 
     def motion_notify_event(self, widget, event):
-        if event.is_hint:
-            t, x, y, state = event.window.get_device_position(event.device)
-        else:
-            x, y = event.x, event.y
-
-        # flipy so y=0 is bottom of canvas
-        y = self.get_allocation().height - y
+        x, y = self._mouse_event_coords(event)
         FigureCanvasBase.motion_notify_event(self, x, y, guiEvent=event)
         return False  # finish event propagation?
 
@@ -199,15 +185,13 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         FigureCanvasBase.leave_notify_event(self, event)
 
     def enter_notify_event(self, widget, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.get_allocation().height - event.y
+        x, y = self._mouse_event_coords(event)
         FigureCanvasBase.enter_notify_event(self, guiEvent=event, xy=(x, y))
 
     def size_allocate(self, widget, allocation):
         dpival = self.figure.dpi
-        winch = allocation.width / dpival
-        hinch = allocation.height / dpival
+        winch = allocation.width * self.device_pixel_ratio / dpival
+        hinch = allocation.height * self.device_pixel_ratio / dpival
         self.figure.set_size_inches(winch, hinch, forward=False)
         FigureCanvasBase.resize_event(self)
         self.draw_idle()
@@ -226,13 +210,24 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         for key_mask, prefix in modifiers:
             if event.state & key_mask:
                 if not (prefix == 'shift' and unikey.isprintable()):
-                    key = '{0}+{1}'.format(prefix, key)
+                    key = f'{prefix}+{key}'
         return key
+
+    def _update_device_pixel_ratio(self, *args, **kwargs):
+        # We need to be careful in cases with mixed resolution displays if
+        # device_pixel_ratio changes.
+        if self._set_device_pixel_ratio(self.get_scale_factor()):
+            # The easiest way to resize the canvas is to emit a resize event
+            # since we implement all the logic for resizing the canvas for that
+            # event.
+            self.queue_resize()
+            self.queue_draw()
 
     def configure_event(self, widget, event):
         if widget.get_property("window") is None:
             return
-        w, h = event.width, event.height
+        w = event.width * self.device_pixel_ratio
+        h = event.height * self.device_pixel_ratio
         if w < 3 or h < 3:
             return  # empty fig
         # resize the figure (in inches)
@@ -249,7 +244,8 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         if self._rubberband_rect is None:
             return
 
-        x0, y0, w, h = self._rubberband_rect
+        x0, y0, w, h = (dim / self.device_pixel_ratio
+                        for dim in self._rubberband_rect)
         x1 = x0 + w
         y1 = y0 + h
 
@@ -297,11 +293,9 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
 
     def flush_events(self):
         # docstring inherited
-        Gdk.threads_enter()
-        while Gtk.events_pending():
-            Gtk.main_iteration()
-        Gdk.flush()
-        Gdk.threads_leave()
+        context = GLib.MainContext.default()
+        while context.pending():
+            context.iteration(True)
 
 
 class FigureManagerGTK3(FigureManagerBase):
@@ -313,7 +307,7 @@ class FigureManagerGTK3(FigureManagerBase):
     num : int or str
         The Figure number
     toolbar : Gtk.Toolbar
-        The Gtk.Toolbar
+        The toolbar
     vbox : Gtk.VBox
         The Gtk.VBox containing the canvas and toolbar
     window : Gtk.Window
@@ -321,17 +315,13 @@ class FigureManagerGTK3(FigureManagerBase):
 
     """
     def __init__(self, canvas, num):
+        app = _create_application()
         self.window = Gtk.Window()
+        app.add_window(self.window)
         super().__init__(canvas, num)
 
         self.window.set_wmclass("matplotlib", "Matplotlib")
-        try:
-            self.window.set_icon_from_file(window_icon)
-        except Exception:
-            # Some versions of gtk throw a glib.GError but not all, so I am not
-            # sure how to catch it.  I am unhappy doing a blanket catch here,
-            # but am not sure what a better way is - JDH
-            _log.info('Could not load matplotlib icon: %s', sys.exc_info()[1])
+        self.window.set_icon_from_file(window_icon)
 
         self.vbox = Gtk.Box()
         self.vbox.set_property("orientation", Gtk.Orientation.VERTICAL)
@@ -342,8 +332,7 @@ class FigureManagerGTK3(FigureManagerBase):
 
         self.vbox.pack_start(self.canvas, True, True, 0)
         # calculate size for window
-        w = int(self.canvas.figure.bbox.width)
-        h = int(self.canvas.figure.bbox.height)
+        w, h = self.canvas.get_width_height()
 
         self.toolbar = self._get_toolbar()
 
@@ -382,10 +371,6 @@ class FigureManagerGTK3(FigureManagerBase):
         self.canvas.destroy()
         if self.toolbar:
             self.toolbar.destroy()
-
-        if (Gcf.get_num_fig_managers() == 0 and not mpl.is_interactive() and
-                Gtk.main_level() >= 1):
-            Gtk.main_quit()
 
     def show(self):
         # show the figure window
@@ -428,6 +413,8 @@ class FigureManagerGTK3(FigureManagerBase):
 
     def resize(self, width, height):
         """Set the canvas size in pixels."""
+        width = int(width / self.canvas.device_pixel_ratio)
+        height = int(height / self.canvas.device_pixel_ratio)
         if self.toolbar:
             toolbar_size = self.toolbar.size_request()
             height += toolbar_size.height
@@ -442,10 +429,7 @@ class FigureManagerGTK3(FigureManagerBase):
             self.window.resize(width, height)
 
 
-class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
-    ctx = _api.deprecated("3.3")(property(
-        lambda self: self.canvas.get_property("window").cairo_create()))
-
+class NavigationToolbar2GTK3(_NavigationToolbar2GTK, Gtk.Toolbar):
     def __init__(self, canvas, window):
         self.win = window
         GObject.GObject.__init__(self)
@@ -462,21 +446,16 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
                     str(cbook._get_data_path('images',
                                              f'{image_file}-symbolic.svg'))),
                 Gtk.IconSize.LARGE_TOOLBAR)
-            self._gtk_ids[text] = tbutton = (
+            self._gtk_ids[text] = button = (
                 Gtk.ToggleToolButton() if callback in ['zoom', 'pan'] else
                 Gtk.ToolButton())
-            tbutton.set_label(text)
-            tbutton.set_icon_widget(image)
-            self.insert(tbutton, -1)
+            button.set_label(text)
+            button.set_icon_widget(image)
             # Save the handler id, so that we can block it as needed.
-            tbutton._signal_handler = tbutton.connect(
+            button._signal_handler = button.connect(
                 'clicked', getattr(self, callback))
-            tbutton.set_tooltip_text(tooltip_text)
-
-        toolitem = Gtk.SeparatorToolItem()
-        self.insert(toolitem, -1)
-        toolitem.set_draw(False)
-        toolitem.set_expand(True)
+            button.set_tooltip_text(tooltip_text)
+            self.insert(button, -1)
 
         # This filler item ensures the toolbar is always at least two text
         # lines high. Otherwise the canvas gets redrawn as the mouse hovers
@@ -487,6 +466,7 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
         label = Gtk.Label()
         label.set_markup(
             '<small>\N{NO-BREAK SPACE}\n\N{NO-BREAK SPACE}</small>')
+        toolitem.set_expand(True)  # Push real message to the right.
         toolitem.add(label)
 
         toolitem = Gtk.ToolItem()
@@ -497,41 +477,6 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
         self.show_all()
 
         NavigationToolbar2.__init__(self, canvas)
-
-    def set_message(self, s):
-        escaped = GLib.markup_escape_text(s)
-        self.message.set_markup(f'<small>{escaped}</small>')
-
-    def set_cursor(self, cursor):
-        window = self.canvas.get_property("window")
-        if window is not None:
-            window.set_cursor(cursord[cursor])
-            Gtk.main_iteration()
-
-    def draw_rubberband(self, event, x0, y0, x1, y1):
-        height = self.canvas.figure.bbox.height
-        y1 = height - y1
-        y0 = height - y0
-        rect = [int(val) for val in (x0, y0, x1 - x0, y1 - y0)]
-        self.canvas._draw_rubberband(rect)
-
-    def remove_rubberband(self):
-        self.canvas._draw_rubberband(None)
-
-    def _update_buttons_checked(self):
-        for name, active in [("Pan", "PAN"), ("Zoom", "ZOOM")]:
-            button = self._gtk_ids.get(name)
-            if button:
-                with button.handler_block(button._signal_handler):
-                    button.set_active(self.mode.name == active)
-
-    def pan(self, *args):
-        super().pan(*args)
-        self._update_buttons_checked()
-
-    def zoom(self, *args):
-        super().zoom(*args)
-        self._update_buttons_checked()
 
     def save_figure(self, *args):
         dialog = Gtk.FileChooserDialog(
@@ -546,7 +491,7 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
             ff = Gtk.FileFilter()
             ff.set_name(name)
             for fmt in fmts:
-                ff.add_pattern("*." + fmt)
+                ff.add_pattern(f'*.{fmt}')
             dialog.add_filter(ff)
             if self.canvas.get_default_filetype() in fmts:
                 dialog.set_filter(ff)
@@ -556,7 +501,7 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
             name = dialog.get_filter().get_name()
             fmt = self.canvas.get_supported_filetypes_grouped()[name][0]
             dialog.set_current_name(
-                str(Path(dialog.get_current_name()).with_suffix("." + fmt)))
+                str(Path(dialog.get_current_name()).with_suffix(f'.{fmt}')))
 
         dialog.set_current_folder(mpl.rcParams["savefig.directory"])
         dialog.set_current_name(self.canvas.get_default_filename())
@@ -577,14 +522,6 @@ class NavigationToolbar2GTK3(NavigationToolbar2, Gtk.Toolbar):
         except Exception as e:
             error_msg_gtk(str(e), parent=self)
 
-    def set_history_buttons(self):
-        can_backward = self._nav_stack._pos > 0
-        can_forward = self._nav_stack._pos < len(self._nav_stack._elements) - 1
-        if 'Back' in self._gtk_ids:
-            self._gtk_ids['Back'].set_sensitive(can_backward)
-        if 'Forward' in self._gtk_ids:
-            self._gtk_ids['Forward'].set_sensitive(can_forward)
-
 
 class ToolbarGTK3(ToolContainerBase, Gtk.Box):
     _icon_extension = '-symbolic.svg'
@@ -602,26 +539,26 @@ class ToolbarGTK3(ToolContainerBase, Gtk.Box):
     def add_toolitem(self, name, group, position, image_file, description,
                      toggle):
         if toggle:
-            tbutton = Gtk.ToggleToolButton()
+            button = Gtk.ToggleToolButton()
         else:
-            tbutton = Gtk.ToolButton()
-        tbutton.set_label(name)
+            button = Gtk.ToolButton()
+        button.set_label(name)
 
         if image_file is not None:
             image = Gtk.Image.new_from_gicon(
                 Gio.Icon.new_for_string(image_file),
                 Gtk.IconSize.LARGE_TOOLBAR)
-            tbutton.set_icon_widget(image)
+            button.set_icon_widget(image)
 
         if position is None:
             position = -1
 
-        self._add_button(tbutton, group, position)
-        signal = tbutton.connect('clicked', self._call_tool, name)
-        tbutton.set_tooltip_text(description)
-        tbutton.show_all()
+        self._add_button(button, group, position)
+        signal = button.connect('clicked', self._call_tool, name)
+        button.set_tooltip_text(description)
+        button.show_all()
         self._toolitems.setdefault(name, [])
-        self._toolitems[name].append((tbutton, signal))
+        self._toolitems[name].append((button, signal))
 
     def _add_button(self, button, group, position):
         if group not in self._groups:
@@ -647,7 +584,7 @@ class ToolbarGTK3(ToolContainerBase, Gtk.Box):
 
     def remove_toolitem(self, name):
         if name not in self._toolitems:
-            self.toolmanager.message_event('%s Not in toolbar' % name, self)
+            self.toolmanager.message_event(f'{name} not in toolbar', self)
             return
 
         for group in self._groups:
@@ -666,28 +603,6 @@ class ToolbarGTK3(ToolContainerBase, Gtk.Box):
         self._message.set_label(s)
 
 
-@_api.deprecated("3.3")
-class StatusbarGTK3(StatusbarBase, Gtk.Statusbar):
-    def __init__(self, *args, **kwargs):
-        StatusbarBase.__init__(self, *args, **kwargs)
-        Gtk.Statusbar.__init__(self)
-        self._context = self.get_context_id('message')
-
-    def set_message(self, s):
-        self.pop(self._context)
-        self.push(self._context, s)
-
-
-class RubberbandGTK3(backend_tools.RubberbandBase):
-    def draw_rubberband(self, x0, y0, x1, y1):
-        NavigationToolbar2GTK3.draw_rubberband(
-            self._make_classic_style_pseudo_toolbar(), None, x0, y0, x1, y1)
-
-    def remove_rubberband(self):
-        NavigationToolbar2GTK3.remove_rubberband(
-            self._make_classic_style_pseudo_toolbar())
-
-
 class SaveFigureGTK3(backend_tools.SaveFigureBase):
     def trigger(self, *args, **kwargs):
 
@@ -697,19 +612,11 @@ class SaveFigureGTK3(backend_tools.SaveFigureBase):
         return NavigationToolbar2GTK3.save_figure(PseudoToolbar())
 
 
+@_api.deprecated("3.5", alternative="ToolSetCursor")
 class SetCursorGTK3(backend_tools.SetCursorBase):
     def set_cursor(self, cursor):
         NavigationToolbar2GTK3.set_cursor(
             self._make_classic_style_pseudo_toolbar(), cursor)
-
-
-class ConfigureSubplotsGTK3(backend_tools.ConfigureSubplotsBase, Gtk.Window):
-    def _get_canvas(self, fig):
-        return self.canvas.__class__(fig)
-
-    def trigger(self, *args):
-        NavigationToolbar2GTK3.configure_subplots(
-            self._make_classic_style_pseudo_toolbar(), None)
 
 
 class HelpGTK3(backend_tools.ToolHelpBase):
@@ -830,7 +737,6 @@ def error_msg_gtk(msg, parent=None):
 
 backend_tools.ToolSaveFigure = SaveFigureGTK3
 backend_tools.ToolConfigureSubplots = ConfigureSubplotsGTK3
-backend_tools.ToolSetCursor = SetCursorGTK3
 backend_tools.ToolRubberband = RubberbandGTK3
 backend_tools.ToolHelp = HelpGTK3
 backend_tools.ToolCopyToClipboard = ToolCopyToClipboardGTK3
@@ -839,12 +745,6 @@ Toolbar = ToolbarGTK3
 
 
 @_Backend.export
-class _BackendGTK3(_Backend):
+class _BackendGTK3(_BackendGTK):
     FigureCanvas = FigureCanvasGTK3
     FigureManager = FigureManagerGTK3
-
-    @staticmethod
-    def mainloop():
-        if Gtk.main_level() == 0:
-            cbook._setup_new_guiapp()
-            Gtk.main()

@@ -155,6 +155,34 @@ def test_contourf3d_fill():
     ax.set_zlim(-1, 1)
 
 
+@pytest.mark.parametrize('extend, levels', [['both', [2, 4, 6]],
+                                            ['min', [2, 4, 6, 8]],
+                                            ['max', [0, 2, 4, 6]]])
+@check_figures_equal(extensions=["png"])
+def test_contourf3d_extend(fig_test, fig_ref, extend, levels):
+    X, Y = np.meshgrid(np.arange(-2, 2, 0.25), np.arange(-2, 2, 0.25))
+    # Z is in the range [0, 8]
+    Z = X**2 + Y**2
+
+    # Manually set the over/under colors to be the end of the colormap
+    cmap = plt.get_cmap('viridis').copy()
+    cmap.set_under(cmap(0))
+    cmap.set_over(cmap(255))
+    # Set vmin/max to be the min/max values plotted on the reference image
+    kwargs = {'vmin': 1, 'vmax': 7, 'cmap': cmap}
+
+    ax_ref = fig_ref.add_subplot(projection='3d')
+    ax_ref.contourf(X, Y, Z, levels=[0, 2, 4, 6, 8], **kwargs)
+
+    ax_test = fig_test.add_subplot(projection='3d')
+    ax_test.contourf(X, Y, Z, levels, extend=extend, **kwargs)
+
+    for ax in [ax_ref, ax_test]:
+        ax.set_xlim(-2, 2)
+        ax.set_ylim(-2, 2)
+        ax.set_zlim(-10, 10)
+
+
 @mpl3d_image_comparison(['tricontour.png'], tol=0.02)
 def test_tricontour():
     fig = plt.figure()
@@ -168,6 +196,17 @@ def test_tricontour():
     ax.tricontour(x, y, z)
     ax = fig.add_subplot(1, 2, 2, projection='3d')
     ax.tricontourf(x, y, z)
+
+
+def test_contour3d_1d_input():
+    # Check that 1D sequences of different length for {x, y} doesn't error
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    nx, ny = 30, 20
+    x = np.linspace(-10, 10, nx)
+    y = np.linspace(-10, 10, ny)
+    z = np.random.randint(0, 2, [ny, nx])
+    ax.contour(x, y, z, [0.5])
 
 
 @mpl3d_image_comparison(['lines3d.png'])
@@ -420,6 +459,45 @@ def test_surface3d_shaded():
     ax.set_zlim(-1.01, 1.01)
 
 
+@mpl3d_image_comparison(['surface3d_masked.png'])
+def test_surface3d_masked():
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    y = [1, 2, 3, 4, 5, 6, 7, 8]
+
+    x, y = np.meshgrid(x, y)
+    matrix = np.array(
+        [
+            [-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [-1, 1, 2, 3, 4, 4, 4, 3, 2, 1, 1],
+            [-1, -1., 4, 5, 6, 8, 6, 5, 4, 3, -1.],
+            [-1, -1., 7, 8, 11, 12, 11, 8, 7, -1., -1.],
+            [-1, -1., 8, 9, 10, 16, 10, 9, 10, 7, -1.],
+            [-1, -1., -1., 12, 16, 20, 16, 12, 11, -1., -1.],
+            [-1, -1., -1., -1., 22, 24, 22, 20, 18, -1., -1.],
+            [-1, -1., -1., -1., -1., 28, 26, 25, -1., -1., -1.],
+        ]
+    )
+    z = np.ma.masked_less(matrix, 0)
+    norm = mcolors.Normalize(vmax=z.max(), vmin=z.min())
+    colors = plt.get_cmap("plasma")(norm(z))
+    ax.plot_surface(x, y, z, facecolors=colors)
+    ax.view_init(30, -80)
+
+
+@mpl3d_image_comparison(['surface3d_masked_strides.png'])
+def test_surface3d_masked_strides():
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+
+    x, y = np.mgrid[-6:6.1:1, -6:6.1:1]
+    z = np.ma.masked_less(x * y, 2)
+
+    ax.plot_surface(x, y, z, rstride=4, cstride=4)
+    ax.view_init(60, -45)
+
+
 @mpl3d_image_comparison(['text3d.png'], remove_text=False)
 def test_text3d():
     fig = plt.figure()
@@ -601,25 +679,39 @@ def test_patch_modification():
 @check_figures_equal(extensions=['png'])
 def test_patch_collection_modification(fig_test, fig_ref):
     # Test that modifying Patch3DCollection properties after creation works.
-    patch = Circle((0, 0), 0.05)
-    c = art3d.Patch3DCollection([patch], linewidths=3)
+    patch1 = Circle((0, 0), 0.05)
+    patch2 = Circle((0.1, 0.1), 0.03)
+    facecolors = np.array([[0., 0.5, 0., 1.], [0.5, 0., 0., 0.5]])
+    c = art3d.Patch3DCollection([patch1, patch2], linewidths=3)
 
     ax_test = fig_test.add_subplot(projection='3d')
     ax_test.add_collection3d(c)
     c.set_edgecolor('C2')
-    c.set_facecolor('C3')
+    c.set_facecolor(facecolors)
     c.set_alpha(0.7)
     assert c.get_depthshade()
     c.set_depthshade(False)
     assert not c.get_depthshade()
 
-    patch = Circle((0, 0), 0.05)
-    c = art3d.Patch3DCollection([patch], linewidths=3,
-                                edgecolor='C2', facecolor='C3', alpha=0.7,
-                                depthshade=False)
+    patch1 = Circle((0, 0), 0.05)
+    patch2 = Circle((0.1, 0.1), 0.03)
+    facecolors = np.array([[0., 0.5, 0., 1.], [0.5, 0., 0., 0.5]])
+    c = art3d.Patch3DCollection([patch1, patch2], linewidths=3,
+                                edgecolor='C2', facecolor=facecolors,
+                                alpha=0.7, depthshade=False)
 
     ax_ref = fig_ref.add_subplot(projection='3d')
     ax_ref.add_collection3d(c)
+
+
+def test_poly3dcollection_verts_validation():
+    poly = [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]
+    with pytest.raises(ValueError, match=r'list of \(N, 3\) array-like'):
+        art3d.Poly3DCollection(poly)  # should be Poly3DCollection([poly])
+
+    poly = np.array(poly, dtype=float)
+    with pytest.raises(ValueError, match=r'list of \(N, 3\) array-like'):
+        art3d.Poly3DCollection(poly)  # should be Poly3DCollection([poly])
 
 
 @mpl3d_image_comparison(['poly3dcollection_closed.png'])
@@ -1115,6 +1207,12 @@ def test_line3d_set_get_data_3d():
     np.testing.assert_array_equal((x, y, z), line.get_data_3d())
     line.set_data_3d(x2, y2, z2)
     np.testing.assert_array_equal((x2, y2, z2), line.get_data_3d())
+    line.set_xdata(x)
+    line.set_ydata(y)
+    line.set_3d_properties(zs=z, zdir='z')
+    np.testing.assert_array_equal((x, y, z), line.get_data_3d())
+    line.set_3d_properties(zs=0, zdir='z')
+    np.testing.assert_array_equal((x, y, np.zeros_like(z)), line.get_data_3d())
 
 
 @check_figures_equal(extensions=["png"])
@@ -1399,7 +1497,7 @@ def test_pan():
     assert z_center != pytest.approx(z_center0)
 
 
-@pytest.mark.style('default')
+@mpl.style.context('default')
 @check_figures_equal(extensions=["png"])
 def test_scalarmap_update(fig_test, fig_ref):
 
@@ -1429,6 +1527,89 @@ def test_subfigure_simple():
     ax = sf[1].add_subplot(1, 1, 1, projection='3d', label='other')
 
 
+@image_comparison(baseline_images=['computed_zorder'], remove_text=True,
+                  extensions=['png'])
+def test_computed_zorder():
+    fig = plt.figure()
+    ax1 = fig.add_subplot(221, projection='3d')
+    ax2 = fig.add_subplot(222, projection='3d')
+    ax2.computed_zorder = False
+
+    # create a horizontal plane
+    corners = ((0, 0, 0), (0, 5, 0), (5, 5, 0), (5, 0, 0))
+    for ax in (ax1, ax2):
+        tri = art3d.Poly3DCollection([corners],
+                                     facecolors='white',
+                                     edgecolors='black',
+                                     zorder=1)
+        ax.add_collection3d(tri)
+
+        # plot a vector
+        ax.plot((2, 2), (2, 2), (0, 4), c='red', zorder=2)
+
+        # plot some points
+        ax.scatter((3, 3), (1, 3), (1, 3), c='red', zorder=10)
+
+        ax.set_xlim((0, 5.0))
+        ax.set_ylim((0, 5.0))
+        ax.set_zlim((0, 2.5))
+
+    ax3 = fig.add_subplot(223, projection='3d')
+    ax4 = fig.add_subplot(224, projection='3d')
+    ax4.computed_zorder = False
+
+    dim = 10
+    X, Y = np.meshgrid((-dim, dim), (-dim, dim))
+    Z = np.zeros((2, 2))
+
+    angle = 0.5
+    X2, Y2 = np.meshgrid((-dim, dim), (0, dim))
+    Z2 = Y2 * angle
+    X3, Y3 = np.meshgrid((-dim, dim), (-dim, 0))
+    Z3 = Y3 * angle
+
+    r = 7
+    M = 1000
+    th = np.linspace(0, 2 * np.pi, M)
+    x, y, z = r * np.cos(th),  r * np.sin(th), angle * r * np.sin(th)
+    for ax in (ax3, ax4):
+        ax.plot_surface(X2, Y3, Z3,
+                        color='blue',
+                        alpha=0.5,
+                        linewidth=0,
+                        zorder=-1)
+        ax.plot(x[y < 0], y[y < 0], z[y < 0],
+                lw=5,
+                linestyle='--',
+                color='green',
+                zorder=0)
+
+        ax.plot_surface(X, Y, Z,
+                        color='red',
+                        alpha=0.5,
+                        linewidth=0,
+                        zorder=1)
+
+        ax.plot(r * np.sin(th), r * np.cos(th), np.zeros(M),
+                lw=5,
+                linestyle='--',
+                color='black',
+                zorder=2)
+
+        ax.plot_surface(X2, Y2, Z2,
+                        color='blue',
+                        alpha=0.5,
+                        linewidth=0,
+                        zorder=3)
+
+        ax.plot(x[y > 0], y[y > 0], z[y > 0], lw=5,
+                linestyle='--',
+                color='green',
+                zorder=4)
+        ax.view_init(azim=-20, elev=20)
+        ax.axis('off')
+
+
 @image_comparison(baseline_images=['scatter_spiral.png'],
                   remove_text=True,
                   style='default')
@@ -1439,4 +1620,154 @@ def test_scatter_spiral():
     sc = ax.scatter(np.sin(th), np.cos(th), th, s=(1 + th * 5), c=th ** 2)
 
     # force at least 1 draw!
+    fig.canvas.draw()
+
+
+@pytest.mark.parametrize(
+    "vertical_axis, proj_expected, axis_lines_expected, tickdirs_expected",
+    [
+        (
+            "z",
+            [
+                [0.0, 1.142857, 0.0, -0.571429],
+                [0.0, 0.0, 0.857143, -0.428571],
+                [0.0, 0.0, 0.0, -10.0],
+                [-1.142857, 0.0, 0.0, 10.571429],
+            ],
+            [
+                ([0.05617978, 0.06329114], [-0.04213483, -0.04746835]),
+                ([-0.06329114, 0.06329114], [-0.04746835, -0.04746835]),
+                ([-0.06329114, -0.06329114], [-0.04746835, 0.04746835]),
+            ],
+            [1, 0, 0],
+        ),
+        (
+            "y",
+            [
+                [1.142857, 0.0, 0.0, -0.571429],
+                [0.0, 0.857143, 0.0, -0.428571],
+                [0.0, 0.0, 0.0, -10.0],
+                [0.0, 0.0, -1.142857, 10.571429],
+            ],
+            [
+                ([0.06329114, -0.06329114], [-0.04746835, -0.04746835]),
+                ([-0.06329114, -0.06329114], [0.04746835, -0.04746835]),
+                ([0.05617978, 0.06329114], [-0.04213483, -0.04746835]),
+            ],
+            [2, 2, 0],
+        ),
+        (
+            "x",
+            [
+                [0.0, 0.0, 1.142857, -0.571429],
+                [0.857143, 0.0, 0.0, -0.428571],
+                [0.0, 0.0, 0.0, -10.0],
+                [0.0, -1.142857, 0.0, 10.571429],
+            ],
+            [
+                ([-0.06329114, -0.06329114], [-0.04746835, 0.04746835]),
+                ([0.06329114, 0.05617978], [-0.04746835, -0.04213483]),
+                ([0.06329114, -0.06329114], [-0.04746835, -0.04746835]),
+            ],
+            [1, 2, 1],
+        ),
+    ],
+)
+def test_view_init_vertical_axis(
+    vertical_axis, proj_expected, axis_lines_expected, tickdirs_expected
+):
+    """
+    Test the actual projection, axis lines and ticks matches expected values.
+
+    Parameters
+    ----------
+    vertical_axis : str
+        Axis to align vertically.
+    proj_expected : ndarray
+        Expected values from ax.get_proj().
+    axis_lines_expected : tuple of arrays
+        Edgepoints of the axis line. Expected values retrieved according
+        to ``ax.get_[xyz]axis().line.get_data()``.
+    tickdirs_expected : list of int
+        indexes indicating which axis to create a tick line along.
+    """
+    rtol = 2e-06
+    ax = plt.subplot(1, 1, 1, projection="3d")
+    ax.view_init(azim=0, elev=0, vertical_axis=vertical_axis)
+    ax.figure.canvas.draw()
+
+    # Assert the projection matrix:
+    proj_actual = ax.get_proj()
+    np.testing.assert_allclose(proj_expected, proj_actual, rtol=rtol)
+
+    for i, axis in enumerate([ax.get_xaxis(), ax.get_yaxis(), ax.get_zaxis()]):
+        # Assert black lines are correctly aligned:
+        axis_line_expected = axis_lines_expected[i]
+        axis_line_actual = axis.line.get_data()
+        np.testing.assert_allclose(axis_line_expected, axis_line_actual,
+                                   rtol=rtol)
+
+        # Assert ticks are correctly aligned:
+        tickdir_expected = tickdirs_expected[i]
+        tickdir_actual = axis._get_tickdir()
+        np.testing.assert_array_equal(tickdir_expected, tickdir_actual)
+
+
+def test_do_3d_projection_renderer_deprecation_warn_on_argument():
+    """
+    Test that an external artist with an old-style calling convention raises
+    a suitable deprecation warning.
+    """
+    class DummyPatch(art3d.Patch3D):
+        def do_3d_projection(self, renderer):
+            return 0
+
+        def draw(self, renderer):
+            pass
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    artist = DummyPatch()
+    ax.add_artist(artist)
+
+    match = r"The 'renderer' parameter of do_3d_projection\(\) was deprecated"
+    with pytest.warns(MatplotlibDeprecationWarning, match=match):
+        fig.canvas.draw()
+
+
+def test_do_3d_projection_renderer_deprecation_nowarn_on_optional_argument():
+    """
+    Test that an external artist with a calling convention compatible with
+    both v3.3 and v3.4 does not raise a deprecation warning.
+    """
+    class DummyPatch(art3d.Patch3D):
+        def do_3d_projection(self, renderer=None):
+            return 0
+
+        def draw(self, renderer):
+            pass
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    artist = DummyPatch()
+    ax.add_artist(artist)
+    fig.canvas.draw()
+
+
+def test_do_3d_projection_renderer_deprecation_nowarn_on_no_argument():
+    """
+    Test that an external artist with a calling convention compatible with
+    only v3.4 does not raise a deprecation warning.
+    """
+    class DummyPatch(art3d.Patch3D):
+        def do_3d_projection(self):
+            return 0
+
+        def draw(self, renderer):
+            pass
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    artist = DummyPatch()
+    ax.add_artist(artist)
     fig.canvas.draw()

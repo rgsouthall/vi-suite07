@@ -36,6 +36,7 @@ public:
     void setCreator(const QString &creator);
     virtual bool newPage();
     virtual void setPageSize(QPagedPaintDevice::PageSize size);
+    bool setPageSize(const QPageSize &pageSize);
     virtual void setPageSizeMM(const QSizeF &size);
     virtual void setMargins(const QPagedPaintDevice::Margins &m);
 

@@ -6,7 +6,10 @@ Support for WM_TOUCH messages (Windows platform)
 __all__ = ('WM_MotionEventProvider', 'WM_MotionEvent')
 
 import os
-from kivy.input.providers.wm_common import *
+from kivy.input.providers.wm_common import WNDPROC, \
+    SetWindowLong_WndProc_wrapper, RECT, POINT, WM_TABLET_QUERYSYSTEMGESTURE, \
+    QUERYSYSTEMGESTURE_WNDPROC, WM_TOUCH, WM_MOUSEMOVE, WM_MOUSELAST, \
+    TOUCHINPUT, PEN_OR_TOUCH_MASK, PEN_OR_TOUCH_SIGNATURE, PEN_EVENT_TOUCH_MASK
 from kivy.input.motionevent import MotionEvent
 from kivy.input.shape import ShapeRect
 
@@ -19,16 +22,19 @@ class WM_MotionEvent(MotionEvent):
     '''
     __attrs__ = ('size', )
 
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('is_touch', True)
+        kwargs.setdefault('type_id', 'touch')
+        super().__init__(*args, **kwargs)
+        self.profile = ('pos', 'shape', 'size')
+
     def depack(self, args):
-        self.is_touch = True
         self.shape = ShapeRect()
         self.sx, self.sy = args[0], args[1]
         self.shape.width = args[2][0]
         self.shape.height = args[2][1]
         self.size = self.shape.width * self.shape.height
-        self.profile = ('pos', 'shape', 'size')
-
-        super(WM_MotionEvent, self).depack(args)
+        super().depack(args)
 
     def __str__(self):
         args = (self.id, self.uid, str(self.spos), self.device)

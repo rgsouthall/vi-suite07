@@ -9,6 +9,8 @@ import os
 import re
 import sys
 import traceback
+import ast
+import importlib
 from re import sub, findall
 from types import CodeType
 from functools import partial
@@ -35,14 +37,19 @@ Cache.register('kv.lang')
 __KV_INCLUDES__ = []
 
 # precompile regexp expression
-lang_str = re.compile(
-    "((?:'''.*?''')|"
+str_re = (
+    "(?:'''.*?''')|"
     "(?:(?:(?<!')|''')'(?:[^']|\\\\')+?'(?:(?!')|'''))|"
     '(?:""".*?""")|'
-    '(?:(?:(?<!")|""")"(?:[^"]|\\\\")+?"(?:(?!")|""")))', re.DOTALL)
+    '(?:(?:(?<!")|""")"(?:[^"]|\\\\")+?"(?:(?!")|"""))'
+)
+
+lang_str = re.compile(f"({str_re})", re.DOTALL)
+lang_fstr = re.compile(f"([fF](?:{str_re}))", re.DOTALL)
+
 lang_key = re.compile('([a-zA-Z_]+)')
-lang_keyvalue = re.compile('([a-zA-Z_][a-zA-Z0-9_.]*\.[a-zA-Z0-9_.]+)')
-lang_tr = re.compile('(_\()')
+lang_keyvalue = re.compile(r'([a-zA-Z_][a-zA-Z0-9_.]*\.[a-zA-Z0-9_.]+)')
+lang_tr = re.compile(r'(_\()')
 lang_cls_split_pat = re.compile(', *')
 
 # all the widget handlers, used to correctly unbind all the callbacks then the
@@ -176,7 +183,10 @@ class ParserRuleProperty(object):
             # if we don't detect any string/key in it, we can eval and give the
             # result
             if re.search(lang_key, tmp) is None:
-                self.co_value = eval(value)
+                value = '\n' * self.line + value
+                self.co_value = eval(
+                    compile(value, self.ctx.filename or '<string>', 'eval')
+                )
                 return
 
         # ok, we can compile.
@@ -188,20 +198,94 @@ class ParserRuleProperty(object):
             return
 
         # now, detect obj.prop
+        # find all the fstrings in the  value
+        fstrings = lang_fstr.findall(value)
+        wk = set()
+        for s in fstrings:
+            expression = ast.parse(s)
+            wk |= set(self.get_names_from_expression(expression.body[0].value))
+
         # first, remove all the string from the value
         tmp = sub(lang_str, '', value)
         idx = tmp.find('#')
         if idx != -1:
             tmp = tmp[:idx]
         # detect key.value inside value, and split them
-        wk = list(set(findall(lang_keyvalue, tmp)))
-        if len(wk):
+        wk |= set(findall(lang_keyvalue, tmp))
+        if wk:
             self.watched_keys = [x.split('.') for x in wk]
         if findall(lang_tr, tmp):
             if self.watched_keys:
                 self.watched_keys += [['_']]
             else:
                 self.watched_keys = [['_']]
+
+    @classmethod
+    def get_names_from_expression(cls, node):
+        """
+        Look for all the symbols used in an ast node.
+        """
+        if isinstance(node, ast.Name):
+            yield node.id
+
+        if isinstance(node, (ast.JoinedStr, ast.BoolOp)):
+            for n in node.values:
+                if isinstance(n, ast.Str):
+                    # NOTE: required for python3.6
+                    yield from cls.get_names_from_expression(n.s)
+                else:
+                    yield from cls.get_names_from_expression(n.value)
+
+        if isinstance(node, ast.BinOp):
+            yield from cls.get_names_from_expression(node.right)
+            yield from cls.get_names_from_expression(node.left)
+
+        if isinstance(node, ast.IfExp):
+            yield from cls.get_names_from_expression(node.test)
+            yield from cls.get_names_from_expression(node.body)
+            yield from cls.get_names_from_expression(node.orelse)
+
+        if isinstance(node, ast.Subscript):
+            yield from cls.get_names_from_expression(node.value)
+            yield from cls.get_names_from_expression(node.slice)
+
+        if isinstance(node, ast.Slice):
+            yield from cls.get_names_from_expression(node.lower)
+            yield from cls.get_names_from_expression(node.upper)
+            yield from cls.get_names_from_expression(node.step)
+
+        if isinstance(
+            node,
+            (ast.ListComp, ast.DictComp, ast.SetComp, ast.GeneratorExp)
+        ):
+            for g in node.generators:
+                yield from cls.get_names_from_expression(g.iter)
+
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            for elt in node.elts:
+                yield from cls.get_names_from_expression(elt)
+
+        if isinstance(node, ast.Dict):
+            for val in node.values:
+                yield from cls.get_names_from_expression(val)
+
+        if isinstance(node, ast.UnaryOp):
+            yield from cls.get_names_from_expression(node.operand)
+
+        if isinstance(node, ast.comprehension):
+            yield from cls.get_names_from_expression(node.iter.value)
+
+        if isinstance(node, ast.Attribute):
+            if isinstance(node.value, ast.Name):
+                yield f'{node.value.id}.{node.attr}'
+
+        if isinstance(node, ast.Call):
+            yield from cls.get_names_from_expression(node.func)
+
+            for arg in node.args:
+                yield from cls.get_names_from_expression(arg)
+            for keyword in node.keywords:
+                yield from cls.get_names_from_expression(keyword.value)
 
     def __repr__(self):
         return '<ParserRuleProperty name=%r filename=%s:%d ' \
@@ -278,7 +362,7 @@ class ParserRule(object):
             value = self.properties[name].co_value
             if type(value) is CodeType:
                 value = None
-            widget.create_property(name, value)
+            widget.create_property(name, value, default_value=False)
 
     def _forbid_selectors(self):
         c = self.name[0]
@@ -317,7 +401,7 @@ class ParserRule(object):
         for rule in re.split(lang_cls_split_pat, name):
             crule = None
 
-            if not len(rule):
+            if not rule:
                 raise ParserException(self.ctx, self.line,
                                       'Empty rule detected')
 
@@ -338,8 +422,6 @@ class ParserRule(object):
 
                 if rule[0] == '.':
                     crule = ParserSelectorClass(rule[1:])
-                elif rule[0] == '#':
-                    crule = ParserSelectorId(rule[1:])
                 else:
                     crule = ParserSelectorName(rule)
 
@@ -437,7 +519,7 @@ class Parser(object):
                     ref = ref[c:-c] if c != 2 else ref
 
                 if ref[-3:] != '.kv':
-                    Logger.warn('Lang: {0} does not have a valid Kivy'
+                    Logger.warning('Lang: {0} does not have a valid Kivy'
                                 'Language extension (.kv)'.format(ref))
                     break
                 if ref in __KV_INCLUDES__:
@@ -446,11 +528,11 @@ class Parser(object):
                                               'Invalid or unknown file: {0}'
                                               .format(ref))
                     if not force_load:
-                        Logger.warn('Lang: {0} has already been included!'
+                        Logger.warning('Lang: {0} has already been included!'
                                     .format(ref))
                         continue
                     else:
-                        Logger.debug('Lang: Reloading {0} ' +
+                        Logger.debug('Lang: Reloading {0} '
                                      'because include was forced.'
                                      .format(ref))
                         kivy.lang.builder.Builder.unload_file(ref)
@@ -468,9 +550,10 @@ class Parser(object):
                 try:
                     if package not in sys.modules:
                         try:
-                            mod = __import__(package)
+                            mod = importlib.__import__(package)
                         except ImportError:
-                            mod = __import__('.'.join(package.split('.')[:-1]))
+                            module_name = '.'.join(package.split('.')[:-1])
+                            mod = importlib.__import__(module_name)
                         # resolve the whole thing
                         for part in package.split('.')[1:]:
                             mod = getattr(mod, part)
@@ -576,7 +659,7 @@ class Parser(object):
             # Current level, create an object
             elif count == indent:
                 x = content.split(':', 1)
-                if not len(x[0]):
+                if not x[0]:
                     raise ParserException(self, ln, 'Identifier missing')
                 if (len(x) == 2 and len(x[1]) and
                         not x[1].lstrip().startswith('#')):
@@ -596,7 +679,7 @@ class Parser(object):
             # Next level, is it a property or an object ?
             elif count == indent + spaces:
                 x = content.split(':', 1)
-                if not len(x[0]):
+                if not x[0]:
                     raise ParserException(self, ln, 'Identifier missing')
 
                 # It's a class, add to the current object as a children
@@ -695,17 +778,10 @@ class ParserSelector(object):
         self.key = key.lower()
 
     def match(self, widget):
-        raise NotImplemented()
+        raise NotImplementedError
 
     def __repr__(self):
         return '<%s key=%s>' % (self.__class__.__name__, self.key)
-
-
-class ParserSelectorId(ParserSelector):
-
-    def match(self, widget):
-        if widget.id:
-            return widget.id.lower() == self.key
 
 
 class ParserSelectorClass(ParserSelector):

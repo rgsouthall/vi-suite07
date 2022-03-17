@@ -25,9 +25,9 @@ import sys
 import traceback
 import tempfile
 import subprocess
+import importlib
 import kivy
 from kivy.logger import Logger
-from kivy.compat import PY2
 
 
 class CoreCriticalException(Exception):
@@ -56,7 +56,7 @@ def core_select_lib(category, llist, create_instance=False,
                 pass
 
             # import module
-            mod = __import__(name='{2}.{0}.{1}'.format(
+            mod = importlib.__import__(name='{2}.{0}.{1}'.format(
                 basemodule, modulename, base),
                 globals=globals(),
                 locals=locals(),
@@ -91,7 +91,7 @@ def core_select_lib(category, llist, create_instance=False,
             errs.append((option, e, sys.exc_info()[2]))
             libs_ignored.append(modulename)
             Logger.trace('{0}: Unable to use {1}'.format(
-                category.capitalize(), option, category))
+                category.capitalize(), option))
             Logger.trace('', exc_info=e)
 
     err = '\n'.join(['{} - {}: {}\n{}'.format(opt, e.__class__.__name__, e,
@@ -128,7 +128,7 @@ def core_register_libs(category, libs, base='kivy.core'):
                 lib = libs_loadable[item]
             except KeyError:
                 continue
-            __import__(name='{2}.{0}.{1}'.format(category, lib, base),
+            importlib.__import__(name='{2}.{0}.{1}'.format(category, lib, base),
                        globals=globals(),
                        locals=locals(),
                        fromlist=[lib],
@@ -160,16 +160,13 @@ def handle_win_lib_import_error(category, provider, mod_name):
     mod_path = os.path.join(kivy_root, *dirs)
 
     # get the full expected path to the compiled pyd file
-    if PY2:
-        mod_path += '.pyd'
-    else:
-        # filename is <debug>.cp<major><minor>-<platform>.pyd
-        # https://github.com/python/cpython/blob/master/Doc/whatsnew/3.5.rst
-        if hasattr(sys, 'gettotalrefcount'):  # debug
-            mod_path += '._d'
-        mod_path += '.cp{}{}-{}.pyd'.format(
-            sys.version_info.major, sys.version_info.minor,
-            sysconfig.get_platform().replace('-', '_'))
+    # filename is <debug>.cp<major><minor>-<platform>.pyd
+    # https://github.com/python/cpython/blob/master/Doc/whatsnew/3.5.rst
+    if hasattr(sys, 'gettotalrefcount'):  # debug
+        mod_path += '._d'
+    mod_path += '.cp{}{}-{}.pyd'.format(
+        sys.version_info.major, sys.version_info.minor,
+        sysconfig.get_platform().replace('-', '_'))
 
     # does the compiled pyd exist at all?
     if not os.path.exists(mod_path):

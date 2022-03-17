@@ -274,10 +274,7 @@ class WindowPygame(WindowBase):
                                               GL_UNSIGNED_BYTE)
         width, height = self.system_size
         data = glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE)
-        if PY2:
-            data = str(buffer(data))
-        else:
-            data = bytes(bytearray(data))
+        data = bytes(bytearray(data))
         surface = pygame.image.fromstring(data, (width, height), 'RGBA', True)
         pygame.image.save(surface, filename)
         Logger.debug('Window: Screenshot saved at <%s>' % filename)
@@ -295,9 +292,7 @@ class WindowPygame(WindowBase):
             self.flags |= pygame.FULLSCREEN
         self._pygame_set_mode()
 
-    def _mainloop(self):
-        EventLoop.idle()
-
+    def mainloop(self):
         for event in pygame.event.get():
 
             # kill application (SIG_TERM)
@@ -399,28 +394,16 @@ class WindowPygame(WindowBase):
             elif event.type == pygame.USEREVENT and \
                     hasattr(pygame, 'USEREVENT_DROPFILE') and \
                     event.code == pygame.USEREVENT_DROPFILE:
-                self.dispatch('on_dropfile', event.filename)
+                drop_x, drop_y = pygame.mouse.get_pos()
+                self.dispatch('on_drop_file', event.filename, drop_x, drop_y)
 
             '''
             # unhandled event !
             else:
                 Logger.debug('WinPygame: Unhandled event %s' % str(event))
             '''
-
-    def mainloop(self):
-        while not EventLoop.quit and EventLoop.status == 'started':
-            try:
-                self._mainloop()
-                if not pygame.display.get_active():
-                    pygame.time.wait(100)
-            except BaseException as inst:
-                # use exception manager first
-                r = ExceptionManager.handle_exception(inst)
-                if r == ExceptionManager.RAISE:
-                    stopTouchApp()
-                    raise
-                else:
-                    pass
+        if not pygame.display.get_active():
+            pygame.time.wait(100)
 
     #
     # Pygame wrapper
@@ -450,9 +433,11 @@ class WindowPygame(WindowBase):
         if mods & (pygame.KMOD_META | pygame.KMOD_LMETA):
             self._modifiers.append('meta')
 
-    def request_keyboard(self, callback, target, input_type='text'):
+    def request_keyboard(
+            self, callback, target, input_type='text', keyboard_suggestions=True
+    ):
         keyboard = super(WindowPygame, self).request_keyboard(
-            callback, target, input_type)
+            callback, target, input_type, keyboard_suggestions)
         if android and not self.allow_vkeyboard:
             android.show_keyboard(target, input_type)
         return keyboard

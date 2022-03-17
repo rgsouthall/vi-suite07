@@ -8,10 +8,10 @@ cdef class CanvasBase
 cdef class Canvas
 cdef class RenderContext
 
-from vbo cimport *
-from compiler cimport *
-from shader cimport *
-from texture cimport Texture
+from .vbo cimport *
+from .compiler cimport *
+from .shader cimport *
+from .texture cimport Texture
 from kivy._event cimport ObjectWithUid
 
 cdef void reset_gl_context()
@@ -31,6 +31,7 @@ cdef class Instruction(ObjectWithUid):
         cpdef flag_update(self, int do_parent=?, list _instrs=?)
     ELSE:
         cpdef flag_update(self, int do_parent=?)
+    cpdef flag_data_update(self)
     cdef void flag_update_done(self)
     cdef void set_parent(self, Instruction parent)
     cdef void reload(self) except *
@@ -63,7 +64,7 @@ cdef class ContextInstruction(Instruction):
     cdef int pop_state(self, str name) except -1
 
 
-from context_instructions cimport BindTexture
+from .context_instructions cimport BindTexture
 
 cdef class VertexInstruction(Instruction):
     cdef BindTexture texture_binding

@@ -1,7 +1,5 @@
-import functools
-
-from matplotlib import _api, docstring
-import matplotlib.artist as martist
+import matplotlib as mpl
+from matplotlib import _api, cbook
 from matplotlib.axes._axes import Axes
 from matplotlib.gridspec import GridSpec, SubplotSpec
 
@@ -37,15 +35,6 @@ class SubplotBase:
         # This will also update the axes position.
         self.set_subplotspec(SubplotSpec._from_subplot_args(fig, args))
 
-    def __reduce__(self):
-        # get the first axes class which does not inherit from a subplotbase
-        axes_class = next(
-            c for c in type(self).__mro__
-            if issubclass(c, Axes) and not issubclass(c, SubplotBase))
-        return (_picklable_subplot_class_constructor,
-                (axes_class,),
-                self.__getstate__())
-
     @_api.deprecated(
         "3.4", alternative="get_subplotspec",
         addendum="(get_subplotspec returns a SubplotSpec instance.)")
@@ -76,10 +65,10 @@ class SubplotBase:
         return self._subplotspec.get_gridspec()
 
     @_api.deprecated(
-        "3.4", alternative="get_subplotspec().get_position(self.figure)")
+        "3.4", alternative="get_position()")
     @property
     def figbox(self):
-        return self.get_subplotspec().get_position(self.figure)
+        return self.get_position()
 
     @_api.deprecated("3.4", alternative="get_gridspec().nrows")
     @property
@@ -117,22 +106,50 @@ class SubplotBase:
         """
         Only show "outer" labels and tick labels.
 
-        x-labels are only kept for subplots on the last row; y-labels only for
-        subplots on the first column.
+        x-labels are only kept for subplots on the last row (or first row, if
+        labels are on the top side); y-labels only for subplots on the first
+        column (or last column, if labels are on the right side).
         """
+        self._label_outer_xaxis(check_patch=False)
+        self._label_outer_yaxis(check_patch=False)
+
+    def _label_outer_xaxis(self, *, check_patch):
+        # see documentation in label_outer.
+        if check_patch and not isinstance(self.patch, mpl.patches.Rectangle):
+            return
         ss = self.get_subplotspec()
-        lastrow = ss.is_last_row()
-        firstcol = ss.is_first_col()
-        if not lastrow:
-            for label in self.get_xticklabels(which="both"):
-                label.set_visible(False)
-            self.xaxis.get_offset_text().set_visible(False)
-            self.set_xlabel("")
-        if not firstcol:
-            for label in self.get_yticklabels(which="both"):
-                label.set_visible(False)
-            self.yaxis.get_offset_text().set_visible(False)
-            self.set_ylabel("")
+        label_position = self.xaxis.get_label_position()
+        if not ss.is_first_row():  # Remove top label/ticklabels/offsettext.
+            if label_position == "top":
+                self.set_xlabel("")
+            self.xaxis.set_tick_params(which="both", labeltop=False)
+            if self.xaxis.offsetText.get_position()[1] == 1:
+                self.xaxis.offsetText.set_visible(False)
+        if not ss.is_last_row():  # Remove bottom label/ticklabels/offsettext.
+            if label_position == "bottom":
+                self.set_xlabel("")
+            self.xaxis.set_tick_params(which="both", labelbottom=False)
+            if self.xaxis.offsetText.get_position()[1] == 0:
+                self.xaxis.offsetText.set_visible(False)
+
+    def _label_outer_yaxis(self, *, check_patch):
+        # see documentation in label_outer.
+        if check_patch and not isinstance(self.patch, mpl.patches.Rectangle):
+            return
+        ss = self.get_subplotspec()
+        label_position = self.yaxis.get_label_position()
+        if not ss.is_first_col():  # Remove left label/ticklabels/offsettext.
+            if label_position == "left":
+                self.set_ylabel("")
+            self.yaxis.set_tick_params(which="both", labelleft=False)
+            if self.yaxis.offsetText.get_position()[0] == 0:
+                self.yaxis.offsetText.set_visible(False)
+        if not ss.is_last_col():  # Remove right label/ticklabels/offsettext.
+            if label_position == "right":
+                self.set_ylabel("")
+            self.yaxis.set_tick_params(which="both", labelright=False)
+            if self.yaxis.offsetText.get_position()[0] == 1:
+                self.yaxis.offsetText.set_visible(False)
 
     def _make_twin_axes(self, *args, **kwargs):
         """Make a twinx axes of self. This is used for twinx and twiny."""
@@ -148,59 +165,6 @@ class SubplotBase:
         return twin
 
 
-# this here to support cartopy which was using a private part of the
-# API to register their Axes subclasses.
-
-# In 3.1 this should be changed to a dict subclass that warns on use
-# In 3.3 to a dict subclass that raises a useful exception on use
-# In 3.4 should be removed
-
-# The slow timeline is to give cartopy enough time to get several
-# release out before we break them.
-_subplot_classes = {}
-
-
-@functools.lru_cache(None)
-def subplot_class_factory(axes_class=None):
-    """
-    Make a new class that inherits from `.SubplotBase` and the
-    given axes_class (which is assumed to be a subclass of `.axes.Axes`).
-    This is perhaps a little bit roundabout to make a new class on
-    the fly like this, but it means that a new Subplot class does
-    not have to be created for every type of Axes.
-    """
-    if axes_class is None:
-        _api.warn_deprecated(
-            "3.3", message="Support for passing None to subplot_class_factory "
-            "is deprecated since %(since)s; explicitly pass the default Axes "
-            "class instead. This will become an error %(removal)s.")
-        axes_class = Axes
-    try:
-        # Avoid creating two different instances of GeoAxesSubplot...
-        # Only a temporary backcompat fix.  This should be removed in
-        # 3.4
-        return next(cls for cls in SubplotBase.__subclasses__()
-                    if cls.__bases__ == (SubplotBase, axes_class))
-    except StopIteration:
-        return type("%sSubplot" % axes_class.__name__,
-                    (SubplotBase, axes_class),
-                    {'_axes_class': axes_class})
-
-
+subplot_class_factory = cbook._make_class_factory(
+    SubplotBase, "{}Subplot", "_axes_class")
 Subplot = subplot_class_factory(Axes)  # Provided for backward compatibility.
-
-
-def _picklable_subplot_class_constructor(axes_class):
-    """
-    Stub factory that returns an empty instance of the appropriate subplot
-    class when called with an axes class. This is purely to allow pickling of
-    Axes and Subplots.
-    """
-    subplot_class = subplot_class_factory(axes_class)
-    return subplot_class.__new__(subplot_class)
-
-
-docstring.interpd.update(Axes_kwdoc=martist.kwdoc(Axes))
-docstring.dedent_interpd(Axes.__init__)
-
-docstring.interpd.update(Subplot_kwdoc=martist.kwdoc(Axes))

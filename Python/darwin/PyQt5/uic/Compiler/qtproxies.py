@@ -1,6 +1,6 @@
 #############################################################################
 ##
-## Copyright (C) 2020 Riverbank Computing Limited.
+## Copyright (C) 2021 Riverbank Computing Limited.
 ## Copyright (C) 2006 Thorsten Marek.
 ## All right reserved.
 ##
@@ -134,6 +134,9 @@ class ProxyClassMember(object):
             if needs_translation:
                 i18n_print(func_call)
             else:
+                if self.function_name == 'connect':
+                    func_call += ' # type: ignore'
+
                 write_code(func_call)                       
 
     def __getattribute__(self, attribute):
@@ -174,7 +177,7 @@ class ProxySignalWithArguments(object):
             self._signal_index = "'%s'" % signal_index
 
     def connect(self, slot):
-        write_code("%s.%s[%s].connect(%s)" % (self._sender, self._signal_name, self._signal_index, slot))
+        write_code("%s.%s[%s].connect(%s) # type: ignore" % (self._sender, self._signal_name, self._signal_index, slot))
 
 
 class ProxyClass(ProxyBase):
@@ -278,6 +281,7 @@ class QtGui(ProxyNamespace):
     class QPainter(ProxyClass): pass
     class QPalette(ProxyClass): pass
     class QFont(ProxyClass): pass
+    class QFontDatabase(ProxyClass): pass
 
 
 # These sub-class QWidget but aren't themselves sub-classed.

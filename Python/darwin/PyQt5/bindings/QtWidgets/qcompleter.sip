@@ -41,9 +41,9 @@ public:
         CaseInsensitivelySortedModel,
     };
 
-    QCompleter(QObject *parent /TransferThis/ = 0);
     QCompleter(QAbstractItemModel *model, QObject *parent /TransferThis/ = 0);
     QCompleter(const QStringList &list, QObject *parent /TransferThis/ = 0);
+    QCompleter(QObject *parent /TransferThis/ = 0);
     virtual ~QCompleter();
     void setWidget(QWidget *widget /Transfer/);
     QWidget *widget() const;

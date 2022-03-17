@@ -130,6 +130,7 @@ from kivy.graphics import (RenderContext, Fbo, Color, Rectangle,
 from kivy.event import EventDispatcher
 from kivy.base import EventLoop
 from kivy.resources import resource_find
+from kivy.logger import Logger
 
 __all__ = ('EffectWidget', 'EffectBase', 'AdvancedEffectBase',
            'MonochromeEffect', 'InvertEffect', 'ChannelMixEffect',
@@ -678,7 +679,7 @@ class EffectWidget(RelativeLayout):
         fbind('background_color', self._refresh_background_color)
 
         self.refresh_fbo_setup()
-        self._refresh_background_color()  # In case thi was changed in kwargs
+        self._refresh_background_color()  # In case this was changed in kwargs
 
     def _refresh_background_color(self, *args):
         self._background_color.rgba = self.background_color
@@ -749,23 +750,23 @@ class EffectWidget(RelativeLayout):
             fbo.draw()
         self.fbo.draw()
 
-    def add_widget(self, widget):
+    def add_widget(self, *args, **kwargs):
         # Add the widget to our Fbo instead of the normal canvas
         c = self.canvas
         self.canvas = self.fbo
-        super(EffectWidget, self).add_widget(widget)
+        super(EffectWidget, self).add_widget(*args, **kwargs)
         self.canvas = c
 
-    def remove_widget(self, widget):
+    def remove_widget(self, *args, **kwargs):
         # Remove the widget from our Fbo instead of the normal canvas
         c = self.canvas
         self.canvas = self.fbo
-        super(EffectWidget, self).remove_widget(widget)
+        super(EffectWidget, self).remove_widget(*args, **kwargs)
         self.canvas = c
 
-    def clear_widgets(self, children=None):
+    def clear_widgets(self, *args, **kwargs):
         # Clear widgets from our Fbo instead of the normal canvas
         c = self.canvas
         self.canvas = self.fbo
-        super(EffectWidget, self).clear_widgets(children)
+        super(EffectWidget, self).clear_widgets(*args, **kwargs)
         self.canvas = c

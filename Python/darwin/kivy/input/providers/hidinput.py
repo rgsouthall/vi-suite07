@@ -21,10 +21,14 @@ To fix that, you can add these options to the argument line:
 
 * invert_x : 1 to invert X axis
 * invert_y : 1 to invert Y axis
-* min_position_x : X minimum
-* max_position_x : X maximum
-* min_position_y : Y minimum
-* max_position_y : Y maximum
+* min_position_x : X relative minimum
+* max_position_x : X relative maximum
+* min_position_y : Y relative minimum
+* max_position_y : Y relative maximum
+* min_abs_x : X absolute minimum
+* min_abs_y : Y absolute minimum
+* max_abs_x : X absolute maximum
+* max_abs_y : Y absolute maximum
 * min_pressure : pressure minimum
 * max_pressure : pressure maximum
 * rotation : rotate the input coordinate (0, 90, 180, 270)
@@ -55,8 +59,12 @@ Keyboard = None
 
 class HIDMotionEvent(MotionEvent):
 
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('is_touch', True)
+        kwargs.setdefault('type_id', 'touch')
+        super().__init__(*args, **kwargs)
+
     def depack(self, args):
-        self.is_touch = True
         self.sx = args['x']
         self.sy = args['y']
         self.profile = ['pos']
@@ -71,8 +79,7 @@ class HIDMotionEvent(MotionEvent):
         if 'button' in args:
             self.button = args['button']
             self.profile.append('button')
-
-        super(HIDMotionEvent, self).depack(args)
+        super().depack(args)
 
     def __str__(self):
         return '<HIDMotionEvent id=%d pos=(%f, %f) device=%s>' \
@@ -655,7 +662,7 @@ else:
             # open the input
             fd = open(input_fn, 'rb')
 
-            # get the controler name (EVIOCGNAME)
+            # get the controller name (EVIOCGNAME)
             device_name = fcntl.ioctl(fd, EVIOCGNAME + (256 << 16),
                                       " " * 256).decode().strip()
             Logger.info('HIDMotionEvent: using <%s>' % device_name)

@@ -2,10 +2,12 @@
 Common functionality between the PDF and PS backends.
 """
 
+from io import BytesIO
 import functools
 
+from fontTools import subset
+
 import matplotlib as mpl
-from matplotlib import _api
 from .. import font_manager, ft2font
 from ..afm import AFM
 from ..backend_bases import RendererBase
@@ -15,6 +17,35 @@ from ..backend_bases import RendererBase
 def _cached_get_afm_from_fname(fname):
     with open(fname, "rb") as fh:
         return AFM(fh)
+
+
+def get_glyphs_subset(fontfile, characters):
+    """
+    Subset a TTF font
+
+    Reads the named fontfile and restricts the font to the characters.
+    Returns a serialization of the subset font as file-like object.
+
+    Parameters
+    ----------
+    symbol : str
+        Path to the font file
+    characters : str
+        Continuous set of characters to include in subset
+    """
+
+    options = subset.Options(glyph_names=True, recommended_glyphs=True)
+
+    # prevent subsetting FontForge Timestamp and other tables
+    options.drop_tables += ['FFTM', 'PfEd']
+
+    with subset.load_font(fontfile, options) as font:
+        subsetter = subset.Subsetter(options=options)
+        subsetter.populate(text=characters)
+        subsetter.subset(font)
+        fh = BytesIO()
+        font.save(fh, reorderTables=False)
+        return fh
 
 
 class CharacterTracker:
@@ -28,29 +59,13 @@ class CharacterTracker:
     def __init__(self):
         self.used = {}
 
-    @_api.deprecated("3.3")
-    @property
-    def used_characters(self):
-        d = {}
-        for fname, chars in self.used.items():
-            realpath, stat_key = mpl.cbook.get_realpath_and_stat(fname)
-            d[stat_key] = (realpath, chars)
-        return d
-
     def track(self, font, s):
         """Record that string *s* is being typeset using font *font*."""
-        if isinstance(font, str):
-            # Unused, can be removed after removal of track_characters.
-            fname = font
-        else:
-            fname = font.fname
-        self.used.setdefault(fname, set()).update(map(ord, s))
+        self.used.setdefault(font.fname, set()).update(map(ord, s))
 
-    # Not public, can be removed when pdf/ps merge_used_characters is removed.
-    def merge(self, other):
-        """Update self with a font path to character codepoints."""
-        for fname, charset in other.items():
-            self.used.setdefault(fname, set()).update(charset)
+    def track_glyph(self, font, glyph):
+        """Record that codepoint *glyph* is being typeset using font *font*."""
+        self.used.setdefault(font.fname, set()).add(glyph)
 
 
 class RendererPDFPSBase(RendererBase):

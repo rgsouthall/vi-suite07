@@ -54,7 +54,7 @@ from kivy.uix.boxlayout import BoxLayout
 
 
 class SplitterStrip(Button):
-    '''Class used for tbe graphical representation of a
+    '''Class used for the graphical representation of a
     :class:`kivy.uix.splitter.SplitterStripe`.
     '''
     pass
@@ -231,7 +231,7 @@ class Splitter(BoxLayout):
         _strp.disabled = self.disabled
         self.bind(disabled=_strp.setter('disabled'))
 
-    def add_widget(self, widget, index=0):
+    def add_widget(self, widget, index=0, *args, **kwargs):
         if self._container or not widget:
             return Exception('Splitter accepts only one Child')
         self._container = widget
@@ -244,15 +244,15 @@ class Splitter(BoxLayout):
         index = 0
         if sz_frm in ('r', 'b'):
             index = 1
-        super(Splitter, self).add_widget(widget, index)
+        super(Splitter, self).add_widget(widget, index, *args, **kwargs)
         self.on_sizable_from(self, self.sizable_from)
 
-    def remove_widget(self, widget, *largs):
-        super(Splitter, self).remove_widget(widget)
+    def remove_widget(self, widget, *args, **kwargs):
+        super(Splitter, self).remove_widget(widget, *args, **kwargs)
         if widget == self._container:
             self._container = None
 
-    def clear_widgets(self):
+    def clear_widgets(self, *args, **kwargs):
         self.remove_widget(self._container)
 
     def strip_down(self, instance, touch):
@@ -291,6 +291,20 @@ class Splitter(BoxLayout):
         else:
             self.height = max(self.min_size, min(self.height, self.max_size))
 
+    @staticmethod
+    def _is_moving(sz_frm, diff, pos, minpos, maxpos):
+        if sz_frm in ('l', 'b'):
+            cmp = minpos
+        else:
+            cmp = maxpos
+        if diff == 0:
+            return False
+        elif diff > 0 and pos <= cmp:
+            return False
+        elif diff < 0 and pos >= cmp:
+            return False
+        return True
+
     def strip_move(self, instance, touch):
         if touch.grab_current is not instance:
             return False
@@ -300,11 +314,15 @@ class Splitter(BoxLayout):
 
         if sz_frm in ('t', 'b'):
             diff_y = (touch.dy)
+            self_y = self.y
+            self_top = self.top
+            if not self._is_moving(sz_frm, diff_y, touch.y, self_y, self_top):
+                return
             if self.keep_within_parent:
-                if sz_frm == 't' and (self.top + diff_y) > self.parent.top:
-                    diff_y = self.parent.top - self.top
-                elif sz_frm == 'b' and (self.y + diff_y) < self.parent.y:
-                    diff_y = self.parent.y - self.y
+                if sz_frm == 't' and (self_top + diff_y) > self.parent.top:
+                    diff_y = self.parent.top - self_top
+                elif sz_frm == 'b' and (self_y + diff_y) < self.parent.y:
+                    diff_y = self.parent.y - self_y
             if sz_frm == 'b':
                 diff_y *= -1
             if self.size_hint_y:
@@ -320,12 +338,16 @@ class Splitter(BoxLayout):
             self._parent_proportion = self.height / self.parent.height
         else:
             diff_x = (touch.dx)
+            self_x = self.x
+            self_right = self.right
+            if not self._is_moving(sz_frm, diff_x, touch.x, self_x, self_right):
+                return
             if self.keep_within_parent:
-                if sz_frm == 'l' and (self.x + diff_x) < self.parent.x:
-                    diff_x = self.parent.x - self.x
+                if sz_frm == 'l' and (self_x + diff_x) < self.parent.x:
+                    diff_x = self.parent.x - self_x
                 elif (sz_frm == 'r' and
-                      (self.right + diff_x) > self.parent.right):
-                    diff_x = self.parent.right - self.right
+                      (self_right + diff_x) > self.parent.right):
+                    diff_x = self.parent.right - self_right
             if sz_frm == 'l':
                 diff_x *= -1
             if self.size_hint_x:

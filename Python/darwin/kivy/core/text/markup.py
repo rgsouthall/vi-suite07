@@ -84,7 +84,7 @@ if Label is None:
 class MarkupLabel(MarkupLabelBase):
     '''Markup text label.
 
-    See module documentation for more informations.
+    See module documentation for more information.
     '''
 
     def __init__(self, *largs, **kwargs):
@@ -113,13 +113,13 @@ class MarkupLabel(MarkupLabelBase):
 
     @property
     def markup(self):
-        '''Return the text with all the markup splitted::
+        '''Return the text with all the markup split::
 
             >>> MarkupLabel('[b]Hello world[/b]').markup
             >>> ('[b]', 'Hello world', '[/b]')
 
         '''
-        s = re.split('(\[.*?\])', self.label)
+        s = re.split(r'(\[.*?\])', self.label)
         s = [x for x in s if x != '']
         return s
 

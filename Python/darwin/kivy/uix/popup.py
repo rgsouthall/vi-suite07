@@ -90,7 +90,7 @@ Popup Events
 There are two events available: `on_open` which is raised when the popup is
 opening, and `on_dismiss` which is raised when the popup is closed.
 For `on_dismiss`, you can prevent the
-popup from closing by explictly returning True from your callback::
+popup from closing by explicitly returning True from your callback::
 
     def my_callback(instance):
         print('Popup', instance, 'is being dismissed but is prevented!')
@@ -106,7 +106,7 @@ __all__ = ('Popup', 'PopupException')
 from kivy.core.text import DEFAULT_FONT
 from kivy.uix.modalview import ModalView
 from kivy.properties import (StringProperty, ObjectProperty, OptionProperty,
-                             NumericProperty, ListProperty)
+                             NumericProperty, ColorProperty)
 
 
 class PopupException(Exception):
@@ -171,22 +171,30 @@ class Popup(ModalView):
     to None.
     '''
 
-    title_color = ListProperty([1, 1, 1, 1])
+    title_color = ColorProperty([1, 1, 1, 1])
     '''Color used by the Title.
 
     .. versionadded:: 1.8.0
 
-    :attr:`title_color` is a :class:`~kivy.properties.ListProperty` and
+    :attr:`title_color` is a :class:`~kivy.properties.ColorProperty` and
     defaults to [1, 1, 1, 1].
+
+    .. versionchanged:: 2.0.0
+        Changed from :class:`~kivy.properties.ListProperty` to
+        :class:`~kivy.properties.ColorProperty`.
     '''
 
-    separator_color = ListProperty([47 / 255., 167 / 255., 212 / 255., 1.])
+    separator_color = ColorProperty([47 / 255., 167 / 255., 212 / 255., 1.])
     '''Color used by the separator between title and content.
 
     .. versionadded:: 1.1.0
 
-    :attr:`separator_color` is a :class:`~kivy.properties.ListProperty` and
-    defaults to [47 / 255., 167 / 255., 212 / 255., 1.]
+    :attr:`separator_color` is a :class:`~kivy.properties.ColorProperty` and
+    defaults to [47 / 255., 167 / 255., 212 / 255., 1.].
+
+    .. versionchanged:: 2.0.0
+        Changed from :class:`~kivy.properties.ListProperty` to
+        :class:`~kivy.properties.ColorProperty`.
     '''
 
     separator_height = NumericProperty('2dp')
@@ -202,14 +210,14 @@ class Popup(ModalView):
 
     _container = ObjectProperty(None)
 
-    def add_widget(self, widget):
+    def add_widget(self, widget, *args, **kwargs):
         if self._container:
             if self.content:
                 raise PopupException(
                     'Popup can have only one widget as content')
             self.content = widget
         else:
-            super(Popup, self).add_widget(widget)
+            super(Popup, self).add_widget(widget, *args, **kwargs)
 
     def on_content(self, instance, value):
         if self._container:

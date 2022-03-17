@@ -444,7 +444,7 @@ callable.
         return qpycore_pyqtconfigure(sipSelf, sipArgs, sipKwds);
 %End
 
-    SIP_PYOBJECT __getattr__(const char *name /Encoding="UTF-8"/) const;
+    SIP_PYOBJECT __getattr__(const char *name /Encoding="UTF-8"/) const /NoTypeHint/;
 %MethodCode
         sipRes = qpycore_qobject_getattr(sipCpp, sipSelf, a0);
 %End

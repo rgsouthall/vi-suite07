@@ -83,7 +83,6 @@ Hence the following are equivalent::
 Examples showing the use of markers:
 
 * :doc:`/gallery/lines_bars_and_markers/marker_reference`
-* :doc:`/gallery/shapes_and_collections/marker_path`
 * :doc:`/gallery/lines_bars_and_markers/scatter_star_poly`
 
 
@@ -228,7 +227,7 @@ class MarkerStyle:
             - For other possible marker values see the module docstring
               `matplotlib.markers`.
 
-        fillstyle : str, default: 'full'
+        fillstyle : str, default: :rc:`markers.fillstyle`
             One of 'full', 'left', 'right', 'bottom', 'top', 'none'.
         """
         self._marker_function = None
@@ -406,7 +405,7 @@ class MarkerStyle:
 
     def _set_mathtext_path(self):
         """
-        Draws mathtext markers '$...$' using TextPath object.
+        Draw mathtext markers '$...$' using TextPath object.
 
         Submitted by tcb
         """
@@ -805,7 +804,6 @@ class MarkerStyle:
         self._transform = Affine2D()
         self._snap_threshold = 5.0
         self._joinstyle = JoinStyle.miter
-        fs = self.get_fillstyle()
         if not self._half_fill():
             self._path = self._plus_filled_path
         else:

@@ -66,7 +66,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.properties import ObjectProperty, StringProperty, OptionProperty, \
-    ListProperty, BooleanProperty
+    ListProperty, BooleanProperty, ColorProperty
 from kivy.clock import Clock
 from kivy.base import EventLoop
 from kivy.metrics import dp
@@ -91,12 +91,16 @@ class Bubble(GridLayout):
     '''Bubble class. See module documentation for more information.
     '''
 
-    background_color = ListProperty([1, 1, 1, 1])
+    background_color = ColorProperty([1, 1, 1, 1])
     '''Background color, in the format (r, g, b, a). To use it you have to set
     either :attr:`background_image` or :attr:`arrow_image` first.
 
-    :attr:`background_color` is a :class:`~kivy.properties.ListProperty` and
+    :attr:`background_color` is a :class:`~kivy.properties.ColorProperty` and
     defaults to [1, 1, 1, 1].
+
+    .. versionchanged:: 2.0.0
+        Changed from :class:`~kivy.properties.ListProperty` to
+        :class:`~kivy.properties.ColorProperty`.
     '''
 
     border = ListProperty([16, 16, 16, 16])
@@ -206,34 +210,29 @@ class Bubble(GridLayout):
         self.add_widget(content)
         self.on_arrow_pos()
 
-    def add_widget(self, *l):
+    def add_widget(self, widget, *args, **kwargs):
         content = self.content
         if content is None:
             return
-        if l[0] == content or l[0] == self._arrow_img\
-                or l[0] == self._arrow_layout:
-            super(Bubble, self).add_widget(*l)
+        if widget == content or widget == self._arrow_img\
+                or widget == self._arrow_layout:
+            super(Bubble, self).add_widget(widget, *args, **kwargs)
         else:
-            content.add_widget(*l)
+            content.add_widget(widget, *args, **kwargs)
 
-    def remove_widget(self, *l):
+    def remove_widget(self, widget, *args, **kwargs):
         content = self.content
         if not content:
             return
-        if l[0] == content or l[0] == self._arrow_img\
-                or l[0] == self._arrow_layout:
-            super(Bubble, self).remove_widget(*l)
+        if widget == content or widget == self._arrow_img\
+                or widget == self._arrow_layout:
+            super(Bubble, self).remove_widget(widget, *args, **kwargs)
         else:
-            content.remove_widget(l[0])
+            content.remove_widget(widget, *args, **kwargs)
 
-    def clear_widgets(self, **kwargs):
-        content = self.content
-        if not content:
-            return
-        if kwargs.get('do_super', False):
-            super(Bubble, self).clear_widgets()
-        else:
-            content.clear_widgets()
+    def clear_widgets(self, *args, **kwargs):
+        if self.content:
+            self.content.clear_widgets(*args, **kwargs)
 
     def on_show_arrow(self, instance, value):
         self._arrow_img.opacity = int(value)
@@ -299,7 +298,7 @@ class Bubble(GridLayout):
         self_arrow_layout.clear_widgets()
         self_arrow_img = self._arrow_img
         self._sctr = self._arrow_img
-        self.clear_widgets(do_super=True)
+        super(Bubble, self).clear_widgets()
         self_content.parent = None
 
         self_arrow_img.size_hint = (1, None)
@@ -389,3 +388,15 @@ class Bubble(GridLayout):
     def _update_arrow(self, *dt):
         if self.arrow_pos in ('left_mid', 'right_mid'):
             self._sctr.center_y = self._arrow_layout.center_y
+
+    @property
+    def _fills_row_first(self):
+        return True
+
+    @property
+    def _fills_from_left_to_right(self):
+        return True
+
+    @property
+    def _fills_from_top_to_bottom(self):
+        return True

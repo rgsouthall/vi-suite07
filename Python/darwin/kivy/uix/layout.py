@@ -25,10 +25,10 @@ layouts to manage the sizes of their children. It indicates the size
 relative to the layout's size instead of an absolute size (in
 pixels/points/cm/etc). The format is::
 
-    widget.size_hint = (width_percent, height_percent)
+    widget.size_hint = (width_proportion, height_proportion)
 
-The percent is specified as a floating point number in the range 0-1. For
-example, 0.5 is 50%, 1 is 100%.
+The proportions are specified as floating point numbers in the range 0-1. For
+example, 0.5 represents 50%, 1 represents 100%.
 
 If you want a widget's width to be half of the parent's width and the
 height to be identical to the parent's height, you would do::
@@ -88,21 +88,21 @@ class Layout(Widget):
         '''
         raise NotImplementedError('Must be implemented in subclasses.')
 
-    def add_widget(self, widget, index=0, canvas=None):
+    def add_widget(self, widget, *args, **kwargs):
         fbind = widget.fbind
         fbind('size', self._trigger_layout)
         fbind('size_hint', self._trigger_layout)
         fbind('size_hint_max', self._trigger_layout)
         fbind('size_hint_min', self._trigger_layout)
-        return super(Layout, self).add_widget(widget, index, canvas)
+        super(Layout, self).add_widget(widget, *args, **kwargs)
 
-    def remove_widget(self, widget):
+    def remove_widget(self, widget, *args, **kwargs):
         funbind = widget.funbind
         funbind('size', self._trigger_layout)
         funbind('size_hint', self._trigger_layout)
         funbind('size_hint_max', self._trigger_layout)
         funbind('size_hint_min', self._trigger_layout)
-        return super(Layout, self).remove_widget(widget)
+        super(Layout, self).remove_widget(widget, *args, **kwargs)
 
     def layout_hint_with_bounds(
             self, sh_sum, available_space, min_bounded_size, sh_min_vals,

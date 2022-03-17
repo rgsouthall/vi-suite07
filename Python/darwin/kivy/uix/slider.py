@@ -42,7 +42,8 @@ __all__ = ('Slider', )
 from kivy.uix.widget import Widget
 from kivy.properties import (NumericProperty, AliasProperty, OptionProperty,
                              ReferenceListProperty, BoundedNumericProperty,
-                             StringProperty, ListProperty, BooleanProperty)
+                             StringProperty, ListProperty, BooleanProperty,
+                             ColorProperty)
 
 
 class Slider(Widget):
@@ -75,7 +76,7 @@ class Slider(Widget):
     slider bounding box.
 
     By default, padding is 16sp. The range of the slider is reduced from
-    padding \*2 on the screen. It allows drawing the default cursor of 32sp
+    padding \\*2 on the screen. It allows drawing the default cursor of 32sp
     width without having the cursor go out of the widget.
 
     :attr:`padding` is a :class:`~kivy.properties.NumericProperty` and defaults
@@ -111,11 +112,13 @@ class Slider(Widget):
     .. versionadded:: 1.4.0
 
     Determines the size of each interval or step the slider takes between
-    min and max. If the value range can't be evenly divisible by step the
-    last step will be capped by slider.max
+    :attr:`min` and :attr:`max`. If the value range can't be evenly
+    divisible by step the last step will be capped by slider.max.
+    A zero value will result in the smallest possible intervals/steps,
+    calculated from the (pixel) position of the slider.
 
     :attr:`step` is a :class:`~kivy.properties.NumericProperty` and defaults
-    to 1.'''
+    to 0.'''
 
     background_horizontal = StringProperty(
         'atlas://data/images/defaulttheme/sliderh_background')
@@ -244,13 +247,17 @@ class Slider(Widget):
     and defaults to False.
     """
 
-    value_track_color = ListProperty([1, 1, 1, 1])
+    value_track_color = ColorProperty([1, 1, 1, 1])
     """Color of the :attr:`value_line` in rgba format.
 
     .. versionadded 1.10.0
 
-    :attr:`value_track_color` is a :class:`~kivy.properties.ListProperty`
+    :attr:`value_track_color` is a :class:`~kivy.properties.ColorProperty`
     and defaults to [1, 1, 1, 1].
+
+    .. versionchanged:: 2.0.0
+        Changed from :class:`~kivy.properties.ListProperty` to
+        :class:`~kivy.properties.ColorProperty`.
     """
 
     value_track_width = NumericProperty('3dp')

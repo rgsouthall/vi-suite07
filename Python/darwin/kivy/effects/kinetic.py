@@ -59,21 +59,21 @@ class KineticEffect(EventDispatcher):
     friction = NumericProperty(0.05)
     '''Friction to apply on the velocity
 
-    :attr:`velocity` is a :class:`~kivy.properties.NumericProperty` and
+    :attr:`friction` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.05.
     '''
 
     value = NumericProperty(0)
     '''Value (during the movement and computed) of the effect.
 
-    :attr:`velocity` is a :class:`~kivy.properties.NumericProperty` and
+    :attr:`value` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.
     '''
 
     is_manual = BooleanProperty(False)
     '''Indicate if a movement is in progress (True) or not (False).
 
-    :attr:`velocity` is a :class:`~kivy.properties.BooleanProperty` and
+    :attr:`is_manual` is a :class:`~kivy.properties.BooleanProperty` and
     defaults to False.
     '''
 
@@ -84,6 +84,7 @@ class KineticEffect(EventDispatcher):
     :attr:`max_history` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 5.
     '''
+
     min_distance = NumericProperty(.1)
     '''The minimal distance for a movement to have nonzero velocity.
 
@@ -101,6 +102,16 @@ class KineticEffect(EventDispatcher):
 
     :attr:`min_velocity` is a :class:`~kivy.properties.NumericProperty` and
     defaults to 0.5.
+    '''
+
+    std_dt = NumericProperty(0.017)
+    ''' std_dt
+        correction update_velocity if dt is not constant
+
+    .. versionadded:: 2.0.0
+
+    :attr:`std_dt` is a :class:`~kivy.properties.NumericProperty` and
+    defaults to 0.017.
     '''
 
     def __init__(self, **kwargs):
@@ -177,6 +188,6 @@ class KineticEffect(EventDispatcher):
             self.velocity = 0
             return
 
-        self.velocity -= self.velocity * self.friction
+        self.velocity -= self.velocity * self.friction * dt / self.std_dt
         self.apply_distance(self.velocity * dt)
         self.trigger_velocity_update()

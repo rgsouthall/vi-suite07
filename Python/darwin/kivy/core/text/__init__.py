@@ -48,7 +48,7 @@ provider currently implements it).
 .. warning:: This feature requires the Pango text provider.
 
 Font contexts can be created automatically by :class:`kivy.uix.label.Label` or
-:class:`kivy.uix.textinput.TextInput`; if a non-existant context is used in
+:class:`kivy.uix.textinput.TextInput`; if a non-existent context is used in
 one of these classes, it will be created automatically, or if a font file is
 specified without a context (this creates an isolated context, without
 support for fallback).
@@ -262,7 +262,7 @@ class LabelBase(object):
 
         kwargs_get = kwargs.get
         options['color'] = color or (1, 1, 1, 1)
-        options['outline_color'] = outline_color or (0, 0, 0)
+        options['outline_color'] = outline_color or (0, 0, 0, 1)
         options['padding'] = kwargs_get('padding', (0, 0))
         if not isinstance(options['padding'], (list, tuple)):
             options['padding'] = (options['padding'], options['padding'])
@@ -304,6 +304,9 @@ class LabelBase(object):
         :func:`kivy.resources.resource_find`. If fn_italic/fn_bold are None,
         fn_regular will be used instead.
         '''
+
+        if fn_regular is None:
+            raise ValueError("font_regular cannot be None")
 
         fonts = []
 
@@ -784,18 +787,7 @@ class LabelBase(object):
             texture.ask_update(self._texture_fill)
 
     def _get_text(self):
-        if PY2:
-            try:
-                if isinstance(self._text, unicode):
-                    return self._text
-                return self._text.decode('utf8')
-            except AttributeError:
-                # python 3 support
-                return str(self._text)
-            except UnicodeDecodeError:
-                return self._text
-        else:
-            return self._text
+        return self._text
 
     def _set_text(self, text):
         if text != self._text:

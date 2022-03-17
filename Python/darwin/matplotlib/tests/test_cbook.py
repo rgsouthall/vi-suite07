@@ -198,11 +198,13 @@ class Test_callback_registry:
         return count1
 
     def is_empty(self):
+        np.testing.break_cycles()
         assert self.callbacks._func_cid_map == {}
         assert self.callbacks.callbacks == {}
         assert self.callbacks._pickled_cids == set()
 
     def is_not_empty(self):
+        np.testing.break_cycles()
         assert self.callbacks._func_cid_map != {}
         assert self.callbacks.callbacks != {}
 
@@ -361,6 +363,39 @@ def test_callbackregistry_custom_exception_handler(monkeypatch, cb, excp):
         cb.process('foo')
 
 
+def test_callbackregistry_blocking():
+    # Needs an exception handler for interactive testing environments
+    # that would only print this out instead of raising the exception
+    def raise_handler(excp):
+        raise excp
+    cb = cbook.CallbackRegistry(exception_handler=raise_handler)
+    def test_func1():
+        raise ValueError("1 should be blocked")
+    def test_func2():
+        raise ValueError("2 should be blocked")
+    cb.connect("test1", test_func1)
+    cb.connect("test2", test_func2)
+
+    # block all of the callbacks to make sure they aren't processed
+    with cb.blocked():
+        cb.process("test1")
+        cb.process("test2")
+
+    # block individual callbacks to make sure the other is still processed
+    with cb.blocked(signal="test1"):
+        # Blocked
+        cb.process("test1")
+        # Should raise
+        with pytest.raises(ValueError, match="2 should be blocked"):
+            cb.process("test2")
+
+    # Make sure the original callback functions are there after blocking
+    with pytest.raises(ValueError, match="1 should be blocked"):
+        cb.process("test1")
+    with pytest.raises(ValueError, match="2 should be blocked"):
+        cb.process("test2")
+
+
 def test_sanitize_sequence():
     d = {'a': 1, 'b': 2, 'c': 3}
     k = ['a', 'b', 'c']
@@ -374,32 +409,14 @@ def test_sanitize_sequence():
 
 
 fail_mapping = (
-    ({'a': 1}, {'forbidden': ('a')}),
-    ({'a': 1}, {'required': ('b')}),
-    ({'a': 1, 'b': 2}, {'required': ('a'), 'allowed': ()}),
     ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['b']}}),
-    ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['b']}, 'allowed': ('a',)}),
     ({'a': 1, 'b': 2}, {'alias_mapping': {'a': ['a', 'b']}}),
-    ({'a': 1, 'b': 2, 'c': 3},
-     {'alias_mapping': {'a': ['b']}, 'required': ('a', )}),
 )
 
 pass_mapping = (
     (None, {}, {}),
     ({'a': 1, 'b': 2}, {'a': 1, 'b': 2}, {}),
     ({'b': 2}, {'a': 2}, {'alias_mapping': {'a': ['a', 'b']}}),
-    ({'b': 2}, {'a': 2},
-     {'alias_mapping': {'a': ['b']}, 'forbidden': ('b', )}),
-    ({'a': 1, 'c': 3}, {'a': 1, 'c': 3},
-     {'required': ('a', ), 'allowed': ('c', )}),
-    ({'a': 1, 'c': 3}, {'a': 1, 'c': 3},
-     {'required': ('a', 'c'), 'allowed': ('c', )}),
-    ({'a': 1, 'c': 3}, {'a': 1, 'c': 3},
-     {'required': ('a', 'c'), 'allowed': ('a', 'c')}),
-    ({'a': 1, 'c': 3}, {'a': 1, 'c': 3},
-     {'required': ('a', 'c'), 'allowed': ()}),
-    ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'required': ('a', 'c')}),
-    ({'a': 1, 'c': 3}, {'a': 1, 'c': 3}, {'allowed': ('a', 'c')}),
 )
 
 

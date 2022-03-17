@@ -84,14 +84,14 @@ Here is an example with a 'Menu Screen' and a 'Settings Screen'::
     class SettingsScreen(Screen):
         pass
 
-    # Create the screen manager
-    sm = ScreenManager()
-    sm.add_widget(MenuScreen(name='menu'))
-    sm.add_widget(SettingsScreen(name='settings'))
-
     class TestApp(App):
 
         def build(self):
+            # Create the screen manager
+            sm = ScreenManager()
+            sm.add_widget(MenuScreen(name='menu'))
+            sm.add_widget(SettingsScreen(name='settings'))
+
             return sm
 
     if __name__ == '__main__':
@@ -197,7 +197,7 @@ from kivy.clock import Clock
 from kivy.uix.floatlayout import FloatLayout
 from kivy.properties import (StringProperty, ObjectProperty, AliasProperty,
                              NumericProperty, ListProperty, OptionProperty,
-                             BooleanProperty)
+                             BooleanProperty, ColorProperty)
 from kivy.animation import Animation, AnimationTransition
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.lang import Builder
@@ -460,13 +460,18 @@ class ShaderTransition(TransitionBase):
     :attr:`vs` is a :class:`~kivy.properties.StringProperty` and defaults to
     None.'''
 
-    clearcolor = ListProperty([0, 0, 0, 1])
+    clearcolor = ColorProperty([0, 0, 0, 1])
     '''Sets the color of Fbo ClearColor.
 
     .. versionadded:: 1.9.0
 
-    :attr:`clearcolor` is a :class:`~kivy.properties.ListProperty`
-    and defaults to [0, 0, 0, 1].'''
+    :attr:`clearcolor` is a :class:`~kivy.properties.ColorProperty`
+    and defaults to [0, 0, 0, 1].
+
+    .. versionchanged:: 2.0.0
+        Changed from :class:`~kivy.properties.ListProperty` to
+        :class:`~kivy.properties.ColorProperty`.
+    '''
 
     def make_screen_fbo(self, screen):
         fbo = Fbo(size=screen.size, with_stencilbuffer=True)
@@ -585,7 +590,7 @@ class SlideTransition(TransitionBase):
             a.y = y + height * (1 - progression)
             b.y = y - height * progression
         elif direction == 'up':
-            a.x = b.x = manager.x
+            a.x = b.x = x
             b.y = y + height * progression
             a.y = y - height * (1 - progression)
 
@@ -973,51 +978,60 @@ class ScreenManager(FloatLayout):
         if screen == self.current_screen:
             self.current = name
 
-    def add_widget(self, screen):
-        if not isinstance(screen, Screen):
+    def add_widget(self, widget, *args, **kwargs):
+        '''
+        .. versionchanged:: 2.1.0
+            Renamed argument `screen` to `widget`.
+        '''
+        if not isinstance(widget, Screen):
             raise ScreenManagerException(
                 'ScreenManager accepts only Screen widget.')
-        if screen.manager:
-            if screen.manager is self:
+        if widget.manager:
+            if widget.manager is self:
                 raise ScreenManagerException(
                     'Screen already managed by this ScreenManager (are you '
                     'calling `switch_to` when you should be setting '
                     '`current`?)')
             raise ScreenManagerException(
                 'Screen already managed by another ScreenManager.')
-        screen.manager = self
-        screen.bind(name=self._screen_name_changed)
-        self.screens.append(screen)
+        widget.manager = self
+        widget.bind(name=self._screen_name_changed)
+        self.screens.append(widget)
         if self.current is None:
-            self.current = screen.name
+            self.current = widget.name
 
-    def remove_widget(self, *l):
-        screen = l[0]
-        if not isinstance(screen, Screen):
+    def remove_widget(self, widget, *args, **kwargs):
+        if not isinstance(widget, Screen):
             raise ScreenManagerException(
                 'ScreenManager uses remove_widget only for removing Screens.')
 
-        if screen not in self.screens:
+        if widget not in self.screens:
             return
 
-        if self.current_screen == screen:
+        if self.current_screen == widget:
             other = next(self)
-            if screen.name == other:
+            if widget.name == other:
                 self.current = None
-                screen.parent.real_remove_widget(screen)
+                widget.parent.real_remove_widget(widget)
             else:
                 self.current = other
 
-        screen.manager = None
-        screen.unbind(name=self._screen_name_changed)
-        self.screens.remove(screen)
+        widget.manager = None
+        widget.unbind(name=self._screen_name_changed)
+        self.screens.remove(widget)
 
-    def clear_widgets(self, screens=None):
-        if not screens:
-            screens = self.screens
+    def clear_widgets(self, children=None, *args, **kwargs):
+        '''
+        .. versionchanged:: 2.1.0
+            Renamed argument `screens` to `children`.
+        '''
+        if children is None:
+            # iterate over a copy of screens, as self.remove_widget
+            # modifies self.screens in place
+            children = self.screens[:]
         remove_widget = self.remove_widget
-        for screen in screens:
-            remove_widget(screen)
+        for widget in children:
+            remove_widget(widget)
 
     def real_add_widget(self, screen, *args):
         # ensure screen is removed from its previous parent
@@ -1182,8 +1196,13 @@ class ScreenManager(FloatLayout):
             if self.transition.is_active and \
                 (child == self.transition.screen_in or
                  child == self.transition.screen_out):
-                    continue
+                continue
             child.pos = value
+
+    def on_motion(self, etype, me):
+        if self.transition.is_active:
+            return False
+        return super().on_motion(etype, me)
 
     def on_touch_down(self, touch):
         if self.transition.is_active:

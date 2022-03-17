@@ -12,6 +12,7 @@ Module containing Axes3D, an object which can plot 3D objects on a
 
 from collections import defaultdict
 import functools
+import inspect
 import itertools
 import math
 from numbers import Integral
@@ -19,11 +20,14 @@ import textwrap
 
 import numpy as np
 
-from matplotlib import _api, artist, cbook, docstring
+from matplotlib import _api, cbook, docstring, _preprocess_data
+import matplotlib.artist as martist
 import matplotlib.axes as maxes
 import matplotlib.collections as mcoll
 import matplotlib.colors as mcolors
+import matplotlib.image as mimage
 import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 import matplotlib.scale as mscale
 import matplotlib.container as mcontainer
 import matplotlib.transforms as mtransforms
@@ -37,6 +41,7 @@ from . import proj3d
 from . import axis3d
 
 
+@docstring.interpd
 @cbook._define_aliases({
     "xlim3d": ["xlim"], "ylim3d": ["ylim"], "zlim3d": ["zlim"]})
 class Axes3D(Axes):
@@ -44,12 +49,14 @@ class Axes3D(Axes):
     3D axes object.
     """
     name = '3d'
-    _shared_z_axes = cbook.Grouper()
+
+    _axis_names = ("x", "y", "z")
+    Axes._shared_axes["z"] = cbook.Grouper()
 
     def __init__(
             self, fig, rect=None, *args,
             azim=-60, elev=30, sharez=None, proj_type='persp',
-            box_aspect=None,
+            box_aspect=None, computed_zorder=True,
             **kwargs):
         """
         Parameters
@@ -66,6 +73,15 @@ class Axes3D(Axes):
             Other axes to share z-limits with.
         proj_type : {'persp', 'ortho'}
             The projection type, default 'persp'.
+        computed_zorder : bool, default: True
+            If True, the draw order is computed based on the average position
+            of the `.Artist`\\s along the view direction.
+            Set to False if you want to manually control the order in which
+            Artists are drawn on top of each other using their *zorder*
+            attribute. This can be used for fine-tuning if the automatic order
+            does not produce the desired result. Note however, that a manual
+            zorder will only be correct for a limited view angle. If the figure
+            is rotated by the user, it will look wrong from certain angles.
         auto_add_to_figure : bool, default: True
             Prior to Matplotlib 3.4 Axes3D would add themselves
             to their host Figure on init.  Other Axes class do not
@@ -78,12 +94,7 @@ class Axes3D(Axes):
         **kwargs
             Other optional keyword arguments:
 
-            %(Axes3D_kwdoc)s
-
-        Notes
-        -----
-        .. versionadded:: 1.2.1
-            The *sharez* parameter.
+            %(Axes3D:kwdoc)s
         """
 
         if rect is None:
@@ -92,12 +103,13 @@ class Axes3D(Axes):
         self.initial_azim = azim
         self.initial_elev = elev
         self.set_proj_type(proj_type)
+        self.computed_zorder = computed_zorder
 
         self.xy_viewLim = Bbox.unit()
         self.zz_viewLim = Bbox.unit()
         self.xy_dataLim = Bbox.unit()
+        # z-limits are encoded in the x-component of the Bbox, y is un-used
         self.zz_dataLim = Bbox.unit()
-        self._stale_viewlim_z = False
 
         # inhibit autoscale_view until the axes are defined
         # they can't be defined until Axes.__init__ has been called
@@ -105,7 +117,7 @@ class Axes3D(Axes):
 
         self._sharez = sharez
         if sharez is not None:
-            self._shared_z_axes.join(self, sharez)
+            self._shared_axes["z"].join(self, sharez)
             self._adjustable = 'datalim'
 
         auto_add_to_figure = kwargs.pop('auto_add_to_figure', True)
@@ -166,9 +178,6 @@ class Axes3D(Axes):
         """
         For artists in an axes, if the zaxis has units support,
         convert *z* using zaxis unit type
-
-        .. versionadded:: 1.2.1
-
         """
         return self.zaxis.convert_units(z)
 
@@ -208,27 +217,6 @@ class Axes3D(Axes):
         property(lambda self: self.yaxis))
     w_zaxis = _api.deprecated("3.1", alternative="zaxis", pending=True)(
         property(lambda self: self.zaxis))
-
-    def _get_axis_list(self):
-        return super()._get_axis_list() + (self.zaxis, )
-
-    def _unstale_viewLim(self):
-        # We should arrange to store this information once per share-group
-        # instead of on every axis.
-        scalex = any(ax._stale_viewlim_x
-                     for ax in self._shared_x_axes.get_siblings(self))
-        scaley = any(ax._stale_viewlim_y
-                     for ax in self._shared_y_axes.get_siblings(self))
-        scalez = any(ax._stale_viewlim_z
-                     for ax in self._shared_z_axes.get_siblings(self))
-        if scalex or scaley or scalez:
-            for ax in self._shared_x_axes.get_siblings(self):
-                ax._stale_viewlim_x = False
-            for ax in self._shared_y_axes.get_siblings(self):
-                ax._stale_viewlim_y = False
-            for ax in self._shared_z_axes.get_siblings(self):
-                ax._stale_viewlim_z = False
-            self.autoscale_view(scalex=scalex, scaley=scaley, scalez=scalez)
 
     def unit_cube(self, vals=None):
         minx, maxx, miny, maxy, minz, maxz = vals or self.get_w_lims()
@@ -274,7 +262,7 @@ class Axes3D(Axes):
         the axes with the data limits.
 
         To simulate having equal aspect in data space, set the ratio
-        of your data limits to match the value of `~.get_box_aspect`.
+        of your data limits to match the value of `.get_box_aspect`.
         To control box aspect ratios use `~.Axes3D.set_box_aspect`.
 
         Parameters
@@ -310,7 +298,7 @@ class Axes3D(Axes):
             etc.
             =====   =====================
 
-            See `.set_anchor` for further details.
+            See `~.Axes.set_anchor` for further details.
 
         share : bool, default: False
             If ``True``, apply the settings to all shared Axes.
@@ -324,37 +312,8 @@ class Axes3D(Axes):
                 "Axes3D currently only supports the aspect argument "
                 f"'auto'. You passed in {aspect!r}."
             )
-
-        if share:
-            axes = {*self._shared_x_axes.get_siblings(self),
-                    *self._shared_y_axes.get_siblings(self),
-                    *self._shared_z_axes.get_siblings(self),
-                    }
-        else:
-            axes = {self}
-
-        for ax in axes:
-            ax._aspect = aspect
-            ax.stale = True
-
-        if anchor is not None:
-            self.set_anchor(anchor, share=share)
-
-    def set_anchor(self, anchor, share=False):
-        # docstring inherited
-        if not (anchor in mtransforms.Bbox.coefs or len(anchor) == 2):
-            raise ValueError('anchor must be among %s' %
-                             ', '.join(mtransforms.Bbox.coefs))
-        if share:
-            axes = {*self._shared_x_axes.get_siblings(self),
-                    *self._shared_y_axes.get_siblings(self),
-                    *self._shared_z_axes.get_siblings(self),
-                    }
-        else:
-            axes = {self}
-        for ax in axes:
-            ax._anchor = anchor
-            ax.stale = True
+        super().set_aspect(
+            aspect, adjustable=adjustable, anchor=anchor, share=share)
 
     def set_box_aspect(self, aspect, *, zoom=1):
         """
@@ -415,7 +374,7 @@ class Axes3D(Axes):
         pb1 = pb.shrunk_to_aspect(box_aspect, pb, fig_aspect)
         self._set_position(pb1.anchored(self.get_anchor(), pb), 'active')
 
-    @artist.allow_rasterization
+    @martist.allow_rasterization
     def draw(self, renderer):
         self._unstale_viewLim()
 
@@ -459,38 +418,48 @@ class Axes3D(Axes):
                 Call `do_3d_projection` on an *artist*, and warn if passing
                 *renderer*.
 
-                For our Artists, never pass *renderer*. For external Artists,
-                in lieu of more complicated signature parsing, always pass
-                *renderer* and raise a warning.
+                Attempt to bind the empty signature first, so external Artists
+                can avoid the deprecation warning if they support the new
+                calling convention.
                 """
-
-                if artist.__module__ == 'mpl_toolkits.mplot3d.art3d':
-                    # Our 3D Artists have deprecated the renderer parameter, so
-                    # avoid passing it to them; call this directly once the
-                    # deprecation has expired.
+                try:
+                    signature = inspect.signature(artist.do_3d_projection)
+                    signature.bind()
+                # ValueError if `inspect.signature` cannot provide a signature
+                # and TypeError if the binding fails or the object does not
+                # appear to be callable - the next call will then re-raise.
+                except (ValueError, TypeError):
+                    _api.warn_deprecated(
+                        "3.4",
+                        message="The 'renderer' parameter of "
+                        "do_3d_projection() was deprecated in Matplotlib "
+                        "%(since)s and will be removed %(removal)s.")
+                    return artist.do_3d_projection(renderer)
+                else:
+                    # Call this directly once the deprecation period expires.
                     return artist.do_3d_projection()
 
-                _api.warn_deprecated(
-                    "3.4",
-                    message="The 'renderer' parameter of "
-                    "do_3d_projection() was deprecated in Matplotlib "
-                    "%(since)s and will be removed %(removal)s.")
-                return artist.do_3d_projection(renderer)
-
-            # Calculate projection of collections and patches and zorder them.
-            # Make sure they are drawn above the grids.
-            zorder_offset = max(axis.get_zorder()
-                                for axis in self._get_axis_list()) + 1
-            for i, col in enumerate(
-                    sorted(self.collections,
-                           key=do_3d_projection,
-                           reverse=True)):
-                col.zorder = zorder_offset + i
-            for i, patch in enumerate(
-                    sorted(self.patches,
-                           key=do_3d_projection,
-                           reverse=True)):
-                patch.zorder = zorder_offset + i
+            collections_and_patches = (
+                artist for artist in self._children
+                if isinstance(artist, (mcoll.Collection, mpatches.Patch)))
+            if self.computed_zorder:
+                # Calculate projection of collections and patches and zorder
+                # them. Make sure they are drawn above the grids.
+                zorder_offset = max(axis.get_zorder()
+                                    for axis in self._get_axis_list()) + 1
+                collection_zorder = patch_zorder = zorder_offset
+                for artist in sorted(collections_and_patches,
+                                     key=do_3d_projection,
+                                     reverse=True):
+                    if isinstance(artist, mcoll.Collection):
+                        artist.zorder = collection_zorder
+                        collection_zorder += 1
+                    elif isinstance(artist, mpatches.Patch):
+                        artist.zorder = patch_zorder
+                        patch_zorder += 1
+            else:
+                for artist in collections_and_patches:
+                    artist.do_3d_projection()
 
             if self._axis3don:
                 # Draw panes first
@@ -526,42 +495,22 @@ class Axes3D(Axes):
         pass
 
     def get_autoscale_on(self):
-        """
-        Get whether autoscaling is applied for all axes on plot commands
-
-        .. versionadded:: 1.1.0
-            This function was added, but not tested. Please report any bugs.
-        """
+        # docstring inherited
         return super().get_autoscale_on() and self.get_autoscalez_on()
 
     def get_autoscalez_on(self):
-        """
-        Get whether autoscaling for the z-axis is applied on plot commands
-
-        .. versionadded:: 1.1.0
-            This function was added, but not tested. Please report any bugs.
-        """
+        """Return whether the z-axis is autoscaled."""
         return self._autoscaleZon
 
     def set_autoscale_on(self, b):
-        """
-        Set whether autoscaling is applied on plot commands
-
-        .. versionadded:: 1.1.0
-            This function was added, but not tested. Please report any bugs.
-
-        Parameters
-        ----------
-        b : bool
-        """
+        # docstring inherited
         super().set_autoscale_on(b)
         self.set_autoscalez_on(b)
 
     def set_autoscalez_on(self, b):
         """
-        Set whether autoscaling for the z-axis is applied on plot commands
-
-        .. versionadded:: 1.1.0
+        Set whether the z-axis is autoscaled on the next draw or call to
+        `.Axes.autoscale_view`.
 
         Parameters
         ----------
@@ -571,21 +520,21 @@ class Axes3D(Axes):
 
     def set_xmargin(self, m):
         # docstring inherited
-        scalez = self._stale_viewlim_z
+        scalez = self._stale_viewlims["z"]
         super().set_xmargin(m)
         # Superclass is 2D and will call _request_autoscale_view with defaults
         # for unknown Axis, which would be scalez=True, but it shouldn't be for
         # this call, so restore it.
-        self._stale_viewlim_z = scalez
+        self._stale_viewlims["z"] = scalez
 
     def set_ymargin(self, m):
         # docstring inherited
-        scalez = self._stale_viewlim_z
+        scalez = self._stale_viewlims["z"]
         super().set_ymargin(m)
         # Superclass is 2D and will call _request_autoscale_view with defaults
         # for unknown Axis, which would be scalez=True, but it shouldn't be for
         # this call, so restore it.
-        self._stale_viewlim_z = scalez
+        self._stale_viewlims["z"] = scalez
 
     def set_zmargin(self, m):
         """
@@ -595,8 +544,6 @@ class Axes3D(Axes):
         end of that interval before it is used in autoscaling.
 
         accepts: float in range 0 to 1
-
-        .. versionadded:: 1.1.0
         """
         if m < 0 or m > 1:
             raise ValueError("margin must be in range 0 to 1")
@@ -641,8 +588,6 @@ class Axes3D(Axes):
         if *xmargin* is not None, then *xmargin* times the X data
         interval will be added to each end of that interval before
         it is used in autoscaling.
-
-        .. versionadded:: 1.1.0
         """
         if margins and x is not None and y is not None and z is not None:
             raise TypeError('Cannot pass both positional and keyword '
@@ -679,8 +624,6 @@ class Axes3D(Axes):
         Note that this function behaves the same, but for all
         three axes.  Therefore, 'z' can be passed for *axis*,
         and 'both' applies to all three axes.
-
-        .. versionadded:: 1.1.0
         """
         if enable is None:
             scalex = True
@@ -705,29 +648,16 @@ class Axes3D(Axes):
     def auto_scale_xyz(self, X, Y, Z=None, had_data=None):
         # This updates the bounding boxes as to keep a record as to what the
         # minimum sized rectangular volume holds the data.
-        X = np.reshape(X, -1)
-        Y = np.reshape(Y, -1)
-        self.xy_dataLim.update_from_data_xy(
-            np.column_stack([X, Y]), not had_data)
+        if np.shape(X) == np.shape(Y):
+            self.xy_dataLim.update_from_data_xy(
+                np.column_stack([np.ravel(X), np.ravel(Y)]), not had_data)
+        else:
+            self.xy_dataLim.update_from_data_x(X, not had_data)
+            self.xy_dataLim.update_from_data_y(Y, not had_data)
         if Z is not None:
-            Z = np.reshape(Z, -1)
-            self.zz_dataLim.update_from_data_xy(
-                np.column_stack([Z, Z]), not had_data)
+            self.zz_dataLim.update_from_data_x(Z, not had_data)
         # Let autoscale_view figure out how to use this data.
         self.autoscale_view()
-
-    # API could be better, right now this is just to match the old calls to
-    # autoscale_view() after each plotting method.
-    def _request_autoscale_view(self, tight=None, scalex=True, scaley=True,
-                                scalez=True):
-        if tight is not None:
-            self._tight = tight
-        if scalex:
-            self._stale_viewlim_x = True  # Else keep old state.
-        if scaley:
-            self._stale_viewlim_y = True
-        if scalez:
-            self._stale_viewlim_z = True
 
     def autoscale_view(self, tight=None, scalex=True, scaley=True,
                        scalez=True):
@@ -736,26 +666,24 @@ class Axes3D(Axes):
         See :meth:`matplotlib.axes.Axes.autoscale_view` for documentation.
         Note that this function applies to the 3D axes, and as such
         adds the *scalez* to the function arguments.
-
-        .. versionchanged:: 1.1.0
-            Function signature was changed to better match the 2D version.
-            *tight* is now explicitly a kwarg and placed first.
-
-        .. versionchanged:: 1.2.1
-            This is now fully functional.
         """
         # This method looks at the rectangular volume (see above)
         # of data and decides how to scale the view portal to fit it.
         if tight is None:
-            # if image data only just use the datalim
-            _tight = self._tight or (
-                len(self.images) > 0
-                and len(self.lines) == len(self.patches) == 0)
+            _tight = self._tight
+            if not _tight:
+                # if image data only just use the datalim
+                for artist in self._children:
+                    if isinstance(artist, mimage.AxesImage):
+                        _tight = True
+                    elif isinstance(artist, (mlines.Line2D, mpatches.Patch)):
+                        _tight = False
+                        break
         else:
             _tight = self._tight = bool(tight)
 
         if scalex and self._autoscaleXon:
-            self._shared_x_axes.clean()
+            self._shared_axes["x"].clean()
             x0, x1 = self.xy_dataLim.intervalx
             xlocator = self.xaxis.get_major_locator()
             x0, x1 = xlocator.nonsingular(x0, x1)
@@ -768,7 +696,7 @@ class Axes3D(Axes):
             self.set_xbound(x0, x1)
 
         if scaley and self._autoscaleYon:
-            self._shared_y_axes.clean()
+            self._shared_axes["y"].clean()
             y0, y1 = self.xy_dataLim.intervaly
             ylocator = self.yaxis.get_major_locator()
             y0, y1 = ylocator.nonsingular(y0, y1)
@@ -781,7 +709,7 @@ class Axes3D(Axes):
             self.set_ybound(y0, y1)
 
         if scalez and self._autoscaleZon:
-            self._shared_z_axes.clean()
+            self._shared_axes["z"].clean()
             z0, z1 = self.zz_dataLim.intervalx
             zlocator = self.zaxis.get_major_locator()
             z0, z1 = zlocator.nonsingular(z0, z1)
@@ -840,15 +768,15 @@ class Axes3D(Axes):
         self.xy_viewLim.intervalx = (left, right)
 
         # Mark viewlims as no longer stale without triggering an autoscale.
-        for ax in self._shared_x_axes.get_siblings(self):
-            ax._stale_viewlim_x = False
+        for ax in self._shared_axes["x"].get_siblings(self):
+            ax._stale_viewlims["x"] = False
         if auto is not None:
             self._autoscaleXon = bool(auto)
 
         if emit:
             self.callbacks.process('xlim_changed', self)
             # Call all of the other x-axes that are shared with this one
-            for other in self._shared_x_axes.get_siblings(self):
+            for other in self._shared_axes["x"].get_siblings(self):
                 if other is not self:
                     other.set_xlim(self.xy_viewLim.intervalx,
                                    emit=False, auto=auto)
@@ -898,15 +826,15 @@ class Axes3D(Axes):
         self.xy_viewLim.intervaly = (bottom, top)
 
         # Mark viewlims as no longer stale without triggering an autoscale.
-        for ax in self._shared_y_axes.get_siblings(self):
-            ax._stale_viewlim_y = False
+        for ax in self._shared_axes["y"].get_siblings(self):
+            ax._stale_viewlims["y"] = False
         if auto is not None:
             self._autoscaleYon = bool(auto)
 
         if emit:
             self.callbacks.process('ylim_changed', self)
             # Call all of the other y-axes that are shared with this one
-            for other in self._shared_y_axes.get_siblings(self):
+            for other in self._shared_axes["y"].get_siblings(self):
                 if other is not self:
                     other.set_ylim(self.xy_viewLim.intervaly,
                                    emit=False, auto=auto)
@@ -956,15 +884,15 @@ class Axes3D(Axes):
         self.zz_viewLim.intervalx = (bottom, top)
 
         # Mark viewlims as no longer stale without triggering an autoscale.
-        for ax in self._shared_z_axes.get_siblings(self):
-            ax._stale_viewlim_z = False
+        for ax in self._shared_axes["z"].get_siblings(self):
+            ax._stale_viewlims["z"] = False
         if auto is not None:
             self._autoscaleZon = bool(auto)
 
         if emit:
             self.callbacks.process('zlim_changed', self)
             # Call all of the other y-axes that are shared with this one
-            for other in self._shared_z_axes.get_siblings(self):
+            for other in self._shared_axes["z"].get_siblings(self):
                 if other is not self:
                     other.set_zlim(self.zz_viewLim.intervalx,
                                    emit=False, auto=auto)
@@ -976,20 +904,10 @@ class Axes3D(Axes):
     def get_xlim3d(self):
         return tuple(self.xy_viewLim.intervalx)
     get_xlim3d.__doc__ = maxes.Axes.get_xlim.__doc__
-    if get_xlim3d.__doc__ is not None:
-        get_xlim3d.__doc__ += """
-        .. versionchanged:: 1.1.0
-            This function now correctly refers to the 3D x-limits
-        """
 
     def get_ylim3d(self):
         return tuple(self.xy_viewLim.intervaly)
     get_ylim3d.__doc__ = maxes.Axes.get_ylim.__doc__
-    if get_ylim3d.__doc__ is not None:
-        get_ylim3d.__doc__ += """
-        .. versionchanged:: 1.1.0
-            This function now correctly refers to the 3D y-limits.
-        """
 
     def get_zlim3d(self):
         """Get 3D z limits."""
@@ -1062,17 +980,24 @@ class Axes3D(Axes):
         """Currently not implemented for 3D axes, and returns *None*."""
         return None
 
-    def view_init(self, elev=None, azim=None):
+    def view_init(self, elev=None, azim=None, vertical_axis="z"):
         """
         Set the elevation and azimuth of the axes in degrees (not radians).
 
         This can be used to rotate the axes programmatically.
 
-        'elev' stores the elevation angle in the z plane (in degrees).
-        'azim' stores the azimuth angle in the (x, y) plane (in degrees).
-
-        if 'elev' or 'azim' are None (default), then the initial value
-        is used which was specified in the :class:`Axes3D` constructor.
+        Parameters
+        ----------
+        elev : float, default: None
+            The elevation angle in the vertical plane in degrees.
+            If None then the initial value as specified in the `Axes3D`
+            constructor is used.
+        azim : float, default: None
+            The azimuth angle in the horizontal plane in degrees.
+            If None then the initial value as specified in the `Axes3D`
+            constructor is used.
+        vertical_axis : {"z", "x", "y"}, default: "z"
+            The axis to align vertically. *azim* rotates about this axis.
         """
 
         self.dist = 10
@@ -1087,6 +1012,10 @@ class Axes3D(Axes):
         else:
             self.azim = azim
 
+        self._vertical_axis = _api.check_getitem(
+            dict(x=0, y=1, z=2), vertical_axis=vertical_axis
+        )
+
     def set_proj_type(self, proj_type):
         """
         Set the projection type.
@@ -1100,47 +1029,60 @@ class Axes3D(Axes):
             'ortho': proj3d.ortho_transformation,
         }, proj_type=proj_type)
 
+    def _roll_to_vertical(self, arr):
+        """Roll arrays to match the different vertical axis."""
+        return np.roll(arr, self._vertical_axis - 2)
+
     def get_proj(self):
         """Create the projection matrix from the current viewing position."""
+
+        # Transform to uniform world coordinates 0-1, 0-1, 0-1
+        box_aspect = self._roll_to_vertical(self._box_aspect)
+        worldM = proj3d.world_transformation(
+            *self.get_xlim3d(),
+            *self.get_ylim3d(),
+            *self.get_zlim3d(),
+            pb_aspect=box_aspect,
+        )
+
+        # Look into the middle of the new coordinates:
+        R = 0.5 * box_aspect
+
         # elev stores the elevation angle in the z plane
         # azim stores the azimuth angle in the x,y plane
-        #
-        # dist is the distance of the eye viewing point from the object
-        # point.
+        elev_rad = np.deg2rad(self.elev)
+        azim_rad = np.deg2rad(self.azim)
 
-        relev, razim = np.pi * self.elev/180, np.pi * self.azim/180
+        # Coordinates for a point that rotates around the box of data.
+        # p0, p1 corresponds to rotating the box only around the
+        # vertical axis.
+        # p2 corresponds to rotating the box only around the horizontal
+        # axis.
+        p0 = np.cos(elev_rad) * np.cos(azim_rad)
+        p1 = np.cos(elev_rad) * np.sin(azim_rad)
+        p2 = np.sin(elev_rad)
 
-        xmin, xmax = self.get_xlim3d()
-        ymin, ymax = self.get_ylim3d()
-        zmin, zmax = self.get_zlim3d()
+        # When changing vertical axis the coordinates changes as well.
+        # Roll the values to get the same behaviour as the default:
+        ps = self._roll_to_vertical([p0, p1, p2])
 
-        # transform to uniform world coordinates 0-1, 0-1, 0-1
-        worldM = proj3d.world_transformation(xmin, xmax,
-                                             ymin, ymax,
-                                             zmin, zmax,
-                                             pb_aspect=self._box_aspect)
+        # The coordinates for the eye viewing point. The eye is looking
+        # towards the middle of the box of data from a distance:
+        eye = R + self.dist * ps
 
-        # look into the middle of the new coordinates
-        R = self._box_aspect / 2
-
-        xp = R[0] + np.cos(razim) * np.cos(relev) * self.dist
-        yp = R[1] + np.sin(razim) * np.cos(relev) * self.dist
-        zp = R[2] + np.sin(relev) * self.dist
-        E = np.array((xp, yp, zp))
-
-        self.eye = E
-        self.vvec = R - E
+        # TODO: Is this being used somewhere? Can it be removed?
+        self.eye = eye
+        self.vvec = R - eye
         self.vvec = self.vvec / np.linalg.norm(self.vvec)
 
-        if abs(relev) > np.pi/2:
-            # upside down
-            V = np.array((0, 0, -1))
-        else:
-            V = np.array((0, 0, 1))
-        zfront, zback = -self.dist, self.dist
+        # Define which axis should be vertical. A negative value
+        # indicates the plot is upside down and therefore the values
+        # have been reversed:
+        V = np.zeros(3)
+        V[self._vertical_axis] = -1 if abs(elev_rad) > 0.5 * np.pi else 1
 
-        viewM = proj3d.view_transformation(E, R, V)
-        projM = self._projection(zfront, zback)
+        viewM = proj3d.view_transformation(eye, R, V)
+        projM = self._projection(-self.dist, self.dist)
         M0 = np.dot(viewM, worldM)
         M = np.dot(projM, M0)
         return M
@@ -1260,9 +1202,10 @@ class Axes3D(Axes):
             return ''
 
         if self.button_pressed in self._rotate_btn:
-            return 'azimuth={:.0f} deg, elevation={:.0f} deg '.format(
-                self.azim, self.elev)
             # ignore xd and yd and display angles instead
+            return (f"azimuth={self.azim:.0f}\N{DEGREE SIGN}, "
+                    f"elevation={self.elev:.0f}\N{DEGREE SIGN}"
+                    ).replace("-", "\N{MINUS SIGN}")
 
         # nearest edge
         p0, p1 = min(self.tunit_edges(),
@@ -1366,9 +1309,6 @@ class Axes3D(Axes):
     def get_zlabel(self):
         """
         Get the z-label text string.
-
-        .. versionadded:: 1.1.0
-            This function was added, but not tested. Please report any bugs.
         """
         label = self.zaxis.get_label()
         return label.get_text()
@@ -1390,7 +1330,8 @@ class Axes3D(Axes):
         self._frameon = bool(b)
         self.stale = True
 
-    def grid(self, b=True, **kwargs):
+    @_api.rename_parameter("3.5", "b", "visible")
+    def grid(self, visible=True, **kwargs):
         """
         Set / unset 3D grid.
 
@@ -1399,13 +1340,11 @@ class Axes3D(Axes):
             Currently, this function does not behave the same as
             :meth:`matplotlib.axes.Axes.grid`, but it is intended to
             eventually support that behavior.
-
-        .. versionadded:: 1.1.0
         """
         # TODO: Operate on each axes separately
         if len(kwargs):
-            b = True
-        self._draw_grid = b
+            visible = True
+        self._draw_grid = visible
         self.stale = True
 
     def locator_params(self, axis='both', tight=None, **kwargs):
@@ -1418,9 +1357,6 @@ class Axes3D(Axes):
         parameters being set for all three axes.  Also, *axis*
         can also take a value of 'z' to apply parameters to the
         z axis.
-
-        .. versionadded:: 1.1.0
-            This function was added, but not tested. Please report any bugs.
         """
         _x = axis in ['x', 'both']
         _y = axis in ['y', 'both']
@@ -1454,8 +1390,6 @@ class Axes3D(Axes):
 
         .. note::
            Axes3D currently ignores some of these settings.
-
-        .. versionadded:: 1.1.0
         """
         _api.check_in_list(['x', 'y', 'z', 'both'], axis=axis)
         if axis in ['x', 'y', 'both']:
@@ -1473,9 +1407,6 @@ class Axes3D(Axes):
     def invert_zaxis(self):
         """
         Invert the z-axis.
-
-        .. versionadded:: 1.1.0
-            This function was added, but not tested. Please report any bugs.
         """
         bottom, top = self.get_zlim()
         self.set_zlim(top, bottom, auto=None)
@@ -1483,8 +1414,6 @@ class Axes3D(Axes):
     def zaxis_inverted(self):
         """
         Returns True if the z-axis is inverted.
-
-        .. versionadded:: 1.1.0
         """
         bottom, top = self.get_zlim()
         return top < bottom
@@ -1492,8 +1421,6 @@ class Axes3D(Axes):
     def get_zbound(self):
         """
         Return the lower and upper z-axis bounds, in increasing order.
-
-        .. versionadded:: 1.1.0
         """
         bottom, top = self.get_zlim()
         if bottom < top:
@@ -1507,8 +1434,6 @@ class Axes3D(Axes):
 
         This method will honor axes inversion regardless of parameter order.
         It will not change the autoscaling setting (`.get_autoscalez_on()`).
-
-        .. versionadded:: 1.1.0
         """
         if upper is None and np.iterable(lower):
             lower, upper = lower
@@ -1616,8 +1541,6 @@ class Axes3D(Axes):
             data is larger, it will be downsampled (by slicing) to these
             numbers of points.  Defaults to 50.
 
-            .. versionadded:: 2.0
-
         rstride, cstride : int
             Downsampling stride in each direction.  These arguments are
             mutually exclusive with *rcount* and *ccount*.  If only one of
@@ -1656,12 +1579,8 @@ class Axes3D(Axes):
 
         if Z.ndim != 2:
             raise ValueError("Argument Z must be 2-dimensional.")
-        if np.any(np.isnan(Z)):
-            _api.warn_external(
-                "Z contains NaN values. This may result in rendering "
-                "artifacts.")
 
-        # TODO: Support masked arrays
+        Z = cbook._to_unmasked_float_array(Z)
         X, Y, Z = np.broadcast_arrays(X, Y, Z)
         rows, cols = Z.shape
 
@@ -1736,6 +1655,27 @@ class Axes3D(Axes):
 
                     if fcolors is not None:
                         colset.append(fcolors[rs][cs])
+
+        # In cases where there are NaNs in the data (possibly from masked
+        # arrays), artifacts can be introduced. Here check whether NaNs exist
+        # and remove the entries if so
+        if not isinstance(polys, np.ndarray) or np.isnan(polys).any():
+            new_polys = []
+            new_colset = []
+
+            # Depending on fcolors, colset is either an empty list or has as
+            # many elements as polys. In the former case new_colset results in
+            # a list with None entries, that is discarded later.
+            for p, col in itertools.zip_longest(polys, colset):
+                new_poly = np.array(p)[~np.isnan(p).any(axis=1)]
+                if len(new_poly):
+                    new_polys.append(new_poly)
+                    new_colset.append(col)
+
+            # Replace previous polys and, if fcolors is not None, colset
+            polys = new_polys
+            if fcolors is not None:
+                colset = new_colset
 
         # note that the striding causes some polygons to have more coordinates
         # than others
@@ -1873,8 +1813,6 @@ class Axes3D(Axes):
             numbers of points.  Setting a count to zero causes the data to be
             not sampled in the corresponding direction, producing a 3D line
             plot rather than a wireframe plot.  Defaults to 50.
-
-            .. versionadded:: 2.0
 
         rstride, cstride : int
             Downsampling stride in each direction.  These arguments are
@@ -2022,8 +1960,6 @@ class Axes3D(Axes):
         --------
         .. plot:: gallery/mplot3d/trisurf3d.py
         .. plot:: gallery/mplot3d/trisurf3d_2.py
-
-        .. versionadded:: 1.2.0
         """
 
         had_data = self.has_data()
@@ -2090,7 +2026,7 @@ class Axes3D(Axes):
             topverts = art3d._paths_to_3d_segments(paths, z - dz)
             botverts = art3d._paths_to_3d_segments(paths, z + dz)
 
-            color = linec.get_color()[0]
+            color = linec.get_edgecolor()[0]
 
             polyverts = []
             normals = []
@@ -2123,7 +2059,7 @@ class Axes3D(Axes):
             self.add_collection3d(polycol)
 
         for col in colls:
-            self.collections.remove(col)
+            col.remove()
 
     def add_contour_set(
             self, cset, extend3d=False, stride=5, zdir='z', offset=None):
@@ -2137,13 +2073,34 @@ class Axes3D(Axes):
                 art3d.line_collection_2d_to_3d(linec, z, zdir=zdir)
 
     def add_contourf_set(self, cset, zdir='z', offset=None):
+        self._add_contourf_set(cset, zdir=zdir, offset=offset)
+
+    def _add_contourf_set(self, cset, zdir='z', offset=None):
+        """
+        Returns
+        -------
+        levels : numpy.ndarray
+            Levels at which the filled contours are added.
+        """
         zdir = '-' + zdir
-        for z, linec in zip(cset.levels, cset.collections):
+
+        midpoints = cset.levels[:-1] + np.diff(cset.levels) / 2
+        # Linearly interpolate to get levels for any extensions
+        if cset._extend_min:
+            min_level = cset.levels[0] - np.diff(cset.levels[:2]) / 2
+            midpoints = np.insert(midpoints, 0, min_level)
+        if cset._extend_max:
+            max_level = cset.levels[-1] + np.diff(cset.levels[-2:]) / 2
+            midpoints = np.append(midpoints, max_level)
+
+        for z, linec in zip(midpoints, cset.collections):
             if offset is not None:
                 z = offset
             art3d.poly_collection_2d_to_3d(linec, z, zdir=zdir)
             linec.set_sort_zpos(z)
+        return midpoints
 
+    @_preprocess_data()
     def contour(self, X, Y, Z, *args,
                 extend3d=False, stride=5, zdir='z', offset=None, **kwargs):
         """
@@ -2151,8 +2108,9 @@ class Axes3D(Axes):
 
         Parameters
         ----------
-        X, Y, Z : array-like
-            Input data.
+        X, Y, Z : array-like,
+            Input data. See `~matplotlib.axes.Axes.contour` for acceptable
+            data shapes.
         extend3d : bool, default: False
             Whether to extend contour in 3D.
         stride : int
@@ -2162,6 +2120,9 @@ class Axes3D(Axes):
         offset : float, optional
             If specified, plot a projection of the contour lines at this
             position in a plane normal to zdir.
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
+
         *args, **kwargs
             Other arguments are forwarded to `matplotlib.axes.Axes.contour`.
 
@@ -2180,13 +2141,11 @@ class Axes3D(Axes):
 
     contour3D = contour
 
+    @_preprocess_data()
     def tricontour(self, *args,
                    extend3d=False, stride=5, zdir='z', offset=None, **kwargs):
         """
         Create a 3D contour plot.
-
-        .. versionchanged:: 1.3.0
-            Added support for custom triangulations
 
         .. note::
             This method currently produces incorrect output due to a
@@ -2195,7 +2154,8 @@ class Axes3D(Axes):
         Parameters
         ----------
         X, Y, Z : array-like
-            Input data.
+            Input data. See `~matplotlib.axes.Axes.tricontour` for acceptable
+            data shapes.
         extend3d : bool, default: False
             Whether to extend contour in 3D.
         stride : int
@@ -2205,6 +2165,8 @@ class Axes3D(Axes):
         offset : float, optional
             If specified, plot a projection of the contour lines at this
             position in a plane normal to zdir.
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
         *args, **kwargs
             Other arguments are forwarded to `matplotlib.axes.Axes.tricontour`.
 
@@ -2233,6 +2195,17 @@ class Axes3D(Axes):
         self.auto_scale_xyz(X, Y, Z, had_data)
         return cset
 
+    def _auto_scale_contourf(self, X, Y, Z, zdir, levels, had_data):
+        # Autoscale in the zdir based on the levels added, which are
+        # different from data range if any contour extensions are present
+        dim_vals = {'x': X, 'y': Y, 'z': Z, zdir: levels}
+        # Input data and levels have different sizes, but auto_scale_xyz
+        # expected same-size input, so manually take min/max limits
+        limits = [(np.nanmin(dim_vals[dim]), np.nanmax(dim_vals[dim]))
+                  for dim in ['x', 'y', 'z']]
+        self.auto_scale_xyz(*limits, had_data)
+
+    @_preprocess_data()
     def contourf(self, X, Y, Z, *args, zdir='z', offset=None, **kwargs):
         """
         Create a 3D filled contour plot.
@@ -2240,35 +2213,34 @@ class Axes3D(Axes):
         Parameters
         ----------
         X, Y, Z : array-like
-            Input data.
+            Input data. See `~matplotlib.axes.Axes.contourf` for acceptable
+            data shapes.
         zdir : {'x', 'y', 'z'}, default: 'z'
             The direction to use.
         offset : float, optional
             If specified, plot a projection of the contour lines at this
             position in a plane normal to zdir.
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
         *args, **kwargs
             Other arguments are forwarded to `matplotlib.axes.Axes.contourf`.
 
         Returns
         -------
         matplotlib.contour.QuadContourSet
-
-        Notes
-        -----
-        .. versionadded:: 1.1.0
-            The *zdir* and *offset* parameters.
         """
         had_data = self.has_data()
 
         jX, jY, jZ = art3d.rotate_axes(X, Y, Z, zdir)
         cset = super().contourf(jX, jY, jZ, *args, **kwargs)
-        self.add_contourf_set(cset, zdir, offset)
+        levels = self._add_contourf_set(cset, zdir, offset)
 
-        self.auto_scale_xyz(X, Y, Z, had_data)
+        self._auto_scale_contourf(X, Y, Z, zdir, levels, had_data)
         return cset
 
     contourf3D = contourf
 
+    @_preprocess_data()
     def tricontourf(self, *args, zdir='z', offset=None, **kwargs):
         """
         Create a 3D filled contour plot.
@@ -2280,12 +2252,15 @@ class Axes3D(Axes):
         Parameters
         ----------
         X, Y, Z : array-like
-            Input data.
+            Input data. See `~matplotlib.axes.Axes.tricontourf` for acceptable
+            data shapes.
         zdir : {'x', 'y', 'z'}, default: 'z'
             The direction to use.
         offset : float, optional
             If specified, plot a projection of the contour lines at this
             position in a plane normal to zdir.
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
         *args, **kwargs
             Other arguments are forwarded to
             `matplotlib.axes.Axes.tricontourf`.
@@ -2293,13 +2268,6 @@ class Axes3D(Axes):
         Returns
         -------
         matplotlib.tri.tricontour.TriContourSet
-
-        Notes
-        -----
-        .. versionadded:: 1.1.0
-            The *zdir* and *offset* parameters.
-        .. versionchanged:: 1.3.0
-            Added support for custom triangulations
         """
         had_data = self.has_data()
 
@@ -2317,9 +2285,9 @@ class Axes3D(Axes):
         tri = Triangulation(jX, jY, tri.triangles, tri.mask)
 
         cset = super().tricontourf(tri, jZ, *args, **kwargs)
-        self.add_contourf_set(cset, zdir, offset)
+        levels = self._add_contourf_set(cset, zdir, offset)
 
-        self.auto_scale_xyz(X, Y, Z, had_data)
+        self._auto_scale_contourf(X, Y, Z, zdir, levels, had_data)
         return cset
 
     def add_collection3d(self, col, zs=0, zdir='z'):
@@ -2355,6 +2323,9 @@ class Axes3D(Axes):
         collection = super().add_collection(col)
         return collection
 
+    @_preprocess_data(replace_names=["xs", "ys", "zs", "s",
+                                     "edgecolors", "c", "facecolor",
+                                     "facecolors", "color"])
     def scatter(self, xs, ys, zs=0, zdir='z', s=20, c=None, depthshade=True,
                 *args, **kwargs):
         """
@@ -2363,7 +2334,7 @@ class Axes3D(Axes):
         Parameters
         ----------
         xs, ys : array-like
-             The data positions.
+            The data positions.
         zs : float or array-like, default: 0
             The z-positions. Either an array of the same length as *xs* and
             *ys* or a single value to place all points in the same plane.
@@ -2392,6 +2363,8 @@ class Axes3D(Axes):
             Whether to shade the scatter markers to give the appearance of
             depth. Each call to ``scatter()`` will perform its depthshading
             independently.
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
         **kwargs
             All other arguments are passed on to `~.axes.Axes.scatter`.
 
@@ -2426,6 +2399,7 @@ class Axes3D(Axes):
 
     scatter3D = scatter
 
+    @_preprocess_data()
     def bar(self, left, height, zs=0, zdir='z', *args, **kwargs):
         """
         Add 2D bar(s).
@@ -2441,6 +2415,8 @@ class Axes3D(Axes):
             used for all bars.
         zdir : {'x', 'y', 'z'}, default: 'z'
             When plotting 2D data, the direction to use as z ('x', 'y' or 'z').
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
         **kwargs
             Other arguments are forwarded to `matplotlib.axes.Axes.bar`.
 
@@ -2477,6 +2453,7 @@ class Axes3D(Axes):
 
         return patches
 
+    @_preprocess_data()
     def bar3d(self, x, y, z, dx, dy, dz, color=None,
               zsort='average', shade=True, lightsource=None, *args, **kwargs):
         """
@@ -2524,6 +2501,9 @@ class Axes3D(Axes):
 
         lightsource : `~matplotlib.colors.LightSource`
             The lightsource to use when *shade* is True.
+
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
 
         **kwargs
             Any additional keyword arguments are passed onto
@@ -2646,6 +2626,7 @@ class Axes3D(Axes):
         self.title.set_y(0.92 * y)
         return ret
 
+    @_preprocess_data()
     def quiver(self, *args,
                length=1, arrow_length_ratio=.3, pivot='tail', normalize=False,
                **kwargs):
@@ -2682,6 +2663,9 @@ pivot='tail', normalize=False, **kwargs)
         normalize : bool, default: False
             Whether all arrows are normalized to have the same length, or keep
             the lengths defined by *u*, *v*, and *w*.
+
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
 
         **kwargs
             Any additional keyword arguments are delegated to
@@ -2807,8 +2791,6 @@ pivot='tail', normalize=False, **kwargs)
         ``filled[0, 0, 0]`` placed with its lower corner at the origin.
         Occluded faces are not plotted.
 
-        .. versionadded:: 2.1
-
         Parameters
         ----------
         filled : 3D np.array of bool
@@ -2843,12 +2825,8 @@ pivot='tail', normalize=False, **kwargs)
             Whether to shade the facecolors.  Shading is always disabled when
             *cmap* is specified.
 
-            .. versionadded:: 3.1
-
         lightsource : `~matplotlib.colors.LightSource`
             The lightsource to use when *shade* is True.
-
-            .. versionadded:: 3.1
 
         **kwargs
             Additional keyword arguments to pass onto
@@ -3017,6 +2995,7 @@ pivot='tail', normalize=False, **kwargs)
 
         return polygons
 
+    @_preprocess_data(replace_names=["x", "y", "z", "xerr", "yerr", "zerr"])
     def errorbar(self, x, y, z, zerr=None, yerr=None, xerr=None, fmt='',
                  barsabove=False, errorevery=1, ecolor=None, elinewidth=None,
                  capsize=None, capthick=None, xlolims=False, xuplims=False,
@@ -3112,6 +3091,9 @@ pivot='tail', normalize=False, **kwargs)
 
         Other Parameters
         ----------------
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
+
         **kwargs
             All other keyword arguments for styling errorbar lines are passed
             `~mpl_toolkits.mplot3d.art3d.Line3DCollection`.
@@ -3123,8 +3105,7 @@ pivot='tail', normalize=False, **kwargs)
         had_data = self.has_data()
 
         kwargs = cbook.normalize_kwargs(kwargs, mlines.Line2D)
-        # anything that comes in as 'None', drop so the default thing
-        # happens down stream
+        # Drop anything that comes in as None to use the default instead.
         kwargs = {k: v for k, v in kwargs.items() if v is not None}
         kwargs.setdefault('zorder', 2)
 
@@ -3389,6 +3370,7 @@ pivot='tail', normalize=False, **kwargs)
                     batch.append(axis_bb)
         return mtransforms.Bbox.union(batch)
 
+    @_preprocess_data()
     def stem(self, x, y, z, *, linefmt='C0-', markerfmt='C0o', basefmt='C3-',
              bottom=0, label=None, orientation='z'):
         """
@@ -3439,6 +3421,9 @@ pivot='tail', normalize=False, **kwargs)
 
         orientation : {'x', 'y', 'z'}, default: 'z'
             The direction along which stems are drawn.
+
+        data : indexable object, optional
+            DATA_PARAMETER_PLACEHOLDER
 
         Returns
         -------
@@ -3503,9 +3488,6 @@ pivot='tail', normalize=False, **kwargs)
         return stem_container
 
     stem3D = stem
-
-docstring.interpd.update(Axes3D_kwdoc=artist.kwdoc(Axes3D))
-docstring.dedent_interpd(Axes3D.__init__)
 
 
 def get_test_data(delta=0.05):

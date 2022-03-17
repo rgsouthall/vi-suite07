@@ -3,7 +3,7 @@ Compatibility module for Python 2.7 and >= 3.4
 ==============================================
 
 This module provides a set of utility types and functions for optimization and
-to aid in writing Python 2/3 compatibile code.
+to aid in writing Python 2/3 compatible code.
 '''
 
 __all__ = ('PY2', 'clock', 'string_types', 'queue', 'iterkeys',
@@ -21,14 +21,14 @@ try:
 except ImportError:
     isclose = None
 
-PY2 = sys.version_info[0] == 2
-'''True if this version of python is 2.x.'''
+PY2 = False
+'''False, because we don't support Python 2 anymore.'''
 
 clock = None
 '''A clock with the highest available resolution on your current Operating
 System.'''
 
-string_types = None
+string_types = str
 '''A utility type for detecting string in a Python 2/3 friendly way. For
 example:
 
@@ -40,36 +40,17 @@ example:
         print("It's something else.")
 '''
 
-text_type = None
-if PY2:
-    string_types = basestring
-    text_type = unicode
-else:
-    string_types = text_type = str
+text_type = str
 
 #: unichr is just chr in py3, since all strings are unicode
-if PY2:
-    unichr = unichr
-else:
-    unichr = chr
+unichr = chr
 
-if PY2:
-    iterkeys = lambda d: d.iterkeys()
-    itervalues = lambda d: d.itervalues()
-    iteritems = lambda d: d.iteritems()
-else:
-    iterkeys = lambda d: iter(d.keys())
-    itervalues = lambda d: iter(d.values())
-    iteritems = lambda d: iter(d.items())
+iterkeys = lambda d: iter(d.keys())
+itervalues = lambda d: iter(d.values())
+iteritems = lambda d: iter(d.items())
 
 
-if PY2:
-    if sys.platform in ('win32', 'cygwin'):
-        clock = time.clock
-    else:
-        clock = time.time
-else:
-    clock = time.perf_counter
+clock = time.perf_counter
 
 
 def _isclose(a, b, rel_tol=1e-9, abs_tol=0.0):
@@ -84,7 +65,7 @@ def _isclose(a, b, rel_tol=1e-9, abs_tol=0.0):
     if rel_tol < 0.0 or abs_tol < 0.0:
         raise ValueError('error tolerances must be non-negative')
 
-    # use cmath so it will work with complex ot float
+    # use cmath so it will work with complex or float
     if isinf(abs(a)) or isinf(abs(b)):
         # This includes the case of two infinities of opposite sign, or
         # one infinity and one finite number. Two infinities of opposite sign

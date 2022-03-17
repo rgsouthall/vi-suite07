@@ -81,16 +81,18 @@ def test_minus_no_descent(fontsize):
     assert len({*heights.values()}) == 1
 
 
-@pytest.mark.skipif(not _has_tex_package('xcolor'),
-                    reason='xcolor is not available')
-def test_usetex_xcolor():
+@pytest.mark.parametrize('pkg', ['xcolor', 'chemformula'])
+def test_usetex_packages(pkg):
+    if not _has_tex_package(pkg):
+        pytest.skip(f'{pkg} is not available')
     mpl.rcParams['text.usetex'] = True
 
     fig = plt.figure()
     text = fig.text(0.5, 0.5, "Some text 0123456789")
     fig.canvas.draw()
 
-    mpl.rcParams['text.latex.preamble'] = r'\usepackage[dvipsnames]{xcolor}'
+    mpl.rcParams['text.latex.preamble'] = (
+        r'\PassOptionsToPackage{dvipsnames}{xcolor}\usepackage{%s}' % pkg)
     fig = plt.figure()
     text2 = fig.text(0.5, 0.5, "Some text 0123456789")
     fig.canvas.draw()
@@ -98,8 +100,22 @@ def test_usetex_xcolor():
                                   text.get_window_extent())
 
 
-def test_textcomp_full():
-    plt.rcParams["text.latex.preamble"] = r"\usepackage[full]{textcomp}"
+@pytest.mark.parametrize(
+    "preamble",
+    [r"\usepackage[full]{textcomp}", r"\usepackage{underscore}"],
+)
+def test_latex_pkg_already_loaded(preamble):
+    plt.rcParams["text.latex.preamble"] = preamble
     fig = plt.figure()
     fig.text(.5, .5, "hello, world", usetex=True)
     fig.canvas.draw()
+
+
+def test_usetex_with_underscore():
+    plt.rcParams["text.usetex"] = True
+    df = {"a_b": range(5)[::-1], "c": range(5)}
+    fig, ax = plt.subplots()
+    ax.plot("c", "a_b", data=df)
+    ax.legend()
+    ax.text(0, 0, "foo_bar", usetex=True)
+    plt.draw()

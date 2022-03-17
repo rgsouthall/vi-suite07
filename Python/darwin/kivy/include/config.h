@@ -11,7 +11,8 @@
 #define __USE_MESAGL 0
 #define __USE_X11 0
 #define __USE_WAYLAND 0
-#define __USE_GSTREAMER 1
+#define __USE_GSTREAMER 0
 #define __USE_AVFOUNDATION 1
 #define __USE_OSX_FRAMEWORKS 1
 #define __DEBUG_GL 0
+#define __KIVY_SDL_GL_ALPHA_SIZE 8

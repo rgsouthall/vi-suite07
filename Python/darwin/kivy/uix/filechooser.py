@@ -87,6 +87,8 @@ __all__ = ('FileChooserListView', 'FileChooserIconView',
 
 from weakref import ref
 from time import time
+
+from kivy.core.text import DEFAULT_FONT
 from kivy.compat import string_types
 from kivy.factory import Factory
 from kivy.clock import Clock
@@ -99,12 +101,12 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import (
     StringProperty, ListProperty, BooleanProperty, ObjectProperty,
     NumericProperty, AliasProperty)
+import collections.abc
 from os import listdir
 from os.path import (
     basename, join, sep, normpath, expanduser, altsep,
     splitdrive, realpath, getsize, isdir, abspath, isfile, dirname)
 from fnmatch import fnmatch
-import collections
 
 platform = core_platform
 filesize_units = ('B', 'KB', 'MB', 'GB', 'TB')
@@ -122,7 +124,7 @@ if platform == 'win':
         _have_win32file = True
     except ImportError:
         Logger.error('filechooser: win32file module is missing')
-        Logger.error('filechooser: we cant check if a file is hidden or not')
+        Logger.error('filechooser: we cannot check if a file is hidden or not')
 
 
 def alphanumeric_folders_first(files, filesystem):
@@ -350,7 +352,7 @@ class FileChooserController(RelativeLayout):
     '''
     filters specifies the filters to be applied to the files in the directory.
     filters is a :class:`~kivy.properties.ListProperty` and defaults to [].
-    This is equivalent to '\*' i.e. nothing is filtered.
+    This is equivalent to '\\*' i.e. nothing is filtered.
 
     The filters are not reset when the path changes. You need to do that
     yourself if desired.
@@ -359,13 +361,13 @@ class FileChooserController(RelativeLayout):
 
     #. Patterns
 
-        e.g. ['\*.png'].
+        e.g. ['\\*.png'].
         You can use the following patterns:
 
             ========== =================================
             Pattern     Meaning
             ========== =================================
-            \*         matches everything
+            \\*         matches everything
             ?          matches any single character
             [seq]      matches any character in seq
             [!seq]     matches any character not in seq
@@ -512,6 +514,16 @@ class FileChooserController(RelativeLayout):
     .. versionadded:: 1.8.0
     '''
 
+    font_name = StringProperty(DEFAULT_FONT)
+    '''Filename of the font to use in UI components. The path can be
+    absolute or relative.  Relative paths are resolved by the
+    :func:`~kivy.resources.resource_find` function.
+
+    :attr:`font_name` is a :class:`~kivy.properties.StringProperty` and
+    defaults to 'Roboto'. This value is taken
+    from :class:`~kivy.config.Config`.
+    '''
+
     _update_files_ev = None
     _create_files_entries_ev = None
 
@@ -653,7 +665,7 @@ class FileChooserController(RelativeLayout):
             return files
         filtered = []
         for filt in self.filters:
-            if isinstance(filt, collections.Callable):
+            if isinstance(filt, collections.abc.Callable):
                 filtered.extend([fn for fn in files if filt(self.path, fn)])
             else:
                 filtered.extend([fn for fn in files if fnmatch(fn, filt)])
@@ -687,6 +699,7 @@ class FileChooserController(RelativeLayout):
         self._gitems_gen = self._generate_file_entries(
             path=kwargs.get('path', self.path),
             parent=self._gitems_parent)
+        self.path = abspath(self.path)
 
         # cancel any previous clock if exist
         ev = self._create_files_entries_ev
@@ -997,9 +1010,9 @@ class FileChooser(FileChooserController):
 
         self.fbind('view_mode', self.trigger_update_view)
 
-    def add_widget(self, widget, **kwargs):
+    def add_widget(self, widget, *args, **kwargs):
         if widget is self._progress:
-            super(FileChooser, self).add_widget(widget, **kwargs)
+            super(FileChooser, self).add_widget(widget, *args, **kwargs)
         elif hasattr(widget, 'VIEWNAME'):
             name = widget.VIEWNAME + 'view'
             screen = Screen(name=name)

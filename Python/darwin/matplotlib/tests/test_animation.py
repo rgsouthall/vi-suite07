@@ -1,6 +1,6 @@
-import gc
 import os
 from pathlib import Path
+import platform
 import subprocess
 import sys
 import weakref
@@ -87,10 +87,15 @@ def test_null_movie_writer(anim):
 
 @pytest.mark.parametrize('anim', [dict(klass=dict)], indirect=['anim'])
 def test_animation_delete(anim):
+    if platform.python_implementation() == 'PyPy':
+        # Something in the test setup fixture lingers around into the test and
+        # breaks pytest.warns on PyPy. This garbage collection fixes it.
+        # https://foss.heptapod.net/pypy/pypy/-/issues/3536
+        np.testing.break_cycles()
     anim = animation.FuncAnimation(**anim)
     with pytest.warns(Warning, match='Animation was deleted'):
         del anim
-        gc.collect()
+        np.testing.break_cycles()
 
 
 def test_movie_writer_dpi_default():
@@ -180,8 +185,8 @@ def test_save_animation_smoketest(tmpdir, writer, frame_format, output, anim):
     with tmpdir.as_cwd():
         anim.save(output, fps=30, writer=writer, bitrate=500, dpi=dpi,
                   codec=codec)
-    with pytest.warns(None):
-        del anim
+
+    del anim
 
 
 @pytest.mark.parametrize('writer', [
@@ -201,6 +206,11 @@ def test_save_animation_smoketest(tmpdir, writer, frame_format, output, anim):
 ])
 @pytest.mark.parametrize('anim', [dict(klass=dict)], indirect=['anim'])
 def test_animation_repr_html(writer, html, want, anim):
+    if platform.python_implementation() == 'PyPy':
+        # Something in the test setup fixture lingers around into the test and
+        # breaks pytest.warns on PyPy. This garbage collection fixes it.
+        # https://foss.heptapod.net/pypy/pypy/-/issues/3536
+        np.testing.break_cycles()
     if (writer == 'imagemagick' and html == 'html5'
             # ImageMagick delegates to ffmpeg for this format.
             and not animation.FFMpegWriter.isAvailable()):
@@ -214,7 +224,8 @@ def test_animation_repr_html(writer, html, want, anim):
     if want is None:
         assert html is None
         with pytest.warns(UserWarning):
-            del anim  # Animtion was never run, so will warn on cleanup.
+            del anim  # Animation was never run, so will warn on cleanup.
+            np.testing.break_cycles()
     else:
         assert want in html
 
@@ -324,6 +335,7 @@ def test_funcanimation_cache_frame_data(cache_frame_data):
     writer = NullMovieWriter()
     anim.save('unused.null', writer=writer)
     assert len(frames_generated) == 5
+    np.testing.break_cycles()
     for f in frames_generated:
         # If cache_frame_data is True, then the weakref should be alive;
         # if cache_frame_data is False, then the weakref should be dead (None).
@@ -359,3 +371,36 @@ def test_draw_frame(return_value):
 
     with pytest.raises(RuntimeError):
         animation.FuncAnimation(fig, animate, blit=True)
+
+
+def test_exhausted_animation(tmpdir):
+    fig, ax = plt.subplots()
+
+    def update(frame):
+        return []
+
+    anim = animation.FuncAnimation(
+        fig, update, frames=iter(range(10)), repeat=False,
+        cache_frame_data=False
+    )
+
+    with tmpdir.as_cwd():
+        anim.save("test.gif", writer='pillow')
+
+    with pytest.warns(UserWarning, match="exhausted"):
+        anim._start()
+
+
+def test_no_frame_warning(tmpdir):
+    fig, ax = plt.subplots()
+
+    def update(frame):
+        return []
+
+    anim = animation.FuncAnimation(
+        fig, update, frames=[], repeat=False,
+        cache_frame_data=False
+    )
+
+    with pytest.warns(UserWarning, match="exhausted"):
+        anim._start()

@@ -75,10 +75,10 @@ from operator import methodcaller
 
 import numpy as np
 
-from matplotlib import _api, rcParams
+from matplotlib import _api, cbook, rcParams
 import matplotlib.artist as martist
+import matplotlib.colors as mcolors
 import matplotlib.text as mtext
-
 from matplotlib.collections import LineCollection
 from matplotlib.lines import Line2D
 from matplotlib.patches import PathPatch
@@ -133,6 +133,14 @@ class Ticks(AttributeCopier, Line2D):
     def get_ref_artist(self):
         # docstring inherited
         return self._axis.majorTicks[0].tick1line
+
+    def set_color(self, color):
+        # docstring inherited
+        # Unlike the base Line2D.set_color, this also supports "auto".
+        if not cbook._str_equal(color, "auto"):
+            mcolors._check_color_like(color=color)
+        self._color = color
+        self.stale = True
 
     def get_color(self):
         return self.get_attribute_from_ref_artist("color")
@@ -640,7 +648,7 @@ class AxisArtist(martist.Artist):
         axes : `mpl_toolkits.axisartist.axislines.Axes`
         helper : `~mpl_toolkits.axisartist.axislines.AxisArtistHelper`
         """
-        #axes is also used to follow the axis attribute (tick color, etc).
+        # axes is also used to follow the axis attribute (tick color, etc).
 
         super().__init__(**kwargs)
 
@@ -672,11 +680,6 @@ class AxisArtist(martist.Artist):
         self._ticklabel_add_angle = 0.
         self._axislabel_add_angle = 0.
         self.set_axis_direction(axis_direction)
-
-    @_api.deprecated("3.3")
-    @property
-    def dpi_transform(self):
-        return Affine2D().scale(1 / 72) + self.axes.figure.dpi_scale_trans
 
     # axis direction
 

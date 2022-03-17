@@ -53,6 +53,7 @@ DDS Format
     code.
 
 '''
+# flake8: noqa
 
 from struct import pack, unpack, calcsize
 
@@ -194,9 +195,8 @@ class DDSFile(object):
         with open(filename, 'rb') as fd:
             data = fd.read()
 
-        # ensure magic
-        if data[:4] != 'DDS ':
-            raise DDSException('Invalid magic header')
+        if data[:4] != b'DDS ':
+            raise DDSException('Invalid magic header {}'.format(data[:4]))
 
         # read header
         fmt = 'I' * 31
