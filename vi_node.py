@@ -40,8 +40,8 @@ import matplotlib.pyplot as plt
 cur_dir = os.getcwd()
 
 try:
-    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    os.chdir(os.path.join(addonpath, 'Python', sys.platform, 'netgen'))
+#    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+#    os.chdir(os.path.join(addonpath, 'Python', sys.platform, 'netgen'))
     import netgen
     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
     from netgen.stl import STLGeometry
@@ -1792,7 +1792,7 @@ class No_Vi_Chart(Node, ViNodes):
         if self.inputs['X-axis'].links:
             innode = self.inputs['X-axis'].links[0].from_node
 
-            if innode.get('reslists'):
+            if innode.get('reslists') and len(innode['reslists']) > 1:
                 newrow(layout, 'Animated:', self, 'parametricmenu')
 
                 if self.parametricmenu == '0':
@@ -1820,9 +1820,12 @@ class No_Vi_Chart(Node, ViNodes):
                     row.operator("node.chart", text = 'Create plot')
                     row = layout.row()
                     row.label(text = "------------------")
+            else:
+                row = layout.row()
+                row.label(text = "No results")
 
     def update(self):
-        if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists']:
+        if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists'] or len(self.inputs['X-axis'].links[0].from_node['reslists']) < 2:
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = True
         else:

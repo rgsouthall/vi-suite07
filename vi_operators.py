@@ -75,6 +75,38 @@ except Exception as e:
     print("No psutil: {}".format(e))
     psu = 0
 
+class ADDON_OT_PyInstall(bpy.types.Operator):
+    bl_idname = "addon.pyimport"
+    bl_label = "Install Python dependencies"
+    bl_description = "Installs matplotlib PyQt5 kivy and netgen"
+
+    def execute(self, context):
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
+            gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'get-pip.py'),
+            os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            print(gp_cmd)
+            Popen(shlex.split(gp_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'kivy')):
+            kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
+            os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            print(kivy_cmd)
+            Popen(shlex.split(kivy_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt5')):
+            pyqt_cmd = '{} -m pip install PyQt5 --target {}'.format(sys.executable,
+            os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            print(pyqt_cmd)
+            Popen(shlex.split(pyqt_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
+            mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
+            os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            print(mp_cmd)
+            Popen(shlex.split(mp_cmd))    
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
+            ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
+            os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            print(ng_cmd)
+            Popen(shlex.split(ng_cmd))  
+        return{'FINISHED'}
 
 class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
     bl_idname = "node.ascimport"

@@ -1,3 +1,0 @@
-title=Keyboard
-author=ZenCODE
-orientation=landscape
