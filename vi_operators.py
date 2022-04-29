@@ -2994,22 +2994,33 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     self.obs = [dobs[0]]
 
             self.fomats = [item for sublist in self.omats for item in sublist]
-            i= 0
+            i = 0
 
             for mis, mats in enumerate(self.omats):
                 for mi, mat in enumerate(mats):
                     if not mis:
 #                        ngpyfile.write("\nfd = FaceDescriptor(bc = {0}, domin = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc = i, domin = 1, surfnr = i + 1)
+                        fd.bcname = mat.name
+                        print('first', fd.bcname)
                     else:
 #                        ngpyfile.write("fd = FaceDescriptor(bc = {0}, domin = 0, domout = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc = i, domin = 0, domout = 1, surfnr = i + 1)
-
+                        fd.bcname = mat.name
+                        print('second', fd.bcname)
+                    print('fd1', fd)
 #                    ngpyfile.write("fd = totmesh.Add(fd)\n")
                     fd = totmesh.Add(fd)
+                    print('fd2', fd)
                     fds.append(fd)
 #                    ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
-                    totmesh.SetBCName(fd, mat.name)
+#                    print(dir(totmesh), fd, mat.name)
+                    try:
+                        pass
+                        # totmesh.SetBCName(0, mat.name)
+                    except:
+                        pass
+#                        totmesh.SetBCName(1, mat.name)
                     i += 1
 
             for oi, o in enumerate(self.obs):
@@ -3055,7 +3066,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 with TaskManager():
                     m = geo.GenerateMesh(mp = mp, perfstepsend=MeshingStep.MESHSURFACE)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
-
+                print(dir(m))
 #                ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
 
                 for ei, el in enumerate(m.Elements2D()):
@@ -3094,19 +3105,20 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
 #            ngpyfile.write("totmesh.Save('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
-            ngpyfile.write("\ntotmesh.Load('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
-            ngpyfile.write("with TaskManager():\n   totmesh.GenerateVolumeMesh()\n")
+#            ngpyfile.write("\ntotmesh.Load('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
+#            ngpyfile.write("with TaskManager():\n   totmesh.GenerateVolumeMesh()\n")
 
-#            with TaskManager():
-#                totmesh.GenerateVolumeMesh()
+            with TaskManager():
+                totmesh.GenerateVolumeMesh()
 
             logentry("Netgen mesh generated")
             # The below would create a boundary layer but this is nor currently supported in Netgen Python interface
-            # totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 't')
-            ngpyfile.write("totmesh.Save('{}')\n".format((os.path.join(svp['flparams']['offilebase'], 'ng.vol'))))
-#            totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
-            ngpyfile.write("totmesh.Export('{}', format='Neutral Format')".format(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))
-#            totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
+#            totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 'B2')
+#            ngpyfile.write("totmesh.Save('{}')\n".format((os.path.join(svp['flparams']['offilebase'], 'ng.vol'))))
+            totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
+#            ngpyfile.write("totmesh.Export('{}', format='Neutral Format')".format(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))
+            totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
+
         self.expnode.running = 1
         self.ng_mesh = Popen(shlex.split('{} {}'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout = PIPE)
         self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
@@ -3131,7 +3143,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             scene = context.scene
             svp = scene.vi_params
 
-            if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
+            if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin) and os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')):
                 subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(svp['flparams']['offilebase'], os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))).wait()
 
                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
@@ -3139,6 +3151,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             elif sys.platform == 'darwin' and os.path.isdir(self.vi_prefs.ofbin):
                 print("OSX command to open openfoam docker image: {}".format("docker container run -ti --rm -v $PWD:/data -w /data openfoamplus/of_v2012_centos73:release /bin/bash"))
+            
+            elif not os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')):
+                logentry('Netgen volume meshing did not complete')
+                self.expnode.running = 0
+                self.kivyrun.kill()
+                self.report({'ERROR'},'Netgen volume meshing did not complete')
+                return{'CANCELLED'}
 
             if os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary')):
                 with open(os.path.join(svp['flparams']['offilebase'], 'constant', 'polyMesh', 'boundary'), 'r') as bfile:
