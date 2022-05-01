@@ -45,44 +45,17 @@ else:
         from kivy.app import App
         print('VI-Suite: Using system libraries')
     except:
-        try:
-            requests.get('https://www.google.com/')
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
-                gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'),
-                os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(gp_cmd)).wait()
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(kivy_cmd)).wait()
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt5')):
-                pyqt_cmd = '{} -m pip install PyQt5 --target {}'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(pyqt_cmd)).wait()
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(mp_cmd)).wait()
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'lib', 
-                                              'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
-                                              'site-packages', 'netgen')):
-                ng_cmd = '{0} -m pip install --prefix={1} ngsolve'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(ng_cmd)).wait()
-        except:
-            print('Cannot install Python libraries. Check you internet connection')
-            
-        print('VI-Suite: Using buit-in libraries')
-        if sys.version_info[1] >= 9:
+        print('VI-Suite: Using builtin libraries')
+        if sys.version_info[0] > 3 or sys.version_info[1] >= 9:
             if os.environ.get('PYTHONPATH'):
                 if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
                     os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
-                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'lib', 
+                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'lib',
                                                                           'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
                                                                           'site-packages')
             else:
                 os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'lib', 
+                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'lib',
                                                                           'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
                                                                           'site-packages')
             if sys.platform == 'linux':
@@ -99,7 +72,8 @@ else:
                     os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
 
             sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
-            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, 'lib', 
+#            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, 'bin'))
+            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, 'lib',
                                          'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
                                          'site-packages'))
 
@@ -111,6 +85,35 @@ else:
 
             if sys.platform == 'win32':
                 os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+
+        try:
+            requests.get('https://www.google.com/')
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
+                gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'),
+                os.path.join(addonpath, 'Python', sys.platform))
+                Popen(shlex.split(gp_cmd)).wait()
+#                ep_cmd = '{} -m ensurepip'.format(sys.executable)
+#                Popen(shlex.split(ep_cmd)).wait()
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
+                kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
+                os.path.join(addonpath, 'Python', sys.platform))
+                Popen(shlex.split(kivy_cmd)).wait()
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt5')):
+                pyqt_cmd = '{} -m pip install PyQt5 --target {}'.format(sys.executable,
+                os.path.join(addonpath, 'Python', sys.platform))
+                Popen(shlex.split(pyqt_cmd)).wait()
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
+                mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
+                os.path.join(addonpath, 'Python', sys.platform))
+                Popen(shlex.split(mp_cmd)).wait()
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'lib',
+                                              'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
+                                              'site-packages', 'netgen')):
+                ng_cmd = '{0} -m pip install --prefix={1} ngsolve'.format(sys.executable,
+                os.path.join(addonpath, 'Python', sys.platform))
+                Popen(shlex.split(ng_cmd)).wait()
+        except:
+            print('Cannot install Python libraries. Check you internet connection')
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
