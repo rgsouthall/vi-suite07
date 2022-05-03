@@ -2985,7 +2985,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             mns.append(len(set(mis)))
             bm.free()
 
-        os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'netgen')
+        if os.environ.get('LD_LIBRARY_PATH'):
+            os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'netgen')
+        else:
+            os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'netgen')
 
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
             ngpyfile.write(inspect.cleandoc('''
@@ -3034,16 +3037,16 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #                        ngpyfile.write("\nfd = FaceDescriptor(bc = {0}, domin = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc = i, domin = 1, surfnr = i + 1)
                         fd.bcname = mat.name
-                        print('first', fd.bcname)
+#                        print('first', fd.bcname)
                     else:
 #                        ngpyfile.write("fd = FaceDescriptor(bc = {0}, domin = 0, domout = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc = i, domin = 0, domout = 1, surfnr = i + 1)
                         fd.bcname = mat.name
-                        print('second', fd.bcname)
-                    print('fd1', fd)
+#                        print('second', fd.bcname)
+#                    print('fd1', fd)
 #                    ngpyfile.write("fd = totmesh.Add(fd)\n")
                     fd = totmesh.Add(fd)
-                    print('fd2', fd)
+#                    print('fd2', fd)
                     fds.append(fd)
 #                    ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
 #                    print(dir(totmesh), fd, mat.name)
@@ -3098,7 +3101,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 with TaskManager():
                     m = geo.GenerateMesh(mp = mp, perfstepsend=MeshingStep.MESHSURFACE)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
-                print(dir(m))
+#                print(dir(m))
 #                ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
 
                 for ei, el in enumerate(m.Elements2D()):
@@ -3152,7 +3155,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
 
         self.expnode.running = 1
-        self.ng_mesh = Popen(shlex.split('{} {}'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout = PIPE)
+        self.ng_mesh = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout = PIPE)
         self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Volume Mesh')
         self._timer = context.window_manager.event_timer_add(2, window = context.window)

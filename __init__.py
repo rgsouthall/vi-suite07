@@ -36,7 +36,7 @@ if "bpy" in locals():
     imp.reload(vi_node)
     imp.reload(envi_mat)
 else:
-    import sys, os, inspect, shlex, bpy, requests
+    import sys, os, inspect, shlex, bpy, requests, shutil, glob
     from subprocess import Popen, call
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
@@ -50,13 +50,13 @@ else:
             if os.environ.get('PYTHONPATH'):
                 if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
                     os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
-                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'lib',
-                                                                          'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
+                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                                                           'site-packages')
             else:
                 os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'lib',
-                                                                          'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
+                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                                                           'site-packages')
             if sys.platform == 'linux':
                 if not os.environ.get('LD_LIBRARY_PATH'):
@@ -64,18 +64,16 @@ else:
 
                 elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
                     os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
-#                    sys.argv = [bpy.app.binary_path]
-#                    os.execv(sys.argv[0], sys.argv)
 
             elif sys.platform == 'darwin':
                 if not os.environ.get('DYLD_LIBRARY_PATH'):
                     os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
 
             sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
-#            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, 'bin'))
-            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, 'lib',
-                                         'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
+            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                         ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                          'site-packages'))
+
 
             if os.environ.get('PATH'):
                 if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
@@ -83,36 +81,51 @@ else:
             else:
                 os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
 
-            if sys.platform == 'win32':
-                os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+            # if sys.platform == 'win32':
+                # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+                
+                # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                #                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+                #                          'site-packages'))
 
         try:
             requests.get('https://www.google.com/')
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
-                gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'),
+                gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'),
                 os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(gp_cmd)).wait()
-#                ep_cmd = '{} -m ensurepip'.format(sys.executable)
-#                Popen(shlex.split(ep_cmd)).wait()
+
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
+                kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 --upgrade --target "{}"'.format(sys.executable,
                 os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(kivy_cmd)).wait()
+
+                if sys.platform == 'win32':
+                    dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'sdl2', 'bin', 'SDL2*'))
+                    for dll in dlls: 
+                        shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'core', 'window'))
+                    dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'glew', 'bin', 'glew32*'))
+                    for dll in dlls: 
+                        shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
+
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt5')):
-                pyqt_cmd = '{} -m pip install PyQt5 --target {}'.format(sys.executable,
+                pyqt_cmd = '"{}" -m pip install PyQt5 --target "{}"'.format(sys.executable,
                 os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(pyqt_cmd)).wait()
+
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
+                mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable,
                 os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(mp_cmd)).wait()
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'lib',
-                                              'python{}.{}'.format(sys.version_info.major, sys.version_info.minor),
+
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                              ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                               'site-packages', 'netgen')):
-                ng_cmd = '{0} -m pip install --prefix={1} ngsolve'.format(sys.executable,
+                ng_cmd = '"{0}" -m pip install --prefix="{1}" ngsolve'.format(sys.executable,
                 os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(ng_cmd)).wait()
-        except:
+        except Exception as e:
+            print(e)
             print('Cannot install Python libraries. Check you internet connection')
 
     if sys.platform in ('linux', 'darwin'):
