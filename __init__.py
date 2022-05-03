@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 7, 0),
-    "blender": (3, 0),
+    "blender": (3, 1),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
@@ -96,8 +96,12 @@ else:
                 Popen(shlex.split(gp_cmd)).wait()
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 --upgrade --target "{}"'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
+                if sys.platform == 'darwin':
+                    kivy_cmd = '"{}" -m pip install kivy[base] --upgrade --target "{}"'.format(sys.executable,
+                                                                                                        os.path.join(addonpath, 'Python', sys.platform))
+                else:
+                    kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 --upgrade --target "{}"'.format(sys.executable,
+                                                                                                        os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(kivy_cmd)).wait()
 
                 if sys.platform == 'win32':
