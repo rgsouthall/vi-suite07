@@ -718,12 +718,12 @@ def fvschwrite(node, solver):
  
     return write_fvdict(htext, scdict[solver])
 
-    
 
 def fvgwrite():
     htext = ofheader + write_ffile('uniformDimensionedVectorField', '"constant"', 'g')
     gdict = {'dimensions': '[0 1 -2 0 0 0 0]', 'value': '(0 0 -9.81)'}
     return write_fvdict(htext, gdict)
+
 
 def fvshmlayers(oname, node):
     surfdict = {"0": (("firstLayerThickness", node.frlayer), ("thickness", node.olayer)),
@@ -862,6 +862,8 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
     
     mesh.from_pydata(vcoords, [], findices)
     o = bpy.data.objects.new('Mesh', mesh)
+    o.vi_params.vi_type_string = 'FloVi Mesh'
+    o.show_wire = True
     bpy.context.view_layer.active_layer_collection.collection.objects.link(o)
     selobj(vl, o)
     

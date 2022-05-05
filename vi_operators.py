@@ -78,7 +78,7 @@ except Exception as e:
 class ADDON_OT_PyInstall(bpy.types.Operator):
     bl_idname = "addon.pyimport"
     bl_label = "Install Python dependencies"
-    bl_description = "Installs matplotlib PyQt5 kivy and netgen"
+    bl_description = "Installs matplotlib, PyQt5, kivy and netgen"
 
     def execute(self, context):
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
@@ -89,22 +89,18 @@ class ADDON_OT_PyInstall(bpy.types.Operator):
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'kivy')):
             kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
             os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            print(kivy_cmd)
             Popen(shlex.split(kivy_cmd))
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt5')):
             pyqt_cmd = '{} -m pip install PyQt5 --target {}'.format(sys.executable,
             os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            print(pyqt_cmd)
             Popen(shlex.split(pyqt_cmd))
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
             mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
             os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            print(mp_cmd)
             Popen(shlex.split(mp_cmd))    
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
             ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
             os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            print(ng_cmd)
             Popen(shlex.split(ng_cmd))  
         return{'FINISHED'}
 
@@ -2956,11 +2952,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         meshcoll = create_coll(context, 'FloVi Mesh')
         clear_coll(context, meshcoll)
         dp = bpy.context.evaluated_depsgraph_get()
-        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
-        gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get()]
+        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get() and o.name not in meshcoll.objects]
+        gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get() and o.name not in meshcoll.objects]
         self.obs = dobs + gobs
         mns = [0]
         self.omats = []
+
+        if not dobs:
+            logentry('FloVi requires a domain object but none was found. Check the domain object is not in the FloVi Mesh collection')
+            return {'CANCELLED'}
 
         for ob in self.obs:
             bm = bmesh.new()
@@ -3101,6 +3101,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 with TaskManager():
                     m = geo.GenerateMesh(mp = mp, perfstepsend=MeshingStep.MESHSURFACE)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
+
+                logentry("Netgen surface mesh generated")
 #                print(dir(m))
 #                ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
 
@@ -3146,7 +3148,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             with TaskManager():
                 totmesh.GenerateVolumeMesh()
 
-            logentry("Netgen mesh generated")
+#            logentry("Netgen surface mesh generated")
             # The below would create a boundary layer but this is nor currently supported in Netgen Python interface
 #            totmesh.BoundaryLayer(boundary = 1, thickness = 0.02, material = 'B2')
 #            ngpyfile.write("totmesh.Save('{}')\n".format((os.path.join(svp['flparams']['offilebase'], 'ng.vol'))))

@@ -99,10 +99,16 @@ def clear_coll(c, coll):
     for o in coll.objects:
         if coll.name == 'LiVi Results' and o.vi_params.vi_type_string != 'LiVi Res':
             pass
-        else:
+        elif coll.name == 'LiVi Results':
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
-
+        
+        elif coll.name == 'FloVi Mesh' and o.vi_params.vi_type_string != 'FloVi Mesh':
+            pass
+        elif coll.name == 'FloVi Mesh':
+            coll.objects.unlink(o)
+            bpy.data.objects.remove(o)
+            
 #    c.view_layer.layer_collection.children[coll.name].exclude = 1
 
 # def set_coll(coll):

@@ -96,12 +96,14 @@ else:
                 Popen(shlex.split(gp_cmd)).wait()
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                if sys.platform == 'darwin':
-                    kivy_cmd = '"{}" -m pip install kivy[base] --upgrade --target "{}"'.format(sys.executable,
-                                                                                                        os.path.join(addonpath, 'Python', sys.platform))
+                upg = '' if sys.platform == 'linux' else '--upgrade'
+                if sys.platform == 'win32':
+                    kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg,
+                                                                                              os.path.join(addonpath, 'Python', sys.platform))
                 else:
-                    kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 --upgrade --target "{}"'.format(sys.executable,
-                                                                                                        os.path.join(addonpath, 'Python', sys.platform))
+                    kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg,
+                                                                                     os.path.join(addonpath, 'Python', sys.platform))
+                    
                 Popen(shlex.split(kivy_cmd)).wait()
 
                 if sys.platform == 'win32':
@@ -128,9 +130,9 @@ else:
                 ng_cmd = '"{0}" -m pip install --prefix="{1}" ngsolve'.format(sys.executable,
                 os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(ng_cmd)).wait()
+        
         except Exception as e:
-            print(e)
-            print('Cannot install Python libraries. Check you internet connection')
+            print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
