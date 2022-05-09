@@ -475,7 +475,7 @@ def fvmattype(mat, var):
         matbptype = 'empty'
         matbUtype = 'empty'
     
-def fvcdwrite(solver, st, dt, et):
+def fvcdwrite(svp, dp, solver, st, dt, et):
     pw = 0 if solver == 'icoFoam' else 1
     ps, ss, bs = [], [], []
     htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
@@ -490,8 +490,9 @@ def fvcdwrite(solver, st, dt, et):
             dom = o
         elif o.type == 'EMPTY' and ovp.flovi_probe:
             ps.append(o)
-        elif o.type == 'MESH' and ovp.flovi_probe and len(o.data.polygons) == 1:
-            ss.append(o)
+        elif o.type == 'MESH' and ovp.vi_type == '6':
+            ovp.write_stl(os.path.join(svp['flparams']['offilebase'], 'constant', 'triSurface', '{}.stl'.format(o.name)), dp)
+            ss.append(o.name)
         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
             for mat in o.data.materials:
                 if mat.vi_params.flovi_probe:
@@ -499,9 +500,11 @@ def fvcdwrite(solver, st, dt, et):
     if ps:
         bpy.context.scene.vi_params['flparams']['probes'] = [p.name for p in ps]
         probe_vars = 'p U T'  
+
         for p in ps:
             cdict['functions'][p.name] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name), 'writeControl': 'timeStep',
-        'writeInterval': '1', 'fields': '({0})'.format(probe_vars), 'probeLocations\n(\n{}\n)'.format('( {0[0]} {0[1]} {0[2]} )'.format(p.location)): ''}        
+                                          'writeInterval': '1', 'fields': '({0})'.format(probe_vars), 
+                                          'probeLocations\n(\n{}\n)'.format('( {0[0]} {0[1]} {0[2]} )'.format(p.location)): ''}        
 
         probe_text = '''functions
 {{
@@ -525,7 +528,7 @@ def fvcdwrite(solver, st, dt, et):
         bpy.context.scene.vi_params['flparams']['probes'] = []
     
     if ss:
-        bpy.context.scene.vi_params['flparams']['s_probes'] = [s.name for s in ss]
+        bpy.context.scene.vi_params['flparams']['s_probes'] = ss
         # for o in ss:
         #     cdict['functions'][o.name] = {'name': o.name, 'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")',
         #         'writeControl': 'timeStep', 'writeInterval': '1', 'writeFields': 'false', 'log': 'true', 'operation': 'average',

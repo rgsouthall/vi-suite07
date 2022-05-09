@@ -2753,6 +2753,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
+        dp = bpy.context.evaluated_depsgraph_get()
         scene = context.scene
 
         if viparams(self, scene):
@@ -2865,7 +2866,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         #     frame_system_dir
         #     os.makedirs(frame_dir)
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
-            cdfile.write(fvcdwrite(casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
+            cdfile.write(fvcdwrite(svp, dp, casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
             fvsolfile.write(fvsolwrite(casenode, svp['flparams']['solver_type']))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
@@ -3062,24 +3063,25 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #                ngpyfile.write("mp = MeshingParameters(maxh={}, yangle = {}, grading = {}, optsteps2d = {}, optsteps3d = {}, delaunay = True, maxoutersteps = {})\n".format(maxh, expnode.yang, expnode.grading, expnode.optimisations, expnode.optimisations, expnode.maxsteps))
                 mp = MeshingParameters(maxh=maxh, yangle = self.expnode.yang, grading = self.expnode.grading,
                 optsteps2d = self.expnode.optimisations, optsteps3d = self.expnode.optimisations, delaunay = True, maxoutersteps = self.expnode.maxsteps)
-                bm = bmesh.new()
-                bm.from_object(o, dp)
-                bm.transform(o.matrix_world)
-                bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
-                bm.normal_update()
-                tris = bm.calc_loop_triangles()
+                bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
+                # bm = bmesh.new()
+                # bm.from_object(o, dp)
+                # bm.transform(o.matrix_world)
+                # bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
+                # bm.normal_update()
+                # tris = bm.calc_loop_triangles()
 
-                with open(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), 'w') as stlfile:
-                    stlfile.write('solid\n')
+                # with open(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), 'w') as stlfile:
+                #     stlfile.write('solid\n')
 
-                    for tri in tris:
-                        stlfile.write('facet normal {0[0]} {0[1]} {0[2]}\nouter loop\n'.format(tri[0].face.normal))
+                #     for tri in tris:
+                #         stlfile.write('facet normal {0[0]} {0[1]} {0[2]}\nouter loop\n'.format(tri[0].face.normal))
 
-                        for t in tri:
-                            stlfile.write('vertex {0[0]} {0[1]} {0[2]}\n'.format(t.vert.co))
+                #         for t in tri:
+                #             stlfile.write('vertex {0[0]} {0[1]} {0[2]}\n'.format(t.vert.co))
 
-                        stlfile.write('end loop\nend facet\n')
-                    stlfile.write('endsolid\n')
+                #         stlfile.write('end loop\nend facet\n')
+                #     stlfile.write('endsolid\n')
 
 #                ngpyfile.write("geo = STLGeometry('{}')\n".format(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))))
                 geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
@@ -3361,6 +3363,9 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
             Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(svp['flparams']['offilebase']))).wait()
 
+            for oname in svp['flparams']['s_probes']:
+                Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, svp['flparams']['offilebase']))).wait()
+            
             if self.pv:
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(svp['flparams']['offilebase'])))
             else:

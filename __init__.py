@@ -166,7 +166,7 @@ else:
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, No_Anim, So_Anim, No_En_Net_Anim, No_En_Mat_Anim, ViEnRXIn, ViEnRY1In, ViEnRY2In, ViEnRY3In
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
-    from .vi_func import lividisplay, logentry
+    from .vi_func import lividisplay, logentry, write_stl
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype
@@ -420,7 +420,8 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                     ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"),
                     ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
                     ("4", "Light Array", "Specifies a LiVi lighting array"),
-                    ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation")],
+                    ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation"),
+                    ("6", "CFD Probe", "Specifies a mesh as a CFD probe"),],
                     "", "Specify the type of VI-Suite zone", "0")
 
     # LiVi object properties
@@ -487,6 +488,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class")
     embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class")
     embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material")
+    write_stl = write_stl
 
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)

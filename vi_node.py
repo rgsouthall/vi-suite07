@@ -3107,7 +3107,7 @@ class No_Flo_Case(Node, ViNodes):
     sun: StringProperty(name="", description="Sun for solar radiation analysis", default="", update = nodeupdate)
     buossinesq: BoolProperty(name = '', description = 'Buossinesq approximation', default = 0, update = nodeupdate)
     stime: FloatProperty(name = '', description = 'Simulation start time', min = 0, max = 10, default = 0)
-    dtime: FloatProperty(name = '', description = 'False time step', min = 0.001, max = 10, default = 0.005, update = nodeupdate)
+    dtime: FloatProperty(name = '', description = 'False time step', min=0.001, max=10, default=0.005, precision=4, update=nodeupdate)
     etime: FloatProperty(name = '', description = 'Simulation end time', min = 1, max = 1000, default = 5, update = nodeupdate)
     pval: FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)
     pnormval: FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)

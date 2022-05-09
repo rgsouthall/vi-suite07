@@ -2095,6 +2095,41 @@ def spfc(self):
     else:
         return
 
+
+def write_stl(self, stl_path, dp):
+    o = self.id_data
+    bm = bmesh.new()
+    bm.from_object(o, dp)
+    # Below is broken < 3.2
+    # bm.from_object(o, dp, face_normals=True, vertex_normals=True)
+    
+#    bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
+#    bm.normal_update()
+    tris = bm.calc_loop_triangles()
+
+    with open(stl_path, 'w') as stlfile:
+        stlfile.write('solid\n')
+        
+        for tri in tris:
+            # Below can correct post-processing normal but created incorrect STLs
+            blender_normal = (o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()
+            face_normal = (o.rotation_euler.to_matrix() @ tri[0].face.normal).to_3d().normalized()
+            stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format((o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()))
+            # stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(tri[0].face.normal.normalized()))
+
+            if face_normal.angle(blender_normal) < 0.1 or o.vi_params.vi_type in ('2', '3'):
+                for t in tri:
+                    stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(o.matrix_world@t.vert.co))
+            else:
+                for t in tri[::-1]:
+                    stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(o.matrix_world@t.vert.co))
+
+            stlfile.write('endloop\nendfacet\n')
+        stlfile.write('endsolid\n')
+    bm.transform(o.matrix_world)
+    return bm
+
+
 def find_materials_in_groupinstances(empty):
     if empty.instance_collection.name in checked_groups_names_list:
         return None
