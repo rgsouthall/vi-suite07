@@ -38,7 +38,7 @@ from .flovi_func import ofheader, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, f
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
-from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, bm_to_stl
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp
 from .vi_dicts import rvuerrdict, pmerrdict
@@ -1248,20 +1248,6 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
         if self.kivyrun.poll() is None:
             self.kivyrun.kill()
-#        calcout = li_calc(self, simnode, livisimacc(simnode))
-        # context.evaluated_depsgraph_get()
-        # simnode = context.node
-
-        # if calcout == 'CANCELLED':
-        #     self.report({'ERROR'},"Simulation was cancelled. See log file")
-        #     return {'CANCELLED'}
-        # else:
-        #     try:
-        #         simnode['reslists'] = calcout
-        #     except:
-        #         self.report({'ERROR'}, "Previous instance of rvu still running?")
-        #         logentry('ID problem')
-        #         return {'CANCELLED'}
 
         svp['viparams']['vidisp'] = 'li'
         svp['viparams']['resnode'] = self.simnode.name
@@ -2805,37 +2791,60 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             logentry("Not every face has a material attached")
             return {'CANCELLED'}
 
-        if casenode.turbulence == 'laminar':
-            svp['flparams']['solver'] = 'icoFoam'
-            svp['flparams']['solver_type'] = 'if'
-            svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz']
-        elif casenode.transience == '0':
+        # if casenode.turbulence == 'laminar':
+        #     svp['flparams']['solver'] = 'simpleFoam'
+        #     svp['flparams']['solver_type'] = 'lsf'
+        #     svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz']
+        svp['flparams']['et'] = casenode.etime
+        svp['flparams']['features'] = {'turb': {'laminar': '', 'kEpsilon': 'kE', 'kOmega': 'kO', 'SpalartAllmaras': 'sA'}[casenode.turbulence]}
+        svp['flparams']['features']['rad'] = casenode.buoyancy and casenode.radiation
+        svp['flparams']['features']['buoy'] = casenode.buoyancy
+        svp['flparams']['features']['buoss'] = casenode.buoyancy and casenode.buossinesq
+        base_residuals = ['Ux', 'Uy', 'Uz']
+        turb_residuals = {'laminar': [], 'kEpsilon': ['k', 'epsilon'], 'kOmega': ['k', 'omega'], 'SpalartAllmaras': ['nuTilda']}[casenode.turbulence]
+        rad_residuals = ['G'] if svp['flparams']['features']['rad'] else []
+        buoy_residuals = ['p_rgh'] if svp['flparams']['features']['buoy'] else ['p']
+        
+
+        if casenode.buoyancy:
+            buoss_residuals = ['e'] if casenode.buossinesq else ['h']
+        else:
+            buoss_residuals = []
+
+        if casenode.transience == '0':
             if casenode.buoyancy:
                 svp['flparams']['pref'] = casenode.pabsval
                 svp['flparams']['solver'] = 'buoyantSimpleFoam'
                 if not casenode.buossinesq:
                     svp['flparams']['solver_type'] = 'bsf'
-                    if casenode.radiation:
-                        svp['flparams']['residuals'] = ['G', 'p_rgh', 'k', 'epsilon', 'h']
-                    else:
-                        svp['flparams']['residuals'] = ['p_rgh', 'k', 'epsilon', 'h']
-                else:
-                    svp['flparams']['solver_type'] = 'bbsf'
-                    if casenode.radiation:
-                        svp['flparams']['residuals'] = ['G', 'Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e', 'p_rgh']
-                    else:
-                        svp['flparams']['residuals'] = ['Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e', 'p_rgh']
+                #     if casenode.radiation:
+                #         svp['flparams']['residuals'] = ['G', 'p_rgh', 'k', 'epsilon', 'h']
+                #     else:
+                #         svp['flparams']['residuals'] = ['p_rgh', 'k', 'epsilon', 'h']
+                # else:
+                #     svp['flparams']['solver_type'] = 'bbsf'
+                #     if casenode.radiation:
+                #         svp['flparams']['residuals'] = ['G', 'Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e', 'p_rgh']
+                #     else:
+                #         svp['flparams']['residuals'] = ['Ux', 'Uy', 'Uz', 'k', 'epsilon', 'e', 'p_rgh']
 
             else:
                 svp['flparams']['solver'] = 'simpleFoam'
                 svp['flparams']['pref'] = casenode.pnormval
-                if casenode.turbulence == 'kEpsilon':
-                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon']
-                if casenode.turbulence == 'kOmega':
-                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'omega']
-                if casenode.turbulence == 'SpalartAllmaras':
-                    svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'nuTilda']
+                
+                if casenode.turbulence == 'laminar':
+                    svp['flparams']['solver_type'] = 'lsf'
+                    # svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz']
+
+                # elif casenode.turbulence == 'kEpsilon':
+                #     svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'epsilon']
+                # elif casenode.turbulence == 'kOmega':
+                #     svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'k', 'omega']
+                # elif casenode.turbulence == 'SpalartAllmaras':
+                #     svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz', 'nuTilda']
                 svp['flparams']['solver_type'] = 'sf'
+            svp['flparams']['residuals'] = base_residuals + buoy_residuals + turb_residuals + buoss_residuals + rad_residuals
+
 
         elif casenode.transience == '1':
             if casenode.buoyancy:
@@ -2868,32 +2877,30 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
             cdfile.write(fvcdwrite(svp, dp, casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
-            fvsolfile.write(fvsolwrite(casenode, svp['flparams']['solver_type']))
+            fvsolfile.write(fvsolwrite(casenode, svp['flparams']['features']))
         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
-            fvschfile.write(fvschwrite(casenode, svp['flparams']['solver_type']))
+            fvschfile.write(fvschwrite(casenode, svp['flparams']['features']))
 
-        if casenode.turbulence == 'laminar':
-            with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:
-                tpfile.write(fvtpwrite(casenode, svp['flparams']['solver_type']))
+        # if casenode.turbulence == 'laminar':
+        
+
+        with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:
+            mtfile.write(fvmtwrite(casenode, svp['flparams']['features']))
+
+        if casenode.buoyancy:
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'pRef'), 'w') as pfile:
+                pfile.write(fvprefwrite(casenode))
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'thermophysicalProperties'), 'w') as tppfile:
+                tppfile.write(fvtppwrite(casenode, svp['flparams']['features']))
+
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'g'), 'w') as gfile:
+                gfile.write(fvgwrite())
+            if casenode.radiation:
+                with open(os.path.join(svp['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as rpfile:
+                    rpfile.write(fvrpwrite(casenode))
         else:
-            with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:
-                mtfile.write(fvmtwrite(casenode, svp['flparams']['solver_type']))
-
-            if casenode.buoyancy:
-                with open(os.path.join(svp['flparams']['ofcfilebase'], 'pRef'), 'w') as pfile:
-                    pfile.write(fvprefwrite(casenode, svp['flparams']['solver_type']))
-                with open(os.path.join(svp['flparams']['ofcfilebase'], 'thermophysicalProperties'), 'w') as tppfile:
-                    tppfile.write(fvtppwrite(casenode, svp['flparams']['solver_type']))
-                # with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:
-                #     mtfile.write(fvmtwrite(casenode, svp['flparams']['solver_type']))
-                with open(os.path.join(svp['flparams']['ofcfilebase'], 'g'), 'w') as gfile:
-                    gfile.write(fvgwrite())
-                if casenode.radiation:
-                    with open(os.path.join(svp['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as rpfile:
-                        rpfile.write(fvrpwrite(casenode, svp['flparams']['solver_type']))
-            else:
-                with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:
-                    tpfile.write(fvtpwrite(casenode, svp['flparams']['solver_type']))
+            with open(os.path.join(svp['flparams']['ofcfilebase'], 'transportProperties'), 'w') as tpfile:
+                tpfile.write(fvtpwrite())
 
         casenode.post_case()
         return {'FINISHED'}
@@ -2949,6 +2956,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         svp = scene.vi_params
         self.vl = context.view_layer
         self.expnode = context.node
+        case_nodes = [l.from_node for l in self.expnode.inputs['Case in'].links]
+        bound_nodes = [l.to_node for l in self.expnode.outputs['Mesh out'].links]
+        
+        for node in case_nodes + bound_nodes:
+            node.use_custom_color = 1
+
         self.curcoll = context.collection
         meshcoll = create_coll(context, 'FloVi Mesh')
         clear_coll(context, meshcoll)
@@ -2960,7 +2973,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self.omats = []
 
         if not dobs:
-            logentry('FloVi requires a domain object but none was found. Check the domain object is not in the FloVi Mesh collection')
+            logentry('FloVi requires a domain object but none was found. Check the domain object is not hidden or in the FloVi Mesh collection')
+            self.report({'ERROR'},'No, or hidden, domain objects')
             return {'CANCELLED'}
 
         for ob in self.obs:
@@ -3038,19 +3052,16 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #                        ngpyfile.write("\nfd = FaceDescriptor(bc = {0}, domin = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc = i, domin = 1, surfnr = i + 1)
                         fd.bcname = mat.name
-#                        print('first', fd.bcname)
                     else:
 #                        ngpyfile.write("fd = FaceDescriptor(bc = {0}, domin = 0, domout = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc = i, domin = 0, domout = 1, surfnr = i + 1)
                         fd.bcname = mat.name
-#                        print('second', fd.bcname)
-#                    print('fd1', fd)
+
 #                    ngpyfile.write("fd = totmesh.Add(fd)\n")
                     fd = totmesh.Add(fd)
-#                    print('fd2', fd)
                     fds.append(fd)
 #                    ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
-#                    print(dir(totmesh), fd, mat.name)
+
                     try:
                         pass
                         # totmesh.SetBCName(0, mat.name)
@@ -3063,26 +3074,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #                ngpyfile.write("mp = MeshingParameters(maxh={}, yangle = {}, grading = {}, optsteps2d = {}, optsteps3d = {}, delaunay = True, maxoutersteps = {})\n".format(maxh, expnode.yang, expnode.grading, expnode.optimisations, expnode.optimisations, expnode.maxsteps))
                 mp = MeshingParameters(maxh=maxh, yangle = self.expnode.yang, grading = self.expnode.grading,
                 optsteps2d = self.expnode.optimisations, optsteps3d = self.expnode.optimisations, delaunay = True, maxoutersteps = self.expnode.maxsteps)
-                bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
-                # bm = bmesh.new()
-                # bm.from_object(o, dp)
-                # bm.transform(o.matrix_world)
-                # bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
-                # bm.normal_update()
-                # tris = bm.calc_loop_triangles()
+#                bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
 
-                # with open(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), 'w') as stlfile:
-                #     stlfile.write('solid\n')
-
-                #     for tri in tris:
-                #         stlfile.write('facet normal {0[0]} {0[1]} {0[2]}\nouter loop\n'.format(tri[0].face.normal))
-
-                #         for t in tri:
-                #             stlfile.write('vertex {0[0]} {0[1]} {0[2]}\n'.format(t.vert.co))
-
-                #         stlfile.write('end loop\nend facet\n')
-                #     stlfile.write('endsolid\n')
-
+                bm = bmesh.new()
+                bm.from_object(o, dp)   
+                bm.transform(o.matrix_world)
+                bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))) 
 #                ngpyfile.write("geo = STLGeometry('{}')\n".format(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))))
                 geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
 
@@ -3091,13 +3088,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     mp.RestrictH(x=v.co[0],y=v.co[1],z=v.co[2],h=max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces]))
 
                 for e in bm.edges:
-                    if e.calc_length() > 2 * max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces]):
-                        segs = int(e.calc_length()/max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces])) + 1
+                    if 'Solid_ground' in [o.material_slots[f.material_index].material.name for f in e.link_faces]:
+                        print(e.calc_length(), 2 * min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces]))
+                    if e.calc_length() > 2 * min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces]):
+                        segs = int(e.calc_length()/min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces])) + 1
 
                         for s in range(1, segs):
                             vco = e.verts[0].co + (e.verts[1].co - e.verts[0].co) * s/segs
 #                            ngpyfile.write("mp.RestrictH(x={0[0]},y={0[1]},z={0[2]},h={1})\n".format(vco, min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces])))
-                            mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces]))
+                            mp.RestrictH(x=vco[0],y=vco[1],z=vco[2],h=min([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in e.link_faces]))
 
 #                ngpyfile.write("m = geo.GenerateMesh(mp = mp)\n")
 
@@ -3105,7 +3104,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     m = geo.GenerateMesh(mp = mp, perfstepsend=MeshingStep.MESHSURFACE)#'/home/ryan/Store/OneDrive/Blender28/flovi1/Openfoam/meshsize.msz')
 
                 logentry("Netgen surface mesh generated")
-#                print(dir(m))
 #                ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
 
                 for ei, el in enumerate(m.Elements2D()):
@@ -3242,7 +3240,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                         for line in cm.stdout:
                             if '***Error' in line.decode():
-                                logentry('Mesh errors: {}'.format(line))
+                                logentry('Mesh errors:{}'.format(line.decode()))
 
                     for entry in os.scandir(os.path.join(svp['flparams']['offilebase'], st, 'polyMesh')):
                         if entry.is_file():
@@ -3352,16 +3350,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.pfile.check("\n".join(['{0[0]} {0[1]}'.format(i) for i in residict.items()]))
             return {'PASS_THROUGH'}
 
-        elif self.run.poll() is None and self.kivyrun.poll() is not None:
-            self.run.kill()
-            return {'CANCELLED'}
-        else:
+        elif self.kivyrun.poll() is not None or self.run.poll is not None:
             self.kivyrun.kill()
+            self.run.kill()
 
             if self.processes > 1:
                 Popen(shlex.split("foamExec reconstructPar -case {}".format(svp['flparams']['offilebase']))).wait()
-
-            Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(svp['flparams']['offilebase']))).wait()
 
             for oname in svp['flparams']['s_probes']:
                 Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, svp['flparams']['offilebase']))).wait()
@@ -3414,15 +3408,19 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         (self.convergence, self.econvergence, self.pconvergence, self.residuals, self.processes)  = (svp['flparams']['uresid'], svp['flparams']['keoresid'], svp['flparams']['presid'], svp['flparams']['residuals'], self.simnode.processes)
         self.fpfile = os.path.join(svp['viparams']['newdir'], 'floviprogress')
         self.pfile = fvprogressfile(svp['viparams']['newdir'])
-        self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), str(self.residuals))
+        self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals))
         self.pv = self.simnode.pv
 
+        Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(svp['flparams']['offilebase']))).wait()
+        
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:
+                
                 with open(os.path.join(svp['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
                     fvdcpfile.write(fvdcpwrite(self.processes))
 
                 Popen(shlex.split("foamExec decomposePar -force -case {}".format(svp['flparams']['offilebase']))).wait()
+                print('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], svp['flparams']['offilebase']))
                 self.run = Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], svp['flparams']['offilebase'])), stdout = fvprogress)
             else:
                 self.run = Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", svp['flparams']['offilebase'])), stdout = fvprogress)

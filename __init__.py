@@ -166,7 +166,7 @@ else:
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, No_Anim, So_Anim, No_En_Net_Anim, No_En_Mat_Anim, ViEnRXIn, ViEnRY1In, ViEnRY2In, ViEnRY3In
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
-    from .vi_func import lividisplay, logentry, write_stl
+    from .vi_func import lividisplay, logentry, ob_to_stl
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype
@@ -488,7 +488,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class")
     embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class")
     embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material")
-    write_stl = write_stl
+    write_stl = ob_to_stl
 
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
@@ -551,7 +551,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 
     flovi_bmbu_subtype: EnumProperty(items = ret_fvbu_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbu_val: fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
-    flovi_u_type: eprop([("0", "Vector", "Speficy velocity as a vector"), ("1", 'Azimuth', "Specify velocity as an azimuth and speed")], "", "Velocity type", "0")
+    flovi_bmbu_inval: fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
+    flovi_u_type: eprop([("0", "Vector", "Specify velocity as a vector"), ("1", 'Azimuth', "Specify velocity as an azimuth and speed")], "", "Velocity type", "0")
     flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
     flovi_u_azi: fprop("deg.", "Pressure value", 0, 360, 0)
     flovi_u_speed: fprop("m/s", "Pressure value", 0, 1000, 1)
@@ -587,9 +588,11 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_a_field: bprop("", "Take boundary alphat from the field alphat", False)
 
     flovi_prgh_subtype: EnumProperty(items = ret_fvbprgh_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_prgh_val: fprop("", "p_rgh value", -1000, 1000, 0.0)
-    flovi_prgh_p: fprop("", "p_rgh p", -1000, 1000, 0.0)
+    flovi_prgh_val: fprop("", "p_rgh value", -100000, 100000, 0.0)
+    flovi_prgh_p: fprop("", "p_rgh p", -100000, 100000, 0.0)
     flovi_prgh_field: bprop("", "Take boundary p_rgh from the field p_rgh", True)
+    flovi_prgh_p0: fprop("", "p_rgh p0", -100000, 100000, 0.0)
+    flovi_prgh_gamma: fprop("", "p_rgh gamma", 0, 10, 1.4)
 
     flovi_ng_max: fprop("", "Netgen max cell size", 0.001, 100, 0.5)
 

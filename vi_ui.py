@@ -230,81 +230,91 @@ class VI_PT_Mat(bpy.types.Panel):
                     newrow(layout, "U type:", mvp, "flovi_bmbu_subtype")
 
                     if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet'):
-                        newrow(layout, "Field value:", mvp, "flovi_u_field")
+                        newrow(layout, "U field value:", mvp, "flovi_u_field")
 
                         if not mvp.flovi_u_field:
-                            newrow(layout, "Velocity value:", mvp, "flovi_u_type")
+                            newrow(layout, "U direction:", mvp, "flovi_u_type")
                             if mvp.flovi_u_type == '0':
-                                newrow(layout, "Velocity value:", mvp, "flovi_bmbu_val")
+                                newrow(layout, "U value:", mvp, "flovi_bmbu_val")
+                                newrow(layout, "U inlet value:", mvp, "flovi_bmbu_inval")
                             else:
                                 newrow(layout, "Azimuth:", mvp, "flovi_u_azi")
                                 newrow(layout, "Speed:", mvp, "flovi_u_speed")
                                 
                     if svp.get('flparams') and svp['flparams'].get('params'):                       
-                        if 'l' not in svp['flparams']['params']:    
-                            newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
-                            if mvp.flovi_bmbnut_subtype == 'fixedValue':
-                                newrow(layout, "Nut field:", mvp, "flovi_nut_field")
-                                if not mvp.flovi_u_field:
-                                    newrow(layout, "Nut value:", mvp, "flovi_bmbnut_val")
-                            if 'k' in svp['flparams']['params']:
-                                newrow(layout, "k type:", mvp, "flovi_k_subtype")
-                                if mvp.flovi_k_subtype == 'fixedValue':
-                                    newrow(layout, "K field:", mvp, "flovi_k_field")
-                                    if not mvp.flovi_k_field:
-                                        newrow(layout, "K value:", mvp, "flovi_k_val")
-                                elif mvp.flovi_k_subtype == 'turbulentIntensityKineticEnergyInlet':
-                                    newrow(layout, "K intensity:", mvp, "flovi_k_intensity")
-                                    newrow(layout, "K field:", mvp, "flovi_k_field")
-                                    if not mvp.flovi_k_field:
-                                        newrow(layout, "K value:", mvp, "flovi_k_val")
-                                newrow(layout, "Epsilon type:", mvp, "flovi_bmbe_subtype")
-                                if mvp.flovi_bmbe_subtype == 'fixedValue':
-                                    newrow(layout, "Epsilon field:", mvp, "flovi_e_field")
-                                    if not mvp.flovi_e_field:
-                                        newrow(layout, "Epsilon value:", mvp, "flovi_bmbe_val")
-                            elif 'o' in svp['flparams']['params']:
-                                newrow(layout, "k type:", mvp, "flovi_k_subtype")
-                                if mvp.flovi_k_subtype == 'fixedValue':
-                                    newrow(layout, "k field:", mvp, "flovi_k_field")
-                                    if not mvp.flovi_k_field:
-                                        newrow(layout, "k value:", mvp, "flovi_k_val")
-                                newrow(layout, "Omega type:", mvp, "flovi_bmbo_subtype")
-                                if mvp.flovi_bmbo_subtype == 'fixedValue':
-                                    newrow(layout, "Omega field:", mvp, "flovi_o_field")
-                                    if not mvp.flovi_o_field:
-                                        newrow(layout, "Omega value:", mvp, "flovi_bmbo_val")
+                        # if 'l' not in svp['flparams']['params']:    
+                        newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
+                        if mvp.flovi_bmbnut_subtype == 'fixedValue':
+                            newrow(layout, "Nut field:", mvp, "flovi_nut_field")
+                            if not mvp.flovi_u_field:
+                                newrow(layout, "Nut value:", mvp, "flovi_bmbnut_val")
+                        if 'k' in svp['flparams']['params']:
+                            newrow(layout, "k type:", mvp, "flovi_k_subtype")
+                            if mvp.flovi_k_subtype == 'fixedValue':
+                                newrow(layout, "K field:", mvp, "flovi_k_field")
+                                if not mvp.flovi_k_field:
+                                    newrow(layout, "K value:", mvp, "flovi_k_val")
+                            elif mvp.flovi_k_subtype == 'turbulentIntensityKineticEnergyInlet':
+                                newrow(layout, "K intensity:", mvp, "flovi_k_intensity")
+                                newrow(layout, "K field:", mvp, "flovi_k_field")
+                                if not mvp.flovi_k_field:
+                                    newrow(layout, "K value:", mvp, "flovi_k_val")
+                            newrow(layout, "Epsilon type:", mvp, "flovi_bmbe_subtype")
+                            if mvp.flovi_bmbe_subtype == 'fixedValue':
+                                newrow(layout, "Epsilon field:", mvp, "flovi_e_field")
+                                if not mvp.flovi_e_field:
+                                    newrow(layout, "Epsilon value:", mvp, "flovi_bmbe_val")
+                        elif 'o' in svp['flparams']['params']:
+                            newrow(layout, "k type:", mvp, "flovi_k_subtype")
+                            if mvp.flovi_k_subtype == 'fixedValue':
+                                newrow(layout, "k field:", mvp, "flovi_k_field")
+                                if not mvp.flovi_k_field:
+                                    newrow(layout, "k value:", mvp, "flovi_k_val")
+                            newrow(layout, "Omega type:", mvp, "flovi_bmbo_subtype")
+                            if mvp.flovi_bmbo_subtype == 'fixedValue':
+                                newrow(layout, "Omega field:", mvp, "flovi_o_field")
+                                if not mvp.flovi_o_field:
+                                    newrow(layout, "Omega value:", mvp, "flovi_bmbo_val")
+                        
+                        elif 's' in svp['flparams']['params']:
+                            newrow(layout, "Nutilda type:", mvp, "flovi_bmbnutilda_subtype")
+                            if mvp.flovi_bmbnutilda_subtype == 'fixedValue':
+                                newrow(layout, "Nutilda field:", mvp, "flovi_nutilda_field")
+                                if not mvp.flovi_nutilda_field:
+                                    newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
+                        
+                        if 't' in svp['flparams']['params']:  
+                            newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
+                            if mvp.flovi_bmbt_subtype == 'fixedValue':
+                                newrow(layout, "T field:", mvp, "flovi_t_field")
+                                if not mvp.flovi_t_field:
+                                    newrow(layout, "T value:", mvp, "flovi_bmbt_val")
+                            elif mvp.flovi_bmbt_subtype == 'inletOutlet':
+                                newrow(layout, "T field:", mvp, "flovi_t_field")
+                                if not mvp.flovi_t_field:
+                                    newrow(layout, "T inlet value:", mvp, "flovi_bmbti_val")
+                                    newrow(layout, "T value:", mvp, "flovi_bmbt_val")
                             
-                            elif 's' in svp['flparams']['params']:
-                                newrow(layout, "Nutilda type:", mvp, "flovi_bmbnutilda_subtype")
-                                if mvp.flovi_bmbnutilda_subtype == 'fixedValue':
-                                    newrow(layout, "Nutilda field:", mvp, "flovi_nutilda_field")
-                                    if not mvp.flovi_nutilda_field:
-                                        newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
-                            
-                            if 't' in svp['flparams']['params']:  
-                                newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
-                                if mvp.flovi_bmbt_subtype == 'fixedValue':
-                                    newrow(layout, "T field:", mvp, "flovi_t_field")
-                                    if not mvp.flovi_t_field:
-                                        newrow(layout, "T value:", mvp, "flovi_bmbt_val")
-                                elif mvp.flovi_bmbt_subtype == 'inletOutlet':
-                                    newrow(layout, "T field:", mvp, "flovi_t_field")
-                                    if not mvp.flovi_t_field:
-                                        newrow(layout, "T inlet value:", mvp, "flovi_bmbti_val")
-                                        newrow(layout, "T value:", mvp, "flovi_bmbt_val")
-                                newrow(layout, "p_rgh type:", mvp, "flovi_prgh_subtype")        
-                                newrow(layout, "p_rgh field:", mvp, "flovi_prgh_field")
+                            newrow(layout, "p_rgh type:", mvp, "flovi_prgh_subtype")        
+                            newrow(layout, "p_rgh field:", mvp, "flovi_prgh_field")
+
+                            if mvp.flovi_prgh_subtype == 'totalPressure':
+                                newrow(layout, "p_rgh gamma:", mvp, "flovi_prgh_gamma") 
+                                if not mvp.flovi_prgh_field:
+                                    newrow(layout, "p0:", mvp, "flovi_prgh_p0")                                        
+                                    newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val") 
+                            else:
                                 if not mvp.flovi_prgh_field:
                                     newrow(layout, "p_rgh p:", mvp, "flovi_prgh_p") 
                                     newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val") 
-                                if 'b' in svp['flparams']['params']:
-                                    newrow(layout, "alphat type:", mvp, "flovi_a_subtype") 
-                                if 'p' in svp['flparams']['params']:
-                                    newrow(layout, "Rad type:", mvp, "flovi_rad_subtype") 
-                                    newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em") 
-                                    newrow(layout, "Emissivity value:", mvp, "flovi_rad_e") 
-                                    newrow(layout, "radiation value:", mvp, "flovi_rad_val") 
+
+                            if svp['flparams']['features']['buoy']:
+                                newrow(layout, "alphat type:", mvp, "flovi_a_subtype") 
+                            if svp['flparams']['features']['rad']:
+                                newrow(layout, "Rad type:", mvp, "flovi_rad_subtype") 
+                                newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em") 
+                                newrow(layout, "Emissivity value:", mvp, "flovi_rad_e") 
+                                newrow(layout, "radiation value:", mvp, "flovi_rad_val") 
                 newrow(layout, "Probe:", mvp, "flovi_probe")
                 
 class VI_PT_Ob(bpy.types.Panel):

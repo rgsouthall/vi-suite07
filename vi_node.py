@@ -3125,8 +3125,8 @@ class No_Flo_Case(Node, ViNodes):
     uresid: FloatProperty(name = "", description = "U convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
     keoresid: FloatProperty(name = "", description = "k/e/o convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
     enresid: FloatProperty(name = "", description = "Enthalpy convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
-    aval: FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-    p_rghval: FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
+    aval: FloatProperty(name = "", description = "alphat value", min = 0.0, max = 500, default = 0.1, update = nodeupdate)
+    p_rghval: FloatProperty(name = "", description = "p_rgh value", min = -1000000, max = 1000000, default = 0.0, update = nodeupdate)
     Gval: FloatProperty(name = "", description = "Field radiation value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
     radmodel: EnumProperty(name = '', items = [('0', 'P1', 'P1 radiation model'), ('1', 'fvDOM', 'fvDOM radiation model')], description = 'Radiation model selection', default = '0', update = nodeupdate)
 
@@ -3158,55 +3158,56 @@ class No_Flo_Case(Node, ViNodes):
         newrow(layout, 'Time step:', self, 'dtime')
         newrow(layout, 'End time:', self, 'etime')
 
-        if self.turbulence != 'laminar':
-            newrow(layout, 'Buoyancy:', self, 'buoyancy')
-            if self.buoyancy:
-                newrow(layout, 'Buossinesq:', self, 'buossinesq')
-                newrow(layout, 'Radiation:', self, 'radiation')
+       # if self.turbulence != 'laminar':
+        newrow(layout, 'Buoyancy:', self, 'buoyancy')
+        if self.buoyancy:
+            newrow(layout, 'Buossinesq:', self, 'buossinesq')
+            newrow(layout, 'Radiation:', self, 'radiation')
 
-            if not self.buoyancy:
-                newrow(layout, 'Pressure rel:', self, 'pnormval')
-            else:
-                newrow(layout, 'Pressure abs:', self, 'pabsval')
-                newrow(layout, 'p_rgh value:', self, 'p_rghval')
+        if not self.buoyancy:
+            newrow(layout, 'Pressure rel:', self, 'pnormval')
+        else:
+            newrow(layout, 'Pressure abs:', self, 'pabsval')
+            newrow(layout, 'p_rgh value:', self, 'p_rghval')
 
-            if self.turbulence == 'kEpsilon':
-                newrow(layout, 'k value:', self, 'kval')
-                newrow(layout, 'Epsilon value:', self, 'epval')
+        if self.turbulence == 'kEpsilon':
+            newrow(layout, 'k value:', self, 'kval')
+            newrow(layout, 'Epsilon value:', self, 'epval')
 
-            elif self.turbulence == 'kOmega':
-                newrow(layout, 'k Value:', self, 'kval')
-                newrow(layout, 'Omega value:', self, 'oval')
+        elif self.turbulence == 'kOmega':
+            newrow(layout, 'k Value:', self, 'kval')
+            newrow(layout, 'Omega value:', self, 'oval')
 
-                newrow(layout, 'Nut Value:', self, 'nutval')
-
-                if self.buoyancy:
-                    newrow(layout, 'T value:', self, 'tval')
-                    newrow(layout, 'Radiation:', self, 'radiation')
-
-                    if self.radiation:
-                        newrow(layout, 'Rad model:', self, 'radmodel')
-                        newrow(layout, 'G value:', self, 'Gval')
-                        newrow(layout, 'Solar:', self, 'solar')
-
-                        if self.solar:
-                            layout.prop_search(self, 'sun', bpy.data, 'lights', text='Sun', icon='NONE')
+            newrow(layout, 'Nut Value:', self, 'nutval')
 
             if self.buoyancy:
                 newrow(layout, 'T value:', self, 'tval')
-                if self.buossinesq:
-                    newrow(layout, 'e value:', self, 'enval')
-                else:
-                    newrow(layout, 'h value:', self, 'enval')
+                newrow(layout, 'Radiation:', self, 'radiation')
 
                 if self.radiation:
-                    newrow(layout, 'Solar:', self, 'solar')
-                    if self.solar:
-                        layout.prop_search(self, 'sun', bpy.data, 'lights', text='SUn*', icon='NONE')
                     newrow(layout, 'Rad model:', self, 'radmodel')
                     newrow(layout, 'G value:', self, 'Gval')
+                    newrow(layout, 'Solar:', self, 'solar')
 
-            newrow(layout, 'Nut Value:', self, 'nutval')
+                    if self.solar:
+                        layout.prop_search(self, 'sun', bpy.data, 'lights', text='Sun', icon='NONE')
+
+        if self.buoyancy:
+            newrow(layout, 'T value:', self, 'tval')
+            newrow(layout, 'alphat value:', self, 'aval')
+            if self.buossinesq:
+                newrow(layout, 'e value:', self, 'enval')
+            else:
+                newrow(layout, 'h value:', self, 'enval')
+
+            if self.radiation:
+                newrow(layout, 'Solar:', self, 'solar')
+                if self.solar:
+                    layout.prop_search(self, 'sun', bpy.data, 'lights', text='SUn*', icon='NONE')
+                newrow(layout, 'Rad model:', self, 'radmodel')
+                newrow(layout, 'G value:', self, 'Gval')
+
+        newrow(layout, 'Nut Value:', self, 'nutval')
 
         newrow(layout, 'Velocity val:', self, 'uval')
         newrow(layout, 'p Residual:', self, 'presid')
@@ -3224,8 +3225,8 @@ class No_Flo_Case(Node, ViNodes):
             if self.turbulence != 'laminar':
                 newrow(layout, 'k/e/o Residual:', self, 'keoresid')
 
-            row = layout.row()
-            row.operator("node.flovi_case", text = "Export")
+        row = layout.row()
+        row.operator("node.flovi_case", text = "Export")
 
     def update(self):
         for sock in self.outputs:

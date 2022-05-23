@@ -426,7 +426,7 @@ if __name__ == '__main__':\n\
         kivyfile.write(kivytext)
     return Popen([sys.executable, file+".py"])
 
-def fvprogressbar(file, residuals):
+def fvprogressbar(file, et, residuals):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
 import os, sys\n\
@@ -488,11 +488,12 @@ class Calculating(App):\n\
             for ri, r in enumerate(pffile.readlines()):\n\
                 try:\n\
                     if r.split()[0] == 'Time':\n\
-                        self.tt.text = '{:.4f}'.format(float(r.split()[1]))\n\
+                        self.tt.text = '{:.5f}'.format(float(r.split()[1]))\n\
+                        self.tt.value = '{:.5f}'.format(float(r.split()[1])/float("+str(et)+"))\n\
                     else:\n\
                         li = self.labels.index(r.split()[0])\n\
                         self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\
-                        self.nums[li].text = '{:.4f}'.format(abs(float(r.split()[1])))\n\
+                        self.nums[li].text = '{:.5f}'.format(abs(float(r.split()[1])))\n\
                 except Exception as e: pass\n\
 \n\
 if __name__ == '__main__':\n\
@@ -2096,38 +2097,70 @@ def spfc(self):
         return
 
 
-def write_stl(self, stl_path, dp):
-    o = self.id_data
-    bm = bmesh.new()
-    bm.from_object(o, dp)
-    # Below is broken < 3.2
-    # bm.from_object(o, dp, face_normals=True, vertex_normals=True)
-    
-#    bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
-#    bm.normal_update()
-    tris = bm.calc_loop_triangles()
+def bm_to_stl(bm, stl_path):
+    bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
 
     with open(stl_path, 'w') as stlfile:
         stlfile.write('solid\n')
-        
-        for tri in tris:
-            # Below can correct post-processing normal but created incorrect STLs
-            blender_normal = (o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()
-            face_normal = (o.rotation_euler.to_matrix() @ tri[0].face.normal).to_3d().normalized()
-            stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format((o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()))
-            # stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(tri[0].face.normal.normalized()))
 
-            if face_normal.angle(blender_normal) < 0.1 or o.vi_params.vi_type in ('2', '3'):
-                for t in tri:
-                    stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(o.matrix_world@t.vert.co))
-            else:
-                for t in tri[::-1]:
-                    stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(o.matrix_world@t.vert.co))
+        for face in bm.faces:
+            stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(face.normal.normalized()))
+
+            for vert in face.verts:
+                stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(vert.co))
 
             stlfile.write('endloop\nendfacet\n')
+
         stlfile.write('endsolid\n')
+    bm.free()
+
+def ob_to_stl(self, dp, stl_path):
+    o = self.id_data
+    bm = bmesh.new()
+    bm.from_object(o, dp)   
     bm.transform(o.matrix_world)
-    return bm
+    bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
+
+    with open(stl_path, 'w') as stlfile:
+        stlfile.write('solid\n')
+
+        for face in bm.faces:
+            stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(face.normal.normalized()))
+
+            for vert in face.verts:
+                stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(vert.co))
+
+            stlfile.write('endloop\nendfacet\n')
+
+        stlfile.write('endsolid\n')
+    bm.free()
+    # bm.transform(o.matrix_world.inverted())
+    # bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
+    # bm.normal_update()
+    
+    # tris = bm.calc_loop_triangles()
+
+    # with open(stl_path, 'w') as stlfile:
+    #     stlfile.write('solid\n')
+        
+    #     for tri in tris:
+    #         # Below can correct post-processing normal but creates incorrect STLs
+    #         blender_normal = (o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()
+    #         face_normal = (o.rotation_euler.to_matrix() @ tri[0].face.normal).to_3d().normalized()
+    #         stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format((o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()))
+    #         # stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(tri[0].face.normal.normalized()))
+
+    #         if face_normal.angle(blender_normal) < 0.1 or o.vi_params.vi_type in ('2', '3'):
+    #             for t in tri:
+    #                 stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(o.matrix_world@t.vert.co))
+    #         else:
+    #             for t in tri[::-1]:
+    #                 stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(o.matrix_world@t.vert.co))
+
+    #         stlfile.write('endloop\nendfacet\n')
+    #     stlfile.write('endsolid\n')
+    # bm.transform(o.matrix_world)
+    
 
 
 def find_materials_in_groupinstances(empty):
