@@ -1100,6 +1100,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         frame = scene.frame_current
         svp = scene.vi_params
         svp.vi_display = 0
+        svp['viparams']['vidisp'] = ''
 
         if viparams(self, scene):
             return {'CANCELLED'}
@@ -1144,10 +1145,10 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon map')
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry",
-                            'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
-                            'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-                            'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
-                            'fatal - no valid photon ports found\n': 'Re-export the geometry'}
+                           'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
+                           'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
+                           'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
+                           'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
@@ -1237,7 +1238,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 else:
                     self.reslists += lhout
 
-            elif (scontext == 'CBDM' and subcontext in ('1', '2')):# or (context == 'Compliance' and subcontext == '3'):
+            elif (scontext == 'CBDM' and subcontext in ('1', '2')):
                 cbdmout = ovp.udidacalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
                 if cbdmout == 'CANCELLED':
                     if self.kivyrun.poll() is None:
@@ -1249,9 +1250,9 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         if self.kivyrun.poll() is None:
             self.kivyrun.kill()
 
-        svp['viparams']['vidisp'] = 'li'
         svp['viparams']['resnode'] = self.simnode.name
         svp['viparams']['restree'] = self.simnode.id_data.name
+        svp['viparams']['vidisp'] = 'li'
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 

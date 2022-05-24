@@ -1555,7 +1555,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
 
             for ad in alldata:
                 blf.size(0, ad[1], dpi)
-                blf.position(0, ad[2] - int(0.5*blf.dimensions(0, ad[0])[0]), ad[3] - ysize, 10)
+                blf.position(0, ad[2] - int(0.5*blf.dimensions(0, ad[0])[0]), ad[3] - ysize, 0)
                 blf.draw(0, ad[0])
 
         except Exception as e:

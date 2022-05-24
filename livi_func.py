@@ -827,8 +827,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['oave']['firradhm2{}'.format(frame)] = nmean(finalkwhm2).astype(float64)
             self['livires']['firradh{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
             self['livires']['firradhm2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'sum kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
+            reslists.append([str(frame), 'Zone', self.id_data.name, 'ave kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
 
         elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
             dares = [gp[resda] for gp in geom]

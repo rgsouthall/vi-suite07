@@ -270,6 +270,13 @@ class VIPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
+        
+        try:
+            requests.get('https://www.google.com/')
+        except:
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
+                row = layout.row()
+                row.label(text='You do not seem to have an internet connection. Cannot download Python libraries')
 
         for entry in self.ui_dict:
             if entry == 'OpenFOAM bin directory' and sys.platform != 'linux':

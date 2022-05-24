@@ -23,6 +23,7 @@ from numpy import amax, amin
 def label(dnode, metric, axis, variant):
     catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
     animdict = {'metric': dnode.inputs[axis].rtypemenu, 'type': metric}
+    
     if dnode.parametricmenu == '1':
         return animdict[variant]
     else:
@@ -46,6 +47,8 @@ def statdata(res, stat):
         return([max(r) for r in res])
     elif stat == 'Minimum':
         return([min(r) for r in res])
+    elif stat == 'Sum':
+        return([sum(r) for r in res])
         
 def rvariant(dnode):
     axes = ('Y-axis 1', 'Y-axis 2', 'Y-axis 3')
