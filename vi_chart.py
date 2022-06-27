@@ -21,7 +21,7 @@ from .envi_func import retmenu
 from numpy import amax, amin
 
 def label(dnode, metric, axis, variant):
-    catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
+    catdict = {'clim': 'Ambient', 'zone spatial': 'Zone spatial', 'zone temporal': 'Zone temporal', 'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
     animdict = {'metric': dnode.inputs[axis].rtypemenu, 'type': metric}
     
     if dnode.parametricmenu == '1':
@@ -30,7 +30,9 @@ def label(dnode, metric, axis, variant):
         return catdict[variant]
 
 def llabel(dnode, metric, axis, variant):
-    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu, 
+    rdict = {'Climate': 'Ambient', 
+             'Zone spatial': dnode.inputs[axis].zonemenu, 
+             'Zone temporal': dnode.inputs[axis].zonemenu,
              'Linkage':dnode.inputs[axis].linkmenu, 
              'Frames': 'Frames', 'Camera': dnode.inputs[axis].cammenu, 
              'Position': dnode.inputs[axis].posmenu, 
@@ -52,7 +54,8 @@ def statdata(res, stat):
         
 def rvariant(dnode):
     axes = ('Y-axis 1', 'Y-axis 2', 'Y-axis 3')
-    zones = [dnode.inputs[axis].zonemenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Zone']
+    zones = [dnode.inputs[axis].zonemenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Zone spatial']
+    zonet = [dnode.inputs[axis].zonemenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Zone temporal']
     clims = [dnode.inputs[axis].climmenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Climate']
     links = [dnode.inputs[axis].linkmenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Linkage']
     chims = [dnode.inputs[axis].chimmenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Chimney']
@@ -101,7 +104,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
         si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"]  - bpy.context.scene.frame_start
 
-    elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation'):        
+    elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation', 'VI Shadow Map'):        
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day  
 
         if mdata:

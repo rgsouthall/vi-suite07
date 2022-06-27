@@ -427,18 +427,18 @@ class NODE_OT_SVF(bpy.types.Operator):
 
                     shadres = [gp[shadres] for gp in gpoints]
                     ovp['omin']['svf{}'.format(frame)], ovp['omax']['svf{}'.format(frame)], ovp['oave']['svf{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
-                    reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
                     avres.append(ovp['oave']['svf{}'.format(frame)])
                     minres.append(ovp['omin']['svf{}'.format(frame)])
                     maxres.append(ovp['omax']['svf{}'.format(frame)])
 
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
-            reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
-            reslists.append(['All', 'Zone', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
-            reslists.append(['All', 'Zone', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
@@ -527,46 +527,52 @@ class NODE_OT_Shadow(bpy.types.Operator):
         kivyrun = progressbar(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'), 'Shadow Map')
         logentry(f'Conducting shadow map calculation with {simnode.interval} samples per hour for {int(len(direcs)/simnode.interval)} total hours and {lvaldirecs} available sun hours')
 
-        for oi, o in enumerate(calcobs):
-            ovp = o.vi_params
+        for frame in frange:
+            reslists.append([str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])])
+            reslists.append([str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])])
+            reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
+            reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
 
-            for k in [k for k in ovp.keys()]:
-                del ovp[k]
+            for oi, o in enumerate(calcobs):
+                ovp = o.vi_params
 
-            if any([s < 0 for s in o.scale]):
-                logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
-                self.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
+                for k in [k for k in ovp.keys()]:
+                    del ovp[k]
 
-            ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
+                if any([s < 0 for s in o.scale]):
+                    logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
+                    self.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
 
-            if simnode.sdoy <= simnode.edoy:
-                ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
-            else:
-                ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+                ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
 
-            ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
-            bm = bmesh.new()
-            bm.from_mesh(o.to_mesh())
-            o.to_mesh_clear()
-            clearlayers(bm, 'a')
-            bm.transform(o.matrix_world)
-            bm.normal_update()
-            geom = bm.faces if simnode.cpoint == '0' else bm.verts
-            geom.layers.int.new('cindex')
-            cindex = geom.layers.int['cindex']
-            [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]
-            [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
-            avres, minres, maxres, g = [], [], [], 0
+                if simnode.sdoy <= simnode.edoy:
+                    ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+                else:
+                    ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
 
-            if simnode.cpoint == '0':
-                gpoints = [f for f in geom if o.data.materials[f.material_index].vi_params.mattype == '1']
-            elif simnode.cpoint == '1':
-                gpoints = [v for v in geom if any([o.data.materials[f.material_index].vi_params.mattype == '1' for f in v.link_faces])]
+                ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
+                bm = bmesh.new()
+                bm.from_mesh(o.to_mesh())
+                o.to_mesh_clear()
+                clearlayers(bm, 'a')
+                bm.transform(o.matrix_world)
+                bm.normal_update()
+                geom = bm.faces if simnode.cpoint == '0' else bm.verts
+                geom.layers.int.new('cindex')
+                cindex = geom.layers.int['cindex']
+                [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]
+                [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
+                avres, minres, maxres, g = [], [], [], 0
 
-            for g, gp in enumerate(gpoints):
-                gp[cindex] = g + 1
+                if simnode.cpoint == '0':
+                    gpoints = [f for f in geom if o.data.materials[f.material_index].vi_params.mattype == '1']
+                elif simnode.cpoint == '1':
+                    gpoints = [v for v in geom if any([o.data.materials[f.material_index].vi_params.mattype == '1' for f in v.link_faces])]
 
-            for frame in frange:
+                for g, gp in enumerate(gpoints):
+                    gp[cindex] = g + 1
+
+#            for frame in frange:
                 g = 0
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
@@ -589,22 +595,25 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
                     ap = average(allpoints, axis=0)
                     shadres = [gp[shadres] for gp in gpoints]
-                    ovp['ss{}'.format(frame)] = array(100 * ap).reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
+                    hsr = array(100 * ap)
+                    ovp['ss{}'.format(frame)] = hsr.reshape(len(ovp['days']), len(ovp['hours'])).T.tolist()
+                    reslists.append([str(frame), 'Zone temporal', o.name, 'Sunlit %', ' '.join([str(ss) for ss in hsr])])
                     ovp['omin']['sm{}'.format(frame)] = min(shadres)
                     ovp['omax']['sm{}'.format(frame)] = max(shadres)
                     ovp['oave']['sm{}'.format(frame)] = sum(shadres)/len(shadres)
-                    reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
+                    reslists.append([str(frame), 'Zone spatial', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
                     avres.append(ovp['oave']['sm{}'.format(frame)])
                     minres.append(ovp['omin']['sm{}'.format(frame)])
                     maxres.append(ovp['omax']['sm{}'.format(frame)])
 
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
-            reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
-            reslists.append(['All', 'Zone', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
-            reslists.append(['All', 'Zone', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
+            
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
@@ -2384,7 +2393,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                     hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
 
             self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')
-        zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'  and zrl[0][zri] != 'All'])
+        zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone temporal'  and zrl[0][zri] != 'All'])
 
         if scene.reszt_disp and 'Temperature (degC)' in zmetrics:
             envizres(scene, eresobs, resnode, 'Temp')
@@ -2593,7 +2602,7 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
         scene.frame_start, scene.frame_end = scene['enparams']['fs'], scene['enparams']['fe']
-        zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
+        zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone temporal' and zrl[0][zri] == 'All'])
 
         if scene.resazmaxt_disp and 'Max temp (C)' in zmetrics:
             envizres(scene, eresobs, resnode, 'MaxTemp')
@@ -3383,7 +3392,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             resarray = transpose(resarray)
 
                         for ri, r in enumerate(resarray[1:]):
-                            reslists.append([str(context.scene.frame_current), 'Zone', svp['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                            reslists.append([str(context.scene.frame_current), 'Zone temporal', svp['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
                 reslists.append([str(context.scene.frame_current), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
                 self.simnode['reslists'] = reslists

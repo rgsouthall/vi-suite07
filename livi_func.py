@@ -471,48 +471,48 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 0]
         rgeom = [g for g in geom if g[cindex] > 0]
         rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
 
         if svp['liparams']['unit'] == 'W/m2 (f)':
             firradbinvals = [self['omin']['firrad{}'.format(frame)] + (self['omax']['firrad{}'.format(frame)] - self['omin']['firrad{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
             self['livires']['valbins'] = firradbinvals
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (W)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradm2res]) for g in rgeom])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Full irradiance (W)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Full irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradm2res]) for g in rgeom])])
 
         elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradm2res]) for g in rgeom])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradm2res]) for g in rgeom])])
 
             if svp['liparams']['unit'] == 'Lux':
-                reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
+                reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
             elif svp['liparams']['unit'] == 'DF (%)':
-                reslists.append([str(frame), 'Zone', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
+                reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
 
     if len(frames) > 1:
         reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
 
         if svp['liparams']['unit'] == 'W/m2 (f)':
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['firradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['firradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['firradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average full irradiance (W)', ' '.join(['{:.3f}'.format(self['oave']['firrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum full irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['firrad{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum full irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['firradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['firradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['firradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average full irradiance (W)', ' '.join(['{:.3f}'.format(self['oave']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum full irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['firrad{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum full irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['firrad{}'.format(frame)]) for frame in frames])])
 
         elif svp['liparams']['unit'] in ('Lux', 'DF (%)'):
-            reslists.append(['All', 'Zone', self.id_data.name, 'Average visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['virradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Maximum visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['virradm2{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone', self.id_data.name, 'Minimum visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['virradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['virradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omax']['virradm2{}'.format(frame)]) for frame in frames])])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum visible irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['omin']['virradm2{}'.format(frame)]) for frame in frames])])
             if svp['liparams']['unit'] == 'Lux':
-                reslists.append(['All', 'Zone', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
-                reslists.append(['All', 'Zone', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
-                reslists.append(['All', 'Zone', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
             elif svp['liparams']['unit'] == 'DF (%)':
-                reslists.append(['All', 'Zone', self.id_data.name, 'Average DF (%)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
-                reslists.append(['All', 'Zone', self.id_data.name, 'Maximum DF (%)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
-                reslists.append(['All', 'Zone', self.id_data.name, 'Minimum DF (%)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average DF (%)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum DF (%)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum DF (%)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
 
             ir = []
 
@@ -522,7 +522,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 else:
                     ir.append('0')
 
-            reslists.append(['All', 'Zone', self.id_data.name, 'Illuminance ratio', ' '.join(ir)])
+            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Illuminance ratio', ' '.join(ir)])
 
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)
@@ -640,18 +640,18 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['oave']['firradhm2{}'.format(frame)] = aveofirradm2
 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Y', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Z', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Zone', self.id_data.name, 'Area', ' '.join([str(a) for a in areas])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join([str(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join([str(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Area', ' '.join([str(a) for a in areas])])
 
         if simnode['coptions']['unit'] == 'klxh':
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance (kwh)', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Illuminance (klxh)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Visible irradiance (kwh/m2)', ' '.join([str(g[virradm2res]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Visible irradiance (kwh)', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Illuminance (klxh)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Visible irradiance (kwh/m2)', ' '.join([str(g[virradm2res]) for g in geom if g[cindex] > 0])])
         elif simnode['coptions']['unit'] == 'kWh (f)':
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (kwh)', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Full irradiance (kwh/m2)', ' '.join([str(g[firradm2res]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Full irradiance (kwh)', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Full irradiance (kwh/m2)', ' '.join([str(g[firradm2res]) for g in geom if g[cindex] > 0])])
 
     bm.to_mesh(self.id_data.data)
     bm.free()
@@ -827,8 +827,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['oave']['firradhm2{}'.format(frame)] = nmean(finalkwhm2).astype(float64)
             self['livires']['firradh{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
             self['livires']['firradhm2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'sum kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'ave kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'sum kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'ave kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
 
         elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
             dares = [gp[resda] for gp in geom]
@@ -874,11 +874,11 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['sv{}'.format(frame)] = max(svres)
             self['omin']['sv{}'.format(frame)] = min(svres)
             self['oave']['sv{}'.format(frame)] = nmean(svres)
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([str(p) for p in totdaarea])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-a Area (%)', ' '.join([str(p) for p in totudiaarea])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-s Area (%)', ' '.join([str(p) for p in totudisarea])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-l Area (%)', ' '.join([str(p) for p in totudilarea])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'UDI-h Area (%)', ' '.join([str(p) for p in totudiharea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([str(p) for p in totdaarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-a Area (%)', ' '.join([str(p) for p in totudiaarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([str(p) for p in totudisarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([str(p) for p in totudilarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([str(p) for p in totudiharea])])
             overallsdaareapa = sum([g.calc_area() for g in geom if g[rt] and g[ressv] == 1.0]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[ressv]])
             overallsdaarea = totarea
             self['omax']['sda{}'.format(frame)] = max(sdas)
@@ -896,9 +896,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             sumsdaareas = sum(areas[array(sdas) >= 50])
             self['livires']['sda{}'.format(frame)] = sumsdaareas/totarea
             self['livires']['sdapa{}'.format(frame)] = sumsdaareas/svarea
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/totarea])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([str(p) for p in 100 * totsdaareapa/svarea])])
-            reslists.append([str(frame), 'Zone', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join(['{:.2f}'.format(p) for p in 100 * totasearea/totarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/totarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([str(p) for p in 100 * totsdaareapa/svarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join(['{:.2f}'.format(p) for p in 100 * totasearea/totarea])])
 
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)

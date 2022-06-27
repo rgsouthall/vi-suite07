@@ -280,7 +280,7 @@ def radgexport(export_op, node):
                     tm = o.to_mesh()
                     bm = bmesh.new()
                     bm.from_mesh(tm)
-                    o.to_mesh.clear()
+                    o.to_mesh_clear()
                     bm.transform(o.matrix_world)
                     bm.normal_update()
                     bm.faces.ensure_lookup_table()

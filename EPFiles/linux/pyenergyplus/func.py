@@ -1,4 +1,4 @@
-# EnergyPlus, Copyright (c) 1996-2021, The Board of Trustees of the University
+# EnergyPlus, Copyright (c) 1996-2022, The Board of Trustees of the University
 # of Illinois, The Regents of the University of California, through Lawrence
 # Berkeley National Laboratory (subject to receipt of any required approvals
 # from the U.S. Dept. of Energy), Oak Ridge National Laboratory, managed by UT-
@@ -554,10 +554,10 @@ class EnergyPlusVersion:
     """
 
     def __init__(self):
-        self.ep_version_major = int("9")
-        self.ep_version_minor = int("5")
+        self.ep_version_major = int("22")
+        self.ep_version_minor = int("1")
         self.ep_version_patch = int("0")
-        self.ep_version_build = str("de239b2e5f")
+        self.ep_version_build = str("ed759b17ee")
 
     def __str__(self) -> str:
         """
@@ -592,6 +592,8 @@ class Functional:
         self.py_error_callback_type = CFUNCTYPE(c_void_p, c_int, c_char_p)
         self.api.registerErrorCallback.argtypes = [c_void_p, self.py_error_callback_type]
         self.api.registerErrorCallback.restype = c_void_p
+        self.api.energyPlusVersion.argtypes = []
+        self.api.energyPlusVersion.restype = c_char_p
 
     def initialize(self, state: c_void_p) -> None:
         if not self.initialized and not self.plugin_mode:

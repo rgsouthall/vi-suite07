@@ -113,7 +113,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: SURFACE DEFINITIONS ===========\n\n")
         
-        wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
+        wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Space name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
         
         gens = []
         
@@ -137,7 +137,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                 if emnode.envi_con_type in ('Wall', "Floor", "Roof"):
                                     if emnode.envi_con_makeup != "2":
                                         params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]                     
-                                        paramvs = ['{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, coll.name, obc, obco, se, we, 'autocalculate', len(face.verts)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
+                                        paramvs = ['{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, coll.name, '', obc, obco, se, we, 'autocalculate', len(face.verts)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
                                         en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
                                                                             
                                     if emnode.inputs['PV'].links:
@@ -151,7 +151,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                         
                                     xav, yav, zav = mathutils.Vector(face.calc_center_median())
                                     params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
-                                    paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', '{}-frame'.format(mat.name), coll.name, obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
+                                    paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', '{}-frame'.format(mat.name), coll.name, '', obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
                                     en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    
                                     obound = ('win-', 'door-')[emnode.envi_con_type == 'Door']+obco if obco else obco
                                     params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + \

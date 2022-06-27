@@ -127,7 +127,12 @@ class No_Loc(Node, ViNodes):
                             entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
                             break
                         elif wfl.split(',')[0].upper() == "B'LOCATION":
-                            logentry("Byte formatting found in file {}. Remove leading b', end ' and all /r line endings".format(wfile))
+                            with open(wfile, 'rb') as wfb:
+                                for wfbl in wfb.readlines():
+                                    if wfbl.split(',')[0].upper() == 'LOCATION':
+                                        entries.append((wfile, '{} - {}'.format(wfbl.split(',')[3], wfbl.split(',')[1]), 'Weather Location'))
+                                        break
+                            logentry("Byte formatting found in file {}. Attempting to read byte format. If it fails remove leading b', end ' and all /r line endings".format(wfile))
                             pass
 
             self['entries'] = entries if entries else [('None', 'None', 'None')]
@@ -2040,7 +2045,7 @@ class No_Vi_HMChart(Node, ViNodes):
 
     def metric(self, context):
         lmenu = str(self.locmenu)
-        metrics = [res for ri, res in enumerate(self['metrics']) if self['rtypes'][ri] == self.resmenu and (self['locs'][ri], '0')[self.resmenu == 'Climate'] == lmenu]
+        metrics = [res for ri, res in enumerate(self['metrics']) if self.resmenu in ('Zone temporal', 'Climate') and self['rtypes'][ri] == self.resmenu and (self['locs'][ri], '0')[self.resmenu == 'Climate'] == lmenu]
 
         if any(metrics):
             return [(res, res, "Plot {}".format(res)) for res in sorted(set(metrics))]
@@ -2148,7 +2153,7 @@ class No_Vi_HMChart(Node, ViNodes):
                 if self.cl or self.cf:
                     newrow(layout, 'Contour levels:', self, "clevels")
 
-                if self.metricmenu != 'None' and self.metricmenu in [l[0] for l in self.metric(context)]:
+                if self.metricmenu != '0' and self.metricmenu in [l[0] for l in self.metric(context)]:
                     row = layout.row()
                     row.operator("node.hmchart", text = 'Create heatmap')
 
@@ -2551,7 +2556,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
             frames = list(dict.fromkeys([z[0] for z in self['rl']]))
             self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
-            znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone'])))
+            znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
             self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
             self.res_update()
             self.inputs[0].links[0].from_node.new_res = 0
@@ -2779,7 +2784,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['yvelocity'] = {}
             self['res']['wpc'] = {}
             self['res']['wpc'] = {}
-            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
+            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone spatial'])
 
             for zn in znames:
                 for r in self['rl']:
@@ -3026,7 +3031,8 @@ class So_En_Res(NodeSocket):
     valid = ['Vi Results']
 
     def draw(self, context, layout, node, text):
-        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"),
+        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], 
+                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"),
                     "Linkage":("linkmenu", "linkrmenu"), "External":("enmenu", "enrmenu"), "Position":("posmenu", "posrmenu"),
                     "Camera":("cammenu", "camrmenu"), "Power":("powmenu", "powrmenu"),
                     "Probe":("probemenu", "probermenu")}
