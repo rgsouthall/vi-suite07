@@ -669,7 +669,7 @@ def viparams(op, scene):
         svp['enparams'] = {}
 
     svp['enparams']['idf_file'] = idf
-    svp['enparams']['epversion'] = '9.5'
+    svp['enparams']['epversion'] = '22.1'
 
     if not svp.get('flparams'):
         svp['flparams'] = {}
