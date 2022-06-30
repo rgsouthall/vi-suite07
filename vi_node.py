@@ -1176,11 +1176,11 @@ class No_Li_Sim(Node, ViNodes):
         self['reslists'] = calcout
 
         if self.outputs[0].links:
-            for l in self.outputs[0].links:
-                if l.to_node.bl_idname == 'No_Vi_Metrics':
-                    l.to_node.update()
-                elif l.to_node.bl_idname == 'No_Vi_HMChart':
-                    l.to_node.update()
+            for dnode in set([l.to_node for l in self.outputs[0].links]):
+                if dnode.bl_idname == 'No_Vi_Metrics':
+                    dnode.update()
+                elif dnode.bl_idname == 'No_Vi_HMChart':
+                    dnode.update()
 
         nodecolour(self, 0)
 
@@ -1648,9 +1648,11 @@ class No_En_Sim(Node, ViNodes):
             processf(sim_op, self)
 
             if self.outputs[0].links:
-                for l in self.outputs[0].links:
-                    if l.to_node.bl_idname == 'No_Vi_Metrics':
-                        l.to_node.update()
+                for dnode in set([l.to_node for l in self.outputs[0].links]):
+                    if dnode.bl_idname == 'No_Vi_Metrics':
+                        dnode.update()
+                    elif dnode.bl_idname == 'No_Vi_HMChart':
+                        dnode.update()
 
 class No_En_IF(Node, ViNodes):
     '''Node for EnergyPlus input file selection'''
@@ -3058,8 +3060,6 @@ class So_En_Res(NodeSocket):
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
-
-
 
 # Openfoam nodes
 
