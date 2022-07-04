@@ -17,30 +17,33 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, bpy_extras, math
-#from collections import OrderedDict
+# from collections import OrderedDict
 from subprocess import Popen
 from numpy import array, digitize, amax, amin, average, clip, char, int8, frombuffer, uint8, multiply, float32
-#set_printoptions(threshold=nan)
-from math import sin, cos, asin, acos, pi, tan, ceil, log10
+# set_printoptions(threshold=nan)
+from math import sin, cos, asin, acos, pi, ceil, log10
 from math import e as expo
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
-from .vi_dicts import unit2res
+# from .vi_dicts import unit2res
 checked_groups_names_list = []
 materials_from_group = set()
+dtdf = datetime.date.fromordinal
+
 
 def ret_plt():
     try:
         import matplotlib
-        matplotlib.use('qt5agg', force = True)
+        matplotlib.use('qt5agg', force=True)
         from matplotlib import pyplot as plt
         plt.figure()
         return plt
     except Exception as e:
         logentry('Matplotlib error: {}'.format(e))
         return 0
+
 
 def ret_mcm():
     try:
@@ -50,7 +53,6 @@ def ret_mcm():
         logentry('Matplotlib error: {}'.format(e))
         return 0
 
-dtdf = datetime.date.fromordinal
 
 def create_coll(c, name):
     if bpy.data.collections.get(name):
@@ -63,25 +65,23 @@ def create_coll(c, name):
         if lcc.name == name:
             c.view_layer.active_layer_collection = lcc
 
-#    c.view_layer.layer_collection.children[coll.name].exclude = 1
     return coll
+
 
 def create_empty_coll(c, name):
     coll = create_coll(c, name)
-#    c.view_layer.layer_collection.children[coll.name].exclude = 0
 
     for o in coll.objects:
         if name == 'LiVi Results' and o.vi_params.vi_type_string == 'LiVi Res':
             bpy.data.objects.remove(o)
 
-#    c.view_layer.layer_collection.children[coll.name].exclude = 1
     return coll
+
 
 def move_to_coll(context, coll, o):
     if o.parent:
         o.parent = None
     collection = create_coll(context, coll)
-#    context.view_layer.layer_collection.children[coll].exclude = 0
 
     if o.name not in collection.objects:
         collection.objects.link(o)
@@ -91,24 +91,21 @@ def move_to_coll(context, coll, o):
         if o.name in context.scene.collection.objects:
             context.scene.collection.objects.unlink(o)
 
-#    context.view_layer.layer_collection.children[coll].exclude = 1
 
 def clear_coll(c, coll):
-#    c.view_layer.layer_collection.children[coll.name].exclude = 0
-
     for o in coll.objects:
         if coll.name == 'LiVi Results' and o.vi_params.vi_type_string != 'LiVi Res':
             pass
         elif coll.name == 'LiVi Results':
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
-        
+
         elif coll.name == 'FloVi Mesh' and o.vi_params.vi_type_string != 'FloVi Mesh':
             pass
         elif coll.name == 'FloVi Mesh':
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
-            
+
 #    c.view_layer.layer_collection.children[coll.name].exclude = 1
 
 # def set_coll(coll):
@@ -118,92 +115,93 @@ def clear_coll(c, coll):
 
 
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03,
-2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02,
-4.351000e-02, 7.763000e-02, 1.343800e-01, 2.147700e-01, 2.839000e-01,
-3.285000e-01, 3.482800e-01, 3.480600e-01, 3.362000e-01, 3.187000e-01,
-2.908000e-01, 2.511000e-01, 1.953600e-01, 1.421000e-01, 9.564000e-02,
-5.795001e-02, 3.201000e-02, 1.470000e-02, 4.900000e-03, 2.400000e-03,
-9.300000e-03, 2.910000e-02, 6.327000e-02, 1.096000e-01, 1.655000e-01,
-2.257499e-01, 2.904000e-01, 3.597000e-01, 4.334499e-01, 5.120501e-01,
-5.945000e-01, 6.784000e-01, 7.621000e-01, 8.425000e-01, 9.163000e-01,
-9.786000e-01, 1.026300e+00, 1.056700e+00, 1.062200e+00, 1.045600e+00,
-1.002600e+00, 9.384000e-01, 8.544499e-01, 7.514000e-01, 6.424000e-01,
-5.419000e-01, 4.479000e-01, 3.608000e-01, 2.835000e-01, 2.187000e-01,
-1.649000e-01, 1.212000e-01, 8.740000e-02, 6.360000e-02, 4.677000e-02,
-3.290000e-02, 2.270000e-02, 1.584000e-02, 1.135916e-02, 8.110916e-03,
-5.790346e-03, 4.106457e-03, 2.899327e-03, 2.049190e-03, 1.439971e-03,
-9.999493e-04, 6.900786e-04, 4.760213e-04, 3.323011e-04, 2.348261e-04,
-1.661505e-04, 1.174130e-04, 8.307527e-05, 5.870652e-05, 4.150994e-05,
-2.935326e-05, 2.067383e-05, 1.455977e-05, 1.025398e-05, 7.221456e-06,
-5.085868e-06, 3.581652e-06, 2.522525e-06, 1.776509e-06, 1.251141e-06)
+         2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02,
+         4.351000e-02, 7.763000e-02, 1.343800e-01, 2.147700e-01, 2.839000e-01,
+         3.285000e-01, 3.482800e-01, 3.480600e-01, 3.362000e-01, 3.187000e-01,
+         2.908000e-01, 2.511000e-01, 1.953600e-01, 1.421000e-01, 9.564000e-02,
+         5.795001e-02, 3.201000e-02, 1.470000e-02, 4.900000e-03, 2.400000e-03,
+         9.300000e-03, 2.910000e-02, 6.327000e-02, 1.096000e-01, 1.655000e-01,
+         2.257499e-01, 2.904000e-01, 3.597000e-01, 4.334499e-01, 5.120501e-01,
+         5.945000e-01, 6.784000e-01, 7.621000e-01, 8.425000e-01, 9.163000e-01,
+         9.786000e-01, 1.026300e+00, 1.056700e+00, 1.062200e+00, 1.045600e+00,
+         1.002600e+00, 9.384000e-01, 8.544499e-01, 7.514000e-01, 6.424000e-01,
+         5.419000e-01, 4.479000e-01, 3.608000e-01, 2.835000e-01, 2.187000e-01,
+         1.649000e-01, 1.212000e-01, 8.740000e-02, 6.360000e-02, 4.677000e-02,
+         3.290000e-02, 2.270000e-02, 1.584000e-02, 1.135916e-02, 8.110916e-03,
+         5.790346e-03, 4.106457e-03, 2.899327e-03, 2.049190e-03, 1.439971e-03,
+         9.999493e-04, 6.900786e-04, 4.760213e-04, 3.323011e-04, 2.348261e-04,
+         1.661505e-04, 1.174130e-04, 8.307527e-05, 5.870652e-05, 4.150994e-05,
+         2.935326e-05, 2.067383e-05, 1.455977e-05, 1.025398e-05, 7.221456e-06,
+         5.085868e-06, 3.581652e-06, 2.522525e-06, 1.776509e-06, 1.251141e-06)
 
 CIE_Y = (3.917000e-06, 6.965000e-06, 1.239000e-05, 2.202000e-05, 3.900000e-05,
-6.400000e-05, 1.200000e-04, 2.170000e-04, 3.960000e-04, 6.400000e-04,
-1.210000e-03, 2.180000e-03, 4.000000e-03, 7.300000e-03, 1.160000e-02,
-1.684000e-02, 2.300000e-02, 2.980000e-02, 3.800000e-02, 4.800000e-02,
-6.000000e-02, 7.390000e-02, 9.098000e-02, 1.126000e-01, 1.390200e-01,
-1.693000e-01, 2.080200e-01, 2.586000e-01, 3.230000e-01, 4.073000e-01,
-5.030000e-01, 6.082000e-01, 7.100000e-01, 7.932000e-01, 8.620000e-01,
-9.148501e-01, 9.540000e-01, 9.803000e-01, 9.949501e-01, 1.000000e+00,
-9.950000e-01, 9.786000e-01, 9.520000e-01, 9.154000e-01, 8.700000e-01,
-8.163000e-01, 7.570000e-01, 6.949000e-01, 6.310000e-01, 5.668000e-01,
-5.030000e-01, 4.412000e-01, 3.810000e-01, 3.210000e-01, 2.650000e-01,
-2.170000e-01, 1.750000e-01, 1.382000e-01, 1.070000e-01, 8.160000e-02,
-6.100000e-02, 4.458000e-02, 3.200000e-02, 2.320000e-02, 1.700000e-02,
-1.192000e-02, 8.210000e-03, 5.723000e-03, 4.102000e-03, 2.929000e-03,
-2.091000e-03, 1.484000e-03, 1.047000e-03, 7.400000e-04, 5.200000e-04,
-3.611000e-04, 2.492000e-04, 1.719000e-04, 1.200000e-04, 8.480000e-05,
-6.000000e-05, 4.240000e-05, 3.000000e-05, 2.120000e-05, 1.499000e-05,
-1.060000e-05, 7.465700e-06, 5.257800e-06, 3.702900e-06, 2.607800e-06,
-1.836600e-06, 1.293400e-06, 9.109300e-07, 6.415300e-07, 4.518100e-07)
+         6.400000e-05, 1.200000e-04, 2.170000e-04, 3.960000e-04, 6.400000e-04,
+         1.210000e-03, 2.180000e-03, 4.000000e-03, 7.300000e-03, 1.160000e-02,
+         1.684000e-02, 2.300000e-02, 2.980000e-02, 3.800000e-02, 4.800000e-02,
+         6.000000e-02, 7.390000e-02, 9.098000e-02, 1.126000e-01, 1.390200e-01,
+         1.693000e-01, 2.080200e-01, 2.586000e-01, 3.230000e-01, 4.073000e-01,
+         5.030000e-01, 6.082000e-01, 7.100000e-01, 7.932000e-01, 8.620000e-01,
+         9.148501e-01, 9.540000e-01, 9.803000e-01, 9.949501e-01, 1.000000e+00,
+         9.950000e-01, 9.786000e-01, 9.520000e-01, 9.154000e-01, 8.700000e-01,
+         8.163000e-01, 7.570000e-01, 6.949000e-01, 6.310000e-01, 5.668000e-01,
+         5.030000e-01, 4.412000e-01, 3.810000e-01, 3.210000e-01, 2.650000e-01,
+         2.170000e-01, 1.750000e-01, 1.382000e-01, 1.070000e-01, 8.160000e-02,
+         6.100000e-02, 4.458000e-02, 3.200000e-02, 2.320000e-02, 1.700000e-02,
+         1.192000e-02, 8.210000e-03, 5.723000e-03, 4.102000e-03, 2.929000e-03,
+         2.091000e-03, 1.484000e-03, 1.047000e-03, 7.400000e-04, 5.200000e-04,
+         3.611000e-04, 2.492000e-04, 1.719000e-04, 1.200000e-04, 8.480000e-05,
+         6.000000e-05, 4.240000e-05, 3.000000e-05, 2.120000e-05, 1.499000e-05,
+         1.060000e-05, 7.465700e-06, 5.257800e-06, 3.702900e-06, 2.607800e-06,
+         1.836600e-06, 1.293400e-06, 9.109300e-07, 6.415300e-07, 4.518100e-07)
 
 CIE_Z = (6.061000e-04, 1.086000e-03, 1.946000e-03, 3.486000e-03, 6.450001e-03,
-1.054999e-02, 2.005001e-02, 3.621000e-02, 6.785001e-02, 1.102000e-01,
-2.074000e-01, 3.713000e-01, 6.456000e-01, 1.039050e+00, 1.385600e+00,
-1.622960e+00, 1.747060e+00, 1.782600e+00, 1.772110e+00, 1.744100e+00,
-1.669200e+00, 1.528100e+00, 1.287640e+00, 1.041900e+00, 8.129501e-01,
-6.162000e-01, 4.651800e-01, 3.533000e-01, 2.720000e-01, 2.123000e-01,
-1.582000e-01, 1.117000e-01, 7.824999e-02, 5.725001e-02, 4.216000e-02,
-2.984000e-02, 2.030000e-02, 1.340000e-02, 8.749999e-03, 5.749999e-03,
-3.900000e-03, 2.749999e-03, 2.100000e-03, 1.800000e-03, 1.650001e-03,
-1.400000e-03, 1.100000e-03, 1.000000e-03, 8.000000e-04, 6.000000e-04,
-3.400000e-04, 2.400000e-04, 1.900000e-04, 1.000000e-04, 4.999999e-05,
-3.000000e-05, 2.000000e-05, 1.000000e-05, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
-0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00)
+         1.054999e-02, 2.005001e-02, 3.621000e-02, 6.785001e-02, 1.102000e-01,
+         2.074000e-01, 3.713000e-01, 6.456000e-01, 1.039050e+00, 1.385600e+00,
+         1.622960e+00, 1.747060e+00, 1.782600e+00, 1.772110e+00, 1.744100e+00,
+         1.669200e+00, 1.528100e+00, 1.287640e+00, 1.041900e+00, 8.129501e-01,
+         6.162000e-01, 4.651800e-01, 3.533000e-01, 2.720000e-01, 2.123000e-01,
+         1.582000e-01, 1.117000e-01, 7.824999e-02, 5.725001e-02, 4.216000e-02,
+         2.984000e-02, 2.030000e-02, 1.340000e-02, 8.749999e-03, 5.749999e-03,
+         3.900000e-03, 2.749999e-03, 2.100000e-03, 1.800000e-03, 1.650001e-03,
+         1.400000e-03, 1.100000e-03, 1.000000e-03, 8.000000e-04, 6.000000e-04,
+         3.400000e-04, 2.400000e-04, 1.900000e-04, 1.000000e-04, 4.999999e-05,
+         3.000000e-05, 2.000000e-05, 1.000000e-05, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
+         0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00)
 
 
-XYZtosRGB = (
-  3.2404542, -1.5371385, -0.4985314,
- -0.9692660,  1.8760108,  0.0415560,
-  0.0556434, -0.2040259,  1.0572252
-  )
+XYZtosRGB = (3.2404542, -1.5371385, -0.4985314,
+             -0.9692660,  1.8760108,  0.0415560,
+             0.0556434, -0.2040259,  1.0572252)
+
 
 def planck(w, t):
-	wm = w * 1e-9
-	c1 = 3.7402e-16
-	c2 = 1.43848e-2
-	return (c1*wm**-5.0) / (expo**(c2/(wm*t))-1)
+    wm = w * 1e-9
+    c1 = 3.7402e-16
+    c2 = 1.43848e-2
+    return (c1*wm**-5.0) / (expo**(c2/(wm*t))-1)
+
 
 def ct2RGB(t):
     xyz = [0.0, 0.0, 0.0]
     rgb = [0.0, 0.0, 0.0]
-    step = 5 # unit: nanometer
+    step = 5  # unit: nanometer
     startWavelength = 360
     endWavelength = 830
     i = 0
+
     for w in range(startWavelength, endWavelength + step, step):
-        I = planck(w, t)
-        xyz[0] += I * CIE_X[i]
-        xyz[1] += I * CIE_Y[i]
-        xyz[2] += I * CIE_Z[i]
+        Irr = planck(w, t)
+        xyz[0] += Irr * CIE_X[i]
+        xyz[1] += Irr * CIE_Y[i]
+        xyz[2] += Irr * CIE_Z[i]
         i += 1
-    #mxyz = max(xyz)
+    # mxyz = max(xyz)
     mxyz = xyz[0] + xyz[1] + xyz[2]
     xyz[0] /= mxyz
     xyz[1] /= mxyz
@@ -219,6 +217,7 @@ def ct2RGB(t):
         rgb[2] /= maxrgb
     return rgb
 
+
 def retcols(cmap, levels):
     try:
         rgbas = [cmap(int(i * 255/(levels - 1))) for i in range(levels)]
@@ -226,6 +225,7 @@ def retcols(cmap, levels):
         hs = [0.75 - 0.75*(i/(levels - 1)) for i in range(levels)]
         rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
     return rgbas
+
 
 def cmap(svp):
     cols = retcols(ret_mcm().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
@@ -248,7 +248,7 @@ def cmap(svp):
             nodes.remove(node)
 
         node_output = nodes.new(type='ShaderNodeOutputMaterial')
-        node_output.location = 400,0
+        node_output.location = 400, 0
 
         if svp.vi_disp_trans < 1:
             # create transparency node
@@ -271,7 +271,7 @@ def cmap(svp):
             node_material.inputs[1].default_value = 0.5
 
         node_material.inputs[0].default_value = (cols[i][0:4])  # green RGBA
-        node_material.location = 0,0
+        node_material.location = 0, 0
 
         # create output node
         if svp.vi_disp_trans == 1 and svp.vi_disp_mat:
@@ -279,12 +279,14 @@ def cmap(svp):
         else:
             links.new(node_material.outputs[0], node_output.inputs[0])
 
+
 def regresults(scene, frames, simnode, res):
     for i, f in enumerate(frames):
         simnode['maxres'][str(f)] = amax(res[i])
         simnode['minres'][str(f)] = amin(res[i])
         simnode['avres'][str(f)] = average(res[i])
     scene.vi_leg_max, scene.vi_leg_min = max(simnode['maxres'].values()), min(simnode['minres'].values())
+
 
 def clearlayers(bm, ltype):
     if ltype in ('a', 'f'):
@@ -303,8 +305,11 @@ def clearlayers(bm, ltype):
         while bm.verts.layers.string:
             bm.verts.layers.int.remove(bm.verts.layers.int[0])
 
+
 def retvpvloc(context):
-    return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
+    return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d,
+                                                          (context.region.width/2.0, context.region.height/2.0))
+
 
 def rettree(scene, obs, ignore):
     bmob = bmesh.new()
@@ -316,7 +321,7 @@ def rettree(scene, obs, ignore):
         bmtemp.from_object(so, dp)
         bmtemp.transform(so.matrix_world)
         delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].vi_params.mattype == ignore]
-        bmesh.ops.delete(bmtemp, geom = delfaces, context = 'FACES')
+        bmesh.ops.delete(bmtemp, geom=delfaces, context='FACES')
         bmtemp.to_mesh(btemp)
         bmob.from_mesh(btemp)
         bpy.data.meshes.remove(btemp)
@@ -325,6 +330,7 @@ def rettree(scene, obs, ignore):
     bmob.free()
     bmtemp.free()
     return tree
+
 
 class progressfile():
     def __init__(self, folder, starttime, calcsteps):
@@ -348,9 +354,10 @@ class progressfile():
         with open(self.pfile, 'w') as pfile:
             if curres:
                 dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
-                pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
+                pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds=dt.seconds)))
             else:
                 pfile.write('0 Initialising')
+
 
 class fvprogressfile():
     def __init__(self, folder):
@@ -369,6 +376,7 @@ class fvprogressfile():
                 pfile.write(curres)
             else:
                 pfile.write('0 Initialising')
+
 
 def progressbar(file, calctype):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -425,6 +433,7 @@ if __name__ == '__main__':\n\
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
     return Popen([sys.executable, file+".py"])
+
 
 def fvprogressbar(file, et, residuals):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -503,14 +512,17 @@ if __name__ == '__main__':\n\
         kivyfile.write(kivytext)
     return Popen([sys.executable, file+".py"])
 
+
 def logentry(text):
     log = bpy.data.texts.new('vi-suite-log') if 'vi-suite-log' not in bpy.data.texts else bpy.data.texts['vi-suite-log']
     log.write('')
     log.write('{}: {}\n'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), text))
 
-def chunks(l, n):
-    for v in range(0, len(l), n):
-        yield l[v:v + n]
+
+def chunks(li, n):
+    for v in range(0, len(li), n):
+        yield li[v:v + n]
+
 
 # This function can be used to modify results with a driver function
 def ret_res_vals(svp, reslist):
@@ -531,6 +543,7 @@ def ret_res_vals(svp, reslist):
             return reslist
     else:
         return reslist
+
 
 def lividisplay(self, scene):
     svp = scene.vi_params
@@ -562,7 +575,7 @@ def lividisplay(self, scene):
                 res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                 oreslist = [g[livires] for g in geom]
                 self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-                smaxres, sminres =  max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
+                smaxres, sminres = max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
 
                 if smaxres > sminres:
                     vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
@@ -578,7 +591,7 @@ def lividisplay(self, scene):
                     nmatis = [(0, ll - 1)[v == 1] for v in vals]
                 else:
                     bins = array([increment * i for i in range(ll)])
-                    nmatis = clip(digitize(vals, bins, right = True) - 1, 0, ll - 1, out=None)
+                    nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
 
                 bm.to_mesh(self.id_data.data)
                 bm.free()
@@ -589,23 +602,24 @@ def lividisplay(self, scene):
                     for fii, fi in enumerate(fis):
                         lms[fi].keyframe_points[f].co = frame, nmatis[fii]
 
+
 def ret_vp_loc(context):
-    return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
+    return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d,
+                                                          (context.region.width/2.0, context.region.height/2.0))
+
 
 def viparams(op, scene):
     svp = scene.vi_params
     bdfp = bpy.data.filepath
 
     if not bdfp:
-        op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
+        op.report({'ERROR'}, "The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
-    # elif " "  in bdfp:
-        # op.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces in the file name or the directory path")
-        # return 'Rename file'
 
     isascii = lambda s: len(s) == len(s.encode())
+
     if not isascii(bdfp):
-        op.report({'WARNING'},"The directory path or Blender filename has non-ascii characters in it. Photon mapping may not work")
+        op.report({'WARNING'}, "The directory path or Blender filename has non-ascii characters in it. Photon mapping may not work")
 
     fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
     if not os.path.isdir(os.path.join(fd, fn)):
@@ -634,7 +648,7 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "0"))
 
     nd = os.path.join(fd, fn)
-    fb, ofb, lfb, tfb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'lights'), os.path.join(nd, 'textures'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
+    fb, ofb, lfb, tfb, offb, idf = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'lights'), os.path.join(nd, 'textures'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
 
     if not svp.get('viparams'):
@@ -673,6 +687,7 @@ def viparams(op, scene):
 
     if not svp.get('flparams'):
         svp['flparams'] = {}
+
     svp['flparams']['offilebase'] = offb
     svp['flparams']['ofsfilebase'] = offs
     svp['flparams']['ofcfilebase'] = offc
@@ -680,8 +695,9 @@ def viparams(op, scene):
     svp['flparams']['of0filebase'] = offzero
     svp['flparams']['ofctsfilebase'] = offcts
 
+
 def nodestate(self, opstate):
-    if self['exportstate'] !=  opstate:
+    if self['exportstate'] != opstate:
         self.exported = False
         if self.bl_label[0] != '*':
             self.bl_label = '*'+self.bl_label
@@ -689,6 +705,7 @@ def nodestate(self, opstate):
         self.exported = True
         if self.bl_label[0] == '*':
             self.bl_label = self.bl_label[1:-1]
+
 
 def face_centre(ob, obresnum, f):
     if obresnum:
@@ -699,23 +716,28 @@ def face_centre(ob, obresnum, f):
     else:
         return(f.center)
 
+
 def v_pos(ob, v):
     return(ob.active_shape_key.data[v].co if ob.name in bpy.context.scene.vi_params['liparams']['livir'] else ob.data.vertices[v].co)
 
+
 def newrow(layout, s1, root, s2):
     row = layout.row()
-    row.label(text = s1)
+    row.label(text=s1)
     row.prop(root, s2)
 
+
 def newrow2(row, s1, root, s2):
-    row.label(text = s1)
+    row.label(text=s1)
     row.prop(root, s2)
+
 
 def retobj(name, fr, node, scene):
     if node.animmenu == "Geometry":
         return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), fr)))
     else:
         return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
+
 
 def retelaarea(node):
     inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('So_En_Net_SSFlow', 'So_En_Net_SFlow') and sock.links]
@@ -725,17 +747,20 @@ def retelaarea(node):
 
     if outosocks or inosocks:
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
-        node["_RNA_UI"] = {"ela": {"max":elaarea, "min": 0.0001}}
+        node["_RNA_UI"] = {"ela": {"max": elaarea, "min": 0.0001}}
+
 
 def objmode():
     if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide_viewport:
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
+
 
 def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
         return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), fr)))
     else:
         return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
+
 
 def nodeinputs(node):
     try:
@@ -756,11 +781,13 @@ def nodeinputs(node):
     except Exception as e:
         print(e)
 
+
 def retmat(fr, node, scene):
     if node.animmenu == "Material":
         return("{}-{}.rad".format(scene['viparams']['filebase'], fr))
     else:
         return("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_start))
+
 
 def retsky(fr, node, scene):
     if node.animmenu == "Time":
@@ -768,12 +795,15 @@ def retsky(fr, node, scene):
     else:
         return("{}-{}.sky".format(scene['viparams']['filebase'], scene.frame_start))
 
+
 def nodeexported(self):
     self.exported = 0
+
 
 def negneg(x):
     x = 0 if float(x) < 0 else x
     return float(x)
+
 
 def clearanim(scene, obs):
     for o in obs:
@@ -785,6 +815,7 @@ def clearanim(scene, obs):
             bpy.context.object.active_shape_key_index = 0
             bpy.ops.object.shape_key_remove(all=True)
 
+
 def clearfiles(filebase):
     if os.path.isdir(filebase):
         fileList = os.listdir(filebase)
@@ -795,13 +826,14 @@ def clearfiles(filebase):
             except:
                 pass
 
+
 def clearscene(context, op):
     scene = context.scene
     svp = scene.vi_params
     svp['viparams']['vidisp'] = ''
 
     if context.mode == 'EDIT_MESH':
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
 
     if context.view_layer.layer_collection.children.get('LiVi Results'):
         context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
@@ -854,6 +886,7 @@ def clearscene(context, op):
 
     scene.vi_params['liparams']['livir'] = []
 
+
 def rtupdate(self, context):
     try:
         rl = self.links[0].from_node['reslists']
@@ -862,30 +895,54 @@ def rtupdate(self, context):
     except:
         return []
 
+
 def iprop(iname, idesc, imin, imax, idef):
-    return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
+    return(IntProperty(name=iname, description=idesc, min=imin, max=imax, default=idef))
+
+
 def eprop(eitems, ename, edesc, edef):
-    return(EnumProperty(items=eitems, name = ename, description = edesc, default = edef))
+    return(EnumProperty(items=eitems, name=ename, description=edesc, default=edef))
+
+
 def bprop(bname, bdesc, bdef):
-    return(BoolProperty(name = bname, description = bdesc, default = bdef))
+    return(BoolProperty(name=bname, description=bdesc, default=bdef))
+
+
 def sprop(sname, sdesc, smaxlen, sdef):
-    return(StringProperty(name = sname, description = sdesc, maxlen = smaxlen, default = sdef))
+    return(StringProperty(name=sname, description=sdesc, maxlen=smaxlen, default=sdef))
+
+
 def fprop(fname, fdesc, fmin, fmax, fdef):
-    return(FloatProperty(name = fname, description = fdesc, min = fmin, max = fmax, default = fdef))
+    return(FloatProperty(name=fname, description=fdesc, min=fmin, max=fmax, default=fdef))
+
+
 def fvprop(fvsize, fvname, fvattr, fvdef, fvsub, fvmin, fvmax):
-    return(FloatVectorProperty(size = fvsize, name = fvname, attr = fvattr, default = fvdef, subtype =fvsub, min = fvmin, max = fvmax))
+    return(FloatVectorProperty(size=fvsize, name=fvname, attr=fvattr, default=fvdef, subtype=fvsub, min=fvmin, max=fvmax))
+
+
 def niprop(iname, idesc, imin, imax, idef):
-        return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef, update = nodeexported))
+    return(IntProperty(name=iname, description=idesc, min=imin, max=imax, default=idef, update=nodeexported))
+
+
 def neprop(eitems, ename, edesc, edef):
-    return(EnumProperty(items=eitems, name = ename, description = edesc, default = edef, update = nodeexported))
+    return(EnumProperty(items=eitems, name=ename, description=edesc, default=edef, update=nodeexported))
+
+
 def nbprop(bname, bdesc, bdef):
-    return(BoolProperty(name = bname, description = bdesc, default = bdef, update = nodeexported))
+    return(BoolProperty(name=bname, description=bdesc, default=bdef, update=nodeexported))
+
+
 def nsprop(sname, sdesc, smaxlen, sdef):
-    return(StringProperty(name = sname, description = sdesc, maxlen = smaxlen, default = sdef, update = nodeexported))
+    return(StringProperty(name=sname, description=sdesc, maxlen=smaxlen, default=sdef, update=nodeexported))
+
+
 def nfprop(fname, fdesc, fmin, fmax, fdef):
-    return(FloatProperty(name = fname, description = fdesc, min = fmin, max = fmax, default = fdef, update = nodeexported))
+    return(FloatProperty(name=fname, description=fdesc, min=fmin, max=fmax, default=fdef, update=nodeexported))
+
+
 def nfvprop(fvname, fvattr, fvdef, fvsub):
-    return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))
+    return(FloatVectorProperty(name=fvname, attr=fvattr, default=fvdef, subtype=fvsub, update=nodeexported))
+
 
 def vertarea(mesh, vert):
     area = 0
@@ -917,38 +974,41 @@ def vertarea(mesh, vert):
                     return 0
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[i].calc_center_median(), ovs[i][0].co, ovs[i][1].co)[1] for i in range(2)]
             else:
-               return 0
+                return 0
 
             area += mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(face.calc_center_median(), *eps)
 
     elif len(faces) == 1:
-        eps = [(ev.verts[0].co +ev.verts[1].co)/2 for ev in vert.link_edges]
+        eps = [(ev.verts[0].co + ev.verts[1].co)/2 for ev in vert.link_edges]
         eangle = (vert.link_edges[0].verts[0].co - vert.link_edges[0].verts[1].co).angle(vert.link_edges[1].verts[0].co - vert.link_edges[1].verts[1].co)
         area = mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(faces[0].calc_center_median(), *eps) * 2*pi/eangle
     return area
+
 
 def facearea(obj, face):
     omw = obj.matrix_world
     vs = [omw@mathutils.Vector(face.center)] + [omw@obj.data.vertices[v].co for v in face.vertices] + [omw@obj.data.vertices[face.vertices[0]].co]
     return(vsarea(obj, vs))
 
+
 def vsarea(obj, vs):
     if len(vs) == 5:
         cross = mathutils.Vector.cross(vs[3]-vs[1], vs[3]-vs[2])
-        return(0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5)
+        return(0.5*(cross[0]**2 + cross[1]**2 + cross[2]**2)**0.5)
     else:
         i, area = 0, 0
         while i < len(vs) - 2:
             cross = mathutils.Vector.cross(vs[0]-vs[1+i], vs[0]-vs[2+i])
-            area += 0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5
+            area += 0.5*(cross[0]**2 + cross[1]**2 + cross[2]**2)**0.5
             i += 1
         return(area)
+
 
 def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     zp = 0
     bm = bmesh.new()
 #    wro.select_set(True)
-    wro.location = (0, 0 ,0)
+    wro.location = (0, 0, 0)
     svg = minidom.parse(wrsvg)
     pos_strings = [path.getAttribute('d') for path in svg.getElementsByTagName('path')]
     style_strings = [path.getAttribute('style').split(';') for path in svg.getElementsByTagName('path')]
@@ -990,11 +1050,11 @@ def wind_rose(wro, maxws, wrsvg, wrtype, colors):
         bpy.ops.object.material_slot_add()
         wro.material_slots[-1].material = bpy.data.materials['wr-000000']
 
-    bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.01)
+    bmesh.ops.remove_doubles(bm, verts=vs, dist=scale * 0.01)
 
     if wrtype in ('0', '1', '3', '4'):
         thick = scale * 0.005 if wrtype == '4' else scale * 0.0005
-        faces = bmesh.ops.inset_individual(bm, faces=bm.faces, thickness = thick, use_even_offset = True)['faces']
+        faces = bmesh.ops.inset_individual(bm, faces=bm.faces, thickness=thick, use_even_offset=True)['faces']
 
         if wrtype == '4':
             [bm.faces.remove(f) for f in bm.faces if f not in faces]
@@ -1007,20 +1067,21 @@ def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     bm.to_mesh(wro.data)
     bm.free()
 
-    bpy.ops.mesh.primitive_circle_add(vertices = 132, radius=scale*1.2, fill_type='NGON', align='WORLD', enter_editmode=False, location=(0, 0, -0.01))
+    bpy.ops.mesh.primitive_circle_add(vertices=132, radius=scale*1.2, fill_type='NGON', align='WORLD', enter_editmode=False, location=(0, 0, -0.01))
     wrbo = bpy.context.active_object
 
     if 'wr-base'not in [mat.name for mat in bpy.data.materials]:
         bpy.data.materials.new('wr-base')
-        bpy.data.materials['wr-base'].diffuse_color = (1,1,1,1)
+        bpy.data.materials['wr-base'].diffuse_color = (1, 1, 1, 1)
+
     bpy.ops.object.material_slot_add()
     wrbo.material_slots[-1].material = bpy.data.materials['wr-base']
-
     return ((wrbo, wro), scale)
 
+
 def compass(loc, scale, platmat, basemat, greymat):
-    bpy.ops.wm.append(filepath="sp.blend",directory=os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                    'Images/sp.blend', 'Object'),filename="SPathMesh", autoselect = True)
+    bpy.ops.wm.append(filepath="sp.blend", directory=os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                      'Images/sp.blend', 'Object'), filename="SPathMesh", autoselect=True)
 
     coo = bpy.data.objects['SPathMesh']
     bpy.context.view_layer.objects.active = coo
@@ -1077,7 +1138,7 @@ def compass(loc, scale, platmat, basemat, greymat):
 #    bmesh.ops.dissolve_edges(bm, edges = [e for e in bm.edges if e.verts[0] in (newverts0 + newverts) and e.verts[1] in (newverts0 + newverts) and len(e.link_faces) == 2 and abs(e.link_faces[0].calc_area() - e.link_faces[1].calc_area()) < 1.0],
 #                                          use_verts = True, use_face_split = False)
 #
-##    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+#    #matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
 #    degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
 #    tmatrot = Matrix.Rotation(0, 4, 'Z')
 #    direc = Vector((0, 1, 0))
@@ -1103,6 +1164,7 @@ def compass(loc, scale, platmat, basemat, greymat):
     return coo
 #    return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
 
+
 def spathrange(mats):
     sprme = bpy.data.meshes.new("SPRange")
     spro = bpy.data.objects.new('SPRrange', sprme)
@@ -1122,10 +1184,10 @@ def spathrange(mats):
             if morn:
                 mornevediff = eve - morn if bpy.context.scene.latitude >= 0 else 360 - eve + morn
             else:
-                mornevediff = 360# if bpy.context.scene.latitude >= 0 else 360
+                mornevediff = 360  # if bpy.context.scene.latitude >= 0 else 360
 
             startset = morn if bpy.context.scene.latitude >= 0 else eve
-            angrange = [startset + a * 0.0125 * mornevediff for a in range (0, 81)]
+            angrange = [startset + a * 0.0125 * mornevediff for a in range(0, 81)]
             bm.verts.new().co = (95*sin(angrange[0]*pi/180), 95*cos(angrange[0]*pi/180), param[1])
 
             for a in angrange[1:-1]:
@@ -1145,6 +1207,7 @@ def spathrange(mats):
     bm.free()
     return spro
 
+
 def windnum(maxws, loc, scale, wr):
     txts = []
     matrot = Matrix.Rotation(-pi*0.05, 4, 'Z')
@@ -1162,7 +1225,8 @@ def windnum(maxws, loc, scale, wr):
     joinobj(bpy.context.view_layer, txts + [wr]).name = 'Wind Rose'
     bpy.context.active_object.visible_shadow = False
     bpy.context.active_object.display.show_shadows = False
-    bpy.context.active_object['rpe']  = 'Wind_Plane'
+    bpy.context.active_object['rpe'] = 'Wind_Plane'
+
 
 def wind_compass(loc, scale, wro, mat):
     txts = []
@@ -1181,27 +1245,29 @@ def wind_compass(loc, scale, wro, mat):
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
 
-    bmesh.ops.delete(bm, geom = [edge for edge in bm.edges if edge.select], context = 'FACES_ONLY')
-    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+    bmesh.ops.delete(bm, geom=[edge for edge in bm.edges if edge.select], context='FACES_ONLY')
+    newgeo = bmesh.ops.extrude_edge_only(bm, edges=bm.edges, use_select_history=False)
 
     for v, vert in enumerate(newgeo['geom'][:1320]):
         vert.co = vert.co - (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
         vert.co[2] = 0
 
-    bmesh.ops.create_circle(bm, cap_ends=True, radius=scale *0.0025, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')@Matrix.Translation((0, 0, 0)))
+    bmesh.ops.create_circle(bm, cap_ends=True, radius=scale * 0.0025, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')@Matrix.Translation((0, 0, 0)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
 
     for i, edge in enumerate(bm.edges[-8:]):
-        verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
+        verts = bmesh.ops.extrude_edge_only(bm, edges=[edge], use_select_history=False)['geom'][:2]
+
         for vert in verts:
             vert.co += 1.0*scale*(tmatrot@direc)
             vert.co[2] = 0
+
         bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2] = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = mat
@@ -1209,10 +1275,11 @@ def wind_compass(loc, scale, wro, mat):
         tmatrot = tmatrot@matrot
 
     tmatrot = Matrix.Rotation(0, 4, 'Z')
+
     for d in range(16):
         bpy.ops.object.text_add(align='WORLD', enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot@direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
+        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2] = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = mat
@@ -1223,8 +1290,10 @@ def wind_compass(loc, scale, wro, mat):
     bm.free()
     return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
 
+
 def rgb2h(rgb):
-    return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
+    return colorsys.rgb_to_hsv(rgb[0]/255.0, rgb[1]/255.0, rgb[2]/255.0)[0]
+
 
 def mp2im(fig, imname):
     fig.canvas.draw()
@@ -1242,14 +1311,16 @@ def mp2im(fig, imname):
             im.scale(ipwidth, ipheight)
 
     rgba = +frombuffer(fig.canvas.buffer_rgba(), dtype=uint8)
-    rgba.shape = (ipheight, ipwidth, 4) # for RGBA
-    rgba = rgba[::-1].ravel() # reverse y and flatten
-    rgba = multiply(rgba, 0.00392, dtype = float32) # convert to float
+    rgba.shape = (ipheight, ipwidth, 4)  # for RGBA
+    rgba = rgba[::-1].ravel()  # reverse y and flatten
+    rgba = multiply(rgba, 0.00392, dtype=float32)  # convert to float
     im.pixels.foreach_set(rgba)
+
 
 def livisimacc(simnode):
     context = simnode.inputs['Context in'].links[0].from_node['Options']['Context']
     return(simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
+
 
 def drawpoly(x1, y1, x2, y2, r, g, b, a):
     bgl.glLineWidth(1)
@@ -1262,26 +1333,29 @@ def drawpoly(x1, y1, x2, y2, r, g, b, a):
     bgl.glEnd()
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
 
+
 def drawtri(posx, posy, l, d, hscale, radius):
     r, g, b = colorsys.hsv_to_rgb(0.75 - l * 0.75, 1.0, 1.0)
     a = 0.9
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glBegin(bgl.GL_POLYGON)
     bgl.glColor4f(r, g, b, a)
-    bgl.glVertex2f(posx - l * 0.5  * hscale *(radius - 20)*sin(d*pi/180), posy - l * 0.5 * hscale * (radius - 20)*cos(d*pi/180))
-    bgl.glVertex2f(posx + hscale * (l**0.5) *(radius/4 - 5)*cos(d*pi/180), posy - hscale * (l**0.5) *(radius/4 - 5)*sin(d*pi/180))
-    bgl.glVertex2f(posx + l**0.5 * hscale *(radius - 20)*sin(d*pi/180), posy + l**0.5 * hscale * (radius - 20)*cos(d*pi/180))
-    bgl.glVertex2f(posx - hscale * (l**0.5) *(radius/4 - 5)*cos(d*pi/180), posy + hscale * (l**0.5) *(radius/4 - 5)*sin(d*pi/180))
+    bgl.glVertex2f(posx - l * 0.5 * hscale * (radius - 20)*sin(d*pi/180), posy - l * 0.5 * hscale * (radius - 20)*cos(d*pi/180))
+    bgl.glVertex2f(posx + hscale * (l**0.5) * (radius/4 - 5)*cos(d*pi/180), posy - hscale * (l**0.5) * (radius/4 - 5)*sin(d*pi/180))
+    bgl.glVertex2f(posx + l**0.5 * hscale * (radius - 20)*sin(d*pi/180), posy + l**0.5 * hscale * (radius - 20)*cos(d*pi/180))
+    bgl.glVertex2f(posx - hscale * (l**0.5) * (radius/4 - 5)*cos(d*pi/180), posy + hscale * (l**0.5) * (radius/4 - 5)*sin(d*pi/180))
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
+
 
 def drawcircle(center, radius, resolution, fill, a, r, g, b):
     bgl.glColor4f(r, g, b, a)
     bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    bgl.glEnable(bgl.GL_BLEND);
+    bgl.glEnable(bgl.GL_BLEND)
     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
     bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-    bgl.glLineWidth (1.5)
+    bgl.glLineWidth(1.5)
+
     if fill:
         bgl.glBegin(bgl.GL_POLYGON)
     else:
@@ -1292,6 +1366,7 @@ def drawcircle(center, radius, resolution, fill, a, r, g, b):
         v = vec * radius + center
         bgl.glVertex2f(v.x, v.y)
     bgl.glEnd()
+
 
 def drawbsdfcircle(centre, radius, resolution, fill, col, w, h, z, lw):
     bgl.glEnable(bgl.GL_BLEND)
@@ -1314,10 +1389,11 @@ def drawbsdfcircle(centre, radius, resolution, fill, col, w, h, z, lw):
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
 
+
 def drawwedge(c, phis, rs, col, w, h):
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA);
+    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
     bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_FASTEST)
     (z, lw, col) = (0.1, 3, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
     bgl.glColor4f(*col)
@@ -1332,8 +1408,10 @@ def drawwedge(c, phis, rs, col, w, h):
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
 
+
 def radial2xy(c, theta, phi, w, h):
     return c[0] + theta * sin(math.pi * phi/180) * w, c[1] + theta * math.cos(math.pi * phi/180) * h
+
 
 def drawloop(x1, y1, x2, y2):
     bgl.glLineWidth(1)
@@ -1344,6 +1422,7 @@ def drawloop(x1, y1, x2, y2):
     bgl.glVertex2i(x2, y1)
     bgl.glVertex2i(x1, y1)
     bgl.glEnd()
+
 
 def drawsquare(c, w, h, col):
     vxs = (c[0] + 0.5 * w, c[0] + 0.5 * w, c[0] - 0.5 * w, c[0] - 0.5 * w)
@@ -1364,9 +1443,11 @@ def drawsquare(c, w, h, col):
     bgl.glColor4f(0, 0, 0, 1)
     bgl.glEnd()
 
+
 def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
+
 
 def xy2radial(c, pos, w, h):
     dx, dy = pos[0] - c[0], pos[1] - c[1]
@@ -1400,7 +1481,7 @@ def bres(scene, o):
 
 def framerange(scene, anim):
     if anim == 'Static':
-        return(range(scene.frame_current, scene.frame_current +1))
+        return(range(scene.frame_current, scene.frame_current + 1))
     else:
         return(range(scene.frame_start, scene['liparams']['fe'] + 1))
 
@@ -1409,7 +1490,7 @@ def frameindex(scene, anim):
     if anim == 'Static':
         return(range(0, 1))
     else:
-        return(range(0, scene.frame_end - scene.frame_start +1))
+        return(range(0, scene.frame_end - scene.frame_start + 1))
 
 
 def ret_camera_menu(self, context):
@@ -1491,6 +1572,7 @@ def viewdesc(context):
     mid_x, mid_y = width/2, height/2
     return(mid_x, mid_y, width, height)
 
+
 def skfpos(o, frame, vis):
     vcos = [o.matrix_world*o.data.shape_keys.key_blocks[str(frame)].data[v].co for v in vis]
     maxx = max([vco[0] for vco in vcos])
@@ -1501,9 +1583,10 @@ def skfpos(o, frame, vis):
     minz = min([vco[2] for vco in vcos])
     return mathutils.Vector(((maxx + minx) * 0.5, (maxy + miny) * 0.5, (maxz + minz) * 0.5))
 
+
 def selmesh(sel):
     if bpy.context.active_object.mode != 'EDIT':
-        bpy.ops.object.mode_set(mode = 'EDIT')
+        bpy.ops.object.mode_set(mode='EDIT')
     if sel == 'selenm':
         bpy.ops.mesh.select_mode(type="EDGE")
         bpy.ops.mesh.select_all(action='DESELECT')
@@ -1512,14 +1595,14 @@ def selmesh(sel):
         bpy.ops.mesh.select_all(action='DESELECT')
     elif sel in ('delf', 'rd'):
         if sel == 'delf':
-            bpy.ops.mesh.delete(type = 'FACE')
+            bpy.ops.mesh.delete(type='FACE')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.mesh.select_all(action='DESELECT')
-    elif sel =='dele':
-        bpy.ops.mesh.delete(type = 'EDGE')
-    elif sel =='delv':
-        bpy.ops.mesh.delete(type = 'VERT')
+    elif sel == 'dele':
+        bpy.ops.mesh.delete(type='EDGE')
+    elif sel == 'delv':
+        bpy.ops.mesh.delete(type='VERT')
     elif sel == 'mc':
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.vert_connect_concave()
@@ -1532,7 +1615,8 @@ def selmesh(sel):
         if sel in ('SELECT', 'INVERT'):
             bpy.ops.mesh.select_all(action=sel)
         bpy.ops.object.vertex_group_assign()
-    bpy.ops.object.mode_set(mode = 'OBJECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+
 
 def retdp(mres, dp):
     try:
@@ -1540,6 +1624,7 @@ def retdp(mres, dp):
     except:
         dp = 0
     return dp
+
 
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if distances.size:
@@ -1561,6 +1646,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
         except Exception as e:
             print('Drawing index error: ', e)
 
+
 def draw_index(posis, res, dists, fontsize, fontcol, shadcol):
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]
 
@@ -1570,10 +1656,12 @@ def draw_index(posis, res, dists, fontsize, fontcol, shadcol):
         blf.draw(0, nr)
     blf.disable(0, 4)
 
+
 def draw_time(pos, time, fontsize, fontcol, shadcol):
     blf.position(0, pos[0], pos[1] - blf.dimensions(0, time)[1] * 0.5, 0)
     blf.draw(0, time)
     blf.disable(0, 4)
+
 
 def blf_props(scene, width, height):
     svp = scene.vi_params
@@ -1587,27 +1675,32 @@ def blf_props(scene, width, height):
     blf.color(0, *svp.vi_display_rp_fc)
     blf.size(0, svp.vi_display_rp_fs, int(width/20))
 
+
 def blf_unprops():
     blf.disable(0, 2)
     blf.disable(0, 4)
     blf.color(0, 0, 0, 1)
 #    bgl.glColor4f(0, 0, 0, 1)
 
+
 def edgelen(ob, edge):
     omw = ob.matrix_world
     vdiff = omw * (ob.data.vertices[edge.vertices[0]].co - ob.data.vertices[edge.vertices[1]].co)
     mathutils.Vector(vdiff).length
 
+
 def sunpath1(self, context):
     sunpath(bpy.context)
+
 
 def sunpath2():
     sunpath(bpy.context)
 
+
 def sunpath(context):
     scene = context.scene
     svp = scene.vi_params
-    suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh" ]
+    suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]
 
     if svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':
         if suns:
@@ -1618,7 +1711,9 @@ def sunpath(context):
             suns[0].data.energy = svp.sp_sun_strength
             suns[0].data.angle = svp.sp_sun_angle
             suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
-            scene.display.light_direction = (-sin(phi) * cos(beta), sin(beta),  cos(phi) * cos(beta))
+            sky_vec = suns[0].location.normalized()
+            sky_vec.rotate(suns[0].parent.matrix_world.to_euler())
+            scene.display.light_direction = (sky_vec[0], sky_vec[2], -sky_vec[1])
 
             if scene.render.engine == 'CYCLES':
                 if scene.world.node_tree:
@@ -1704,66 +1799,72 @@ def sunpath(context):
 
                 suns[h].data.angle = math.pi * svp.sp_sun_angle/180
 
+
 def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:
         fl = epwfile.readline()
         latitude, longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
     return latitude, longitude
 
-#Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
+
+# Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):
-    #Set the local standard time meridian (lsm) (integer degrees of arc)
+    # Set the local standard time meridian (lsm) (integer degrees of arc)
     lsm = round(lon/15, 0)*15
-    #Approximation for equation of time (et) (minutes) comes from the Wikipedia article on Equation of Time
+    # Approximation for equation of time (et) (minutes) comes from the Wikipedia article on Equation of Time
     b = 2*pi*(doy-81)/364
     et = 9.87 * sin(2*b) - 7.53 * cos(b) - 1.5 * sin(b)
-    #The following formulas adapted from the 2005 ASHRAE Fundamentals, pp. 31.13-31.16
-    #Conversion multipliers
+    # The following formulas adapted from the 2005 ASHRAE Fundamentals, pp. 31.13-31.16
+    # Conversion multipliers
     degToRad = 2*pi/360
     radToDeg = 1/degToRad
-    #Apparent solar time (ast)
+    # Apparent solar time (ast)
     if lon > lsm:
         ast = lst + et/60 - (lsm-lon)/15
     else:
         ast = lst + et/60 + (lsm-lon)/15
-    #Solar declination (delta) (radians)
-    delta = degToRad*23.45 * sin(2*pi*(284+doy)/365)
-    #Hour angle (h) (radians)
-    h = degToRad*15 * (ast-12)
-     #Local latitude (l) (radians)
-    l = degToRad*lat
-    #Solar altitude (beta) (radians)
-    beta = asin(cos(l) * cos(delta) * cos(h) + sin(l) * sin(delta))
-    #Solar azimuth phi (radians)
-    phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
-    #Convert altitude and azimuth from radians to degrees, since the Spatial Analyst's Hillshade function inputs solar angles in degrees
+    # Solar declination (delta) (radians)
+    delta = degToRad * 23.45 * sin(2*pi*(284+doy)/365)
+    # Hour angle (h) (radians)
+    h = degToRad * 15 * (ast-12)
+    # Local latitude (ll) (radians)
+    ll = degToRad * lat
+    # Solar altitude (beta) (radians)
+    beta = asin(cos(ll) * cos(delta) * cos(h) + sin(ll) * sin(delta))
+    # Solar azimuth phi (radians)
+    phi = acos((sin(beta) * sin(ll) - sin(delta))/(cos(beta) * cos(ll)))
+    # Convert altitude and azimuth from radians to degrees, since the Spatial Analyst's Hillshade function inputs solar angles in degrees
     altitude = radToDeg*beta
-    phi = 2*pi - phi if ast<=12 or ast >= 24 else phi
+    phi = 2*pi - phi if ast <= 12 or ast >= 24 else phi
     azimuth = radToDeg*phi
     return([altitude, azimuth, beta, phi])
+
 
 def solarRiseSet(doy, beta, lat, lon, riseset):
     degToRad = 2*pi/360
     radToDeg = 1/degToRad
     delta = degToRad*23.45 * sin(2*pi*(284+doy)/365)
-    l = degToRad*lat
+    ll = degToRad*lat
+
     try:
-        phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
+        phi = acos((sin(beta) * sin(ll) - sin(delta))/(cos(beta) * cos(ll)))
         phi = pi - phi if riseset == 'morn' else pi + phi
     except:
         phi = 0
+
     return(phi*radToDeg)
 
-#def set_legend(ax):
+# def set_legend(ax):
 #    l = ax.legend(borderaxespad = -4)
 #    plt.setp(l.get_texts(), fontsize=8)
 
-#def wr_axes(plt):
+# def wr_axes(plt):
 #    fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
 #    rect = [0.1, 0.1, 0.8, 0.8]
 #    ax = WindroseAxes(fig, rect, facecolor='w')
 #    fig.add_axes(ax)
 #    return(fig, ax)
+
 
 def skframe(pp, scene, oblist):
     svp = scene.vi_params
@@ -1774,6 +1875,7 @@ def skframe(pp, scene, oblist):
                 if shape.name.isdigit():
                     shape.value = shape.name == str(frame)
                     shape.keyframe_insert("value")
+
 
 def gentarget(tarnode, result):
     if tarnode.stat == '0':
@@ -1792,30 +1894,34 @@ def gentarget(tarnode, result):
     else:
         return(0)
 
+
 def selobj(vl, geo):
     vl = bpy.context.view_layer
     if vl.objects.active and vl.objects.active.hide_viewport == 'False':
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
     for ob in vl.objects:
         bpy.context.view_layer.objects.active
         ob.select_set(1) if ob == geo else ob.select_set(0)
     vl.objects.active = geo
 
+
 def actselobj(vl, act, geos):
     if vl.objects.active and vl.objects.active.hide_viewport == 'False':
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
     for ob in vl.objects:
         bpy.context.view_layer.objects.active
         ob.select_set(1) if ob.name in geos else ob.select_set(0)
     act.select_set(1)
     vl.objects.active = act
 
+
 def selobs(vl, geos):
     if vl.objects.active and vl.objects.active.hide_viewport == 'False':
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        bpy.ops.object.mode_set(mode='OBJECT')
     for ob in vl.objects:
         ob.select_set(1) if ob.name in geos else ob.select_set(0)
     vl.objects.active = vl.objects[geos[0]]
+
 
 def delobj(vl, delgeo):
     selobj(vl, delgeo)
@@ -1837,10 +1943,12 @@ def joinobj(vl, obs):
     bpy.ops.object.join()
     return bpy.context.active_object
 
+
 def nodeid(node):
     for ng in bpy.data.node_groups:
         if node in ng.nodes[:]:
             return node.name+'@'+ng.name
+
 
 def nodecolour(node, prob):
     (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3))
@@ -1848,9 +1956,11 @@ def nodecolour(node, prob):
         node.hide = False
     return not prob
 
+
 def remlink(ng, links):
     for link in links:
         ng.links.remove(link)
+
 
 def sockhide(node, lsocknames):
     try:
@@ -1860,6 +1970,7 @@ def sockhide(node, lsocknames):
             node.inputs[outs.name].hide = True if outs.links else False
     except Exception as e:
         print('sockhide', e)
+
 
 def socklink(sock, ng):
     if ng in [g.name for g in bpy.data.node_groups]:
@@ -1873,6 +1984,7 @@ def socklink(sock, ng):
         except:
             if sock.links:
                 bpy.data.node_groups[ng].links.remove(sock.links[-1])
+
 
 def socklink2(sock, ng):
     try:
@@ -1888,6 +2000,7 @@ def socklink2(sock, ng):
         if sock.links:
             ng.links.remove(sock.links[-1])
 
+
 def uvsocklink(sock, ng):
     try:
         uv1 = sock.uvalue
@@ -1897,6 +2010,7 @@ def uvsocklink(sock, ng):
                 bpy.data.node_groups[ng].links.remove(link)
     except:
         pass
+
 
 def uvsocklink2(sock, ng):
     try:
@@ -1908,22 +2022,25 @@ def uvsocklink2(sock, ng):
     except:
         pass
 
+
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))
     fstrings, ustrings, tstrings = [[] for t in tot],  [[] for t in tot], ['Through: {}/{}'.format(dtdf(ts[t]).month, dtdf(ts[t]).day) for t in tot]
     for t in tot:
-        fstrings[t]= ['For: '+''.join(f.strip()) for f in fs[t].split(' ') if f.strip(' ') != '']
+        fstrings[t] = ['For: '+''.join(f.strip()) for f in fs[t].split(' ') if f.strip(' ') != '']
         for uf, ufor in enumerate(us[t].split(';')):
             ustrings[t].append([])
             for ut, utime in enumerate(ufor.split(',')):
                 ustrings[t][uf].append(['Until: '+','.join([u.strip() for u in utime.split(' ') if u.strip(' ')])])
     return(tstrings, fstrings, ustrings)
 
+
 def retdates(sdoy, edoy, y):
     (y1, y2) = (y, y) if edoy >= sdoy else (y - 1, y)
     sdate = datetime.datetime(y1, 1, 1) + datetime.timedelta(sdoy - 1)
     edate = datetime.datetime(y2, 1, 1) + datetime.timedelta(edoy - 1)
     return(sdate, edate)
+
 
 def ret_param(param, val):
     if isinstance(param, float):
@@ -1932,6 +2049,7 @@ def ret_param(param, val):
         return int(val)
     else:
         return str(val)
+
 
 def li_calcob(ob, li):
     ovp = ob.vi_params
@@ -1943,6 +2061,7 @@ def li_calcob(ob, li):
 
     return ovp.vi_type_string == 'LiVi Calc'
 
+
 def sunposh(context, suns):
     scene = context.scene
     sps = [solarPosition(scene.solday, i, scene.latitude, scene.longitude) for i in range(0, 23)]
@@ -1950,7 +2069,7 @@ def sunposh(context, suns):
 
     if sum(spsvalid) > len(suns):
         for i in range(sum(spsvalid) - len(suns)):
-            bpy.ops.object.lamp_add(type = "SUN")
+            bpy.ops.object.lamp_add(type="SUN")
             suns.append(context.active_object)
     elif sum(spsvalid) < len(suns):
         [scene.objects.unlink(sun) for sun in suns[sum(spsvalid)]]
@@ -1958,20 +2077,21 @@ def sunposh(context, suns):
     for sun in suns:
         pass
 
+
 def sunapply(scene, sun, values, solposs, frames, sdist):
     sun.data.animation_data_clear()
     sun.animation_data_clear()
     sun.animation_data_create()
     sun.animation_data.action = bpy.data.actions.new(name="EnVi Sun")
-    sunposx = sun.animation_data.action.fcurves.new(data_path="location", index = 0)
-    sunposy = sun.animation_data.action.fcurves.new(data_path="location", index = 1)
-    sunposz = sun.animation_data.action.fcurves.new(data_path="location", index = 2)
+    sunposx = sun.animation_data.action.fcurves.new(data_path="location", index=0)
+    sunposy = sun.animation_data.action.fcurves.new(data_path="location", index=1)
+    sunposz = sun.animation_data.action.fcurves.new(data_path="location", index=2)
     sunposx.keyframe_points.add(len(frames))
     sunposy.keyframe_points.add(len(frames))
     sunposz.keyframe_points.add(len(frames))
-    sunrotx = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index = 0)
-    sunroty = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index = 1)
-    sunrotz = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index = 2)
+    sunrotx = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index=0)
+    sunroty = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index=1)
+    sunrotz = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index=2)
     sunrotx.keyframe_points.add(len(frames))
     sunroty.keyframe_points.add(len(frames))
     sunrotz.keyframe_points.add(len(frames))
@@ -2002,9 +2122,9 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
         bnodes = [bnode for bnode in scene.world.node_tree.nodes if bnode.bl_label == 'Background']
 
         for stnode in stnodes:
-            st1x = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 0)
-            st1y = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 1)
-            st1z = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 2)
+            st1x = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index=0)
+            st1y = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index=1)
+            st1z = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index=2)
             st1x.keyframe_points.add(len(frames))
             st1y.keyframe_points.add(len(frames))
             st1z.keyframe_points.add(len(frames))
@@ -2047,8 +2167,10 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
 
     sun.data.cycles.use_multiple_importance_sampling = True
 
+
 def retsunct(beta):
     return 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
+
 
 def spfc(self):
     scene = bpy.context.scene
@@ -2060,11 +2182,12 @@ def spfc(self):
         scene.frame_set(scene.frame_current)
 
     if svp['viparams']['resnode'] == 'VI Sun Path':
-        spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
+        spoblist = {ob.get('VIType'): ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
         beta, phi = solarPosition(scene.sp_sd, scene.sp_sh, scene.latitude, scene.longitude)[2:]
 
-        if scene.world.use_nodes == False:
+        if not scene.world.use_nodes:
             scene.world.use_nodes = True
+
         nt = bpy.data.worlds[0].node_tree
 
         if nt and nt.nodes.get('Sky Texture'):
@@ -2074,8 +2197,8 @@ def spfc(self):
             if ob.get('VIType') == 'Sun':
                 ob.rotation_euler = pi * 0.5 - beta, 0, -phi
                 ob.location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)
-                ob.location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
-                ob.location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
+                ob.location.x = spoblist['SPathMesh'].location.x - (100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
+                ob.location.y = spoblist['SPathMesh'].location.y - (100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
 
                 if ob.data.node_tree:
                     for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
@@ -2114,10 +2237,11 @@ def bm_to_stl(bm, stl_path):
         stlfile.write('endsolid\n')
     bm.free()
 
+
 def ob_to_stl(self, dp, stl_path):
     o = self.id_data
     bm = bmesh.new()
-    bm.from_object(o, dp)   
+    bm.from_object(o, dp)
     bm.transform(o.matrix_world)
     bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
 
@@ -2137,12 +2261,12 @@ def ob_to_stl(self, dp, stl_path):
     # bm.transform(o.matrix_world.inverted())
     # bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
     # bm.normal_update()
-    
+
     # tris = bm.calc_loop_triangles()
 
     # with open(stl_path, 'w') as stlfile:
     #     stlfile.write('solid\n')
-        
+
     #     for tri in tris:
     #         # Below can correct post-processing normal but creates incorrect STLs
     #         blender_normal = (o.matrix_world.inverted_safe().transposed().to_3x3() @ tri[0].face.normal).normalized()
@@ -2160,7 +2284,6 @@ def ob_to_stl(self, dp, stl_path):
     #         stlfile.write('endloop\nendfacet\n')
     #     stlfile.write('endsolid\n')
     # bm.transform(o.matrix_world)
-    
 
 
 def find_materials_in_groupinstances(empty):
@@ -2178,6 +2301,7 @@ def find_materials_in_groupinstances(empty):
     checked_groups_names_list.append(empty.instance_collection.name)  # or no empty mat in group
     return None
 
+
 def material_on_sel_obj(mat):
     obj = bpy.context.active_object
 
@@ -2186,6 +2310,7 @@ def material_on_sel_obj(mat):
             return True
 
     return False
+
 
 def get_materials():
     materials = []
