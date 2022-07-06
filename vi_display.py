@@ -688,7 +688,7 @@ class draw_bsdf(Base_Display):
         self.plt.clf()
         self.plt.close()
         self.fig = self.plt.figure(figsize=(4, 3.5), dpi = 100)
-        ax = self.plt.subplot(111, projection = 'polar')
+        ax = self.plt.subplot(111, projection='polar')
         ax.bar(0, 0)
         self.plt.title('{} {}'.format(self.rad_select, svp.vi_bsdf_direc), size = 9, y = 1.025)
         ax.axis([0, 2 * pi, 0, 1])
@@ -722,7 +722,7 @@ class draw_bsdf(Base_Display):
                     self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center", va = 'center', family='sans-serif', size=10)
                 p += 1
 
-        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax = svp.vi_bsdfleg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax=svp.vi_bsdfleg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))
         pc.set_array(patchdat)
         ax.add_collection(pc)
         ax.add_artist(bg)

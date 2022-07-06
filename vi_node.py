@@ -2098,7 +2098,7 @@ class No_Vi_HMChart(Node, ViNodes):
     metricrange: EnumProperty(items=[('0', 'Auto', 'Automatic range based on max/min values'), ('1', 'Custom', 'Custom range based on input values')], name="", description="Result metric")
     cf: BoolProperty(name="", description="Contour fill", default = 0)
     cl: BoolProperty(name="", description="Contour fill", default = 0)
-    clevels: IntProperty(name = '', description = "Number of contour levels", default = 10, min = 1)
+    clevels: IntProperty(name = '', description = "Number of contour levels", default = 10, min = 2)
     daystart: IntProperty(name = '', description = "Start day", default = 1, min = 1, max = 365)
     dayend: IntProperty(name = '', description = "End day", default = 365, min = 1, max = 365)
     hourstart: IntProperty(name = '', description = "Start hour", default = 1, min = 1, max = 365)
