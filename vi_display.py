@@ -196,10 +196,12 @@ def t_update(self, context):
         mat.blend_method = 'BLEND'
     cmap(self)
 
+
 def w_update(self, context):
     o = context.active_object
     if o and o.type == 'MESH':
         (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_params.vi_disp_wire else (0, 0)
+
 
 def livires_update(self, context):
     setscenelivivals(context.scene)
@@ -208,6 +210,7 @@ def livires_update(self, context):
         o.vi_params.lividisplay(context.scene)
 
     e_update(self, context)
+
 
 def rendview(i):
     for scrn in bpy.data.screens:
@@ -230,7 +233,7 @@ def li_display(context, disp_op, simnode):
     except:
         pass
 
-    (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
+    (rcol, mtype) = ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 
     for geo in context.view_layer.objects:
 #        geo.vi_params.vi_type_string == ''
@@ -283,7 +286,7 @@ def li_display(context, disp_op, simnode):
             face.select = True
 
         if not context.active_object:
-            disp_op.report({'ERROR'},"No display object. If in local view switch to global view and/or re-export the geometry")
+            disp_op.report({'ERROR'}, "No display object. If in local view switch to global view and/or re-export the geometry")
             return 'CANCELLED'
 
         ores = context.active_object
@@ -315,7 +318,7 @@ def li_display(context, disp_op, simnode):
             bm.faces.layers.int.new('extrude')
             extrude = bm.faces.layers.int['extrude']
 
-            for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
+            for face in bmesh.ops.extrude_discrete_faces(bm, faces=bm.faces)['faces']:
                 face.select = True
                 face[extrude] = 1
 
@@ -324,16 +327,16 @@ def li_display(context, disp_op, simnode):
         bpy.ops.object.shade_flat()
         ores.vi_params.lividisplay(scene)
 
-        if svp.vi_disp_3d == 1 and ores.data.shape_keys == None:
+        if svp.vi_disp_3d == 1 and not ores.data.shape_keys:
             selobj(context.view_layer, ores)
-            bpy.ops.object.shape_key_add(from_mix = False)
+            bpy.ops.object.shape_key_add(from_mix=False)
 
             for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-                bpy.ops.object.shape_key_add(from_mix = False)
+                bpy.ops.object.shape_key_add(from_mix=False)
                 ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
 
     skframe('', scene, obreslist)
-    bpy.ops.wm.save_mainfile(check_existing = False)
+    bpy.ops.wm.save_mainfile(check_existing=False)
     scene.frame_set(svp['liparams']['fs'])
     rendview(1)
 
@@ -350,7 +353,7 @@ class linumdisplay():
         self.fontmult = 1
         self.obreslist = [ob for ob in scene.objects if ob.vi_params.vi_type_string == 'LiVi Res']
 
-        if svp.vi_display_sel_only == False:
+        if not svp.vi_display_sel_only:
             self.obd = self.obreslist
         else:
             self.obd = [context.active_object] if context.active_object in self.obreslist else []
@@ -365,6 +368,7 @@ class linumdisplay():
         self.u = 0
         scene = context.scene
         svp = scene.vi_params
+        bcao = bpy.context.active_object
         self.fontmult = 2  # if context.space_data.region_3d.is_perspective else 500
 
         if not svp.get('viparams') or svp['viparams']['vidisp'] not in ('svf', 'li', 'ss', 'lcpanel'):
@@ -375,9 +379,7 @@ class linumdisplay():
             self.disp_op.report({'INFO'}, "Outside result frame range")
             return
 
-        if svp.vi_display_rp != True \
-            or (bpy.context.active_object not in self.obreslist and svp.vi_display_sel_only == True)  \
-            or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+        if not svp.vi_display_rp or (bcao not in self.obreslist and svp.vi_display_sel_only) or (bcao and bcao.mode == 'EDIT'):
             return
 
         if (self.width, self.height) != viewdesc(context)[2:]:
@@ -388,7 +390,7 @@ class linumdisplay():
             self.view_location = retvpvloc(context)
             self.u = 1
 
-        if svp.vi_display_sel_only == False:
+        if not svp.vi_display_sel_only:
             obd = self.obreslist
         else:
             obd = [context.active_object] if context.active_object in self.obreslist else []
@@ -498,6 +500,7 @@ class linumdisplay():
             self.alldepths = self.alldepths/nmin(self.alldepths)
             draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
 
+
 class Base_Display():
     def __init__(self, ipos, width, height, xdiff, ydiff):
         self.ispos = ipos
@@ -510,6 +513,7 @@ class Base_Display():
         self.cao = None
         self.ah = height
         self.aw = width
+
 
 class results_bar():
     def __init__(self, images):
@@ -545,10 +549,9 @@ class results_bar():
             self.xpos = xpos
 
             v_coords = ((self.xpos, rh - self.yoffset - self.size), (self.xpos + self.no * self.size, rh - self.yoffset - self.size),
-                    (self.xpos + self.no * self.size, rh - self.yoffset), (self.xpos, rh - self.yoffset))
+                        (self.xpos + self.no * self.size, rh - self.yoffset), (self.xpos, rh - self.yoffset))
 
-
-            self.batches = [batch_for_shader(self.shaders[1], 'TRIS', {"pos": v_coords}, indices = self.f_indices),
+            self.batches = [batch_for_shader(self.shaders[1], 'TRIS', {"pos": v_coords}, indices=self.f_indices),
                             batch_for_shader(self.shaders[0], 'LINE_LOOP', {"pos": v_coords})]
 
             for i in range(self.no):
@@ -558,6 +561,7 @@ class results_bar():
 
         for si, s in enumerate(self.shaders):
             s.bind()
+
             if si == 0:
                 s.uniform_float("color", (1, 1, 1, 1))
                 self.batches[si].draw(s)
@@ -625,6 +629,7 @@ class results_bar():
 #     else:
 #         return
 
+
 class draw_bsdf(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
@@ -687,10 +692,10 @@ class draw_bsdf(Base_Display):
         self.centre = (self.lspos[0] + 0.225 * self.xdiff, self.lspos[1] + 0.425 * self.ydiff)
         self.plt.clf()
         self.plt.close()
-        self.fig = self.plt.figure(figsize=(4, 3.5), dpi = 100)
+        self.fig = self.plt.figure(figsize=(4, 3.5), dpi=100)
         ax = self.plt.subplot(111, projection='polar')
         ax.bar(0, 0)
-        self.plt.title('{} {}'.format(self.rad_select, svp.vi_bsdf_direc), size = 9, y = 1.025)
+        self.plt.title('{} {}'.format(self.rad_select, svp.vi_bsdf_direc), size=9, y=1.025)
         ax.axis([0, 2 * pi, 0, 1])
         ax.spines['polar'].set_visible(False)
         ax.xaxis.set_ticks([])
@@ -717,19 +722,22 @@ class draw_bsdf(Base_Display):
             for wedge in anglerange:
                 phi1, phi2 = wedge * 2 * angdiv - angdiv, (wedge + 1) * 2 * angdiv - angdiv
                 patches.append(Rectangle((phi1, widths[ring - 1]), phi2 - phi1, ri))
+
                 if self.num_disp:
                     y = 0 if ring == 1 else 0.5 * (widths[ring] + widths[ring-1])
-                    self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center", va = 'center', family='sans-serif', size=10)
+                    self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center",
+                                  va='center', family='sans-serif', size=10)
                 p += 1
 
-        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax=svp.vi_bsdfleg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax=svp.vi_bsdfleg_max), cmap=self.col, linewidths=[0] + 144*[0.5],
+                             edgecolors=('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths=[0] + 144*[0.5], edgecolors=('black',))
         pc.set_array(patchdat)
         ax.add_collection(pc)
         ax.add_artist(bg)
-        cb = self.plt.colorbar(pc, fraction=0.04, pad=0.02, format = '%3g')
+        cb = self.plt.colorbar(pc, fraction=0.04, pad=0.02, format='%3g')
         cb.set_label(label='Percentage of incoming flux (%)', size=9)
         cb.ax.tick_params(labelsize=7)
-        pc.set_clim(vmin=leg_min + 0.01, vmax= svp.vi_bsdfleg_max)
+        pc.set_clim(vmin=leg_min + 0.01, vmax=svp.vi_bsdfleg_max)
         self.plt.tight_layout()
         self.save(scene)
 
@@ -745,7 +753,7 @@ class draw_bsdf(Base_Display):
                 va_coords = [(0, 0)]
                 va_coords += [(self.radii[self.sr] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180),
                               self.radii[self.sr] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(720)]
-                fa_indices = [(0, x + (1, -719)[x > 0 and not x%720], x) for x in range(1, 720 + 1)]
+                fa_indices = [(0, x + (1, -719)[x > 0 and not x % 720], x) for x in range(1, 720 + 1)]
             else:
                 va_coords = [(-self.radii[self.sr - 1] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180),
                               self.radii[self.sr - 1] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(int((self.srs - 1) * 720/self.segments[self.sr]), int((self.srs) * 720/self.segments[self.sr]) + 1)]
@@ -770,7 +778,7 @@ class draw_bsdf(Base_Display):
                 vl_coords += [item for sublist in vl_coordstot for item in sublist]
                 v_coords += vl_coords1
 
-            f_indices = [(0, x + (1, -719)[x > 0 and not x%720], x) for x in range(1, 720*9 + 1)][::-1]
+            f_indices = [(0, x + (1, -719)[x > 0 and not x % 720], x) for x in range(1, 720*9 + 1)][::-1]
             return (vl_coords, v_coords, f_indices, va_coords, fa_colours, fa_indices)
 
     def create_batch(self, sel):
@@ -957,6 +965,7 @@ class draw_bsdf(Base_Display):
             self.arc_shader.uniform_float("spos", (self.lspos[0] + 50 + 125, self.lepos[1] - 155))
             self.arc_batch.draw(self.arc_shader)
 
+
 class wr_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
@@ -1122,6 +1131,7 @@ class wr_legend(Base_Display):
         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices = fl_indices)
         self.lh = lh
 
+
 class wr_table(Base_Display):
     def __init__(self, context, pos, width, height, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
@@ -1230,8 +1240,8 @@ class wr_table(Base_Display):
             rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
             rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
             rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
-            rowtops = [int(self.lepos[1]  - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
-            rowbots = [int(self.lepos[1]  - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
+            rowtops = [int(self.lepos[1] - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
+            rowbots = [int(self.lepos[1] - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
             rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
 
             if abs(max(colscale, rowscale) - 1) > 0.05:
@@ -1251,6 +1261,7 @@ class wr_table(Base_Display):
 
             blf.disable(0, 8)
             blf.disable(0, 4)
+
 
 class draw_scatter(Base_Display):
     def __init__(self, context, pos, width, height, xdiff, ydiff, op):
@@ -1380,6 +1391,7 @@ class draw_scatter(Base_Display):
     def show_plot(self, context):
         show_plot(self, context)
 
+
 class draw_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff, levels):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
@@ -1413,8 +1425,7 @@ class draw_legend(Base_Display):
 
             dplaces = retdp(self.maxres, 1)
             resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
-                            [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
-
+                      [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
 
             if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
                 self.resvals = bpy.app.driver_namespace.get('restext')()
@@ -1513,7 +1524,6 @@ class draw_legend(Base_Display):
             blf.disable(self.font_id, blf.SHADOW)
             blf.disable(0, 8)
 
-
     def create_batch(self):
         base_vertex_shader = '''
             uniform mat4 ModelViewProjectionMatrix;
@@ -1574,10 +1584,11 @@ class draw_legend(Base_Display):
         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
         self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
         (vl_coords, fl_indices) = self.ret_coords()
-        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
+        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
         self.basel_batch = batch_for_shader(self.basel_shader, 'LINE_LOOP', {"position": self.v_coords})
         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
-        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords, "colour": self.colours}, indices = fl_indices)
+        self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords, "colour": self.colours}, indices=fl_indices)
+
 
 def draw_icon_new(self):
     image = bpy.data.images[self.image]
@@ -1593,7 +1604,6 @@ def draw_icon_new(self):
     if image.gl_load():
         raise Exception()
 
-
     def draw():
         bgl.glActiveTexture(bgl.GL_TEXTURE0)
         bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)
@@ -1605,16 +1615,15 @@ def draw_icon_new(self):
 
     draw()
 
+
 def draw_icon(self):
     drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)
     drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
     bgl.glEnable(bgl.GL_BLEND)
     bpy.data.images[self.image].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
     bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.image].bindcode[0])
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
-                            bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
-                            bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
     bgl.glEnable(bgl.GL_TEXTURE_2D)
     bgl.glColor4f(1, 1, 1, 1)
     bgl.glBegin(bgl.GL_QUADS)
@@ -1630,6 +1639,7 @@ def draw_icon(self):
     bgl.glDisable(bgl.GL_TEXTURE_2D)
     bgl.glDisable(bgl.GL_BLEND)
     bgl.glFlush()
+
 
 def draw_image(self, topgap):
     draw_icon(self)
@@ -1665,22 +1675,24 @@ def draw_image(self, topgap):
     bgl.glDisable(bgl.GL_TEXTURE_2D)
     bgl.glFlush()
 
+
 def draw_dhscatter(self, x, y, z, tit, xlab, ylab, zlab, valmin, valmax, col):
     self.plt.close()
     x = [x[0] - 0.5] + [xval + 0.5 for xval in x]
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
     self.fig, self.ax = plt.subplots(figsize=(12, 6))
-    self.plt.title(tit, size = 20).set_position([.5, 1.025])
-    self.plt.xlabel(xlab, size = 18)
-    self.plt.ylabel(ylab, size = 18)
+    self.plt.title(tit, size=20).set_position([.5, 1.025])
+    self.plt.xlabel(xlab, size=18)
+    self.plt.ylabel(ylab, size=18)
     self.plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=valmin, vmax=valmax)
-    cbar = self.plt.colorbar(use_gridspec=True, pad = 0.01)
-    cbar.set_label(label=zlab,size=18)
+    cbar = self.plt.colorbar(use_gridspec=True, pad=0.01)
+    cbar.set_label(label=zlab, size=18)
     cbar.ax.tick_params(labelsize=16)
-    self.plt.axis([min(x),max(x),min(y),max(y)])
-    self.plt.xticks(size = 16)
-    self.plt.yticks(size = 16)
+    self.plt.axis([min(x), max(x), min(y), max(y)])
+    self.plt.xticks(size=16)
+    self.plt.yticks(size=16)
     self.fig.tight_layout()
+
 
 def draw_table(self):
     draw_icon(self)
@@ -1749,6 +1761,7 @@ def draw_table(self):
     bgl.glEnd()
     bgl.glFlush()
 
+
 def save_plot(self, scene, filename):
     fileloc = os.path.join(scene.vi_params['viparams']['newdir'], 'images', filename)
     self.plt.savefig(fileloc, bbox_inches='tight')
@@ -1762,6 +1775,7 @@ def save_plot(self, scene, filename):
 
     bpy.data.images[self.gimage].user_clear()
 
+
 def show_plot(self, context):
     try:
         self.plt.show()
@@ -1769,6 +1783,7 @@ def show_plot(self, context):
 
     except Exception as e:
         logentry('Error showing matplotlib graph: {}'.format(e))
+
 
 class NODE_OT_SunPath(bpy.types.Operator):
     bl_idname = "node.sunpath"
@@ -1785,7 +1800,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
                 coord = Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)])
                 coords.append(coord)
-                if d%183 == 0:
+                if d % 183 == 0:
                     breaks.append(1)
                 else:
                     breaks.append(0)
@@ -1967,7 +1982,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
     def draw_sp(self, op, context, node):
         try:
-        # Draw lines
+            # Draw lines
             bgl.glEnable(bgl.GL_DEPTH_TEST)
             bgl.glDepthFunc(bgl.GL_LESS)
             bgl.glDepthMask(bgl.GL_FALSE)
@@ -1980,6 +1995,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             gpu.state.blend_set('ALPHA')
             gpu.state.line_width_set(context.scene.vi_params.sp_line_width)
             gpu.state.point_size_set(context.scene.vi_params.sp_sun_size)
+
             try:
                 self.sp_shader.bind()
             except:
@@ -2085,7 +2101,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     try:
                         if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer.depsgraph, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
                             soltime = datetime.datetime.fromordinal(svp.sp_sd)
-                            soltime += datetime.timedelta(hours = svp.sp_sh)
+                            soltime += datetime.timedelta(hours=svp.sp_sh)
                             sre = sobs[0].rotation_euler
                             blf_props(scene, width, height)
                             sol_text = soltime.strftime('     %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi)
@@ -2103,8 +2119,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for sun in suns:
             sunbm = bmesh.new()
-            bmesh.ops.create_uvsphere(sunbm, u_segments = 12, v_segments = 12, radius = dia, matrix = sun.matrix_world, calc_uvs = 0)
-            bmesh.ops.triangulate(sunbm, faces = sunbm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
+            bmesh.ops.create_uvsphere(sunbm, u_segments=12, v_segments=12, radius=dia, matrix=sun.matrix_world, calc_uvs=0)
+            bmesh.ops.triangulate(sunbm, faces=sunbm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
             sun_v_coords += [v.co[:] for v in sunbm.verts]
             sun_f_indices += [[v.index for v in face.verts] for face in sunbm.faces]
             sunbm.free()
@@ -2114,17 +2130,17 @@ class NODE_OT_SunPath(bpy.types.Operator):
         midalt = solarPosition(79, 12, lat, long)[2]
         globebm = bmesh.new()
         altrot = mathutils.Matrix().Rotation(midalt, 4, 'X')
-        bmesh.ops.create_uvsphere(globebm, u_segments = 48, v_segments = 48, radius = 100,
-                                  matrix = altrot, calc_uvs = 0)
-        bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.01,
-                               plane_co = (0, 0, 0), plane_no = (0, 0, 1), use_snap_center = False, clear_outer = False, clear_inner = True)
-        bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.1,
-                               plane_co = self.winmid, plane_no = self.winnorm, use_snap_center = False,
-                               clear_outer = True, clear_inner = False)
-        bmesh.ops.bisect_plane(globebm, geom = globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist = 0.1,
-                               plane_co = self.summid, plane_no = self.sumnorm, use_snap_center = False,
-                               clear_outer = False, clear_inner = True)
-        bmesh.ops.triangulate(globebm, faces = globebm.faces, quad_method = 'BEAUTY', ngon_method = 'BEAUTY')
+        bmesh.ops.create_uvsphere(globebm, u_segments=48, v_segments=48, radius=100,
+                                  matrix=altrot, calc_uvs=0)
+        bmesh.ops.bisect_plane(globebm, geom=globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist=0.01,
+                               plane_co=(0, 0, 0), plane_no=(0, 0, 1), use_snap_center=False, clear_outer=False, clear_inner=True)
+        bmesh.ops.bisect_plane(globebm, geom=globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist=0.1,
+                               plane_co=self.winmid, plane_no=self.winnorm, use_snap_center=False,
+                               clear_outer=True, clear_inner=False)
+        bmesh.ops.bisect_plane(globebm, geom=globebm.verts[:] + globebm.edges[:] + globebm.faces[:], dist=0.1,
+                               plane_co=self.summid, plane_no=self.sumnorm, use_snap_center=False,
+                               clear_outer=False, clear_inner=True)
+        bmesh.ops.triangulate(globebm, faces=globebm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
         globe_v_coords = [v.co[:] for v in globebm.verts]
         globe_f_indices = [[v.index for v in face.verts] for face in globebm.faces]
         globebm.free()
@@ -2147,7 +2163,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     mornevediff = 360# if bpy.context.scene.latitude >= 0 else 360
 
                 startset = morn if lat >= 0 else eve
-                angrange = [startset + a * 0.0125 * mornevediff for a in range (0, 81)]
+                angrange = [startset + a * 0.0125 * mornevediff for a in range(0, 81)]
                 bm.verts.new().co = (97*sin(angrange[0]*pi/180), 97*cos(angrange[0]*pi/180), param[1])
 
                 for a in angrange[1:-1]:
@@ -2216,9 +2232,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
             node_material.inputs[0].default_value = matdict[mat]
-            node_material.location = 0,0
+            node_material.location = 0, 0
             node_output = nodes.new(type='ShaderNodeOutputMaterial')
-            node_output.location = 400,0
+            node_output.location = 400, 0
             links = bpy.data.materials[mat].node_tree.links
             links.new(node_material.outputs[0], node_output.inputs[0])
 
@@ -2239,12 +2255,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         if bpy.context.active_object and not bpy.context.active_object.hide_viewport:
             if bpy.context.active_object.type == 'MESH':
-                bpy.ops.object.mode_set(mode = 'OBJECT')
+                bpy.ops.object.mode_set(mode='OBJECT')
 
         if any(ob.get('VIType') == "SPathMesh" for ob in context.scene.objects):
             spathob = [ob for ob in context.scene.objects if ob.get('VIType') == "SPathMesh"][0]
         else:
-            spathob = compass((0,0,0.01), sd, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'], bpy.data.materials['SPGrey'])
+            spathob = compass((0, 0, 0.01), sd, bpy.data.materials['SPPlat'], bpy.data.materials['SPBase'], bpy.data.materials['SPGrey'])
 
             if spathob.name not in self.spcoll.objects:
                 self.spcoll.objects.link(spathob)
@@ -2265,7 +2281,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sun.data.shadow_soft_size = 0.01
             sun['VIType'] = 'Sun'
             sun['solhour'], sun['solday'] = svp.sp_sh, svp.sp_sd
-            sun.name = sun.data.name ='Sun{}'.format(s)
+            sun.name = sun.data.name = 'Sun{}'.format(s)
             sun.parent = spathob
 
         if sunpath1 not in bpy.app.handlers.frame_change_post:
@@ -2316,6 +2332,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
+
 
 class wr_scatter(Base_Display):
     def __init__(self, context, pos, width, height, xdiff, ydiff):
@@ -2403,7 +2420,7 @@ class wr_scatter(Base_Display):
         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
         self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
-        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices = self.f_indices)
+        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": self.v_coords})
         self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
 
@@ -2728,6 +2745,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
             context.area.tag_redraw()
         return {'PASS_THROUGH'}
 
+
 class VIEW3D_OT_SSDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.ssdisplay"
@@ -2881,6 +2899,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         except:
             context.scene.vi_params.vi_display = 0
 
+
 class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     bl_idname = "view3d.bsdf_display"
     bl_label = "BSDF display"
@@ -3013,6 +3032,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             self.bsdf.draw(context)
         except:
             context.scene.vi_params.vi_display = 0
+
 
 class VIEW3D_OT_Li_BD(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
@@ -3156,12 +3176,12 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
 
         if node.metric == '1' and node.light_menu == '2':
             dim = (800, 800)
-            imname, svg_bytes = vi_info(node, dim, ir = node['res']['ratioDF'], aDF = node['res']['avDF'])
+            imname, svg_bytes = vi_info(node, dim, ir=node['res']['ratioDF'], aDF=node['res']['avDF'])
         elif node.metric == '1' and node.light_menu == '1':
             dim = (600, 800)
-            imname, svg_bytes = vi_info(node, (600, 800), sda = node['res']['sda'], sdapass = node['res']['sdapass'],
-                                        ase = node['res']['ase'], asepass = node['res']['asepass'], o1 = node['res']['o1'],
-                                        tc = node['res']['tc'], totarea = node['res']['totarea'], svarea = node['res']['svarea'])
+            imname, svg_bytes = vi_info(node, (600, 800), sda=node['res']['sda'], sdapass=node['res']['sdapass'],
+                                        ase=node['res']['ase'], asepass=node['res']['asepass'], o1=node['res']['o1'],
+                                        tc=node['res']['tc'], totarea=node['res']['totarea'], svarea=node['res']['svarea'])
 
         image = QImage.fromData(svg_bytes)
         image = image.convertToFormat(17)
@@ -3170,11 +3190,12 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         bs.setsize(image.byteCount())
 #        strbs = bs.asstring()
         buf = memoryview(bs)
-        arr = frombuffer(buf, dtype = ubyte).astype(float32)
+        arr = frombuffer(buf, dtype=ubyte).astype(float32)
         ipwidth, ipheight = dim[0], dim[1]
 
         if imname not in [im.name for im in bpy.data.images]:
-            bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True, generated_type='BLANK', float=False, use_stereo_3d=False)
+            bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
+                              generated_type='BLANK', float=False, use_stereo_3d=False)
             im = bpy.data.images[imname]
 
         else:

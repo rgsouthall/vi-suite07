@@ -535,7 +535,7 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, "HDR file:", self, 'hdrname')
             else:
                 newrow(layout, 'Resolution:', self, 'cbdm_res')
-                
+
                 if self.cbanalysismenu != '0':
                     newrow(layout, 'HDR:', self, 'hdr')
 
@@ -2756,7 +2756,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
                             res_ob = bpy.data.objects['{}'.format(self.zone_menu)]
-                            
+
                             if res_ob.vi_params['livires'].get('totarea{}'.format(self.frame_menu)):
                                 self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
                                 self['res']['svarea'] = res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]
@@ -3033,7 +3033,7 @@ class So_En_Res(NodeSocket):
     valid = ['Vi Results']
 
     def draw(self, context, layout, node, text):
-        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], 
+        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'],
                     "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"),
                     "Linkage":("linkmenu", "linkrmenu"), "External":("enmenu", "enrmenu"), "Position":("posmenu", "posrmenu"),
                     "Camera":("cammenu", "camrmenu"), "Power":("powmenu", "powrmenu"),
