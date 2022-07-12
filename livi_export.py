@@ -23,9 +23,10 @@ from .vi_func import clearscene, solarPosition, retobjs, clearlayers, viparams, 
 from .livi_func import face_bsdf
 from numpy import array, where, in1d
 
+
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)
-    mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials]
+    mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials if m]
     on = o.name.replace(" ", "_")
 
     if sks:
@@ -33,18 +34,27 @@ def radpoints(o, faces, sks):
 
     for f, face in enumerate(faces):
         fmi = face.material_index
+
+#        if fmi < len(o.data.materials):
         m = o.data.materials[fmi]
-        mvp = m.vi_params
-        mname = mns[fmi] if not mvp.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
-        mentry = face_bsdf(o, m, mname, face)
-        fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
 
-        if sks:
-            ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+        if m:
+            mvp = m.vi_params
+            mname = mns[fmi] if not mvp.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
+            mentry = face_bsdf(o, m, mname, face)
+            fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
+
+            if sks:
+                ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1,
+                                                                                                                v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1,
+                                                                                                                v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+            else:
+                ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format(v.co) for v in face.verts])
+
+            fentries[f] = ''.join((mentry, fentry, ventries+'\n'))
+
         else:
-            ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format(v.co) for v in face.verts])
-
-        fentries[f] = ''.join((mentry, fentry, ventries+'\n'))
+            logentry(f'{o.name} face {face.index} has no material defined. Check that mesh modifiers have been applied')
 
     return ''.join(fentries)
 
@@ -53,6 +63,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
+    print(o.name)
 
     if tri:
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
@@ -185,8 +196,8 @@ def radgexport(export_op, node):
 #            bm.from_mesh(tempmesh)
             bm.transform(o.matrix_world)
             bm.normal_update()
-            o.to_mesh_clear()
-            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.mesh, node.triangulate)
+#            o.to_mesh_clear()
+            gradfile += bmesh2mesh(scene, bm, o.evaluated_get(dp), frame, tempmatfilename, node.mesh, node.triangulate)
 
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]

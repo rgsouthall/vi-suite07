@@ -97,11 +97,11 @@ class ADDON_OT_PyInstall(bpy.types.Operator):
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
             mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
             os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(mp_cmd))    
+            Popen(shlex.split(mp_cmd))
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
             ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
             os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(ng_cmd))  
+            Popen(shlex.split(ng_cmd))
         return{'FINISHED'}
 
 class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
@@ -613,7 +613,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             reslists.append(['All', 'Zone spatial', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
             reslists.append(['All', 'Zone spatial', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
             reslists.append(['All', 'Zone spatial', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
-            
+
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
@@ -1638,7 +1638,7 @@ class MAT_EnVi_Node(bpy.types.Operator):
         mvp = cm.vi_params
 
         if not mvp.envi_nodes:
-            bpy.ops.node.new_node_tree(type='EnViMatN', name = cm.name)
+            bpy.ops.node.new_node_tree(type='EnViMatN', name=cm.name)
             mvp.envi_nodes = bpy.data.node_groups[cm.name]
             mvp.envi_nodes.nodes.new('No_En_Mat_Con')
             mvp.envi_nodes['envi_con_type'] = 'None'
@@ -2814,7 +2814,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         turb_residuals = {'laminar': [], 'kEpsilon': ['k', 'epsilon'], 'kOmega': ['k', 'omega'], 'SpalartAllmaras': ['nuTilda']}[casenode.turbulence]
         rad_residuals = ['G'] if svp['flparams']['features']['rad'] else []
         buoy_residuals = ['p_rgh'] if svp['flparams']['features']['buoy'] else ['p']
-        
+
 
         if casenode.buoyancy:
             buoss_residuals = ['e'] if casenode.buossinesq else ['h']
@@ -2841,7 +2841,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             else:
                 svp['flparams']['solver'] = 'simpleFoam'
                 svp['flparams']['pref'] = casenode.pnormval
-                
+
                 if casenode.turbulence == 'laminar':
                     svp['flparams']['solver_type'] = 'lsf'
                     # svp['flparams']['residuals'] = ['p', 'Ux', 'Uy', 'Uz']
@@ -2892,7 +2892,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             fvschfile.write(fvschwrite(casenode, svp['flparams']['features']))
 
         # if casenode.turbulence == 'laminar':
-        
+
 
         with open(os.path.join(svp['flparams']['ofcfilebase'], 'momentumTransport'), 'w') as mtfile:
             mtfile.write(fvmtwrite(casenode, svp['flparams']['features']))
@@ -2968,7 +2968,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self.expnode = context.node
         case_nodes = [l.from_node for l in self.expnode.inputs['Case in'].links]
         bound_nodes = [l.to_node for l in self.expnode.outputs['Mesh out'].links]
-        
+
         for node in case_nodes + bound_nodes:
             node.use_custom_color = 1
 
@@ -3087,9 +3087,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 #                bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
 
                 bm = bmesh.new()
-                bm.from_object(o, dp)   
+                bm.from_object(o, dp)
                 bm.transform(o.matrix_world)
-                bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))) 
+                bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
 #                ngpyfile.write("geo = STLGeometry('{}')\n".format(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))))
                 geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
 
@@ -3198,7 +3198,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             elif sys.platform == 'darwin' and os.path.isdir(self.vi_prefs.ofbin):
                 print("OSX command to open openfoam docker image: {}".format("docker container run -ti --rm -v $PWD:/data -w /data openfoamplus/of_v2012_centos73:release /bin/bash"))
-            
+
             elif not os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')):
                 logentry('Netgen volume meshing did not complete')
                 self.expnode.running = 0
@@ -3369,7 +3369,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
             for oname in svp['flparams']['s_probes']:
                 Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, svp['flparams']['offilebase']))).wait()
-            
+
             if self.pv:
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(svp['flparams']['offilebase'])))
             else:
@@ -3422,10 +3422,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         self.pv = self.simnode.pv
 
         Popen(shlex.split("foamExec postProcess -func writeCellCentres -case {}".format(svp['flparams']['offilebase']))).wait()
-        
+
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:
-                
+
                 with open(os.path.join(svp['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
                     fvdcpfile.write(fvdcpwrite(self.processes))
 

@@ -36,12 +36,12 @@ from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 import matplotlib
 matplotlib.use('qt5agg', force=True)
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 cur_dir = os.getcwd()
 
 try:
-#    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-#    os.chdir(os.path.join(addonpath, 'Python', sys.platform, 'netgen'))
+    # addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    # os.chdir(os.path.join(addonpath, 'Python', sys.platform, 'netgen'))
     import netgen
     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
     from netgen.stl import STLGeometry
@@ -85,8 +85,8 @@ class No_Anim(Node, ViNodes):
         else:
             return [('None', 'None', 'None')]
 
-    parameter: EnumProperty(name = '', description = 'Parameter to be animated', items=retparams)
-    anim_file: StringProperty(name = '')
+    parameter: EnumProperty(name='', description='Parameter to be animated', items=retparams)
+    anim_file: StringProperty(name='')
 
     def init(self, context):
         self.inputs.new('So_Anim', 'Parameter')
@@ -94,6 +94,7 @@ class No_Anim(Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, "Parameter:", self, 'parameter')
         layout.prop_search(self, 'anim_file', bpy.data, 'texts', text='File', icon='TEXT')
+
 
 # Input nodes
 
@@ -172,10 +173,10 @@ class No_Loc(Node, ViNodes):
         except:
             return [('None', 'None', 'None')]
 
-    weather: EnumProperty(name = '', description = "Weather file", items=retentries, options={'SKIP_SAVE'}, update=updatelatlong)
-    weather_anim: BoolProperty(name = '', description = 'Animate weather file', default = False)
-    weather_anim_file: StringProperty(name = '')
-    loc: EnumProperty(items=[("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
+    weather: EnumProperty(name='', description="Weather file", items=retentries, options={'SKIP_SAVE'}, update=updatelatlong)
+    weather_anim: BoolProperty(name='', description='Animate weather file', default=False)
+    weather_anim_file: StringProperty(name='')
+    loc: EnumProperty(items=[("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name="", description="Location", default="0", update=updatelatlong)
     maxws: FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws: FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
     avws: FloatProperty(name="", description="Average wind speed", min=0, max=0, default=0)
@@ -218,13 +219,14 @@ class No_Loc(Node, ViNodes):
             return 1
         return 0
 
+
 class No_ASC_Import(Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
     bl_idname = 'No_ASC_Import'
     bl_label = 'VI ASC Import'
     bl_icon = 'GRID'
 
-    single: BoolProperty(name = '', default = False)
+    single: BoolProperty(name='', default=False)
     ascfile: StringProperty()
     clear_nodata: EnumProperty(name="", description="Deal with no data", items=[('0', 'Zero', 'Make no data zero'), ('1', 'Delete', 'Delete no data')], default='0')
 
@@ -232,7 +234,7 @@ class No_ASC_Import(Node, ViNodes):
         newrow(layout, 'Single file:', self, 'single')
         newrow(layout, 'No data:', self, 'clear_nodata')
         row = layout.row()
-        row.operator('node.ascimport', text = 'Import ASC')
+        row.operator('node.ascimport', text='Import ASC')
 
 # Export Nodes
 
@@ -247,16 +249,17 @@ class No_Li_Geo(Node, ViNodes):
         return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.mesh)]
 
     def nodeupdate(self, context):
+        context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != self.ret_params())
 
-    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-            name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min = 0.001, max = 1, default = 0.01, precision = 3, update = nodeupdate)
-    animated: BoolProperty(name="", description="Animated analysis", default = 0, update = nodeupdate)
-    startframe: IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
-    endframe: IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
-    mesh: BoolProperty(name="", description="Radiance mesh geometry export", default = 0, update = nodeupdate)
-    triangulate: BoolProperty(name="", description="Triangulate mesh geometry for export", default = 0, update = nodeupdate)
+    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"), ("1", "Vertices", "Export vertices for calculation points")],
+                         name="", description="Specify the calculation point geometry", default="0", update=nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, precision=3, update=nodeupdate)
+    animated: BoolProperty(name="", description="Animated analysis", default=0, update=nodeupdate)
+    startframe: IntProperty(name="", description="Start frame for animation", min=0, default=0, update=nodeupdate)
+    endframe: IntProperty(name="", description="End frame for animation", min=0, default=0, update=nodeupdate)
+    mesh: BoolProperty(name="", description="Radiance mesh geometry export", default=0, update=nodeupdate)
+    triangulate: BoolProperty(name="", description="Triangulate mesh geometry for export", default=0, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -270,7 +273,7 @@ class No_Li_Geo(Node, ViNodes):
 
         if self.animated:
             row = layout.row()
-            row.label(text = 'Frames:')
+            row.label(text='Frames:')
             col = row.column()
             subrow = col.row(align=True)
             subrow.prop(self, 'startframe')
@@ -279,7 +282,7 @@ class No_Li_Geo(Node, ViNodes):
         newrow(layout, 'Result point:', self, 'cpoint')
         newrow(layout, 'Offset:', self, 'offset')
         row = layout.row()
-        row.operator("node.ligexport", text = "Export")
+        row.operator("node.ligexport", text="Export")
 
     def update(self):
         for sock in self.outputs:
@@ -288,7 +291,7 @@ class No_Li_Geo(Node, ViNodes):
     def preexport(self, scene):
         self['Text'] = {}
         self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated],
-                            'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
+                           'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
 
     def postexport(self, scene):
         self.id_data.use_fake_user = 1
@@ -320,6 +323,7 @@ class No_Li_Con(Node, ViNodes):
 
     def nodeupdate(self, context):
         scene = context.scene
+        scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != self.ret_params())
 
         if self.edoy < self.sdoy:
@@ -353,62 +357,66 @@ class No_Li_Con(Node, ViNodes):
                 selobj(context.view_layer, so)
                 bpy.ops.object.delete()
 
-    spectrumtype =  [('0', "Visible", "Visible radiation spectrum calculation"), ('1', "Full", "Full radiation spectrum calculation")]
+    spectrumtype = [('0', "Visible", "Visible radiation spectrum calculation"), ('1', "Full", "Full radiation spectrum calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
                ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description")]
 
     contexttype = [('Basic', "Basic", "Basic analysis"), ('CBDM', "CBDM", "Climate based daylight modelling")]
-    contextmenu: EnumProperty(name="", description="Contexttype type", items=contexttype, default = 'Basic', update = nodeupdate)
-    animated: BoolProperty(name="", description="Animated sky", default=False, update = nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
-    spectrummenu: EnumProperty(name="", description = "Visible/full radiation spectrum selection", items = spectrumtype, default = '0', update = nodeupdate)
+    contextmenu: EnumProperty(name="", description="Context type", items=contexttype, default='Basic', update=nodeupdate)
+    animated: BoolProperty(name="", description="Animated sky", default=False, update=nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update=nodeupdate)
+    spectrummenu: EnumProperty(name="", description="Visible/full radiation spectrum selection", items=spectrumtype, default='0', update=nodeupdate)
     skyprog: EnumProperty(name="", items=[('0', "Gensky", "Basic sky creation"), ('1', "Gendaylit", "Perez sky creation"),
-                                                     ("2", "HDR Sky", "HDR file sky"), ("3", "Radiance Sky", "Radiance file sky"), ("4", "None", "No Sky")], description="Specify sky creation", default="0", update = nodeupdate)
-    epsilon: FloatProperty(name="", description="Sky epsilon", min=1, max=8, default=6.3, options={'SKIP_SAVE'}, update = nodeupdate)
-    delta: FloatProperty(name="", description="Sky delta", min=0.05, max=0.5, default=0.15, options={'SKIP_SAVE'}, update = nodeupdate)
-    skymenu: EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeupdate)
-    gref: FloatProperty(name="", description="Ground reflectance", min=0.0, max=1.0, default=0.0, options={'SKIP_SAVE'}, update = nodeupdate)
-    gcol:FloatVectorProperty(size = 3, name = '', description="Ground colour", attr = 'Color', default = [0, 1, 0], subtype = 'COLOR', options={'SKIP_SAVE'}, update = nodeupdate)
-    sdist: FloatProperty(name="", description="Blender sun distance", min=0.0, default=50.0, update = nodeupdate)
-    shour: FloatProperty(name="", description="Start hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
-    sdoy: IntProperty(name="", description="Start day of simulation", min=1, max=365, default=1, update = nodeupdate)
-    ehour: FloatProperty(name="", description="End hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
-    edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=1, update = nodeupdate)
-    interval: FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update = nodeupdate)
-    hdr: BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
-    skyname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
-    mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
+                                          ("2", "HDR Sky", "HDR file sky"), ("3", "Radiance Sky", "Radiance file sky"), ("4", "None", "No Sky")],
+                          description="Specify sky creation", default="0", update=nodeupdate)
+    epsilon: FloatProperty(name="", description="Sky epsilon", min=1, max=8, default=6.3, options={'SKIP_SAVE'}, update=nodeupdate)
+    delta: FloatProperty(name="", description="Sky delta", min=0.05, max=0.5, default=0.15, options={'SKIP_SAVE'}, update=nodeupdate)
+    skymenu: EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update=nodeupdate)
+    gref: FloatProperty(name="", description="Ground reflectance", min=0.0, max=1.0, default=0.0, options={'SKIP_SAVE'}, update=nodeupdate)
+    gcol: FloatVectorProperty(size=3, name='', description="Ground colour", attr='Color', default=[0, 1, 0], subtype='COLOR', options={'SKIP_SAVE'}, update=nodeupdate)
+    sdist: FloatProperty(name="", description="Blender sun distance", min=0.0, default=50.0, update=nodeupdate)
+    shour: FloatProperty(name="", description="Start hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', options={'ANIMATABLE'}, update=nodeupdate)
+    sdoy: IntProperty(name="", description="Start day of simulation", min=1, max=365, default=1, update=nodeupdate)
+    ehour: FloatProperty(name="", description="End hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update=nodeupdate)
+    edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=1, update=nodeupdate)
+    interval: FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update=nodeupdate)
+    hdr: BoolProperty(name="", description="Export HDR panoramas", default=False, update=nodeupdate)
+    skyname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update=nodeupdate)
+    mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update=nodeupdate)
     resname: StringProperty()
-    turb: FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
-    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
-    buildstorey: EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
-    cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"), ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics")]
-    cbanalysismenu: EnumProperty(name="", description="Type of lighting analysis", items = cbanalysistype, default = '0', update = nodeupdate)
+    turb: FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update=nodeupdate)
+    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update=nodeupdate)
+    buildstorey: EnumProperty(items=[("0", "Single", "Single storey building"), ("1", "Multi", "Multi-storey building")],
+                              name="", description="Building storeys", default="0", update=nodeupdate)
+    cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"),
+                      ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics")]
+    cbanalysismenu: EnumProperty(name="", description="Type of lighting analysis", items=cbanalysistype, default='0', update=nodeupdate)
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "HDR", "HDR sky file")]
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
-    sourcemenu: EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeupdate)
-    sourcemenu2: EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeupdate)
-    hdrname: StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)
-    hdrmap: EnumProperty(items=[("0", "Polar", "Latitude/longitude (equirectangular) format"),("1", "Angular", "Light probe or angular map format")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
-    hdrangle: FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update = nodeupdate)
-    hdrradius: FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update = nodeupdate)
-    mtxname: StringProperty(name="", description="Name of the calculated vector sky file", default="", subtype="FILE_PATH", update = nodeupdate)
-    weekdays: BoolProperty(name = '', default = False, update = nodeupdate)
-    cbdm_start_hour:  IntProperty(name = '', default = 8, min = 1, max = 24, update = nodeupdate)
-    cbdm_end_hour:  IntProperty(name = '', default = 20, min = 1, max = 24, update = nodeupdate)
-    cbdm_res: IntProperty(name = '', default = 1, min = 1, max = 2, update = nodeupdate)
-    dalux:  IntProperty(name = 'lux', default = 300, min = 1, max = 2000, update = nodeupdate)
-    damin: IntProperty(name = 'lux', default = 100, min = 1, max = 2000, update = nodeupdate)
-    dasupp: IntProperty(name = 'lux', default = 300, min = 1, max = 2000, update = nodeupdate)
-    daauto: IntProperty(name = 'lux', default = 3000, min = 1, max = 5000, update = nodeupdate)
-    sdamin: IntProperty(name = 'lux', default = 300, min = 1, max = 2000, update = nodeupdate)
-    asemax: IntProperty(name = 'lux', default = 1000, min = 1, max = 2000, update = nodeupdate)
-    startmonth: IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
-    endmonth: IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
-    startframe: IntProperty(name = '', default = 0, min = 0, description = 'Start Frame', update = nodeupdate)
-    leed4: BoolProperty(name = '', description = 'LEED v4 Compliance',  default = False, update = nodeupdate)
-    ay: BoolProperty(name = '', description = 'All year simulation',  default = True, update = nodeupdate)
-    colour: BoolProperty(name = '', description = 'Coloured Gendaylit sky',  default = False, update = nodeupdate)
+    sourcemenu: EnumProperty(name="", description="Source type", items=sourcetype, default='0', update=nodeupdate)
+    sourcemenu2: EnumProperty(name="", description="Source type", items=sourcetype2, default='0', update=nodeupdate)
+    hdrname: StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update=nodeupdate)
+    hdrmap: EnumProperty(items=[("0", "Polar", "Latitude/longitude (equirectangular) format"), ("1", "Angular", "Light probe or angular map format")],
+                         name="", description="Type of HDR panorama mapping", default="0", update=nodeupdate)
+    hdrangle: FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update=nodeupdate)
+    hdrradius: FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update=nodeupdate)
+    mtxname: StringProperty(name="", description="Name of the calculated vector sky file", default="", subtype="FILE_PATH", update=nodeupdate)
+    weekdays: BoolProperty(name='', default=False, update=nodeupdate)
+    cbdm_start_hour:  IntProperty(name='', default=8, min=1, max=24, update=nodeupdate)
+    cbdm_end_hour:  IntProperty(name='', default=20, min=1, max=24, update=nodeupdate)
+    cbdm_res: IntProperty(name='', default=1, min=1, max=2, update=nodeupdate)
+    dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
+    damin: IntProperty(name='lux', default=100, min=1, max=2000, update=nodeupdate)
+    dasupp: IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
+    daauto: IntProperty(name='lux', default=3000, min=1, max=5000, update=nodeupdate)
+    sdamin: IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
+    asemax: IntProperty(name='lux', default=1000, min=1, max=2000, update=nodeupdate)
+    startmonth: IntProperty(name='', default=1, min=1, max=12, description='Start Month', update=nodeupdate)
+    endmonth: IntProperty(name='', default=12, min=1, max=12, description='End Month', update=nodeupdate)
+    startframe: IntProperty(name='', default=0, min=0, description='Start Frame', update=nodeupdate)
+    leed4: BoolProperty(name='', description='LEED v4 Compliance',  default=False, update=nodeupdate)
+    ay: BoolProperty(name='', description='All year simulation',  default=True, update=nodeupdate)
+    colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
@@ -443,8 +451,8 @@ class No_Li_Con(Node, ViNodes):
                     if self.animated:
                         newrow(layout, "Start frame:", self, 'startframe')
                         row = layout.row()
-                        row.label(text = 'End frame:')
-                        row.label(text = '{}'.format(self['endframe']))
+                        row.label(text='End frame:')
+                        row.label(text='{}'.format(self['endframe']))
                         newrow(layout, "End hour {}:{}:".format(int(self.ehour), int((self.ehour*60) % 60)), self, 'ehour')
                         newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                         newrow(layout, "Interval (hours):", self, 'interval')
@@ -464,15 +472,15 @@ class No_Li_Con(Node, ViNodes):
                 if self.animated:
                     newrow(layout, "Start frame:", self, 'startframe')
                     row = layout.row()
-                    row.label(text = 'End frame:')
-                    row.label(text = '{}'.format(self['endframe']))
+                    row.label(text='End frame:')
+                    row.label(text='{}'.format(self['endframe']))
                     newrow(layout, "End hour {}:{}:".format(int(self.ehour), int((self.ehour*60) % 60)), self, 'ehour')
                     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                     newrow(layout, "Interval (hours):", self, 'interval')
 
             elif self.skyprog == '2':
                 row = layout.row()
-                row.operator('node.hdrselect', text = 'HDR select')
+                row.operator('node.hdrselect', text='HDR select')
                 row.prop(self, 'hdrname')
                 newrow(layout, "HDR format:", self, 'hdrmap')
                 newrow(layout, "HDR rotation:", self, 'hdrangle')
@@ -480,7 +488,7 @@ class No_Li_Con(Node, ViNodes):
 
             elif self.skyprog == '3':
                 row = layout.row()
-                row.operator('node.skyselect', text = 'Sky select')
+                row.operator('node.skyselect', text='Sky select')
                 row.prop(self, 'skyname')
             row = layout.row()
 
@@ -508,14 +516,14 @@ class No_Li_Con(Node, ViNodes):
 
                 if self.cbanalysismenu == '2':
                     row = layout.row()
-                    row.label(text = "--")
+                    row.label(text="--")
                     newrow(layout, '(s)DA (Min):', self, 'dalux')
                     newrow(layout, 'UDI Low (Max):', self, 'damin')
                     newrow(layout, 'UDI Supplementry (Max):', self, 'dasupp')
                     newrow(layout, 'UDI Autonomous (Max):', self, 'daauto')
                     newrow(layout, 'ASE level:', self, 'asemax')
                     row = layout.row()
-                    row.label(text = "--")
+                    row.label(text="--")
 
             elif self.cbanalysismenu == '2' and self.leed4:
                 newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
@@ -542,20 +550,19 @@ class No_Li_Con(Node, ViNodes):
         if self.contextmenu == 'Basic':
             if int(self.skymenu) > 2 or int(self.skyprog) > 1 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
                 row = layout.row()
-                row.operator("node.liexport", text = "Export")
+                row.operator("node.liexport", text="Export")
 
         elif (self.contextmenu == 'CBDM' and self.cbanalysismenu == '0' and self.sourcemenu2 == '1') or \
-            (self.contextmenu == 'CBDM' and self.cbanalysismenu != '0' and self.sourcemenu == '1'):
+             (self.contextmenu == 'CBDM' and self.cbanalysismenu != '0' and self.sourcemenu == '1'):
             row = layout.row()
-            row.operator("node.liexport", text = "Export")
+            row.operator("node.liexport", text="Export")
 
         elif self.inputs['Location in'].links and self.inputs['Location in'].links[0].from_node.loc == '1' and self.inputs['Location in'].links[0].from_node.weather != 'None':
             row = layout.row()
-            row.operator("node.liexport", text = "Export")
+            row.operator("node.liexport", text="Export")
         else:
             row = layout.row()
-            row.label(text = "ERROR: No valid EPW file")
-
+            row.label(text="ERROR: No valid EPW file")
 
     def update(self):
         for sock in self.outputs:
@@ -573,9 +580,9 @@ class No_Li_Con(Node, ViNodes):
             self.edoy = 365
 
             if self.cbdm_start_hour > 9:
-               self.cbdm_start_hour = 9
+                self.cbdm_start_hour = 9
             if self.cbdm_end_hour < 16:
-               self.cbdm_end_hour = 16
+                self.cbdm_end_hour = 16
 
         if self.contextmenu == 'Basic':
             (shour, ehour) = (self.shour, self.ehour)
@@ -590,13 +597,13 @@ class No_Li_Con(Node, ViNodes):
             (sdoy, edoy) = (self.sdoy, self.edoy) if not self.ay else (1, 365)
 
         interval = 1
-        starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = sdoy - 1) + datetime.timedelta(hours = shour)
+        starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=sdoy - 1) + datetime.timedelta(hours=shour)
 
         if (self.contextmenu == 'CBDM' and not self.leed4) or (self.contextmenu == 'Basic' and self.animated):
-            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = edoy - 1)  + datetime.timedelta(hours = ehour)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         elif self.contextmenu == 'CBDM':
-            starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours = shour)
-            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = edoy - 1)  + datetime.timedelta(hours = ehour)
+            starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours=shour)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         else:
             endtime = starttime
 
@@ -604,7 +611,7 @@ class No_Li_Con(Node, ViNodes):
         ctime = starttime
 
         while ctime < endtime:
-            ctime += datetime.timedelta(hours = interval)
+            ctime += datetime.timedelta(hours=interval)
 
             if self.contextmenu == 'CBDM':
 
@@ -617,7 +624,7 @@ class No_Li_Con(Node, ViNodes):
         self.starttime = times[0]
         self.endtime = times[-1]
         self['skynum'] = int(self.skymenu)
-        self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
+        self['hours'] = 0 if not self.animated or int(self.skymenu) > 2 else (self.endtime-self.starttime).seconds/3600
         self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather)) if self.inputs['Location in'].links else ''
         self['Text'], self['Options'] = {}, {}
         self['watts'] = 1 if self.contextmenu == "CBDM" and ((self.cbanalysismenu == '0' and self.spectrummenu == '1') or self.cbanalysismenu == '1') else 0
@@ -634,7 +641,10 @@ class No_Li_Con(Node, ViNodes):
             self['preview'] = 1
 
             if self.skyprog in ('0', '1'):
-                self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {} -O {} {}".format(self.epsilon, self.delta, int(self.spectrummenu), ('', '-C')[self.colour])
+                self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {} -O {} {}".format(self.epsilon,
+                                                                                                                                                 self.delta,
+                                                                                                                                                 int(self.spectrummenu),
+                                                                                                                                                 ('', '-C')[self.colour])
 
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):
                     skytext = livi_sun(scene, self, f) + livi_sky(self['skynum']) + livi_ground(*self.gcol, self.gref)
@@ -679,13 +689,13 @@ class No_Li_Con(Node, ViNodes):
                 self['Text'][str(scene.frame_current)] = ''
 
         elif self.contextmenu == "CBDM":
-            if (self.cbanalysismenu =='0' and self.sourcemenu == '0') or (self.cbanalysismenu != '0' and self.sourcemenu2 == '0'):
+            if (self.cbanalysismenu == '0' and self.sourcemenu == '0') or (self.cbanalysismenu != '0' and self.sourcemenu2 == '0'):
                 (self['mtxfile'], self['mtxfilens']) = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
 
             elif self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
                 self['mtxfile'] = self.mtxname
 
-            if self.cbanalysismenu == '0' :
+            if self.cbanalysismenu == '0':
                 self['preview'] = 1
                 self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
             else:
@@ -702,24 +712,25 @@ class No_Li_Con(Node, ViNodes):
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
-        (sdoy, edoy) =  (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
+        (sdoy, edoy) = (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu =='1'],
+        unitdict = {'Basic': (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1'],
                     'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu],
-            'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour,
-            'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval,
-            'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu],
-            'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp,
-            'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': csh,
-            'cbdm_eh': ceh, 'cbdm_sd': sdoy, 'cbdm_ed': edoy, 'weekdays': (7, 5)[self.weekdays],
-            'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
-            'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
-            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
+                           'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour,
+                           'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval,
+                           'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu],
+                           'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp,
+                           'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': csh,
+                           'cbdm_eh': ceh, 'cbdm_sd': sdoy, 'cbdm_ed': edoy, 'weekdays': (7, 5)[self.weekdays],
+                           'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
+                           'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
+                           'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
+                           'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
         nodecolour(self, 0)
         self.outputs['Context out'].hide = False
         self['exportstate'] = self.ret_params()
+
 
 class No_Vi_Im(Node, ViNodes):
     '''Image node'''
@@ -731,7 +742,7 @@ class No_Vi_Im(Node, ViNodes):
         self['images'] = [bpy.data.images[self.image].filepath]
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.image)])
 
-    image: StringProperty(description="Select image", update = nodeupdate)
+    image: StringProperty(description="Select image", update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -744,6 +755,7 @@ class No_Vi_Im(Node, ViNodes):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
+
 class No_Li_Im(Node, ViNodes):
     '''Node describing a LiVi image generation'''
     bl_idname = 'No_Li_Im'
@@ -751,9 +763,8 @@ class No_Li_Im(Node, ViNodes):
     bl_icon = 'IMAGE'
 
     def ret_params(self):
-        return [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
-                   self.mp, self.processors, self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
-                   self.x, self.y)]
+        return [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov, self.mp, self.processors,
+                self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno, self.x, self.y)]
 
     def nodeupdate(self, context):
         if self.processors > int(context.scene.vi_params['viparams']['nproc']):
@@ -767,31 +778,31 @@ class No_Li_Im(Node, ViNodes):
         if self.simacc == '3':
             self.validparams = validradparams(self.cusacc)
 
-    startframe: IntProperty(name = '', default = 0)
-    endframe: IntProperty(name = '', default = 0)
-    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
-    simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"),
-                                    ("2", "High", "High but slow accuracy"), ("3", "Custom", "Edit Radiance parameters")],
-                                    name="", description="Simulation accuracy", default="0", update = nodeupdate)
-    pmap: BoolProperty(name = '', default = False, update = nodeupdate)
-    pmapgno: IntProperty(name = '', description = "Number of global photons", default = 50000)
-    pmapcno: IntProperty(name = '', description = "Number of caustic photons", default = 0)
-    pmapvno: IntProperty(name = '', description = "Number of visualised photons", min = 100, max = 5000, default = 500)
-    pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
-    pmappreview: BoolProperty(name = '', default = 0, update = nodeupdate)
-    bfv: BoolProperty(name = '', description="Turn on back face visibility (may cause light bleed but deals with planar geometry)", default = True, update = nodeupdate)
-    x: IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
-    y: IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
-    basename: StringProperty(name="", description="Base name for image files", default="", update = nodeupdate)
-    run: BoolProperty(name = '', default = False)
-    illu: BoolProperty(name = '', default = True, update = nodeupdate)
-    validparams: BoolProperty(name = '', default = True)
-    mp: BoolProperty(name = '', default = False, update = nodeupdate)
-    camera: StringProperty(description="Select camera", update = nodeupdate)
-    fisheye: BoolProperty(name = '', default = 0, update = nodeupdate)
-    fov: FloatProperty(name = '', default = 180, min = 1, max = 180, update = nodeupdate)
-    processors: IntProperty(name = '', default = 1, min = 1, max = 128, update = nodeupdate)
-    processes: IntProperty(name = '', default = 1, min = 1, max = 1000, update = nodeupdate)
+    startframe: IntProperty(name='', default=0)
+    endframe: IntProperty(name='', default=0)
+    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update=nodeupdate)
+    simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"), ("1", "Medium", "Medium speed and accuracy"),
+                                ("2", "High", "High but slow accuracy"), ("3", "Custom", "Edit Radiance parameters")],
+                         name="", description="Simulation accuracy", default="0", update=nodeupdate)
+    pmap: BoolProperty(name='', default=False, update=nodeupdate)
+    pmapgno: IntProperty(name='', description="Number of global photons", default=50000)
+    pmapcno: IntProperty(name='', description="Number of caustic photons", default=0)
+    pmapvno: IntProperty(name='', description="Number of visualised photons", min=100, max=5000, default=500)
+    pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update=nodeupdate)
+    pmappreview: BoolProperty(name='', default=0, update=nodeupdate)
+    bfv: BoolProperty(name='', description="Turn on back face visibility (may cause light bleed but deals with planar geometry)", default=True, update=nodeupdate)
+    x: IntProperty(name='', min=1, max=10000, default=2000, update=nodeupdate)
+    y: IntProperty(name='', min=1, max=10000, default=1000, update=nodeupdate)
+    basename: StringProperty(name="", description="Base name for image files", default="", update=nodeupdate)
+    run: BoolProperty(name='', default=False)
+    illu: BoolProperty(name='', default=True, update=nodeupdate)
+    validparams: BoolProperty(name='', default=True)
+    mp: BoolProperty(name='', default=False, update=nodeupdate)
+    camera: StringProperty(description="Select camera", update=nodeupdate)
+    fisheye: BoolProperty(name='', default=0, update=nodeupdate)
+    fov: FloatProperty(name='', default=80, min=1, max=180, update=nodeupdate)
+    processors: IntProperty(name='', default=1, min=1, max=128, update=nodeupdate)
+    processes: IntProperty(name='', default=1, min=1, max=1000, update=nodeupdate)
 
     def retframes(self):
         try:
@@ -809,7 +820,7 @@ class No_Li_Im(Node, ViNodes):
     def draw_buttons(self, context, layout):
         sf, ef = self.retframes()
         row = layout.row()
-        row.label(text = 'Frames: {} - {}'.format(sf, ef))
+        row.label(text='Frames: {} - {}'.format(sf, ef))
         layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera', icon='NONE')
 
         if all([sock.links for sock in self.inputs]) and self.camera:
@@ -829,18 +840,18 @@ class No_Li_Im(Node, ViNodes):
             newrow(layout, 'Photon map:', self, 'pmap')
 
             if self.pmap:
-               newrow(layout, 'Global photons:', self, 'pmapgno')
-               newrow(layout, 'Caustic photons:', self, 'pmapcno')
-               newrow(layout, 'Back face visability:', self, 'bfv')
-               newrow(layout, 'Photons options:', self, 'pmapoptions')
-               newrow(layout, 'Preview photons:', self, 'pmappreview')
+                newrow(layout, 'Global photons:', self, 'pmapgno')
+                newrow(layout, 'Caustic photons:', self, 'pmapcno')
+                newrow(layout, 'Back face visability:', self, 'bfv')
+                newrow(layout, 'Photons options:', self, 'pmapoptions')
+                newrow(layout, 'Preview photons:', self, 'pmappreview')
 
-               if self.pmappreview:
-                   newrow(layout, 'Visualised photons:', self, 'pmapvno')
+                if self.pmappreview:
+                    newrow(layout, 'Visualised photons:', self, 'pmapvno')
 
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
-                row.operator("node.radpreview", text = 'Preview')
+                row.operator("node.radpreview", text='Preview')
 
             newrow(layout, 'X resolution:', self, 'x')
             newrow(layout, 'Y resolution:', self, 'y')
@@ -854,7 +865,7 @@ class No_Li_Im(Node, ViNodes):
 
             if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:
                 row = layout.row()
-                row.operator("node.radimage", text = 'Image')
+                row.operator("node.radimage", text='Image')
 
     def update(self):
         for sock in self.outputs:
@@ -883,6 +894,7 @@ class No_Li_Im(Node, ViNodes):
         self['basename'] = self.basename if self.basename else 'image'
 
         for frame in self['frames']:
+            sf = str(frame)
             scene.frame_set(frame)
             scene.camera = bpy.data.objects[self.camera.lstrip()]
             cam = bpy.data.objects[self.camera.lstrip()]
@@ -891,25 +903,25 @@ class No_Li_Im(Node, ViNodes):
             vv = cang if self.x < self.y else cang * self.y/self.x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             pmaps.append(self.pmap)
-            self['pmapgnos'][str(frame)] = self.pmapgno
-            self['pmapcnos'][str(frame)] = self.pmapcno
-            self['pmparams'][str(frame)]['amentry'], self['pmparams'][str(frame)]['pportentry'], self['pmparams'][str(frame)]['cpentry'], self['pmparams'][str(frame)]['cpfileentry'] = retpmap(self, frame, scene)
+            self['pmapgnos'][sf] = self.pmapgno
+            self['pmapcnos'][sf] = self.pmapcno
+            self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['cpfileentry'] = retpmap(self, frame, scene)
 
             if self.fisheye and self.fov == 180:
-                self['viewparams'][str(frame)]['-vth'] = ''
+                self['viewparams'][sf]['-vth'] = ''
 
-            (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.3f}'.format(vh), '{:.3f}'.format(vv))
-            self['viewparams'][str(frame)]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
-            self['viewparams'][str(frame)]['-x'], self['viewparams'][str(frame)]['-y'] = self.x, self.y
+            (self['viewparams'][sf]['-vh'], self['viewparams'][sf]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.3f}'.format(vh), '{:.3f}'.format(vv))
+            self['viewparams'][sf]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
+            self['viewparams'][sf]['-x'], self['viewparams'][sf]['-y'] = self.x, self.y
 
             if self.mp:
-                self['viewparams'][str(frame)]['-X'], self['viewparams'][str(frame)]['-Y'] = self.processes, 1
+                self['viewparams'][sf]['-X'], self['viewparams'][sf]['-Y'] = self.processes, 1
 
-            self['viewparams'][str(frame)]['-vp'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.location)
-            self['viewparams'][str(frame)]['-vu'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)))
+            self['viewparams'][sf]['-vp'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.location)
+            self['viewparams'][sf]['-vu'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)))
 
             if self.illu:
-                self['viewparams'][str(frame)]['-i'] = ''
+                self['viewparams'][sf]['-i'] = ''
 
         self['pmaps'] = pmaps
         self.run = 1
@@ -921,6 +933,7 @@ class No_Li_Im(Node, ViNodes):
         self['exportstate'] = self.ret_params()
         logentry('Time to render: {}'.format(datetime.datetime.now() - self.time))
         nodecolour(self, 0)
+
 
 class No_Li_Gl(Node, ViNodes):
     '''Node describing a LiVi glare analysis'''
@@ -935,16 +948,16 @@ class No_Li_Gl(Node, ViNodes):
         self['images'] = [bpy.path.abspath(self.hdrfile)]
         nodecolour(self, self['exportstate'] != self.ret_params())
 
-    hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update = nodeupdate)
-    hdrfile: StringProperty(name="", description="Location of the HDR image", default="", subtype="FILE_PATH", update = nodeupdate)
-    gc: FloatVectorProperty(size = 3, name = '', attr = 'Color', default = [1, 0, 0], subtype = 'COLOR', update = nodeupdate)
-    rand: BoolProperty(name = '', default = True, update = nodeupdate)
-    x: IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
-    y: IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
-    month: IntProperty(name = '', min = 1, max = 12, default = 1, update = nodeupdate)
-    day: IntProperty(name = '', min = 1, max = 31, default = 1, update = nodeupdate)
-    hour: IntProperty(name = '', min = 1, max = 24, default = 1, update = nodeupdate)
-    minutes: IntProperty(name = '', min = 0, max = 59, default = 0, update = nodeupdate)
+    hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update=nodeupdate)
+    hdrfile: StringProperty(name="", description="Location of the HDR image", default="", subtype="FILE_PATH", update=nodeupdate)
+    gc: FloatVectorProperty(size=3, name='', attr='Color', default=[1, 0, 0], subtype='COLOR', update=nodeupdate)
+    rand: BoolProperty(name='', default=True, update=nodeupdate)
+    x: IntProperty(name='', min=1, max=10000, default=2000, update=nodeupdate)
+    y: IntProperty(name='', min=1, max=10000, default=1000, update=nodeupdate)
+    month: IntProperty(name='', min=1, max=12, default=1, update=nodeupdate)
+    day: IntProperty(name='', min=1, max=31, default=1, update=nodeupdate)
+    hour: IntProperty(name='', min=1, max=24, default=1, update=nodeupdate)
+    minutes: IntProperty(name='', min=0, max=59, default=0, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -962,7 +975,7 @@ class No_Li_Gl(Node, ViNodes):
         #     newrow(layout, 'X dimen.:', self, 'x')
         #     newrow(layout, 'Y dimen.:', self, 'y')
 
-        if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):# or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+        if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):  # or os.path.isfile(bpy.path.abspath(self.hdrfile)):
             newrow(layout, 'Base name:', self, 'hdrname')
             newrow(layout, 'Random:', self, 'rand')
 
@@ -970,7 +983,7 @@ class No_Li_Gl(Node, ViNodes):
                 newrow(layout, 'Colour:', self, 'gc')
 
             row = layout.row()
-            row.operator("node.liviglare", text = 'Glare')
+            row.operator("node.liviglare", text='Glare')
 
     def presim(self):
         self['hdrname'] = self.hdrname if self.hdrname else 'glare'
@@ -978,11 +991,12 @@ class No_Li_Gl(Node, ViNodes):
     def sim(self):
         for im in self['images']:
             with open(im+'glare', 'w') as glfile:
-                Popen('evalglare {}'.format(im), stdout = glfile)
+                Popen('evalglare {}'.format(im), stdout=glfile)
 
     def postsim(self):
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
+
 
 class No_Li_Fc(Node, ViNodes):
     '''Node describing a LiVi false colour image generation'''
@@ -995,41 +1009,43 @@ class No_Li_Fc(Node, ViNodes):
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands, self.ofile, self.hdrfile)])
         self['images'] = [bpy.path.abspath(self.hdrfile)]
 
-    basename: StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)
-    colour: EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
-            name="", description="Simulation accuracy", default="0", update = nodeupdate)
-    lmax: IntProperty(name = '', description="Legend max: 0 for auto", min = 0, max = 100000, default = 1000, update = nodeupdate)
-    unit: EnumProperty(items=[("0", "Lux", "Spectral color mapping"),("1", "Candelas", "Thermal colour mapping"), ("2", "DF", "PM3D colour mapping"), ("3", "Irradiance(v)", "PM3D colour mapping")],
-            name="", description="Unit", default="0", update = nodeupdate)
-    nscale: EnumProperty(items=[("0", "Linear", "Linear mapping"),("1", "Log", "Logarithmic mapping")],
-            name="", description="Scale", default="0", update = nodeupdate)
-    decades: IntProperty(name = '', min = 1, max = 5, default = 2, update = nodeupdate)
+    basename: StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update=nodeupdate)
+    colour: EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"),
+                                ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")], name="", description="Simulation accuracy", default="0", update=nodeupdate)
+    lmax: IntProperty(name='', description="Legend max: 0 for auto", min=0, max=100000, default=1000, update=nodeupdate)
+    unit: EnumProperty(items=[("0", "Lux", "Spectral color mapping"), ("1", "Candelas", "Thermal colour mapping"), ("2", "DF", "PM3D colour mapping"), ("3", "Irradiance(v)", "PM3D colour mapping")],
+                       name="", description="Unit", default="0", update=nodeupdate)
+    nscale: EnumProperty(items=[("0", "Linear", "Linear mapping"), ("1", "Log", "Logarithmic mapping")],
+                         name="", description="Scale", default="0", update=nodeupdate)
+    decades: IntProperty(name='', min=1, max=5, default=2, update=nodeupdate)
     unitdict = {'0': 'Lux', '1': 'cd/m2', '2': 'DF', '3': 'W/m2', '4': 'W/m2.sr'}
     unitmult = {'0': 179, '1': 179, '2': 1.79, '3': 1, '4': 1}
-    legend: BoolProperty(name = '', default = True, update = nodeupdate)
-    lw: IntProperty(name = '', min = 1, max = 1000, default = 100, update = nodeupdate)
-    lh: IntProperty(name = '', min = 1, max = 1000, default = 200, update = nodeupdate)
-    contour: BoolProperty(name = '', default = False, update = nodeupdate)
-    overlay: BoolProperty(name = '', default = False, update = nodeupdate)
-    bands: BoolProperty(name = '', default = False, update = nodeupdate)
+    legend: BoolProperty(name='', default=True, update=nodeupdate)
+    lw: IntProperty(name='', min=1, max=1000, default=100, update=nodeupdate)
+    lh: IntProperty(name='', min=1, max=1000, default=200, update=nodeupdate)
+    contour: BoolProperty(name='', default=False, update=nodeupdate)
+    overlay: BoolProperty(name='', default=False, update=nodeupdate)
+    bands: BoolProperty(name='', default=False, update=nodeupdate)
     coldict = {'0': 'def', '1': 'spec', '2': 'hot', '3': 'pm3d', '4': 'eco'}
-    divisions: IntProperty(name = '', min = 1, max = 50, default = 8, update = nodeupdate)
-    ofile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
-    hdrfile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
-    unit_name: StringProperty(name="", description="Legend unit", default="", update = nodeupdate)
-    multiplier: StringProperty(name="", description="Unit multiplier", default="", update = nodeupdate)
-    disp: FloatProperty(name = '', min = 0.0001, max = 10, default = 1, precision = 4, update = nodeupdate)
+    divisions: IntProperty(name='', min=1, max=50, default=8, update=nodeupdate)
+    ofile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update=nodeupdate)
+    hdrfile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update=nodeupdate)
+    unit_name: StringProperty(name="", description="Legend unit", default="", update=nodeupdate)
+    multiplier: StringProperty(name="", description="Unit multiplier", default="", update=nodeupdate)
+    disp: FloatProperty(name='', min=0.0001, max=10, default=1, precision=4, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
         self.inputs.new('So_Li_Im', 'Image')
 
     def draw_buttons(self, context, layout):
-        if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
+        sim = self.inputs['Image']
+
+        if not sim.links or not sim.links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(sim.links[0].from_node['images'][0])):
             row = layout.row()
             row.prop(self, 'hdrfile')
 
-        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+        if (sim.links and sim.links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(sim.links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
             newrow(layout, 'Base name:', self, 'basename')
             newrow(layout, 'Unit:', self, 'unit_name')
 
@@ -1061,15 +1077,16 @@ class No_Li_Fc(Node, ViNodes):
                     newrow(layout, 'Bands:', self, 'bands')
 
                 row = layout.row()
-                row.operator("node.livifc", text = 'Process')
+                row.operator("node.livifc", text='Process')
 
     def presim(self):
         self['basename'] = self.basename if self.basename else 'fc'
 
     def postsim(self):
         self['exportstate'] = [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades,
-                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
+                               self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
         nodecolour(self, 0)
+
 
 class No_Li_Sim(Node, ViNodes):
     '''Node describing a LiVi simulation'''
@@ -1085,27 +1102,26 @@ class No_Li_Sim(Node, ViNodes):
         if self.simacc == '3':
             self.validparams = validradparams(self.cusacc)
 
-    simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0", update = nodeupdate)
-    csimacc: EnumProperty(items=[("0", "Custom", "Edit Radiance parameters"), ("1", "Initial", "Initial accuracy for this metric"), ("2", "Final", "Final accuracy for this metric")],
-            name="", description="Simulation accuracy", default="1", update = nodeupdate)
-    cusacc: StringProperty(
-            name="Custom parameters", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+    simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"), ("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),
+                                ("3", "Custom", "Edit Radiance parameters")], name="", description="Simulation accuracy", default="0", update=nodeupdate)
+    csimacc: EnumProperty(items=[("0", "Custom", "Edit Radiance parameters"), ("1", "Initial", "Initial accuracy for this metric"),
+                                 ("2", "Final", "Final accuracy for this metric")], name="", description="Simulation accuracy", default="1", update=nodeupdate)
+    cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update=nodeupdate)
 
-    pmap: BoolProperty(name = '', description="Turn on photon mapping", default = False, update = nodeupdate)
-    bfv: BoolProperty(name = '', description="Turn on back face visibility (may cause light bleed but deals with planar geometry", default = True, update = nodeupdate)
-    pmapgno: IntProperty(name = '', default = 50000, update = nodeupdate)
-    pmapcno: IntProperty(name = '', default = 0, update = nodeupdate)
-    pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update = nodeupdate)
-    pmappreview: BoolProperty(name = '', default = 0, update = nodeupdate)
-    run: IntProperty(default = 0)
-    validparams: BoolProperty(name = '', default = True)
-    illu: BoolProperty(name = '', default = False)
-    camera: EnumProperty(items=ret_camera_menu, name = '', description = 'Camera')
-    new_res: BoolProperty(name = '', default = False)
+    pmap: BoolProperty(name='', description="Turn on photon mapping", default=False, update=nodeupdate)
+    bfv: BoolProperty(name='', description="Turn on back face visibility (may cause light bleed but deals with planar geometry", default=True, update=nodeupdate)
+    pmapgno: IntProperty(name='', default=50000, update=nodeupdate)
+    pmapcno: IntProperty(name='', default=0, update=nodeupdate)
+    pmapoptions: StringProperty(name="", description="Additional pmap parameters", default="", update=nodeupdate)
+    pmappreview: BoolProperty(name='', default=0, update=nodeupdate)
+    run: IntProperty(default=0)
+    validparams: BoolProperty(name='', default=True)
+    illu: BoolProperty(name='', default=False)
+    camera: EnumProperty(items=ret_camera_menu, name='', description='Camera')
+    new_res: BoolProperty(name='', default=False)
 
     def init(self, context):
-        self['simdict'] = {'Basic': 'simacc', 'Compliance':'csimacc', 'CBDM':'csimacc'}
+        self['simdict'] = {'Basic': 'simacc', 'Compliance': 'csimacc', 'CBDM': 'csimacc'}
         self.inputs.new('So_Li_Geo', 'Geometry in')
         self.inputs.new('So_Li_Con', 'Context in')
         self.outputs.new('So_Vi_Res', 'Results out')
@@ -1120,18 +1136,18 @@ class No_Li_Sim(Node, ViNodes):
             cinnode = self.inputs['Context in'].links[0].from_node
             ginnode = self.inputs['Geometry in'].links[0].from_node
             row = layout.row()
-            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
+            row.label(text='Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
             newrow(layout, 'Photon map:', self, 'pmap')
 
             if self.pmap:
-               newrow(layout, 'Global photons:', self, 'pmapgno')
-               newrow(layout, 'Caustic photons:', self, 'pmapcno')
-               newrow(layout, 'Back face visability:', self, 'bfv')
-               newrow(layout, 'Photon options:', self, 'pmapoptions')
-               newrow(layout, 'Preview photons:', self, 'pmappreview')
+                newrow(layout, 'Global photons:', self, 'pmapgno')
+                newrow(layout, 'Caustic photons:', self, 'pmapcno')
+                newrow(layout, 'Back face visability:', self, 'bfv')
+                newrow(layout, 'Photon options:', self, 'pmapoptions')
+                newrow(layout, 'Preview photons:', self, 'pmappreview')
 
             row = layout.row()
-            row.label(text = "Accuracy:")
+            row.label(text="Accuracy:")
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
 
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
@@ -1144,11 +1160,11 @@ class No_Li_Sim(Node, ViNodes):
                     row.prop(self, "camera")
 
                     if self.camera != 'None':
-                        row.operator("node.radpreview", text = 'Preview')
+                        row.operator("node.radpreview", text='Preview')
 
                 if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
                     row = layout.row()
-                    row.operator("node.livicalc", text = 'Calculate')
+                    row.operator("node.livicalc", text='Calculate')
 
     def update(self):
         for sock in self.outputs:
@@ -1176,13 +1192,14 @@ class No_Li_Sim(Node, ViNodes):
         self['reslists'] = calcout
 
         if self.outputs[0].links:
-            for dnode in set([l.to_node for l in self.outputs[0].links]):
+            for dnode in set([li.to_node for li in self.outputs[0].links]):
                 if dnode.bl_idname == 'No_Vi_Metrics':
                     dnode.update()
                 elif dnode.bl_idname == 'No_Vi_HMChart':
                     dnode.update()
 
         nodecolour(self, 0)
+
 
 class No_Vi_SP(Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -1192,7 +1209,8 @@ class No_Vi_SP(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.suns)])
 
-    suns: EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=nodeupdate)
+    suns: EnumProperty(items=[('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')],
+                       name='', description='Sunpath sun type', default='0', update=nodeupdate)
 
     def init(self, context):
         self.inputs.new('So_Vi_Loc', 'Location in')
@@ -1203,7 +1221,7 @@ class No_Vi_SP(Node, ViNodes):
         if self.inputs['Location in'].links:
             newrow(layout, 'Suns:', self, 'suns')
             row = layout.row()
-            row.operator("node.sunpath", text="Create Sun Path")#.nodeid = self['nodeid']
+            row.operator("node.sunpath", text="Create Sun Path")
         else:
             row = layout.row()
             row.label(text="Connect location node")
@@ -1215,6 +1233,7 @@ class No_Vi_SP(Node, ViNodes):
     def update(self):
         pass
 
+
 class No_Vi_WR(Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
     bl_idname = 'No_Vi_WR'
@@ -1224,12 +1243,13 @@ class No_Vi_WR(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.sdoy, self.edoy, self.max_freq, self.max_freq_val, self.temp)])
 
-    wrtype: EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0', update = nodeupdate)
-    sdoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
-    edoy: IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
-    max_freq: EnumProperty(items = [("0", "Data", "Max frequency taken from data"), ("1", "Specified", "User entered value")], name = "", default = '0', update = nodeupdate)
-    max_freq_val: FloatProperty(name = "", description = "Max frequency", min = 1, max = 100, default = 20, update = nodeupdate)
-    temp: BoolProperty(name = "", description = "Plot temperature", default = 0, update = nodeupdate)
+    wrtype: EnumProperty(items=[("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"),
+                                ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name="", default='0', update=nodeupdate)
+    sdoy: IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update=nodeupdate)
+    edoy: IntProperty(name="", description="Day of simulation", min=1, max=365, default=365, update=nodeupdate)
+    max_freq: EnumProperty(items=[("0", "Data", "Max frequency taken from data"), ("1", "Specified", "User entered value")], name="", default='0', update=nodeupdate)
+    max_freq_val: FloatProperty(name="", description="Max frequency", min=1, max=100, default=20, update=nodeupdate)
+    temp: BoolProperty(name="", description="Plot temperature", default=0, update=nodeupdate)
 
     def init(self, context):
         self.inputs.new('So_Vi_Loc', 'Location in')
@@ -1247,13 +1267,13 @@ class No_Vi_WR(Node, ViNodes):
             newrow(layout, 'Max frequency:', self, 'max_freq')
 
             if self.max_freq == '1':
-               newrow(layout, 'Frequency:', self, 'max_freq_val')
+                newrow(layout, 'Frequency:', self, 'max_freq_val')
 
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose")
         else:
             row = layout.row()
-            row.label(text = 'Location node error')
+            row.label(text='Location node error')
 
     def export(self):
         nodecolour(self, 0)
@@ -1262,6 +1282,7 @@ class No_Vi_WR(Node, ViNodes):
     def update(self):
         pass
 
+
 class No_Vi_SVF(Node, ViNodes):
     '''Node for sky view factor analysis'''
     bl_idname = 'No_Vi_SVF'
@@ -1269,18 +1290,19 @@ class No_Vi_SVF(Node, ViNodes):
     bl_icon = 'MOD_SOFT'
 
     def nodeupdate(self, context):
+        context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)])
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
-    animmenu: EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
-    startframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
-    endframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
-    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-            name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, precision = 3, update = nodeupdate)
-    signore: BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
+    animmenu: EnumProperty(name="", description="Animation type", items=animtype, default='Static', update=nodeupdate)
+    startframe: IntProperty(name='', default=0, min=0, max=1024, description='Start frame')
+    endframe: IntProperty(name='', default=0, min=0, max=1024, description='End frame')
+    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"), ("1", "Vertices", "Export vertices for calculation points")],
+                         name="", description="Specify the calculation point geometry", default="0", update=nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, precision=3, update=nodeupdate)
+    signore: BoolProperty(name='', default=0, description='Ignore sensor surfaces', update=nodeupdate)
     skytype = [('0', "Tregenza", "145 Tregenza sky patches"), ('1', "Reinhart 577", "577 Reinhart sky patches"), ('2', 'Reinhart 2305', '2305 Reinhart sky patches')]
-    skypatches: EnumProperty(name="", description="Animation type", items=skytype, default = '0', update = nodeupdate)
+    skypatches: EnumProperty(name="", description="Animation type", items=skytype, default='0', update=nodeupdate)
 
     def init(self, context):
         self['goptions'] = {}
@@ -1294,7 +1316,7 @@ class No_Vi_SVF(Node, ViNodes):
         if self.animmenu != 'Static':
             row = layout.row(align=True)
             row.alignment = 'EXPAND'
-            row.label(text = 'Frames:')
+            row.label(text='Frames:')
             row.prop(self, 'startframe')
             row.prop(self, 'endframe')
 
@@ -1302,7 +1324,7 @@ class No_Vi_SVF(Node, ViNodes):
         newrow(layout, 'Result point:', self, "cpoint")
         newrow(layout, 'Offset:', self, 'offset')
         row = layout.row()
-        row.operator("node.svf", text="Sky View Factor")#.nodeid = self['nodeid']
+        row.operator("node.svf", text="Sky View Factor")
 
     def preexport(self):
         self['goptions']['offset'] = self.offset
@@ -1316,27 +1338,29 @@ class No_Vi_SVF(Node, ViNodes):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
+
 class No_Vi_SS(Node, ViNodes):
     '''Node to create a VI-Suite shadow map'''
     bl_idname = 'No_Vi_SS'
     bl_label = 'VI Shadow Map'
 
     def nodeupdate(self, context):
+        context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)])
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
-    animmenu: EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
-    startframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
-    endframe: IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
-    starthour: IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
-    endhour: IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
-    interval: IntProperty(name = '', default = 1, min = 1, max = 60, description = 'Number of simulation steps per hour')
-    sdoy: IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start Day', update = nodeupdate)
-    edoy: IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End Day', update = nodeupdate)
-    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-            name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update = nodeupdate)
-    signore: BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
+    animmenu: EnumProperty(name="", description="Animation type", items=animtype, default='Static', update=nodeupdate)
+    startframe: IntProperty(name='', default=0, min=0, max=1024, description='Start frame')
+    endframe: IntProperty(name='', default=0, min=0, max=1024, description='End frame')
+    starthour: IntProperty(name='', default=1, min=1, max=24, description='Start hour')
+    endhour: IntProperty(name='', default=24, min=1, max=24, description='End hour')
+    interval: IntProperty(name='', default=1, min=1, max=60, description='Number of simulation steps per hour')
+    sdoy: IntProperty(name='', default=1, min=1, max=365, description='Start Day', update=nodeupdate)
+    edoy: IntProperty(name='', default=365, min=1, max=365, description='End Day', update=nodeupdate)
+    cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"), ("1", "Vertices", "Export vertices for calculation points")],
+                         name="", description="Specify the calculation point geometry", default="0", update=nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update=nodeupdate)
+    signore: BoolProperty(name='', default=0, description='Ignore sensor surfaces', update=nodeupdate)
 
     def init(self, context):
         self.inputs.new('So_Vi_Loc', 'Location in')
@@ -1355,7 +1379,7 @@ class No_Vi_SS(Node, ViNodes):
             if self.animmenu != 'Static':
                 row = layout.row(align=True)
                 row.alignment = 'EXPAND'
-                row.label(text = 'Frames:')
+                row.label(text='Frames:')
                 row.prop(self, 'startframe')
                 row.prop(self, 'endframe')
 
@@ -1367,7 +1391,7 @@ class No_Vi_SS(Node, ViNodes):
             newrow(layout, 'Result point:', self, "cpoint")
             newrow(layout, 'Offset:', self, 'offset')
             row = layout.row()
-            row.operator("node.shad", text = 'Calculate')
+            row.operator("node.shad", text='Calculate')
 
     def preexport(self):
         (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, bpy.context.scene.vi_params.year)
@@ -1383,12 +1407,14 @@ class No_Vi_SS(Node, ViNodes):
             socklink(sock, self.id_data.name)
 
 # Edit nodes
+
+
 class No_Text(Node, ViNodes):
     '''Text Export Node'''
     bl_idname = 'No_Text'
     bl_label = 'VI Text Edit'
 
-    contextmenu: StringProperty(name = '')
+    contextmenu: StringProperty(name='')
 
     def init(self, context):
         self['bt'] = ''
@@ -1401,10 +1427,10 @@ class No_Text(Node, ViNodes):
         if self.inputs['Text in'].links:
             inodename = self.inputs['Text in'].links[0].from_node.name
             row = layout.row()
-            row.label(text = 'Text name: {}'.format(inodename))
+            row.label(text='Text name: {}'.format(inodename))
             if inodename in [im.name for im in bpy.data.texts] and self['bt'] != bpy.data.texts[inodename].as_string():
                 row = layout.row()
-                row.operator('node.textupdate', text = 'Update')
+                row.operator('node.textupdate', text='Update')
 
     def update(self):
         for sock in self.outputs:
@@ -1431,7 +1457,8 @@ class No_Text(Node, ViNodes):
         btstring = ''.join([self['bt'].replace(bth, '***') for bth in btheads])
         btbodies = btstring.split('***\n')[1:]
         btframes = [head.split()[2] for head in btheads]
-        self['Text'] = {bthb[0]:bthb[1] for bthb in zip(btframes, btbodies)}
+        self['Text'] = {bthb[0]: bthb[1] for bthb in zip(btframes, btbodies)}
+
 
 class No_En_Geo(Node, ViNodes):
     '''Node describing an EnVi Geometry Export'''
@@ -1449,7 +1476,7 @@ class No_En_Geo(Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Offset', self, 'geo_offset')
         row = layout.row()
-        row.operator("node.engexport", text = "Export")
+        row.operator("node.engexport", text="Export")
 
     def update(self):
         for sock in self.outputs:
@@ -1461,68 +1488,70 @@ class No_En_Geo(Node, ViNodes):
     def postexport(self):
         nodecolour(self, 0)
 
+
 class No_En_Con(Node, ViNodes):
     '''Node describing an EnergyPlus export'''
     bl_idname = 'No_En_Con'
     bl_label = 'EnVi Export'
 
     def nodeupdate(self, context):
+        context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe, self.sdoy, self.edoy)])
 
-    animated: BoolProperty(name="", description="Animated analysis", update = nodeupdate)
-    fs: IntProperty(name="", description="Start frame", default = 0, min = 0, update = nodeupdate)
-    fe: IntProperty(name="", description="End frame", default = 0, min = 0, update = nodeupdate)
-    loc: StringProperty(name="", description="Identifier for this project", default="", update = nodeupdate)
+    animated: BoolProperty(name="", description="Animated analysis", update=nodeupdate)
+    fs: IntProperty(name="", description="Start frame", default=0, min=0, update=nodeupdate)
+    fe: IntProperty(name="", description="End frame", default=0, min=0, update=nodeupdate)
+    loc: StringProperty(name="", description="Identifier for this project", default="", update=nodeupdate)
     terrain: EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
-                   ("1", "Urban", "Urban, Industrial, Forest"),("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
-                    ("3", "Country", "Flat, Open Country"),("4", "Ocean", "Ocean, very flat country")],
-                    name="", description="Exposure context", default="0", options={'SKIP_SAVE'}, update = nodeupdate)
+                                 ("1", "Urban", "Urban, Industrial, Forest"), ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
+                                 ("3", "Country", "Flat, Open Country"), ("4", "Ocean", "Ocean, very flat country")],
+                          name="", description="Exposure context", default="0", options={'SKIP_SAVE'}, update=nodeupdate)
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
-    sdoy: IntProperty(name = "", description = "Start day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
-    edoy: IntProperty(name = "", description = "End day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
-    timesteps: IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
-    shadow_calc: EnumProperty(items = [("0", "CPU", "CPU based shadow calculations"), ("1", "GPU", "GPU based shadow calculations")],
-                                   name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
-    restype: EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"),
-                                   ("2", "Zone Ventilation", "Zone Ventilation Results"), ("3", "Ventilation Link", "Ventilation Link Results"),
-                                   ("4", "Power", "Power Production Results")],
-                                   name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
+    sdoy: IntProperty(name="", description="Start day of simulation", min=1, max=365, default=1, update=nodeupdate)
+    edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=365, update=nodeupdate)
+    timesteps: IntProperty(name="", description="Time steps per hour", min=1, max=60, default=1, update=nodeupdate)
+    shadow_calc: EnumProperty(items=[("0", "CPU", "CPU based shadow calculations"), ("1", "GPU", "GPU based shadow calculations")],
+                              name="", description="Specify the EnVi results category", default="0", update=nodeupdate)
+    restype: EnumProperty(items=[("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"),
+                                 ("2", "Zone Ventilation", "Zone Ventilation Results"), ("3", "Ventilation Link", "Ventilation Link Results"),
+                                 ("4", "Power", "Power Production Results")],
+                          name="", description="Specify the EnVi results category", default="0", update=nodeupdate)
 
-    resaam: bpy.props.BoolProperty(name = 'Air', description = 'Ambient air metrics', default = False)
-    resaws: bpy.props.BoolProperty(name = 'Wind speed', description = 'Ambient wind speed', default = False)
-    resawd: bpy.props.BoolProperty(name = 'Wind direction', description = 'Ambient wind direction', default = False)
-    resah: bpy.props.BoolProperty(name = 'Humidity', description = 'Ambient humidity', default = False)
-    resasm: bpy.props.BoolProperty(name = 'Solar', description = 'Ambient solar metrics', default = False)
-    restt: bpy.props.BoolProperty(name = 'Temperature', description = 'Zone temperature (degC)', default = False)
-    resh: bpy.props.BoolProperty(name = 'Humidity', description = 'Zone humidity (%)', default = False)
-    restwh: bpy.props.BoolProperty(name = 'Heating', description = 'Zone heating (W)', default = False)
-    restwc: bpy.props.BoolProperty(name = 'Cooling', description = 'Zone cooling (W)', default = False)
-    reswsg: bpy.props.BoolProperty(name = 'Solar gain', description = 'Window solar gain (W)', default = False)
-    rescpp: bpy.props.BoolProperty(name = 'PPD', description = 'Percentage People Dissatisfied', default = False)
-    rescpm: bpy.props.BoolProperty(name = 'PMV', description = 'Predicted Mean Vote', default = False)
-    resvls: bpy.props.BoolProperty(name = 'Ventilation (l/s)', description = 'Zone ventilation rate (l/s)', default = False)
-    resvmh: bpy.props.BoolProperty(name = 'Ventilation (m\u00b3/h)', description = 'Zone ventilation rate (m\u00b3/h)', default = False)
-    resim: bpy.props.BoolProperty(name = 'Infiltration (m\u00b3/h)', description = 'Zone infiltration rate (m\u00b3/h)', default = False)
-    resiach: bpy.props.BoolProperty(name = 'Infiltration (ACH)', description = 'Zone infiltration rate (ACH)', default = False)
-    resco2: bpy.props.BoolProperty(name = 'CO2 (ppm)', description = 'Zone CO2 concentration (ppm)', default = False)
-    resihl: bpy.props.BoolProperty(name = 'Heat loss (W)', description = 'Ventilation heat loss (W)', default = False)
-    resl12ms: bpy.props.BoolProperty(name = u'Flow (m\u00b3/s)', description = u'Linkage flow (m\u00b3/s)', default = False)
-    reslof: bpy.props.BoolProperty(name = 'Opening factor', description = 'Linkage opening factor', default = False)
-    resmrt: bpy.props.BoolProperty(name = 'MRT', description = 'Mean radiant temperature (degC)', default = False)
-    resocc: bpy.props.BoolProperty(name = 'Occupancy', description = 'Zone occupancy', default = False)
-    resh: bpy.props.BoolProperty(name = 'Humidity', description = 'Zone humidity (%)', default = False)
-    resfhb: bpy.props.BoolProperty(name = 'Heat balance', description = 'Fabric heat balance (W)', default = False)
-    ressah: bpy.props.BoolProperty(name = 'Air heating', description = 'Air heating (W)', default = False)
-    ressac: bpy.props.BoolProperty(name = 'Air cooling', description = 'Air cooling (W)', default = False)
-    reshrhw: bpy.props.BoolProperty(name = 'Heat recovery', description = 'Heat recovery heating (W)', default = False)
-    resldp: bpy.props.BoolProperty(name = 'Delta P', description = 'Pressure difference (Pa)', default = False)
-    resoeg: bpy.props.BoolProperty(name = 'Equipment', description = 'Other equipment heat gains (W)', default = False)
-    respve: bpy.props.BoolProperty(name = 'PV Energy', description = 'PV energy (J)', default = False)
-    respvw: bpy.props.BoolProperty(name = 'PV Power', description = 'PV power (W)', default = False)
-    respvt: bpy.props.BoolProperty(name = 'PV Temperature', description = 'PV Temperature (degC)', default = False)
-    respveff: bpy.props.BoolProperty(name = 'PV Efficiency', description = 'PV efficiency (%)', default = False)
+    resaam: bpy.props.BoolProperty(name='Air', description='Ambient air metrics', default=False)
+    resaws: bpy.props.BoolProperty(name='Wind speed', description='Ambient wind speed', default=False)
+    resawd: bpy.props.BoolProperty(name='Wind direction', description='Ambient wind direction', default=False)
+    resah: bpy.props.BoolProperty(name='Humidity', description='Ambient humidity', default=False)
+    resasm: bpy.props.BoolProperty(name='Solar', description='Ambient solar metrics', default=False)
+    restt: bpy.props.BoolProperty(name='Temperature', description='Zone temperature (degC)', default=False)
+    resh: bpy.props.BoolProperty(name='Humidity', description='Zone humidity (%)', default=False)
+    restwh: bpy.props.BoolProperty(name='Heating', description='Zone heating (W)', default=False)
+    restwc: bpy.props.BoolProperty(name='Cooling', description='Zone cooling (W)', default=False)
+    reswsg: bpy.props.BoolProperty(name='Solar gain', description='Window solar gain (W)', default=False)
+    rescpp: bpy.props.BoolProperty(name='PPD', description='Percentage People Dissatisfied', default=False)
+    rescpm: bpy.props.BoolProperty(name='PMV', description='Predicted Mean Vote', default=False)
+    resvls: bpy.props.BoolProperty(name='Ventilation (l/s)', description='Zone ventilation rate (l/s)', default=False)
+    resvmh: bpy.props.BoolProperty(name='Ventilation (m\u00b3/h)', description='Zone ventilation rate (m\u00b3/h)', default=False)
+    resim: bpy.props.BoolProperty(name='Infiltration (m\u00b3/h)', description='Zone infiltration rate (m\u00b3/h)', default=False)
+    resiach: bpy.props.BoolProperty(name='Infiltration (ACH)', description='Zone infiltration rate (ACH)', default=False)
+    resco2: bpy.props.BoolProperty(name='CO2 (ppm)', description='Zone CO2 concentration (ppm)', default=False)
+    resihl: bpy.props.BoolProperty(name='Heat loss (W)', description='Ventilation heat loss (W)', default=False)
+    resl12ms: bpy.props.BoolProperty(name=u'Flow (m\u00b3/s)', description=u'Linkage flow (m\u00b3/s)', default=False)
+    reslof: bpy.props.BoolProperty(name='Opening factor', description='Linkage opening factor', default=False)
+    resmrt: bpy.props.BoolProperty(name='MRT', description='Mean radiant temperature (degC)', default=False)
+    resocc: bpy.props.BoolProperty(name='Occupancy', description='Zone occupancy', default=False)
+    resh: bpy.props.BoolProperty(name='Humidity', description='Zone humidity (%)', default=False)
+    resfhb: bpy.props.BoolProperty(name='Heat balance', description='Fabric heat balance (W)', default=False)
+    ressah: bpy.props.BoolProperty(name='Air heating', description='Air heating (W)', default=False)
+    ressac: bpy.props.BoolProperty(name='Air cooling', description='Air cooling (W)', default=False)
+    reshrhw: bpy.props.BoolProperty(name='Heat recovery', description='Heat recovery heating (W)', default=False)
+    resldp: bpy.props.BoolProperty(name='Delta P', description='Pressure difference (Pa)', default=False)
+    resoeg: bpy.props.BoolProperty(name='Equipment', description='Other equipment heat gains (W)', default=False)
+    respve: bpy.props.BoolProperty(name='PV Energy', description='PV energy (J)', default=False)
+    respvw: bpy.props.BoolProperty(name='PV Power', description='PV power (W)', default=False)
+    respvt: bpy.props.BoolProperty(name='PV Temperature', description='PV Temperature (degC)', default=False)
+    respveff: bpy.props.BoolProperty(name='PV Efficiency', description='PV efficiency (%)', default=False)
 
     def init(self, context):
         self.inputs.new('So_En_Geo', 'Geometry in')
@@ -1536,7 +1565,7 @@ class No_En_Con(Node, ViNodes):
         (sdate, edate) = retdates(self.sdoy, self.edoy, context.scene.vi_params.year)
         newrow(layout, 'Shadow:', self, 'shadow_calc')
         row = layout.row()
-        row.label(text = 'Animation:')
+        row.label(text='Animation:')
         row.prop(self, 'animated')
 
         if self.animated:
@@ -1565,7 +1594,7 @@ class No_En_Con(Node, ViNodes):
 
         if all([s.links for s in self.inputs]) and not any([s.links[0].from_node.use_custom_color for s in self.inputs]):
             row = layout.row()
-            row.operator("node.encon", text = 'Export')
+            row.operator("node.encon", text='Export')
 
     def update(self):
         for sock in self.outputs:
@@ -1579,6 +1608,7 @@ class No_En_Con(Node, ViNodes):
     def postexport(self):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe, self.sdoy, self.edoy)]
+
 
 class No_En_Sim(Node, ViNodes):
     '''Node describing an EnergyPlus simulation'''
@@ -2090,21 +2120,23 @@ class No_Vi_HMChart(Node, ViNodes):
             self.y = self.y.reshape(dno, hno)
             self.z = self.z.reshape(dno, hno)
 
-    dpi: IntProperty(name = 'DPI', description = "DPI of the shown figure", default = 92, min = 92)
+    dpi: IntProperty(name='DPI', description="DPI of the shown figure", default=92, min=92)
     framemenu: EnumProperty(items=ftype, name="", description="Frame number")
     resmenu: EnumProperty(items=restype, name="", description="Result type", update=mupdate)
     locmenu: EnumProperty(items=loctype, name="", description="Result location", update=mupdate)
     metricmenu: EnumProperty(items=metric, name="", description="Result metric", update=mupdate)
     metricrange: EnumProperty(items=[('0', 'Auto', 'Automatic range based on max/min values'), ('1', 'Custom', 'Custom range based on input values')], name="", description="Result metric")
-    cf: BoolProperty(name="", description="Contour fill", default = 0)
-    cl: BoolProperty(name="", description="Contour fill", default = 0)
-    clevels: IntProperty(name = '', description = "Number of contour levels", default = 10, min = 2)
-    daystart: IntProperty(name = '', description = "Start day", default = 1, min = 1, max = 365)
-    dayend: IntProperty(name = '', description = "End day", default = 365, min = 1, max = 365)
-    hourstart: IntProperty(name = '', description = "Start hour", default = 1, min = 1, max = 365)
-    hourend: IntProperty(name = '', description = "End hour", default = 24, min = 1, max = 365)
-    varmin: IntProperty(name = '', description = "Variable minimum", default = 0)
-    varmax: IntProperty(name = '', description = "Varaible maximum", default = 20)
+    cf: BoolProperty(name="", description="Contour fill", default=0)
+    cl: BoolProperty(name="", description="Contour fill", default=0)
+    lvals: StringProperty(name="", description="Space separated contour values", default="")
+    lw: FloatProperty(name="", description="Line width", min=0.0, max=10, default=0.1)
+    clevels: IntProperty(name='', description="Number of contour levels", default=10, min=2)
+    daystart: IntProperty(name='', description="Start day", default = 1, min=1, max=365)
+    dayend: IntProperty(name='', description="End day", default=365, min=1, max=365)
+    hourstart: IntProperty(name='', description="Start hour", default=1, min=1, max=365)
+    hourend: IntProperty(name='', description="End hour", default=24, min=1, max=365)
+    varmin: IntProperty(name='', description="Variable minimum", default=0)
+    varmax: IntProperty(name='', description="Varaible maximum", default=20)
     x, y, z = [], [], []
 
     def init(self, context):
@@ -2150,6 +2182,11 @@ class No_Vi_HMChart(Node, ViNodes):
 
                 newrow(layout, 'Colour map:', svp, "vi_leg_col")
                 newrow(layout, 'Contour lines:', self, "cl")
+
+                if self.cl:
+                    newrow(layout, 'Line width:', self, "lw")
+                    newrow(layout, 'Contour values:', self, "lvals")
+
                 newrow(layout, 'Contour fill:', self, "cf")
 
                 if self.cl or self.cf:
@@ -4052,7 +4089,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
     envi_hvacht: fprop(u'\u00b0C', "Heating temperature:", 1, 99, 50)
     envi_hvacct: fprop(u'\u00b0C', "Cooling temperature:", -10, 20, 13)
     envi_hvachlt: EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], name = '', description = "Heating limit type", default = '4', update = hupdate)
-    envi_hvachaf: FloatProperty(name = u'm\u00b3/s', description = "Heating air flow rate", min = 0, max = 60, default = 1, precision = 4)
+    envi_hvachaf: FloatProperty(name = u'm\u00b3/s', description = "Heating air flow rate", min = 0, max = 60, default = 1, precision = 4, options={'ANIMATABLE'})
     envi_hvacshc: fprop("W", "Sensible heating capacity", 0, 10000, 1000)
     envi_hvacclt: EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], name = '', description = "Cooling limit type", default = '4', update = hupdate)
     envi_hvaccaf: FloatProperty(name = u'm\u00b3/s', description = "Cooling air flow rate", min = 0, max = 60, default = 1, precision = 4)
@@ -5546,89 +5583,89 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             self.inputs['Outer frame layer'].hide = True
 
 
-    con_name: StringProperty(name = "", description = "", default = '')
-    envi_con_type: EnumProperty(items = [("Wall", "Wall", "Wall construction"),
-                                            ("Floor", "Floor", "Ground floor construction"),
-                                            ("Roof", "Roof", "Roof construction"),
-                                            ("Window", "Window", "Window construction"),
-                                            ("Door", "Door", "Door construction"),
-                                            ("Shading", "Shading", "Shading material"),
-                                            ("None", "None", "Surface to be ignored")],
-                                            name = "",
-                                            description = "Specify the construction type",
-                                            default = "None", update = con_update)
-    envi_con_makeup: EnumProperty(items = [("0", "Pre-set", "Construction pre-set"),
+    con_name: StringProperty(name="", description="", default='')
+    envi_con_type: EnumProperty(items=[("Wall", "Wall", "Wall construction"),
+                                       ("Floor", "Floor", "Ground floor construction"),
+                                       ("Roof", "Roof", "Roof construction"),
+                                       ("Window", "Window", "Window construction"),
+                                       ("Door", "Door", "Door construction"),
+                                       ("Shading", "Shading", "Shading material"),
+                                       ("None", "None", "Surface to be ignored")],
+                                name="",
+                                description="Specify the construction type",
+                                default="None", update=con_update)
+    envi_con_makeup: EnumProperty(items=[("0", "Pre-set", "Construction pre-set"),
                                             ("1", "Layers", "Custom layers")],
-                                            name = "",
-                                            description = "Pre-set construction of custom layers",
-                                            default = "0", update = con_update)
-    envi_con_con: EnumProperty(items = bc_update,
-                                            name = "",
-                                            description = "Construction context", update = con_update)
-    envi_simple_glazing: BoolProperty(name = "", description = "Flag to signify whether to use a EP simple glazing representation", default = False)
-    envi_sg_uv: FloatProperty(name = "W/m^2.K", description = "Window U-Value", min = 0.01, max = 10, default = 2.4)
-    envi_sg_shgc: FloatProperty(name = "", description = "Window Solar Heat Gain Coefficient", min = 0, max = 1, default = 0.7)
-    envi_sg_vt: FloatProperty(name = "", description = "Window Visible Transmittance", min = 0, max = 1, default = 0.8)
-    envi_afsurface: BoolProperty(name = "", description = "Flag to signify whether the material represents an airflow surface", default = False)
-    lt0: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt1: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt2: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt3: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt4: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt5: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt6: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt7: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt8: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    lt9: FloatProperty(name = "mm", description = "Layer thickness (mm)", min = 0.1, default = 100, update = uv_update)
-    uv: StringProperty(name = "", description = "Construction U-Value", default = "N/A")
-    frame_uv: StringProperty(name = "", description = "Frame U-Value", default = "N/A")
-    envi_con_list: EnumProperty(items = envi_con_list, name = "", description = "Database construction")
-    active: BoolProperty(name = "", description = "Active construction", default = False, update = active_update)
+                                            name="",
+                                            description="Pre-set construction of custom layers",
+                                            default="0", update=con_update)
+    envi_con_con: EnumProperty(items=bc_update,
+                                            name="",
+                                            description="Construction context", update=con_update)
+    envi_simple_glazing: BoolProperty(name="", description="Flag to signify whether to use a EP simple glazing representation", default=False)
+    envi_sg_uv: FloatProperty(name="W/m^2.K", description="Window U-Value", min=0.01, max=10, default=2.4)
+    envi_sg_shgc: FloatProperty(name="", description="Window Solar Heat Gain Coefficient", min=0, max=1, default=0.7)
+    envi_sg_vt: FloatProperty(name="", description="Window Visible Transmittance", min=0, max=1, default=0.8)
+    envi_afsurface: BoolProperty(name="", description="Flag to signify whether the material represents an airflow surface", default=False)
+    lt0: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt1: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt2: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt3: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt4: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt5: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt6: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt7: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt8: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    lt9: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    uv: StringProperty(name="", description="Construction U-Value", default="N/A")
+    frame_uv: StringProperty(name="", description="Frame U-Value", default="N/A")
+    envi_con_list: EnumProperty(items=envi_con_list, name="", description="Database construction")
+    active: BoolProperty(name="", description="Active construction", default=False, update=active_update)
 
     # Frame parameters
-    fclass: EnumProperty(items = [("0", "Simple spec.", "Simple frame designation"),
+    fclass: EnumProperty(items=[("0", "Simple spec.", "Simple frame designation"),
                                    ("1", "Detailed spec.", "Advanced frame designation"),
                                    ("2", "Layers", "Layered frame designation")],
-                                    name = "",
-                                    description = "Window frame specification",
-                                    default = "0", update = frame_update)
+                                    name="",
+                                    description="Window frame specification",
+                                    default="0", update=frame_update)
 
-    fmat: EnumProperty(items = [("0", "Wood", "Wooden frame"),
+    fmat: EnumProperty(items=[("0", "Wood", "Wooden frame"),
                                    ("1", "Aluminium", "Aluminium frame"),
                                    ("2", "Plastic", "uPVC frame"),
                                    ("3", "Layers", "Layered frame")],
-                                    name = "",
-                                    description = "Frame material",
-                                    default = "0", update = con_update)
+                                    name="",
+                                    description="Frame material",
+                                    default="0", update=con_update)
 
-    fthi: FloatProperty(name = "m", description = "Frame thickness", min = 0.001, max = 10, default = 0.05)
-    farea: FloatProperty(name = "%", description = "Frame area percentage", min = 0.01, max = 100, default = 10)
-    fw: FloatProperty(name = "m", description = "Frame Width", min = 0.0, max = 10, default = 0.2)
-    fop: FloatProperty(name = "m", description = "Frame Outside Projection", min = 0.01, max = 10, default = 0.1)
-    fip: FloatProperty(name = "m", description = "Frame Inside Projection", min = 0.01, max = 10, default = 0.1)
-    ftc: FloatProperty(name = "W/m.K", description = "Frame Conductance", min = 0.01, max = 10, default = 0.1)
-    fratio: FloatProperty(name = "", description = "Ratio of Frame-Edge Glass Conductance to Center-Of-Glass Conductance", min = 0.1, max = 10, default = 1)
-    fsa: FloatProperty(name = "", description = "Frame Solar Absorptance", min = 0.01, max = 1, default = 0.7)
-    fva: FloatProperty(name = "", description = "Frame Visible Absorptance", min = 0.01, max = 1, default = 0.7)
-    fte: FloatProperty(name = "", description = "Frame Thermal Emissivity", min = 0.01, max = 1, default = 0.7)
-    dt: EnumProperty(items = [("0", "None", "None"), ("1", "DividedLite", "Divided lites"), ("2", "Suspended", "Suspended divider")],
-                                        name = "", description = "Type of divider", default = "0")
-    dw: FloatProperty(name = "m", description = "Divider Width", min = 0.001, max = 10, default = 0.01)
-    dhd: IntProperty(name = "", description = "Number of Horizontal Dividers", min = 0, max = 10, default = 0)
-    dvd: IntProperty(name = "", description = "Number of Vertical Dividers", min = 0, max = 10, default = 0)
-    dop: FloatProperty(name = "m", description = "Divider Outside Projection", min = 0.0, max = 10, default = 0.01)
-    dip: FloatProperty(name = "m", description = "Divider Inside Projection", min = 0.0, max = 10, default = 0.01)
-    dtc: FloatProperty(name = "W/m.K", description = "Divider Conductance", min = 0.001, max = 10, default = 0.1)
-    dratio: FloatProperty(name = "", description = "Ratio of Divider-Edge Glass Conductance to Center-Of-Glass Conductance", min = 0.1, max = 10, default = 1)
-    dsa: FloatProperty(name = "", description = "Divider Solar Absorptance", min = 0.01, max = 1, default = 0.7)
-    dva: FloatProperty(name = "", description = "Divider Visible Absorptance", min = 0.01, max = 1, default = 0.7)
-    dte: FloatProperty(name = "", description = "Divider Thermal Emissivity", min = 0.01, max = 1, default = 0.7)
-    orsa: FloatProperty(name = "", description = "Outside Reveal Solar Absorptance", min = 0.01, max = 1, default = 0.7)
-    isd: FloatProperty(name = "m", description = "Inside Sill Depth (m)", min = 0.0, max = 10, default = 0.1)
-    issa: FloatProperty(name = "", description = "Inside Sill Solar Absorptance", min = 0.01, max = 1, default = 0.7)
-    ird: FloatProperty(name = "m", description = "Inside Reveal Depth (m)", min = 0.0, max = 10, default = 0.1)
-    irsa: FloatProperty(name = "", description = "Inside Reveal Solar Absorptance", min = 0.01, max = 1, default = 0.7)
-    resist: FloatProperty(name = "", description = "U-value", min = 0.01, max = 10, default = 0.7)
+    fthi: FloatProperty(name="m", description="Frame thickness", min=0.001, max=10, default=0.05)
+    farea: FloatProperty(name="%", description="Frame area percentage", min=0.01, max=100, default=10)
+    fw: FloatProperty(name="m", description="Frame Width", min=0.0, max=10, default=0.2)
+    fop: FloatProperty(name="m", description="Frame Outside Projection", min=0.01, max=10, default=0.1)
+    fip: FloatProperty(name="m", description="Frame Inside Projection", min=0.01, max=10, default=0.1)
+    ftc: FloatProperty(name="W/m.K", description="Frame Conductance", min=0.01, max=10, default=0.1)
+    fratio: FloatProperty(name="", description="Ratio of Frame-Edge Glass Conductance to Center-Of-Glass Conductance", min=0.1, max=10, default=1)
+    fsa: FloatProperty(name="", description="Frame Solar Absorptance", min=0.01, max=1, default=0.7)
+    fva: FloatProperty(name="", description="Frame Visible Absorptance", min=0.01, max=1, default=0.7)
+    fte: FloatProperty(name="", description="Frame Thermal Emissivity", min=0.01, max=1, default=0.7)
+    dt: EnumProperty(items=[("0", "None", "None"), ("1", "DividedLite", "Divided lites"), ("2", "Suspended", "Suspended divider")],
+                                        name="", description="Type of divider", default="0")
+    dw: FloatProperty(name="m", description="Divider Width", min=0.001, max=10, default=0.01)
+    dhd: IntProperty(name="", description="Number of Horizontal Dividers", min=0, max=10, default=0)
+    dvd: IntProperty(name="", description="Number of Vertical Dividers", min=0, max=10, default=0)
+    dop: FloatProperty(name="m", description="Divider Outside Projection", min=0.0, max=10, default=0.01)
+    dip: FloatProperty(name="m", description="Divider Inside Projection", min=0.0, max=10, default=0.01)
+    dtc: FloatProperty(name="W/m.K", description="Divider Conductance", min=0.001, max=10, default=0.1)
+    dratio: FloatProperty(name="", description="Ratio of Divider-Edge Glass Conductance to Center-Of-Glass Conductance", min=0.1, max=10, default=1)
+    dsa: FloatProperty(name="", description="Divider Solar Absorptance", min=0.01, max=1, default=0.7)
+    dva: FloatProperty(name="", description="Divider Visible Absorptance", min=0.01, max=1, default=0.7)
+    dte: FloatProperty(name="", description="Divider Thermal Emissivity", min=0.01, max=1, default=0.7)
+    orsa: FloatProperty(name="", description="Outside Reveal Solar Absorptance", min=0.01, max=1, default=0.7)
+    isd: FloatProperty(name="m", description="Inside Sill Depth (m)", min=0.0, max=10, default=0.1)
+    issa: FloatProperty(name="", description="Inside Sill Solar Absorptance", min=0.01, max=1, default=0.7)
+    ird: FloatProperty(name="m", description="Inside Reveal Depth (m)", min=0.0, max=10, default=0.1)
+    irsa: FloatProperty(name="", description="Inside Reveal Solar Absorptance", min=0.01, max=1, default=0.7)
+    resist: FloatProperty(name="", description="U-value", min=0.01, max=10, default=0.7)
 
     def init(self, context):
         self.inputs.new('So_En_Mat_PV', 'PV')
@@ -6056,7 +6093,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material", update = ec_update)
     ecm2: FloatProperty(name = "kgCo2e/m2", description = "Embodied carbon per metre squared", min = 0.0, default = 0.0)
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
-    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'SKIP_SAVE'})
+    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
     tc: FloatProperty(name = "W/m.K", description = "Thermal conductivity (W/m.K)", min = 0.001, max = 10, default = 0.5)
     rough: EnumProperty(items = [("VeryRough", "VeryRough", "Roughness"),
                                   ("Rough", "Rough", "Roughness"),

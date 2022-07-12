@@ -74,7 +74,6 @@ else:
                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                          'site-packages'))
 
-
             if os.environ.get('PATH'):
                 if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
                     os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
@@ -83,7 +82,7 @@ else:
 
             # if sys.platform == 'win32':
                 # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
-                
+
                 # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                 #                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                 #                          'site-packages'))
@@ -91,46 +90,40 @@ else:
         try:
             requests.get('https://www.google.com/')
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
-                gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'),
-                os.path.join(addonpath, 'Python', sys.platform))
+                gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(gp_cmd)).wait()
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
                 upg = '' if sys.platform == 'linux' else '--upgrade'
                 if sys.platform == 'win32':
-                    kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg,
-                                                                                              os.path.join(addonpath, 'Python', sys.platform))
+                    kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                 else:
-                    kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg,
-                                                                                     os.path.join(addonpath, 'Python', sys.platform))
-                    
+                    kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+
                 Popen(shlex.split(kivy_cmd)).wait()
 
                 if sys.platform == 'win32':
                     dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'sdl2', 'bin', 'SDL2*'))
-                    for dll in dlls: 
+                    for dll in dlls:
                         shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'core', 'window'))
                     dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'glew', 'bin', 'glew32*'))
-                    for dll in dlls: 
+                    for dll in dlls:
                         shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt5')):
-                pyqt_cmd = '"{}" -m pip install PyQt5 --target "{}"'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
+                pyqt_cmd = '"{}" -m pip install PyQt5 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(pyqt_cmd)).wait()
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
+                mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(mp_cmd)).wait()
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                               ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                               'site-packages', 'netgen')):
-                ng_cmd = '"{0}" -m pip install --prefix="{1}" ngsolve'.format(sys.executable,
-                os.path.join(addonpath, 'Python', sys.platform))
+                ng_cmd = '"{0}" -m pip install --prefix="{1}" ngsolve'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(ng_cmd)).wait()
-        
+
         except Exception as e:
             print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
 
@@ -205,9 +198,11 @@ def abspath(self, context):
         self.ofetc = bpy.path.abspath(self.ofetc)
     path_update()
 
+
 def flovi_levels(self, context):
     if self.flovi_slmin > self.flovi_slmax:
        self.flovi_slmin -= 1
+
 
 def unititems(self, context):
     try:
@@ -248,7 +243,8 @@ def unititems(self, context):
             return [('None', 'None','None' )]
     except:
         logentry('Check the LiVi Result Type menu')
-        return [('None', 'None','None' )]
+        return [('None', 'None', 'None')]
+
 
 def bsdf_direcs(self, context):
     try:
@@ -270,7 +266,7 @@ class VIPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        
+
         try:
             requests.get('https://www.google.com/')
         except:
@@ -399,6 +395,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_bsdfleg_min: FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
     vi_bsdfleg_scale: EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0')
     en_disp_type: EnumProperty(items = enparametric, name = "", description = "Type of EnVi display")
+    vi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
+    envi_netnodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     resas_disp: bprop("", "", False)
     reszt_disp: bprop("", "", False)
     reszh_disp: bprop("", "", False)
@@ -531,7 +529,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     lespacemenu: eprop(lespacetype, "", "Type of space", '0')
     BSDF: bprop("", "Flag to signify a BSDF material", False)
     mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
-    envi_nodes: bpy.props.PointerProperty(type = bpy.types.NodeTree)
+    envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     envi_type: sprop("", "EnVi Material type", 64, "None")
     envi_shading: bprop("", "Flag to signify whether the material contains shading elements", False)
     envi_boundary: bprop("", "Flag to signify whether the material represents a zone boundary", False)
@@ -737,11 +735,11 @@ def register():
         bpy.utils.register_class(cl)
 
     Object, Scene, Material, Collection, Link = bpy.types.Object, bpy.types.Scene, bpy.types.Material, bpy.types.Collection, bpy.types.NodeLink
-    Scene.vi_params = bpy.props.PointerProperty(type = VI_Params_Scene)
-    Object.vi_params = bpy.props.PointerProperty(type = VI_Params_Object)
-    Material.vi_params = bpy.props.PointerProperty(type = VI_Params_Material)
-    Collection.vi_params = bpy.props.PointerProperty(type = VI_Params_Collection)
-    Link.vi_params = bpy.props.PointerProperty(type = VI_Params_Link)
+    Scene.vi_params = bpy.props.PointerProperty(type=VI_Params_Scene)
+    Object.vi_params = bpy.props.PointerProperty(type=VI_Params_Object)
+    Material.vi_params = bpy.props.PointerProperty(type=VI_Params_Material)
+    Collection.vi_params = bpy.props.PointerProperty(type=VI_Params_Collection)
+    Link.vi_params = bpy.props.PointerProperty(type=VI_Params_Link)
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
     nodeitems_utils.register_node_categories("EnVi Material Nodes", envimatnode_categories)

@@ -15,7 +15,7 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
- 
+
 import bpy
 from collections import OrderedDict
 from .vi_func import newrow, retdates, logentry, get_materials
@@ -24,7 +24,7 @@ try:
     import matplotlib
     matplotlib.use('qt5agg', force = True)
     import matplotlib.pyplot as plt
-    import matplotlib.cm as mcm  
+    import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     from matplotlib.patches import Rectangle
     from matplotlib.collections import PatchCollection
@@ -38,7 +38,7 @@ class VI_PT_3D(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
-    
+
     def draw(self, context):
         scene = context.scene
         svp = scene.vi_params
@@ -49,14 +49,14 @@ class VI_PT_3D(bpy.types.Panel):
             row = layout.row()
             row.label(text = "No matplotlib install")
             return
-            
+
         if cao:
             covp = cao.vi_params
 
         if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
-            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':                
+            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':
                 row = layout.row()
-                row.operator("view3d.bsdf_display", text="BSDF Display") 
+                row.operator("view3d.bsdf_display", text="BSDF Display")
 
                 if svp['viparams']['vidisp'] == 'bsdf_panel':
                     newrow(layout, 'Direction:', svp, "vi_bsdf_direc")
@@ -64,8 +64,8 @@ class VI_PT_3D(bpy.types.Panel):
                     newrow(layout, 'BSDF min:', svp, "vi_bsdfleg_min")
                     newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
-        
-        if svp.get('viparams') and svp['viparams'].get('vidisp'): 
+
+        if svp.get('viparams') and svp['viparams'].get('vidisp'):
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')
@@ -80,116 +80,116 @@ class VI_PT_3D(bpy.types.Panel):
                 if svp.vi_scatt_max == '1':
                     newrow(layout, 'Max value:', svp, 'vi_scatt_max_val')
 
-                newrow(layout, 'Min:', svp, 'vi_scatt_min')    
+                newrow(layout, 'Min:', svp, 'vi_scatt_min')
 
                 if svp.vi_scatt_min == '1':
                     newrow(layout, 'Min value:', svp, 'vi_scatt_min_val')
 
-#                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh') 
-                
+#                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
+
             elif svp['viparams']['vidisp'] == 'sp' and svp.vi_display:
                 row = layout.row()
                 row.prop(context.space_data.shading, "light")
                 newrow(layout, "Latitude:", svp, 'latitude')
                 newrow(layout, "Longitude:", svp, 'longitude')
-                (sdate, edate) = retdates(svp.sp_sd, 365, 2015)                    
-                time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"), 
-                ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60) % 60)), "sp_sh")), 
-                [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60)) % 60), "sp_sh")], 
+                (sdate, edate) = retdates(svp.sp_sd, 365, 2015)
+                time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"),
+                ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60) % 60)), "sp_sh")),
+                [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60)) % 60), "sp_sh")],
                 [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
-                
+
                 for i in time_disps[int(svp['spparams']['suns'])]:
                     newrow(layout, i[0], svp, i[1])
-                
+
                 for i in (("Sun strength:", "sp_sun_strength"), ("Sun angle:", "sp_sun_angle")):
                     newrow(layout, i[0], svp, i[1])
-                
+
                 newrow(layout, "Line width:", svp, 'sp_line_width')
-                newrow(layout, "Solstice colour:", svp, 'sp_season_main') 
-                newrow(layout, "Hour main colour:", svp, 'sp_hour_main')            
-                newrow(layout, "Hour dash colour:", svp, 'sp_hour_dash')  
+                newrow(layout, "Solstice colour:", svp, 'sp_season_main')
+                newrow(layout, "Hour main colour:", svp, 'sp_hour_main')
+                newrow(layout, "Hour dash colour:", svp, 'sp_hour_dash')
                 newrow(layout, "Hour dash ratio:", svp, 'sp_hour_dash_ratio')
                 newrow(layout, "Hour dash density:", svp, 'sp_hour_dash_density')
                 newrow(layout, "Sun size:", svp, 'sp_sun_size')
                 newrow(layout, "Sun colour:", svp, 'sp_sun_colour')
                 newrow(layout, "Globe colour:", svp, 'sp_globe_colour')
-                
+
                 time_disps = ((("Display time:", "sp_td"), ("Display hours:", "sp_hd")), [("Display hours:", "sp_hd")], [("Display hours:", "sp_hd")])
-                
+
                 for i in time_disps[int(svp['spparams']['suns'])]:
                     newrow(layout, i[0], svp, i[1])
-                
+
                 if (svp['spparams']['suns'] == '0' and (svp.sp_td or svp.sp_hd)) or svp.sp_hd:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh")):
                         newrow(layout, i[0], svp, i[1])
                     if svp.vi_display_rp_sh:
                         newrow(layout, "Shadow colour:", svp, "vi_display_rp_fsh")
-                
+
             elif svp['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 if not svp.vi_display:
                     row = layout.row()
-                    row.prop(svp, "vi_disp_3d")                 
+                    row.prop(svp, "vi_disp_3d")
                     row = layout.row()
-                
+
                     if svp['viparams']['vidisp'] == 'svf':
                         row.operator("view3d.svfdisplay", text="Sky View Display")
                     elif svp['viparams']['vidisp'] == 'ss':
                         row.operator("view3d.ssdisplay", text="Shadow Display")
                     elif svp['viparams']['vidisp'] == 'li':
                         row.operator("view3d.libd", text="Radiance Display")
-                
+
                 elif [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
                     if not svp.ss_disp_panel:
                         newrow(layout, 'Result type:', svp, "li_disp_menu")
                         newrow(layout, 'Legend unit:', svp, "vi_leg_unit")
-                        newrow(layout, 'Processing:', svp, "vi_res_process") 
+                        newrow(layout, 'Processing:', svp, "vi_res_process")
 
-                    if svp.vi_res_process == '1':                    
+                    if svp.vi_res_process == '1':
                         newrow(layout, 'Modifier:', svp, "vi_res_mod")
                     elif svp.vi_res_process == '2':
                         layout.prop_search(svp, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
-                        
-                    newrow(layout, 'Frame:', svp, "vi_frames")   
+
+                    newrow(layout, 'Frame:', svp, "vi_frames")
                     newrow(layout, 'Legend max:', svp, "vi_leg_max")
                     newrow(layout, 'Legend min:', svp, "vi_leg_min")
                     newrow(layout, 'Legend scale:', svp, "vi_leg_scale")
                     newrow(layout, 'Legend colour:', svp, "vi_leg_col")
                     newrow(layout, 'Legend levels:', svp, "vi_leg_levels")
                     newrow(layout, 'Emitter materials:', svp, "vi_disp_mat")
-                    
+
                     if svp.vi_disp_mat:
                         newrow(layout, 'Emitter strength:', svp, "vi_disp_ems")
-                    
+
                     if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
                         newrow(layout, 'Scatter max:', svp, "vi_scatt_max_val")
                         newrow(layout, 'Scatter min:', svp, "vi_scatt_min_val")
-                        
+
                     if cao and cao.type == 'MESH':
-                        newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')                    
-                    
+                        newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')
+
                     if int(svp.vi_disp_3d) == 1:
-                        newrow(layout, "3D Level", svp, "vi_disp_3dlevel")                        
-                    
+                        newrow(layout, "3D Level", svp, "vi_disp_3dlevel")
+
                     newrow(layout, "Transparency", svp, "vi_disp_trans")
-    
+
                     if context.mode != "EDIT":
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
                         newrow(layout, 'Enable:', svp, 'vi_display_rp')
-                        
+
                         if svp.vi_display_rp:
                             propdict = OrderedDict([("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
 
                             for prop in propdict.items():
                                 newrow(layout, prop[0], svp, prop[1])
-                                
+
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 #                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
-                                            
-            if svp.vi_display:            
+
+            if svp.vi_display:
                 newrow(layout, 'Display active', svp, 'vi_display')
-                    
+
 class VI_PT_Mat(bpy.types.Panel):
     bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
@@ -207,26 +207,28 @@ class VI_PT_Mat(bpy.types.Panel):
 
             if mvp.mattype in ('0', '1'):
                 rmmenu(layout, cm)
-                if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):# in bpy.data.node_groups:
+
+                if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):  # in bpy.data.node_groups:
                     row = layout.row()
-                    row.operator("material.envi_node", text = "Create EnVi Nodes")
-            
+                    row.operator("material.envi_node", text="Create EnVi Nodes")
+
             elif mvp.mattype == '2':
                 newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")
                 newrow(layout, "Type:", mvp, "flovi_bmb_type")
 
                 if mvp.flovi_bmb_type in ('0', '1') and svp.get('flparams') and svp['flparams'].get('solver_type'):
                     newrow(layout, "p type:", mvp, "flovi_bmbp_subtype")
-                    
+
                     if mvp.flovi_bmbp_subtype in ('fixedValue', 'totalPressure'):
                         if mvp.flovi_bmbp_subtype == 'totalPressure':
                             newrow(layout, "p0 value:", mvp, "flovi_bmbp_p0val")
                             newrow(layout, "Gamma value:", mvp, "flovi_bmbp_gamma")
+
                         newrow(layout, "Field value:", mvp, "flovi_p_field")
-                        
+
                         if not mvp.flovi_p_field:
-                            newrow(layout, "Pressure value:", mvp, "flovi_bmbp_val")                        
-                            
+                            newrow(layout, "Pressure value:", mvp, "flovi_bmbp_val")
+
                     newrow(layout, "U type:", mvp, "flovi_bmbu_subtype")
 
                     if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet'):
@@ -240,9 +242,9 @@ class VI_PT_Mat(bpy.types.Panel):
                             else:
                                 newrow(layout, "Azimuth:", mvp, "flovi_u_azi")
                                 newrow(layout, "Speed:", mvp, "flovi_u_speed")
-                                
-                    if svp.get('flparams') and svp['flparams'].get('params'):                       
-                        # if 'l' not in svp['flparams']['params']:    
+
+                    if svp.get('flparams') and svp['flparams'].get('params'):
+                        # if 'l' not in svp['flparams']['params']:
                         newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
                         if mvp.flovi_bmbnut_subtype == 'fixedValue':
                             newrow(layout, "Nut field:", mvp, "flovi_nut_field")
@@ -275,15 +277,15 @@ class VI_PT_Mat(bpy.types.Panel):
                                 newrow(layout, "Omega field:", mvp, "flovi_o_field")
                                 if not mvp.flovi_o_field:
                                     newrow(layout, "Omega value:", mvp, "flovi_bmbo_val")
-                        
+
                         elif 's' in svp['flparams']['params']:
                             newrow(layout, "Nutilda type:", mvp, "flovi_bmbnutilda_subtype")
                             if mvp.flovi_bmbnutilda_subtype == 'fixedValue':
                                 newrow(layout, "Nutilda field:", mvp, "flovi_nutilda_field")
                                 if not mvp.flovi_nutilda_field:
                                     newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
-                        
-                        if 't' in svp['flparams']['params']:  
+
+                        if 't' in svp['flparams']['params']:
                             newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
                             if mvp.flovi_bmbt_subtype == 'fixedValue':
                                 newrow(layout, "T field:", mvp, "flovi_t_field")
@@ -294,29 +296,29 @@ class VI_PT_Mat(bpy.types.Panel):
                                 if not mvp.flovi_t_field:
                                     newrow(layout, "T inlet value:", mvp, "flovi_bmbti_val")
                                     newrow(layout, "T value:", mvp, "flovi_bmbt_val")
-                            
-                            newrow(layout, "p_rgh type:", mvp, "flovi_prgh_subtype")        
+
+                            newrow(layout, "p_rgh type:", mvp, "flovi_prgh_subtype")
                             newrow(layout, "p_rgh field:", mvp, "flovi_prgh_field")
 
                             if mvp.flovi_prgh_subtype == 'totalPressure':
-                                newrow(layout, "p_rgh gamma:", mvp, "flovi_prgh_gamma") 
+                                newrow(layout, "p_rgh gamma:", mvp, "flovi_prgh_gamma")
                                 if not mvp.flovi_prgh_field:
-                                    newrow(layout, "p0:", mvp, "flovi_prgh_p0")                                        
-                                    newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val") 
+                                    newrow(layout, "p0:", mvp, "flovi_prgh_p0")
+                                    newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val")
                             else:
                                 if not mvp.flovi_prgh_field:
-                                    newrow(layout, "p_rgh p:", mvp, "flovi_prgh_p") 
-                                    newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val") 
+                                    newrow(layout, "p_rgh p:", mvp, "flovi_prgh_p")
+                                    newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val")
 
                             if svp['flparams']['features']['buoy']:
-                                newrow(layout, "alphat type:", mvp, "flovi_a_subtype") 
+                                newrow(layout, "alphat type:", mvp, "flovi_a_subtype")
                             if svp['flparams']['features']['rad']:
-                                newrow(layout, "Rad type:", mvp, "flovi_rad_subtype") 
-                                newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em") 
-                                newrow(layout, "Emissivity value:", mvp, "flovi_rad_e") 
-                                newrow(layout, "radiation value:", mvp, "flovi_rad_val") 
+                                newrow(layout, "Rad type:", mvp, "flovi_rad_subtype")
+                                newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em")
+                                newrow(layout, "Emissivity value:", mvp, "flovi_rad_e")
+                                newrow(layout, "radiation value:", mvp, "flovi_rad_val")
                 newrow(layout, "Probe:", mvp, "flovi_probe")
-                
+
 class VI_PT_Ob(bpy.types.Panel):
     bl_label = "VI-Suite Object"
     bl_space_type = "PROPERTIES"
@@ -340,22 +342,22 @@ class VI_PT_Ob(bpy.types.Panel):
             if ovp.vi_type == '0':
                 row = layout.row()
                 row.label(text = '-- Octree generation --')
-                newrow(layout, 'Triangulate:', ovp, 'triangulate') 
+                newrow(layout, 'Triangulate:', ovp, 'triangulate')
                 newrow(layout, 'Mesh:', ovp, 'mesh')
-                row = layout.row()  
+                row = layout.row()
                 row.operator('object.vi_genoct', text = "Generate Octree")
 
             elif ovp.vi_type == '1':
                 newrow(layout, "Type:", ovp, 'envi_type')
 
-            elif ovp.vi_type == '2': 
+            elif ovp.vi_type == '2':
                 pass
 
-            newrow(layout, 'Embodied:', ovp, 'embodied') 
+            newrow(layout, 'Embodied:', ovp, 'embodied')
 
             if ovp.embodied:
-                newrow(layout, 'Embodied class:', ovp, 'embodiedtype') 
-                newrow(layout, 'Embodied type:', ovp, 'embodiedclass') 
+                newrow(layout, 'Embodied class:', ovp, 'embodiedtype')
+                newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
                 newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
 
                 if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
@@ -373,8 +375,8 @@ class VI_PT_Ob(bpy.types.Panel):
             else:
                 newrow(layout, 'IES Temperature:', ovp, "ies_ct")
 
-        elif ovp.vi_type == '5':  
-            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):              
+        elif ovp.vi_type == '5':
+            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
                 newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
 #                newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
 
@@ -412,7 +414,7 @@ def rmmenu(layout, cm):
              row.prop(mvp, prop)
         else:
             row = layout.row()
-            
+
     if mvp.radmatmenu == '8':
         newrow(layout, 'Proxy depth:', mvp, 'li_bsdf_proxy_depth')
         newrow(layout, 'Up vector:', mvp, 'li_bsdf_up')
@@ -449,10 +451,10 @@ class VI_PT_Col(bpy.types.Panel):
         if context.collection:
             return True
 
-    def draw(self, context):         
+    def draw(self, context):
         layout = self.layout
 
-        try: 
+        try:
             fa = '{:.2f}'.format(context.collection.vi_params['enparams']['floorarea'][str(context.scene.frame_current)])
         except:
             fa = 'N/A'
@@ -468,18 +470,18 @@ class VI_PT_Gridify(bpy.types.Panel):
     bl_region_type = "UI"
     bl_context = "mesh_edit"
     bl_category = "VI-Suite"
-      
-    def draw(self, context):         
+
+    def draw(self, context):
         layout = self.layout
         row = layout.row()
         row.operator("object.vi_gridify2", text="Grid the object")
-        
+
 class TREE_PT_vi(bpy.types.Panel):
     bl_label = "VI-Suite"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
-    
+
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type in ('ViN', 'EnViN', 'EnViMatN')
@@ -506,11 +508,11 @@ class TREE_PT_envim(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
-    
+
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type in ('ViN', 'EnViN', 'EnViMatN')
-    
+
     def draw(self, context):
         layout = self.layout
         materials = get_materials()
@@ -542,8 +544,8 @@ class TREE_PT_envim(bpy.types.Panel):
                                   emboss=(mat == context.space_data.id),
                                   icon='ORPHAN_DATA')
                 op.mat = name
-        
-        
+
+
         if not materials:
             col.label(text="No EnVi Materials")
         else:
@@ -555,7 +557,7 @@ class TREE_PT_envin(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_category = "VI-Suite"
-    
+
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type in ('ViN', 'EnViN', 'EnViMatN')
@@ -564,7 +566,7 @@ class TREE_PT_envin(bpy.types.Panel):
         layout = self.layout
         col = layout.column(align=True)
         envin_groups = [g for g in bpy.data.node_groups if g.bl_idname == 'EnViN']
-        
+
         for g in envin_groups:
             emboss = False
 
@@ -579,12 +581,12 @@ class TREE_PT_envin(bpy.types.Panel):
             col.label(text="No EnVi Network")
 
         col.separator()
- 
+
 
 #                    newrow(layout, "Pressure type:", mvp, "flovi_bmwp_type")
 #                    if cm.flovi_bmwp_type == 'fixedValue':
 #                        newrow(layout, "Pressure value:", cm, "flovi_b_sval")
-#                        
+#
 #                    newrow(layout, "Velocity type:", cm, "flovi_bmwu_type")
 #                    newrow(layout, "Field value:", cm, "flovi_u_field")
 #                    if not cm.flovi_u_field:
@@ -595,14 +597,14 @@ class TREE_PT_envin(bpy.types.Panel):
 ##                col.prop(cm, "flovi_bmu_x")
 ##                col.prop(cm, "flovi_bmu_y")
 ##                col.prop(cm, "flovi_bmu_z")
-#                
+#
 #                if fvsimnode and fvsimnode.solver != 'icoFoam':
 #                    if fvsimnode.buoyancy or fvsimnode.radiation:
 #                       newrow(layout, "Temperature type:", cm, "flovi_bmot_type")
 #                       if cm.flovi_bmot_type == 'fixedValue':
 #                           newrow(layout, "Temperature value:", cm, "flovi_temp")
 #                    newrow(layout, "nut type:", cm, "flovi_bmwnut_type")
-#                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+#                    if fvsimnode.turbulence == 'SpalartAllmaras':
 #                        newrow(layout, "nuTilda type:", cm, "flovi_bmwnutilda_type")
 #                    elif fvsimnode.turbulence == 'kEpsilon':
 #                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
@@ -628,7 +630,7 @@ class TREE_PT_envin(bpy.types.Panel):
 #                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
 #                if fvsimnode and fvsimnode.solver != 'icoFoam':
 #                    newrow(layout, "nut type:", cm, "flovi_bminut_type")
-#                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+#                    if fvsimnode.turbulence == 'SpalartAllmaras':
 #                        newrow(layout, "nuTilda type:", cm, "flovi_bminutilda_type")
 #                    elif fvsimnode.turbulence == 'kEpsilon':
 #                        newrow(layout, "k type:", cm, "flovi_bmik_type")
@@ -636,7 +638,7 @@ class TREE_PT_envin(bpy.types.Panel):
 #                    elif fvsimnode.turbulence == 'kOmega':
 #                        newrow(layout, "k type:", cm, "flovi_bmik_type")
 #                        newrow(layout, "Omega type:", cm, "flovi_bmio_type")
-#            
+#
 #            elif cm.flovi_bmb_type == '2':
 #                newrow(layout, "Pressure sub-type:", cm, "flovi_bmop_type")
 #                if cm.flovi_bmop_type == 'fixedValue':
@@ -647,14 +649,14 @@ class TREE_PT_envin(bpy.types.Panel):
 #                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
 #                if fvsimnode and fvsimnode.solver != 'icoFoam':
 #                    newrow(layout, "nut type:", cm, "flovi_bmonut_type")
-#                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+#                    if fvsimnode.turbulence == 'SpalartAllmaras':
 #                        newrow(layout, "nuTilda type:", cm, "flovi_bmonutilda_type")
 #                    elif fvsimnode.turbulence == 'kEpsilon':
 #                        newrow(layout, "k type:", cm, "flovi_bmok_type")
 #                        newrow(layout, "Epsilon type:", cm, "flovi_bmoe_type")
 #                    elif fvsimnode.turbulence == 'kOmega':
 #                        newrow(layout, "k type:", cm, "flovi_bmok_type")
-#                        newrow(layout, "Omega type:", cm, "flovi_bmoo_type")        
+#                        newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
 
 #        col = layout.column(align=True)
 #
@@ -681,19 +683,19 @@ class TREE_PT_envin(bpy.types.Panel):
                 # newrow(layout, 'k field:', ovp, "flovi_kfield")
                 # newrow(layout, 'e field:', ovp, "flovi_efield")
                 # newrow(layout, 'o field:', ovp, "flovi_ofield")
-                
+
 #                newrow(layout, 'Solver:', ovp, "flovi_solver")
-                
+
 #                if ovp.flovi_solver in ('simpleFoam', 'bouyantFoam', 'bouyantBoussinesqFoam'):
 #                    newrow(layout, 'Turbulence:', ovp, "flovi_turb")
-                
+
             # elif ovp.vi_type == '3':
             #     newrow(layout, 'Feature level:', ovp, "flovi_fl")
             #     newrow(layout, 'Surface max level:', ovp, "flovi_slmax")
             #     newrow(layout, 'Surface min level:', ovp, "flovi_slmin")
             #     newrow(layout, 'Surface layers:', ovp, "flovi_slmin")
 
-                
+
 #                if ovp.envi_type == '0':
 #                    newrow(layout, "Habitable:", ovp, 'envi_hab')
 #                if ovp.envi_type == '0':
@@ -708,64 +710,64 @@ class TREE_PT_envin(bpy.types.Panel):
 #                if sedt == '1':
 #                    zresdict = {}
 #                    lmetrics = []
-#                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Avg Flow in": "resazlavef_disp"} 
-#                else: 
+#                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Avg Flow in": "resazlavef_disp"}
+#                else:
 #                    lmetrics, zmetrics = svp['enparams']['lmetrics'], svp['enparams']['zmetrics']
-#                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
-#                                'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
+#                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp',
+#                                'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp',
 #                                'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
-#                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
+#                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
 #
-#                if svp['viparams']['vidisp'] == 'en': 
+#                if svp['viparams']['vidisp'] == 'en':
 #                    newrow(layout, 'Static/Parametric', svp, 'en_disp_type')
 #                    if sedt == '1':
-#                        row = layout.row()               
+#                        row = layout.row()
 #                        row.prop(resnode, '["AStart"]')
 #                        row.prop(resnode, '["AEnd"]')
-#                    else:  
-#                        if fe > fs:                        
+#                    else:
+#                        if fe > fs:
 #                            newrow(layout, 'Frame:', resnode, '["AStart"]')
 #
-#                        row = layout.row() 
+#                        row = layout.row()
 #                        row.label(text = 'Start/End day:')
 #                        row.prop(resnode, '["Start"]')
 #                        row.prop(resnode, '["End"]')
-#                        row = layout.row() 
+#                        row = layout.row()
 #                        row.label(text = 'Ambient')
-#                        row = layout.row() 
+#                        row = layout.row()
 #                        row.prop(svp, 'resaa_disp')
 #                        row.prop(svp, 'resas_disp')
-#                        
+#
 #                        for ri, rzname in enumerate(zmetrics):
-#                            if ri == 0:                    
+#                            if ri == 0:
 #                                row = layout.row()
-#                                row.label(text = 'Zone')                    
+#                                row.label(text = 'Zone')
 #                            if not ri%2:
-#                                row = layout.row()  
+#                                row = layout.row()
 #                            if rzname in zresdict:
 #                                row.prop(svp, zresdict[rzname])
-#                        
+#
 #                        for ri, rname in enumerate(lmetrics):
-#                            if ri == 0:                    
+#                            if ri == 0:
 #                                row = layout.row()
-#                                row.label(text = 'Ventilation')                    
+#                                row.label(text = 'Ventilation')
 #                            if not ri%2:
-#                                row = layout.row()                            
+#                                row = layout.row()
 #                            if rname in vresdict:
-#                                row.prop(svp, vresdict[rname])  
-#                        if lmetrics:    
-#                            newrow(layout, 'Link to object', svp, 'envi_flink')  
-#                        
-#                        row = layout.row() 
-#   
+#                                row.prop(svp, vresdict[rname])
+#                        if lmetrics:
+#                            newrow(layout, 'Link to object', svp, 'envi_flink')
+#
+#                        row = layout.row()
+#
 #                    if sedt == '0':
 #                        row.operator("view3d.endisplay", text="EnVi Display")
 #                    elif sedt == '1':
 #                        row.operator("view3d.enpdisplay", text="EnVi Display")
-#                        
-#            if svp['viparams']['vidisp'] == 'enpanel':                                
+#
+#            if svp['viparams']['vidisp'] == 'enpanel':
 #                if sedt == '0':
-#                    newrow(layout, 'Display unit:', svp, 'en_disp_unit')  
+#                    newrow(layout, 'Display unit:', svp, 'en_disp_unit')
 #                    newrow(layout, 'Bar colour:', svp, "vi_leg_col")
 #
 #                    if fe > fs:
@@ -773,20 +775,20 @@ class TREE_PT_envin(bpy.types.Panel):
 #
 #                    envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
 #                                'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max'),
-#                                'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
+#                                'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'),
 #                                'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
 #                                'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max'),
 #                                'Equipment (W)': ('en_eq_min', 'en_eq_max')}
-#               
+#
 #                    for envirt in envimenudict:
 #                        if envirt in zmetrics:
 #                            row = layout.row()
 #                            row.label(envirt)
 #                            row.prop(scene, envimenudict[envirt][0])
 #                            row.prop(scene, envimenudict[envirt][1])
-#                
+#
 #                elif sedt == '1':
-#                    newrow(layout, 'Display unit:', svp, 'en_disp_punit')  
+#                    newrow(layout, 'Display unit:', svp, 'en_disp_punit')
 #                    newrow(layout, 'Legend colour:', svp, "vi_leg_col")
 #                    row = layout.row()
 #                    row.label('Bar chart range:')
@@ -799,13 +801,13 @@ class TREE_PT_envin(bpy.types.Panel):
 #                                newrow(layout, 'Result type:', svp, "li_disp_menu")
 #                            elif svp['liparams']['unit'] in ('kWh', 'kWh/m2'):
 #                                newrow(layout, 'Result type:', svp, "li_disp_menu")
-#    
-#                        elif svp['viparams']['visimcontext'] == 'LiVi Compliance': 
+#
+#                        elif svp['viparams']['visimcontext'] == 'LiVi Compliance':
 #                            if svp['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
 #                                newrow(layout, 'Metric:', svp, 'li_disp_menu')
 #                            else:
 #                                newrow(layout, 'Metric:', svp, 'li_disp_sv')
-#                                
+#
 #                        elif svp['viparams']['visimcontext'] == 'LiVi Basic':
 #                            newrow(layout, 'Metric:', svp, 'li_disp_basic')
 

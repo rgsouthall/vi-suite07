@@ -247,24 +247,25 @@ def hmchart_disp(chart_op, plt, dnode, col):
     zmax = dnode.varmax if dnode.metricrange == '1' else amax(z)
     plt.close()
     fig, ax = plt.subplots(figsize=(12, 6), dpi=dnode.dpi)
-    plt.xlabel('Days', size=18)
-    plt.ylabel('Hours', size=18)
+    plt.xlabel('Days', size=16)
+    plt.ylabel('Hours', size=16)
 
     if dnode.cf:
         plt.contourf(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), cmap=col, extend='both')
     else:
-        plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax)
+        plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
 
     cbar = plt.colorbar(use_gridspec=True, pad=0.01)
 
     if dnode.cl:
-        cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), colors='Black', linewidths=0.5)
-        # plt.clabel(cp, inline=True, fontsize=10)
+        ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]
+        cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=ls, colors='Black', linewidths=dnode.lw)
+        plt.clabel(cp, inline=True, fontsize=10)
 
-    cbar.set_label(label=var, size=18)
-    cbar.ax.tick_params(labelsize=16)
+    cbar.set_label(label=var, size=16)
+    cbar.ax.tick_params(labelsize=14)
     plt.axis([xmin, xmax, ymin, ymax])
-    plt.xticks(size=16)
-    plt.yticks(size=16)
+    plt.xticks(size=14)
+    plt.yticks(size=14)
     fig.tight_layout()
     plt.show()
