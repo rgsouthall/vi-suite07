@@ -1007,6 +1007,7 @@ def vsarea(obj, vs):
 def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     zp = 0
     bm = bmesh.new()
+    vs = []
 #    wro.select_set(True)
     wro.location = (0, 0, 0)
     svg = minidom.parse(wrsvg)
