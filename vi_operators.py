@@ -1762,6 +1762,7 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         node.postexport()
         return {'FINISHED'}
 
+
 class NODE_OT_En_PVA(bpy.types.Operator):
     bl_idname = "node.pv_area"
     bl_label = "EnVi Material PV area calculation"
@@ -1770,6 +1771,7 @@ class NODE_OT_En_PVA(bpy.types.Operator):
         node = context.node
         node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['area']
         return {'FINISHED'}
+
 
 class NODE_OT_En_PVS(bpy.types.Operator):
     bl_idname = "node.pv_save"
@@ -1781,6 +1783,7 @@ class NODE_OT_En_PVS(bpy.types.Operator):
 #        node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['area']
         return {'FINISHED'}
 
+
 class NODE_OT_En_LayS(bpy.types.Operator):
     bl_idname = "node.lay_save"
     bl_label = "EnVi material save"
@@ -1790,6 +1793,7 @@ class NODE_OT_En_LayS(bpy.types.Operator):
         node.save_laydict()
         return {'FINISHED'}
 
+
 class NODE_OT_En_ConS(bpy.types.Operator):
     bl_idname = "node.con_save"
     bl_label = "EnVi construction save"
@@ -1798,6 +1802,7 @@ class NODE_OT_En_ConS(bpy.types.Operator):
         node = context.node
         node.save_condict()
         return {'FINISHED'}
+
 
 class NODE_OT_En_Sim(bpy.types.Operator):
     bl_idname = "node.ensim"
@@ -1866,7 +1871,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                         else:
                             bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
 
-                        if '** Severe  **' in bpy.data.texts[efilename]:
+                        if '** Fatal  **' in bpy.data.texts[efilename].as_string():
                             self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
                             return {self.terminate('CANCELLED', context)}
 
@@ -1904,7 +1909,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'EnergyPlus Results')
         wm = context.window_manager
-        self._timer = wm.event_timer_add(1, window = context.window)
+        self._timer = wm.event_timer_add(1, window=context.window)
         wm.modal_handler_add(self)
         self.simnode = context.node
         self.connode = self.simnode.inputs[0].links[0].from_node.name
@@ -1948,15 +1953,16 @@ class NODE_OT_En_Sim(bpy.types.Operator):
 
         return condition
 
+
 class OBJECT_OT_VIGridify2(bpy.types.Operator):
     ''''''
     bl_idname = "object.vi_gridify2"
     bl_label = "VI Gridify"
     bl_options = {"REGISTER", 'UNDO'}
 
-    rotate: bpy.props.FloatProperty(name = 'Rotation', default = 0, min = 0, max = 360)
-    us: bpy.props.FloatProperty(default = 0.6, min = 0.01)
-    acs: bpy.props.FloatProperty(default = 0.6, min = 0.01)
+    rotate: bpy.props.FloatProperty(name='Rotation', default=0, min=0, max=360)
+    us: bpy.props.FloatProperty(default=0.6, min=0.01)
+    acs: bpy.props.FloatProperty(default=0.6, min=0.01)
 
     @classmethod
     def poll(cls, context):
@@ -1989,19 +1995,19 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         gs = vs + es + fs
 
         while res1:
-            res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos + ngs1 * self.upv, plane_no = self.upv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
+            res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos + ngs1 * self.upv, plane_no=self.upv, use_snap_center=0, clear_outer=0, clear_inner=0)
             res1 = res['geom_cut']
             dissvs = [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
-            bmesh.ops.dissolve_verts(mesh, verts = dissvs)
+            bmesh.ops.dissolve_verts(mesh, verts=dissvs)
 
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs1 += gs1
 
         while res2:
-            res = bmesh.ops.bisect_plane(mesh, geom = gs, dist = 0.001, plane_co = svpos2 + ngs2 * self.acv, plane_no = self.acv, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
+            res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos2 + ngs2 * self.acv, plane_no=self.acv, use_snap_center=0, clear_outer=0, clear_inner=0)
             res2 = res['geom_cut']
             dissvs = [v for v in res2 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
-            bmesh.ops.dissolve_verts(mesh, verts = dissvs)
+            bmesh.ops.dissolve_verts(mesh, verts=dissvs)
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs2 += gs2
 
@@ -2009,6 +2015,7 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         bmesh.update_edit_mesh(self.o.data)
         mesh.free()
         return {'FINISHED'}
+
 
 class OBJECT_OT_GOct(bpy.types.Operator):
     ''''''
@@ -2026,6 +2033,7 @@ class OBJECT_OT_GOct(bpy.types.Operator):
         ovp = context.object.vi_params
         gen_octree(scene, context.object, self, ovp.mesh, ovp.triangulate)
         return {'FINISHED'}
+
 
 class OBJECT_OT_Embod(bpy.types.Operator):
     '''Calculates embodied energy based on object volume'''
@@ -2061,6 +2069,7 @@ class OBJECT_OT_Embod(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
 class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
     bl_idname = "node.chart"
     bl_label = "Chart"
@@ -2088,6 +2097,7 @@ class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
         Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)# + datetime.timedelta(hours = node.deh - 1)
         chart_disp(self, plt, node, innodes, Sdate, Edate)
         return {'FINISHED'}
+
 
 class NODE_OT_HMChart(bpy.types.Operator, ExportHelper):
     bl_idname = "node.hmchart"
@@ -2221,7 +2231,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 except:
                     pass
 
-                for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_shg', 'envi_ppd', 'envi_pmv', 'envi_aheat', 'envi_acool', 'envi_hrheat')]:
+                for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_shg', 'envi_ppd', 'envi_pmv',
+                                                                                          'envi_aheat', 'envi_acool', 'envi_hrheat')]:
                     for oc in o.children:
                         [scene.objects.unlink(oc) for oc in o.children]
                         bpy.data.objects.remove(oc)

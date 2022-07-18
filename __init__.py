@@ -38,6 +38,10 @@ if "bpy" in locals():
 else:
     import sys, os, inspect, shlex, bpy, requests, shutil, glob
     from subprocess import Popen, call
+    import nodeitems_utils
+    from bpy.app.handlers import persistent
+    from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
+    from bpy.types import AddonPreferences
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     try:
@@ -56,8 +60,8 @@ else:
             else:
                 os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
                 os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                                                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                                                          'site-packages')
+                                                                      ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+                                                                      'site-packages')
             if sys.platform == 'linux':
                 if not os.environ.get('LD_LIBRARY_PATH'):
                     os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
@@ -129,9 +133,9 @@ else:
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
-                    'getbbox', 'getinfo', 'ies2rad', 'mkpmap', 'obj2mesh', 'oconv', 'pcomb', 'pcompos', 'pcond',
-                    'pfilt', 'pkgBSDF', 'pmapdump', 'psign', 'rad2mgf', 'rcalc', 'rcontrib', 'rfluxmtx', 'rmtxop',
-                    'rpict', 'rpiece', 'rtrace', 'rttree_reduce', 'rvu', 'vwrays', 'wrapBSDF', 'xform'):
+                   'getbbox', 'getinfo', 'ies2rad', 'mkpmap', 'obj2mesh', 'oconv', 'pcomb', 'pcompos', 'pcond',
+                   'pfilt', 'pkgBSDF', 'pmapdump', 'psign', 'rad2mgf', 'rcalc', 'rcontrib', 'rfluxmtx', 'rmtxop',
+                   'rpict', 'rpiece', 'rtrace', 'rttree_reduce', 'rvu', 'vwrays', 'wrapBSDF', 'xform'):
             try:
                 if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
                     os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
@@ -176,10 +180,6 @@ else:
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Col, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
     from .vi_dicts import colours
 
-import nodeitems_utils
-from bpy.app.handlers import persistent
-from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
-from bpy.types import AddonPreferences
 
 def abspath(self, context):
     if self.radbin != bpy.path.abspath(self.radbin):
@@ -201,7 +201,7 @@ def abspath(self, context):
 
 def flovi_levels(self, context):
     if self.flovi_slmin > self.flovi_slmax:
-       self.flovi_slmin -= 1
+        self.flovi_slmin -= 1
 
 
 def unititems(self, context):
@@ -240,9 +240,9 @@ def unititems(self, context):
         elif svp['liparams']['unit'] == 'SVF (%)':
             return [('svf', 'SVF (%)', '% of sky visible')]
         else:
-            return [('None', 'None','None' )]
-    except:
-        logentry('Check the LiVi Result Type menu')
+            return [('None', 'None', 'None')]
+    except Exception as e:
+        logentry(f'Error: {e}. Check the LiVi Result Type menu')
         return [('None', 'None', 'None')]
 
 
@@ -252,15 +252,16 @@ def bsdf_direcs(self, context):
     except:
         return [('None', 'None', 'None')]
 
+
 class VIPreferences(AddonPreferences):
     bl_idname = __name__
-    radbin: StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH', update=abspath)
-    radlib: StringProperty(name = '', description = 'Radiance library directory location', default = '', subtype='DIR_PATH', update=abspath)
-    epbin: StringProperty(name = '', description = 'EnergyPlus binary directory location', default = '', subtype='DIR_PATH', update=abspath)
-    epweath: StringProperty(name = '', description = 'EnergyPlus weather directory location', default = '', subtype='DIR_PATH', update=abspath)
-    ofbin: StringProperty(name = '', description = 'OpenFOAM binary directory location', default = '', subtype='DIR_PATH', update=abspath)
-    oflib: StringProperty(name = '', description = 'OpenFOAM library directory location', default = '', subtype='DIR_PATH', update=abspath)
-    ofetc: StringProperty(name = '', description = 'OpenFOAM etc directory location', default = '', subtype='DIR_PATH', update=abspath)
+    radbin: StringProperty(name='', description='Radiance binary directory location', default='', subtype='DIR_PATH', update=abspath)
+    radlib: StringProperty(name='', description='Radiance library directory location', default='', subtype='DIR_PATH', update=abspath)
+    epbin: StringProperty(name='', description='EnergyPlus binary directory location', default='', subtype='DIR_PATH', update=abspath)
+    epweath: StringProperty(name='', description='EnergyPlus weather directory location', default='', subtype='DIR_PATH', update=abspath)
+    ofbin: StringProperty(name='', description='OpenFOAM binary directory location', default='', subtype='DIR_PATH', update=abspath)
+    oflib: StringProperty(name='', description='OpenFOAM library directory location', default='', subtype='DIR_PATH', update=abspath)
+    ofetc: StringProperty(name='', description='OpenFOAM etc directory location', default='', subtype='DIR_PATH', update=abspath)
     ui_dict = {"Radiance bin directory:": 'radbin', "Radiance lib directory:": 'radlib', "EnergyPlus bin directory:": 'epbin',
                "EnergyPlus weather directory:": 'epweath', 'OpenFOAM bin directory': 'ofbin'}
 
@@ -282,16 +283,19 @@ class VIPreferences(AddonPreferences):
                 row.label(text=entry)
                 row.prop(self, self.ui_dict[entry])
 
+
 def get_frame(self):
     return self.vi_frames
+
 
 def set_frame(self, value):
     if value > self['liparams']['fe']:
         self.vi_frames = self['liparams']['fe']
     elif value < self['liparams']['fs']:
-        self.vi_frames =  self['liparams']['fs']
+        self.vi_frames = self['liparams']['fs']
     else:
         self.vi_frames = value
+
 
 def d_update(self, context):
     if not self.vi_display and context.scene.vi_params.get('viparams'):
@@ -306,6 +310,7 @@ def d_update(self, context):
 
         context.scene.vi_params['viparams']['drivers'] = []
 
+
 class VI_Params_Scene(bpy.types.PropertyGroup):
     def get_frame(self):
         return self.get('vi_frames', self['liparams']['fe'])
@@ -314,89 +319,89 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         if value > self['liparams']['fe']:
             self['vi_frames'] = self['liparams']['fe']
         elif value < self['liparams']['fs']:
-            self['vi_frames'] =  self['liparams']['fs']
+            self['vi_frames'] = self['liparams']['fs']
         else:
             self.id_data.frame_set(value)
             self['vi_frames'] = value
 
-    vi_name =  sprop("", "VI-Suite addon directory name", 1024, "")
-    year: iprop("",'Year', 2019, 2020, 2019)
+    vi_name = sprop("", "VI-Suite addon directory name", 1024, "")
+    year: iprop("", 'Year', 2019, 2020, 2019)
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
-    vi_frames: IntProperty(name = "", description = "Day of year", get=get_frame, set=set_frame)
-    solday: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
-    solhour: bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
-    sp_hour_dash: fvprop(4, "",'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1)
-    sp_hour_main: fvprop(4, "",'Dash colour of the hour lines', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
-    sp_season_main: fvprop(4, "",'Main colour of the season lines', [1.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
-    sp_season_dash: fvprop(4, "",'Dash colour of the season lines', [1.0, 1.0, 1.0, 0.0], 'COLOR', 0, 1)
-    sp_sun_colour: fvprop(4, "",'Sun colour', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
-    sp_globe_colour: fvprop(4, "",'Sun colour', [0.0, 0.0, 1.0, 0.1], 'COLOR', 0, 1)
-    sp_sun_angle: FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
-    sp_sun_size: iprop("",'Sun size', 1, 50, 10)
-    sp_sun_strength: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 1.0, update=sunpath1)
+    vi_frames: IntProperty(name="", description="Day of year", get=get_frame, set=set_frame)
+    solday: IntProperty(name="", description="Day of year", min=1, max=365, default=1, update=sunpath1)
+    solhour: bpy.props.FloatProperty(name="", description="Time of day", subtype='TIME', unit='TIME', min=0, max=24, default=12, update=sunpath1)
+    sp_hour_dash: fvprop(4, "", 'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1)
+    sp_hour_main: fvprop(4, "", 'Dash colour of the hour lines', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
+    sp_season_main: fvprop(4, "", 'Main colour of the season lines', [1.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    sp_season_dash: fvprop(4, "", 'Dash colour of the season lines', [1.0, 1.0, 1.0, 0.0], 'COLOR', 0, 1)
+    sp_sun_colour: fvprop(4, "", 'Sun colour', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
+    sp_globe_colour: fvprop(4, "", 'Sun colour', [0.0, 0.0, 1.0, 0.1], 'COLOR', 0, 1)
+    sp_sun_angle: FloatProperty(name="", description="Sun size", min=0, max=1, default=0.01, update=sunpath1)
+    sp_sun_size: iprop("", 'Sun size', 1, 50, 10)
+    sp_sun_strength: FloatProperty(name="", description="Sun strength", min=0, max=100, default=1.0, update=sunpath1)
     sp_season_dash_ratio: fprop("", "Ratio of line to dash of season lines", 0, 5, 0)
     sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, 0.5)
     sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 1)
     sp_line_width: iprop("", "Sun path line width", 0, 50, 2)
-    latitude: FloatProperty(name = "", description = "Site decimal latitude (N is positive)",
-                            min = -89.99, max = 89.99, default = 52.0, update = sunpath1)
-    longitude: FloatProperty(name = "", description = "Site decimal longitude (E is positive)",
-                             min = -180, max = 180, default = 0.0, update = sunpath1)
-    sp_suns: EnumProperty(items = [('0', 'Single', 'Single sun'),
-                                   ('1', 'Monthly', 'Monthly sun for chosen time'),
-                                   ('2', 'Hourly', 'Hourly sun for chosen date')],
-                                    name = '', description = 'Sunpath sun type', default = '0', update=sunpath1)
-    sp_sst: FloatProperty(name = "", description = "Sun strength", min = 0, max = 100, default = 0.1, update=sunpath1)
-    sp_ssi: FloatProperty(name = "", description = "Sun size", min = 0, max = 1, default = 0.01, update=sunpath1)
-    sp_sd: IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, options={'ANIMATABLE'}, update=sunpath1)
-    sp_sh: FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME',
-                         min = 0, max = 24, default = 12, options={'ANIMATABLE'}, update=sunpath1)
-    sp_hd: bprop("", "",0)
-    sp_up: bprop("", "",0)
-    sp_td: bprop("", "",0)
+    latitude: FloatProperty(name="", description="Site decimal latitude (N is positive)",
+                            min=-89.99, max=89.99, default=52.0, update=sunpath1)
+    longitude: FloatProperty(name="", description="Site decimal longitude (E is positive)",
+                             min=-180, max=180, default=0.0, update=sunpath1)
+    sp_suns: EnumProperty(items=[('0', 'Single', 'Single sun'),
+                                 ('1', 'Monthly', 'Monthly sun for chosen time'),
+                                 ('2', 'Hourly', 'Hourly sun for chosen date')],
+                          name='', description='Sunpath sun type', default='0', update=sunpath1)
+    sp_sst: FloatProperty(name="", description="Sun strength", min=0, max=100, default=0.1, update=sunpath1)
+    sp_ssi: FloatProperty(name="", description="Sun size", min=0, max=1, default=0.01, update=sunpath1)
+    sp_sd: IntProperty(name="", description="Day of year", min=1, max=365, default=1, options={'ANIMATABLE'}, update=sunpath1)
+    sp_sh: FloatProperty(name="", description="Time of day", subtype='TIME', unit='TIME',
+                         min=0, max=24, default=12, options={'ANIMATABLE'}, update=sunpath1)
+    sp_hd: bprop("", "", 0)
+    sp_up: bprop("", "", 0)
+    sp_td: bprop("", "", 0)
     li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-    li_disp_menu: EnumProperty(items = unititems, name = "", description = "BLiVi metric selection", update = livires_update)
+    li_disp_menu: EnumProperty(items=unititems, name="", description="LiVi metric selection", update=livires_update)
     vi_display_rp_fsh: fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_fs: iprop("", "Point result font size", 4, 24, 24)
     vi_display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_sh: bprop("", "Toggle for font shadow display",  False)
-    vi_display: BoolProperty(name = "", description = "Toggle results display", default = 0, update=d_update)
+    vi_display: BoolProperty(name="", description="Toggle results display", default=0, update=d_update)
     vi_disp_3d: bprop("VI 3D display", "Boolean for 3D results display",  False)
     vi_leg_unit: sprop("", "Legend unit", 1024, "")
-    vi_leg_max: FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=leg_update)
-    vi_leg_min: FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=leg_update)
-    vi_leg_col: EnumProperty(items = colours, name = "", description = "Legend scale", default = 'rainbow', update=col_update)
-    vi_leg_levels: IntProperty(name = "", description = "Day of year", min = 2, max = 100, default = 20, update=leg_update)
-    vi_leg_scale: EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=leg_update)
+    vi_leg_max: FloatProperty(name="", description="Legend maximum", min=0, max=1000000, default=1000, update=leg_update)
+    vi_leg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0, update=leg_update)
+    vi_leg_col: EnumProperty(items=colours, name="", description="Legend scale", default='rainbow', update=col_update)
+    vi_leg_levels: IntProperty(name="", description="Day of year", min=2, max=100, default=20, update=leg_update)
+    vi_leg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0', update=leg_update)
     wind_type: eprop([("0", "Speed", "Wind Speed (m/s)"), ("1", "Direction", "Wind Direction (deg. from North)")], "", "Wind metric", "0")
-    vi_disp_trans: FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = t_update)
-    vi_disp_wire: BoolProperty(name = "", description = "Draw wire frame", default = 0, update=w_update)
-    vi_disp_mat: BoolProperty(name = "", description = "Turn on/off result material emission", default = 0, update=col_update)
-    vi_disp_ems: FloatProperty(name = "", description = "Emissive strength", default = 1, min = 0, update=col_update)
-    vi_scatt_max: EnumProperty(items = [('0', 'Data', 'Get maximum from data'), ('1', 'Value', 'Specify maximum value')],
-                                            name = "", description = "Set maximum value", default = '0')
-    vi_scatt_min: EnumProperty(items = [('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')],
-                                            name = "", description = "Set minimum value", default = '0')
-    vi_scatt_max_val: fprop("",'Maximum value', 1, 3000, 20)
-    vi_scatt_min_val: fprop("",'Minimum value', 0, 1000, 0)
-    vi_scatt_col: EnumProperty(items = colours, name = "", description = "Scatter colour", default = 'rainbow')
+    vi_disp_trans: FloatProperty(name="", description="Sensing material transparency", min=0, max=1, default=1, update=t_update)
+    vi_disp_wire: BoolProperty(name="", description="Draw wire frame", default=0, update=w_update)
+    vi_disp_mat: BoolProperty(name="", description="Turn on/off result material emission", default=0, update=col_update)
+    vi_disp_ems: FloatProperty(name="", description="Emissive strength", default=1, min=0, update=col_update)
+    vi_scatt_max: EnumProperty(items=[('0', 'Data', 'Get maximum from data'), ('1', 'Value', 'Specify maximum value')],
+                               name="", description="Set maximum value", default='0')
+    vi_scatt_min: EnumProperty(items=[('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')],
+                               name="", description="Set minimum value", default='0')
+    vi_scatt_max_val: fprop("", 'Maximum value', 1, 3000, 20)
+    vi_scatt_min_val: fprop("", 'Minimum value', 0, 1000, 0)
+    vi_scatt_col: EnumProperty(items=colours, name="", description="Scatter colour", default='rainbow')
     vi_disp_refresh: bprop("", "Refresh display",  False)
     vi_res_mod: sprop("", "Result modifier", 1024, "")
-    vi_res_process: EnumProperty(items = [("0", "None", ""), ("1", "Modifier", ""), ("2", "Script", "")], name = "", description = "Specify the type of data processing", default = "0", update = script_update)
-    script_file: StringProperty(description="Text file to show", update = script_update)
+    vi_res_process: EnumProperty(items=[("0", "None", ""), ("1", "Modifier", ""), ("2", "Script", "")], name="", description="Specify the type of data processing", default="0", update=script_update)
+    script_file: StringProperty(description="Text file to show", update=script_update)
     ss_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     vi_display_rp: bprop("", "", False)
     vi_display_rp_off: fprop("", "Surface offset for number display", 0, 5, 0.001)
     vi_display_sel_only: bprop("", "", False)
     vi_display_vis_only: bprop("", "", False)
-    vi_disp_3dlevel: FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = e_update)
-    vi_bsdf_direc: EnumProperty(items = bsdf_direcs, name = "", description = "BSDf display direction")
-    vi_bsdfleg_max: FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
-    vi_bsdfleg_min: FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
-    vi_bsdfleg_scale: EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0')
-    en_disp_type: EnumProperty(items = enparametric, name = "", description = "Type of EnVi display")
+    vi_disp_3dlevel: FloatProperty(name="", description="Level of 3D result plane extrusion", min=0, max=500, default=0, update=e_update)
+    vi_bsdf_direc: EnumProperty(items=bsdf_direcs, name="", description="BSDf display direction")
+    vi_bsdfleg_max: FloatProperty(name="", description="Legend maximum", min=0, max=1000000, default=100)
+    vi_bsdfleg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0)
+    vi_bsdfleg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0')
+    en_disp_type: EnumProperty(items=enparametric, name="", description="Type of EnVi display")
     vi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
-    envi_netnodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
+    envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     resas_disp: bprop("", "", False)
     reszt_disp: bprop("", "", False)
     reszh_disp: bprop("", "", False)
@@ -415,7 +420,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
      resazmaxco_disp, resazaveco_disp, resazminco_disp,
      resazlmaxf_disp, resazlminf_disp, resazlavef_disp,
      resazmaxshg_disp, resazminshg_disp, resazaveshg_disp,
-     resaztshg_disp, resaztshgm_disp)  = aresnameunits()
+     resaztshg_disp, resaztshgm_disp) = aresnameunits()
+
 
 class VI_Params_Object(bpy.types.PropertyGroup):
     # VI-Suite object definitions
@@ -426,8 +432,8 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                     ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
                     ("4", "Light Array", "Specifies a LiVi lighting array"),
                     ("5", "Complex Fenestration", "Specifies complex fenestration for BSDF generation"),
-                    ("6", "CFD Probe", "Specifies a mesh as a CFD probe"),],
-                    "", "Specify the type of VI-Suite zone", "0")
+                    ("6", "CFD Probe", "Specifies a mesh as a CFD probe")],
+                   "", "Specify the type of VI-Suite zone", "0")
 
     # LiVi object properties
     livi_merr: bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
@@ -435,7 +441,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     ies_strength: fprop("", "Strength of IES lamp", 0, 1, 1)
     ies_unit: eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
     ies_colmenu: eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
-    ies_rgb: fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    ies_rgb: fvprop(3, "", 'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
     ies_ct: iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
     limerr: bprop("", "", False)
     manip: bprop("", "", False)
@@ -445,40 +451,40 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     udidacalcapply = udidacalcapply
     lividisplay = lividisplay
     lhcalcapply = lhcalcapply
-    li_bsdf_direc: EnumProperty(items = [('+b -f', 'Backwards', 'Backwards BSDF'),
-                                         ('+f -b', 'Forwards', 'Forwards BSDF'),
-                                         ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b -f')
+    li_bsdf_direc: EnumProperty(items=[('+b -f', 'Backwards', 'Backwards BSDF'),
+                                       ('+f -b', 'Forwards', 'Forwards BSDF'),
+                                       ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name='', description='BSDF direction', default='+b -f')
     li_bsdf_proxy: bprop("", "Include proxy geometry in the BSDF", False)
-    li_bsdf_dimen: EnumProperty(items = [('meter', 'Meters', 'BSDF length unit'),
-                                         ('millimeter', 'Millimeters', 'BSDF length unit'),
-                                         ('centimeter', 'Centimeters', 'BSDF length unit'),
-                                         ('foot', 'Feet', 'BSDF length unit'),
-                                         ('inch', 'Inches', 'BSDF length unit')], name = '', description = 'BSDF length unit', default = 'meter')
-    li_bsdf_tensor: EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'),
-                                          ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'),
-                                          ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
-    li_bsdf_res: EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'),
-                                       ('2', '4x4', '4x4 sampling resolution'),
-                                       ('3', '8x8', '8x8 sampling resolution'),
-                                       ('4', '16x16', '16x16 sampling resolution'),
-                                       ('5', '32x32', '32x32 sampling resolution'),
-                                       ('6', '64x64', '64x64 sampling resolution'),
-                                       ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
-    li_bsdf_tsamp: IntProperty(name = '', description = 'Tensor samples per region', min = 1, max = 10000, default = 4)
-    li_bsdf_ksamp: IntProperty(name = '', description = 'Klem samples', min = 1, default = 2000)
+    li_bsdf_dimen: EnumProperty(items=[('meter', 'Meters', 'BSDF length unit'),
+                                       ('millimeter', 'Millimeters', 'BSDF length unit'),
+                                       ('centimeter', 'Centimeters', 'BSDF length unit'),
+                                       ('foot', 'Feet', 'BSDF length unit'),
+                                       ('inch', 'Inches', 'BSDF length unit')], name='', description='BSDF length unit', default='meter')
+    li_bsdf_tensor: EnumProperty(items=[(' ', 'Klems', 'Uniform Klems sample'),
+                                        ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'),
+                                        ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name='', description='BSDF tensor', default=' ')
+    li_bsdf_res: EnumProperty(items=[('1', '2x2', '2x2 sampling resolution'),
+                                     ('2', '4x4', '4x4 sampling resolution'),
+                                     ('3', '8x8', '8x8 sampling resolution'),
+                                     ('4', '16x16', '16x16 sampling resolution'),
+                                     ('5', '32x32', '32x32 sampling resolution'),
+                                     ('6', '64x64', '64x64 sampling resolution'),
+                                     ('7', '128x128', '128x128 sampling resolution')], name='', description='BSDF resolution', default='4')
+    li_bsdf_tsamp: IntProperty(name='', description='Tensor samples per region', min=1, max=10000, default=4)
+    li_bsdf_ksamp: IntProperty(name='', description='Klem samples', min=1, default=2000)
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
     bsdf_running: bprop("", "Running BSDF calculation", False)
     retsv = retsv
     envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object")], "", "Specify the EnVi surface type", "0")
-    flovi_solver: EnumProperty(items = [('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
-                                        ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')],
-                                        name = "", default = 'icoFoam')
-    flovi_turb: EnumProperty(items = [('kEpsilon', 'K-Epsilon', 'K-Epsion turbulence model'), ('kOmega', 'K-Omega', 'K-Omega turbulence model'),
-                                        ('SpalartAllmaras', 'SpalartAllmaras', 'SpalartAllmaras turbulence model')],
-                                        name = "", default = 'kEpsilon')
-    flovi_fl: IntProperty(name = '', description = 'SnappyHexMesh object features levels', min = 1, max = 20, default = 4)
-    flovi_slmax: IntProperty(name = '', description = 'SnappyHexMesh surface maximum levels', min = 1, max = 20, default = 4, update=flovi_levels)
-    flovi_slmin: IntProperty(name = '', description = 'SnappyHexMesh surface minimum levels', min = 1, max = 20, default = 3, update=flovi_levels)
+    flovi_solver: EnumProperty(items=[('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
+                                      ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')],
+                               name="", default='icoFoam')
+    flovi_turb: EnumProperty(items=[('kEpsilon', 'K-Epsilon', 'K-Epsion turbulence model'), ('kOmega', 'K-Omega', 'K-Omega turbulence model'),
+                                    ('SpalartAllmaras', 'SpalartAllmaras', 'SpalartAllmaras turbulence model')],
+                             name="", default='kEpsilon')
+    flovi_fl: IntProperty(name='', description='SnappyHexMesh object features levels', min=1, max=20, default=4)
+    flovi_slmax: IntProperty(name='', description='SnappyHexMesh surface maximum levels', min=1, max=20, default=4, update=flovi_levels)
+    flovi_slmin: IntProperty(name='', description='SnappyHexMesh surface minimum levels', min=1, max=20, default=3, update=flovi_levels)
     flovi_sl: iprop('', 'SnappyHexMesh surface minimum levels', 0, 20, 3)
     mesh: bprop("", "Radiance mesh geometry export", 1)
     triangulate: bprop("", "Triangulate mesh geometry for export", 0)
@@ -489,11 +495,12 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     flovi_efield: fprop("", "e field value", 0, 500, 0.03)
     flovi_ofield: fprop("", "o field value", 0, 500, 0.03)
     flovi_probe: bprop("", "OpenFoam probe", False)
-    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
-    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class")
-    embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class")
-    embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material")
+    embodied: BoolProperty(name="", description="Embodied carbon", default=0)
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class")
+    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class")
+    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material")
     write_stl = ob_to_stl
+
 
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)

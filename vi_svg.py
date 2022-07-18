@@ -21,7 +21,14 @@ from math import sin, cos, pi
 
 
 def vi_info(node, dim, **kwargs):
-    if node.metric == '1' and node.light_menu == '3':
+    if node.metric == '0' and node.energy_menu == '0':
+        pass
+#        x = 50
+#        y = 100
+#        svg_str = '''<path style="fill:#f8fb00;fill-opacity:1;stroke:#000000;stroke-width:0.999989;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
+#                    d="M 90.457354,0.35500172 1.214155,88.866548 H 74.819729 L 36.551591,164.64998 126.80966,72.577488 H 56.922653 Z"
+#                    id="path3397" />'''
+    elif node.metric == '1' and node.light_menu == '3':
         ir = kwargs['ir']
         aDF = kwargs['aDF']
         irscaled = ir if ir < 0.7 else 0.7
@@ -42,8 +49,7 @@ def vi_info(node, dim, **kwargs):
         width="{0}"
         xmlns="http://www.w3.org/2000/svg"
         xmlns:svg="http://www.w3.org/2000/svg">
-        <defs
-        id="defs2" />
+
         <rect style="fill:rgb(255, 255, 255)" width="{0}" height="{0}"/>
         <path style="fill:rgb({1})" d="M 400 700
             A 300 300, 1, {2}, 1, {3:.0f} {4:.0f}
@@ -173,7 +179,12 @@ def vi_info(node, dim, **kwargs):
             bfill = "128, 128, 255" if (b + 1) * 5 <= sdapass[1] else "128, 255, 128"
             bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else bfill
             alpha = 0.9 if -5 <= sda - ((b + 1) * 5) <= 0 else 0.4
-            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, (25 + int(b % 4) * 75, 250 - int(b % 4) * 75)[int(b/4 % 2)], 650 - int(b/4) * 50, 75, 50)
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill,
+                                                                                                                                                                     alpha,
+                                                                                                                                                                     (25 + int(b % 4) * 75, 250 - int(b % 4) * 75)[int(b/4 % 2)],
+                                                                                                                                                                     650 - int(b/4) * 50,
+                                                                                                                                                                     75,
+                                                                                                                                                                     50)
 
             if alpha == 0.9:
                 svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(65 + int(b % 4) * 75, 683 - int(b/4) * 50, sda)
@@ -181,7 +192,8 @@ def vi_info(node, dim, **kwargs):
         for b in range(20):
             bfill = "255, 128, 128" if (b + 1) * 5 > asepass else "128, 255, 128"
             alpha = 1.0 if -5 <= ase - ((b + 1) * 5) <= 0 else 0.4
-            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 25 + int(b % 4) * 75, 325 - int(b/4) * 50, 75, 50)
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke_width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 25 + int(b % 4) * 75,
+                                                                                                                                                                     325 - int(b/4) * 50, 75, 50)
 
             if alpha == 1.0:
                 svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(65 + int(b % 4) * 75, 358 - int(b/4) * 50, ase)

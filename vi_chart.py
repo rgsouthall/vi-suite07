@@ -19,7 +19,7 @@
 import bpy
 import sys
 from .envi_func import retmenu
-from numpy import amax, amin, linspace
+from numpy import amax, amin, linspace, uint8
 
 
 def label(dnode, metric, axis, variant):
@@ -125,8 +125,9 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
                     si = i
                     break
             for i in range(len(hdata[0])):
-                if em == dm[i] and ed == dd[i]:  # and eh == dh[i] - 1:
-                    ei = i
+                ei = i
+
+                if em == dm[i] and ed == dd[i] - 1:
                     break
 
             mdata = [int(m) for m in mdata[0]][si:ei + 1]
@@ -239,12 +240,14 @@ def checkdata(chart_op, x, y):
 
 def hmchart_disp(chart_op, plt, dnode, col):
     x, y, z, var = dnode.x, dnode.y, dnode.z, dnode.metricmenu
-    xmin = dnode.daystart if dnode.daystart > amin(x) else amin(x)
-    xmax = dnode.dayend if dnode.dayend < amax(x) else amax(x)
-    ymin = dnode.hourstart if dnode.hourstart > amin(y) else amin(y)
-    ymax = dnode.hourend if dnode.hourend < amax(y) else amax(y)
+    print(x)
+    xmin = dnode.daystart + 0.5 if dnode.daystart > amin(x) else amin(x)
+    xmax = dnode.dayend + 0.5 if dnode.dayend < amax(x) else amax(x)
+    ymin = dnode.hourstart + 0.5 if dnode.hourstart > amin(y) else amin(y)
+    ymax = dnode.hourend + 0.5 if dnode.hourend < amax(y) else amax(y)
     zmin = dnode.varmin if dnode.metricrange == '1' else amin(z)
     zmax = dnode.varmax if dnode.metricrange == '1' else amax(z)
+    plt.clf()
     plt.close()
     fig, ax = plt.subplots(figsize=(12, 6), dpi=dnode.dpi)
     plt.xlabel('Days', size=16)
@@ -264,7 +267,12 @@ def hmchart_disp(chart_op, plt, dnode, col):
 
     cbar.set_label(label=var, size=16)
     cbar.ax.tick_params(labelsize=14)
-    plt.axis([xmin, xmax, ymin, ymax])
+
+    if dnode.inputs[0].links[0].from_node.bl_idname == 'No_Loc':
+        plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
+    else:
+        plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
+
     plt.xticks(size=14)
     plt.yticks(size=14)
     fig.tight_layout()

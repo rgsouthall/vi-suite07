@@ -2631,6 +2631,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             logentry("Something went wrong with wind rose display: {}".format(e))
             svp.vi_display == 0
 
+
 class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.svfdisplay"

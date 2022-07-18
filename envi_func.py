@@ -28,17 +28,18 @@ def ret_areas(o):
     ovp = o.vi_params
     omats = [ms.material for ms in o.material_slots]
 
-    if ovp.envi_type in ('0', '2'):
-        ofa = 0
+#    if ovp.envi_type in ('0', '2'):
+    ofa = 0
 
-        for face in o.data.polygons:
-            if omats[face.material_index] and omats[face.material_index].vi_params.envi_nodes:
+    for face in o.data.polygons:
+        if omats[face.material_index]:
+            if omats[face.material_index].vi_params.envi_nodes:
                 for node in omats[face.material_index].vi_params.envi_nodes.nodes:
                     if node.bl_idname == 'No_En_Mat_Con' and node.active:
                         if node.envi_con_type == 'Floor':
                             ofa += facearea(o, face)
 
-                omats[face.material_index].vi_params['enparams']['area'] += facearea(o, face)
+            omats[face.material_index].vi_params['enparams']['area'] += facearea(o, face)
 
     return ofa
 
@@ -358,7 +359,8 @@ def envizres(scene, eresobs, resnode, restype):
 
 
 def epentry(header, params, paramvs):
-    return '{}\n'.format(header+(',', '')[header == ''])+'\n'.join([('    ', '')[header == '']+'{:{width}}! - {}'.format(str(pv[0])+(',', ';')[pv[1] == params[-1]], pv[1], width=80 + (0, 4)[header == '']) for pv in zip(paramvs, params)]) + ('\n\n', '')[header == '']
+    return '{}\n'.format(header+(',', '')[header == ''])+'\n'.join([('    ', '')[header == '']+'{:{width}}! - {}'.format(str(pv[0])+(',', ';')[pv[1] == params[-1]],
+                                                                    pv[1], width=80 + (0, 4)[header == '']) for pv in zip(paramvs, params)]) + ('\n\n', '')[header == '']
 
 
 def epschedwrite(name, stype, ts, fs, us):
@@ -497,8 +499,10 @@ def retrmenus(innode, node, axis, zrl):
 
 def processh(lines, znlist):
     hdict, li = {}, 0
+
     for li, line in enumerate(lines):
         linesplit = line.strip('\n').split(',')
+
         if len(linesplit) > 3:
             if linesplit[2] == 'Day of Simulation[]':
                 hdict[linesplit[0]] = ['Time']
@@ -512,8 +516,10 @@ def processh(lines, znlist):
                 hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
             elif linesplit[3] in presdict:
                 hdict[linesplit[0]] = ['Power',  linesplit[2],  presdict[linesplit[3]]]
+
         if line == 'End of Data Dictionary\n':
             break
+
     return hdict,  li + 1
 
 
@@ -539,6 +545,9 @@ def processf(pro_op, node):
     frames = range(svp['enparams']['fs'], svp['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current]
 
     for frame in frames:
+        pow_dict = {}
+        en_dict = {}
+        ef_dict = {}
         node['envires{}'.format(frame)] = {}
         resfileloc = os.path.join(svp['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)) if node.bl_label == 'EnVi Simulation' else node.resfilename
 
@@ -557,6 +566,43 @@ def processf(pro_op, node):
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
 
+        #             if hdict[k][0] == 'Power' and hdict[k][2] == 'PV power (W)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in pow_dict:
+        #                     pow_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     pow_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV energy (J)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in en_dict:
+        #                     en_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     en_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in ef_dict:
+        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in ef_dict:
+        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #     for pd in pow_dict:
+        #         reslists.append([str(frame), 'Power', pd, 'Total power (W)', ' '.join([str(p) for p in pow_dict[pd]])])
+        #     for ed in en_dict:
+        #         reslists.append([str(frame), 'Power', ed, 'Total energy (J)', ' '.join([str(e) for e in en_dict[ed]])])
+        #     for ef in ef_dict:
+        #         fno = len([hd for hd in hdict if '_'.join(hdict[k][1].split('_')[:-1]) == ef and hdict[k][2] == 'PV efficiency (%)'])
+        #         reslists.append([str(frame), 'Power', ef, 'Average efficiency (%)', ' '.join([str(e) for e in ef_dict[ef]/fno])])
+        # print(pow_dict)
+
     rls = reslists
     zrls = list(zip(*rls))
 
@@ -569,123 +615,102 @@ def processf(pro_op, node):
     except:
         svp['enparams']['zmetrics'] = []
 
-    for frame in frames:
-        zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone temporal' and zonerl[0] == str(frame)]
-        zzonerls = list(zip(*zonerls))
-
-        try:
-            for resname in set(zzonerls[3]):
-                hczres = [zres[4].split() for zres in zonerls if zres[0] == str(frame) and zres[3] == resname]
-                node['envires{}'.format(frame)][resname] = nsum(array([array([float(zr) for zr in hc]) for hc in hczres]), axis=0)
-
-            node['hours'] = arange(1, 25, dtype=float)
-            node['days'] = arange(node.dsdoy, node.dedoy + 1, dtype=float)
-        except:
-            pro_op.report({'ERROR'}, "There are no zone results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
-            return
-
-        for o in scene.objects:
-            if 'EN_' + o.name.upper() in zrls[2]:
-                envires = {}
-                oress = [[zrls[3][z], zrls[4][z]] for z, zr in enumerate(zrls[0]) if zr == str(frame) and zrls[2][z] == 'EN_' + o.name.upper()]
-
-                for ores in oress:
-                    envires[ores[0]] = array([float(val) for val in ores[1].split()])
-                if frame == frames[0]:
-                    o['hours'] = arange(1, 25, dtype=float)
-                    o['days'] = arange(node.dsdoy, node.dedoy + 1, dtype=float)
-
-                o['envires{}'.format((frame, '')[len(frames) == 1])] = envires
+    zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone temporal']
+    zzonerls = list(zip(*zonerls))
 
     if len(frames) > 1:
         areslists = []
         areslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
-        temps = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Temperature (degC)']
-        hums = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Humidity (%)']
-        heats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Heating (W)']
-        cools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Cooling (W)']
-        aheats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Air Heating (W)']
-        acools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Air Cooling (W)']
-        co2s = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'CO2 (ppm)']
-        comfppds = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'PPD']
-        comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'PMV']
-        shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Solar gain (W)']
 
-        for zn in set(zzonerls[2]):
-            fas = [bpy.data.collections[zn].vi_params['enparams']['floorarea'][str(f)] for f in frames]
-            allfas = all([fa > 0 for fa in fas])
+        if zzonerls:
+            temps = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Temperature (degC)']
+            hums = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Humidity (%)']
+            heats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Heating (W)']
+            cools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Cooling (W)']
+            aheats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Air Heating (W)']
+            acools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Air Cooling (W)']
+            co2s = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'CO2 (ppm)']
+            comfppds = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'PPD']
+            comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'PMV']
+            shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone temporal' and zrls[3][zi] == 'Solar gain (W)']
 
-            try:
-                if temps:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min temp (C)', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg temp (C)', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
-                if hums:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max humidity (C)', ' '.join([str(max(h[1])) for h in hums if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min humidity (C)', ' '.join([str(min(h[1])) for h in hums if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg humidity (C)', ' '.join([str(sum(h[1])/len(h[1])) for h in hums if h[0] == zn])])
-                if heats:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max heating (W)', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min heating (W)', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
+            for zn in set(zzonerls[2]):
+                fas = [bpy.data.collections[zn].vi_params['enparams']['floorarea'][str(f)] for f in frames]
+                allfas = all([fa > 0 for fa in fas])
 
-                    if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in heats if h[0] == zn])])])
+                try:
+                    if temps:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min temp (C)', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg temp (C)', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
+                    if hums:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max humidity (C)', ' '.join([str(max(h[1])) for h in hums if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min humidity (C)', ' '.join([str(min(h[1])) for h in hums if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg humidity (C)', ' '.join([str(sum(h[1])/len(h[1])) for h in hums if h[0] == zn])])
+                    if heats:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max heating (W)', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min heating (W)', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
 
-                if cools:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max cooling (W)', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min cooling (W)', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg cooling (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
+                        if allfas:
+                            areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in heats if h[0] == zn])])])
 
-                    if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in cools if c[0] == zn])])])
+                    if cools:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max cooling (W)', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min cooling (W)', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg cooling (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
 
-                if aheats:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max air heating (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min air heating (W)', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg air heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
+                        if allfas:
+                            areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in cools if c[0] == zn])])])
 
-                    if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in aheats if h[0] == zn])])])
+                    if aheats:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max air heating (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min air heating (W)', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg air heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
 
-                if acools:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min air cool (W)', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg air cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
+                        if allfas:
+                            areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in aheats if h[0] == zn])])])
 
-                    if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in acools if c[0] == zn])])])
+                    if acools:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min air cool (W)', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg air cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
 
-                if co2s:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min CO2 (ppm)', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg CO2 (ppm)', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
+                        if allfas:
+                            areslists.append(['All', 'Zone spatial', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in acools if c[0] == zn])])])
 
-                if comfppds:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max PPD', ' '.join([str(max(t[1])) for t in comfppds if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min PPD', ' '.join([str(min(t[1])) for t in comfppds if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg PPD', ' '.join([str(sum(t[1])/len(t[1])) for t in comfppds if t[0] == zn])])
+                    if co2s:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min CO2 (ppm)', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg CO2 (ppm)', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
 
-                if comfpmvs:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max PMV', ' '.join([str(max(t[1])) for t in comfpmvs if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min PMV', ' '.join([str(min(t[1])) for t in comfpmvs if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg PMV', ' '.join([str(sum(t[1])/len(t[1])) for t in comfpmvs if t[0] == zn])])
+                    if comfppds:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max PPD', ' '.join([str(max(t[1])) for t in comfppds if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min PPD', ' '.join([str(min(t[1])) for t in comfppds if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg PPD', ' '.join([str(sum(t[1])/len(t[1])) for t in comfppds if t[0] == zn])])
 
-                if shgs:
-                    areslists.append(['All', 'Zone spatial', zn, 'Max SHG (W)', ' '.join([str(max(t[1])) for t in shgs if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Min SHG (W)', ' '.join([str(min(t[1])) for t in shgs if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Avg SHG (W)', ' '.join([str(sum(t[1])/len(t[1])) for t in shgs if t[0] == zn])])
-                    areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1])*0.001) for t in shgs if t[0] == zn])])
+                    if comfpmvs:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max PMV', ' '.join([str(max(t[1])) for t in comfpmvs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min PMV', ' '.join([str(min(t[1])) for t in comfpmvs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg PMV', ' '.join([str(sum(t[1])/len(t[1])) for t in comfpmvs if t[0] == zn])])
 
-                    if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(s[1])*0.001/fas[si]) for si, s in enumerate([s for s in shgs if s[0] == zn])])])
-            except:
-                pro_op.report({'ERROR'}, "There are no zone results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
-                return
+                    if shgs:
+                        areslists.append(['All', 'Zone spatial', zn, 'Max SHG (W)', ' '.join([str(max(t[1])) for t in shgs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Min SHG (W)', ' '.join([str(min(t[1])) for t in shgs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg SHG (W)', ' '.join([str(sum(t[1])/len(t[1])) for t in shgs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1])*0.001) for t in shgs if t[0] == zn])])
+
+                        if allfas:
+                            areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(s[1])*0.001/fas[si]) for si, s in enumerate([s for s in shgs if s[0] == zn])])])
+
+                except Exception as e:
+                    print(e)
+                    pro_op.report({'ERROR'}, "There are no zone results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
+                    return
 
             if heats and cools:
                 try:
@@ -706,12 +731,31 @@ def processf(pro_op, node):
                 except:
                     pass
 
-        for o in scene.objects:
-            o['envires'] = {}
+        powrls = [powrl for powrl in rls if powrl[1] == 'Power']
+        zpowrls = list(zip(*powrls))
+        pows = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Power' and zrls[3][zi] == 'PV power (W)']
 
-            for arl in areslists:
-                if arl[1] == 'Zone spatial' and 'EN_' + o.name.upper() == arl[2]:
-                    o['envires'][arl[3]] = [float(val) for val in arl[4].split()]
+        if pows:
+            ap_dict = {}
+            apz_dict = {}
+
+            for pn in set(zpowrls[2]):
+                ap_dict[pn] = []
+
+                for pl in pows:
+                    if pl[0] == pn:
+                        ap_dict[pn].append(sum(pl[1]))
+
+                for ap in ap_dict:
+                    areslists.append(['All', 'Power', ap, 'Power (kWh)',
+                                      ' '.join([str(p * 0.001) for p in ap_dict[ap]])])
+
+            for pzn in set(['_'.join(ap.split('_')[:-1]) for ap in ap_dict]):
+                ap_lists = [ap_dict[ap] for ap in ap_dict if '_'.join(ap.split('_')[:-1]) == pzn]
+                apz_dict[pzn] = nsum(array(ap) * 0.001 for ap in ap_lists)
+
+                areslists.append(['All', 'Power', pzn, 'Total power (kWh)',
+                                  ' '.join([str(p) for p in apz_dict[pzn]])])
 
         node['envires'] = {'Invalid object': []}
     else:

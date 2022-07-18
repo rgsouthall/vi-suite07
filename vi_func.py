@@ -1007,7 +1007,6 @@ def vsarea(obj, vs):
 def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     zp = 0
     bm = bmesh.new()
-#    wro.select_set(True)
     wro.location = (0, 0, 0)
     svg = minidom.parse(wrsvg)
     pos_strings = [path.getAttribute('d') for path in svg.getElementsByTagName('path')]
@@ -1019,26 +1018,33 @@ def wind_rose(wro, maxws, wrsvg, wrtype, colors):
     lposnew = [[[(eval(ss.split()[li + 1]) - dimen/2) * 0.1, (eval(ss.split()[li + 2]) - dimen/2) * -0.1, 0.05] for li in [si for si, s in enumerate(ss.split()) if s == 'L']] for ss in pos_strings]
 
     for stsi, sts in enumerate(style_strings):
-        if 'fill:#' in sts[0] and sts[0][-6:] != 'ffffff':
+        if ('fill: #' in sts[0] or 'fill:#' in sts[0]) and sts[0][-6:] != 'ffffff':
             hexcol, col = sts[0][-7:], sts[0][-6:]
             fillrgb = colors.hex2color(hexcol)
 
             if 'wr-{}'.format(col) not in [mat.name for mat in bpy.data.materials]:
                 bpy.data.materials.new('wr-{}'.format(col))
+
             bpy.data.materials['wr-{}'.format(col)].diffuse_color = [c for c in fillrgb] + [1]
 
             if 'wr-{}'.format(col) not in [mat.name for mat in wro.data.materials]:
                 bpy.ops.object.material_slot_add()
                 wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(col)]
 
-            vs = [bm.verts.new(pos) for pos in [sposnew[stsi]] + lposnew[stsi]]
+            if wrtype in ('2', '3', '4'):
+                vs = [bm.verts.new(pos) for pos in [sposnew[stsi]] + lposnew[stsi][:-1]]
+            else:
+                vs = [bm.verts.new(pos) for pos in [sposnew[stsi]] + lposnew[stsi]]
+
             vs.reverse()
 
             if len(vs) > 2:
                 nf = bm.faces.new(vs[::])
                 nf.material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(col)])
+
                 if wrtype in ('2', '3', '4'):
                     zp += 0.0005 * scale
+
                     for vert in nf.verts:
                         vert.co[2] = zp
 
