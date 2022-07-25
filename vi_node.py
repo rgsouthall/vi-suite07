@@ -26,7 +26,7 @@ from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
-from .vi_func import delobj, logentry, ret_camera_menu, ret_param
+from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
@@ -1581,7 +1581,7 @@ class No_En_Con(Node, ViNodes):
         newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
         newrow(layout, 'Time-steps/hour', self, "timesteps")
         row = layout.row()
-        row.label(text = 'Results Category:')
+        row.label(text='Results Category:')
         col = row.column()
         col.prop(self, "restype")
         resdict = enresprops('')
@@ -1632,7 +1632,7 @@ class No_En_Sim(Node, ViNodes):
     dedoy: IntProperty()
     run: IntProperty(min=-1, default=-1)
     processors: IntProperty(name='', min=1, default=4)  #max = bpy.context.scene['viparams']['nproc'], default = bpy.context.scene['viparams']['nproc'])
-    mp: BoolProperty(name = "", default = False)
+    mp: BoolProperty(name="", default=False)
 
     def draw_buttons(self, context, layout):
         scene = context.scene
@@ -1641,6 +1641,7 @@ class No_En_Sim(Node, ViNodes):
         if self.run > -1:
             row = layout.row()
             row.label(text = 'Calculating {}%'.format(self.run))
+
         elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
             if svp['enparams']['fe'] > svp['enparams']['fs']:
                 newrow(layout, 'Multi-core:', self, 'mp')
@@ -1706,8 +1707,8 @@ class No_En_IF(Node, ViNodes):
             nodecolour(self, 0)
 
     idfname = StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
-    sdoy = IntProperty(name = '', default = 1, min = 1, max = 365)
-    edoy = IntProperty(name = '', default = 365, min = 1, max = 365)
+    sdoy = IntProperty(name='', default=1, min=1, max=365)
+    edoy = IntProperty(name='', default=365, min=1, max=365)
     newdir = StringProperty()
 
     def init(self, context):
@@ -1722,7 +1723,7 @@ class No_En_IF(Node, ViNodes):
 
         if self.inputs['Location in'].links:
             row = layout.row()
-            row.operator('node.idfselect', text = 'IDF select').nodeid = self['nodeid']
+            row.operator('node.idfselect', text='IDF select').nodeid = self['nodeid']
             row.prop(self, 'idfname')
         else:
             row.label('Connect Location node')
@@ -1753,10 +1754,10 @@ class No_En_RF(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.operator('node.esoselect', text = 'ESO select').nodeid = self['nodeid']
+        row.operator('node.esoselect', text='ESO select').nodeid = self['nodeid']
         row.prop(self, 'esoname')
         row = layout.row()
-        row.operator("node.fileprocess", text = 'Process file').nodeid = self['nodeid']
+        row.operator("node.fileprocess", text='Process file').nodeid = self['nodeid']
 
     def update(self):
         for sock in self.outputs:
@@ -1776,7 +1777,7 @@ class So_En_ResU(NodeSocket):
         return (0.0, 1.0, 0.0, 0.75)
 
     def draw(self, context, layout, node, text):
-        layout.label(text = self.bl_label)
+        layout.label(text=self.bl_label)
 
 class ViEnRXIn(So_En_ResU):
     '''Chart input socket'''
@@ -1810,12 +1811,12 @@ class No_Vi_Chart(Node, ViNodes):
         return [tuple(p) for p in self['pmitems']]
 
     ctypes = [("0", "Line/Scatter", "Line/Scatter Plot")]
-    charttype: EnumProperty(items = ctypes, name = "", default = "0")
+    charttype: EnumProperty(items=ctypes, name="", default="0")
     timemenu: EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
-                name="", description="Results frequency", default="0")
+                           name="", description="Results frequency", default="0")
     parametricmenu: EnumProperty(items=pmitems, name="", description="Parametric result display", update=aupdate)
     bl_width_max = 800
-    dpi: IntProperty(name = 'DPI', description = "DPI of the shown figure", default = 92, min = 92)
+    dpi: IntProperty(name='DPI', description="DPI of the shown figure", default=92, min=92)
 
     def init(self, context):
         self.inputs.new("ViEnRXIn", "X-axis")
@@ -2131,7 +2132,7 @@ class No_Vi_HMChart(Node, ViNodes):
     lvals: StringProperty(name="", description="Space separated contour values", default="")
     lw: FloatProperty(name="", description="Line width", min=0.0, max=10, default=0.1)
     clevels: IntProperty(name='', description="Number of contour levels", default=10, min=2)
-    daystart: IntProperty(name='', description="Start day", default = 1, min=1, max=365)
+    daystart: IntProperty(name='', description="Start day", default=1, min=1, max=365)
     dayend: IntProperty(name='', description="End day", default=365, min=1, max=365)
     hourstart: IntProperty(name='', description="Start hour", default=1, min=1, max=365)
     hourend: IntProperty(name='', description="End hour", default=24, min=1, max=365)
@@ -2176,7 +2177,7 @@ class No_Vi_HMChart(Node, ViNodes):
 
                 if self.metricrange == '1':
                     row = layout.row()
-                    row.label(text = 'Range:')
+                    row.label(text='Range:')
                     row.prop(self, 'varmin')
                     row.prop(self, 'varmax')
 
@@ -2195,7 +2196,7 @@ class No_Vi_HMChart(Node, ViNodes):
                 if self.framemenu and self.metricmenu != '0' and self.metricmenu in [l[0] for l in self.metric(context)]:
 #                    if all((self.x, self.y, self.z)):
                     row = layout.row()
-                    row.operator("node.hmchart", text = 'Create heatmap')
+                    row.operator("node.hmchart", text='Create heatmap')
 
 class No_Vi_Metrics(Node, ViNodes):
     '''Node for result metrics'''
@@ -2297,11 +2298,11 @@ class No_Vi_Metrics(Node, ViNodes):
     frame_menu: EnumProperty(items=frames,
                 name="", description="Frame results", update=zupdate)
     mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
-    heat_type: EnumProperty(items=[('0', 'Gas', 'Gas based heating'), ('1', 'Electric', 'Electric based hheating')], name="", description="Heating energy source", default = '0', update=zupdate)
-    elec_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical heating system", default = 1.0, update=zupdate)
-    ac_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical cooling system", default = 3.0, update=zupdate)
-    gas_eff: FloatProperty(name="%", description="Efficiency of the gas heating system", default = 90, min = 1.0, max = 100.0, update=zupdate)
-    carb_fac: FloatProperty(name="kgCO2/kWh", description="Electrical grid carbon facor", default = 0.21, min = 0.01, max = 1, update=zupdate)
+    heat_type: EnumProperty(items=[('0', 'Gas', 'Gas based heating'), ('1', 'Electric', 'Electric based hheating')], name="", description="Heating energy source", default='0', update=zupdate)
+    elec_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical heating system", default=1.0, update=zupdate)
+    ac_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical cooling system", default=3.0, update=zupdate)
+    gas_eff: FloatProperty(name="%", description="Efficiency of the gas heating system", default=90, min=1.0, max=100.0, update=zupdate)
+    carb_fac: FloatProperty(name="kgCO2/kWh", description="Electrical grid carbon facor", default=0.21, min=0.01, max=1, update=zupdate)
     probe_menu: EnumProperty(items=probes,
                 name="", description="Probe results", update=zupdate)
     ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
@@ -2345,33 +2346,33 @@ class No_Vi_Metrics(Node, ViNodes):
                     if self.energy_menu == '0':
                         row = layout.row()
                         pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
-                        row.label(text = "PV (kWh): {}".format(pvkwh))
+                        row.label(text="PV (kWh): {}".format(pvkwh))
                         pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
                         row = layout.row()
-                        row.label(text = "PV (kWh/m2): {}".format(pva))
+                        row.label(text="PV (kWh/m2): {}".format(pva))
                         row = layout.row()
                         hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
-                        row.label(text = "Heating (kWh): {}".format(hkwh))
+                        row.label(text="Heating (kWh): {}".format(hkwh))
                         row = layout.row()
                         ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                        row.label(text = "Heating (kWh/m2): {}".format(ha))
+                        row.label(text="Heating (kWh/m2): {}".format(ha))
                         row = layout.row()
                         ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
-                        row.label(text = "Cooling (kWh): {}".format(ckwh))
+                        row.label(text="Cooling (kWh): {}".format(ckwh))
                         row = layout.row()
                         ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                        row.label(text = "Cooling (kWh/m2): {}".format(ca))
+                        row.label(text="Cooling (kWh/m2): {}".format(ca))
 
                         if self.zone_menu == 'All':
                             row = layout.row()
                             wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
-                            row.label(text = "Hot water (kWh): {}".format(wkwh))
+                            row.label(text="Hot water (kWh): {}".format(wkwh))
                             row = layout.row()
                             ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A'
-                            row.label(text = "ECF: {}".format(ecf))
+                            row.label(text="ECF: {}".format(ecf))
                             row = layout.row()
                             epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A'
-                            row.label(text = "EPC: {} ({})".format(epc, self['res']['EPCL']))
+                            row.label(text="EPC: {} ({})".format(epc, self['res']['EPCL']))
 
                     elif self.energy_menu == '1':
                         if self['res']:
@@ -2385,22 +2386,22 @@ class No_Vi_Metrics(Node, ViNodes):
                                 # row = layout.row()
                                 # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
                                 row = layout.row()
-                                row.label(text = "Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
+                                row.label(text="Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
 
                             elif self['res'].get('hkwh'):
                                 row = layout.row()
-                                row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
+                                row.label(text="Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
                                 row = layout.row()
-                                row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
+                                row.label(text="Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
 
                                 if self['res'].get('ckwh'):
                                     row = layout.row()
-                                    row.label(text = "Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
+                                    row.label(text="Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
                                     row = layout.row()
-                                    row.label(text = "Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
+                                    row.label(text="Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
                         else:
                             row = layout.row()
-                            row.label(text = "No floor area")
+                            row.label(text="No floor area")
 
                 elif self.metric == '1':
                     if self.light_menu == '0':
@@ -2473,15 +2474,15 @@ class No_Vi_Metrics(Node, ViNodes):
                                         credits = 1
 
                         row = layout.row()
-                        row.label(text = "Average DF: {}%".format(avDF))
+                        row.label(text="Average DF: {}%".format(avDF))
                         row = layout.row()
-                        row.label(text = "Minimum DF: {}%".format(minDF))
+                        row.label(text="Minimum DF: {}%".format(minDF))
                         row = layout.row()
-                        row.label(text = "Uniformity: {}".format(ratioDF))
+                        row.label(text="Uniformity: {}".format(ratioDF))
                         row = layout.row()
-                        row.label(text = "Compliant area: {}%".format(areaDF))
+                        row.label(text="Compliant area: {}%".format(areaDF))
                         row = layout.row()
-                        row.label(text = "Credits: {}".format(credits))
+                        row.label(text="Credits: {}".format(credits))
 
                     elif self.light_menu == '1':
                         newrow(layout, 'Healthcare', self, 'leed_menu')
@@ -2505,19 +2506,19 @@ class No_Vi_Metrics(Node, ViNodes):
                                     self['res']['o1'] = 0
 
                                 (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(sdares, self['res']['sdapass'], ('Pass', 'Fail')[round(sdares, 3) < self['res']['sdapass'][0]]),
-                                'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]),
-                                'Total credits: {}'.format(self['res']['o1']))
+                                                  'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]),
+                                                  'Total credits: {}'.format(self['res']['o1']))
 
                             if self.leed_menu:
                                 row = layout.row()
-                                row.label(text = 'Perimeter area: {:.1f} | {}'.format(self['res']['sv'], ('Pass', 'Fail')[self['res']['sv'] < 90]))
+                                row.label(text='Perimeter area: {:.1f} | {}'.format(self['res']['sv'], ('Pass', 'Fail')[self['res']['sv'] < 90]))
 
                             row = layout.row()
-                            row.label(text = sda)
+                            row.label(text=sda)
                             row = layout.row()
-                            row.label(text = ase)
+                            row.label(text=ase)
                             row = layout.row()
-                            row.label(text = o1)
+                            row.label(text=o1)
 
                     elif self.light_menu == '2':
                         if self['res']['avDF'] < 0:
@@ -2529,9 +2530,9 @@ class No_Vi_Metrics(Node, ViNodes):
                             uDF = self['res']['ratioDF']
 
                         row = layout.row()
-                        row.label(text = "Average DF: {} {}".format(avDF, dfpass))
+                        row.label(text="Average DF: {} {}".format(avDF, dfpass))
                         row = layout.row()
-                        row.label(text = "Uniformity: {} {}".format(uDF, udfpass))
+                        row.label(text="Uniformity: {} {}".format(uDF, udfpass))
 
                 elif self.metric == '2':
                     newrow(layout, 'Wind speed', self, "ws")
@@ -2543,13 +2544,13 @@ class No_Vi_Metrics(Node, ViNodes):
                     if self.zone_menu == 'All':
                         for z in self['res'][self.probe_menu]:
                             row = layout.row()
-                            row.label(text = "{}: {}".format(z, self['res'][self.probe_menu][z]))
+                            row.label(text="{}: {}".format(z, self['res'][self.probe_menu][z]))
                     else:
                         if self['res']:
                             for m in self['res']:
                                 if self['res'][m].get(self.zone_menu):
                                     row = layout.row()
-                                    row.label(text = "{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+                                    row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                 elif self.metric == '3':
                     newrow(layout, 'Embodied type:', self, "em_menu")
@@ -2559,13 +2560,13 @@ class No_Vi_Metrics(Node, ViNodes):
                             row = layout.row()
 
                             if self.zone_menu == 'All':
-                                row.label(text = 'Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
+                                row.label(text='Total: {:.2f}kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
                             else:
-                                row.label(text = '{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
+                                row.label(text='{}: {:.2f}kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
 
                         else:
                             row = layout.row()
-                            row.label(text = 'N/A')
+                            row.label(text='N/A')
 
                 elif self.metric == '4':
                     newrow(layout, 'Comfort type:', self, "com_menu")
@@ -2578,14 +2579,14 @@ class No_Vi_Metrics(Node, ViNodes):
 
                         if self['res'][r2] >= 0:
                             row = layout.row()
-                            row.label(text = "Time above 28degC: {:.1f}%".format(self['res'][r2]))
+                            row.label(text="Time above 28degC: {:.1f}%".format(self['res'][r2]))
 
                         if self['res'][r1] >= 0:
                             row = layout.row()
-                            row.label(text = "Time between 25-28degC: {:.1f}%".format(self['res'][r1]))
+                            row.label(text="Time between 25-28degC: {:.1f}%".format(self['res'][r1]))
                         else:
                             row = layout.row()
-                            row.label(text = "Overheating data not available")
+                            row.label(text="Overheating data not available")
 
                 elif self.metric == '5':
                     newrow(layout, 'IAQ type:', self, "iaq_menu")
@@ -2593,19 +2594,19 @@ class No_Vi_Metrics(Node, ViNodes):
                     if self.iaq_menu == '0':
                         row = layout.row()
                         if self['res']['co2'] >= 0:
-                            row.label(text = "Time CO2 below 900ppm: {:.1f}%".format(self['res']['co2']))
+                            row.label(text="Time CO2 below 900ppm: {:.1f}%".format(self['res']['co2']))
                         else:
-                            row.label(text = "CO2 data not available")
+                            row.label(text="CO2 data not available")
 
         if self.metric == '1':
             if self.light_menu == '2':
                 if self['res']['ratioDF'] >= 0:
                     row = layout.row()
-                    row.operator('node.vi_info', text = 'Infographic')
+                    row.operator('node.vi_info', text='Infographic')
             elif self.light_menu == '1':
                 if self['res']['sda'] >= 0:
                     row = layout.row()
-                    row.operator('node.vi_info', text = 'Infographic')
+                    row.operator('node.vi_info', text='Infographic')
 
     def update(self):
         if self.inputs[0].links:
@@ -2776,7 +2777,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 try:
                     self['res']['avDF'] = round(nsum(df * dfareas)/nsum(dfareas), 2)
                     tdf = stack((df, dfareas), axis=1)
-                    stdf = tdf[tdf[:,0].argsort()][::-1]
+                    stdf = tdf[tdf[:, 0].argsort()][::-1]
                     aDF = stdf[0][0]
                     rarea = stdf[0][1]
                     i = 1
@@ -2857,13 +2858,13 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['temperature'][zn] = float(r[4].split()[-1])
 
         elif self.metric == '3' and self.em_menu == '1':
-            self['res']['ec'] = {'':''}
+            self['res']['ec'] = {'': ''}
 
         elif self.metric == '3':
             if self.em_menu == '0':
                 self['res']['ec'] = {o.name: o.vi_params['ecdict']['ec'] for o in bpy.context.visible_objects if o.vi_params.get('ecdict')}
             elif self.em_menu == '1':
-                self['res']['ec'] = {'':''}
+                self['res']['ec'] = {'': ''}
 
         elif self.metric == '4':
             self['res']['oh'] = -1
@@ -2918,13 +2919,14 @@ class No_Vi_Metrics(Node, ViNodes):
         if self.inputs['Results in'].links:
             reslist = self.inputs['Results in'].links[0].from_node['reslists']
 
+
 class No_CSV(Node, ViNodes):
     '''CSV Export Node'''
     bl_idname = 'No_CSV'
     bl_label = 'VI CSV Export'
     bl_icon = 'SPREADSHEET'
 
-    animated: BoolProperty(name = '', description = 'Animated results', default = 0)
+    animated: BoolProperty(name='', description='Animated results', default=0)
 
     def init(self, context):
         self.inputs.new('So_Vi_Res', 'Results in')
@@ -2938,17 +2940,19 @@ class No_CSV(Node, ViNodes):
                 newrow(layout, 'Animated:', self, 'animated')
 
             row = layout.row()
-            row.operator('node.csvexport', text = 'Export CSV file')
+            row.operator('node.csvexport', text='Export CSV file')
         except:
             pass
 
     def update(self):
         pass
 
+
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
+
 
 class So_Anim(NodeSocket):
     '''Vi Animation socket'''
@@ -2958,13 +2962,14 @@ class So_Anim(NodeSocket):
     valid = ['Animation']
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (1, 1.0, 0.45, 1.0)
 
     def ret_valid(self, node):
         return ['Animation']
+
 
 class So_Vi_Loc(NodeSocket):
     '''Vi Location socket'''
@@ -2974,13 +2979,14 @@ class So_Vi_Loc(NodeSocket):
     valid = ['Location']
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.45, 1.0, 0.45, 1.0)
 
     def ret_valid(self, node):
         return ['Location']
+
 
 class So_Li_Geo(NodeSocket):
     '''Lighting geometry socket'''
@@ -2991,10 +2997,11 @@ class So_Li_Geo(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.3, 0.17, 0.07, 0.75)
+
 
 class So_Li_Con(NodeSocket):
     '''Lighting context socket'''
@@ -3005,10 +3012,11 @@ class So_Li_Con(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (1.0, 1.0, 0.0, 0.75)
+
 
 class So_Text(NodeSocket):
     '''VI text socket'''
@@ -3019,10 +3027,11 @@ class So_Text(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.2, 1.0, 0.0, 0.75)
+
 
 class So_Vi_Res(NodeSocket):
     '''Vi results socket'''
@@ -3033,13 +3042,14 @@ class So_Vi_Res(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = self.bl_label)
+        layout.label(text=self.bl_label)
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
     def ret_valid(self, node):
         return ['Vi Results']
+
 
 class So_Li_Im(NodeSocket):
     '''LiVi image socket'''
@@ -3050,10 +3060,11 @@ class So_Li_Im(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.5, 1.0, 0.0, 0.75)
+
 
 class So_En_Geo(NodeSocket):
     '''EnVi geometry out socket'''
@@ -3064,10 +3075,11 @@ class So_En_Geo(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.0, 0.0, 1.0, 0.75)
+
 
 class So_En_Con(NodeSocket):
     '''EnVi context socket'''
@@ -3078,10 +3090,11 @@ class So_En_Con(NodeSocket):
     link_limit = 1
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 1.0, 0.75)
+
 
 class So_En_Res(NodeSocket):
     '''Results socket'''
@@ -3092,34 +3105,35 @@ class So_En_Res(NodeSocket):
     def draw(self, context, layout, node, text):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'],
                     "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"),
-                    "Linkage":("linkmenu", "linkrmenu"), "External":("enmenu", "enrmenu"), "Position":("posmenu", "posrmenu"),
-                    "Camera":("cammenu", "camrmenu"), "Power":("powmenu", "powrmenu"),
-                    "Probe":("probemenu", "probermenu")}
+                    "Linkage": ("linkmenu", "linkrmenu"), "External": ("enmenu", "enrmenu"), "Position": ("posmenu", "posrmenu"),
+                    "Camera": ("cammenu", "camrmenu"), "Power": ("powmenu", "powrmenu"),
+                    "Probe": ("probemenu", "probermenu")}
         row = layout.row()
 
         if self.links and self.links[0].from_node.get('frames'):
             if len(self.links[0].from_node['frames']) > 1 and node.parametricmenu == '0':
-                row.prop(self, "framemenu", text = text)
+                row.prop(self, "framemenu", text=text)
                 row.prop(self, "rtypemenu")
             else:
-                row.prop(self, "rtypemenu", text = text)
+                row.prop(self, "rtypemenu", text=text)
 
             if self.rtypemenu in typedict:
                 for rtype in typedict[self.rtypemenu]:
                     row.prop(self, rtype)
 
-            if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and node.parametricmenu == '0':
+            if self.node.timemenu in ('1', '2') and self.rtypemenu != 'Time' and node.parametricmenu == '0':
                 row.prop(self, "statmenu")
 
             if self.rtypemenu != 'Time':
                 row.prop(self, 'multfactor')
         else:
-            layout.label(text = self.bl_label)
+            layout.label(text=self.bl_label)
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
 # Openfoam nodes
+
 
 class No_Flo_Case(Node, ViNodes):
     '''Openfoam case export node'''
@@ -3129,11 +3143,12 @@ class No_Flo_Case(Node, ViNodes):
 
     def ret_params(self):
         return [str(x) for x in (self.transience, self.turbulence, self.buoyancy, self.buossinesq,
-        self.dtime, self.etime, self.pnormval, self.pabsval, self.uval, self.tval, self.nutval, self.nutildaval,
-        self.kval, self.epval, self.oval, self.presid, self.uresid, self.keoresid, self.aval, self.p_rghval,
-        self.Gval, self.radmodel, self.solar, self.sun)]
+                                 self.dtime, self.etime, self.pnormval, self.pabsval, self.uval, self.tval, self.nutval, self.nutildaval,
+                                 self.kval, self.epval, self.oval, self.presid, self.uresid, self.keoresid, self.aval, self.p_rghval,
+                                 self.Gval, self.radmodel, self.solar, self.sun)]
 
     def nodeupdate(self, context):
+        context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != self.ret_params())
         params = ''
 
@@ -3144,9 +3159,9 @@ class No_Flo_Case(Node, ViNodes):
                 params += 'b'
             if self.radiation:
                 if self.radmodel == '0':
-                    params+= 'p'
+                    params += 'p'
                 else:
-                    params+= 'f'
+                    params += 'f'
 
         if self.turbulence == 'laminar':
             params += 'l'
@@ -3160,46 +3175,55 @@ class No_Flo_Case(Node, ViNodes):
         if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('solver_type'):
             context.scene.vi_params['flparams']['params'] = params
 
-    parametric: BoolProperty(name = '', description = 'Parametric simulation', default = 0, update = nodeupdate)
-    frame_start: IntProperty(name = "", description = "Start frame", min = 0, default = 0, update = nodeupdate)
-    frame_end: IntProperty(name = "", description = "End frame", min = 0, default = 0, update = nodeupdate)
-    solver: EnumProperty(name = '', items = [('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description = 'Solver selection', default = 'simpleFoam')
-    transience: EnumProperty(name = '', items = [('0', 'Steady', 'Steady state simulation'),
-                                                 ('1', 'Transient', 'Transient simulation')], description = 'Transience selection', default = '0', update = nodeupdate)
+    parametric: BoolProperty(name='', description='Parametric simulation', default=0, update=nodeupdate)
+    frame_start: IntProperty(name="", description="Start frame", min=0, default=0, update=nodeupdate)
+    frame_end: IntProperty(name="", description="End frame", min=0, default=0, update=nodeupdate)
+    solver: EnumProperty(name='', items=[('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description='Solver selection', default='simpleFoam')
+    transience: EnumProperty(name='', items=[('0', 'Steady', 'Steady state simulation'),
+                                                 ('1', 'Transient', 'Transient simulation')], description='Transience selection', default='0', update=nodeupdate)
 
-    turbulence: EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
+    turbulence: EnumProperty(items=[('laminar', 'Laminar', 'Steady state turbulence solver'),
                                       ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
                                       ('kOmega', 'k-Omega', 'Transient turbulence solver'),
-                                      ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "",
-                                        default = 'kEpsilon', update = nodeupdate)
-    buoyancy: BoolProperty(name = '', description = 'Thermal', default = 0, update = nodeupdate)
-    radiation: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
-    solar: BoolProperty(name = '', description = 'Radiation', default = 0, update = nodeupdate)
-    sun: StringProperty(name="", description="Sun for solar radiation analysis", default="", update = nodeupdate)
-    buossinesq: BoolProperty(name = '', description = 'Buossinesq approximation', default = 0, update = nodeupdate)
-    stime: FloatProperty(name = '', description = 'Simulation start time', min = 0, max = 10, default = 0)
-    dtime: FloatProperty(name = '', description = 'False time step', min=0.001, max=10, default=0.005, precision=4, update=nodeupdate)
-    etime: FloatProperty(name = '', description = 'Simulation end time', min = 1, max = 1000, default = 5, update = nodeupdate)
-    pval: FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)
-    pnormval: FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)
-    pabsval: IntProperty(name = "", description = "Simulation delta T", min = 0, max = 10000000, default = 100000, update = nodeupdate)
-    uval: FloatVectorProperty(size = 3, name = '', attr = 'Velocity', default = [0, 0, 0], unit = 'VELOCITY', subtype = 'VELOCITY', min = -100, max = 100, update = nodeupdate)
-    tval: FloatProperty(name = "K", description = "Field Temperature (K)", min = 0.0, max = 500, default = 293.14, update = nodeupdate)
-    nutval: FloatProperty(name = "", description = "Nut domain value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
-    nutildaval: FloatProperty(name = "", description = "NuTilda domain value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
-    kval: FloatProperty(name = "", description = "k domain value", min = 0.001, max = 500, default = 0.6, update = nodeupdate)
-    epval: FloatProperty(name = "", description = "Epsilon domain value", min = 0.001, max = 500, default = 0.03, update = nodeupdate)
-    oval: FloatProperty(name = "", description = "Omega domain value", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-#    hval: FloatProperty(name = "", description = "Enthalpy domain value", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-    enval: FloatProperty(name = "", description = "Enthalpy domain value", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-    presid: FloatProperty(name = "", description = "p convergence criteria", precision = 6, min = 0.000001, max = 0.01, default = 0.0001, update = nodeupdate)
-    uresid: FloatProperty(name = "", description = "U convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
-    keoresid: FloatProperty(name = "", description = "k/e/o convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
-    enresid: FloatProperty(name = "", description = "Enthalpy convergence criteria", precision = 6, min = 0.000001, max = 0.5, default = 0.0001, update = nodeupdate)
-    aval: FloatProperty(name = "", description = "alphat value", min = 0.0, max = 500, default = 0.1, update = nodeupdate)
-    p_rghval: FloatProperty(name = "", description = "p_rgh value", min = -1000000, max = 1000000, default = 0.0, update = nodeupdate)
-    Gval: FloatProperty(name = "", description = "Field radiation value", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
-    radmodel: EnumProperty(name = '', items = [('0', 'P1', 'P1 radiation model'), ('1', 'fvDOM', 'fvDOM radiation model')], description = 'Radiation model selection', default = '0', update = nodeupdate)
+                                      ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name="",
+                                        default='kEpsilon', update=nodeupdate)
+    buoyancy: BoolProperty(name='', description='Thermal', default=0, update=nodeupdate)
+    radiation: BoolProperty(name='', description='Radiation', default=0, update=nodeupdate)
+    solar: BoolProperty(name='', description='Radiation', default=0, update=nodeupdate)
+    sun: StringProperty(name="", description="Sun for solar radiation analysis", default="", update=nodeupdate)
+    buossinesq: BoolProperty(name='', description='Buossinesq approximation', default=0, update=nodeupdate)
+    stime: FloatProperty(name='', description='Simulation start time', min=0, max=10, default=0)
+    dtime: FloatProperty(name='', description='False time step', min=0.001, max=10, default=0.005, precision=4, update=nodeupdate)
+    etime: FloatProperty(name='', description='Simulation end time', min=1, max=1000, default=5, update=nodeupdate)
+
+    pval: FloatProperty(name="", description="Field pressure (relative)", min=-500, max=500, default=0.0, update=nodeupdate)
+    pnormval: FloatProperty(name="", description="Field pressure (normalised)", min=-500, max=500, default=0.0, update=nodeupdate)
+    pabsval: IntProperty(name="", description="Field pressure (absolute)", min=0, max=10000000, default=100000, update=nodeupdate)
+    p_ref: EnumProperty(items=[('0', 'None', 'No reference pressure'), ('1', 'Relative', 'Relative reference pressure'), ('2', 'Absolute', 'Absolute reference pressure')],
+                        name='', description='Reference pressure', default=0, update=nodeupdate)
+    p_ref_point: EnumProperty(items=ret_empty_menu, name='', description='Camera', update=nodeupdate)
+    p_ref_val: FloatProperty(name="", description="Reference pressure value", min=-5000000, max=5000000, default=0.0, update=nodeupdate)
+    uval: FloatVectorProperty(size=3, name='', attr='Velocity', default=[0, 0, 0], unit='VELOCITY', subtype='VELOCITY', min=-100, max=100, update=nodeupdate)
+    uval_type: EnumProperty(name='', items=[('0', 'Vector', 'Air dirction and speed by vector'),
+                                                 ('1', 'Azimuth', 'Transient simulation')], description='Velocity type', default='0', update=nodeupdate)
+    uval_azi: FloatProperty(name="", description="Air direction azimuth (degrees from north)", min=0, max=360, default=0.0, update=nodeupdate)
+    umag: FloatProperty(name="m/s", description="Air speed (m/s)", min=0, max=100, default=5.0, update=nodeupdate)
+    tval: FloatProperty(name="K", description="Field Temperature (K)", min=0.0, max=500, default=293.14, update=nodeupdate)
+    nutval: FloatProperty(name="", description="Nut domain value", min=0.0, max=500, default=0.0, update=nodeupdate)
+    nutildaval: FloatProperty(name="", description="NuTilda domain value", min=0.0, max=500, default=0.0, update=nodeupdate)
+    kval: FloatProperty(name="", description="k domain value", min=0.001, max=500, default=0.6, update=nodeupdate)
+    epval: FloatProperty(name="", description="Epsilon domain value", min=0.001, max=500, default=0.03, update=nodeupdate)
+    oval: FloatProperty(name="", description="Omega domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
+#    hval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
+    enval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
+    presid: FloatProperty(name="", description="p convergence criteria", precision=6, min=0.000001, max=0.01, default=0.0001, update=nodeupdate)
+    uresid: FloatProperty(name="", description="U convergence criteria", precision=6, min=0.000001, max=0.5, default=0.0001, update=nodeupdate)
+    keoresid: FloatProperty(name="", description="k/e/o convergence criteria", precision=6, min=0.000001, max=0.5, default=0.0001, update=nodeupdate)
+    enresid: FloatProperty(name="", description="Enthalpy convergence criteria", precision=6, min=0.000001, max=0.5, default=0.0001, update=nodeupdate)
+    aval: FloatProperty(name="", description="alphat value", min=0.0, max=500, default=0.1, update=nodeupdate)
+    p_rghval: FloatProperty(name="", description="p_rgh value", min=-1000000, max=1000000, default=0.0, update=nodeupdate)
+    Gval: FloatProperty(name="", description="Field radiation value", min=0.0, max=500, default=0.0, update=nodeupdate)
+    radmodel: EnumProperty(name='', items=[('0', 'P1', 'P1 radiation model'), ('1', 'fvDOM', 'fvDOM radiation model')], description='Radiation model selection', default='0', update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -3210,15 +3234,15 @@ class No_Flo_Case(Node, ViNodes):
             context.scene.vi_params['flparams']['params'] = 'l'
 
     def draw_buttons(self, context, layout):
-        # newrow(layout, 'Parametric:', self, 'parametric')
+        newrow(layout, 'Parametric:', self, 'parametric')
 
-        # if self.parametric:
-        #     row = layout.row()
-        #     row.label(text = 'Frames:')
-        #     col = row.column()
-        #     subrow = col.row(align=True)
-        #     subrow.prop(self, 'frame_start')
-        #     subrow.prop(self, 'frame_end')
+        if self.parametric:
+            row = layout.row()
+            row.label(text = 'Frames:')
+            col = row.column()
+            subrow = col.row(align=True)
+            subrow.prop(self, 'frame_start')
+            subrow.prop(self, 'frame_end')
 
         newrow(layout, 'Transience:', self, 'transience')
 
@@ -3231,15 +3255,22 @@ class No_Flo_Case(Node, ViNodes):
 
        # if self.turbulence != 'laminar':
         newrow(layout, 'Buoyancy:', self, 'buoyancy')
+
         if self.buoyancy:
             newrow(layout, 'Buossinesq:', self, 'buossinesq')
             newrow(layout, 'Radiation:', self, 'radiation')
 
         if not self.buoyancy:
-            newrow(layout, 'Pressure rel:', self, 'pnormval')
+            newrow(layout, 'Field pressure:', self, 'pnormval')
         else:
-            newrow(layout, 'Pressure abs:', self, 'pabsval')
-            newrow(layout, 'p_rgh value:', self, 'p_rghval')
+            newrow(layout, 'Field pressure:', self, 'pabsval')
+            newrow(layout, 'Field p_rgh:', self, 'p_rghval')
+
+        newrow(layout, 'Reference pressure:', self, 'p_ref')
+
+        if self.p_ref != '0':
+            newrow(layout, 'Reference pressure:', self, 'p_ref_val')
+            newrow(layout, 'Reference point:', self, 'p_ref_point')
 
         if self.turbulence == 'kEpsilon':
             newrow(layout, 'k value:', self, 'kval')
@@ -3279,8 +3310,14 @@ class No_Flo_Case(Node, ViNodes):
                 newrow(layout, 'G value:', self, 'Gval')
 
         newrow(layout, 'Nut Value:', self, 'nutval')
+        newrow(layout, 'Velocity type:', self, 'uval_type')
 
-        newrow(layout, 'Velocity val:', self, 'uval')
+        if self.uval_type == '0':
+            newrow(layout, 'Velocity val:', self, 'uval')
+        else:
+            newrow(layout, 'Velocity azi:', self, 'uval_azi')
+            newrow(layout, 'Air speed:', self, 'umag')
+
         newrow(layout, 'p Residual:', self, 'presid')
         newrow(layout, 'U Residual:', self, 'uresid')
 
@@ -3389,7 +3426,7 @@ class No_Flo_Bound(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(self.pv)])
 
-    pv: BoolProperty(name = '', description = 'Open Paraview', default = 0, update = nodeupdate)
+    pv: BoolProperty(name='', description='Open Paraview', default=0, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -3401,7 +3438,7 @@ class No_Flo_Bound(Node, ViNodes):
         if self.inputs and self.inputs['Mesh in'].links:
             newrow(layout, 'Paraview:', self, 'pv')
             row = layout.row()
-            row.operator("node.flovi_bound", text = "Generate")
+            row.operator("node.flovi_bound", text="Generate")
 
     def update(self):
         for sock in self.outputs:
@@ -3511,8 +3548,8 @@ class No_Flo_Sim(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.processes, self.pv)])
 
-    processes: IntProperty(name = "", description = "Number of processors", min = 1, max = 1000, default = 1, update = nodeupdate)
-    pv: BoolProperty(name = "", description = "Number of processors", default = 0, update = nodeupdate)
+    processes: IntProperty(name="", description="Number of processors", min=1, max=1000, default=1, update=nodeupdate)
+    pv: BoolProperty(name="", description="Open paraview", default=0, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''

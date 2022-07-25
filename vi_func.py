@@ -332,6 +332,10 @@ def rettree(scene, obs, ignore):
     return tree
 
 
+def ret_empty_menu(self, context):
+    return [(o.name, o.name, 'Name of empty') for o in bpy.data.objects if o.type == 'EMPTY']
+
+
 class progressfile():
     def __init__(self, folder, starttime, calcsteps):
         self.starttime = starttime
@@ -435,7 +439,7 @@ if __name__ == '__main__':\n\
     return Popen([sys.executable, file+".py"])
 
 
-def fvprogressbar(file, et, residuals):
+def fvprogressbar(file, et, residuals, frame):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
 import os, sys\n\
@@ -449,7 +453,7 @@ from kivy.uix.button import Button\n\
 from kivy.uix.label import Label\n\
 from kivy.config import Config\n\
 Config.set('graphics', 'width', '500')\n\
-Config.set('graphics', 'height', '200')\n\
+Config.set('graphics', 'height', '250')\n\
 \n\
 class CancelButton(Button):\n\
     def on_touch_down(self, touch):\n\
@@ -464,7 +468,7 @@ class CancelButton(Button):\n\
 class Calculating(App):\n\
     rpbs, labels, nums, oftime = [], [], [], ''\n\
     bl = BoxLayout(orientation='vertical')\n\
-    gl  = GridLayout(cols=3, height = 200)\n\
+    gl  = GridLayout(cols=3, height = 250)\n\
     t = Label(text='Time:', font_size=20, size_hint=(0.2, .2))\n\
     tpb = ProgressBar(max = 0)\n\
     tt = Label(text=oftime, font_size=20, size_hint=(0.2, .2))\n\
@@ -487,7 +491,7 @@ class Calculating(App):\n\
     bl.add_widget(button)\n\
 \n\
     def build(self):\n\
-        self.title = 'OpenFOAM Residuals'\n\
+        self.title = 'OpenFOAM Residuals - "+str(frame)+"'\n\
         refresh_time = 1\n\
         Clock.schedule_interval(self.timer, refresh_time)\n\
         return self.bl\n\
@@ -510,6 +514,7 @@ if __name__ == '__main__':\n\
 
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
+
     return Popen([sys.executable, file+".py"])
 
 
@@ -636,20 +641,9 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn, 'textures'))
     if not os.path.isdir(os.path.join(fd, fn, 'Openfoam')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam'))
-    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'system')):
-        os.makedirs(os.path.join(fd, fn, 'Openfoam', "system"))
-    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'constant')):
-        os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant"))
-    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'constant', 'polyMesh')):
-        os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant", "polyMesh"))
-    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'constant', 'triSurface')):
-        os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant", "triSurface"))
-    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', '0')):
-        os.makedirs(os.path.join(fd, fn, 'Openfoam', "0"))
 
     nd = os.path.join(fd, fn)
     fb, ofb, lfb, tfb, offb, idf = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'lights'), os.path.join(nd, 'textures'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
-    offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
 
     if not svp.get('viparams'):
         svp['viparams'] = {}
@@ -689,11 +683,6 @@ def viparams(op, scene):
         svp['flparams'] = {}
 
     svp['flparams']['offilebase'] = offb
-    svp['flparams']['ofsfilebase'] = offs
-    svp['flparams']['ofcfilebase'] = offc
-    svp['flparams']['ofcpfilebase'] = offcp
-    svp['flparams']['of0filebase'] = offzero
-    svp['flparams']['ofctsfilebase'] = offcts
 
 
 def nodestate(self, opstate):

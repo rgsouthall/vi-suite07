@@ -28,6 +28,7 @@ ofheader = r'''/*--------------------------------*- C++ -*----------------------
 |    \\/     M anipulation  | Created by:  FloVi (part of the VI-Suite)       |
 \*---------------------------------------------------------------------------*/''' + '\n\n'
 
+
 def fileheader(o):
     return '''FoamFile
 {{
@@ -40,8 +41,11 @@ def fileheader(o):
 
 '''.format(o)
 
-flovi_p_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue', 'fixedMean', 'fixedMeanOutletInlet', 'freestreamPressure', 'totalPressure', 'inletOutlet', 'pressureInletOutletVelocity', 'PressureInletVelocity', 'calculated'), '1': ('zeroGradient', 'calculated'), '2': ['None']},
-                'bsf': {'0': ('calculated'), '1': ('calculated'), '2': ('None',)}}
+
+flovi_p_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue', 'fixedMean', 'fixedMeanOutletInlet', 'freestreamPressure', 'totalPressure',
+                               'inletOutlet', 'pressureInletOutletVelocity', 'PressureInletVelocity', 'calculated'),
+                         '1': ('zeroGradient', 'calculated'), '2': ['None']},
+                  'bsf': {'0': ('calculated'), '1': ('calculated'), '2': ('None',)}}
 
 flovi_u_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ['None']},
                 'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ['None']}}
@@ -53,75 +57,95 @@ flovi_nutilda_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1':
                         'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue'), '2': ['None']}}
 
 flovi_k_bounds = {'simpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction'], '2': ['None']},
-                'buoyantSimpleFoam': {'0': ('fixedValue', 'inletOutlet', 'turbulentIntensityKineticEnergyInlet'), '1': ['kqRWallFunction'], '2': ['None']}}
+                  'buoyantSimpleFoam': {'0': ('fixedValue', 'inletOutlet', 'turbulentIntensityKineticEnergyInlet'), '1': ['kqRWallFunction'], '2': ['None']}}
 
 flovi_epsilon_bounds = {'simpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction'], '2': ('None')},
                         'buoyantSimpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction'], '2': ['None']}}
 
 flovi_omega_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ['None']},
-                        'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ['None']}}
+                      'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ['None']}}
 
 flovi_t_bounds = {'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet'), '1': ('zeroGradient', 'fixedValue'), '2': ['None']}}
 
-flovi_prgh_bounds = {'buoyantSimpleFoam': {'0': ('fixedFluxPressure', 'fixedValue', 'prghPressure', 'prghTotalPressure', 'prghEntrainmentPressure', 'fixedMean', 'fixedMeanOutletInlet'), '1': ('fixedFluxPressure', 'fixedValue', 'totalPressure'), '2': ['None']}}
+flovi_prgh_bounds = {'buoyantSimpleFoam': {'0': ('fixedFluxPressure', 'fixedValue', 'prghPressure', 'prghTotalPressure', 'prghEntrainmentPressure',
+                                                 'fixedMean', 'fixedMeanOutletInlet'),
+                                           '1': ('fixedFluxPressure', 'fixedValue', 'totalPressure'),
+                                           '2': ['None']}}
 
-flovi_a_bounds = {'buoyantSimpleFoam': {'0': ('calculated',), '1': ('compressible::alphatWallFunction', 'compressible::alphatJayatillekeWallFunction'), '2': ['None']}}
-flovi_rad_bounds = {'buoyantSimpleFoam': {'0': ('MarshakRadiation',), '1': ('MarshakRadiation',), '2': ['None']}}
+flovi_a_bounds = {'buoyantSimpleFoam': {'0': ('calculated',),
+                                        '1': ('compressible::alphatWallFunction', 'compressible::alphatJayatillekeWallFunction'),
+                                        '2': ['None']}}
+flovi_rad_bounds = {'buoyantSimpleFoam': {'0': ('MarshakRadiation',),
+                                          '1': ('MarshakRadiation',),
+                                          '2': ['None']}}
 
-def ret_fvbp_menu(mat, context): 
+
+def ret_fvbp_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
-def ret_fvbu_menu(mat, context): 
+
+def ret_fvbu_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
-           
-def ret_fvbnut_menu(mat, context): 
+
+
+def ret_fvbnut_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
 
-def ret_fvbnutilda_menu(mat, context): 
-    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nutilda_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]    
 
-def ret_fvbk_menu(mat, context): 
-    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]] 
+def ret_fvbnutilda_menu(mat, context):
+    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nutilda_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
 
-def ret_fvbepsilon_menu(mat, context): 
-    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]] 
 
-def ret_fvbomega_menu(mat, context): 
+def ret_fvbk_menu(mat, context):
+    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
+
+
+def ret_fvbepsilon_menu(mat, context):
+    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
+
+
+def ret_fvbomega_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_omega_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
 
-def ret_fvbt_menu(mat, context): 
+
+def ret_fvbt_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
 
-def ret_fvba_menu(mat, context): 
+def ret_fvba_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
 
-def ret_fvbprgh_menu(mat, context): 
+
+def ret_fvbprgh_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
 
-def ret_fvrad_menu(mat, context): 
+def ret_fvrad_menu(mat, context):
     return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_bounds[context.scene.vi_params['flparams']['solver']][mat.flovi_bmb_type]]
+
 
 def write_header(func):
     def wrapper(o, expnode):
         return ofheader + func(o, expnode)
     return wrapper
 
+
 def fventry(func):
-    return '    {\n'  
+    return '    {\n'
+
 
 def write_ffile(cla, loc, obj):
     location = 'location    "{}";\n    '.format(loc) if loc else ''
     return 'FoamFile\n  {{\n    version   2.0;\n    format    ascii;\n    {}class     {};\n    object    {};\n  }}\n\n'.format(location, cla, obj)
 
+
 def write_fvdict(text, fvdict):
     for d in fvdict:
         if isinstance(fvdict[d], str):
-            text += '{} {};\n\n'.format(d, fvdict[d]) 
+            text += '{} {};\n\n'.format(d, fvdict[d])
         elif isinstance(fvdict[d], dict):
             text += '{}\n{{\n'.format(d)
             for sd in fvdict[d]:
                 if isinstance(fvdict[d][sd], str):
-                    text += '  {} {};\n'.format(sd, fvdict[d][sd]) 
+                    text += '  {} {};\n'.format(sd, fvdict[d][sd])
                 elif isinstance(fvdict[d][sd], dict):
                     text += '  {}\n  {{\n'.format(sd)
                     for ssd in fvdict[d][sd]:
@@ -137,10 +161,11 @@ def write_fvdict(text, fvdict):
             text += '}\n'
     return text
 
+
 def fvboundwrite(o):
     boundary = ''
-    
-    for mat in o.data.materials:        
+
+    for mat in o.data.materials:
         boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("patch", "wall", "symmetry", "empty")[int(mat.flovi_bmb_type)])#;\n\n"
         faces = [face for face in o.data.polygons if o.data.materials[face.material_index] == mat]
 
@@ -151,9 +176,10 @@ def fvboundwrite(o):
     boundary += ");\n\nmergePatchPairs\n(\n);"
     return boundary
 
+
 def write_bound(o, m, ns, nf):
     t = ("patch", "wall", "symmetry", "empty")[int(m.vi_params.flovi_bmb_type)]
-    
+
     return '''   {0}_{1}
     {{
         type            {2};
@@ -161,314 +187,351 @@ def write_bound(o, m, ns, nf):
         startFace       {4};
     }}\n'''.format(o.name, m.name, t, nf, ns)
 
-def flovi_bm_update(self, context):
-    scene = context.scene
-    svp = scene.vi_params
-    ovp = context.object.vi_params
-    svp = scene.vi_params
+
+# def flovi_bm_update(self, context):
+#     scene = context.scene
+#     svp = scene.vi_params
+#     ovp = context.object.vi_params
+#     svp = scene.vi_params
 #    svp['flparams']['solver'] = ovp.flovi_solver
 #    svp['flparams']['turbulence'] = ovp.flovi_turb
 
-#@writeheader    
-def fvbmwrite(o, expnode):
-    bm = bmesh.new()
-    tempmesh = o.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
-    bm.from_mesh(tempmesh)
-    bm.verts.ensure_lookup_table()
-    bm.transform(o.matrix_world)
-    bpy.data.meshes.remove(tempmesh)   
-    [xs, ys, zs] = [[v.co[i] for v in bm.verts] for i in range(3)]
-    bm.transform(mathutils.Matrix.Translation((-min(xs), -min(ys), -min(zs))))
-    o['flovi_translate'] = (-min(xs), -min(ys), -min(zs))
-    lengths = [mathutils.Vector(v.co).length for v in bm.verts]
-    vert0 = bm.verts[lengths.index(min(lengths))]
-    angles = [mathutils.Vector(v.co).angle(mathutils.Vector((0, 0, 1))) for v in bm.verts if v != vert0]
-#    vert0 = [v for v in bm.verts if v.co[:] == (min(xs), min(ys), min(zs))][0]
-    vert4 = bm.verts[angles.index(min(angles)) + 1]
-#    print(vert0.index, vert4.index)
-#    vert4 = [v for v in bm.verts if (v.co[0], v.co[1]) == (vert0.co[0], vert0.co[1]) and v.co[2] != vert0.co[2]][0]
 
-    for face in bm.faces:
-        if vert0 in face.verts and vert4 not in face.verts:
-            vis = [vert.index for vert in face.verts][::-1]
-            vertorder1 = vis[vis.index(vert0.index):] + vis[:vis.index(vert0.index)]
-#            vertorder1 = [vertorder1[0], vertorder1[3], vertorder1[2], vertorder1[1]]
-        if vert4 in face.verts and vert0 not in face.verts:
-            vis = [vert.index for vert in face.verts]
-            vertorder2 = vis[vis.index(vert4.index):] + vis[:vis.index(vert4.index)]
-        
-    vertorder = ''.join(['{} '.format(v) for v in vertorder1 + vertorder2])
+# # @writeheader
+# def fvbmwrite(o, expnode):
+#     bm = bmesh.new()
+#     tempmesh = o.to_mesh(scene=bpy.context.scene, apply_modifiers=True, settings='PREVIEW')
+#     bm.from_mesh(tempmesh)
+#     bm.verts.ensure_lookup_table()
+#     bm.transform(o.matrix_world)
+#     bpy.data.meshes.remove(tempmesh)
+#     [xs, ys, zs] = [[v.co[i] for v in bm.verts] for i in range(3)]
+#     bm.transform(mathutils.Matrix.Translation((-min(xs), -min(ys), -min(zs))))
+#     o['flovi_translate'] = (-min(xs), -min(ys), -min(zs))
+#     lengths = [mathutils.Vector(v.co).length for v in bm.verts]
+#     vert0 = bm.verts[lengths.index(min(lengths))]
+#     angles = [mathutils.Vector(v.co).angle(mathutils.Vector((0, 0, 1))) for v in bm.verts if v != vert0]
+# #    vert0 = [v for v in bm.verts if v.co[:] == (min(xs), min(ys), min(zs))][0]
+#     vert4 = bm.verts[angles.index(min(angles)) + 1]
+# #    print(vert0.index, vert4.index)
+# #    vert4 = [v for v in bm.verts if (v.co[0], v.co[1]) == (vert0.co[0], vert0.co[1]) and v.co[2] != vert0.co[2]][0]
 
-#    omw, bmovs = o.matrix_world, [vert for vert in o.data.vertices]
-#    xvec, yvec, zvec = (omw*bmovs[3].co - omw*bmovs[0].co).normalized(), (omw*bmovs[2].co - omw*bmovs[3].co).normalized(), (omw*bmovs[4].co - omw*bmovs[0].co).normalized() 
-#    ofvpos = [[(omw*bmov.co - omw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for bmov in bmovs]
-#    bmdict = "vertices\n(\n" + "\n".join(["  ({0:.3f} {1:.3f} {2:.3f})" .format(*ofvpo) for ofvpo in ofvpos]) +"\n);\n\n"
-    bmdict = "vertices\n(\n" + "\n".join(["  ({0[0]:.3f} {0[1]:.3f} {0[2]:.3f})" .format(v.co) for v in bm.verts]) +"\n);\n\n"
-    bmdict += "blocks\n(\n  hex ({}) ({} {} {}) simpleGrading ({} {} {})\n);\n\n".format(vertorder, expnode.bm_xres, expnode.bm_yres, expnode.bm_zres, expnode.bm_xgrad, expnode.bm_ygrad, expnode.bm_zgrad) 
-    bmdict += "edges\n(\n);\n\nboundary\n(\n"  
-    bmdict += fvboundwrite(o)
-    bm.free()
-    return ofheader + write_ffile('dictionary', '', 'blockMeshDict') + bmdict
-    
-def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
-    scene = bpy.context.scene
-    matfacedict = {mat.name:[0, 0] for mat in mats}
-    
-    for line in bfile.readlines():
-        if line.strip() in matfacedict:
-            mat = line.strip()
-        elif line.strip() in [o.name for o in bpy.data.objects]:
-            mat = bpy.data.objects[line.strip()].data.materials[0].name
-        if 'nFaces' in line:
-            matfacedict[mat][1] = int(line.split()[1].strip(';'))
-        if 'startFace' in line:
-            matfacedict[mat][0] = int(line.split()[1].strip(';'))
-    bobs = [ob for ob in scene.objects if ob.get('VIType') and ob['VIType'] == 'FloViMesh']
-    
-    if bobs:
-        o = bobs[0]
-        selobj(scene, o)
-        while o.data.materials:
-            bpy.ops.object.material_slot_remove()
-    else:
-        bpy.ops.object.add(type='MESH', layers=(False, False, False, False, False, False, 
-                                                False, False, False, False, False, False, 
-                                                False, False, False, False, False, False, False, True))
-        o = bpy.context.object
-        o['VIType'] = 'FloViMesh'
-    
-    o.name = meshtype
-    for mat in mats:
-        if mat.name not in o.data.materials:
-            bpy.ops.object.material_slot_add()
-            o.material_slots[-1].material = mat 
-    
-    matnamedict = {mat.name: m for  m, mat in enumerate(o.data.materials)}    
-    bm = bmesh.new()
+#     for face in bm.faces:
+#         if vert0 in face.verts and vert4 not in face.verts:
+#             vis = [vert.index for vert in face.verts][::-1]
+#             vertorder1 = vis[vis.index(vert0.index):] + vis[:vis.index(vert0.index)]
+# #            vertorder1 = [vertorder1[0], vertorder1[3], vertorder1[2], vertorder1[1]]
+#         if vert4 in face.verts and vert0 not in face.verts:
+#             vis = [vert.index for vert in face.verts]
+#             vertorder2 = vis[vis.index(vert4.index):] + vis[:vis.index(vert4.index)]
 
-    for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
-        bm.verts.new([float(vpos) for vpos in line[1:-2].split(' ')])
+#     vertorder = ''.join(['{} '.format(v) for v in vertorder1 + vertorder2])
 
-    if hasattr(bm.verts, "ensure_lookup_table"):
-        bm.verts.ensure_lookup_table()
+# #    omw, bmovs = o.matrix_world, [vert for vert in o.data.vertices]
+# #    xvec, yvec, zvec = (omw*bmovs[3].co - omw*bmovs[0].co).normalized(), (omw*bmovs[2].co - omw*bmovs[3].co).normalized(), (omw*bmovs[4].co - omw*bmovs[0].co).normalized()
+# #    ofvpos = [[(omw*bmov.co - omw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for bmov in bmovs]
+# #    bmdict = "vertices\n(\n" + "\n".join(["  ({0:.3f} {1:.3f} {2:.3f})" .format(*ofvpo) for ofvpo in ofvpos]) +"\n);\n\n"
+#     bmdict = "vertices\n(\n" + "\n".join(["  ({0[0]:.3f} {0[1]:.3f} {0[2]:.3f})" .format(v.co) for v in bm.verts]) +"\n);\n\n"
+#     bmdict += "blocks\n(\n  hex ({}) ({} {} {}) simpleGrading ({} {} {})\n);\n\n".format(vertorder, expnode.bm_xres, expnode.bm_yres, expnode.bm_zres, expnode.bm_xgrad, expnode.bm_ygrad, expnode.bm_zgrad)
+#     bmdict += "edges\n(\n);\n\nboundary\n(\n"
+#     bmdict += fvboundwrite(o)
+#     bm.free()
+#     return ofheader + write_ffile('dictionary', '', 'blockMeshDict') + bmdict
 
-    for l, line in enumerate([line for line in ffile.readlines() if '(' in line and line[0].isdigit() and len(line.split(' ')) == int(line[0])]):
-        newf = bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
-        
-        for facerange in matfacedict.items():
-            if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
-                newf.material_index = matnamedict[facerange[0]]
 
-    bm.transform(o.matrix_world.inverted())
-    bm.to_mesh(o.data)
-    bm.free()
+# def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
+#     scene = bpy.context.scene
+#     matfacedict = {mat.name: [0, 0] for mat in mats}
+
+#     for line in bfile.readlines():
+#         if line.strip() in matfacedict:
+#             mat = line.strip()
+#         elif line.strip() in [o.name for o in bpy.data.objects]:
+#             mat = bpy.data.objects[line.strip()].data.materials[0].name
+#         if 'nFaces' in line:
+#             matfacedict[mat][1] = int(line.split()[1].strip(';'))
+#         if 'startFace' in line:
+#             matfacedict[mat][0] = int(line.split()[1].strip(';'))
+#     bobs = [ob for ob in scene.objects if ob.get('VIType') and ob['VIType'] == 'FloViMesh']
+
+#     if bobs:
+#         o = bobs[0]
+#         selobj(scene, o)
+#         while o.data.materials:
+#             bpy.ops.object.material_slot_remove()
+#     else:
+#         bpy.ops.object.add(type='MESH', layers=(False, False, False, False, False, False,
+#                                                 False, False, False, False, False, False,
+#                                                 False, False, False, False, False, False, False, True))
+#         o = bpy.context.object
+#         o['VIType'] = 'FloViMesh'
+
+#     o.name = meshtype
+#     for mat in mats:
+#         if mat.name not in o.data.materials:
+#             bpy.ops.object.material_slot_add()
+#             o.material_slots[-1].material = mat
+
+#     matnamedict = {mat.name: m for m, mat in enumerate(o.data.materials)}
+#     bm = bmesh.new()
+
+#     for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
+#         bm.verts.new([float(vpos) for vpos in line[1:-2].split(' ')])
+
+#     if hasattr(bm.verts, "ensure_lookup_table"):
+#         bm.verts.ensure_lookup_table()
+
+#     for l, line in enumerate([line for line in ffile.readlines() if '(' in line and line[0].isdigit() and len(line.split(' ')) == int(line[0])]):
+#         newf = bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
+
+#         for facerange in matfacedict.items():
+#             if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
+#                 newf.material_index = matnamedict[facerange[0]]
+
+#     bm.transform(o.matrix_world.inverted())
+#     bm.to_mesh(o.data)
+#     bm.free()
 
 
 def fvmat(self, mn, bound):
-    begin = '\n  {}\n  {{\n    type    '.format(mn)  
+    begin = '\n  {}\n  {{\n    type    '.format(mn)
     end = ';\n  }\n'
-    
+
     if bound == 'p':
         val = 'uniform {}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
         pdict = {'0': self.flovi_bmbp_subtype, '1': self.flovi_bmbp_subtype, '2': 'symmetry', '3': 'empty'}
-        ptdict = {'zeroGradient': 'zeroGradient', 
-                  'fixedValue': 'fixedValue;\n    value    {}'.format(val), 
-                  'calculated': 'calculated;\n    value    $internalField', 
-                  'freestreamPressure': 'freestreamPressure;\n  freestreamValue {}'.format(val), 
+        ptdict = {'zeroGradient': 'zeroGradient',
+                  'fixedValue': 'fixedValue;\n    value    {}'.format(val),
+                  'calculated': 'calculated;\n    value    $internalField',
+                  'freestreamPressure': 'freestreamPressure;\n  freestreamValue {}'.format(val),
                   'fixedMeanOutletInlet': 'fixedMeanOutletInlet;\n    meanValue   {0};\n    value {0}'.format(val),
                   'fixedMean': 'fixedMean;\n    meanValue   {0};\n    value {0}'.format(val),
-                  'totalPressure': 'totalPressure;\n    p0      uniform {};\n    gamma    {};\n    value    {}'.format(self.flovi_bmbp_p0val, self.flovi_bmbp_gamma, val), 
+                  'totalPressure': 'totalPressure;\n    p0      uniform {};\n    gamma    {};\n    value    {}'.format(self.flovi_bmbp_p0val, self.flovi_bmbp_gamma, val),
                   'symmetry': 'symmetry', 'empty': 'empty'}
-        entry = ptdict[pdict[self.flovi_bmb_type]]            
-    
+        entry = ptdict[pdict[self.flovi_bmb_type]]
+
     elif bound == 'U':
         if self.flovi_u_type == '0':
             val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*self.flovi_bmbu_val) if not self.flovi_u_field else '$internalField'
         else:
-            val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(self.flovi_u_speed * sin(pi*self.flovi_u_azi/180), 
-            self.flovi_u_speed * cos(pi*self.flovi_u_azi/180), 0) if not self.flovi_u_field else '$internalField'
+            val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(self.flovi_u_speed * sin(pi*self.flovi_u_azi/180),
+                                                          self.flovi_u_speed * cos(pi*self.flovi_u_azi/180),
+                                                          0) if not self.flovi_u_field else '$internalField'
 
         Udict = {'0': self.flovi_bmbu_subtype, '1': self.flovi_bmbu_subtype, '2': 'symmetry', '3': 'empty'}
-        Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip', 
+        Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip',
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    {}'.format(val),
-                  'pressureInletOutletVelocity': 'pressureInletOutletVelocity;\n    value    {}'.format(val), 
-                  'zeroGradient': 'zeroGradient', 'symmetry': 'symmetry', 
+                  'pressureInletOutletVelocity': 'pressureInletOutletVelocity;\n    value    {}'.format(val),
+                  'zeroGradient': 'zeroGradient', 'symmetry': 'symmetry',
                   'freestream': 'freestream;\n    freestreamValue    $internalField',
                   'calculated': 'calculated;\n    value    $internalField', 'empty': 'empty'}
-        entry = Utdict[Udict[self.flovi_bmb_type]]            
-        
+        entry = Utdict[Udict[self.flovi_bmb_type]]
+
     elif bound == 'nut':
         ndict = {'0': self.flovi_bmbnut_subtype, '1': self.flovi_bmbnut_subtype, '2': 'symmetry', '3': 'empty'}
-        ntdict = {'nutkWallFunction': 'nutkWallFunction;\n    value    $internalField', 'nutUSpaldingWallFunction': 'nutUSpaldingWallFunction;\n    value    $internalField', 
-        'calculated': 'calculated;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',  'symmetry': 'symmetry','empty': 'empty'}
-        entry = ntdict[ndict[self.flovi_bmb_type]]            
+        ntdict = {'nutkWallFunction': 'nutkWallFunction;\n    value    $internalField',
+                  'nutUSpaldingWallFunction': 'nutUSpaldingWallFunction;\n    value    $internalField',
+                  'calculated': 'calculated;\n    value    $internalField',
+                  'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+                  'symmetry': 'symmetry', 'empty': 'empty'}
+        entry = ntdict[ndict[self.flovi_bmb_type]]
 
     elif bound == 'k':
-        val = '{:.4f}'.format(self.flovi_k_val) if not self.flovi_k_field else '$internalField' 
+        val = '{:.4f}'.format(self.flovi_k_val) if not self.flovi_k_field else '$internalField'
         ival = '{:.4f}'.format(self.flovi_k_intensity) if not self.flovi_k_field else '$internalField'
         kdict = {'0': self.flovi_k_subtype, '1': self.flovi_k_subtype, '2': 'symmetry', '3': 'empty'}
-        ktdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 
-                  'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField', 
+        ktdict = {'fixedValue': 'fixedValue;\n    value    $internalField',
+                  'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField',
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
-                  'calculated': 'calculated;\n    value    $internalField', 
-                  'symmetry': 'symmetry', 
-                  'empty': 'empty', 
+                  'calculated': 'calculated;\n    value    $internalField',
+                  'symmetry': 'symmetry',
+                  'empty': 'empty',
                   'turbulentIntensityKineticEnergyInlet': 'turbulentIntensityKineticEnergyInlet;\n    intensity       {};\n    value      {}'.format(ival, val)}
-        entry = ktdict[kdict[self.flovi_bmb_type]]            
+        entry = ktdict[kdict[self.flovi_bmb_type]]
 
     elif bound == 't':
         val = 'uniform {}'.format(self.flovi_bmbt_val) if not self.flovi_t_field else '$internalField'
         ival = 'uniform {}'.format(self.flovi_bmbti_val) if not self.flovi_t_field else '$internalField'
         tdict = {'0': self.flovi_bmbt_subtype, '1': self.flovi_bmbt_subtype, '2': 'symmetry', '3': 'empty'}
-        ttdict = {'zeroGradient': 'zeroGradient', 'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'inletOutlet': 'inletOutlet;\n    inletValue    {}\n    value    {}'.format(ival, val),
-        'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
-        entry = ttdict[tdict[self.flovi_bmb_type]]  
-        
+        ttdict = {'zeroGradient': 'zeroGradient',
+                  'fixedValue': 'fixedValue;\n    value    {}'.format(val),
+                  'inletOutlet': 'inletOutlet;\n    inletValue    {}\n    value    {}'.format(ival, val),
+                  'calculated': 'calculated;\n    value    $internalField',
+                  'symmetry': 'symmetry',
+                  'empty': 'empty'}
+        entry = ttdict[tdict[self.flovi_bmb_type]]
+
     elif bound == 'p_rgh':
         val = 'uniform {:.4f}'.format(self.flovi_prgh_val) if not self.flovi_prgh_field else '$internalField'
         p0val = 'uniform {:.4f}'.format(self.flovi_prgh_p0) if not self.flovi_prgh_field else '$internalField'
         prghdict = {'0': self.flovi_prgh_subtype, '1': self.flovi_prgh_subtype, '2': 'symmetry', '3': 'empty'}
-        prghtdict = {'fixedFluxPressure': 'fixedFluxPressure;\n    value    {}'.format(val), 
-                     'fixedValue': 'fixedValue;\n    value    {}'.format(val), 
-                     'prghEntrainmentPressure': 'prghEntrainmentPressure;\n    p0       $internalField'.format(p0val), 
-                     'calculated': 'calculated;\n    value    $internalField', 
-                     'prghPressure': 'prghPressure;\n    p    $internalField;\n    value    $internalField', 
-                     'freestreamPressure': 'freestreamPressure', 
+        prghtdict = {'fixedFluxPressure': 'fixedFluxPressure;\n    value    {}'.format(val),
+                     'fixedValue': 'fixedValue;\n    value    {}'.format(val),
+                     'prghEntrainmentPressure': 'prghEntrainmentPressure;\n    p0       $internalField'.format(p0val),
+                     'calculated': 'calculated;\n    value    $internalField',
+                     'prghPressure': 'prghPressure;\n    p    $internalField;\n    value    $internalField',
+                     'freestreamPressure': 'freestreamPressure',
                      'prghTotalPressure': 'prghTotalPressure;\n    p0      {};\n    value    {}'.format(p0val, val),
                      'fixedMeanOutletInlet': 'fixedMeanOutletInlet;\n    meanValue   {0};\n    value {0}'.format(val),
                      'fixedMean': 'fixedMean;\n    meanValue   {0};\n    value {0}'.format(val),
                      'symmetry': 'symmetry', 'empty': 'empty'}
-        entry = prghtdict[prghdict[self.flovi_bmb_type]] 
+        entry = prghtdict[prghdict[self.flovi_bmb_type]]
 
     elif bound == 'a':
         val = 'uniform {}'.format(self.flovi_a_val) if not self.flovi_a_field else '$internalField'
         tdict = {'0': self.flovi_a_subtype, '1': self.flovi_a_subtype, '2': 'symmetry', '3': 'empty'}
-        ttdict = {'compressible::alphatWallFunction': 'compressible::alphatWallFunction;\n    value     $internalField', 
+        ttdict = {'compressible::alphatWallFunction': 'compressible::alphatWallFunction;\n    value     $internalField',
                   'compressible::alphatJayatillekeWallFunction': 'compressible::alphatJayatillekeWallFunction;\n    Prt    0.85;\n    value     $internalField',
-                  'fixedValue': 'fixedValue;\n    value    {}'.format(val), 
+                  'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
-        entry = ttdict[tdict[self.flovi_bmb_type]] 
-        
+        entry = ttdict[tdict[self.flovi_bmb_type]]
+
     elif bound == 'e':
         edict = {'0': self.flovi_bmbe_subtype, '1': self.flovi_bmbe_subtype, '2': 'symmetry', '3': 'empty'}
-        etdict = {'symmetry': 'symmetry', 'empty': 'empty', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField', 'fixedValue': 'fixedValue;\n    value    $internalField', 
-                  'epsilonWallFunction': 'epsilonWallFunction;\n    value    $internalField', 'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
-        entry = etdict[edict[self.flovi_bmb_type]]            
-        
+        etdict = {'symmetry': 'symmetry',
+                  'empty': 'empty',
+                  'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
+                  'fixedValue': 'fixedValue;\n    value    $internalField',
+                  'epsilonWallFunction': 'epsilonWallFunction;\n    value    $internalField',
+                  'calculated': 'calculated;\n    value    $internalField'}
+        entry = etdict[edict[self.flovi_bmb_type]]
+
     elif bound == 'o':
         odict = {'0': self.flovi_bmbo_subtype, '1': self.flovi_bmbo_subtype, '2': 'symmetry', '3': 'empty'}
-        otdict = {'symmetry': 'symmetry', 'empty': 'empty', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'zeroGradient': 'zeroGradient', 
-                  'omegaWallFunction': 'omegaWallFunction;\n    value    $internalField', 'fixedValue': 'fixedValue;\n    value    $internalField'}
-        entry = otdict[odict[self.flovi_bmb_type]]            
-        
+        otdict = {'symmetry': 'symmetry',
+                  'empty': 'empty',
+                  'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+                  'zeroGradient': 'zeroGradient',
+                  'omegaWallFunction': 'omegaWallFunction;\n    value    $internalField',
+                  'fixedValue': 'fixedValue;\n    value    $internalField'}
+        entry = otdict[odict[self.flovi_bmb_type]]
+
     elif bound == 'nutilda':
         ntdict = {'0': self.flovi_bmbnutilda_subtype, '1': self.flovi_bmbnutilda_subtype, '2': 'symmetry', '3': 'empty'}
-        nttdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'empty': 'empty', 
-                   'zeroGradient': 'zeroGradient', 'freestream': 'freestream\n    freeStreamValue  $internalField\n', 'symmetry': 'symmetry'} 
-        entry = nttdict[ntdict[self.flovi_bmb_type]]            
-    
+        nttdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'empty': 'empty',
+                   'zeroGradient': 'zeroGradient', 'freestream': 'freestream\n    freeStreamValue  $internalField\n', 'symmetry': 'symmetry'}
+        entry = nttdict[ntdict[self.flovi_bmb_type]]
+
     elif bound == 'G':
         raddict = {'0': self.flovi_rad_subtype, '1': self.flovi_rad_subtype, '2': 'symmetry', '3': 'empty'}
-        radtdict = {'MarshakRadiation': 'MarshakRadiation;\n    emissivityMode    {};\n    emissivity    uniform {};\n    value    uniform {}'.format(self.flovi_rad_em, self.flovi_rad_e, self.flovi_rad_val), 'symmetry': 'symmetry'} 
-        entry = radtdict[raddict[self.flovi_bmb_type]] 
-    
+        radtdict = {'MarshakRadiation': 'MarshakRadiation;\n    emissivityMode    {};\n    emissivity    uniform {};\n    value    uniform {}'.format(self.flovi_rad_em, self.flovi_rad_e, self.flovi_rad_val), 'symmetry': 'symmetry'}
+        entry = radtdict[raddict[self.flovi_bmb_type]]
+
     return begin + entry + end
-    
+
+
 def fvvarwrite(scene, obs, node):
     '''Turbulence modelling: k and epsilon required for kEpsilon, k and omega required for kOmega, nutilda required for SpalartAllmaras, nut required for all
-        Buoyancy modelling: T''' 
+        Buoyancy modelling: T'''
     svp = scene.vi_params
-    if not node.buoyancy:# or (node.buoyancy and not node.buossinesq):
-        pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('0', '2', '-2', '0', '{}'.format(node.pnormval))
-    else:
-        pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('1', '-1', '-2', '0', '{}'.format(node.pabsval))
-        
-    (Uentry, nutildaentry, nutentry, kentry, eentry, oentry, tentry, p_rghentry, aentry, Gentry) = ["dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in ( 
-                                                                                ('0', '1', '-1', '0', '({:.4f} {:.4f} {:.4f})'.format(*node.uval)), 
-                                                                                ('0', '2', '-1', '0', '{:.4f}'.format(node.nutildaval)), 
-                                                                                ('0', '2', '-1', '0', '{:.4f}'.format(node.nutval)), 
-                                                                                ('0', '2', '-2', '0', '{:.4f}'.format(node.kval)), 
-                                                                                ('0', '2', '-3', '0', '{:.4f}'.format(node.epval)), 
-                                                                                ('0', '0', '-1', '0', '{:.4f}'.format(node.oval)),
-                                                                                ('0', '0', '0', '1', '{:.4f}'.format(node.tval)),
-                                                                                ('1', '-1', '-2', '0', '{:.4f}'.format(node.p_rghval)),
-                                                                                ('1', '-1', '-1', '0', '{:.4f}'.format(node.aval)),
-                                                                                ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)))]
-    for o in obs:
-        ovp = o.vi_params
-        
-        for mat in o.data.materials: 
-            mvp = mat.vi_params
-            matname = '{}_{}'.format(o.name, mat.name)
 
-            if mvp.mattype == '2':
-                pentry += mvp.flovi_mat(matname, 'p')
-                Uentry += mvp.flovi_mat(matname, 'U')
+    for frame in range(node.frame_start, node.frame_end + 1):
+        scene.frame_set(frame)
+        frame_of0fb = os.path.join(svp['flparams']['offilebase'], str(frame), '0')
 
-#                if node.turbulence != 'laminar':
-                if node.turbulence != 'laminar':
-                    nutentry += mvp.flovi_mat(matname, 'nut')                    
-                    if node.turbulence ==  'SpalartAllmaras':
-                        nutildaentry += mvp.flovi_mat(matname, 'nutilda')
-                    elif node.turbulence ==  'kEpsilon':
-                        kentry += mvp.flovi_mat(matname, 'k')
-                        eentry += mvp.flovi_mat(matname, 'e')
-                    elif node.turbulence ==  'kOmega':
-                        kentry += mvp.flovi_mat(matname, 'k')
-                        oentry += mvp.flovi_mat(matname, 'o')
-                if node.buoyancy:
-                    tentry += mvp.flovi_mat(matname, 't')
-                    p_rghentry += mvp.flovi_mat(matname, 'p_rgh')
-                    aentry += mvp.flovi_mat(matname, 'a')
-                    if node.radiation:
-                        Gentry += mvp.flovi_mat(matname, 'G')
+        if not os.path.isdir(frame_of0fb):
+            os.makedirs(frame_of0fb)
 
-    pentry += '}'
-    Uentry += '}'
-    nutentry += '}'
-    nutildaentry += '}'
-    kentry += '}'
-    eentry += '}'
-    oentry += '}'
-    tentry += '}'
-    p_rghentry += '}'
-    aentry += '}'
-    Gentry += '}'
-    
-    with open(os.path.join(svp['flparams']['of0filebase'], 'p'), 'w') as pfile:
-        pfile.write(ofheader + write_ffile('volScalarField', '', 'p') + pentry)
-    with open(os.path.join(svp['flparams']['of0filebase'], 'U'), 'w') as Ufile:
-        Ufile.write(ofheader + write_ffile('volVectorField', '', 'U') + Uentry)
+        uval = node.uval if node.uval_type == '0' else (sin(node.uval_azi * pi/180) * node.umag, cos(node.uval_azi * pi/180) * node.umag, 0)
+        print(uval)
+        if not node.buoyancy:  # or (node.buoyancy and not node.buossinesq):
+            pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('0', '2', '-2', '0',
+                                                                                                                '{}'.format(node.pnormval))
+        else:
+            pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('1', '-1', '-2', '0',
+                                                                                                                '{}'.format(node.pabsval))
 
-    if node.turbulence != 'laminar':
-        with open(os.path.join(svp['flparams']['of0filebase'], 'nut'), 'w') as nutfile:
-            nutfile.write(ofheader + write_ffile('volScalarField', '', 'nut') + nutentry)
-        if node.turbulence == 'SpalartAllmaras':
-            with open(os.path.join(svp['flparams']['of0filebase'], 'nuTilda'), 'w') as nutildafile:
-                nutildafile.write(ofheader + write_ffile('volScalarField', '', 'nut') + nutildaentry)
-        if node.turbulence == 'kEpsilon':
-            with open(os.path.join(svp['flparams']['of0filebase'], 'k'), 'w') as kfile:
-                kfile.write(ofheader + write_ffile('volScalarField', '', 'k') + kentry)
-            with open(os.path.join(svp['flparams']['of0filebase'], 'epsilon'), 'w') as efile:
-                efile.write(ofheader + write_ffile('volScalarField', '', 'epsilon') + eentry)
-        if node.turbulence == 'kOmega':
-            with open(os.path.join(svp['flparams']['of0filebase'], 'k'), 'w') as kfile:
-                kfile.write(ofheader + write_ffile('volScalarField', '', 'k') + kentry)
-            with open(os.path.join(svp['flparams']['of0filebase'], 'omega'), 'w') as ofile:
-                ofile.write(ofheader + write_ffile('volScalarField', '', 'omega') + oentry)
+        (Uentry, nutildaentry, nutentry, kentry, eentry, oentry, tentry, p_rghentry, aentry, Gentry) = ["dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in (
+                                                                                    ('0', '1', '-1', '0', '({:.4f} {:.4f} {:.4f})'.format(*uval)),
+                                                                                    ('0', '2', '-1', '0', '{:.4f}'.format(node.nutildaval)),
+                                                                                    ('0', '2', '-1', '0', '{:.4f}'.format(node.nutval)),
+                                                                                    ('0', '2', '-2', '0', '{:.4f}'.format(node.kval)),
+                                                                                    ('0', '2', '-3', '0', '{:.4f}'.format(node.epval)),
+                                                                                    ('0', '0', '-1', '0', '{:.4f}'.format(node.oval)),
+                                                                                    ('0', '0', '0', '1', '{:.4f}'.format(node.tval)),
+                                                                                    ('1', '-1', '-2', '0', '{:.4f}'.format(node.p_rghval)),
+                                                                                    ('1', '-1', '-1', '0', '{:.4f}'.format(node.aval)),
+                                                                                    ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)))]
+        for o in obs:
+            ovp = o.vi_params
 
-    if node.buoyancy:
-        with open(os.path.join(svp['flparams']['of0filebase'], 'T'), 'w') as tfile:
-            tfile.write(ofheader + write_ffile('volScalarField', '', 'T') + tentry)
-        with open(os.path.join(svp['flparams']['of0filebase'], 'alphat'), 'w') as afile:
-            afile.write(ofheader + write_ffile('volScalarField', '', 'alphat') + aentry)
-        with open(os.path.join(svp['flparams']['of0filebase'], 'p_rgh'), 'w') as prghfile:
-            prghfile.write(ofheader + write_ffile('volScalarField', '', 'p_rgh') + p_rghentry)  
-        
-        if node.radiation:
-            with open(os.path.join(svp['flparams']['of0filebase'], 'G'), 'w') as Gfile:
-                Gfile.write(ofheader + write_ffile('volScalarField', '', 'G') + Gentry) 
+            for mat in o.data.materials:
+                mvp = mat.vi_params
+                matname = '{}_{}'.format(o.name, mat.name)
+
+                if mvp.mattype == '2':
+                    pentry += mvp.flovi_mat(matname, 'p')
+                    Uentry += mvp.flovi_mat(matname, 'U')
+
+    #                if node.turbulence != 'laminar':
+                    if node.turbulence != 'laminar':
+                        nutentry += mvp.flovi_mat(matname, 'nut')
+                        if node.turbulence == 'SpalartAllmaras':
+                            nutildaentry += mvp.flovi_mat(matname, 'nutilda')
+                        elif node.turbulence == 'kEpsilon':
+                            kentry += mvp.flovi_mat(matname, 'k')
+                            eentry += mvp.flovi_mat(matname, 'e')
+                        elif node.turbulence == 'kOmega':
+                            kentry += mvp.flovi_mat(matname, 'k')
+                            oentry += mvp.flovi_mat(matname, 'o')
+                    if node.buoyancy:
+                        tentry += mvp.flovi_mat(matname, 't')
+                        p_rghentry += mvp.flovi_mat(matname, 'p_rgh')
+                        aentry += mvp.flovi_mat(matname, 'a')
+
+                        if node.radiation:
+                            Gentry += mvp.flovi_mat(matname, 'G')
+
+        pentry += '}'
+        Uentry += '}'
+        nutentry += '}'
+        nutildaentry += '}'
+        kentry += '}'
+        eentry += '}'
+        oentry += '}'
+        tentry += '}'
+        p_rghentry += '}'
+        aentry += '}'
+        Gentry += '}'
+
+        with open(os.path.join(frame_of0fb, 'p'), 'w') as pfile:
+            pfile.write(ofheader + write_ffile('volScalarField', '', 'p') + pentry)
+        with open(os.path.join(frame_of0fb, 'U'), 'w') as Ufile:
+            Ufile.write(ofheader + write_ffile('volVectorField', '', 'U') + Uentry)
+
+        if node.turbulence != 'laminar':
+            with open(os.path.join(frame_of0fb, 'nut'), 'w') as nutfile:
+                nutfile.write(ofheader + write_ffile('volScalarField', '', 'nut') + nutentry)
+
+            if node.turbulence == 'SpalartAllmaras':
+                with open(os.path.join(frame_of0fb, 'nuTilda'), 'w') as nutildafile:
+                    nutildafile.write(ofheader + write_ffile('volScalarField', '', 'nut') + nutildaentry)
+
+            if node.turbulence == 'kEpsilon':
+                with open(os.path.join(frame_of0fb, 'k'), 'w') as kfile:
+                    kfile.write(ofheader + write_ffile('volScalarField', '', 'k') + kentry)
+                with open(os.path.join(frame_of0fb, 'epsilon'), 'w') as efile:
+                    efile.write(ofheader + write_ffile('volScalarField', '', 'epsilon') + eentry)
+
+            if node.turbulence == 'kOmega':
+                with open(os.path.join(frame_of0fb, 'k'), 'w') as kfile:
+                    kfile.write(ofheader + write_ffile('volScalarField', '', 'k') + kentry)
+                with open(os.path.join(frame_of0fb, 'omega'), 'w') as ofile:
+                    ofile.write(ofheader + write_ffile('volScalarField', '', 'omega') + oentry)
+
+        if node.buoyancy:
+            with open(os.path.join(frame_of0fb, 'T'), 'w') as tfile:
+                tfile.write(ofheader + write_ffile('volScalarField', '', 'T') + tentry)
+            with open(os.path.join(frame_of0fb, 'alphat'), 'w') as afile:
+                afile.write(ofheader + write_ffile('volScalarField', '', 'alphat') + aentry)
+            with open(os.path.join(frame_of0fb, 'p_rgh'), 'w') as prghfile:
+                prghfile.write(ofheader + write_ffile('volScalarField', '', 'p_rgh') + p_rghentry)
+
+            if node.radiation:
+                with open(os.path.join(frame_of0fb, 'G'), 'w') as Gfile:
+                    Gfile.write(ofheader + write_ffile('volScalarField', '', 'G') + Gentry)
+
 
 def fvmattype(mat, var):
     if mat.flovi_bmb_type == '0':
@@ -480,15 +543,16 @@ def fvmattype(mat, var):
     elif mat.flovi_bmb_type == '3':
         matbptype = 'empty'
         matbUtype = 'empty'
-    
+
+
 def fvcdwrite(svp, dp, solver, st, dt, et):
     pw = 0 if solver == 'icoFoam' else 1
     ps, ss, bs = [], [], []
     htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
-    cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '{}'.format(st), 'stopAt': 'endTime', 
-            'endTime': '{}'.format(et), 'deltaT': '{:.5f}'.format(dt), 'writeControl': 'timeStep', 'writeInterval': '1', 
-            'purgeWrite': '{}'.format(pw), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
-            'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}}
+    cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '{}'.format(st), 'stopAt': 'endTime',
+             'endTime': '{}'.format(et), 'deltaT': '{:.5f}'.format(dt), 'writeControl': 'timeStep', 'writeInterval': '1',
+             'purgeWrite': '{}'.format(pw), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
+             'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}}
 
     for o in bpy.data.objects:
         ovp = o.vi_params
@@ -497,7 +561,10 @@ def fvcdwrite(svp, dp, solver, st, dt, et):
         elif o.type == 'EMPTY' and ovp.flovi_probe:
             ps.append(o)
         elif o.type == 'MESH' and ovp.vi_type == '6':
-            ovp.write_stl(dp, os.path.join(svp['flparams']['offilebase'], 'constant', 'triSurface', '{}.stl'.format(o.name)))
+            for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
+                if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface')):
+                    os.makedirs(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface'))
+                    ovp.write_stl(dp, os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface', '{}.stl'.format(o.name)))
             ss.append(o.name)
         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
             for mat in o.data.materials:
@@ -505,13 +572,13 @@ def fvcdwrite(svp, dp, solver, st, dt, et):
                     bs.append('{}_{}'.format(o.name, mat.name))
 
     if ps:
-        bpy.context.scene.vi_params['flparams']['probes'] = [p.name for p in ps]
-        probe_vars = 'p U T'  
+        svp['flparams']['probes'] = [p.name for p in ps]
+        probe_vars = 'p U T'
 
         for p in ps:
             cdict['functions'][p.name] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name), 'writeControl': 'timeStep',
-                                          'writeInterval': '1', 'fields': '({0})'.format(probe_vars), 
-                                          'probeLocations\n(\n{}\n)'.format('( {0[0]} {0[1]} {0[2]} )'.format(p.location)): ''}        
+                                          'writeInterval': '1', 'fields': '({0})'.format(probe_vars),
+                                          'probeLocations\n(\n{}\n)'.format('   ({0[0]} {0[1]} {0[2]})'.format(p.location)): ''}
 
         probe_text = '''functions
 {{
@@ -528,12 +595,12 @@ def fvcdwrite(svp, dp, solver, st, dt, et):
             {1}
         );
     }}
-}}'''.format(probe_vars, ''.join(['( {0[0]} {0[1]} {0[2]} )\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name) for p in ps]))
+}}'''.format(probe_vars, ''.join([' ({0[0]} {0[1]} {0[2]})\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name) for p in ps]))
 
     else:
         probe_text = ''
         bpy.context.scene.vi_params['flparams']['probes'] = []
-    
+
     bpy.context.scene.vi_params['flparams']['s_probes'] = ss
     bpy.context.scene.vi_params['flparams']['b_probes'] = bs
         # for o in ss:
@@ -541,19 +608,18 @@ def fvcdwrite(svp, dp, solver, st, dt, et):
         #         'writeControl': 'timeStep', 'writeInterval': '1', 'writeFields': 'false', 'log': 'true', 'operation': 'average',
         #         'fields': '(U)', 'operation': 'areaNormalIntegrate', 'regionType': 'sampledSurface', 'surfaceFormat': 'stl',
         #         'sampledSurfaceDict': {'type': 'triSurfaceMesh', 'surface': '{}.stl'.format(o.name), 'source': 'cells', 'interpolate': 'true'}}
-        
 
     if bs:
-        
         for b in bs:
-            cdict['functions'][b] = {'type':'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'writeTime',
-            'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b), 'operation': 'none',
-            'fields    (      p    )': ''}
+            cdict['functions'][b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'writeTime',
+                                     'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
+                                     'operation': 'none', 'fields    (      p    )': ''}
     return write_fvdict(htext, cdict)
     return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
-            'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {:.5f};\n'.format(solver, st, et, dt)+\
-            'deltaT          {:.5f};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\
-            'writeCompression off;\ntimeFormat      general;\ntimePrecision   6;\nrunTimeModifiable true;\n\n' + probe_text
+           'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {:.5f};\n'.format(solver, st, et) +\
+           'deltaT          {:.5f};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw) +\
+           'writeCompression off;\ntimeFormat      general;\ntimePrecision   6;\nrunTimeModifiable true;\n\n' + probe_text
+
 
 def fvprefwrite(node):
     htext = ofheader + write_ffile('uniformDimensionedScalarField', 'constant', 'pRef')
@@ -573,6 +639,15 @@ def fvsolwrite(node, features):
     soldict['SIMPLE']['residualControl'] = {}
     soldict['SIMPLE']['residualControl']['U'] = '{:.5f}'.format(node.uresid)
     soldict['SIMPLE']['nNonOrthogonalCorrectors'] = '0'
+
+    if node.p_ref != '0':
+        soldict['SIMPLE']['pRefValue'] = '{}'.format(node.p_ref_val)
+
+        if node.p_ref:
+            soldict['SIMPLE']['pRefPoint'] = '({0[0]} {0[1]} {0[2]})'.format(bpy.data.objects[node.p_ref_point].location)
+        else:
+            soldict['SIMPLE']['pRefCell'] = '0'
+
     soldict['relaxationFactors' ] = {}
     soldict['relaxationFactors']['equations'] = {}
     soldict['relaxationFactors']['equations']['U'] = '0.7'
@@ -583,9 +658,9 @@ def fvsolwrite(node, features):
 
 #     if not features['turb']:
 #         soldict['solvers']['U'] = {'solver': 'GAMG', 'smoother': 'GaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}
-# # #        soldict['SIMPLE']['nNonOrthogonalCorrectors'] = '0'    
-# #         # soldict['solvers']['p'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.05'} 
-        
+# # #        soldict['SIMPLE']['nNonOrthogonalCorrectors'] = '0'
+# #         # soldict['solvers']['p'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.05'}
+
 
     if features['turb']:
     #    soldict['solvers']['"U|k|epsilon|omega|nuTilda"'] = {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}
@@ -593,24 +668,20 @@ def fvsolwrite(node, features):
         soldict['relaxationFactors']['equations']['"(k|epsilon|omega|nuTilda)"'] = '0.7'
 
     if not features['buoy']:
-        soldict['SIMPLE']['residualControl']['p'] = '{:.5f}'.format(node.presid)  
+        soldict['SIMPLE']['residualControl']['p'] = '{:.5f}'.format(node.presid)
         soldict['solvers']['U'] = {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'}
 #        soldict['solvers']['p'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.05'}
         soldict['relaxationFactors']['fields'] = {'p': '0.3'}
         soldict['potentialFlow'] = {'nNonOrthogonalCorrectors': '10'}
 
     else:
-        
         soldict['SIMPLE']['residualControl']['p_rgh'] = '{:.5f}'.format(node.presid)
-        soldict['solvers'] = {} 
+        soldict['solvers'] = {}
         soldict['relaxationFactors']['fields'] = {'p_rgh': '0.3'}
-        
 
         if not features['buoss']:
-            soldict['SIMPLE']['pRefValue'] = '{}'.format(node.p_rghval)
-            soldict['SIMPLE']['pRefPoint'] = '(0 0 0)'
             soldict['solvers']['p_rgh'] = {'solver': 'GAMG', 'smoother': 'DICGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.01'}
-            soldict['solvers']['"(U|h|k|epsilon|omega|nuTilda)"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.01'}            
+            soldict['solvers']['"(U|h|k|epsilon|omega|nuTilda)"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.01'}
             soldict['SIMPLE']['residualControl']['h'] = '{:.5f}'.format(node.enresid)
             soldict['relaxationFactors']['equations']['rho'] = '1'
             soldict['relaxationFactors']['fields']['p_rgh'] = '0.3'
@@ -620,11 +691,11 @@ def fvsolwrite(node, features):
             soldict['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-06', 'relTol': '0.01'}
             soldict['solvers']['"(U|e|k|epsilon|omega|nuTilda)"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}
             soldict['SIMPLE']['residualControl']['e'] = '{:.5f}'.format(node.enresid)
-            soldict['relaxationFactors']['fields']  = {'p_rgh': '0.7'}
+            soldict['relaxationFactors']['fields'] = {'p_rgh': '0.7'}
             soldict['relaxationFactors']['equations']['e'] = '0.1'
 
     if features['rad']:
-        soldict['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}    
+        soldict['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}
         soldict['SIMPLE']['residualControl']['G'] = '1e-3'
         soldict['relaxationFactors']['equations']['G'] = '0.7'
 
@@ -633,14 +704,14 @@ def fvsolwrite(node, features):
     # soldict = {'lsf': {'solvers': {'p': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.05'},
     #                             'pFinal': {'$p': '', 'relTol': '0'},
     #                             'U': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'}},
-    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0', 
+    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0',
     #                            'residualControl': {'p': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
     #                            'potentialFlow': {'nNonOrthogonalCorrectors': '10'},
     #                            'relaxationFactors': {'fields': {'p': '0.3'}, 'equations': {'U': '0.7', '"(k|epsilon|omega)"': '0.7'}}},
     #             'sf': {'solvers': {'p': {'solver': 'GAMG', 'smoother': 'GaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'},
     #                                'U': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'},
-    #                                 '"k|epsilon|omega"': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}}, 
-    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0', 
+    #                                 '"k|epsilon|omega"': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}},
+    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0',
     #                            'residualControl': {'p': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
     #                            'potentialFlow': {'nNonOrthogonalCorrectors': '10'},
     #                            'relaxationFactors': {'fields': {'p': '0.3'}, 'equations': {'U': '0.7', '"(k|epsilon|omega)"': '0.7'}}},
@@ -651,33 +722,34 @@ def fvsolwrite(node, features):
     #                     'relaxationFactors': {'rho': '1', 'p_rgh': '0.7', 'U': '0.3', 'h': '0.7', '"(k|epsilon|omega)"': '0.3'}},
     #             'bbsf': {'solvers': {'p_rgh': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-06', 'relTol': '0.01'},
     #                                 '"(U|e|k|epsilon|omega)"': {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}},
-    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 
+    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0',
     #                     'residualControl': {'p_rgh': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), 'e': '{:.5f}'.format(node.enresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
     #                     'relaxationFactors': {'fields': {'p_rgh': '0.7'}, 'equations':{'U': '0.2', 'e': '0.1', '"(k|epsilon|R|omega)"': '0.7'}}}}
-    
+
     # if node.buoyancy and node.radiation:
     #     soldict[solver]['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}
     #     soldict[solver]['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance' : '1e-06', 'relTol': '0.01'}
     #     soldict[solver]['SIMPLE']['residualControl']['G'] = '1e-3'
     #     soldict[solver]['relaxationFactors']= {'fields': {'rho': '1.0', 'p_rgh': '0.7'}, 'equations': {'U': '0.2', 'h': '0.2', '"(k|epsilon|omega|R)"': '0.5', 'G': '0.7'}}
-    
+
     # return write_fvdict(htext, soldict[solver])
     return write_fvdict(htext, soldict)
- 
-def fvtppwrite(node, features): 
+
+
+def fvtppwrite(node, features):
     htext = ofheader + write_ffile('dictionary', 'constant', 'thermophysicalProperties')
 
     if not features['buoss']:
-        tppdict = {'thermoType': {'type': 'heRhoThermo', 'mixture': 'pureMixture', 
-                    'transport': 'const', 'thermo': 'hConst', 'equationOfState': 'perfectGas', 
-                    'specie': 'specie', 'energy': 'sensibleEnthalpy'},
-                    'mixture': {'specie': {'molWeight': '28.96'},
-                    'thermodynamics': {'Cp': '1004.4', 'Hf': '0'},
-                    'transport': {'mu': '1e-05', 'Pr': '0.7'}}}
+        tppdict = {'thermoType': {'type': 'heRhoThermo', 'mixture': 'pureMixture',
+                                  'transport': 'const', 'thermo': 'hConst', 'equationOfState': 'perfectGas',
+                                  'specie': 'specie', 'energy': 'sensibleEnthalpy'},
+                   'mixture': {'specie': {'molWeight': '28.96'},
+                               'thermodynamics': {'Cp': '1004.4', 'Hf': '0'},
+                               'transport': {'mu': '1e-05', 'Pr': '0.7'}}}
 
     else:
-        tppdict = {'thermoType': {'type': 'heRhoThermo', 'mixture': 'pureMixture', 
-                    'transport': 'const', 'thermo': 'eConst', 'equationOfState': 'Boussinesq', 
+        tppdict = {'thermoType': {'type': 'heRhoThermo', 'mixture': 'pureMixture',
+                    'transport': 'const', 'thermo': 'eConst', 'equationOfState': 'Boussinesq',
                     'specie': 'specie', 'energy': 'sensibleInternalEnergy'},
                     'mixture': {'specie': {'molWeight': '28.96'},
                     'equationOfState': {'rho0': '1', 'T0': '300', 'beta': '3e-03'},
@@ -685,7 +757,7 @@ def fvtppwrite(node, features):
                     'transport': {'mu': '1e-05', 'Pr': '0.7'}}}
     return write_fvdict(htext, tppdict)
 
- 
+
 def fvmtwrite(node, features):
     mtdict = {}
     mtdict['RAS'] = {}
@@ -695,7 +767,7 @@ def fvmtwrite(node, features):
         mtdict['RAS']['model'] = 'laminar'
         mtdict['RAS']['turbulence'] = 'off'
         mtdict['RAS']['printCoeffs'] = 'off'
-        
+
     else:
         mtdict['simulationType'] = 'RAS'
         mtdict['RAS']['model'] = node.turbulence
@@ -703,68 +775,68 @@ def fvmtwrite(node, features):
         mtdict['RAS']['printCoeffs'] = 'on'
 
     htext = ofheader + write_ffile('dictionary', 'constant', ('RASProperties', 'momentumTransport')[features['buoss']])
-    # mtdict = {'bbsf': {'simulationType': 'RAS', 'RAS': {'model': '{}'.format(node.turbulence), 'turbulence': 'on', 'printCoeffs': 'on'}}, 
+    # mtdict = {'bbsf': {'simulationType': 'RAS', 'RAS': {'model': '{}'.format(node.turbulence), 'turbulence': 'on', 'printCoeffs': 'on'}},
     #             'sf': {'simulationType': 'RAS', 'RAS': {'model': '{}'.format(node.turbulence), 'turbulence': 'on', 'printCoeffs': 'on'}},
     #             'bsf':{'simulationType': 'RAS', 'RAS': {'model': '{}'.format(node.turbulence), 'turbulence': 'on', 'printCoeffs': 'on'}},
     #             'lsf':{'simulationType': 'laminar', 'RAS': {'model': '{}'.format(node.turbulence), 'turbulence': 'off', 'printCoeffs': 'off'}}}
     return write_fvdict(htext, mtdict)
 
-    # {'simulationType': 'RAS', 'p_rgh': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-8', 'relTol': '0.01'}, 
+    # {'simulationType': 'RAS', 'p_rgh': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-8', 'relTol': '0.01'},
     #                  '"(U|e|k|omega|epsilon)"': {'solver': 'PBiCGStab', 'preconditioner':'DILU;', 'tolerance': '1e-7', 'relTol': '0.1'}}
     # text = ofheader + write_ffile('dictionary', 'constant', ('momentumTransport', 'RASProperties')[solver == 'bsf']) + '\nsimulationType RAS;\n\n'
 
     # for sol in ras[solver]:
     #     if sol != 'names':
-    #         text += sol + '\n  {\n' + ';\n'.join(['    {} {}'.format(s, ras[solver][sol][si]) for si, s in enumerate(ras[solver]['names'])]) + ';\n}' 
+    #         text += sol + '\n  {\n' + ';\n'.join(['    {} {}'.format(s, ras[solver][sol][si]) for si, s in enumerate(ras[solver]['names'])]) + ';\n}'
     # return text
 
-    
-def fvtpwrite():    
+
+def fvtpwrite():
     htext = ofheader + write_ffile('dictionary', 'constant', 'transportProperties')
     tpdict = {'transportModel': 'Newtonian', 'nu': '[0 2 -1 0 0 0 0] 1e-05'}
-    # tpdict = {'lsf': {'transportModel': 'Newtonian', 
+    # tpdict = {'lsf': {'transportModel': 'Newtonian',
     #           'nu': '[0 2 -1 0 0 0 0] 1e-05'},
-    #           'sf': {'transportModel': 'Newtonian', 
+    #           'sf': {'transportModel': 'Newtonian',
     #           'nu': '[0 2 -1 0 0 0 0] 1e-05'}}
     return write_fvdict(htext, tpdict)
 
 
 def fvrpwrite(node):
     htext = ofheader + write_ffile('dictionary', 'constant', 'radiationProperties')
-    raddict = {'0': {'radiation': 'on', 'radiationModel': 'P1', 
+    raddict = {'0': {'radiation': 'on', 'radiationModel': 'P1',
                 'solverFreq': '1', 'absorptionEmissionModel': 'constant',
-                'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'}, 
+                'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'},
                 'scatterModel': 'none', 'sootModel': 'none'},
                 '1': {'radiation': 'on', 'radiationModel': 'fvDOM',
-                'fvDOMCoeffs': {'nPhi': '0.5', 'nTheta': '0.5', 'tolerance': '1e-3', 'maxIter': '10'}, 
-                'solverFreq':'10', 'absorptionEmissionModel':'constant', 
-                'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'}, 
+                'fvDOMCoeffs': {'nPhi': '0.5', 'nTheta': '0.5', 'tolerance': '1e-3', 'maxIter': '10'},
+                'solverFreq':'10', 'absorptionEmissionModel':'constant',
+                'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'},
                 'scatterModel': 'none', 'sootModel': 'none'}}
     if node.solar:
-        raddict[node.radmodel]['SolarLoadCoeffs'] = {'sunDirectionModel': 'sunDirConstant', 
+        raddict[node.radmodel]['SolarLoadCoeffs'] = {'sunDirectionModel': 'sunDirConstant',
         'sunDirection': '({0[0]} {0[1]} {0[2]})'.format(-bpy.data.objects[node.sun].location), 'gridUp': '(0 0 1)', 'gridEast': '(1 0 0)',
-        'sunLoadModel': 'sunLoadFairWeatherConditions', 'skyCloudCoverFraction': '0', 'A': '1088', 'B': '0.205', 'groundReflectivity': '0.2', 
+        'sunLoadModel': 'sunLoadFairWeatherConditions', 'skyCloudCoverFraction': '0', 'A': '1088', 'B': '0.205', 'groundReflectivity': '0.2',
         'C': '0.134', 'useReflectedRays': 'true', 'reflecting': {'nPhi': '10', 'nTheta': '10'}, 'absorptionEmissionModel': 'none',
 	    'scatterModel': 'none', 'sootModel': 'none'}
 
 #    soldict = {'SolarLoadCoeffs': {'sunDirectionModel': 'sunDirConstant', 'sunDirection': '({0[0]} {0[1]} {0[2]})'.format(-bpy.data.lights[node.sun].location)}}
-    
+
     return (write_fvdict(htext, raddict[node.radmodel]))
     # raddict = p1dict if node.radmodel == '0' else fvdomdict
-    
-    
+
+
     # for d in raddict:
     #     if isinstance(raddict[d], str):
-    #         text += '{} {};\n\n'.format(d,raddict[d]) 
+    #         text += '{} {};\n\n'.format(d,raddict[d])
     #     elif isinstance(raddict[d], dict):
     #         text += '{}\n{{\n'.format(d)
     #         for sd in raddict[d]:
     #             if isinstance(raddict[d][sd], str):
-    #                 text += '    {} {};\n'.format(sd, raddict[d][sd]) 
+    #                 text += '    {} {};\n'.format(sd, raddict[d][sd])
     #         text += '}\n'
     # return text
-    
-    
+
+
 def fvschwrite(node, features):
     scdict = {}
     scdict['ddtSchemes'] = {'default': 'steadyState'}
@@ -778,43 +850,43 @@ def fvschwrite(node, features):
     scdict['snGradSchemes'] = {}
     scdict['snGradSchemes']['default'] = 'corrected'
 
-    if not features['turb']:               
-#        scdict['gradSchemes']['limited'] = 'cellLimited Gauss linear 1'        
+    if not features['turb']:
+#        scdict['gradSchemes']['limited'] = 'cellLimited Gauss linear 1'
         scdict['divSchemes']['div((nuEff*dev2(T(grad(U)))))'] =  'Gauss linear'
         scdict['divSchemes']['div(phi,U)'] =  'bounded Gauss linearUpwind limited'
         scdict['laplacianSchemes']['default'] = 'Gauss linear corrected'
-        
+
     else:
-#        scdict['gradSchemes']['limited'] = 'cellLimited Gauss linear 1'        
+#        scdict['gradSchemes']['limited'] = 'cellLimited Gauss linear 1'
 #        scdict['divSchemes']['turbulence'] = 'bounded Gauss limitedLinear 1'
         scdict['divSchemes']['div((nuEff*dev2(T(grad(U)))))'] = 'Gauss linear'
         scdict['divSchemes']['div(phi,U)'] = 'bounded Gauss linearUpwind limited'
 
         if features['turb'] == 'kE':
             scdict['divSchemes']['div(phi,k)'] = 'bounded Gauss limitedLinear 1'
-            scdict['divSchemes']['div(phi,epsilon)'] = 'bounded Gauss limitedLinear 1' 
+            scdict['divSchemes']['div(phi,epsilon)'] = 'bounded Gauss limitedLinear 1'
 #            scdict['gradSchemes']['grad(k)'] = '$limited'
-#            scdict['gradSchemes']['grad(epsilon)'] = '$limited' 
+#            scdict['gradSchemes']['grad(epsilon)'] = '$limited'
         elif features['turb'] == 'kO':
             scdict['divSchemes']['div(phi,k)'] = 'bounded Gauss limitedLinear 1'
-            scdict['divSchemes']['div(phi,omega)'] = 'bounded Gauss limitedLinear 1' 
+            scdict['divSchemes']['div(phi,omega)'] = 'bounded Gauss limitedLinear 1'
 #            scdict['gradSchemes']['grad(k)'] = '$limited'
-#            scdict['gradSchemes']['grad(omega)'] = '$limited' 
+#            scdict['gradSchemes']['grad(omega)'] = '$limited'
         elif features['turb'] == 'sA':
-            scdict['divSchemes']['div(phi,nuTilda)'] = 'bounded Gauss limitedLinear 1'  
+            scdict['divSchemes']['div(phi,nuTilda)'] = 'bounded Gauss limitedLinear 1'
             scdict['gradSchemes']['grad(nuTilda)'] = 'bounded Gauss limitedLinear 1'
 
         scdict['laplacianSchemes']['default'] = 'Gauss linear corrected'
-        
+
 
 #    if not features['buoy']:
 #        scdict['gradSchemes']['grad(U)'] = '$limited'
-  
+
     if features['buoy']:
         scdict['divSchemes']['div(((rho*nuEff)*dev2(T(grad(U)))))'] = 'Gauss linear'
 
         if not features['buoss']:
-#            scdict['divSchemes']['turbulence'] = 'bounded Gauss upwind'            
+#            scdict['divSchemes']['turbulence'] = 'bounded Gauss upwind'
 #            scdict['divSchemes']['div(phi,U)'] = 'bounded Gauss limitedLinear 0.2'
             scdict['divSchemes']['div(phi,K)'] = 'bounded Gauss limitedLinear 0.2'
             scdict['divSchemes']['div(phi,h)'] = 'bounded Gauss limitedLinear 0.2'
@@ -825,9 +897,10 @@ def fvschwrite(node, features):
 #            scdict['divSchemes']['div(phi,U)'] = 'bounded Gauss upwind',
             scdict['divSchemes']['div(phi,Ekp)'] = 'bounded Gauss linear'
 #            scdict['laplacianSchemes']['default'] = 'Gauss linear corrected'
-       
-    htext = ofheader + write_ffile('dictionary', 'system', 'fvSchemes') 
+
+    htext = ofheader + write_ffile('dictionary', 'system', 'fvSchemes')
     return write_fvdict(htext, scdict)
+
 
 def fvgwrite():
     htext = ofheader + write_ffile('uniformDimensionedVectorField', '"constant"', 'g')
@@ -841,24 +914,24 @@ def fvshmlayers(oname, node):
                 "2": (("finalLayerThickness", node.fnlayer), ("expansionRatio", node.expansion)),
                 "3": (("finalLayerThickness", node.fnlayer), ("thickness", node.olayer)),
                 "4": (("thickness", node.olayer), ("expansionRatio", node.expansion))}
-    
-    
+
+
     return 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n  }}\n\n'.format(oname, node.layers)
     '  expansionRatio 1.0;\n  finalLayerThickness 0.3;\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 3;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n' + \
     '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
 
 
-def fvshmwrite(node, fvos, bmo, **kwargs):     
+def fvshmwrite(node, fvos, bmo, **kwargs):
     surfdict = {"0": ("firstLayerThickness", node.frlayer, "thickness", node.olayer),
                 "1": ("firstLayerThickness", node.frlayer, "expansionRatio", node.expansion),
                 "2": ("finalLayerThickness", node.fnlayer, "expansionRatio", node.expansion),
                 "3": ("finalLayerThickness", node.fnlayer, "thickness", node.olayer),
                 "4": ("thickness", node.olayer, "expansionRatio", node.expansion)}
-    
-    layersurf = '({}|{})'.format(kwargs['ground'][0].name, fvos[0].name) if kwargs and kwargs['ground'] else fvos[0].name 
+
+#    layersurf = '({}|{})'.format(kwargs['ground'][0].name, fvos[0].name) if kwargs and kwargs['ground'] else fvos[0].name
     ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    object      snappyHexMeshDict;\n}\n\n'
     ofheader += 'castellatedMesh    {};\nsnap    {};\naddLayers    {};\ndebug    {};\n\n'.format('true', 'true', ('false', 'true')[node.layers], 0)
-    
+
     ofheader += 'geometry\n{\n'
 
     for o in fvos:
@@ -872,10 +945,10 @@ def fvshmwrite(node, fvos, bmo, **kwargs):
         ofheader += '    {{\n      file "{}.eMesh";\n      level {};\n    }}\n\n'.format(o.name, o.flovi_fl)
 
     ofheader += ');\n\n'
-    ofheader +='  refinementSurfaces\n  {\n'
+    ofheader += '  refinementSurfaces\n  {\n'
 
     for o in fvos:
-        ofheader += '    {}\n    {{\n      level ({} {});\n    }}\n\n  '.format(o.name, o.flovi_slmin, o.flovi_slmax) 
+        ofheader += '    {}\n    {{\n      level ({} {});\n    }}\n\n  '.format(o.name, o.flovi_slmin, o.flovi_slmax)
 
     ofheader += '};\n\n'
     ofheader += '  resolveFeatureAngle 30;\n  refinementRegions\n  {}\n\n'
@@ -914,41 +987,40 @@ def fvsfewrite(fvos):
 
 def fvobjwrite(scene, fvos, bmo):
     objheader = '# FloVi obj exporter\n'
-#    bmomw, bmovs = bmo.matrix_world, [vert for vert in bmo.data.vertices]
-    for o in fvos:
-        with open(os.path.join(scene['flparams']['ofctsfilebase'], '{}.obj'.format(o.name)), 'w') as objfile:
-            bm = bmesh.new()
-            tempmesh = o.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
-            bm.from_mesh(tempmesh)
-            bm.transform(o.matrix_world)
-            bm.transform(mathutils.Matrix.Translation(bmo['flovi_translate']))
-            bpy.data.meshes.remove(tempmesh)
-#            omw, ovs = o.matrix_world, [vert for vert in o.data.vertices]
-#            xvec, yvec, zvec = (bmomw*bmovs[3].co - bmomw*bmovs[0].co).normalized(), (bmomw*bmovs[2].co - bmomw*bmovs[3].co).normalized(), (bmomw*bmovs[4].co - bmomw*bmovs[0].co).normalized() 
-#            ofvpos = [[(omw*ov.co - bmomw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for ov in ovs]
-#            bm = bmesh.new()
-#            bm.from_mesh(o.data)
-#            vcos = ''.join(['v {} {} {}\n'.format(*ofvpo) for ofvpo in ofvpos])    
-            vcos =  ''.join(['v {0[0]} {0[1]} {0[2]}\n'.format(v.co) for v in bm.verts])    
-            objfile.write(objheader+vcos)
-            for m, mat in enumerate(o.data.materials):
-                objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces = bm.faces)['faces'] if f.material_index == m]))
-            objfile.write('#{}'.format(len(bm.faces)))
-            bm.free()
+    svp = scene.vi_params
+
+    for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
+        for o in fvos:
+            with open(os.path.join(scene['flparams']['offilebase'], str(frame), 'constant', 'trisurface', '{}.obj'.format(o.name)), 'w') as objfile:
+                bm = bmesh.new()
+                tempmesh = o.to_mesh(scene=scene, apply_modifiers=True, settings='PREVIEW')
+                bm.from_mesh(tempmesh)
+                bm.transform(o.matrix_world)
+                bm.transform(mathutils.Matrix.Translation(bmo['flovi_translate']))
+                bpy.data.meshes.remove(tempmesh)
+                vcos = ''.join(['v {0[0]} {0[1]} {0[2]}\n'.format(v.co) for v in bm.verts])
+                objfile.write(objheader+vcos)
+
+                for m, mat in enumerate(o.data.materials):
+                    objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces=bm.faces)['faces'] if f.material_index == m]))
+
+                objfile.write('#{}'.format(len(bm.faces)))
+                bm.free()
+
 
 def oftomesh(ofb, vl, fomats, st, ns, nf):
-    mesh = bpy.data.meshes.new("mesh") 
+    mesh = bpy.data.meshes.new("mesh")
     vcoords = []
     findices = []
     fi = []
     fn = 0
-    prevline = ''    
-        
+    prevline = ''
+
     with open(os.path.join(ofb, st, 'polyMesh', 'points'), 'r') as mfile:
         for line in mfile.readlines():
             if '(' in line and ')' in line:
                 vcoords.append([float(x) for x in line.split('(')[1].split(')')[0].split()])
-                
+
     with open(os.path.join(ofb, st, 'polyMesh', 'faces'), 'r') as mfile:
         for line in mfile.readlines():
             if line:
@@ -958,14 +1030,14 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
                         fn -= 1
                     except:
                         pass
-                        
+
                 if not fn and fi:
-                    findices.append(fi) 
-                    fi = []  
+                    findices.append(fi)
+                    fi = []
                     fn = 0
                 elif '(' in line and ')' in line:
                     findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
-                    
+
                 else:
                     try:
                         if prevline == '\n' and int(line) < 100:
@@ -973,21 +1045,21 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
                     except:
                         fn = 0
             prevline = line
-    
+
     mesh.from_pydata(vcoords, [], findices)
     o = bpy.data.objects.new('Mesh', mesh)
     o.vi_params.vi_type_string = 'FloVi Mesh'
     o.show_wire = True
     bpy.context.view_layer.active_layer_collection.collection.objects.link(o)
     selobj(vl, o)
-    
+
     for mat in fomats:
         bpy.ops.object.material_slot_add()
         o.material_slots[-1].material = mat
-        
+
     bpy.ops.object.material_slot_add()
     o.material_slots[-1].material = bpy.data.materials.new("Volume") if 'Volume' not in [m.name for m in bpy.data.materials] else bpy.data.materials["Volume"]
-    
+
     for face in o.data.polygons:
         mi = 0
         for ni, n in enumerate(ns):
@@ -995,41 +1067,41 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
                 face.material_index = ni
                 mi = 1
         if not mi:
-            face.material_index = len(ns)   
+            face.material_index = len(ns)
 
 # scdict = {'lsf': {'ddtSchemes': {'default': 'steadyState'},
-    #                   'gradSchemes': {'default': 'Gauss linear', 
-    #                                   'limited': 'cellLimited Gauss linear 1', 
+    #                   'gradSchemes': {'default': 'Gauss linear',
+    #                                   'limited': 'cellLimited Gauss linear 1',
     #                                   'grad(U)': '$limited'},
-    #                   'divSchemes': {'default': 'none', 
-    #                                  'div((nuEff*dev2(T(grad(U)))))': 'Gauss linear', 
+    #                   'divSchemes': {'default': 'none',
+    #                                  'div((nuEff*dev2(T(grad(U)))))': 'Gauss linear',
     #                                  'div(phi,U)': 'bounded Gauss linearUpwind limited'},
     #                'laplacianSchemes': {'default': 'Gauss linear corrected'},
     #                'interpolationSchemes': {'default': 'linear'},
     #                'snGradSchemes': {'default': 'corrected'}},
     #             'sf': {'ddtSchemes': {'default': 'steadyState'},
     #                 'gradSchemes': {'default': 'Gauss linear', 'limited': 'cellLimited Gauss linear 1', 'grad(U)': '$limited'},
-    #                 'divSchemes': {'default': 'none', 
+    #                 'divSchemes': {'default': 'none',
     #                     'turbulence': 'bounded Gauss limitedLinear 1',
     #                     'div((nuEff*dev2(T(grad(U)))))': 'Gauss linear', 'div(phi,U)': 'bounded Gauss linearUpwind limited'},
     #                'laplacianSchemes': {'default': 'Gauss linear corrected'},
     #                'interpolationSchemes': {'default': 'linear'},
     #                'snGradSchemes': {'default': 'corrected'}},
     #             'bsf': {'ddtSchemes': {'default': 'steadyState'},
-    #                 'gradSchemes': {'default': 'Gauss linear'}, 
-    #                 'divSchemes': {'default': 'none', 
+    #                 'gradSchemes': {'default': 'Gauss linear'},
+    #                 'divSchemes': {'default': 'none',
     #                     'turbulence': 'bounded Gauss upwind',
     #                     'div(((rho*nuEff)*dev2(T(grad(U)))))': 'Gauss linear',
     #                     'div(phi,U)': 'bounded Gauss limitedLinear 0.2', 'div(phi,K)': 'bounded Gauss limitedLinear 0.2',
     #                     'div(phi,h)': 'bounded Gauss limitedLinear 0.2'},
     #                 'laplacianSchemes': {'default': 'Gauss linear uncorrected'},
     #                 'interpolationSchemes': {'default': 'linear'},
-    #                 'snGradSchemes': {'default': 'corrected'}},   
+    #                 'snGradSchemes': {'default': 'corrected'}},
     #             'bbsf': {'ddtSchemes': {'default': 'steadyState'},
     #                 'gradSchemes': {'default': 'Gauss linear'},
     #                 'divSchemes': {'default': 'none',
     #                     'turbulence': 'bounded Gauss limitedLinear 1',
-    #                     'div(phi,e)': 'bounded Gauss upwind', 
+    #                     'div(phi,e)': 'bounded Gauss upwind',
     #                     'div(phi,U)': 'bounded Gauss upwind',
     #                     'div(((rho*nuEff)*dev2(T(grad(U)))))': 'Gauss linear', 'div(phi,Ekp)': 'bounded Gauss linear'},
     #                 'laplacianSchemes': {'default': 'Gauss linear corrected'},
@@ -1038,19 +1110,19 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
 
     # if node.turbulence == 'kEpsilon':
     #     scdict[solver]['divSchemes']['div(phi,k)'] = '$turbulence'
-    #     scdict[solver]['divSchemes']['div(phi,epsilon)'] = '$turbulence'  
+    #     scdict[solver]['divSchemes']['div(phi,epsilon)'] = '$turbulence'
     #     if solver == 'sf':
     #         scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
-    #         scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'  
+    #         scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'
     # elif node.turbulence == 'kOmega':
     #     scdict[solver]['divSchemes']['div(phi,k)'] = '$turbulence'
-    #     scdict[solver]['divSchemes']['div(phi,omega)'] = '$turbulence' 
+    #     scdict[solver]['divSchemes']['div(phi,omega)'] = '$turbulence'
     #     if solver == 'sf':
     #         scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
     #         scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'
     # elif node.turbulence == 'SpalartAllmaras':
-    #     scdict['divSchemes']['div(phi,nuTilda)'] = '$turbulence'  
+    #     scdict['divSchemes']['div(phi,nuTilda)'] = '$turbulence'
     #     if solver == 'sf':
     #         scdict[solver]['gradSchemes']['grad(nuTilda)'] = '$limited'
- 
+
     # return write_fvdict(htext, scdict[solver])
