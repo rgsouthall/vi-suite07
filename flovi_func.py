@@ -19,6 +19,7 @@
 import bpy, bmesh, os, mathutils
 from .vi_func import selobj
 from math import cos, sin, pi
+from mathutils import Vector
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
@@ -47,8 +48,8 @@ flovi_p_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue', 'fixedMean', 'fixed
                          '1': ('zeroGradient', 'calculated'), '2': ['None']},
                   'bsf': {'0': ('calculated'), '1': ('calculated'), '2': ('None',)}}
 
-flovi_u_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ['None']},
-                'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ['None']}}
+flovi_u_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'atmBoundaryLayerInletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ['None']},
+                'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'atmBoundaryLayerInletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ['None']}}
 
 flovi_nut_bounds = {'simpleFoam': {'0': ['calculated'], '1': ['nutkWallFunction'], '2': ['None']},
                     'buoyantSimpleFoam': {'0': ['calculated'], '1': ['nutkWallFunction'], '2': ['None']}}
@@ -293,7 +294,7 @@ def write_bound(o, m, ns, nf):
 #     bm.free()
 
 
-def fvmat(self, mn, bound):
+def fvmat(self, svp, mn, bound, frame):
     begin = '\n  {}\n  {{\n    type    '.format(mn)
     end = ';\n  }\n'
 
@@ -312,11 +313,18 @@ def fvmat(self, mn, bound):
 
     elif bound == 'U':
         if self.flovi_u_type == '0':
-            val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*self.flovi_bmbu_val) if not self.flovi_u_field else '$internalField'
+            v_vec = self.flovi_bmbu_val
+            val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*v_vec) if not self.flovi_u_field else '$internalField'
         else:
-            val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(self.flovi_u_speed * sin(pi*self.flovi_u_azi/180),
-                                                          self.flovi_u_speed * cos(pi*self.flovi_u_azi/180),
-                                                          0) if not self.flovi_u_field else '$internalField'
+            v_vec = Vector((self.flovi_u_speed * sin(pi*self.flovi_u_azi/180), self.flovi_u_speed * cos(pi*self.flovi_u_azi/180), 0))
+            val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*v_vec) if not self.flovi_u_field else '$internalField'
+
+        if self.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
+            fd_val = self.flovi_u_fdir if not self.flovi_u_field else svp['flparams'][str(frame)]['Udir']
+            s_val = self.flovi_u_ref if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+            print(fd_val, s_val, self.flovi_u_field)
+        else:
+            fd_val, s_val = (0, 0, 0), 0
 
         Udict = {'0': self.flovi_bmbu_subtype, '1': self.flovi_bmbu_subtype, '2': 'symmetry', '3': 'empty'}
         Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip',
@@ -324,7 +332,17 @@ def fvmat(self, mn, bound):
                   'pressureInletOutletVelocity': 'pressureInletOutletVelocity;\n    value    {}'.format(val),
                   'zeroGradient': 'zeroGradient', 'symmetry': 'symmetry',
                   'freestream': 'freestream;\n    freestreamValue    $internalField',
-                  'calculated': 'calculated;\n    value    $internalField', 'empty': 'empty'}
+                  'calculated': 'calculated;\n    value    $internalField',
+                  'atmBoundaryLayerInletVelocity': 'atmBoundaryLayerInletVelocity;\n    Uref {0:.3f};\n    Zref {1:.3f};\n    zDir ({2[0]:.3f} {2[1]:.3f} {2[2]:.3f});\n    flowDir    ({3[0]:.3f} {3[1]:.3f} {3[2]:.3f});\n    z0 uniform {4:.3f};\n    zGround uniform {5:.3f};\n    d uniform {6:.3f}\n    value {7}'.format(s_val,
+                                                                                                                                                                                                                                 self.flovi_u_zref,
+                                                                                                                                                                                                                                 self.flovi_u_zdir,
+                                                                                                                                                                                                                                 fd_val,
+                                                                                                                                                                                                                                 self.flovi_u_z0,
+                                                                                                                                                                                                                                 self.flovi_u_zground,
+                                                                                                                                                                                                                                 self.flovi_u_d,
+                                                                                                                                                                                                                                 val),
+                  'empty': 'empty'}
+
         entry = Utdict[Udict[self.flovi_bmb_type]]
 
     elif bound == 'nut':
@@ -433,8 +451,11 @@ def fvvarwrite(scene, obs, node):
         if not os.path.isdir(frame_of0fb):
             os.makedirs(frame_of0fb)
 
-        uval = node.uval if node.uval_type == '0' else (sin(node.uval_azi * pi/180) * node.umag, cos(node.uval_azi * pi/180) * node.umag, 0)
-        print(uval)
+        uval = node.uval if node.uval_type == '0' else Vector((sin(node.uval_azi * pi/180) * node.umag, cos(node.uval_azi * pi/180) * node.umag, 0))
+        svp['flparams'][str(frame)] = {}
+        svp['flparams'][str(frame)]['Udir'] = uval.normalized()
+        svp['flparams'][str(frame)]['Uspeed'] = uval.length
+
         if not node.buoyancy:  # or (node.buoyancy and not node.buossinesq):
             pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('0', '2', '-2', '0',
                                                                                                                 '{}'.format(node.pnormval))
@@ -454,34 +475,32 @@ def fvvarwrite(scene, obs, node):
                                                                                     ('1', '-1', '-1', '0', '{:.4f}'.format(node.aval)),
                                                                                     ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)))]
         for o in obs:
-            ovp = o.vi_params
-
             for mat in o.data.materials:
                 mvp = mat.vi_params
                 matname = '{}_{}'.format(o.name, mat.name)
 
                 if mvp.mattype == '2':
-                    pentry += mvp.flovi_mat(matname, 'p')
-                    Uentry += mvp.flovi_mat(matname, 'U')
+                    pentry += mvp.flovi_mat(svp, matname, 'p', frame)
+                    Uentry += mvp.flovi_mat(svp, matname, 'U', frame)
 
     #                if node.turbulence != 'laminar':
                     if node.turbulence != 'laminar':
-                        nutentry += mvp.flovi_mat(matname, 'nut')
+                        nutentry += mvp.flovi_mat(svp, matname, 'nut', frame)
                         if node.turbulence == 'SpalartAllmaras':
-                            nutildaentry += mvp.flovi_mat(matname, 'nutilda')
+                            nutildaentry += mvp.flovi_mat(svp, matname, 'nutilda', frame)
                         elif node.turbulence == 'kEpsilon':
-                            kentry += mvp.flovi_mat(matname, 'k')
-                            eentry += mvp.flovi_mat(matname, 'e')
+                            kentry += mvp.flovi_mat(svp, matname, 'k', frame)
+                            eentry += mvp.flovi_mat(svp, matname, 'e', frame)
                         elif node.turbulence == 'kOmega':
-                            kentry += mvp.flovi_mat(matname, 'k')
-                            oentry += mvp.flovi_mat(matname, 'o')
+                            kentry += mvp.flovi_mat(svp, matname, 'k', frame)
+                            oentry += mvp.flovi_mat(svp, matname, 'o', frame)
                     if node.buoyancy:
-                        tentry += mvp.flovi_mat(matname, 't')
-                        p_rghentry += mvp.flovi_mat(matname, 'p_rgh')
-                        aentry += mvp.flovi_mat(matname, 'a')
+                        tentry += mvp.flovi_mat(svp, matname, 't', frame)
+                        p_rghentry += mvp.flovi_mat(svp, matname, 'p_rgh', frame)
+                        aentry += mvp.flovi_mat(svp, matname, 'a', frame)
 
                         if node.radiation:
-                            Gentry += mvp.flovi_mat(matname, 'G')
+                            Gentry += mvp.flovi_mat(svp, matname, 'G', frame)
 
         pentry += '}'
         Uentry += '}'
@@ -552,7 +571,7 @@ def fvcdwrite(svp, dp, solver, st, dt, et):
     cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '{}'.format(st), 'stopAt': 'endTime',
              'endTime': '{}'.format(et), 'deltaT': '{:.5f}'.format(dt), 'writeControl': 'timeStep', 'writeInterval': '1',
              'purgeWrite': '{}'.format(pw), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
-             'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}}
+             'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
 
     for o in bpy.data.objects:
         ovp = o.vi_params
@@ -566,6 +585,7 @@ def fvcdwrite(svp, dp, solver, st, dt, et):
                     os.makedirs(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface'))
                     ovp.write_stl(dp, os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface', '{}.stl'.format(o.name)))
             ss.append(o.name)
+
         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
             for mat in o.data.materials:
                 if mat.vi_params.flovi_probe:

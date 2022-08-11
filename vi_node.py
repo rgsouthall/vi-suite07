@@ -319,7 +319,7 @@ class No_Li_Con(Node, ViNodes):
         return ['{}'.format(x) for x in (self.contextmenu, self.spectrummenu, self.cbanalysismenu,
                 self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                 self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
-                self.cbdm_end_hour, self.leed4, self.colour, self.cbdm_res, self.ay)]
+                self.cbdm_end_hour, self.leed4, self.colour, self.cbdm_res, self.ay, self.sp)]
 
     def nodeupdate(self, context):
         scene = context.scene
@@ -417,6 +417,7 @@ class No_Li_Con(Node, ViNodes):
     leed4: BoolProperty(name='', description='LEED v4 Compliance',  default=False, update=nodeupdate)
     ay: BoolProperty(name='', description='All year simulation',  default=True, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
+    sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
@@ -490,10 +491,13 @@ class No_Li_Con(Node, ViNodes):
                 row = layout.row()
                 row.operator('node.skyselect', text='Sky select')
                 row.prop(self, 'skyname')
+
             row = layout.row()
 
             if self.skyprog in ("0", "1"):
                 newrow(layout, 'HDR:', self, 'hdr')
+
+            newrow(layout, 'Split channels:', self, 'sp')
 
         elif self.contextmenu == 'CBDM':
             newrow(layout, 'Type:', self, 'cbanalysismenu')
@@ -587,6 +591,7 @@ class No_Li_Con(Node, ViNodes):
         if self.contextmenu == 'Basic':
             (shour, ehour) = (self.shour, self.ehour)
             (sdoy, edoy) = (self.sdoy, self.edoy)
+
         elif self.contextmenu == 'CBDM':
             if self.cbanalysismenu == '2' and self.leed4:
                 (shour, ehour) = (self.cbdm_start_hour - 1, self.cbdm_end_hour - 1)
@@ -714,7 +719,8 @@ class No_Li_Con(Node, ViNodes):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
         (sdoy, edoy) = (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1'],
+        basic_unit = 'W/m2' if self.sp else (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1']
+        unitdict = {'Basic': basic_unit,
                     'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu],
                            'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour,

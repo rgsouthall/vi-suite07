@@ -18,6 +18,8 @@ rtracecbdmparams = {"-ab": (4, 8), "-ad": (4096, 8192), "-as": (512, 1024), "-aa
                     "-lw": (1e-4, 1e-7), "-lr": (3, 5)}
 
 unit2res = {'Lux': 'illu', 'DF (%)': 'df', 'W/m2 (v)': 'virradm2', 'W/m2 (f)': 'firradm2', 'W (f)': 'firrad',
+            'W/m2': 'firradm2', 'W': 'firrad', 'W/m2 (red)': 'firradrm2', 'W (red)': 'firradr',
+            'W/m2 (green)': 'firradgm2', 'W (green)': 'firradg', 'W/m2 (blue)': 'firradbm2', 'W (blue)': 'firradb',
             'SVF (%)': 'svf', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'Perimeter area': 'sv',
             'klxh': 'illuh', 'kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh',
             'kWh/m2 (v)': 'virradhm2', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup',

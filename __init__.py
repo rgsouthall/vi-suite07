@@ -239,6 +239,15 @@ def unititems(self, context):
             return [('sm', '% Sunlit', '% of time sunlit')]
         elif svp['liparams']['unit'] == 'SVF (%)':
             return [('svf', 'SVF (%)', '% of sky visible')]
+        elif svp['liparams']['unit'] == 'W/m2':
+            return [('firradm2', 'W/m2', 'Combined irradiance per metre square'),
+                    ('firrad', 'W', 'Combined irradiance'),
+                    ('firradrm2', 'W/m2 (red)', 'Red irradiance per metre square'),
+                    ('firradr', 'W (red)', 'Red irradiance'),
+                    ('firradgm2', 'W/m2 (green)', 'Green irradiance per metre square'),
+                    ('firradg', 'W (green)', 'Green irradiance'),
+                    ('firradbm2', 'W/m2 (blue)', 'Blue irradiance per metre square'),
+                    ('firradb', 'W (blue)', 'Blue irradiance')]
         else:
             return [('None', 'None', 'None')]
     except Exception as e:
@@ -566,8 +575,15 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_bmbu_inval: fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
     flovi_u_type: eprop([("0", "Vector", "Specify velocity as a vector"), ("1", 'Azimuth', "Specify velocity as an azimuth and speed")], "", "Velocity type", "0")
     flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
-    flovi_u_azi: fprop("deg.", "Pressure value", 0, 360, 0)
-    flovi_u_speed: fprop("m/s", "Pressure value", 0, 1000, 1)
+    flovi_u_azi: fprop("deg.", "Flow azimuth direction", 0, 360, 0)
+    # flovi_u_speed: fprop("m/s", "Flow speed", 0, 1000, 1)
+    flovi_u_uref: fprop("m/s", "Reference speed", 0, 500, 0)
+    flovi_u_zref: fprop("m", "Reference z height", 0, 500, 0)
+    flovi_u_zdir: fvprop(3, '', 'Up direction', [0, 0, 1], 'XYZ', -100, 100)
+    flovi_u_fdir: fvprop(3, '', 'Flow direction', [1, 0, 0], 'XYZ', -100, 100)
+    flovi_u_z0: fprop("m", "	Surface roughness length", 0, 500, 0)
+    flovi_u_zground: fprop("m", "p field value", 0, 500, 0)
+    flovi_u_d: fprop("", "p field value", 0, 500, 0)
 
     flovi_bmbnut_subtype: EnumProperty(items = ret_fvbnut_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbnut_val: fprop("", "Nut value", -1000, 1000, 0.0)

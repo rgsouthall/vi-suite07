@@ -466,11 +466,11 @@ class CancelButton(Button):\n\
         self.focus = True\n\
 \n\
 class Calculating(App):\n\
-    rpbs, labels, nums, oftime = [], [], [], ''\n\
+    rpbs, labels, nums, oftime = [], [], [], '0'\n\
     bl = BoxLayout(orientation='vertical')\n\
     gl  = GridLayout(cols=3, height = 250)\n\
     t = Label(text='Time:', font_size=20, size_hint=(0.2, .2))\n\
-    tpb = ProgressBar(max = 0)\n\
+    tpb = ProgressBar(max = "+str(et)+")\n\
     tt = Label(text=oftime, font_size=20, size_hint=(0.2, .2))\n\
     gl.add_widget(t)\n\
     gl.add_widget(tpb)\n\
@@ -499,15 +499,17 @@ class Calculating(App):\n\
     def timer(self, dt):\n\
         with open('"+file+"', 'r') as pffile:\n\
             for ri, r in enumerate(pffile.readlines()):\n\
-                try:\n\
-                    if r.split()[0] == 'Time':\n\
-                        self.tt.text = '{:.5f}'.format(float(r.split()[1]))\n\
-                        self.tt.value = '{:.5f}'.format(float(r.split()[1])/float("+str(et)+"))\n\
-                    else:\n\
-                        li = self.labels.index(r.split()[0])\n\
-                        self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\
-                        self.nums[li].text = '{:.5f}'.format(abs(float(r.split()[1])))\n\
-                except Exception as e: pass\n\
+                if r.split()[0] in ('Time', 'Ux', 'Uy', 'Uz', 'p', 'k', 'epsilon'):\n\
+                    try:\n\
+                        if r.split()[0] == 'Time':\n\
+                            self.tpb.value = float(r.split()[1])\n\
+                            self.tt.text = '{:.5f}'.format(float(r.split()[1]))\n\
+                        else:\n\
+                            li = self.labels.index(r.split()[0])\n\
+                            self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\
+                            self.nums[li].text = '{:.5f}'.format(abs(float(r.split()[1])))\n\
+                    except Exception as e:\n\
+                        pass\n\
 \n\
 if __name__ == '__main__':\n\
     Calculating().run()"

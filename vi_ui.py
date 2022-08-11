@@ -32,6 +32,7 @@ try:
 except:
     mp = 0
 
+
 class VI_PT_3D(bpy.types.Panel):
     '''VI-Suite 3D view panel'''
     bl_label = "VI Display"
@@ -47,7 +48,7 @@ class VI_PT_3D(bpy.types.Panel):
 
         if not mp:
             row = layout.row()
-            row.label(text = "No matplotlib install")
+            row.label(text="No matplotlib installation")
             return
 
         if cao:
@@ -68,11 +69,11 @@ class VI_PT_3D(bpy.types.Panel):
         if svp.get('viparams') and svp['viparams'].get('vidisp'):
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
                 row = layout.row()
-                row.operator('view3d.wrdisplay', text = 'Wind Metrics')
+                row.operator('view3d.wrdisplay', text='Wind Metrics')
 
             elif svp['viparams']['vidisp'] == 'wr' and svp.vi_display:
                 row = layout.row()
-                row.label(text = 'Scatter properties:')
+                row.label(text='Scatter properties:')
                 newrow(layout, 'Wind metric:', svp, 'wind_type')
                 newrow(layout, 'Colour:', svp, 'vi_scatt_col')
                 newrow(layout, 'Max:', svp, 'vi_scatt_max')
@@ -94,9 +95,9 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Longitude:", svp, 'longitude')
                 (sdate, edate) = retdates(svp.sp_sd, 365, 2015)
                 time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"),
-                ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60) % 60)), "sp_sh")),
-                [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60)) % 60), "sp_sh")],
-                [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
+                               ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60) % 60)), "sp_sh")),
+                              [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60)) % 60), "sp_sh")],
+                              [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
 
                 for i in time_disps[int(svp['spparams']['suns'])]:
                     newrow(layout, i[0], svp, i[1])
@@ -122,6 +123,7 @@ class VI_PT_3D(bpy.types.Panel):
                 if (svp['spparams']['suns'] == '0' and (svp.sp_td or svp.sp_hd)) or svp.sp_hd:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh")):
                         newrow(layout, i[0], svp, i[1])
+
                     if svp.vi_display_rp_sh:
                         newrow(layout, "Shadow colour:", svp, "vi_display_rp_fsh")
 
@@ -190,6 +192,7 @@ class VI_PT_3D(bpy.types.Panel):
             if svp.vi_display:
                 newrow(layout, 'Display active', svp, 'vi_display')
 
+
 class VI_PT_Mat(bpy.types.Panel):
     bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
@@ -231,8 +234,19 @@ class VI_PT_Mat(bpy.types.Panel):
 
                     newrow(layout, "U type:", mvp, "flovi_bmbu_subtype")
 
-                    if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet'):
+                    if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet', 'atmBoundaryLayerInletVelocity'):
                         newrow(layout, "U field value:", mvp, "flovi_u_field")
+
+                        if mvp.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
+                            newrow(layout, "Reference height:", mvp, "flovi_u_zref")
+                            newrow(layout, "Up vector:", mvp, "flovi_u_zdir")
+                            newrow(layout, "Roughness:", mvp, "flovi_u_z0")
+                            newrow(layout, "Ground height:", mvp, "flovi_u_zground")
+                            newrow(layout, "Displacement:", mvp, "flovi_u_d")
+
+                            if not mvp.flovi_u_field:
+                                newrow(layout, "Reference speed:", mvp, "flovi_u_uref")
+                                newrow(layout, "Flow direction:", mvp, "flovi_u_fdir")
 
                         if not mvp.flovi_u_field:
                             newrow(layout, "U direction:", mvp, "flovi_u_type")
