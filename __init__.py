@@ -142,7 +142,7 @@ else:
             except:
                 print('{} not found'.format(fn))
 
-        for fn in ('energyplus', 'ExpandObjects'):
+        for fn in ('energyplus-22.1.0', 'ExpandObjects'):
             try:
                 if not os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK):
                     os.chmod(os.path.join(addonpath, 'EPFiles', sys.platform, fn), 0o775)
