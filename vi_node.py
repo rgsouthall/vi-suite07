@@ -165,7 +165,7 @@ class No_Loc(Node, ViNodes):
         (svp.latitude, svp.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (svp.latitude, svp.longitude)
 
         for node in [link.to_node for link in self.outputs['Location out'].links]:
-            node.update()
+            node.nodeupdate()
 
     def retentries(self, context):
         try:
@@ -956,6 +956,7 @@ class No_Li_Gl(Node, ViNodes):
 
     hdrname: StringProperty(name="", description="Base name of the Glare image", default="", update=nodeupdate)
     hdrfile: StringProperty(name="", description="Location of the HDR image", default="", subtype="FILE_PATH", update=nodeupdate)
+    vffile: StringProperty(name="", description="Location of the view file image", default="", subtype="FILE_PATH", update=nodeupdate)
     gc: FloatVectorProperty(size=3, name='', attr='Color', default=[1, 0, 0], subtype='COLOR', update=nodeupdate)
     rand: BoolProperty(name='', default=True, update=nodeupdate)
     x: IntProperty(name='', min=1, max=10000, default=2000, update=nodeupdate)
@@ -980,8 +981,19 @@ class No_Li_Gl(Node, ViNodes):
         #     newrow(layout, 'Minutes:', self, 'minutes')
         #     newrow(layout, 'X dimen.:', self, 'x')
         #     newrow(layout, 'Y dimen.:', self, 'y')
+        # if not sim.links or not sim.links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(sim.links[0].from_node['images'][0])):
+        #     row = layout.row()
+        #     row.prop(self, 'hdrfile')
 
-        if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):  # or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+        if not self.inputs['Image'].links or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
+            row = layout.row()
+            row.prop(self, 'hdrfile')
+
+            if os.path.isfile(bpy.path.abspath(self.hdrfile)):
+                row = layout.row()
+                row.prop(self, 'vffile')
+
+        if (self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
             newrow(layout, 'Base name:', self, 'hdrname')
             newrow(layout, 'Random:', self, 'rand')
 

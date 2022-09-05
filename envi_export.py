@@ -477,6 +477,8 @@ def pregeo(context, op):
                 if [f for f in ob.data.polygons if oms and oms[f.material_index].material and oms[f.material_index].material.vi_params.envi_nodes and
                         get_con_node(oms[f.material_index].material.vi_params).envi_con_type != 'None']:
                     selobj(context.view_layer, ob)
+                    if ob.animation_data:
+                        scene.frame_set(int(ob.animation_data.action.frame_range[0]))
                     bm = bmesh.new()
                     bm.from_mesh(ob.evaluated_get(depsgraph).to_mesh())
                     bm.transform(ob.matrix_world)

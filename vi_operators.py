@@ -1522,24 +1522,35 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
         reslists = []
         glnode = context.node
         imnode = glnode.inputs['Image'].links[0].from_node if glnode.inputs['Image'].links else glnode
-        imc = imnode['coptions']
-        # imnode = glnode.inputs[0].links[0].from_node
+        vffile = f'-vf "{bpy.path.abspath(glnode.vffile)}"' if imnode == glnode else ''
         glnode.presim()
 
         for i, im in enumerate(imnode['images']):
+            with open(im, 'rb') as imtext:
+                for line in imtext:
+
+                    if line.decode()[0:2] == '-Y':
+                        imy = int(line.decode().split(' ')[1])
+                        imx = int(line.decode().split(' ')[3])
+                        break
+
             glfile = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + svp['liparams']['fs']))
-            egcmd = 'evalglare {} -c "{}"'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
+            egcmd = 'evalglare {} {} -c "{}"'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], vffile, glfile)
+            logentry(f"Running evalglare with command: {egcmd}")
 
             with open(im, 'r') as hdrfile:
                 egrun = Popen(shlex.split(egcmd), stdin=hdrfile, stdout=PIPE, stderr=PIPE)
 
             if imnode != glnode:
+                imc = imnode['coptions']
                 time = datetime.datetime(2019, 1, 1, imc['shour'], 0) + datetime.timedelta(imc['sdoy'] - 1) if imc['anim'] == '0' else \
                     datetime.datetime(2019, 1, 1, int(imc['shour']),
                                       int(60*(imc['shour'] - int(imc['shour'])))) + datetime.timedelta(imc['sdoy'] - 1) + datetime.timedelta(hours=int(imc['interval']*i),
                                                                                                                                              seconds=int(60*(imc['interval']*i - int(imc['interval']*i))))
+                gtime = "{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\n".format(time.day, time.month,time.hour, time.minute)
             else:
                 time = datetime.datetime(2019, 1, 1, 1)
+                gtime = ''
 
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "w") as glaretf:
                 for line in egrun.stderr:
@@ -1553,12 +1564,11 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                     if line.decode().split(",")[0] == 'dgp':
                         glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
                         res = [float(x) for x in glaretext[6:12]]
-                        glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.2f}\ndgi: {5:.2f}\nugr: {6:.2f}\nvcp: {7:.2f}\ncgi: {8:.2f}\nLv: {9:.0f}\n".format(time.day, time.month,
-                                                                                                                                                                        time.hour, time.minute, *res))
+                        glaretf.write("{0}dgp: {1:.2f}\ndgi: {2:.2f}\nugr: {3:.2f}\nvcp: {4:.2f}\ncgi: {5:.2f}\nLv: {6:.0f}\n".format(gtime, *res))
                         res.append(res)
                         reslists += [[str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'DGP', '{0[0]}'.format(res)],
                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'DGI', '{0[1]}'.format(res)],
-                                     [str(i + svp['liparams']['fs']), 'Camera', 'Camera' 'UGR', '{0[2]}'.format(res)],
+                                     [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'UGR', '{0[2]}'.format(res)],
                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'VCP', '{0[3]}'.format(res)],
                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'CGI', '{[4]}'.format(res)],
                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'LV', '{[5]}'.format(res)]]
@@ -1568,11 +1578,11 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                 Popen(shlex.split(pcondcmd), stdout=temphdr).communicate()
 
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "r") as catfile:
-                psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imnode.y))
+                psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imy))
                 psignrun = Popen(shlex.split(psigncmd), stdin=catfile, stdout=PIPE, stderr=PIPE)
 
             with open("{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs'])))), 'w') as ghdr:
-                pcompcmd = 'pcompos "{0}.temphdr" 0 0 - {1} {2}'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
+                pcompcmd = 'pcompos "{0}.temphdr" 0 0 - {1} {2}'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imx, imy*550/800)
                 Popen(shlex.split(pcompcmd), stdin=psignrun.stdout, stdout=ghdr).communicate()
 
             try:
