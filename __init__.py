@@ -254,6 +254,8 @@ def unititems(self, context):
         logentry(f'Error: {e}. Check the LiVi Result Type menu')
         return [('None', 'None', 'None')]
 
+def ret_im(self, context):
+    return [('None', 'None', 'No image')] + [(im.name, im.name, 'Blender image') for im in bpy.data.images]
 
 def bsdf_direcs(self, context):
     try:
@@ -513,6 +515,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
 
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
+    amask: StringProperty(name="", description="Name of the alpha mask file", default="", subtype="FILE_PATH")
     radnorm: bprop("", "Flag to signify whether the material has a normal map associated with it", False)
     # ns: fprop("", "Strength of normal effect", 0, 5, 1)
     nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'XYZ', -1, 1)
@@ -560,6 +563,9 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radmat = radmat
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)
     li_bsdf_up: fvprop(3, '', 'BSDF up vector', [0, 0, 1], 'XYZ', -1, 1)
+    li_tex: EnumProperty(items=ret_im, name='', description='Texture image')
+    li_am: EnumProperty(items=ret_im, name='', description='Alpha mask')
+    li_norm: EnumProperty(items=ret_im, name='', description='Normal map')
 
     # FloVi Materials
     flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")

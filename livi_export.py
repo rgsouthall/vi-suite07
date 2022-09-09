@@ -63,7 +63,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
-    print(o.name)
 
     if tri:
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
@@ -105,6 +104,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
 
             if mfaces:
                 for mat in mmats:
+                    print(mat.name)
+                    print(mat.vi_params)
                     matname = mat.vi_params['radname']
                     ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
 
@@ -197,7 +198,7 @@ def radgexport(export_op, node):
             bm.transform(o.matrix_world)
             bm.normal_update()
 #            o.to_mesh_clear()
-            gradfile += bmesh2mesh(scene, bm, o.evaluated_get(dp), frame, tempmatfilename, node.mesh, node.triangulate)
+            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.mesh, node.triangulate)
 
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]

@@ -107,6 +107,7 @@ def rtpoints(self, bm, offset, frame):
 
     self['rtpnum'] = g + 1
 
+
 def setscenelivivals(scene):
     svp = scene.vi_params
     svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
@@ -134,6 +135,29 @@ def validradparams(params):
     return 1
 
 
+def ret_radentry(self, radname, mod):
+    if self.radmatmenu == '9':
+        radentry = bpy.data.texts[self.radfile].as_string()+'\n\n' if self.radfile in [t.name for t in bpy.data.texts] else '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
+    else:
+        if self.radtransmenu == '0':
+            tn = self.radtrans
+        else:
+            tn = (((0.8402528435 + 0.0072522239 * self.radtransmit * self.radtransmit) ** 0.5) - 0.9166530661)/(0.0036261119 * self.radtransmit)
+            tn = (tn, tn, tn)
+
+        radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
+                '{} {} {}\n'.format(mod, ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) + \
+                {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
+                    '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(tn),
+                    '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radtrans, self.radior),
+                    '3': '0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {3:.3f} {4:.3f}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtransdiff, self.radtranspec),
+                    '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
+                    '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in (self.radcolour, ct2RGB(self.radct))[self.radcolmenu == '1']]),
+                    '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
+                    '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+    return radentry
+
+
 def radmat(self, scene):
     svp = scene.vi_params
     radname = self.id_data.name.replace(" ", "_")
@@ -142,12 +166,13 @@ def radmat(self, scene):
     radtex = ''
     mod = 'void'
 
-    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
+    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.li_tex != 'None':
         try:
             fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
             nd = os.path.join(fd, fn)
             svp['liparams']['texfilebase'] = os.path.join(nd, 'textures')
             teximage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Color'].links[0].from_node.image
+            teximage = bpy.data.images[self.li_tex]
             teximageloc = os.path.join(svp['liparams']['texfilebase'],'{}.hdr'.format(radname))
             off = scene.render.image_settings.file_format
             scene.render.image_settings.file_format = 'HDR'
@@ -155,55 +180,48 @@ def radmat(self, scene):
             scene.render.image_settings.file_format = off
             (w, h) = teximage.size
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-            radtex = 'void colorpict {}_tex\n7 red green blue {} . frac(Lu){} frac(Lv){}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])
+            radentries = ['void colorpict {}_tex\n7 red green blue {} . frac(Lu){} frac(Lv){}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])]
             mod = '{}_tex'.format(radname)
+            radentries.append(ret_radentry(self, radname, mod))
+
+            if self.li_am != 'None':
+                amim = bpy.data.images[self.li_am]
+                amloc = os.path.join(svp['liparams']['texfilebase'],'{}_am.hdr'.format(radname))
+                off = scene.render.image_settings.file_format
+                scene.render.image_settings.file_format = 'HDR'
+                amim.save_render(amloc)
+                scene.render.image_settings.file_format = off
+                radentries[1] = ret_radentry(self, f'{radname}_im', f'{radname}_tex')# image material\n{0}_tex plastic {0}_im\n0\n0\n5 1 1 1 0 0\n\n'.format(radname)
+                radentries.append('# alpha mapped material\nvoid mixpict {0}\n7 {0}_im void grey {1} . frac(Lu){2} frac(Lv){3}\n0\n0\n\n'.format(radname, amloc, ar[0], ar[1]))
+                mod = '{}'.format(radname)
 
             try:
-                if self.radnorm:
+                if self.li_norm != 'None':
                     normmapnode = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node
                     normimage = normmapnode.inputs['Color'].links[0].from_node.image
                     normpixels = zeros(normimage.size[0] * normimage.size[1] * 4, dtype='float32')
                     normimage.pixels.foreach_get(normpixels)
                     header = '2\n0 1 {}\n0 1 {}\n'.format(normimage.size[1], normimage.size[0])
                     xdat = -1 + 2 * normpixels[:][0::4].reshape(normimage.size[0], normimage.size[1])
-                    ydat = -1 + 2 * normpixels[:][1::4].reshape(normimage.size[0], normimage.size[1])# if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
-                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header = header, comments='')
-                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')
-                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
+                    ydat = -1 + 2 * normpixels[:][1::4].reshape(normimage.size[0], normimage.size[1])
+                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
+                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
+                    radentry += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
                                os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], normmapnode.inputs[0].default_value, self.nu, self.nside)
                     mod = '{}_norm'.format(radname)
+
 
             except Exception as e:
                 logentry('Problem with normal export {}'.format(e))
 
         except Exception as e:
             logentry('Problem with texture export {}'.format(e))
-
-    if self.radtransmenu == '0':
-        tn = self.radtrans
     else:
-        tn = (((0.8402528435 + 0.0072522239 * self.radtransmit * self.radtransmit) ** 0.5) - 0.9166530661)/(0.0036261119 * self.radtransmit)
-        tn = (tn, tn, tn)
+        radentries = [ret_radentry(self, radname, mod)]
 
-    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
-            '{} {} {}\n'.format(mod, ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) + \
-           {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
-            '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(tn),
-            '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radtrans, self.radior),
-            '3': '0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {3:.3f} {4:.3f}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtransdiff, self.radtranspec),
-            '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
-            '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in (self.radcolour, ct2RGB(self.radct))[self.radcolmenu == '1']]),
-            '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
-            '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
 
-    if self.radmatmenu == '8':
-        radentry = ''
-
-    elif self.radmatmenu == '9':
-        radentry = bpy.data.texts[self.radfile].as_string()+'\n\n' if self.radfile in [t.name for t in bpy.data.texts] else '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
-
-    self['radentry'] = radtex + radentry
-    return(radtex + radentry)
+    self['radentry'] = ''.join(radentries)
+    return self['radentry']
 
 
 def cbdmmtx(self, scene, locnode, export_op):

@@ -355,11 +355,11 @@ class VI_PT_Ob(bpy.types.Panel):
 
             if ovp.vi_type == '0':
                 row = layout.row()
-                row.label(text = '-- Octree generation --')
+                row.label(text='-- Octree generation --')
                 newrow(layout, 'Triangulate:', ovp, 'triangulate')
                 newrow(layout, 'Mesh:', ovp, 'mesh')
                 row = layout.row()
-                row.operator('object.vi_genoct', text = "Generate Octree")
+                row.operator('object.vi_genoct', text="Generate Octree")
 
             elif ovp.vi_type == '1':
                 newrow(layout, "Type:", ovp, 'envi_type')
@@ -411,7 +411,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     row.operator("object.gen_bsdf", text="Generate BSDF")
             else:
                 row = layout.row()
-                row.label(text = 'No BSDF material applied')
+                row.label(tex='No BSDF material applied')
 
         if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
             newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
@@ -443,10 +443,13 @@ def rmmenu(layout, cm):
     if mvp.radmatmenu in ('1', '2', '3', '7'):
         newrow(layout, 'Photon port:', mvp, 'pport')
     if mvp.mattype == '0' and mvp.radmatmenu in ('0', '1', '2', '3', '6'):
-        newrow(layout, 'Textured:', mvp, 'radtex')
-        if mvp.radtex:
-            newrow(layout, 'Normal map:', mvp, 'radnorm')
-            if mvp.radnorm:
+        newrow(layout, 'Texture image:', mvp, 'li_tex')
+
+        if mvp.li_tex != 'None':
+            newrow(layout, 'Alpha mask:', mvp, 'li_am')
+            newrow(layout, 'Normal map:', mvp, 'li_norm')
+
+            if mvp.li_norm != 'None':
                 # newrow(layout, 'Strength:', mvp, 'ns')
                 newrow(layout, 'Image green vector:', mvp, 'nu')
                 newrow(layout, 'Image red vector:', mvp, 'nside')
