@@ -22,7 +22,7 @@ from .vi_func import newrow, retdates, logentry, get_materials
 
 try:
     import matplotlib
-    matplotlib.use('qt5agg', force = True)
+    matplotlib.use('qt5agg', force=True)
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
@@ -212,8 +212,13 @@ class VI_PT_Mat(bpy.types.Panel):
                 rmmenu(layout, cm)
 
                 if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):  # in bpy.data.node_groups:
-                    row = layout.row()
-                    row.operator("material.envi_node", text="Create EnVi Nodes")
+                    newrow(layout, "Reversed EnVi material:", mvp, "envi_reversed")
+
+                    if mvp.envi_reversed:
+                        newrow(layout, "EnVi material:", mvp, "envi_rev_enum")
+                    else:
+                        row = layout.row()
+                        row.operator("material.envi_node", text="Create EnVi Nodes")
 
             elif mvp.mattype == '2':
                 newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")
@@ -520,6 +525,7 @@ class TREE_PT_vi(bpy.types.Panel):
         col.separator()
         col.separator()
 
+
 class TREE_PT_envim(bpy.types.Panel):
     bl_label = "EnVi Materials"
     bl_space_type = "NODE_EDITOR"
@@ -568,6 +574,7 @@ class TREE_PT_envim(bpy.types.Panel):
         else:
             row = layout.row()
             row.operator('envi_node.remove', text='Clear unused', icon='NODETREE')
+
 
 class TREE_PT_envin(bpy.types.Panel):
     bl_label = "EnVi Networks"

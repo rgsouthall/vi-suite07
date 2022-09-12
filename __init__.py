@@ -254,8 +254,14 @@ def unititems(self, context):
         logentry(f'Error: {e}. Check the LiVi Result Type menu')
         return [('None', 'None', 'None')]
 
+
 def ret_im(self, context):
     return [('None', 'None', 'No image')] + [(im.name, im.name, 'Blender image') for im in bpy.data.images]
+
+
+def ret_envi_mats(self, context):
+    return [(mat.name, mat.name, mat.name) for mat in bpy.data.materials if mat.vi_params.envi_nodes]
+
 
 def bsdf_direcs(self, context):
     try:
@@ -549,6 +555,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     BSDF: bprop("", "Flag to signify a BSDF material", False)
     mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
+    envi_reversed: bprop("", "Create the reverse of an exsiting EnVi material", False)
+    envi_rev_enum: EnumProperty(items=ret_envi_mats, name='', description='EnVi material')
     envi_type: sprop("", "EnVi Material type", 64, "None")
     envi_shading: bprop("", "Flag to signify whether the material contains shading elements", False)
     envi_boundary: bprop("", "Flag to signify whether the material represents a zone boundary", False)
