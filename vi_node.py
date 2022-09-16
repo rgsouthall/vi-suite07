@@ -1651,6 +1651,7 @@ class No_En_Sim(Node, ViNodes):
     run: IntProperty(min=-1, default=-1)
     processors: IntProperty(name='', min=1, default=4)  #max = bpy.context.scene['viparams']['nproc'], default = bpy.context.scene['viparams']['nproc'])
     mp: BoolProperty(name="", default=False)
+    # finished: BoolProperty(name="", default=False)
 
     def draw_buttons(self, context, layout):
         scene = context.scene
@@ -4445,12 +4446,16 @@ class No_En_Net_Inf(Node, EnViNodes):
                           '5': 'AirChanges/Hour', '6': 'Flow/Zone'}
         inflist = ['', '', '', '']
         infdict = {'1': '0', '2': '1', '3':'2', '4':'2', '5': '3', '6': '0'}
-        inflist[int(infdict[self.envi_inftype])] = '{:.4f}'.format(self.envi_inflevel)
-        params = ('Name', 'Zone or ZoneList Name', 'Schedule Name', 'Design Flow Rate Calculation Method', 'Design Flow Rate {m3/s}', 'Flow per Zone Floor Area {m3/s-m2}',
-               'Flow per Exterior Surface Area {m3/s-m2}', 'Air Changes per Hour {1/hr}', 'Constant Term Coefficient', 'Temperature Term Coefficient',
-                'Velocity Term Coefficient', 'Velocity Squared Term Coefficient')
-        paramvs = [zn + '_infiltration', zn, zn + '_infsched', infildict[self.envi_inftype]] + inflist + [1, 0, 0, 0]
-        return epentry('ZoneInfiltration:DesignFlowRate', params, paramvs)
+
+        if self.envi_inftype != '0':
+            inflist[int(infdict[self.envi_inftype])] = '{:.4f}'.format(self.envi_inflevel)
+            params = ('Name', 'Zone or ZoneList Name', 'Schedule Name', 'Design Flow Rate Calculation Method', 'Design Flow Rate {m3/s}', 'Flow per Zone Floor Area {m3/s-m2}',
+                'Flow per Exterior Surface Area {m3/s-m2}', 'Air Changes per Hour {1/hr}', 'Constant Term Coefficient', 'Temperature Term Coefficient',
+                    'Velocity Term Coefficient', 'Velocity Squared Term Coefficient')
+            paramvs = [zn + '_infiltration', zn, zn + '_infsched', infildict[self.envi_inftype]] + inflist + [1, 0, 0, 0]
+            return epentry('ZoneInfiltration:DesignFlowRate', params, paramvs)
+        else:
+            return ''
 
 class No_En_Net_SSFlow(Node, EnViNodes):
     '''Sub-surface airflow node'''
@@ -6266,6 +6271,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         envi_mats.lay_save()
 
     def update(self):
+        if not self.material:
+            print('no material')
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 

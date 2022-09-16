@@ -1891,6 +1891,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                     logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
 
             if all([esim.poll() is not None for esim in self.esimruns]) and self.e == self.lenframes:
+
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(self.nd, fname))
 
@@ -1908,7 +1909,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                         else:
                             bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
 
-                        if '** Fatal  **' in bpy.data.texts[efilename].as_string():
+                        if '**  Fatal  **' in bpy.data.texts[efilename].as_string():
                             self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
                             return {self.terminate('CANCELLED', context)}
 

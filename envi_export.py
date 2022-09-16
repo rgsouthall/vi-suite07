@@ -477,8 +477,10 @@ def pregeo(context, op):
                 if [f for f in ob.data.polygons if oms and oms[f.material_index].material and oms[f.material_index].material.vi_params.envi_nodes and
                         get_con_node(oms[f.material_index].material.vi_params).envi_con_type != 'None']:
                     selobj(context.view_layer, ob)
+
                     if ob.animation_data:
                         scene.frame_set(int(ob.animation_data.action.frame_range[0]))
+
                     bm = bmesh.new()
                     bm.from_mesh(ob.evaluated_get(depsgraph).to_mesh())
                     bm.transform(ob.matrix_world)
@@ -501,15 +503,16 @@ def pregeo(context, op):
                     no['auto_volume'] = bm.calc_volume()
                     ob.evaluated_get(depsgraph).to_mesh_clear()
                     bm.free()
-#                    bpy.ops.object.delete()
                     no.name = 'en_{}'.format(c_name)
                     c.objects.unlink(no)
                     bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
 
                 elif ob.vi_params.envi_type == '1':
                     selobj(context.view_layer, ob)
+
                     if ob.animation_data:
                         scene.frame_set(int(ob.animation_data.action.frame_range[0]))
+
                     bpy.ops.object.duplicate(linked=False)
                     no = context.active_object
                     k = 0
@@ -525,7 +528,6 @@ def pregeo(context, op):
                     if not k:
                         no.location += context.node.geo_offset
 
-#                    bpy.ops.object.delete()
                     no.name = 'en_{}'.format(c_name)
                     c.objects.unlink(no)
                     bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
@@ -536,7 +538,6 @@ def pregeo(context, op):
 
             for o in chil.objects:
                 oms = o.material_slots
-                omw = o.matrix_world
                 bm = bmesh.new()
                 bm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
                 o.to_mesh_clear()
@@ -624,7 +625,6 @@ def pregeo(context, op):
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]
     dcdict = {'Wall': (1, 1, 1, 1), 'Partition': (1, 1, 0, 1), 'Window': (0, 1, 1, 1), 'Roof': (0, 1, 0, 1), 'Ceiling': (1, 1, 0, 1), 'Floor': (0.44, 0.185, 0.07, 1), 'Shading': (1, 0, 0, 1)}
     ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}
-    pva = 0
     linklist = []
 
     for coll in eg.children:
@@ -665,11 +665,22 @@ def pregeo(context, op):
 
                         emnode = get_con_node(mvp)
 
-                        if not emnode:
+                        if not emnode and not mvp.envi_reversed:
                             op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
-                        elif any([n.use_custom_color for n in emnode.ret_nodes()]):
+                        elif emnode and any([n.use_custom_color for n in emnode.ret_nodes()]):
                             op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
                             return
+                        elif mvp.envi_reversed:
+                            print('reversed')
+                            emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
+                            emnode.ret_uv()
+                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
+                            mvp.envi_export = True
+
+                            if emnode.envi_con_type in dcdict:
+                                mat.diffuse_color = dcdict[mct]
+                            if emnode.inputs['PV'].links:
+                                mat.diffuse_color = (1, 1, 0, 1)
                         else:
                             emnode.ret_uv()
                             mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type

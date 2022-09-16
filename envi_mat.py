@@ -22,6 +22,7 @@ import os, json
 from collections import OrderedDict
 from .envi_func import epentry
 
+
 class envi_materials(object):
     '''Defines materials with a comma separated dictionary, with material name as key, giving
     (Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance,
@@ -175,12 +176,14 @@ class envi_constructions(object):
             con_bujfile.write(json.dumps(con_dict))
         self.update()
 
+
 def retmatdict(ect, t, l):
+    print(ect, t, l)
     if ect in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):
         typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"),
                     ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
-                   ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
-                   ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
+                    ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
+                    ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
                     ("8", "PCM", "Choose a material from the phase change database"), ("9", "PV", "Choose a material from the photovoltaic database"),
                     ("10", "Plastic", "Choose a material from the plastic database")]
         matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(),
@@ -203,9 +206,11 @@ def retmatdict(ect, t, l):
     else:
         return matdict
 
+
 def envi_con_list(self, context):
     ec = envi_constructions()
     return [(mat, mat, 'Construction') for mat in ((ec.wall_con, ec.iwall_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.roof_con, ec.ceil_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.floor_con, ec.ifloor_con)[self.envi_con_con in ("Zone", "Thermal mass")], ec.door_con, ec.glaze_con, ec.pv_con)[("Wall", "Roof", "Floor", "Door", "Window", "PV").index(self.envi_con_type)]]
+
 
 def retuval(mat):
     if mat.envi_con_type not in ('None', 'Shading', 'Aperture', 'Window'):
@@ -236,11 +241,14 @@ def retuval(mat):
     else:
         return 1.0
 
+
 def envi_layertype(self, context):
     return retmatdict(self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')
 
+
 def envi_elayertype(self, context):
     return [(k, k, '{} type'.format(k)) for k in envi_embodied().propdict.keys()]
+
 
 def envi_layer(self, context):
     if self.materialtype:

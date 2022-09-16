@@ -16,16 +16,19 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex
-from math import sin, cos, pi
+import bpy, os, math, subprocess, datetime, bmesh, shlex
+from mathutils import Vector
+from math import pi
 from subprocess import PIPE, Popen, TimeoutExpired
-from .vi_func import clearscene, solarPosition, retobjs, clearlayers, viparams, ct2RGB, logentry, sunpath2
+from .vi_func import clearscene, solarPosition, retobjs, clearlayers, ct2RGB, logentry, sunpath2
 from .livi_func import face_bsdf
 from numpy import array, where, in1d
 
 
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)
+    valid_fmis = [msi for msi, ms in enumerate(o.material_slots) if o.material_slots[msi].material]
+    o_mats = [o.material_slots[fmi].material for fmi in valid_fmis]
     mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials if m]
     on = o.name.replace(" ", "_")
 
@@ -33,21 +36,18 @@ def radpoints(o, faces, sks):
         (skv0, skv1, skl0, skl1) = sks
 
     for f, face in enumerate(faces):
-        fmi = face.material_index
-
-#        if fmi < len(o.data.materials):
-        m = o.data.materials[fmi]
-
-        if m:
+        if face.material_index in valid_fmis:
+            fmi = valid_fmis.index(face.material_index)
+            m = o_mats[fmi]
             mvp = m.vi_params
             mname = mns[fmi] if not mvp.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
             mentry = face_bsdf(o, m, mname, face)
             fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
 
             if sks:
-                ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world@mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1,
-                                                                                                                v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1,
-                                                                                                                v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+                ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world@Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1,
+                                                                                                         v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1,
+                                                                                                         v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
             else:
                 ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format(v.co) for v in face.verts])
 
@@ -59,27 +59,27 @@ def radpoints(o, faces, sks):
     return ''.join(fentries)
 
 
-def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
+def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
 
     if tri:
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
-    if not m:
-        # gradfile += radpoints(o, [f for f in bm.faces if f.calc_area() >= 0.0], 0)
+    if not m_export:
         gradfile += radpoints(o, bm.faces, 0)
-        # for f in [f for f in bm.faces if f.calc_area() == 0.0]:
-        #   logentry('Object {} face {} has not been exported as it is too small'.format(o.name, f.index))
     else:
-        mrms = array([m.vi_params.radmatmenu for m in o.data.materials])
-        mpps = array([not m.vi_params.pport for m in o.data.materials])
+        valid_fmis = [msi for msi, ms in enumerate(o.material_slots) if o.material_slots[msi].material]
+        o_mats = [o.material_slots[fmi].material for fmi in valid_fmis]
+        mesh_faces = [f for f in bm.faces if f.material_index in valid_fmis]
+        mrms = array([m.vi_params.radmatmenu for m in o_mats if m])
+        mpps = array([not m.vi_params.pport for m in o_mats if m])
         mnpps = where(mpps, 0, 1)
         mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))
         fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert=True)
-        mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
-        ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]
-        mmats = [mat for mat in o.data.materials if mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
+        mfaces = [f for f in mesh_faces if o.material_slots[f.material_index].material and (mmrms * mpps)[valid_fmis.index(f.material_index)]]
+        ffaces = [f for f in mesh_faces if o.material_slots[f.material_index].material and (fmrms + mnpps)[valid_fmis.index(f.material_index)]]
+        mmats = [mat for mat in o_mats if mat and mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
 
@@ -104,10 +104,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m, tri):
 
             if mfaces:
                 for mat in mmats:
-                    print(mat.name)
-                    print(mat.vi_params)
                     matname = mat.vi_params['radname']
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth] for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
 
         if ffaces:
             gradfile += radpoints(o, ffaces, 0)
@@ -225,7 +223,7 @@ def radgexport(export_op, node):
                 particles = ps.particles
                 dob = ps.settings.instance_object
                 (t, r, s) = dob.matrix_world.decompose()
-                dob_axis = mathutils.Vector((0.0, 1.0, 0.0))
+                dob_axis = Vector((0.0, 1.0, 0.0))
                 dob_axis_glo = r@dob_axis
                 dobs = [dob] if dob else []
                 dobs = ps.settings.dupli_group.objects if not dobs else dobs
@@ -248,12 +246,12 @@ def radgexport(export_op, node):
                         # bm.free()
 
                         for p, part in enumerate(particles):
-                            nv = mathutils.Vector((1, 0, 0))
+                            nv = Vector((1, 0, 0))
                             nv.rotate(part.rotation)
                             rdiff = dob_axis_glo.rotation_difference(nv).to_euler()
                             gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
-                                         p, [-p for p in dob.location], part.location, part.size, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
-                                         os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
+                                        p, [-p for p in dob.location], part.location, part.size, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
+                                        os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
 
                 o.particle_systems[0].settings.hair_length = hl
 
@@ -298,7 +296,7 @@ def radgexport(export_op, node):
                     bm.faces.ensure_lookup_table()
 
                     for f in bm.faces:
-                        lrot = mathutils.Vector.rotation_difference(mathutils.Vector((0, 0, -1)), f.normal).to_euler('XYZ')
+                        lrot = Vector.rotation_difference(Vector((0, 0, -1)), f.normal).to_euler('XYZ')
                         lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_median(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
                     bm.free()
 
@@ -323,7 +321,7 @@ def gen_octree(scene, o, op, mesh, tri):
         os.makedirs(os.path.join(nd, 'octrees'))
 
     mats = o.data.materials
-    mradfile =  "".join([m.vi_params.radmat(scene) for m in mats if m])
+    mradfile = "".join([m.vi_params.radmat(scene) for m in mats if m])
     bpy.ops.object.select_all(action='DESELECT')
     mf = os.path.join(nd, 'octrees', '{}.mat'.format(o.name))
 

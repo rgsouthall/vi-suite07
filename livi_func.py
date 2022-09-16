@@ -28,6 +28,7 @@ from numpy import append as nappend
 from .vi_func import vertarea, logentry, ct2RGB, clearlayers, chunks, selobj, solarPosition, sunapply
 from .vi_dicts import res2unit, unit2res
 
+
 def sunposlivi(scene, skynode, frames, sun, stime):
     svp = scene.vi_params
 
@@ -46,6 +47,7 @@ def sunposlivi(scene, skynode, frames, sun, stime):
     shaddict = {'0': 0.01, '1': 1, '2': 1, '3': 1}
     values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames, skynode.sdist)
+
 
 def face_bsdf(o, m, mname, f):
     if m.vi_params.get('bsdf'):
@@ -71,12 +73,12 @@ def face_bsdf(o, m, mname, f):
         #     radentry = radentry.replace('m_{}_f'.format(m.name), mname)
         #     radentry = radentry.replace(' {}.xml '.format(m.name), ' {} '.format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name))))
         # else:
-        radentry = 'void BSDF {0}\n6 {3} {1} {2} .\n0\n0\n\n'.format(mname,
-            os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs',
-            '{}.xml'.format(m.name)), uv, m.vi_params.li_bsdf_proxy_depth)
+        radentry = 'void BSDF {0}\n6 {3} {1} {2} .\n0\n0\n\n'.format(mname,os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs',
+                                                                     '{}.xml'.format(m.name)), uv, m.vi_params.li_bsdf_proxy_depth)
         return radentry
     else:
         return ''
+
 
 def rtpoints(self, bm, offset, frame):
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
@@ -92,7 +94,7 @@ def rtpoints(self, bm, offset, frame):
 
     if self['cpoint'] == '0':
         gpoints = resfaces
-        gpcos =  [gp.calc_center_median() for gp in gpoints]
+        gpcos = [gp.calc_center_median() for gp in gpoints]
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]
 
     elif self['cpoint'] == '1':
@@ -163,7 +165,6 @@ def radmat(self, scene):
     radname = self.id_data.name.replace(" ", "_")
     radname = radname.replace(",", "")
     self['radname'] = radname
-    radtex = ''
     mod = 'void'
 
     if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.li_tex != 'None':
@@ -171,9 +172,8 @@ def radmat(self, scene):
             fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
             nd = os.path.join(fd, fn)
             svp['liparams']['texfilebase'] = os.path.join(nd, 'textures')
-            teximage = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Color'].links[0].from_node.image
             teximage = bpy.data.images[self.li_tex]
-            teximageloc = os.path.join(svp['liparams']['texfilebase'],'{}.hdr'.format(radname))
+            teximageloc = os.path.join(svp['liparams']['texfilebase'], '{}.hdr'.format(radname))
             off = scene.render.image_settings.file_format
             scene.render.image_settings.file_format = 'HDR'
             teximage.save_render(teximageloc)
@@ -186,7 +186,7 @@ def radmat(self, scene):
 
             if self.li_am != 'None':
                 amim = bpy.data.images[self.li_am]
-                amloc = os.path.join(svp['liparams']['texfilebase'],'{}_am.hdr'.format(radname))
+                amloc = os.path.join(svp['liparams']['texfilebase'], '{}_am.hdr'.format(radname))
                 off = scene.render.image_settings.file_format
                 scene.render.image_settings.file_format = 'HDR'
                 amim.save_render(amloc)
@@ -197,19 +197,19 @@ def radmat(self, scene):
 
             try:
                 if self.li_norm != 'None':
-                    normmapnode = self.id_data.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node
-                    normimage = normmapnode.inputs['Color'].links[0].from_node.image
-                    normpixels = zeros(normimage.size[0] * normimage.size[1] * 4, dtype='float32')
-                    normimage.pixels.foreach_get(normpixels)
-                    header = '2\n0 1 {}\n0 1 {}\n'.format(normimage.size[1], normimage.size[0])
-                    xdat = -1 + 2 * normpixels[:][0::4].reshape(normimage.size[0], normimage.size[1])
-                    ydat = -1 + 2 * normpixels[:][1::4].reshape(normimage.size[0], normimage.size[1])
+                    norm = bpy.data.images[self.li_norm]
+                    normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
+                    norm.pixels.foreach_get(normpixels)
+                    header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
+                    xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
+                    ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
                     savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
-                    radentry += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
-                               os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], normmapnode.inputs[0].default_value, self.nu, self.nside)
+                    radentries.append("{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
+                               os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside))
                     mod = '{}_norm'.format(radname)
-
+                    radentries[1] = ''
+                    radentries.append(ret_radentry(self, radname, mod))
 
             except Exception as e:
                 logentry('Problem with normal export {}'.format(e))
@@ -218,7 +218,6 @@ def radmat(self, scene):
             logentry('Problem with texture export {}'.format(e))
     else:
         radentries = [ret_radentry(self, radname, mod)]
-
 
     self['radentry'] = ''.join(radentries)
     return self['radentry']
@@ -229,7 +228,7 @@ def cbdmmtx(self, scene, locnode, export_op):
     res = (1, 2, 4)[self.cbdm_res - 1]
     os.chdir(svp['viparams']['newdir'])
     (csh, ceh) = (self.cbdm_start_hour - 1, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (0, 24)
-    (sdoy, edoy) =  (self.sdoy, self.edoy) if not self.ay else (1, 365)
+    (sdoy, edoy) = (self.sdoy, self.edoy) if not self.ay else (1, 365)
 
     if self['epwbase'][1] in (".epw", ".EPW"):
         with open(locnode.weather, "r") as epwfile:
@@ -253,74 +252,76 @@ def cbdmmtx(self, scene, locnode, export_op):
         gdmcmd = ("gendaymtx -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']],
                   "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
         gdmcmdns = ("gendaymtx -d -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']],
-                  "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
+                    "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
 
         with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
-            Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
+            Popen(gdmcmd.split(), stdout=mtxfile, stderr=STDOUT).communicate()
 
         with open("{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
-            Popen(gdmcmdns.split(), stdout = mtxfile, stderr=STDOUT).communicate()
+            Popen(gdmcmdns.split(), stdout=mtxfile, stderr=STDOUT).communicate()
 
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
             oconvcmd = "oconv -w -"
-            Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode(sys.getfilesystemencoding()))
+            Popen(shlex.split(oconvcmd), stdin=PIPE, stdout=wsfile).communicate(input=self['whitesky'].encode(sys.getfilesystemencoding()))
         return ("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), "{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])))
     else:
         export_op.report({'ERROR'}, "Not a valid EPW file")
         return ('', '')
+
 
 def cbdmhdr(node, scene):
     patches = (146, 578, 2306)[node.cbdm_res - 1]
     svp = scene.vi_params
     targethdr = os.path.join(svp['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
     latlonghdr = os.path.join(svp['viparams']['newdir'], node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))
-    skyentry = hdrsky(node.hdrname, '1', 0, 1000) if node.sourcemenu == '1' and  node.cbanalysismenu == '0' else hdrsky(targethdr, '1', 0, 1000)
+    skyentry = hdrsky(node.hdrname, '1', 0, 1000) if node.sourcemenu == '1' and node.cbanalysismenu == '0' else hdrsky(targethdr, '1', 0, 1000)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(patches)])
         vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
         rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f reinhart{}.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'],
-                                                           node.cbdm_res,
-                                                           os.path.join(svp['viparams']['newdir'], 'p%d.hdr'),
-                                                           os.path.join(svp['viparams']['newdir'],
-                                                                        svp['viparams']['filename']))
+                                                                                                                                                                 node.cbdm_res,
+                                                                                                                                                                 os.path.join(svp['viparams']['newdir'], 'p%d.hdr'),
+                                                                                                                                                                 os.path.join(svp['viparams']['newdir'],
+                                                                                                                                                                 svp['viparams']['filename']))
 
-        vwrun = Popen(shlex.split(vwcmd), stdout = PIPE)
-        rcrun = Popen(shlex.split(rcontribcmd), stderr = PIPE, stdin = vwrun.stdout)
+        vwrun = Popen(shlex.split(vwcmd), stdout=PIPE)
+        rcrun = Popen(shlex.split(rcontribcmd), stderr=PIPE, stdin=vwrun.stdout)
 
         for line in rcrun.stderr:
             logentry('HDR generation error: {}'.format(line))
 
         for j in range(patches):
             with open(os.path.join(svp['viparams']['newdir'], "ps{}.hdr".format(j)), 'w') as psfile:
-                Popen(shlex.split('pcomb -s {} "{}"'.format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j)))), stdout = psfile).wait()
+                Popen(shlex.split('pcomb -s {} "{}"'.format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j)))), stdout=psfile).wait()
 
         with open(targethdr, 'w') as epwhdr:
             if sys.platform == 'win32':
-                Popen("pcomb -h {}".format(pcombfiles), stdout = epwhdr).wait()
+                Popen("pcomb -h {}".format(pcombfiles), stdout=epwhdr).wait()
             else:
-                Popen(shlex.split('pcomb -h {}'.format(pcombfiles)), stdout = epwhdr).wait()
+                Popen(shlex.split('pcomb -h {}'.format(pcombfiles)), stdout=epwhdr).wait()
 
-        [os.remove(os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (patches)]
-        [os.remove(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (patches)]
+        [os.remove(os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range(patches)]
+        [os.remove(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(patches)]
         node.hdrname = targethdr
 
         if node.hdr:
             with open('{}.oct'.format(os.path.join(svp['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
-                Popen(shlex.split('oconv -w - '), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode(sys.getfilesystemencoding()))
+                Popen(shlex.split('oconv -w - '), stdin=PIPE, stdout=hdroct, stderr=STDOUT).communicate(input=skyentry.encode(sys.getfilesystemencoding()))
 
-            cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
+            cntrun = Popen('cnt 750 1500'.split(), stdout=PIPE)
             rccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
             logentry('Running rcalc: {}'.format(rccmd))
-            rcalcrun = Popen(shlex.split(rccmd), stdin = cntrun.stdout, stdout = PIPE)
+            rcalcrun = Popen(shlex.split(rccmd), stdin=cntrun.stdout, stdout=PIPE)
 
             with open(latlonghdr, 'w') as panohdr:
                 rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}.oct"'.format(svp['viparams']['nproc'], os.path.join(svp['viparams']['newdir'], node['epwbase'][0]))
                 logentry('Running rtrace: {}'.format(rtcmd))
-                Popen(shlex.split(rtcmd), stdin = rcalcrun.stdout, stdout = panohdr)
+                Popen(shlex.split(rtcmd), stdin=rcalcrun.stdout, stdout=panohdr)
 
     return skyentry
+
 
 def mtx2vals(mtxlines, fwd, node, times):
     for m, mtxline in enumerate(mtxlines):

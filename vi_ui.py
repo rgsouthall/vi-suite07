@@ -455,7 +455,7 @@ def rmmenu(layout, cm):
             newrow(layout, 'Normal map:', mvp, 'li_norm')
 
             if mvp.li_norm != 'None':
-                # newrow(layout, 'Strength:', mvp, 'ns')
+                newrow(layout, 'Strength:', mvp, 'li_norm_strength')
                 newrow(layout, 'Image green vector:', mvp, 'nu')
                 newrow(layout, 'Image red vector:', mvp, 'nside')
 

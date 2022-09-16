@@ -574,6 +574,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     li_tex: EnumProperty(items=ret_im, name='', description='Texture image')
     li_am: EnumProperty(items=ret_im, name='', description='Alpha mask')
     li_norm: EnumProperty(items=ret_im, name='', description='Normal map')
+    li_norm_strength: fprop("", "Normal strength", 0, 1000, 1.0)
 
     # FloVi Materials
     flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
