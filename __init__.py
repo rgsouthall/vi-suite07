@@ -149,6 +149,12 @@ else:
             except:
                 print('{} not found'.format(fn))
 
+        if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
+            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
+
+        if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.so')):
+            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.so.22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.so'))
+
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
