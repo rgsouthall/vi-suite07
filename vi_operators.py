@@ -2125,9 +2125,12 @@ class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
         zrl = list(zip(*rl))
         year = context.scene.vi_params.year
 
-        if node.inputs['X-axis'].framemenu not in zrl[0]:
-            self.report({'ERROR'}, "There are no results in the results file. Check the results.err file in Blender's text editor")
-            return {'CANCELLED'}
+        try:
+            node.inputs['X-axis'].framemenu
+        except Exception as e:
+            if node.inputs['X-axis'].framemenu not in zrl[0]:
+                self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
+                return {'CANCELLED'}
 
         if not mp:
             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")

@@ -165,7 +165,7 @@ class No_Loc(Node, ViNodes):
         (svp.latitude, svp.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (svp.latitude, svp.longitude)
 
         for node in [link.to_node for link in self.outputs['Location out'].links]:
-            node.nodeupdate()
+            node.nodeupdate(context)
 
     def retentries(self, context):
         try:
@@ -1886,10 +1886,11 @@ class No_Vi_Chart(Node, ViNodes):
                 row.label(text = "No results")
 
     def update(self):
-        if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists'] or len(self.inputs['X-axis'].links[0].from_node['reslists']) < 2:
-            if self.inputs.get('Y-axis 1'):
-                self.inputs['Y-axis 1'].hide = True
-        else:
+        # try
+        # if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists'] or len(self.inputs['X-axis'].links[0].from_node['reslists']) < 2:
+        #     if self.inputs.get('Y-axis 1'):
+        #         self.inputs['Y-axis 1'].hide = True
+        try:
             innode = self.inputs['X-axis'].links[0].from_node
             rl = innode['reslists']
             zrl = list(zip(*rl))
@@ -2056,6 +2057,10 @@ class No_Vi_Chart(Node, ViNodes):
                         multfactor: multmenu
 
                     bpy.utils.register_class(ViEnRY3In)
+        except Exception as e:
+            print('error', e)
+            if self.inputs.get('Y-axis 1'):
+                self.inputs['Y-axis 1'].hide = True
 
 def loctype(self, context):
     rmenu = str(self.resmenu)
