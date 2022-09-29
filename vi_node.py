@@ -2368,35 +2368,36 @@ class No_Vi_Metrics(Node, ViNodes):
                         newrow(layout, 'Unregulated:', self, 'mod')
 
                     if self.energy_menu == '0':
-                        row = layout.row()
-                        pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
-                        row.label(text="PV (kWh): {}".format(pvkwh))
-                        pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                        row = layout.row()
-                        row.label(text="PV (kWh/m2): {}".format(pva))
-                        row = layout.row()
-                        hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
-                        row.label(text="Heating (kWh): {}".format(hkwh))
-                        row = layout.row()
-                        ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                        row.label(text="Heating (kWh/m2): {}".format(ha))
-                        row = layout.row()
-                        ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
-                        row.label(text="Cooling (kWh): {}".format(ckwh))
-                        row = layout.row()
-                        ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                        row.label(text="Cooling (kWh/m2): {}".format(ca))
+                        if self['res'].get('pvkwh'):
+                            row = layout.row()
+                            pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
+                            row.label(text="PV (kWh): {}".format(pvkwh))
+                            pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                            row = layout.row()
+                            row.label(text="PV (kWh/m2): {}".format(pva))
+                            row = layout.row()
+                            hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'] + self['res']['ahkwh'])
+                            row.label(text="Heating (kWh): {}".format(hkwh))
+                            row = layout.row()
+                            ha = "{:.2f}".format((self['res']['hkwh'] + self['res']['ahkwh'])/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                            row.label(text="Heating (kWh/m2): {}".format(ha))
+                            row = layout.row()
+                            ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
+                            row.label(text="Cooling (kWh): {}".format(ckwh))
+                            row = layout.row()
+                            ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                            row.label(text="Cooling (kWh/m2): {}".format(ca))
 
-                        if self.zone_menu == 'All':
-                            row = layout.row()
-                            wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
-                            row.label(text="Hot water (kWh): {}".format(wkwh))
-                            row = layout.row()
-                            ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A'
-                            row.label(text="ECF: {}".format(ecf))
-                            row = layout.row()
-                            epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A'
-                            row.label(text="EPC: {} ({})".format(epc, self['res']['EPCL']))
+                            if self.zone_menu == 'All':
+                                row = layout.row()
+                                wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
+                                row.label(text="Hot water (kWh): {}".format(wkwh))
+                                row = layout.row()
+                                ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A'
+                                row.label(text="ECF: {}".format(ecf))
+                                row = layout.row()
+                                epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A'
+                                row.label(text="EPC: {} ({})".format(epc, self['res']['EPCL']))
 
                     elif self.energy_menu == '1':
                         if self['res']:

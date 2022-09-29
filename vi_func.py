@@ -1899,7 +1899,10 @@ def selobj(vl, geo):
     for ob in vl.objects:
         bpy.context.view_layer.objects.active
         ob.select_set(1) if ob == geo else ob.select_set(0)
-    vl.objects.active = geo
+    try:
+        vl.objects.active = geo
+    except:
+        pass
 
 
 def actselobj(vl, act, geos):
