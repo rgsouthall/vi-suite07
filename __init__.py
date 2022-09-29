@@ -152,8 +152,10 @@ else:
         if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
             os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
 
-        if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.so')):
-            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.so.22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.so'))
+        if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
+            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 
+                                    'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])), 
+                                    os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
 
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
