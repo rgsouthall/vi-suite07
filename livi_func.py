@@ -191,7 +191,7 @@ def radmat(self, scene):
                 scene.render.image_settings.file_format = 'HDR'
                 amim.save_render(amloc)
                 scene.render.image_settings.file_format = off
-                radentries[1] = ret_radentry(self, f'{radname}_im', f'{radname}_tex')# image material\n{0}_tex plastic {0}_im\n0\n0\n5 1 1 1 0 0\n\n'.format(radname)
+                radentries[1] = ret_radentry(self, f'{radname}_im', f'{radname}_tex')  # image material\n{0}_tex plastic {0}_im\n0\n0\n5 1 1 1 0 0\n\n'.format(radname)
                 radentries.append('# alpha mapped material\nvoid mixpict {0}\n7 {0}_im void grey {1} . frac(Lu){2} frac(Lv){3}\n0\n0\n\n'.format(radname, amloc, ar[0], ar[1]))
                 mod = '{}'.format(radname)
 
@@ -203,10 +203,10 @@ def radmat(self, scene):
                     header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
                     xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
                     ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
-                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
-                    savetxt(os.path.join(svp['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
+                    savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
+                    savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
                     radentries.append("{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
-                               os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside))
+                                      os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside))
                     mod = '{}_norm'.format(radname)
                     radentries[1] = ''
                     radentries.append(ret_radentry(self, radname, mod))
@@ -216,6 +216,7 @@ def radmat(self, scene):
 
         except Exception as e:
             logentry('Problem with texture export {}'.format(e))
+            return ''
     else:
         radentries = [ret_radentry(self, radname, mod)]
 

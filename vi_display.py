@@ -22,7 +22,7 @@ from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
 from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, drawloop, drawpoly, retdp
-from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im
+from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im, move_obs
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
 from .livi_func import setscenelivivals
@@ -240,16 +240,16 @@ def li_display(context, disp_op, simnode):
         context.view_layer.objects.active = geo
 
         if getattr(geo, 'mode') != 'OBJECT':
-            bpy.ops.object.mode_set(mode = 'OBJECT')
+            bpy.ops.object.mode_set(mode='OBJECT')
 
-    bpy.ops.object.select_all(action = 'DESELECT')
+    bpy.ops.object.select_all(action='DESELECT')
 
     if not bpy.app.handlers.frame_change_post:
         bpy.app.handlers.frame_change_post.append(livi_export.cyfc1)
 
     for o in context.view_layer.objects:
         if o.type == "MESH" and o.vi_params.vi_type_string == 'LiVi Calc' and o.hide_viewport == False:
-            bpy.ops.object.select_all(action = 'DESELECT')
+            bpy.ops.object.select_all(action='DESELECT')
             obcalclist.append(o)
 
     scene.frame_set(svp['liparams']['fs'])
@@ -2802,6 +2802,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc'] or not context.area:
             svp.vi_display = 0
+            move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
 
             if context.area:
                 context.area.tag_redraw()
@@ -3050,6 +3051,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
         if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.vi_params.vi_type_string == 'LiVi Res']:
             svp.vi_display = 0
+            move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
 
             if context.area:
                 context.area.tag_redraw()

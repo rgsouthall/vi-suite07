@@ -95,13 +95,15 @@ def move_to_coll(context, coll, o):
 def clear_coll(c, coll):
     for o in coll.objects:
         if coll.name == 'LiVi Results' and o.vi_params.vi_type_string != 'LiVi Res':
-            pass
+            c.scene.collection.link(o)
+            coll.objects.unlink(o)
         elif coll.name == 'LiVi Results':
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
 
         elif coll.name == 'FloVi Mesh' and o.vi_params.vi_type_string != 'FloVi Mesh':
-            pass
+            c.scene.collection.link(o)
+            coll.objects.unlink(o)
         elif coll.name == 'FloVi Mesh':
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
@@ -225,6 +227,13 @@ def retcols(cmap, levels):
         hs = [0.75 - 0.75*(i/(levels - 1)) for i in range(levels)]
         rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
     return rgbas
+
+
+def move_obs(s_coll, coll, t_string):
+    for ob in coll.objects:
+        if ob.vi_params.vi_type_string != t_string:
+            s_coll.objects.link(ob)
+            coll.objects.unlink(ob)
 
 
 def cmap(svp):
@@ -836,9 +845,6 @@ def clearscene(context, op):
         context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
 
     for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
-        # if ob.mode != 'OBJECT':
-        #     bpy.ops.object.mode_set(mode = 'OBJECT')
-
         if ob.vi_params.vi_type_string != 'LiVi Calc':
             v, f, svv, svf = [0] * 4
 

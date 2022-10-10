@@ -480,8 +480,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if viparams(self, scene):
             return {'CANCELLED'}
 
-        for o in scene.objects:
-            o.vi_params.vi_type_string = ''
+        # for o in scene.objects:
+        #     o.vi_params.vi_type_string = ''
 
         shadobs = retobjs('livig')
 
@@ -510,7 +510,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'}, "End hour is before start hour.")
-            return{'CANCELLED'}
+            return {'CANCELLED'}
 
         svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
         (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 100, 0)]
@@ -539,46 +539,46 @@ class NODE_OT_Shadow(bpy.types.Operator):
             reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
             reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
 
-            for oi, o in enumerate(calcobs):
-                ovp = o.vi_params
+        for oi, o in enumerate(calcobs):
+            ovp = o.vi_params
 
-                for k in [k for k in ovp.keys()]:
-                    del ovp[k]
+            for k in [k for k in ovp.keys()]:
+                del ovp[k]
 
-                if any([s < 0 for s in o.scale]):
-                    logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
-                    self.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
+            if any([s < 0 for s in o.scale]):
+                logentry('Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
+                self.report({'WARNING'}, 'Negative scaling on calculation object {}. Results may not be as expected'.format(o.name))
 
-                ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
+            ovp['omin'], ovp['omax'], ovp['oave'] = {}, {}, {}
 
-                if simnode.sdoy <= simnode.edoy:
-                    ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype=float)
-                else:
-                    ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype=float)
+            if simnode.sdoy <= simnode.edoy:
+                ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype=float)
+            else:
+                ovp['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype=float)
 
-                ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype=float)
-                bm = bmesh.new()
-                bm.from_mesh(o.to_mesh())
-                o.to_mesh_clear()
-                clearlayers(bm, 'a')
-                bm.transform(o.matrix_world)
-                bm.normal_update()
-                geom = bm.faces if simnode.cpoint == '0' else bm.verts
-                geom.layers.int.new('cindex')
-                cindex = geom.layers.int['cindex']
-                [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]
-                [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
-                avres, minres, maxres, g = [], [], [], 0
+            ovp['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype=float)
+            bm = bmesh.new()
+            bm.from_mesh(o.to_mesh())
+            o.to_mesh_clear()
+            clearlayers(bm, 'a')
+            bm.transform(o.matrix_world)
+            bm.normal_update()
+            geom = bm.faces if simnode.cpoint == '0' else bm.verts
+            geom.layers.int.new('cindex')
+            cindex = geom.layers.int['cindex']
+            [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]
+            [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
+            avres, minres, maxres, g = [], [], [], 0
 
-                if simnode.cpoint == '0':
-                    gpoints = [f for f in geom if o.data.materials[f.material_index].vi_params.mattype == '1']
-                elif simnode.cpoint == '1':
-                    gpoints = [v for v in geom if any([o.data.materials[f.material_index].vi_params.mattype == '1' for f in v.link_faces])]
+            if simnode.cpoint == '0':
+                gpoints = [f for f in geom if o.data.materials[f.material_index].vi_params.mattype == '1']
+            elif simnode.cpoint == '1':
+                gpoints = [v for v in geom if any([o.data.materials[f.material_index].vi_params.mattype == '1' for f in v.link_faces])]
 
-                for g, gp in enumerate(gpoints):
-                    gp[cindex] = g + 1
+            for g, gp in enumerate(gpoints):
+                gp[cindex] = g + 1
 
-#            for frame in frange:
+            for frame in frange:
                 g = 0
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
@@ -2653,8 +2653,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 with TaskManager():
                     m = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)
-                # print(dir(m))
-
 
                 logentry("Netgen surface mesh generated")
                 # ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
@@ -2715,7 +2713,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Volume Mesh')
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
         context.window_manager.modal_handler_add(self)
-        return{'RUNNING_MODAL'}
+        return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
         scene = context.scene
@@ -2723,12 +2721,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
         if self.ng_mesh.poll() is None:
             if self.kivyrun.poll() is None:
-                return{'PASS_THROUGH'}
+                return {'PASS_THROUGH'}
             else:
                 self.ng_mesh.kill()
                 self.kivyrun.kill()
                 self.expnode.running = 0
-                return{'CANCELLED'}
+                return {'CANCELLED'}
         else:
             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
                 offb = svp['flparams']['offilebase']
@@ -2755,7 +2753,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     self.expnode.running = 0
                     self.kivyrun.kill()
                     self.report({'ERROR'}, 'Netgen volume meshing did not complete')
-                    return{'CANCELLED'}
+                    return {'CANCELLED'}
 
                 if os.path.isfile(os.path.join(frame_ofcfb, 'polyMesh', 'boundary')):
                     with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'r') as bfile:
