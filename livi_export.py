@@ -187,7 +187,7 @@ def radgexport(export_op, node):
         with open(tempmatfilename, "w") as tempmatfile:
             tempmatfile.write(mradfile)
 
-        for o in eolist:
+        for o in [ob for ob in eolist if ob.visible_get()]:
             ovp = o.vi_params
             bm = bmesh.new()
             bm.from_object(o, dp)
@@ -256,7 +256,7 @@ def radgexport(export_op, node):
                 o.particle_systems[0].settings.hair_length = hl
 
     # Lights export routine
-        for o in lightlist:
+        for o in [ob for ob in lightlist if ob.visible_get()]:
             ovp = o.vi_params
 
             # if ' ' in bpy.data.filepath:

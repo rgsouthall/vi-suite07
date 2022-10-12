@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 7, 0),
-    "blender": (3, 2),
+    "blender": (3, 3),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
@@ -125,7 +125,7 @@ else:
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                               ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                               'site-packages', 'netgen')):
-                ng_cmd = '"{0}" -m pip install --prefix="{1}" ngsolve'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(ng_cmd)).wait()
 
         except Exception as e:

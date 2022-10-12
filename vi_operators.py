@@ -414,7 +414,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             for frame in frange:
                 g = 0
                 scene.frame_set(frame)
-                shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
+                shadtree = rettree(scene, [ob for ob in shadobs if ob.visible_get()], ('', '2')[simnode.signore])
                 shadres = geom.layers.float['svf{}'.format(frame)]
 
                 if gpoints:
@@ -479,9 +479,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         if viparams(self, scene):
             return {'CANCELLED'}
-
-        # for o in scene.objects:
-        #     o.vi_params.vi_type_string = ''
 
         shadobs = retobjs('livig')
 
@@ -581,7 +578,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             for frame in frange:
                 g = 0
                 scene.frame_set(frame)
-                shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
+                shadtree = rettree(scene, [ob for ob in shadobs if ob.visible_get()], ('', '2')[simnode.signore])
                 shadres = geom.layers.float['sm{}'.format(frame)]
 
                 if gpoints:

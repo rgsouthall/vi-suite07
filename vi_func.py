@@ -1523,13 +1523,11 @@ def retrobjs(obs):
 
 def retobjs(otypes):
     scene = bpy.context.scene
-#    svp = scene.vi_params
-    validobs = [o for o in scene.objects if o.visible_get() and '/' not in o.name and o not in retrobjs(scene.objects)]
+    validobs = [o for o in scene.objects if '/' not in o.name and o not in retrobjs(scene.objects)]
 
     for o in scene.objects:
         if '/' in o.name:
             logentry('Object {} has a "/" in the name and will not be exported'.format(o.name))
-#        o.vi_params.vi_type_string = ''
 
     if otypes == 'livig':
         return([o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
