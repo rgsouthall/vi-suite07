@@ -119,10 +119,10 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
 
             with open(mfile, 'w') as mesh:
                 logentry('Running obj2mesh: {}'.format('obj2mesh -w -a {} '.format(tmf)))
-                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout=mesh, stdin=PIPE, stderr=PIPE, universal_newlines=True).communicate(input=(otext + vtext + ftext))
+                o2mrun = Popen(shlex.split("obj2mesh -w -a '{}' ".format(tmf)), stdout=mesh, stdin=PIPE, stderr=PIPE, universal_newlines=True).communicate(input=(otext + vtext + ftext))
 
             if os.path.getsize(mfile) and not o2mrun[1]:
-                gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
+                gradfile += "void mesh id \n1 '{}'\n0\n0\n\n".format(mfile)
 
             else:
                 if o2mrun[1]:

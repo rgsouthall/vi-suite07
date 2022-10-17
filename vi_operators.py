@@ -1006,13 +1006,14 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     logentry('Photon mapping error: {}'.format(line.decode()))
 
                 while pmrun.poll() is None:
-                    sleep(5)
+                    sleep(2)
                     with open('{}-{}'.format(self.pmfile, frame), 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '%' in line:
                                 for entry in line.split():
                                     if '%' in entry:
                                         curres = float(entry[:-2])
+                                        print('curres', curres)
                                         break
                             break
 
@@ -1170,9 +1171,9 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
                 if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
-                    pmcmd = 'mkpmap -n {6} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
+                    pmcmd = 'mkpmap -n {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
                 else:
-                    pmcmd = 'mkpmap -n {3} -t 10 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
+                    pmcmd = 'mkpmap -n {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
 
                 logentry('Generating photon map: {}'.format(pmcmd))
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
@@ -1299,6 +1300,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
         if self.pmfin:
             if len(self.rpruns) == 0:
                 self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
+
                 if len(self.pmruns):
                     self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), 'Radiance Image')
 
@@ -1475,7 +1477,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     pass
 
             scene.frame_set(svp['liparams']['fs'])
-            self.pmcmds = ['mkpmap {7} -t 10 -e "{6}" -bv+ +fo -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(self.pmparams[str(frame)]['pportentry'],
+            self.pmcmds = ['mkpmap {7} -t 2 -e "{6}" -bv+ +fo -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(self.pmparams[str(frame)]['pportentry'],
                             svp['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'],
                             '{}-{}'.format(self.pmfile, frame),  ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32']) for frame in range(self.fs, self.fe + 1)]
 

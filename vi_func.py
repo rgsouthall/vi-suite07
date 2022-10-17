@@ -349,6 +349,7 @@ class progressfile():
     def __init__(self, folder, starttime, calcsteps):
         self.starttime = starttime
         self.calcsteps = calcsteps
+        self.curres = 0
         self.folder = folder
         self.pfile = os.path.join(folder, 'viprogress')
 
@@ -366,8 +367,15 @@ class progressfile():
 
         with open(self.pfile, 'w') as pfile:
             if curres:
-                dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
-                pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds=dt.seconds)))
+                if curres > self.curres:
+                    self.ldt = datetime.datetime.now()
+                    self.curres = curres
+
+                # dt = (1/(curres/self.calcsteps)) * (self.ldt - self.starttime) - (datetime.datetime.now() - self.starttime)
+                # dt = (1 - curres/self.calcsteps) * (self.ldt - self.starttime) - (datetime.datetime.now() - self.ldt)
+                dt = (self.ldt - self.starttime)/(curres/self.calcsteps) - (datetime.datetime.now() - self.starttime)
+                #dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
+                pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds=dt.seconds if dt.total_seconds() > 0 else 0)))
             else:
                 pfile.write('0 Initialising')
 

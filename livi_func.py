@@ -180,7 +180,7 @@ def radmat(self, scene):
             scene.render.image_settings.file_format = off
             (w, h) = teximage.size
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-            radentries = ['void colorpict {}_tex\n7 red green blue {} . frac(Lu){} frac(Lv){}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])]
+            radentries = ["void colorpict {}_tex\n7 red green blue '{}' . frac(Lu){} frac(Lv){}\n0\n0\n\n".format(radname, teximageloc, ar[0], ar[1])]
             mod = '{}_tex'.format(radname)
             radentries.append(ret_radentry(self, radname, mod))
 
@@ -192,7 +192,7 @@ def radmat(self, scene):
                 amim.save_render(amloc)
                 scene.render.image_settings.file_format = off
                 radentries[1] = ret_radentry(self, f'{radname}_im', f'{radname}_tex')  # image material\n{0}_tex plastic {0}_im\n0\n0\n5 1 1 1 0 0\n\n'.format(radname)
-                radentries.append('# alpha mapped material\nvoid mixpict {0}\n7 {0}_im void grey {1} . frac(Lu){2} frac(Lv){3}\n0\n0\n\n'.format(radname, amloc, ar[0], ar[1]))
+                radentries.append("# alpha mapped material\nvoid mixpict {0}\n7 {0}_im void grey '{1}' . frac(Lu){2} frac(Lv){3}\n0\n0\n\n".format(radname, amloc, ar[0], ar[1]))
                 mod = '{}'.format(radname)
 
             try:
