@@ -2038,20 +2038,24 @@ def uvsocklink2(sock, ng):
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))
     fstrings, ustrings, tstrings = [[] for t in tot],  [[] for t in tot], ['Through: {}/{}'.format(dtdf(ts[t]).month, dtdf(ts[t]).day) for t in tot]
+
     for t in tot:
         fstrings[t] = ['For: '+''.join(f.strip()) for f in fs[t].split(' ') if f.strip(' ') != '']
+
         for uf, ufor in enumerate(us[t].split(';')):
             ustrings[t].append([])
+
             for ut, utime in enumerate(ufor.split(',')):
                 ustrings[t][uf].append(['Until: '+','.join([u.strip() for u in utime.split(' ') if u.strip(' ')])])
-    return(tstrings, fstrings, ustrings)
+
+    return (tstrings, fstrings, ustrings)
 
 
 def retdates(sdoy, edoy, y):
     (y1, y2) = (y, y) if edoy >= sdoy else (y - 1, y)
     sdate = datetime.datetime(y1, 1, 1) + datetime.timedelta(sdoy - 1)
     edate = datetime.datetime(y2, 1, 1) + datetime.timedelta(edoy - 1)
-    return(sdate, edate)
+    return (sdate, edate)
 
 
 def ret_param(param, val):
@@ -2069,7 +2073,7 @@ def li_calcob(ob, li):
     if not ob.data.materials:
         ovp.vi_type_string = ''
     else:
-        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index] and ob.data.materials[face.material_index].vi_params.mattype == '1'] else ''
+        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.material_slots[face.material_index].material and ob.material_slots[face.material_index].material.vi_params.mattype == '1'] else ''
 
     return ovp.vi_type_string == 'LiVi Calc'
 
