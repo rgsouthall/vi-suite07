@@ -277,7 +277,7 @@ def li_display(context, disp_op, simnode):
             bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
 
         for v in bm.verts:
-            v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis = 0))).normalized() * simnode['goptions']['offset']
+            v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized() * simnode['goptions']['offset']
 
         selobj(context.view_layer, o)
         bpy.ops.object.duplicate()
@@ -3182,7 +3182,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             imname, svg_bytes = vi_info(node, dim, ir=node['res']['ratioDF'], aDF=node['res']['avDF'])
         elif node.metric == '1' and node.light_menu == '1':
             dim = (600, 800)
-            imname, svg_bytes = vi_info(node, (600, 800), sda=node['res']['sda'], sdapass=node['res']['sdapass'],
+            imname, svg_bytes = vi_info(node, dim, sda=node['res']['sda'], sdapass=node['res']['sdapass'],
                                         ase=node['res']['ase'], asepass=node['res']['asepass'], o1=node['res']['o1'],
                                         tc=node['res']['tc'], totarea=node['res']['totarea'], svarea=node['res']['svarea'])
 
@@ -3191,7 +3191,6 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         image = image.mirrored(0, 1)
         bs = image.bits()
         bs.setsize(image.byteCount())
-#        strbs = bs.asstring()
         buf = memoryview(bs)
         arr = frombuffer(buf, dtype=ubyte).astype(float32)
         ipwidth, ipheight = dim[0], dim[1]
@@ -3200,6 +3199,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
                               generated_type='BLANK', float=False, use_stereo_3d=False)
             im = bpy.data.images[imname]
+            im.colorspace_settings.name = 'Linear'
 
         else:
             im = bpy.data.images[imname]
@@ -3214,6 +3214,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
                 im.scale(ipwidth, ipheight)
 
         im.pixels.foreach_set((arr/255))
+        im.scale(int(dim[0]/2), int(dim[1]/2))
         area = context.area
         t = area.type
         area.type = 'IMAGE_EDITOR'

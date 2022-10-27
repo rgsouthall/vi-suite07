@@ -33,7 +33,7 @@ def sunposlivi(scene, skynode, frames, sun, stime):
     svp = scene.vi_params
 
     if skynode['skynum'] < 3 or (skynode.skyprog == '1' and skynode.epsilon > 1):
-        times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]
+        times = [stime + frame*datetime.timedelta(seconds=3600*skynode.interval) for frame in range(len(frames))]
         solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, svp.latitude, svp.longitude) for t in times]
         beamvals = [(0, 3)[solposs[t][0] > 0] for t in range(len(times))] if skynode['skynum'] < 2  or (skynode.skyprog == '1' and skynode.epsilon > 1) else [0 for t in range(len(times))]
         skyvals = [1 for t in range(len(times))]
@@ -165,14 +165,15 @@ def radmat(self, scene):
     radname = self.id_data.name.replace(" ", "_")
     radname = radname.replace(",", "")
     self['radname'] = radname
-    mod = 'void'
+    dirt_entry = f'void brightfunc {radname}_dirt\n4 dirt dirt.cal -s {3.3 * self.li_dirt_spacing:.2f}\n0\n1 {self.li_dirt_level:.2f}\n\n' if self.li_dirt else ''
+    mod = f'{radname}_dirt' if self.li_dirt else 'void'
 
-    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.li_tex != 'None':
+    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.li_tex:
         try:
             fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
             nd = os.path.join(fd, fn)
             svp['liparams']['texfilebase'] = os.path.join(nd, 'textures')
-            teximage = bpy.data.images[self.li_tex]
+            teximage = self.li_tex
             teximageloc = os.path.join(svp['liparams']['texfilebase'], '{}.hdr'.format(radname))
             off = scene.render.image_settings.file_format
             scene.render.image_settings.file_format = 'HDR'
@@ -180,12 +181,14 @@ def radmat(self, scene):
             scene.render.image_settings.file_format = off
             (w, h) = teximage.size
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-            radentries = ["void colorpict {}_tex\n7 red green blue '{}' . frac(Lu){} frac(Lv){}\n0\n0\n\n".format(radname, teximageloc, ar[0], ar[1])]
+            dirt_entry = f'void brightfunc {radname}_dirt\n4 dirt dirt.cal -s {3.3 * self.li_dirt_spacing:.2f}\n0\n1 {self.li_dirt_level:.2f}\n\n' if self.li_dirt else ''
+            dirt_mod = f'{radname}_dirt' if self.li_dirt else 'void'
+            radentries = ["{}{} colorpict {}_tex\n7 red green blue '{}' . frac(Lu){} frac(Lv){}\n0\n0\n\n".format(dirt_entry, dirt_mod, radname, teximageloc, ar[0], ar[1])]
             mod = '{}_tex'.format(radname)
             radentries.append(ret_radentry(self, radname, mod))
 
-            if self.li_am != 'None':
-                amim = bpy.data.images[self.li_am]
+            if self.li_am:
+                amim = self.li_am
                 amloc = os.path.join(svp['liparams']['texfilebase'], '{}_am.hdr'.format(radname))
                 off = scene.render.image_settings.file_format
                 scene.render.image_settings.file_format = 'HDR'
@@ -196,8 +199,8 @@ def radmat(self, scene):
                 mod = '{}'.format(radname)
 
             try:
-                if self.li_norm != 'None':
-                    norm = bpy.data.images[self.li_norm]
+                if self.li_norm:
+                    norm = self.li_norm
                     normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
                     norm.pixels.foreach_get(normpixels)
                     header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
@@ -205,7 +208,7 @@ def radmat(self, scene):
                     ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
                     savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
                     savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
-                    radentries.append("{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
+                    radentries.append("{0}_tex texdata {0}_norm\n9 ddx ddy ddz '{1}.ddx' '{1}.ddy' '{1}.ddy' nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
                                       os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside))
                     mod = '{}_norm'.format(radname)
                     radentries[1] = ''
@@ -218,7 +221,7 @@ def radmat(self, scene):
             logentry('Problem with texture export {}'.format(e))
             return ''
     else:
-        radentries = [ret_radentry(self, radname, mod)]
+        radentries = [dirt_entry, ret_radentry(self, radname, mod)]
 
     self['radentry'] = ''.join(radentries)
     return self['radentry']
@@ -809,6 +812,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     bm.to_mesh(self.id_data.data)
     bm.free()
     return reslists
+
 
 def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params

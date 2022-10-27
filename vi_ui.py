@@ -338,6 +338,7 @@ class VI_PT_Mat(bpy.types.Panel):
                                 newrow(layout, "radiation value:", mvp, "flovi_rad_val")
                 newrow(layout, "Probe:", mvp, "flovi_probe")
 
+
 class VI_PT_Ob(bpy.types.Panel):
     bl_label = "VI-Suite Object"
     bl_space_type = "PROPERTIES"
@@ -421,16 +422,17 @@ class VI_PT_Ob(bpy.types.Panel):
         if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
             newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
 
+
 def rmmenu(layout, cm):
     mvp = cm.vi_params
     row = layout.row()
-    row.label(text = 'LiVi Radiance type:')
+    row.label(text='LiVi Radiance type:')
     row.prop(mvp, 'radmatmenu')
     row = layout.row()
 
     for prop in mvp.radmatdict[mvp.radmatmenu]:
         if prop:
-             row.prop(mvp, prop)
+            row.prop(mvp, prop)
         else:
             row = layout.row()
 
@@ -448,19 +450,24 @@ def rmmenu(layout, cm):
     if mvp.radmatmenu in ('1', '2', '3', '7'):
         newrow(layout, 'Photon port:', mvp, 'pport')
     if mvp.mattype == '0' and mvp.radmatmenu in ('0', '1', '2', '3', '6'):
+        newrow(layout, 'Dirt noise:', mvp, 'li_dirt')
+
+        if mvp.li_dirt:
+            newrow(layout, 'Dirt spacing:', mvp, 'li_dirt_spacing')
+            newrow(layout, 'Dirt level:', mvp, 'li_dirt_level')
+
         newrow(layout, 'Texture image:', mvp, 'li_tex')
+        newrow(layout, 'Alpha mask:', mvp, 'li_am')
+        newrow(layout, 'Normal map:', mvp, 'li_norm')
 
-        if mvp.li_tex != 'None':
-            newrow(layout, 'Alpha mask:', mvp, 'li_am')
-            newrow(layout, 'Normal map:', mvp, 'li_norm')
-
-            if mvp.li_norm != 'None':
-                newrow(layout, 'Strength:', mvp, 'li_norm_strength')
-                newrow(layout, 'Image green vector:', mvp, 'nu')
-                newrow(layout, 'Image red vector:', mvp, 'nside')
+        if mvp.li_norm != 'None':
+            newrow(layout, 'Strength:', mvp, 'li_norm_strength')
+            newrow(layout, 'Image green vector:', mvp, 'nu')
+            newrow(layout, 'Image red vector:', mvp, 'nside')
 
     row = layout.row()
-    row.label(text = "-----------------------------------------")
+    row.label(text="-----------------------------------------")
+
 
 class VI_PT_Col(bpy.types.Panel):
     bl_label = "VI-Suite Collection"
@@ -482,9 +489,10 @@ class VI_PT_Col(bpy.types.Panel):
             fa = 'N/A'
 
         row = layout.row()
-        row.label(text = 'EnergyPlus Metrics:')
+        row.label(text='EnergyPlus Metrics:')
         row = layout.row()
-        row.label(text = 'Floor area (m2): {}'.format(fa))
+        row.label(text='Floor area (m2): {}'.format(fa))
+
 
 class VI_PT_Gridify(bpy.types.Panel):
     bl_label = "VI Gridify"
@@ -497,6 +505,7 @@ class VI_PT_Gridify(bpy.types.Panel):
         layout = self.layout
         row = layout.row()
         row.operator("object.vi_gridify2", text="Grid the object")
+
 
 class TREE_PT_vi(bpy.types.Panel):
     bl_label = "VI-Suite"
@@ -515,8 +524,10 @@ class TREE_PT_vi(bpy.types.Panel):
 
         for g in visuite_groups:
             emboss = False
+
             if len(context.space_data.path) > 0:
                 emboss = context.space_data.path[-1].node_tree.name == g.name
+
             op = col.operator('tree.goto_group', text=g.name, emboss=emboss, icon='NODETREE')
             op.tree_type = "ViN"
             op.tree = g.name
@@ -567,7 +578,6 @@ class TREE_PT_envim(bpy.types.Panel):
                                   emboss=(mat == context.space_data.id),
                                   icon='ORPHAN_DATA')
                 op.mat = name
-
 
         if not materials:
             col.label(text="No EnVi Materials")

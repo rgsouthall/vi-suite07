@@ -41,7 +41,7 @@ else:
     import nodeitems_utils
     from bpy.app.handlers import persistent
     from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
-    from bpy.types import AddonPreferences
+    from bpy.types import AddonPreferences, Image
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     try:
@@ -153,8 +153,8 @@ else:
             os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
 
         if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
-            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 
-                                    'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])), 
+            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform,
+                                    'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
                                     os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
 
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc
@@ -579,10 +579,13 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radmat = radmat
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)
     li_bsdf_up: fvprop(3, '', 'BSDF up vector', [0, 0, 1], 'XYZ', -1, 1)
-    li_tex: EnumProperty(items=ret_im, name='', description='Texture image')
-    li_am: EnumProperty(items=ret_im, name='', description='Alpha mask')
-    li_norm: EnumProperty(items=ret_im, name='', description='Normal map')
+    li_tex: bpy.props.PointerProperty(name="", type=Image, description='Texture map')
+    li_am: bpy.props.PointerProperty(name="", type=Image, description='Alpha mask')
+    li_norm: bpy.props.PointerProperty(name="", type=Image, description='Normal map')
     li_norm_strength: fprop("", "Normal strength", 0, 1000, 1.0)
+    li_dirt: bprop("", "Applies a noise pattern to reduce reflectivity", False)
+    li_dirt_spacing: fprop("m", "Noise dimension", 0, 100, 0.1)
+    li_dirt_level: fprop("", "Level of reflectivity reduction", 0, 1, 0.5)
 
     # FloVi Materials
     flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")

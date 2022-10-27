@@ -332,8 +332,8 @@ def gen_octree(scene, o, op, mesh, tri):
 
     with open(os.path.join(nd, 'octrees', '{}.oct'.format(o.name)), "wb") as octfile:
         try:
-            ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
-            err = ocrun.communicate(input = mradfile + gradfile, timeout = 600)[1]
+            ocrun =  Popen("oconv -w -".split(), stdin=PIPE, stderr=PIPE, stdout=octfile, universal_newlines=True)
+            err = ocrun.communicate(input=mradfile + gradfile, timeout=600)[1]
 
             if err:
                 logentry('Oconv conversion error: {}'.format(err))
@@ -359,7 +359,7 @@ def livi_sun(scene, node, frame):
     svp = scene.vi_params
 
     if node.skyprog in ('0', '1') and node.contextmenu == 'Basic':
-        simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
+        simtime = node.starttime + frame*datetime.timedelta(seconds=3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, svp.latitude, svp.longitude)
 
         if node.skyprog == '0':
@@ -370,26 +370,26 @@ def livi_sun(scene, node, frame):
         gscmd = "gensky -ang {:.3f} {:.3f} {} -g {}".format(45, 0, node['skytypeparams'], node.gref)
 
     logentry('Generating sky with the command: {}'.format(gscmd))
-    gsrun = Popen(gscmd.split(), stdout = PIPE)
+    gsrun = Popen(gscmd.split(), stdout=PIPE)
     return gsrun.stdout.read().decode()
 
 def hdrexport(scene, f, frame, node, skytext):
     svp = scene.vi_params
 
     with open('{}-{}sky.oct'.format(svp['viparams']['filebase'], frame), 'w') as skyoct:
-        Popen('oconv -w -'.split(), stdin = PIPE, stdout = skyoct).communicate(input = skytext.encode('utf-8'))
+        Popen('oconv -w -'.split(), stdin=PIPE, stdout=skyoct).communicate(input=skytext.encode('utf-8'))
 
     with open(os.path.join(svp['viparams']['newdir'], str(frame)+".hdr"), 'w') as hdrfile:
         rpictcmd = 'rpict -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -x 1500 -y 1500 "{}-{}sky.oct"'.format(svp['viparams']['filebase'], frame)
-        Popen(shlex.split(rpictcmd), stdout = hdrfile).communicate()
+        Popen(shlex.split(rpictcmd), stdout=hdrfile).communicate()
 
-    cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
+    cntrun = Popen('cnt 750 1500'.split(), stdout=PIPE)
     rcalccmd = 'rcalc -f "{}" -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(svp.vipath, 'RadFiles', 'lib', 'latlong.cal'))
-    rcalcrun = Popen(shlex.split(rcalccmd), stdin = cntrun.stdout, stdout = PIPE)
+    rcalcrun = Popen(shlex.split(rcalccmd), stdin=cntrun.stdout, stdout=PIPE)
     rtracecmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}-{}sky.oct"'.format(svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
 
     with open('{}p.hdr'.format(os.path.join(svp['viparams']['newdir'], str(frame))), 'w') as hdrim:
-        Popen(shlex.split(rtracecmd), stdin = rcalcrun.stdout, stdout = hdrim).communicate()
+        Popen(shlex.split(rtracecmd), stdin=rcalcrun.stdout, stdout=hdrim).communicate()
 
     if '{}p.hdr'.format(frame) not in bpy.data.images:
         bpy.data.images.load(os.path.join(svp['viparams']['newdir'], "{}p.hdr".format(frame)))
@@ -427,8 +427,8 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
 
     with open("{}.oct".format(fbase), "wb") as octfile:
         try:
-            ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
-            err = ocrun.communicate(input = simnode['radfiles'][str(frame)], timeout = 600)[1]
+            ocrun = Popen("oconv -w -".split(), stdin=PIPE, stderr=PIPE, stdout=octfile, universal_newlines=True)
+            err = ocrun.communicate(input=simnode['radfiles'][str(frame)], timeout=600)[1]
 
             if err:
                 logentry('Oconv conversion error: {}'.format(err))

@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray, place, zeros, average
+from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32
 from numpy import sum as nsum
 from numpy import max as nmax
 from bpy_extras.io_utils import ExportHelper, ImportHelper
@@ -593,6 +593,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                             g += 1
 
                         curres += len(chunk)
+
                         if pfile.check(curres) == 'CANCELLED':
                             return {'CANCELLED'}
 
@@ -1013,7 +1014,6 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                                 for entry in line.split():
                                     if '%' in entry:
                                         curres = float(entry[:-2])
-                                        print('curres', curres)
                                         break
                             break
 
@@ -1477,25 +1477,77 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     pass
 
             scene.frame_set(svp['liparams']['fs'])
+            vps = [' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) for frame in range(self.fs, self.fe + 1)]
+            vps_vwrays = [' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items() if i[0] not in ('-X', '-Y', '-i')]) for frame in range(self.fs, self.fe + 1)]
             self.pmcmds = ['mkpmap {7} -t 2 -e "{6}" -bv+ +fo -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(self.pmparams[str(frame)]['pportentry'],
-                            svp['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'],
-                            '{}-{}'.format(self.pmfile, frame),  ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32']) for frame in range(self.fs, self.fe + 1)]
+                           self.fb, frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'],
+                           '{}-{}'.format(self.pmfile, frame),  ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32']) for frame in range(self.fs, self.fe + 1)]
 
-            self.rppmcmds = [('', ' -ap "{}" {}'.format('{}-{}.gpm'.format(svp['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
-            self.rpictcmds = ['rpict -t 10 -e "{}" '.format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(svp['viparams']['filebase'],
-                                                                                                                                                                                                                                            frame) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ['rpiece -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(svp['viparams']['filebase'], frame), self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(svp['viparams']['filebase'],
-                                                                                                                                                                                                                                                               frame,
-                                                                                                                                                                                                                                                               os.path.join(svp['viparams']['newdir'],
-                                                                                                                                                                                                                                                                            'images',
-                                                                                                                                                                                                                                                                            self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rppmcmds = [('', ' -ap "{}" {}'.format('{}-{}.gpm'.format(self.fb, frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ['rpict -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ['rpiece -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+
+            if simnode.normal:
+                for frame in range(self.fs, self.fe + 1):
+                    normdatas = []
+                    resrun = Popen(shlex.split('vwrays -ff -d {0}'.format(vps_vwrays[frame - self.fs])), stdout=PIPE)
+
+                    for line in resrun.stdout:
+                        line_split = line.decode('utf-8').split()
+
+                        if '-x' == line_split[0]:
+                            res = (int(line_split[1]), int(line_split[3]))
+                            break
+
+                    vwcmd = 'vwrays -ff {0}'.format(vps_vwrays[frame - self.fs])
+                    rtcmd = 'rtrace -on -ffa -ab 0 -ad 0 -aa 0 -ar 0 -as 0 -lr 0 "{0}-{1}.oct"'.format(self.fb, frame)
+                    # albcmd = 'rtrace -i -ov -ffa -ab 0 -ad 0 -aa 0 -ar 0 -as 0 "{0}-{1}.oct"'.format(self.fb, frame)
+                    vwrun = Popen(shlex.split(vwcmd), stdout=PIPE, stderr=PIPE)
+                    rtrun = Popen(shlex.split(rtcmd), stdin=vwrun.stdout, stdout=PIPE, stderr=PIPE)
+                    # vw2run = Popen(shlex.split(vwcmd), stdout=PIPE, stderr=PIPE)
+                    # albrun = Popen(shlex.split(albcmd), stdin=vw2run.stdout, stdout=PIPE, stderr=PIPE)
+                    normdata = [line.decode('utf-8').strip('\n').split('\t')[:3] + ['1'] for line in rtrun.stdout]
+                    # albdata = [line.decode('utf-8').strip('\n').split('\t')[:3] + ['1'] for line in albrun.stdout]
+                    vd = Vector([float(v) for v in self.viewparams[str(frame)]['-vd'].split()])
+                    vu = Vector([float(v) for v in self.viewparams[str(frame)]['-vu'].split()])
+                    vs = vd.cross(vu)
+
+                    for ni, nline in enumerate(normdata):
+                        if not nline[0]:
+                            start_data = ni + 1
+                            break
+
+                    d_list = normdata[start_data:]
+                    d_sides = [vs.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
+                    d_ups = [vu.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
+                    d_ins = [vd.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
+                    d_list = [(d_sides[li], d_ups[li], d_ins[li], 1) for li in range(len(d_sides))]
+                    d_array = numpy.array(d_list, dtype=numpy.float32).reshape(res[1], res[0], 4)[::-1, :, :]
+                    # alb_array = numpy.array(albdata[start_data:], dtype=numpy.float32).reshape(res[1], res[0], 4)[::-1, :, :]
+
+                    if f'{simnode.camera}-norm-{frame}' in bpy.data.images:
+                        nmim = bpy.data.images[f'{simnode.camera}-norm-{frame}']
+                        nmim.scale(res[0], res[1])
+                    else:
+                        nmim = bpy.data.images.new(name=f'{simnode.camera}-norm-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=True, is_data=True)
+
+                    nmim.pixels.foreach_set(d_array.flatten())
+
+                    # if f'{simnode.camera}-albedo-{frame}' in bpy.data.images:
+                    #     albim = bpy.data.images[f'{simnode.camera}-albedo-{frame}']
+                    #     albim.scale(res[0], res[1])
+                    # else:
+                    #     albim = bpy.data.images.new(name=f'{simnode.camera}-albedo-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=True, is_data=True)
+
+                    # albim.pixels.foreach_set(alb_array.flatten())
+
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
             (self.pmfin, flag) = (0, 'Photon Maps') if sum(self.pmaps) else (1, 'Radiance Images')
             self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), flag)
 
-            if os.path.isfile("{}-{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', self.basename), self.frame)):
-                os.remove("{}-{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', self.basename), self.frame))
+            if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame)):
+                os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame))
 
             wm = context.window_manager
             self._timer = wm.event_timer_add(2, window=context.window)
@@ -1546,7 +1598,7 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                     datetime.datetime(2019, 1, 1, int(imc['shour']),
                                       int(60*(imc['shour'] - int(imc['shour'])))) + datetime.timedelta(imc['sdoy'] - 1) + datetime.timedelta(hours=int(imc['interval']*i),
                                                                                                                                              seconds=int(60*(imc['interval']*i - int(imc['interval']*i))))
-                gtime = "{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\n".format(time.day, time.month,time.hour, time.minute)
+                gtime = "{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\n".format(time.day, time.month, time.hour, time.minute)
             else:
                 time = datetime.datetime(2019, 1, 1, 1)
                 gtime = ''
@@ -1573,14 +1625,14 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                                      [str(i + svp['liparams']['fs']), 'Camera', 'Camera', 'LV', '{[5]}'.format(res)]]
 
             with open('{}.temphdr'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare')), 'w') as temphdr:
-                pcondcmd = 'pcond -h+ -u 300 "{}.hdr"'.format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs']))))
+                pcondcmd = 'pcond -h+ -u 300 "{}"'.format(glfile)
                 Popen(shlex.split(pcondcmd), stdout=temphdr).communicate()
 
             with open(os.path.join(svp['viparams']['newdir'], 'images', "temp.glare"), "r") as catfile:
                 psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imy))
                 psignrun = Popen(shlex.split(psigncmd), stdin=catfile, stdout=PIPE, stderr=PIPE)
 
-            with open("{}.hdr".format(os.path.join(svp['viparams']['newdir'], 'images', '{}-{}'.format(glnode['hdrname'], str(i + svp['liparams']['fs'])))), 'w') as ghdr:
+            with open(glfile, 'w') as ghdr:
                 pcompcmd = 'pcompos "{0}.temphdr" 0 0 - {1} {2}'.format(os.path.join(svp['viparams']['newdir'], 'images', 'glare'), imx, imy*550/800)
                 Popen(shlex.split(pcompcmd), stdin=psignrun.stdout, stdout=ghdr).communicate()
 
@@ -1589,6 +1641,12 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                 os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'temp.glare'))
             except:
                 pass
+
+            if glfile not in [i.filepath for i in bpy.data.images]:
+                bpy.data.images.load(glfile)
+            else:
+                [i.reload() for i in bpy.data.images if i.filepath == glfile][0]
+
             glnode.postsim()
 
         return {'FINISHED'}

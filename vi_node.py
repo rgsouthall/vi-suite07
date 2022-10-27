@@ -809,6 +809,7 @@ class No_Li_Im(Node, ViNodes):
     fov: FloatProperty(name='', default=80, min=1, max=180, update=nodeupdate)
     processors: IntProperty(name='', default=1, min=1, max=128, update=nodeupdate)
     processes: IntProperty(name='', default=1, min=1, max=1000, update=nodeupdate)
+    normal: BoolProperty(name='', description="Generate denoising normal map", default=False)
 
     def retframes(self):
         try:
@@ -838,6 +839,7 @@ class No_Li_Im(Node, ViNodes):
                 newrow(layout, 'FoV:', self, 'fov')
 
             newrow(layout, 'Accuracy:', self, 'simacc')
+            newrow(layout, 'Normal:', self, 'normal')
 
             if self.simacc == '3':
                 row = layout.row()
@@ -2640,8 +2642,8 @@ class No_Vi_Metrics(Node, ViNodes):
             self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
             znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
             self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
-            self.res_update()
             self.inputs[0].links[0].from_node.new_res = 0
+            self.res_update()
         else:
             self['rl'] = []
             self['frames'] = [('None', 'None', 'None')]
@@ -2838,27 +2840,28 @@ class No_Vi_Metrics(Node, ViNodes):
                 for r in self['rl']:
                     if r[0] == self.frame_menu:
                         if r[2] == self.zone_menu:
-                            res_ob = bpy.data.objects['{}'.format(self.zone_menu)]
+                            if self.zone_menu in bpy.context.scene.objects:
+                                res_ob = bpy.context.scene.objects[self.zone_menu]
 
-                            if res_ob.vi_params['livires'].get('totarea{}'.format(self.frame_menu)):
-                                self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
-                                self['res']['svarea'] = res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]
+                                if res_ob.vi_params['livires'].get('totarea{}'.format(self.frame_menu)):
+                                    self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+                                    self['res']['svarea'] = res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]
 
-                                if r[3] == 'Annual Sunlight Exposure (% area)':
-                                    self['res']['ase'] = 100 * res_ob.vi_params['livires']['ase{}'.format(self.frame_menu)]
-                                    self['res']['asepass'] = 10
-                                elif r[3] == 'Spatial Daylight Autonomy (% area)':
-                                    self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
-                                elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':
-                                    self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
-                                elif r[3] == 'UDI-a Area (%)':
-                                    udiaareas = array([float(p) for p in r[4].split()])
-                                    im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
-                                    ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
-                                    self['res']['udiam'] = udiaareas[im]
-                                    self['res']['udiae'] = udiaareas[ie]
+                                    if r[3] == 'Annual Sunlight Exposure (% area)':
+                                        self['res']['ase'] = 100 * res_ob.vi_params['livires']['ase{}'.format(self.frame_menu)]
+                                        self['res']['asepass'] = 10
+                                    elif r[3] == 'Spatial Daylight Autonomy (% area)':
+                                        self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
+                                    elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':
+                                        self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
+                                    elif r[3] == 'UDI-a Area (%)':
+                                        udiaareas = array([float(p) for p in r[4].split()])
+                                        im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
+                                        ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
+                                        self['res']['udiam'] = udiaareas[im]
+                                        self['res']['udiae'] = udiaareas[ie]
 
-                                self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+                                    self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
 
         elif self.metric == '2':
             self['res']['pressure'] = {}

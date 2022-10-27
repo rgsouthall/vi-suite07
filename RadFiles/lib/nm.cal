@@ -1,13 +1,29 @@
 {
 Normal map conversion
 Lu, Lx are the UVMap coordinates
-Nx, Ny, Nz is the surface normal
+Nx, Ny, Nz is the surface normal (always positive it seems)
 Px, Py, Pz is the surface intersect
+A1 is strength factor
+A2 is Blender green direction x
+A3 is Blender green direction y
+A4 is Blender green direction z
+A5 is Blender red direction x
+A6 is Blender red direction y
+A7 is Blender red direction z
 }
+
+ddx(dx, dy) = if(Rdot, A5 * dx + A2 * dy, -1 * (A5 * dx + A2 * dy));
+ddy(dx, dy) = if(Rdot, A6 * dx + A3 * dy, -1 * (A6 * dx + A3 * dy));
+ddz(dx, dy) = if(Rdot, A7 * dx + A4 * dy, -1 * (A7 * dx + A4 * dy));
+
+{ddx(dx, dy) = if(Ny, A5 * dx, -A5 * dx) + if(Nx, A2 * dy, -A2 * dy);
+ddy(dx, dy) = if(Ny, A6 * dx, -A6 * dx) + if(Nx, A3 * dy, -A3 * dy);
+ddz(dx, dy) = if(Ny, A7 * dx, -A7 * dx) + if(Nx, A4 * dy, -A4 * dy);
 mycross(i, v1x, v1y, v1z, v2) : select(i, v1y*v2(3) - v1z*v2(2), v1z*v2(1) - v1x*v2(3), v1x*v2(2) - v1y*v2(1));
 ddx(dx, dy) = A1*(mycross(1, A2, A3, A4, N)*dx+A2*dy);
 ddy(dx, dy) = A1*(mycross(2, A2, A3, A4, N)*dx+A3*dy);
-ddz(dx, dy) = A1*(mycross(3, A2, A3, A4, N)*dx+A4*dy);
+ddz(dx, dy) = A1*(mycross(3, A2, A3, A4, N)*dx+A4*dy);}
+
 
 {mycross(i, v1x, v1y, v1z, v2) : select(i, v1y*v2(3) - v1z*v2(2), v1z*v2(1) - v1x*v2(3), v1x*v2(2) - v1y*v2(1));
 wxdy = dy*A2;
