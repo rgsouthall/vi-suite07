@@ -1531,7 +1531,7 @@ def retrobjs(obs):
 
 def retobjs(otypes):
     scene = bpy.context.scene
-    validobs = [o for o in scene.objects if '/' not in o.name and o not in retrobjs(scene.objects)]
+    validobs = [o for o in scene.objects if o.visible_get() and '/' not in o.name and o not in retrobjs(scene.objects)]
 
     for o in scene.objects:
         if '/' in o.name:
@@ -2069,6 +2069,7 @@ def ret_param(param, val):
 
 def li_calcob(ob, li):
     ovp = ob.vi_params
+    print(ob.name)
 
     if not ob.data.materials:
         ovp.vi_type_string = ''
