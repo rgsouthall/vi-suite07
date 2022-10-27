@@ -16,11 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# import bpy
+import os
 from math import sin, cos, pi
 
 
-def vi_info(node, dim, **kwargs):
+def vi_info(node, dim, svp, **kwargs):
     if node.metric == '0' and node.energy_menu == '0':
         pass
 #        x = 50
@@ -65,9 +65,6 @@ def vi_info(node, dim, **kwargs):
 #         </svg>
 #         """.format(dim, adffill, adfsweep, adfxpos, adfypos, irfill, irsweep, irxpos, irypos, node.zone_menu)
 
-# #        with open('/home/ryan/test.svg', 'w', encoding='utf-8') as svgfile:
-# #            svgfile.write(svg_str)
-
 #         return imname, bytearray(svg_str, encoding='utf-8')
 
 #     elif node.metric == '1' and node.light_menu == 'old':
@@ -104,8 +101,6 @@ def vi_info(node, dim, **kwargs):
 #         </svg>
 #         """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, adfpos - 25, aDF, irpos - 25, ir, node.zone_menu)
 
-# #        with open('/home/ryan/test.svg', 'w', encoding='utf-8') as svgfile:
-# #            svgfile.write(svg_str)
 
 #         return imname, bytearray(svg_str, encoding='utf-8')
 
@@ -158,8 +153,8 @@ def vi_info(node, dim, **kwargs):
         </svg>
         """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, adfpos - 25, aDF, irpos - 25, ir, node.zone_menu)
 
-        with open('/home/ryan/test.svg', 'w', encoding='utf-8') as svgfile:
-            svgfile.write(svg_str)
+        with open(os.path.join(svp['viparams']['newdir'], 'images', 'RIBA_{}_light.svg'.format(node.zone_menu)), 'w') as svg_file:
+            svg_file.write(svg_str)
 
         return imname, bytearray(svg_str, encoding='utf-8')
 
@@ -265,8 +260,8 @@ def vi_info(node, dim, **kwargs):
 
         svg_str += "</svg>"
 
-        with open('/home/ryan/test.svg', 'w', encoding='utf-8') as svgfile:
-            svgfile.write(svg_str)
+        with open(os.path.join(svp['viparams']['newdir'], 'images', 'LEED_{}_light.svg'.format(node.zone_menu)), 'w') as svg_file:
+            svg_file.write(svg_str)
 
         return imname, bytearray(svg_str, encoding='utf-8')
 

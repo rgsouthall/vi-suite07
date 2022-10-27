@@ -3174,15 +3174,17 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
         dim = 800
         node = context.node
 
         if node.metric == '1' and node.light_menu == '2':
             dim = (800, 800)
-            imname, svg_bytes = vi_info(node, dim, ir=node['res']['ratioDF'], aDF=node['res']['avDF'])
+            imname, svg_bytes = vi_info(node, dim, svp, ir=node['res']['ratioDF'], aDF=node['res']['avDF'])
         elif node.metric == '1' and node.light_menu == '1':
             dim = (600, 800)
-            imname, svg_bytes = vi_info(node, dim, sda=node['res']['sda'], sdapass=node['res']['sdapass'],
+            imname, svg_bytes = vi_info(node, dim, svp, sda=node['res']['sda'], sdapass=node['res']['sdapass'],
                                         ase=node['res']['ase'], asepass=node['res']['asepass'], o1=node['res']['o1'],
                                         tc=node['res']['tc'], totarea=node['res']['totarea'], svarea=node['res']['svarea'])
 
@@ -3214,6 +3216,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
                 im.scale(ipwidth, ipheight)
 
         im.pixels.foreach_set((arr/255))
+        # im.save(os.path.join(svp['viparams']['newdir'], 'images', 'RIBA_{}_light.png'.format(node.zone_menu)))
         im.scale(int(dim[0]/2), int(dim[1]/2))
         area = context.area
         t = area.type
