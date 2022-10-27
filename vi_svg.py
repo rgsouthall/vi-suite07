@@ -107,7 +107,7 @@ def vi_info(node, dim, svp, **kwargs):
     elif node.metric == '1' and node.light_menu == '2':
         ir = kwargs['ir']
         aDF = kwargs['aDF']
-        adfpos = 335 - aDF * 67.5 if aDF < 4 else 100 + 200/aDF
+        adfpos = 335 - aDF * 67.5 if aDF < 2 else 100 + 200/aDF
         adfheight = 335 - adfpos
         irpos = 335 - ir * 337.5 if ir < 0.4 else 100 + 25/ir
         irheight = 335 - irpos
@@ -136,10 +136,10 @@ def vi_info(node, dim, svp, **kwargs):
 
         <rect style="fill:rgb(255, 255, 255)" width="{0[0]}" height="{0[1]}"/>
         <text text-anchor="middle" x="200" y="32" style="font-size: 18px">RIBA 2030 Climate Challenge - Daylighting</text>
-        <text text-anchor="middle" x="125" y="65" style="font-size: 26px">DF</text>
-        <text text-anchor="middle" x="275" y="65" style="font-size: 26px">IR</text>
-        <text text-anchor="middle" x="125" y="80" style="font-size: 13px">Average Daylight Factor</text>
-        <text text-anchor="middle" x="275" y="80" style="font-size: 13px">Illuminance Ratio</text>
+        <text text-anchor="middle" x="125" y="60" style="font-size: 26px">DF</text>
+        <text text-anchor="middle" x="275" y="60" style="font-size: 26px">IR</text>
+        <text text-anchor="middle" x="125" y="75" style="font-size: 13px">Average Daylight Factor</text>
+        <text text-anchor="middle" x="275" y="75" style="font-size: 13px">Illuminance Ratio</text>
         <rect ry="4" x="60" y="{2}" width="130" height="{3}" style="fill:rgb({1});fill-rule:evenodd;fill:url(#lGadf);stroke-width:0.5;stroke:#000000"/>
         <rect ry="4" x="210" y="{5}" width="130" height="{6}" style="fill:rgb({4});fill-rule:evenodd;fill:url(#lGir);stroke-width:0.5;stroke:#000000"/>
         <text text-anchor="middle" x="30" y="209" style="font-size: 24px">2.0</text>

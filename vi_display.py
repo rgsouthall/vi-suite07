@@ -3225,6 +3225,10 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
         win = bpy.context.window_manager.windows[-1]
         win.screen.areas[0].spaces[0].show_region_header = 0
+        win.screen.areas[0].spaces[0].show_region_toolbar = 0
         win.screen.areas[0].spaces[0].show_region_ui = 0
+        ov = bpy.context.copy()
+        ov['area'] = win.screen.areas[0]
+        bpy.ops.image.view_zoom_ratio(ov, ratio=1)
         area.type = t
         return {'FINISHED'}
