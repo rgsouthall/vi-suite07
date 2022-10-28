@@ -187,15 +187,13 @@ def radgexport(export_op, node):
         with open(tempmatfilename, "w") as tempmatfile:
             tempmatfile.write(mradfile)
 
-        for o in [ob for ob in eolist if ob.visible_get()]:
+        for o in [ob for ob in eolist]:
             ovp = o.vi_params
             bm = bmesh.new()
             bm.from_object(o, dp)
-#            tempmesh = o.evaluated_get(dp).to_mesh()
-#            bm.from_mesh(tempmesh)
             bm.transform(o.matrix_world)
             bm.normal_update()
-#            o.to_mesh_clear()
+
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.mesh, node.triangulate)
 
             if o in caloblist:
@@ -232,10 +230,9 @@ def radgexport(export_op, node):
                     if not os.path.isfile(os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_')))):
                         logentry('Octree for object {} not found in {}'.format(dob.name, os.path.join(svp['viparams']['newdir'], 'octrees')))
 #                        gen_octree(scene, dob, export_op, node.fallback)
-
 #                        if node.fallback or dob.hide_get(): # Should check visibility with dob.hide_get() but it's not working
                     else:
-#                        dovp = dob.vi_params
+                        # dovp = dob.vi_params
                         # bm = bmesh.new()
                         # tempmesh = dob.evaluated_get(depsgraph).to_mesh()
                         # bm.from_mesh(tempmesh)
@@ -270,13 +267,17 @@ def radgexport(export_op, node):
             iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
 
             if os.path.isfile(ab_ies_path):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
+                iescmd = "ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p '{2}' -d{3} -o '{4}-{5}' '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
                 logentry('Running ies2rad with command: {}'.format(iescmd))
                 subprocess.call(shlex.split(iescmd))
 
                 with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'r') as dat_file:
                     dat_str = dat_file.read()
                     dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
+
+                    for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u'):
+                        dat_str = dat_str.replace(iesname+suf, f'"{iesname}{suf}"')
+                    dat_str = dat_str.replace(f' {iesname}-{frame}.d', f' "{iesname}-{frame}.d"')
 
                 with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'w') as dat_file:
                     dat_file.write(dat_str)

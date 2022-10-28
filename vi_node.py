@@ -2638,12 +2638,18 @@ class No_Vi_Metrics(Node, ViNodes):
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
-            frames = list(dict.fromkeys([z[0] for z in self['rl']]))
-            self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
-            znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
-            self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
-            self.inputs[0].links[0].from_node.new_res = 0
-            self.res_update()
+
+            if len(self['rl'][0]):
+                frames = list(dict.fromkeys([z[0] for z in self['rl']]))
+                self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
+                znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
+                self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+                self.inputs[0].links[0].from_node.new_res = 0
+                self.res_update()
+            else:
+                self['rl'] = []
+                self['frames'] = [('None', 'None', 'None')]
+                self['znames'] = [('None', 'None', 'None')]
         else:
             self['rl'] = []
             self['frames'] = [('None', 'None', 'None')]

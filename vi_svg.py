@@ -124,13 +124,13 @@ def vi_info(node, dim, svp, **kwargs):
         xmlns="http://www.w3.org/2000/svg"
         xmlns:svg="http://www.w3.org/2000/svg">
         <defs>
-            <linearGradient id="lGadf" x1="60" x2="190" y1="{2}" y2="100" gradientUnits="userSpaceOnUse">
+            <linearGradient id="lGadf" x1="60" x2="190" y1="335" y2="{7:.3f}" gradientUnits="userSpaceOnUse">
                 <stop style="stop-color:rgb({1})" offset=".26316"/>
                 <stop style="stop-color:rgb({1});stop-opacity:.2392" offset="1"/>
             </linearGradient>
-            <linearGradient id="lGir" x1="210" x2="340" y1="{5}" y2="100" gradientUnits="userSpaceOnUse">
-                <stop style="stop-color:rgb({4})" offset="0"/>
-                <stop style="stop-color:rgb({4});stop-opacity:.46019" offset="1"/>
+            <linearGradient id="lGir" x1="210" x2="340" y1="335" y2="{9:.3f}" gradientUnits="userSpaceOnUse">
+                <stop style="stop-color:rgb({4})" offset=".26316"/>
+                <stop style="stop-color:rgb({4});stop-opacity:.2392" offset="1"/>
             </linearGradient>
         </defs>
 
@@ -140,8 +140,8 @@ def vi_info(node, dim, svp, **kwargs):
         <text text-anchor="middle" x="275" y="60" style="font-size: 26px">IR</text>
         <text text-anchor="middle" x="125" y="75" style="font-size: 13px">Average Daylight Factor</text>
         <text text-anchor="middle" x="275" y="75" style="font-size: 13px">Illuminance Ratio</text>
-        <rect ry="4" x="60" y="{2}" width="130" height="{3}" style="fill:rgb({1});fill-rule:evenodd;fill:url(#lGadf);stroke-width:0.5;stroke:#000000"/>
-        <rect ry="4" x="210" y="{5}" width="130" height="{6}" style="fill:rgb({4});fill-rule:evenodd;fill:url(#lGir);stroke-width:0.5;stroke:#000000"/>
+        <rect ry="4" x="60" y="{2:.3f}" width="130" height="{3:.3f}" style="fill:rgb({1});fill-rule:evenodd;fill:url(#lGadf);stroke-width:0.5;stroke:#000000"/>
+        <rect ry="4" x="210" y="{5:.3f}" width="130" height="{6:.3f}" style="fill:rgb({4});fill-rule:evenodd;fill:url(#lGir);stroke-width:0.5;stroke:#000000"/>
         <text text-anchor="middle" x="30" y="209" style="font-size: 24px">2.0</text>
         <text text-anchor="middle" x="370" y="209" style="font-size: 24px">0.4</text>
         <path d="m50 200h300" style="fill:none;stroke-dasharray:5, 5;stroke-width:1;stroke:#4d4d4d"/>
@@ -151,7 +151,7 @@ def vi_info(node, dim, svp, **kwargs):
         <text text-anchor="middle" x="275" y="365" style="font-size: 24px">{10}</text>
         <text x="10" y="390" style="font-size: 16px">Sensor location: {11}</text>
         </svg>
-        """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, adfpos - 25, aDF, irpos - 25, ir, node.zone_menu)
+        """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, 335 - adfheight, aDF, 335 - irheight, ir, node.zone_menu)
 
         with open(os.path.join(svp['viparams']['newdir'], 'images', 'RIBA_{}_light.svg'.format(node.zone_menu)), 'w') as svg_file:
             svg_file.write(svg_str)

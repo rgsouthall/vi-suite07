@@ -27,11 +27,22 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
+# from .livi_func import li_calcob
 # from .vi_dicts import unit2res
 checked_groups_names_list = []
 materials_from_group = set()
 dtdf = datetime.date.fromordinal
 
+
+def li_calcob(ob, li):
+    ovp = ob.vi_params
+
+    if not ob.data.materials:
+        ovp.vi_type_string = ''
+    else:
+        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.material_slots[face.material_index].material and ob.material_slots[face.material_index].material.vi_params.mattype == '1'] else ''
+
+    return ovp.vi_type_string == 'LiVi Calc'
 
 def ret_plt():
     try:
@@ -374,7 +385,7 @@ class progressfile():
                 # dt = (1/(curres/self.calcsteps)) * (self.ldt - self.starttime) - (datetime.datetime.now() - self.starttime)
                 # dt = (1 - curres/self.calcsteps) * (self.ldt - self.starttime) - (datetime.datetime.now() - self.ldt)
                 dt = (self.ldt - self.starttime)/(curres/self.calcsteps) - (datetime.datetime.now() - self.starttime)
-                #dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
+                # dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
                 pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds=dt.seconds if dt.total_seconds() > 0 else 0)))
             else:
                 pfile.write('0 Initialising')
@@ -720,13 +731,13 @@ def face_centre(ob, obresnum, f):
         vsum = mathutils.Vector((0, 0, 0))
         for v in f.vertices:
             vsum = ob.active_shape_key.data[v].co + vsum
-        return(vsum/len(f.vertices))
+        return (vsum/len(f.vertices))
     else:
-        return(f.center)
+        return (f.center)
 
 
 def v_pos(ob, v):
-    return(ob.active_shape_key.data[v].co if ob.name in bpy.context.scene.vi_params['liparams']['livir'] else ob.data.vertices[v].co)
+    return (ob.active_shape_key.data[v].co if ob.name in bpy.context.scene.vi_params['liparams']['livir'] else ob.data.vertices[v].co)
 
 
 def newrow(layout, s1, root, s2):
@@ -742,9 +753,9 @@ def newrow2(row, s1, root, s2):
 
 def retobj(name, fr, node, scene):
     if node.animmenu == "Geometry":
-        return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), fr)))
+        return (os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), fr)))
     else:
-        return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
+        return (os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
 
 
 def retelaarea(node):
@@ -765,9 +776,9 @@ def objmode():
 
 def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
-        return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), fr)))
+        return (os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), fr)))
     else:
-        return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
+        return (os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
 
 
 def nodeinputs(node):
@@ -792,16 +803,16 @@ def nodeinputs(node):
 
 def retmat(fr, node, scene):
     if node.animmenu == "Material":
-        return("{}-{}.rad".format(scene['viparams']['filebase'], fr))
+        return ("{}-{}.rad".format(scene['viparams']['filebase'], fr))
     else:
-        return("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_start))
+        return ("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_start))
 
 
 def retsky(fr, node, scene):
     if node.animmenu == "Time":
-        return("{}-{}.sky".format(scene['viparams']['filebase'], fr))
+        return ("{}-{}.sky".format(scene['viparams']['filebase'], fr))
     else:
-        return("{}-{}.sky".format(scene['viparams']['filebase'], scene.frame_start))
+        return ("{}-{}.sky".format(scene['viparams']['filebase'], scene.frame_start))
 
 
 def nodeexported(self):
@@ -902,51 +913,51 @@ def rtupdate(self, context):
 
 
 def iprop(iname, idesc, imin, imax, idef):
-    return(IntProperty(name=iname, description=idesc, min=imin, max=imax, default=idef))
+    return (IntProperty(name=iname, description=idesc, min=imin, max=imax, default=idef))
 
 
 def eprop(eitems, ename, edesc, edef):
-    return(EnumProperty(items=eitems, name=ename, description=edesc, default=edef))
+    return (EnumProperty(items=eitems, name=ename, description=edesc, default=edef))
 
 
 def bprop(bname, bdesc, bdef):
-    return(BoolProperty(name=bname, description=bdesc, default=bdef))
+    return (BoolProperty(name=bname, description=bdesc, default=bdef))
 
 
 def sprop(sname, sdesc, smaxlen, sdef):
-    return(StringProperty(name=sname, description=sdesc, maxlen=smaxlen, default=sdef))
+    return (StringProperty(name=sname, description=sdesc, maxlen=smaxlen, default=sdef))
 
 
 def fprop(fname, fdesc, fmin, fmax, fdef):
-    return(FloatProperty(name=fname, description=fdesc, min=fmin, max=fmax, default=fdef))
+    return (FloatProperty(name=fname, description=fdesc, min=fmin, max=fmax, default=fdef))
 
 
 def fvprop(fvsize, fvname, fvattr, fvdef, fvsub, fvmin, fvmax):
-    return(FloatVectorProperty(size=fvsize, name=fvname, attr=fvattr, default=fvdef, subtype=fvsub, min=fvmin, max=fvmax))
+    return (FloatVectorProperty(size=fvsize, name=fvname, attr=fvattr, default=fvdef, subtype=fvsub, min=fvmin, max=fvmax))
 
 
 def niprop(iname, idesc, imin, imax, idef):
-    return(IntProperty(name=iname, description=idesc, min=imin, max=imax, default=idef, update=nodeexported))
+    return (IntProperty(name=iname, description=idesc, min=imin, max=imax, default=idef, update=nodeexported))
 
 
 def neprop(eitems, ename, edesc, edef):
-    return(EnumProperty(items=eitems, name=ename, description=edesc, default=edef, update=nodeexported))
+    return (EnumProperty(items=eitems, name=ename, description=edesc, default=edef, update=nodeexported))
 
 
 def nbprop(bname, bdesc, bdef):
-    return(BoolProperty(name=bname, description=bdesc, default=bdef, update=nodeexported))
+    return (BoolProperty(name=bname, description=bdesc, default=bdef, update=nodeexported))
 
 
 def nsprop(sname, sdesc, smaxlen, sdef):
-    return(StringProperty(name=sname, description=sdesc, maxlen=smaxlen, default=sdef, update=nodeexported))
+    return (StringProperty(name=sname, description=sdesc, maxlen=smaxlen, default=sdef, update=nodeexported))
 
 
 def nfprop(fname, fdesc, fmin, fmax, fdef):
-    return(FloatProperty(name=fname, description=fdesc, min=fmin, max=fmax, default=fdef, update=nodeexported))
+    return (FloatProperty(name=fname, description=fdesc, min=fmin, max=fmax, default=fdef, update=nodeexported))
 
 
 def nfvprop(fvname, fvattr, fvdef, fvsub):
-    return(FloatVectorProperty(name=fvname, attr=fvattr, default=fvdef, subtype=fvsub, update=nodeexported))
+    return (FloatVectorProperty(name=fvname, attr=fvattr, default=fvdef, subtype=fvsub, update=nodeexported))
 
 
 def vertarea(mesh, vert):
@@ -987,26 +998,27 @@ def vertarea(mesh, vert):
         eps = [(ev.verts[0].co + ev.verts[1].co)/2 for ev in vert.link_edges]
         eangle = (vert.link_edges[0].verts[0].co - vert.link_edges[0].verts[1].co).angle(vert.link_edges[1].verts[0].co - vert.link_edges[1].verts[1].co)
         area = mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(faces[0].calc_center_median(), *eps) * 2*pi/eangle
+
     return area
 
 
 def facearea(obj, face):
     omw = obj.matrix_world
     vs = [omw@mathutils.Vector(face.center)] + [omw@obj.data.vertices[v].co for v in face.vertices] + [omw@obj.data.vertices[face.vertices[0]].co]
-    return(vsarea(obj, vs))
+    return (vsarea(obj, vs))
 
 
 def vsarea(obj, vs):
     if len(vs) == 5:
         cross = mathutils.Vector.cross(vs[3]-vs[1], vs[3]-vs[2])
-        return(0.5*(cross[0]**2 + cross[1]**2 + cross[2]**2)**0.5)
+        return (0.5*(cross[0]**2 + cross[1]**2 + cross[2]**2)**0.5)
     else:
         i, area = 0, 0
         while i < len(vs) - 2:
             cross = mathutils.Vector.cross(vs[0]-vs[1+i], vs[0]-vs[2+i])
             area += 0.5*(cross[0]**2 + cross[1]**2 + cross[2]**2)**0.5
             i += 1
-        return(area)
+        return (area)
 
 
 def wind_rose(wro, maxws, wrsvg, wrtype, colors):
@@ -1330,7 +1342,7 @@ def mp2im(fig, imname):
 
 def livisimacc(simnode):
     context = simnode.inputs['Context in'].links[0].from_node['Options']['Context']
-    return(simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
+    return (simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
 
 
 def drawpoly(x1, y1, x2, y2, r, g, b, a):
@@ -1492,16 +1504,16 @@ def bres(scene, o):
 
 def framerange(scene, anim):
     if anim == 'Static':
-        return(range(scene.frame_current, scene.frame_current + 1))
+        return (range(scene.frame_current, scene.frame_current + 1))
     else:
-        return(range(scene.frame_start, scene['liparams']['fe'] + 1))
+        return (range(scene.frame_start, scene['liparams']['fe'] + 1))
 
 
 def frameindex(scene, anim):
     if anim == 'Static':
-        return(range(0, 1))
+        return (range(0, 1))
     else:
-        return(range(0, scene.frame_end - scene.frame_start + 1))
+        return (range(0, scene.frame_end - scene.frame_start + 1))
 
 
 def ret_camera_menu(self, context):
@@ -1538,24 +1550,24 @@ def retobjs(otypes):
             logentry('Object {} has a "/" in the name and will not be exported'.format(o.name))
 
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
+        return ([o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
                 and o.vi_params.vi_type not in ('4', '5')
                 and o.vi_params.vi_type_string != 'LiVi Res'
                 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
+        return ([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
     elif otypes == 'livigengeosel':
-        return([o for o in validobs if o.type == 'MESH' and o.select is True and o.data.materials
+        return ([o for o in validobs if o.type == 'MESH' and o.select is True and o.data.materials
                 and not any([m.vi_params.livi_sense for m in o.data.materials])])
     elif otypes == 'livil':
-        return([o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4'])
+        return ([o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4'])
     elif otypes == 'livic':
-        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res'])
+        return ([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res'])
     elif otypes == 'livir':
-        return([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]
+        return ([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]
                 and o.vi_params.vi_type_string != 'LiVi Calc'])
     elif otypes == 'envig':
-        return([o for o in scene.objects if o.type == 'MESH' and o.hide is False])
+        return ([o for o in scene.objects if o.type == 'MESH' and o.hide is False])
     elif otypes == 'ssc':
         return [o for o in validobs if o.type == 'MESH' and o.vi_params.vi_type_string != 'LiVi Res' and o.data.materials
                 and any([o.data.materials[poly.material_index].vi_params.mattype == '1' for poly in o.data.polygons])]
@@ -1579,7 +1591,7 @@ def viewdesc(context):
     region = context.region
     width, height = region.width, region.height
     mid_x, mid_y = width/2, height/2
-    return(mid_x, mid_y, width, height)
+    return (mid_x, mid_y, width, height)
 
 
 def skfpos(o, frame, vis):
@@ -2065,18 +2077,6 @@ def ret_param(param, val):
         return int(val)
     else:
         return str(val)
-
-
-def li_calcob(ob, li):
-    ovp = ob.vi_params
-    print(ob.name)
-
-    if not ob.data.materials:
-        ovp.vi_type_string = ''
-    else:
-        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.material_slots[face.material_index].material and ob.material_slots[face.material_index].material.vi_params.mattype == '1'] else ''
-
-    return ovp.vi_type_string == 'LiVi Calc'
 
 
 def sunposh(context, suns):

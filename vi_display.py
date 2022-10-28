@@ -2494,7 +2494,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.cao = [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"][0] if [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"] else 0
 
         if not self.cao:
-            return{'CANCELLED'}
+            return {'CANCELLED'}
         else:
             self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
             self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
@@ -2539,11 +2539,9 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                 updates[2] = 1
 
         if (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) != \
-            (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
-             svp.vi_scatt_max_val, svp.vi_scatt_min_val):
+           (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min, svp.vi_scatt_max_val, svp.vi_scatt_min_val):
             (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) = \
-            (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min,
-             svp.vi_scatt_max_val, svp.vi_scatt_min_val)
+             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min, svp.vi_scatt_max_val, svp.vi_scatt_min_val)
             updates[2] = 1
 
         if updates[2]:
@@ -2893,6 +2891,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         r2 = area.regions[2]
         r2h = r2.height
         r2w = r2.width
+
         try:
             self.results_bar.draw(r2w, r2h)
             self.legend.draw(context)
@@ -3216,7 +3215,6 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
                 im.scale(ipwidth, ipheight)
 
         im.pixels.foreach_set((arr/255))
-        # im.save(os.path.join(svp['viparams']['newdir'], 'images', 'RIBA_{}_light.png'.format(node.zone_menu)))
         im.scale(int(dim[0]/2), int(dim[1]/2))
         area = context.area
         t = area.type
@@ -3227,6 +3225,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         win.screen.areas[0].spaces[0].show_region_header = 0
         win.screen.areas[0].spaces[0].show_region_toolbar = 0
         win.screen.areas[0].spaces[0].show_region_ui = 0
+        win.screen.areas[0].spaces[0].show_gizmo = 0
         ov = bpy.context.copy()
         ov['area'] = win.screen.areas[0]
         bpy.ops.image.view_zoom_ratio(ov, ratio=1)
