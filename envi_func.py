@@ -107,9 +107,9 @@ def boundpoly(obj, emnode, poly, enng):
                 if emnode.ret_uv() != get_con_node(bmat.vi_params).ret_uv():
                     logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {1} construction takes precedence'.format(mat.name+'_'+str(poly.index),
                                                                                                                                            insock.links[0].to_node.zone+'_'+str(bpoly.index)))
-                    return(('', '', '', ''))
+                    return (('', '', '', ''))
                 else:
-                    return(("Surface", insock.links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+                    return (("Surface", insock.links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
 
             elif outsock.links:
                 bobj = bpy.data.objects[outsock.links[0].to_node.zone]
@@ -119,19 +119,19 @@ def boundpoly(obj, emnode, poly, enng):
                 if emnode.ret_uv() != get_con_node(bmat.vi_params).ret_uv():
                     logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {0} construction takes precedence'.format(mat.name+'_'+str(poly.index),
                                                                                                                                            outsock.links[0].to_node.zone+'_'+str(bpoly.index)))
-                    return(("Zone", bobj.name, "NoSun", "NoWind"))
+                    return (("Zone", bobj.name, "NoSun", "NoWind"))
                 else:
-                    return(("Surface", outsock.links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+                    return (("Surface", outsock.links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
 
             else:
-                return(("Adiabatic", "", "NoSun", "NoWind"))
+                return (("Adiabatic", "", "NoSun", "NoWind"))
 
     elif emnode.envi_con_con == 'Thermal mass':
-        return(("Adiabatic", "", "NoSun", "NoWind"))
+        return (("Adiabatic", "", "NoSun", "NoWind"))
     elif emnode.envi_con_con == 'Ground':
-        return(("Ground", "", "NoSun", "NoWind"))
+        return (("Ground", "", "NoSun", "NoWind"))
     else:
-        return(("Outdoors", "", "SunExposed", "WindExposed"))
+        return (("Outdoors", "", "SunExposed", "WindExposed"))
 
 
 def retenresdict(scene):
@@ -565,6 +565,17 @@ def processf(pro_op, node):
                     reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([sl[1] for sl in splitlines if sl[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
+
+            for zn in [coll.name.upper() for coll in bpy.data.collections['EnVi Geometry'].children]:
+                for k in sorted(hdict.keys(), key=int):
+                    if hdict[k][0] == 'Zone temporal' and hdict[k][1] == zn and hdict[k][2] == 'Ventilation heat (W)':
+                        vhs = [float(sl[1]) for sl in splitlines if sl[0] == k]
+                    if hdict[k][0] == 'Zone temporal' and hdict[k][1] == zn and hdict[k][2] == 'Heating (W)':
+                        hs = [float(sl[1]) for sl in splitlines if sl[0] == k]
+                try:
+                    reslists.append([str(frame), 'Zone temporal', zn, 'Ventilation heat loss (W)', ' '.join([str(vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
+                except Exception:
+                    pass
 
         #             if hdict[k][0] == 'Power' and hdict[k][2] == 'PV power (W)':
         #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])

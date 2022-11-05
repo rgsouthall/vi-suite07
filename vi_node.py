@@ -1531,7 +1531,7 @@ class No_En_Con(Node, ViNodes):
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
     sdoy: IntProperty(name="", description="Start day of simulation", min=1, max=365, default=1, update=nodeupdate)
     edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=365, update=nodeupdate)
-    timesteps: IntProperty(name="", description="Time steps per hour", min=1, max=60, default=1, update=nodeupdate)
+    timesteps: IntProperty(name="", description="Time steps per hour", min=1, max=60, default=4, update=nodeupdate)
     shadow_calc: EnumProperty(items=[("0", "CPU", "CPU based shadow calculations"), ("1", "GPU", "GPU based shadow calculations")],
                               name="", description="Specify the EnVi results category", default="0", update=nodeupdate)
     restype: EnumProperty(items=[("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"),
@@ -1556,7 +1556,7 @@ class No_En_Con(Node, ViNodes):
     resim: bpy.props.BoolProperty(name='Infiltration (m\u00b3/h)', description='Zone infiltration rate (m\u00b3/h)', default=False)
     resiach: bpy.props.BoolProperty(name='Infiltration (ACH)', description='Zone infiltration rate (ACH)', default=False)
     resco2: bpy.props.BoolProperty(name='CO2 (ppm)', description='Zone CO2 concentration (ppm)', default=False)
-    resihl: bpy.props.BoolProperty(name='Heat loss (W)', description='Ventilation heat loss (W)', default=False)
+    resihl: bpy.props.BoolProperty(name='Heat exchange (W)', description='Ventilation heat exchange (W)', default=False)
     resl12ms: bpy.props.BoolProperty(name=u'Flow (m\u00b3/s)', description=u'Linkage flow (m\u00b3/s)', default=False)
     reslof: bpy.props.BoolProperty(name='Opening factor', description='Linkage opening factor', default=False)
     resmrt: bpy.props.BoolProperty(name='MRT', description='Mean radiant temperature (degC)', default=False)
