@@ -806,7 +806,7 @@ class No_Li_Im(Node, ViNodes):
     mp: BoolProperty(name='', default=False, update=nodeupdate)
     camera: StringProperty(description="Select camera", update=nodeupdate)
     fisheye: BoolProperty(name='', default=0, update=nodeupdate)
-    fov: FloatProperty(name='', default=80, min=1, max=180, update=nodeupdate)
+    fov: FloatProperty(name='', default=180, min=1, max=180, update=nodeupdate)
     processors: IntProperty(name='', default=1, min=1, max=128, update=nodeupdate)
     processes: IntProperty(name='', default=1, min=1, max=1000, update=nodeupdate)
     normal: BoolProperty(name='', description="Generate denoising normal map", default=False)

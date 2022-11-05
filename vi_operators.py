@@ -2421,7 +2421,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         svp = scene.vi_params
         casenode = context.node
         casenode.pre_case(context)
-        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
+        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
 
         if len(dobs) != 1:
             self.report({'ERROR'}, "One, and only one object with the CFD Domain property is allowed")
@@ -2584,6 +2584,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         for ob in self.obs:
             bm = bmesh.new()
             bm.from_object(ob, dp)
+            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
             if not all([e.is_manifold for e in bm.edges]) or not all([v.is_manifold for v in bm.verts]):
                 bm.free()
@@ -2687,6 +2688,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 bm = bmesh.new()
                 bm.from_object(o, dp)
                 bm.transform(o.matrix_world)
+                bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
                 bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
                 # ngpyfile.write("geo = STLGeometry('{}')\n".format(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))))
                 geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
@@ -2796,8 +2798,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 svp = scene.vi_params
 
                 if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin) and os.path.isfile(os.path.join(offb, 'ng.mesh')):
-                    subprocess.Popen(shlex.split('foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb,
-                                                 os.path.join(offb, 'ng.mesh')))).wait()
+                    nntfcmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
+                    logentry(f'Running netgenNeutraltoFoam with command: {nntfcmd}')
+                    subprocess.Popen(shlex.split(nntfcmd)).wait()
 
                     if not os.path.isdir(os.path.join(frame_offb, st, 'polyMesh')):
                         os.makedirs(os.path.join(frame_offb, st, 'polyMesh'))
@@ -2897,7 +2900,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     #     self.expnode.post_export()
 
                     # else:
-            oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
+            try:
+                oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
+            except Exception:
+                logentry('Netgen volume meshing failed. Try meshing the produced STL in Netgen')
+                self.report({'ERROR'}, 'Volume meshing failed')
+                return {'CANCELLED'}
             self.expnode.post_export()
 
 #        except Exception as e:
