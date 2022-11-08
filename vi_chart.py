@@ -240,7 +240,6 @@ def checkdata(chart_op, x, y):
 
 def hmchart_disp(chart_op, plt, dnode, col):
     x, y, z, var = dnode.x, dnode.y, dnode.z, dnode.metricmenu
-    print(x)
     xmin = dnode.daystart + 0.5 if dnode.daystart > amin(x) else amin(x)
     xmax = dnode.dayend + 0.5 if dnode.dayend < amax(x) else amax(x)
     ymin = dnode.hourstart + 0.5 if dnode.hourstart > amin(y) else amin(y)

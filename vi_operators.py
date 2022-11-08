@@ -3149,7 +3149,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     fvdcpfile.write(fvdcpwrite(self.processes))
 
                 Popen(shlex.split("foamExec decomposePar -force -case {}".format(frame_offb))).wait()
-                print('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], frame_offb))
+                # print('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], frame_offb))
 
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:

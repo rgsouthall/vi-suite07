@@ -26,7 +26,7 @@ from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im, move_obs
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
 from .livi_func import setscenelivivals
-#from .livi_export import spfc
+# from .livi_export import spfc
 from .vi_dicts import res2unit, unit2res
 from . import livi_export
 from .vi_svg import vi_info
@@ -38,18 +38,18 @@ from numpy import sum as nsum
 from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
-#from bpy.app.handlers import persistent
+# from bpy.app.handlers import persistent
 from PyQt5.QtGui import QImage
 
 try:
     import matplotlib
-    matplotlib.use('qt5agg', force = True)
+    matplotlib.use('qt5agg', force=True)
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     from matplotlib.patches import Rectangle
     from matplotlib.collections import PatchCollection
-    #from mpl_toolkits.axes_grid1 import make_axes_locatable
+    # from mpl_toolkits.axes_grid1 import make_axes_locatable
     mp = 1
 except Exception as e:
     print("No matplotlib: {}".format(e))

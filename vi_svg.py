@@ -267,3 +267,7 @@ def vi_info(node, dim, svp, **kwargs):
 
     elif node.metric == '0' and node.energy_menu == '0':
         pass
+
+    elif node.metric == '0' and node.energy_menu == '1':
+        for met in ('Heating (W)', 'Cooling (W)', 'Temperatature (C)' , 'CO2 (ppm)', 'Ventilation (heat (W)', 'Fabric heat (W)', 'Power (W)'):
+            pass

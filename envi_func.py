@@ -573,7 +573,8 @@ def processf(pro_op, node):
                     if hdict[k][0] == 'Zone temporal' and hdict[k][1] == zn and hdict[k][2] == 'Heating (W)':
                         hs = [float(sl[1]) for sl in splitlines if sl[0] == k]
                 try:
-                    reslists.append([str(frame), 'Zone temporal', zn, 'Ventilation heat loss (W)', ' '.join([str(vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
+                    reslists.append([str(frame), 'Zone temporal', zn, 'Ventilation heating contribution (W)', ' '.join([str(vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
+                    reslists.append([str(frame), 'Zone temporal', zn, 'Fabric heating contribution (W)', ' '.join([str(hs[i] - vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
                 except Exception:
                     pass
 
@@ -619,11 +620,12 @@ def processf(pro_op, node):
 
     try:
         svp['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
-    except:
+    except Exception:
         svp['enparams']['lmetrics'] = []
+
     try:
         svp['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone temporal' and zrls[0][zri] == str(node["AStart"])]))
-    except:
+    except Exception:
         svp['enparams']['zmetrics'] = []
 
     zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone temporal']

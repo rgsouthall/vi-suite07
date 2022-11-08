@@ -672,7 +672,6 @@ def pregeo(context, op):
                             op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
                             return
                         elif mvp.envi_reversed:
-                            print('reversed')
                             emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
                             emnode.ret_uv()
                             mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type

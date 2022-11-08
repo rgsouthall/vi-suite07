@@ -2060,7 +2060,6 @@ class No_Vi_Chart(Node, ViNodes):
 
                     bpy.utils.register_class(ViEnRY3In)
         except Exception as e:
-            print('error', e)
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = True
 
