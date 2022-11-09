@@ -810,6 +810,7 @@ class No_Li_Im(Node, ViNodes):
     processors: IntProperty(name='', default=1, min=1, max=128, update=nodeupdate)
     processes: IntProperty(name='', default=1, min=1, max=1000, update=nodeupdate)
     normal: BoolProperty(name='', description="Generate denoising normal map", default=False)
+    albedo: BoolProperty(name='', description="Generate denoising albedo map", default=False)
 
     def retframes(self):
         try:
@@ -840,6 +841,7 @@ class No_Li_Im(Node, ViNodes):
 
             newrow(layout, 'Accuracy:', self, 'simacc')
             newrow(layout, 'Normal:', self, 'normal')
+            newrow(layout, 'Albedo:', self, 'albedo')
 
             if self.simacc == '3':
                 row = layout.row()
@@ -987,7 +989,7 @@ class No_Li_Gl(Node, ViNodes):
         #     row = layout.row()
         #     row.prop(self, 'hdrfile')
 
-        if not self.inputs['Image'].links or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
+        if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
             row = layout.row()
             row.prop(self, 'hdrfile')
 
@@ -995,15 +997,17 @@ class No_Li_Gl(Node, ViNodes):
                 row = layout.row()
                 row.prop(self, 'vffile')
 
-        if (self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
-            newrow(layout, 'Base name:', self, 'hdrname')
-            newrow(layout, 'Random:', self, 'rand')
+        if self.inputs['Image'].links:
+            if self.inputs['Image'].links[0].from_node['images']:
+                if os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+                    newrow(layout, 'Base name:', self, 'hdrname')
+                    newrow(layout, 'Random:', self, 'rand')
 
-            if not self.rand:
-                newrow(layout, 'Colour:', self, 'gc')
+                    if not self.rand:
+                        newrow(layout, 'Colour:', self, 'gc')
 
-            row = layout.row()
-            row.operator("node.liviglare", text='Glare')
+                    row = layout.row()
+                    row.operator("node.liviglare", text='Glare')
 
     def presim(self):
         self['hdrname'] = self.hdrname if self.hdrname else 'glare'
