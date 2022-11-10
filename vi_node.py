@@ -908,9 +908,10 @@ class No_Li_Im(Node, ViNodes):
             scene.frame_set(frame)
             scene.camera = bpy.data.objects[self.camera.lstrip()]
             cam = bpy.data.objects[self.camera.lstrip()]
-            cang = cam.data.angle*180/math.pi if not self.fisheye else self.fov
-            vh = cang if self.x >= self.y else cang * self.x/self.y
-            vv = cang if self.x < self.y else cang * self.y/self.x
+            cang = cam.data.angle if not self.fisheye else self.fov
+            2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
+            vh = 180/math.pi*cang if self.x >= self.y else 180/math.pi* 2 * math.atan((0.5 * self.x) / (0.5 * self.y / math.tan(cang / 2)))
+            vv = 180/math.pi*cang if self.x < self.y else 180/math.pi* 2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             pmaps.append(self.pmap)
             self['pmapgnos'][sf] = self.pmapgno
