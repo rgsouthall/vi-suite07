@@ -1487,7 +1487,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             self.rpictcmds = ['rpict -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
             self.rpiececmds = ['rpiece -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
 
-            if simnode.normal:
+            if simnode.normal or simnode.albedo:
                 for frame in range(self.fs, self.fe + 1):
                     normdatas = []
                     resrun = Popen(shlex.split('vwrays -ff -d {0}'.format(vps_vwrays[frame - self.fs])), stdout=PIPE)
@@ -1499,44 +1499,51 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                             res = (int(line_split[1]), int(line_split[3]))
                             break
 
-                    vwcmd = 'vwrays -ff {0}'.format(vps_vwrays[frame - self.fs])
-                    rtcmd = f'rtrace -n {self.processors} -on -ffa -ab 0 -ad 0 -aa 0 -ar 0 -as 0 -lr 0 "{self.fb}-{frame}.oct"'
-                    vwrun = Popen(shlex.split(vwcmd), stdout=PIPE, stderr=PIPE)
-                    rtrun = Popen(shlex.split(rtcmd), stdin=vwrun.stdout, stdout=PIPE, stderr=PIPE)
-                    normdata = [line.decode('utf-8').strip('\n').split('\t')[:3] + ['1'] for line in rtrun.stdout]
-                    vd = Vector([float(v) for v in self.viewparams[str(frame)]['-vd'].split()])
-                    vu = Vector([float(v) for v in self.viewparams[str(frame)]['-vu'].split()])
-                    vs = vd.cross(vu)
+                    if simnode.normal:
+                        vwcmd = 'vwrays -ff {0}'.format(vps_vwrays[frame - self.fs])
+                        rtcmd = f'rtrace -n {self.processors} -on -ffa -ab 0 -ad 0 -aa 0 -ar 8 -as 0 -dr 0 -lr -1 "{self.fb}-{frame}.oct"'
+                        vwrun = Popen(shlex.split(vwcmd), stdout=PIPE, stderr=PIPE)
+                        rtrun = Popen(shlex.split(rtcmd), stdin=vwrun.stdout, stdout=PIPE, stderr=PIPE)
+                        normdata = [line.decode('utf-8').strip('\n').split('\t')[:3] + ['1'] for line in rtrun.stdout]
+                        vd = Vector([float(v) for v in self.viewparams[str(frame)]['-vd'].split()])
+                        vu = Vector([float(v) for v in self.viewparams[str(frame)]['-vu'].split()])
+                        vs = vd.cross(vu)
 
-                    for ni, nline in enumerate(normdata):
-                        if not nline[0]:
-                            start_data = ni + 1
-                            break
+                        for ni, nline in enumerate(normdata):
+                            if not nline[0]:
+                                start_data = ni + 1
+                                break
 
-                    d_list = normdata[start_data:]
-                    # d_sides = [vs.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
-                    # d_ups = [vu.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
-                    # d_ins = [vd.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
-                    # d_list = [(d_sides[li], d_ups[li], d_ins[li], 1) for li in range(len(d_sides))]
-                    d_x = [float(dl[0]) for dl in d_list]
-                    d_y = [float(dl[1]) for dl in d_list]
-                    d_z = [float(dl[2]) for dl in d_list]
-                    d_list = [(d_x[li], d_y[li], d_z[li], 1) for li in range(len(d_x))]
-                    d_array = numpy.array(d_list, dtype=numpy.float32).reshape(res[1], res[0], 4)[::-1, :, :]
+                        d_list = normdata[start_data:]
+                        # d_sides = [vs.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
+                        # d_ups = [vu.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
+                        # d_ins = [vd.dot(mathutils.Vector((float(dl[0]), float(dl[1]), float(dl[2])))) for dl in d_list]
+                        # d_list = [(d_sides[li], d_ups[li], d_ins[li], 1) for li in range(len(d_sides))]
+                        d_x = [float(dl[0]) for dl in d_list]
+                        d_y = [float(dl[1]) for dl in d_list]
+                        d_z = [float(dl[2]) for dl in d_list]
+                        d_list = [(d_x[li], d_y[li], d_z[li], 1) for li in range(len(d_x))]
+                        d_array = numpy.array(d_list, dtype=numpy.float32).reshape(res[1], res[0], 4)[::-1, :, :]
 
-                    if f'{simnode.camera}-norm-{frame}' in bpy.data.images:
-                        nmim = bpy.data.images[f'{simnode.camera}-norm-{frame}']
-                        nmim.scale(res[0], res[1])
-                    else:
-                        nmim = bpy.data.images.new(name=f'{simnode.camera}-norm-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=True, is_data=True)
+                        if f'{simnode.camera}-norm-{frame}' in bpy.data.images:
+                            nmim = bpy.data.images[f'{simnode.camera}-norm-{frame}']
+                            nmim.scale(res[0], res[1])
+                        else:
+                            nmim = bpy.data.images.new(name=f'{simnode.camera}-norm-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=True, is_data=True)
 
-                    nmim.pixels.foreach_set(d_array.flatten())
+                        nmim.pixels.foreach_set(d_array.flatten())
+                        nmim.pack()
 
                     if simnode.albedo:
-                        albcmd = f'rtrace -n {self.processors} -ov -ffa -ab 0 -ad 1 -av 1.0 1.0 1.0 -aa 0 -ar 0 -as 0 -st 1 -lr -1 "{self.fb}-{frame}.oct"'
+                        albcmd = f'rtrace -n {self.processors} -ov -ffa -ab 0 -ad 0 -av 1.0 1.0 1.0 -aa 0 -ar 8 -as 0 -dr 0 -st 1 -lr -1 "{self.fb}-{frame}.oct"'
                         vw2run = Popen(shlex.split(vwcmd), stdout=PIPE, stderr=PIPE)
                         albrun = Popen(shlex.split(albcmd), stdin=vw2run.stdout, stdout=PIPE, stderr=PIPE)
                         albdata = [line.decode('utf-8').strip('\n').split('\t')[:3] + ['1'] for line in albrun.stdout]
+                        
+                        for ai, aline in enumerate(albdata):
+                            if not aline[0]:
+                                start_data = ai + 1
+                                break
                         
                         alb_array = numpy.array(albdata[start_data:], dtype=numpy.float32).reshape(res[1], res[0], 4)[::-1, :, :]
                         
@@ -1547,6 +1554,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                             albim = bpy.data.images.new(name=f'{simnode.camera}-albedo-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=True, is_data=True)
 
                         albim.pixels.foreach_set(alb_array.flatten())
+                        albim.pack()
 
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)

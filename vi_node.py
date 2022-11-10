@@ -997,17 +997,16 @@ class No_Li_Gl(Node, ViNodes):
                 row = layout.row()
                 row.prop(self, 'vffile')
 
-        if self.inputs['Image'].links:
-            if self.inputs['Image'].links[0].from_node['images']:
-                if os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
-                    newrow(layout, 'Base name:', self, 'hdrname')
-                    newrow(layout, 'Random:', self, 'rand')
+        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+#            if os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+            newrow(layout, 'Base name:', self, 'hdrname')
+            newrow(layout, 'Random:', self, 'rand')
 
-                    if not self.rand:
-                        newrow(layout, 'Colour:', self, 'gc')
+            if not self.rand:
+                newrow(layout, 'Colour:', self, 'gc')
 
-                    row = layout.row()
-                    row.operator("node.liviglare", text='Glare')
+            row = layout.row()
+            row.operator("node.liviglare", text='Glare')
 
     def presim(self):
         self['hdrname'] = self.hdrname if self.hdrname else 'glare'
