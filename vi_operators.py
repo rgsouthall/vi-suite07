@@ -2801,7 +2801,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     nntfcmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
                     logentry(f'Running netgenNeutraltoFoam with command: {nntfcmd}')
                     subprocess.Popen(shlex.split(nntfcmd)).wait()
-
+                    
                     if not os.path.isdir(os.path.join(frame_offb, st, 'polyMesh')):
                         os.makedirs(os.path.join(frame_offb, st, 'polyMesh'))
 
@@ -2992,6 +2992,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             frame_c = svp['flparams']['start_frame'] + len(self.runs) - 1
             frame_noffb = os.path.join(svp['flparams']['offilebase'], str(frame_n))
             frame_coffb = os.path.join(svp['flparams']['offilebase'], str(frame_c))
+            print('frame', frame_coffb)
             open("{}".format(os.path.join(frame_coffb, '{}.foam'.format(frame_c))), "w")
 
             if self.pv:
@@ -3098,11 +3099,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         self.runs.append(Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", frame_noffb)), stdout=fvprogress))
                 return {'PASS_THROUGH'}
 
-            if len(self.simnode['frames']) > 1:
-                self.reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in self.simnode['frames']])])
+            if len(self.frames) > 1:
+                self.reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in self.frames])])
 
-                for oname in self.o_dict[str(self.simnode['frames'][0])]:
-                    for param in self.o_dict[str(self.simnode['frames'][0])][oname]:
+                for oname in self.o_dict[str(self.frames[0])]:
+                    for param in self.o_dict[str(self.frames[0])][oname]:
                         self.reslists.append(['All', 'Zone spatial', oname, resdict[param], ' '.join(['{:.3f}'.format(self.o_dict[str(f)][oname][param]) for f in self.frames])])
 
             self.simnode['reslists'] = self.reslists
@@ -3128,7 +3129,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         self.o_dict = {}
         self.frames = range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1)
         fframe_offb = os.path.join(svp['flparams']['offilebase'], str(svp['flparams']['start_frame']))
-
+        print(fframe_offb)
         for frame in self.frames:
             frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
 

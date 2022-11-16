@@ -602,7 +602,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_u_type: eprop([("0", "Vector", "Specify velocity as a vector"), ("1", 'Azimuth', "Specify velocity as an azimuth and speed")], "", "Velocity type", "0")
     flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
     flovi_u_azi: fprop("deg.", "Flow azimuth direction", 0, 360, 0)
-    # flovi_u_speed: fprop("m/s", "Flow speed", 0, 1000, 1)
+    flovi_u_speed: fprop("m/s", "Flow speed", 0, 1000, 1)
     flovi_u_uref: fprop("m/s", "Reference speed", 0, 500, 0)
     flovi_u_zref: fprop("m", "Reference z height", 0, 500, 0)
     flovi_u_zdir: fvprop(3, '', 'Up direction', [0, 0, 1], 'XYZ', -100, 100)
