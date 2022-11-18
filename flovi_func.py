@@ -322,7 +322,6 @@ def fvmat(self, svp, mn, bound, frame):
         if self.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
             fd_val = self.flovi_u_fdir if not self.flovi_u_field else svp['flparams'][str(frame)]['Udir']
             s_val = self.flovi_u_ref if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
-            print(fd_val, s_val, self.flovi_u_field)
         else:
             fd_val, s_val = (0, 0, 0), 0
 
@@ -444,7 +443,7 @@ def fvvarwrite(scene, obs, node):
         Buoyancy modelling: T'''
     svp = scene.vi_params
 
-    for frame in range(node.frame_start, node.frame_end + 1):
+    for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
         scene.frame_set(frame)
         frame_of0fb = os.path.join(svp['flparams']['offilebase'], str(frame), '0')
 
@@ -565,11 +564,11 @@ def fvmattype(mat, var):
 
 
 def fvcdwrite(svp, dp, solver, st, dt, et):
-    pw = 0 if solver == 'icoFoam' else 1
+    pw = 0 if solver == 'icoFoam' else 0
     ps, ss, bs = [], [], []
     htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
     cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '{}'.format(st), 'stopAt': 'endTime',
-             'endTime': '{}'.format(et), 'deltaT': '{:.5f}'.format(dt), 'writeControl': 'timeStep', 'writeInterval': '1',
+             'endTime': '{}'.format(et), 'deltaT': '{:.5f}'.format(dt), 'writeControl': 'timeStep', 'writeInterval': '10',
              'purgeWrite': '{}'.format(pw), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
              'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
 

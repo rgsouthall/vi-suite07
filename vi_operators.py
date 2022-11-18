@@ -1171,9 +1171,9 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
                 if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
-                    pmcmd = 'mkpmap -n {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, svp['viparams']['wnproc'])
+                    pmcmd = 'mkpmap {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 else:
-                    pmcmd = 'mkpmap -n {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, svp['viparams']['wnproc'])
+                    pmcmd = 'mkpmap {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
 
                 logentry('Generating photon map: {}'.format(pmcmd))
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
@@ -2982,6 +2982,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
         elif self.runs[-1].poll() is None and self.kivyrun.poll() is not None:
             self.runs[-1].kill()
+
+            if self.processes > 1:
+                Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
+                
             logentry('Cancelling FloVi simulation')
             return {'CANCELLED'}
 
@@ -2994,9 +2998,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             frame_coffb = os.path.join(svp['flparams']['offilebase'], str(frame_c))
             print('frame', frame_coffb)
             open("{}".format(os.path.join(frame_coffb, '{}.foam'.format(frame_c))), "w")
-
-            if self.pv:
-                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
 
             if self.processes > 1:
                 Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
@@ -3108,6 +3109,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
             self.simnode['reslists'] = self.reslists
             self.simnode.post_sim()
+
+            if self.pv:
+                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
+                
             return {'FINISHED'}
 
     def invoke(self, context, event):
