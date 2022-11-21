@@ -2656,9 +2656,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     if not mis:
                         # ngpyfile.write("\nfd = FaceDescriptor(bc = {0}, domin = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc=i, domin=1, surfnr=i + 1)
-                        # print(mat.name, i, fd.bcname)
                         fd.bcname = mat.name
-                        # print(mat.name, i, fd.bcname)
                     else:
                         # ngpyfile.write("fd = FaceDescriptor(bc = {0}, domin = 0, domout = 1, surfnr = {0} + 1)\n".format(i))
                         fd = FaceDescriptor(bc=i, domin=0, domout=1, surfnr=i + 1)
@@ -2801,7 +2799,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     nntfcmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
                     logentry(f'Running netgenNeutraltoFoam with command: {nntfcmd}')
                     subprocess.Popen(shlex.split(nntfcmd)).wait()
-                    
+
                     if not os.path.isdir(os.path.join(frame_offb, st, 'polyMesh')):
                         os.makedirs(os.path.join(frame_offb, st, 'polyMesh'))
 
@@ -2985,7 +2983,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
             if self.processes > 1:
                 Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
-                
+
             logentry('Cancelling FloVi simulation')
             return {'CANCELLED'}
 
@@ -2996,7 +2994,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             frame_c = svp['flparams']['start_frame'] + len(self.runs) - 1
             frame_noffb = os.path.join(svp['flparams']['offilebase'], str(frame_n))
             frame_coffb = os.path.join(svp['flparams']['offilebase'], str(frame_c))
-            print('frame', frame_coffb)
             open("{}".format(os.path.join(frame_coffb, '{}.foam'.format(frame_c))), "w")
 
             if self.processes > 1:
@@ -3112,7 +3109,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
             if self.pv:
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
-                
+
             return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -3134,7 +3131,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         self.o_dict = {}
         self.frames = range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1)
         fframe_offb = os.path.join(svp['flparams']['offilebase'], str(svp['flparams']['start_frame']))
-        print(fframe_offb)
+
         for frame in self.frames:
             frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
 

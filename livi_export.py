@@ -459,6 +459,7 @@ def spfc(self):
 def cyfc1(self):
     scene = bpy.context.scene
     svp = scene.vi_params
+
     if 'LiVi' in svp['viparams']['resnode'] or 'Shadow' in svp['viparams']['resnode']:
         for material in [m for m in bpy.data.materials if m.use_nodes and m.vi_params.mattype == '1']:
             try:

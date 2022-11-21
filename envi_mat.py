@@ -123,6 +123,7 @@ class envi_materials(object):
         paramvs = [name] + ['{:.3f}'.format(p) for p in (uv, shgc, vt)]
         idf_file.write(epentry("WindowMaterial:SimpleGlazingSystem", params, paramvs))
 
+
 class envi_constructions(object):
     def __init__(self):
         self.update()
@@ -178,7 +179,6 @@ class envi_constructions(object):
 
 
 def retmatdict(ect, t, l):
-    print(ect, t, l)
     if ect in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):
         typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"),
                     ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),

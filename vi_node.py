@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-socklink2
 # ##### BEGIN GPL LICENSE BLOCK #####
 #
 #  This program is free software; you can redistribute it and/or
@@ -4004,6 +4004,7 @@ class No_En_Net_Zone(Node, EnViNodes):
     def uvsockupdate(self):
         for sock in self.outputs:
             socklink2(sock, self.id_data)
+
             if sock.bl_idname == 'So_En_Net_Bound':
                 uvsocklink2(sock, self.id_data)
 
@@ -5416,7 +5417,7 @@ class So_En_Mat_Ou(NodeSocket):
     bl_idname = 'So_En_Mat_Ou'
     bl_label = 'Outer layer socket'
 
-    valid = ['OLayer', 'Tlayer', 'ScreenLayer']
+    valid = ['OLayer', 'TLayer', 'ScreenLayer']
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -5440,7 +5441,7 @@ class So_En_Mat_Tr(NodeSocket):
     valid = ['TLayer']
 
     def draw(self, context, layout, node, text):
-        layout.label(text = text)
+        layout.label(text=text)
 
     def draw_color(self, context, node):
         return (0.65, 0.65, 1, 1.0)
@@ -5667,6 +5668,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     pi = 2 if psmat in ems.gas_dat else 1
                     pstcs.append(float(ems.matdat[psmat][pi]))
                     resists.append((thicks[p]/float(ems.matdat[psmat][pi]), float(ems.matdat[psmat][pi]))[ems.matdat[psmat][0] == 'Gas'])
+
                 uv = 1/(sum(resists) + 0.12 + 0.08)
                 self.uv = '{:.3f}'.format(uv)
         else:
@@ -6072,6 +6074,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
                     ep_text += node.ep_write(n, mn)
                     self.resist += node.resist
+
                     if node.embodied:
                         ecm2 += float(node['ecm2'])
                 else:
@@ -6257,8 +6260,10 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                 for k in envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat].keys():
                     row = layout.row()
                     row.label(text = '{}: {}'.format(k, envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]))
+
                 row = layout.row()
                 row.label(text = 'ec/m2: {}'.format(self['ecm2']))
+
             except Exception as e:
                 pass
 
@@ -6291,8 +6296,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     def update(self):
         if not self.material:
             print('no material')
+
         for sock in self.outputs:
-            socklink(sock, self.id_data.name)
+            socklink2(sock, self.id_data)
 
         if self.outputs['Layer'].links:
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'So_En_Mat_Fr' else 'Frame'
@@ -6380,6 +6386,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     diff: BoolProperty(name = "", description = "Diffusing", default = 0)
     envi_con_type: StringProperty(name = "", description = "Name")
     resist: FloatProperty(name = "", description = "", min = 0, default = 0)
+    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Tr', 'Layer')
@@ -6411,7 +6418,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
 
     def update(self):
         for sock in self.outputs:
-            socklink(sock, self.id_data.name)
+            socklink2(sock, self.id_data)
 
         if self.outputs['Layer'].links:
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type
@@ -6490,6 +6497,7 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
     shr: FloatProperty(name = "", description = "Specific heat ratio", min = 1, max = 10, default = 2)
     resist: FloatProperty(name = "", description = "", min = 0, default = 0)
     envi_con_type: StringProperty(name = "", description = "Name")
+    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Gas', 'Layer')
@@ -6579,9 +6587,9 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
     envi_con_type: StringProperty(name = "", description = "Name")
 
     def init(self, context):
-        self.outputs.new('envi_sl_sock', 'Layer')
-        self.inputs.new('envi_sc_sock', 'Control')
-        self.inputs.new('envi_sl_sock', 'Layer')
+        self.outputs.new('So_En_Mat_Sh', 'Layer')
+        self.inputs.new('So_En_Mat_ShC', 'Control')
+        self.inputs.new('So_En_Mat_Sh', 'Layer')
 
     def draw_buttons(self, context, layout):
         if self.outputs['Layer'].links:
@@ -6705,36 +6713,36 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     bl_idname = 'No_En_Mat_Bl'
     bl_label = 'EnVi blind'
 
-    so: EnumProperty(items = [("0", "Horizontal", "Select from database"),
+    so: EnumProperty(items=[("0", "Horizontal", "Select from database"),
                                 ("1", "Vertical", "Define custom material properties")],
-                                name = "", description = "Slat orientation", default = '0')
-    sw: FloatProperty(name = "mm", description = "Slat width", min = 0.1, max = 1000, default = 25)
-    ss: FloatProperty(name = "mm", description = "Slat separation", min = 0.1, max = 1000, default = 20)
-    st: FloatProperty(name = "mm", description = "Slat thickness", min = 0.1, max = 1000, default = 50)
-    sa: FloatProperty(name = "deg", description = "Slat angle", min = 0.0, max = 90, default = 45)
-    stc: FloatProperty(name = "W/m.K", description = "Slat conductivity", min = 0.01, max = 100, default = 10)
-    sbst: FloatProperty(name = "", description = "Slat beam solar transmittance", min = 0.0, max = 1, default = 0.0)
-    fbst: FloatProperty(name = "", description = "Front Side Slat beam solar reflectance", min = 0.0, max = 1, default = 0.8)
-    bbst: FloatProperty(name = "", description = "Back Side Slat beam solar reflectance", min = 0.0001, max = 10, default = 0.8)
-    sdst: FloatProperty(name = "m", description = "Slat diffuse solar transmittance", min = 0.0, max = 1, default = 0.0)
-    fdsr: FloatProperty(name = "", description = "Front Side Slat diffuse solar reflectance", min = 0.0, max = 1, default = 0.8)
-    bdsr: FloatProperty(name = "", description = "Back Side Slat diffuse solar reflectance", min = 0.0, max = 1, default = 0.8)
-    sbvt: FloatProperty(name = "", description = "Slat beam visible transmittance", min = 0.0, max = 1, default = 0.0)
-    fbvr: FloatProperty(name = "", description = "Front Side Slat beam visible reflectance", min = 0.0, max = 1, default = 0.7)
-    bbvr: FloatProperty(name = "", description = "Back Side Slat beam visible reflectance", min = 0.0, max = 1, default = 0.7)
-    sdvt: FloatProperty(name = "", description = "Slat diffuse visible transmittance", min = 0.0, max = 1, default = 0.0)
-    fdvr: FloatProperty(name = "", description = "Front Side Slat diffuse visible reflectance", min = 0.0, max = 1, default = 0.7)
-    bdvr: FloatProperty(name = "", description = "Back Side Slat diffuse visible reflectance", min = 0.0, max = 1, default = 0.7)
-    sit: FloatProperty(name = "", description = "Slat Infrared hemispherical transmittance", min = 0.0, max = 1, default = 0.0)
-    sfie: FloatProperty(name = "", description = "Front Side Slat Infrared hemispherical emissivity", min = 0.0, max = 1, default = 0.9)
-    sbie: FloatProperty(name = "", description = "Back Side Slat Infrared hemispherical emissivity", min = 0.0, max = 1, default = 0.9)
-    bgd: FloatProperty(name = "mm", description = "Blind-to-glass distance", min = 0.1, max = 1000, default = 50)
-    tom: FloatProperty(name = "", description = "Blind top opening multiplier", min = 0.0, max = 1, default = 0.0)
-    bom: FloatProperty(name = "", description = "Blind bottom opening multiplier", min = 0.0, max = 1, default = 0.0)
-    lom: FloatProperty(name = "", description = "Blind left-side opening multiplier", min = 0.0, max = 1, default = 0.5)
-    rom: FloatProperty(name = "", description = "Blind right-side opening multiplier", min = 0.0, max = 1, default = 0.5)
-    minsa: FloatProperty(name = "deg", description = "Minimum slat angle", min = 0.0, max = 90, default = 0.0)
-    maxsa: FloatProperty(name = "deg", description = "Maximum slat angle", min = 0.0, max = 90, default = 0.0)
+                                name="", description="Slat orientation", default='0')
+    sw: FloatProperty(name="mm", description="Slat width", min=0.1, max=1000, default=25)
+    ss: FloatProperty(name="mm", description="Slat separation", min=0.1, max=1000, default=20)
+    st: FloatProperty(name="mm", description="Slat thickness", min=0.1, max=1000, default=50)
+    sa: FloatProperty(name="deg", description="Slat angle", min=0.0, max=90, default=45)
+    stc: FloatProperty(name="W/m.K", description="Slat conductivity", min=0.01, max=100, default=10)
+    sbst: FloatProperty(name="", description="Slat beam solar transmittance", min=0.0, max=1, default=0.0)
+    fbst: FloatProperty(name="", description="Front Side Slat beam solar reflectance", min=0.0, max=1, default=0.8)
+    bbst: FloatProperty(name="", description="Back Side Slat beam solar reflectance", min=0.0001, max=10, default=0.8)
+    sdst: FloatProperty(name="m", description="Slat diffuse solar transmittance", min=0.0, max=1, default=0.0)
+    fdsr: FloatProperty(name="", description="Front Side Slat diffuse solar reflectance", min=0.0, max=1, default=0.8)
+    bdsr: FloatProperty(name="", description="Back Side Slat diffuse solar reflectance", min=0.0, max=1, default=0.8)
+    sbvt: FloatProperty(name="", description="Slat beam visible transmittance", min=0.0, max=1, default=0.0)
+    fbvr: FloatProperty(name="", description="Front Side Slat beam visible reflectance", min=0.0, max=1, default=0.7)
+    bbvr: FloatProperty(name="", description="Back Side Slat beam visible reflectance", min=0.0, max=1, default=0.7)
+    sdvt: FloatProperty(name="", description="Slat diffuse visible transmittance", min=0.0, max=1, default=0.0)
+    fdvr: FloatProperty(name="", description="Front Side Slat diffuse visible reflectance", min=0.0, max=1, default=0.7)
+    bdvr: FloatProperty(name="", description="Back Side Slat diffuse visible reflectance", min=0.0, max=1, default=0.7)
+    sit: FloatProperty(name="", description="Slat Infrared hemispherical transmittance", min=0.0, max=1, default=0.0)
+    sfie: FloatProperty(name="", description="Front Side Slat Infrared hemispherical emissivity", min=0.0, max=1, default=0.9)
+    sbie: FloatProperty(name="", description="Back Side Slat Infrared hemispherical emissivity", min=0.0, max=1, default=0.9)
+    bgd: FloatProperty(name="mm", description="Blind-to-glass distance", min=0.1, max=1000, default=50)
+    tom: FloatProperty(name="", description="Blind top opening multiplier", min=0.0, max=1, default=0.0)
+    bom: FloatProperty(name="", description="Blind bottom opening multiplier", min=0.0, max=1, default=0.0)
+    lom: FloatProperty(name="", description="Blind left-side opening multiplier", min=0.0, max=1, default=0.5)
+    rom: FloatProperty(name="", description="Blind right-side opening multiplier", min=0.0, max=1, default=0.5)
+    minsa: FloatProperty(name="deg", description="Minimum slat angle", min=0.0, max=90, default=0.0)
+    maxsa: FloatProperty(name="deg", description="Maximum slat angle", min=0.0, max=90, default=0.0)
 
     def init(self, context):
         self.outputs.new('envi_sl_sock', 'Layer')
