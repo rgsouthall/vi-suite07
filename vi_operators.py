@@ -1496,7 +1496,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                         rtcmd = f'rtrace -n {self.processors} -on -ffa -ab 0 -ad 0 -aa 0 -ar 8 -as 0 -dr 0 -lr -1 "{self.fb}-{frame}.oct"'
                         vwrun = Popen(shlex.split(vwcmd), stdout=PIPE, stderr=PIPE)
                         rtrun = Popen(shlex.split(rtcmd), stdin=vwrun.stdout, stdout=PIPE, stderr=PIPE)
-                        normdata = [line.decode('utf-8').strip('\n').split('\t')[:3] + ['1'] for line in rtrun.stdout]
+                        normdata = [line.decode('utf-8').strip('\n').strip('\r').split('\t')[:3] + ['1'] for line in rtrun.stdout]
 
                         for ni, nline in enumerate(normdata):
                             if not nline[0]:
