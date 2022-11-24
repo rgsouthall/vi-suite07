@@ -1573,7 +1573,8 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
         reslists = []
         glnode = context.node
         imnode = glnode.inputs['Image'].links[0].from_node if glnode.inputs['Image'].links else glnode
-        vffile = f'-vf "{bpy.path.abspath(glnode.vffile)}"' if imnode == glnode else ''
+        vffile = bpy.path.abspath(glnode.vffile)
+        vfcmd = f'-vf "{vffile}"' if imnode == glnode else ''
         glnode.presim()
 
         for i, im in enumerate(imnode['images']):
@@ -1586,7 +1587,24 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
                         break
 
             glfile = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + svp['liparams']['fs']))
-            egcmd = 'evalglare {} {} -c "{}"'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], vffile, glfile)
+            gicmd = f'getinfo "{im}"'
+            girun = Popen(shlex.split(gicmd), stdout=PIPE, stderr=PIPE)
+
+            if any(['VIEW=' in line.decode() for line in girun.stdout]):
+                egcmd = 'evalglare {} -c "{}"'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
+            elif not glnode.vffile:
+                self.report({'ERROR'}, 'A view file is required but no valid file was supplied')
+                return {'CANCELLED'}
+            else:
+                gicmd2 = f'getinfo "{vffile}"'
+                girun2 = Popen(shlex.split(gicmd2), stdout=PIPE, stderr=PIPE)
+
+                if any(['VIEW=' in line.decode() for line in girun2.stdout]):
+                    egcmd = 'evalglare {} {} -c "{}"'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], vfcmd, glfile)
+                else:
+                    self.report({'ERROR'}, 'View file does not contain a valid view specification')
+                    return {'CANCELLED'}
+
             logentry(f"Running evalglare with command: {egcmd}")
 
             with open(im, 'r') as hdrfile:
@@ -1639,7 +1657,7 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
             try:
                 os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'glare.temphdr'))
                 os.remove(os.path.join(svp['viparams']['newdir'], 'images', 'temp.glare'))
-            except:
+            except Exception:
                 pass
 
             if glfile not in [i.filepath for i in bpy.data.images]:

@@ -991,12 +991,10 @@ class No_Li_Gl(Node, ViNodes):
         #     row.prop(self, 'hdrfile')
 
         if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
-            row = layout.row()
-            row.prop(self, 'hdrfile')
+            newrow(layout, 'Base image', self, 'hdrfile')
 
             if os.path.isfile(bpy.path.abspath(self.hdrfile)):
-                row = layout.row()
-                row.prop(self, 'vffile')
+                newrow(layout, 'View image', self, 'vffile')
 
         if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
 #            if os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
@@ -6075,7 +6073,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     ep_text += node.ep_write(n, mn)
                     self.resist += node.resist
 
-                    if node.embodied:
+                    if node.get('embodied'):
                         ecm2 += float(node['ecm2'])
                 else:
                     get_mat(self, 1).vi_params.envi_shading = 1
@@ -6661,9 +6659,9 @@ class No_En_Mat_Sc(Node, EnViMatNodes):
     rom: FloatProperty(name = "", description = "Right-side opening multiplier", min = 0.0, max = 1, default = 0.5)
 
     def init(self, context):
-        self.outputs.new('envi_screen_sock', 'Outer Layer')
-        self.inputs.new('envi_sc_sock', 'Control')
-        self.inputs.new('envi_tl_sock', 'Layer')
+        self.outputs.new('So_En_Mat_Sc', 'Outer Layer')
+        self.inputs.new('So_En_Mat_ScC', 'Control')
+        self.inputs.new('So_En_Mat_Tr', 'Layer')
 
     def draw_buttons(self, context, layout):
         if self.outputs['Outer Layer'].links:
