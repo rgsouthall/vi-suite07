@@ -638,6 +638,62 @@ class NODE_OT_Shadow(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OBJECT_OT_EcS(bpy.types.Operator):
+    bl_idname = "object.ec_save"
+    bl_label = "Embodied material save"
+
+    def execute(self, context):
+        ob = context.object
+        ovp = ob.vi_params
+        '''ID, Quantity, unit, density, weight, ec per unit, ec per kg'''
+        if ovp.ec_unit == 'kg':
+            weight = self.ec_amount
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm2':
+            weight = self.ec_amount * self.ec_density * self.thi/1000
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm3':
+            weight = self.ec_amount * self.ec_density
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        else:
+            weight = ''
+            ecdu = self.ec_kgco2e
+            eckg = self.ec_kgco2e
+
+        ec_dict = envi_ecs.get_dat()
+
+        if self.ec_type not in ec_dict:
+            ec_dict[self.ec_type] = {}
+            ec_dict[self.ec_type][self.ec_class] = {}
+            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg)}
+        elif self.ec_class not in ec_dict[self.ec_type]:
+            ec_dict[self.ec_type][self.ec_class] = {}
+            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg)}
+        else:
+            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg)}
+        envi_ecs.set_dat(ec_dict)
+        envi_ecs.ec_save()
+        ob.save_ecdict()
+        return {'FINISHED'}
+
 class NODE_OT_Li_Geo(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "LiVi geometry export"
@@ -1685,10 +1741,9 @@ class NODE_OT_Li_Fc(bpy.types.Operator):
         imnode = fcnode.inputs['Image'].links[0].from_node if fcnode.inputs['Image'].links else fcnode
         lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
         scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades)
-        mult = '-m {}'.format(eval('{}{}'.format(1, fcnode.multiplier))) if fcnode.multiplier else ''
-        legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unit_name, fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
-        bands = '-cb' if fcnode.bands else ''
-        contour = '-cl {}'.format(bands) if fcnode.contour else ''
+        mult = '-m {}'.format(eval('{}{}'.format(179, fcnode.multiplier))) if fcnode.multiplier else ''
+        legend = '-l "{}" -lw {} -lh {} {} {} {}'.format(fcnode.unit_name, fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
+        contour = ('', '-cl', '-cb', '-cp')[int(fcnode.contour)]
         divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
 
         for i, im in enumerate(imnode['images']):
@@ -1913,6 +1968,16 @@ class NODE_OT_En_ConS(bpy.types.Operator):
     def execute(self, context):
         node = context.node
         node.save_condict()
+        return {'FINISHED'}
+
+
+class NODE_OT_En_EcS(bpy.types.Operator):
+    bl_idname = "node.ec_save"
+    bl_label = "EnVi embodied material save"
+
+    def execute(self, context):
+        node = context.node
+        node.save_ecdict()
         return {'FINISHED'}
 
 

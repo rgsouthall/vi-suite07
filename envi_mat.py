@@ -84,7 +84,7 @@ class envi_materials(object):
                    'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
                    'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'w') as mat_jfile:
-            mat_jfile.write(json.dumps(mat_dict))
+            mat_jfile.write(json.dumps(mat_dict, indent=2))
         self.update()
 
     def omat_write(self, idf_file, name, stringmat, thickness):
@@ -113,9 +113,11 @@ class envi_materials(object):
     def pcmmat_write(self, idf_file, name, stringmat):
         params = ('Name', 'Temperature Coefficient for Thermal Conductivity (W/m-K2)')
         paramvs = (name, stringmat[0])
+
         for i, te in enumerate(stringmat[1].split()):
             params += ('Temperature {} (C)'.format(i), 'Enthalpy {} (J/kg)'.format(i))
             paramvs +=(te.split(':')[0], te.split(':')[1])
+
         idf_file.write(epentry("MaterialProperty:PhaseChange", params, paramvs))
 
     def sg_write(self, idf_file, name, uv, shgc, vt):
@@ -152,7 +154,7 @@ class envi_constructions(object):
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0
         self.propdict = {'Wall': self.wall_con, 'Floor': self.floor_con, 'Roof': self.roof_con, 'Ceiling': self.ceil_con, 'Door': self.door_con,
-                                'Window': self.glaze_con, 'PV': self.pv_con, 'Internal floor': self.ifloor_con, 'Internal wall': self.iwall_con}
+                         'Window': self.glaze_con, 'PV': self.pv_con, 'Internal floor': self.ifloor_con, 'Internal wall': self.iwall_con}
 
     def con_write(self, idf_file, contype, name, nl, mn, cln):
         params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]
@@ -172,9 +174,9 @@ class envi_constructions(object):
                     'Internal floor': self.ifloor_cond, 'Floor': self.floor_cond, 'Ceiling': self.ceil_cond,
                     'Door': self.door_cond, 'Glazing': self.glaze_cond, 'Roof': self.roof_cond}
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'w') as con_jfile:
-            con_jfile.write(json.dumps(con_dict))
+            con_jfile.write(json.dumps(con_dict, indent=2))
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database_backup.json')), 'w') as con_bujfile:
-            con_bujfile.write(json.dumps(con_dict))
+            con_bujfile.write(json.dumps(con_dict, indent=2))
         self.update()
 
 
@@ -247,7 +249,7 @@ def envi_layertype(self, context):
 
 
 def envi_elayertype(self, context):
-    return [(k, k, '{} type'.format(k)) for k in envi_embodied().propdict.keys()]
+    return [(k, k, '{} type'.format(k)) for k in envi_embodied().propdict.keys()] + [('Custom', 'Custom', 'Custom embodied carbon')]
 
 
 def envi_layer(self, context):
@@ -258,14 +260,14 @@ def envi_layer(self, context):
 
 
 def envi_eclasstype(self, context):
-    if self.embodiedtype:
+    if self.embodiedtype and self.embodiedtype != 'Custom':
         return [((mat, mat, 'Embodied class material')) for mat in envi_embodied().propdict[self.embodiedtype]]
     else:
         return [('', '', '')]
 
 
 def envi_emattype(self, context):
-    if self.embodiedtype:
+    if self.embodiedtype and self.embodiedtype != 'Custom':
         return [((mat, mat, 'Embodied material')) for mat in envi_embodied().propdict[self.embodiedtype][self.embodiedclass]]
     else:
         return [('', '', '')]
@@ -280,84 +282,54 @@ class envi_embodied(object):
 
     def update(self):
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('EC_database.json')), 'r') as ec_jfile:
+            self.ecsd, self.ecs = {}, {}
             ec_dict = json.loads(ec_jfile.read())
-            self.agg_ecd = ec_dict['aggregatesand']
-            self.alu_ecd = ec_dict['aluminium']
-            self.asp_ecd = ec_dict['asphalt']
-            self.bit_ecd = ec_dict['bitumen']
-            self.cement_ecd = ec_dict['cement']
-            self.clay_ecd = ec_dict['clay']
-            self.con_ecd = ec_dict['concrete']
-            self.glass_ecd = ec_dict['glass']
-            self.steel_ecd = ec_dict['steel']
-            self.timber_ecd = ec_dict['timber']
-            self.agg_ec = OrderedDict(sorted(self.agg_ecd.items()))
-            self.alu_ec = OrderedDict(sorted(self.alu_ecd.items()))
-            self.asp_ec = OrderedDict(sorted(self.asp_ecd.items()))
-            self.bit_ec = OrderedDict(sorted(self.bit_ecd.items()))
-            self.cement_ec = OrderedDict(sorted(self.cement_ecd.items()))
-            self.clay_ec = OrderedDict(sorted(self.clay_ecd.items()))
-            self.con_ec = OrderedDict(sorted(self.con_ecd.items()))
-            self.glass_ec = OrderedDict(sorted(self.glass_ecd.items()))
-            self.steel_ec = OrderedDict(sorted(self.steel_ecd.items()))
-            self.timber_ec = OrderedDict(sorted(self.timber_ecd.items()))
-            self.propdict = {'Aggregate': self.agg_ec, 'Aluminium': self.alu_ec, 'Asphalt': self.asp_ec, 'Bitumen': self.bit_ec, 'Cement': self.cement_ec,
-                             'Clay': self.clay_ec, 'Concrete': self.con_ec, 'Glass': self.glass_ec, 'Steel': self.steel_ec, 'Timber': self.timber_ec}
 
+            for k in ec_dict.keys():
+                self.ecsd[k.capitalize()] = ec_dict[k]
+                self.ecs[k.capitalize()] = OrderedDict(sorted(ec_dict[k].items()))
+            # self.agg_ecd = ec_dict['aggregatesand']
+            # self.alu_ecd = ec_dict['aluminium']
+            # self.asp_ecd = ec_dict['asphalt']
+            # self.bit_ecd = ec_dict['bitumen']
+            # self.cement_ecd = ec_dict['cement']
+            # self.clay_ecd = ec_dict['clay']
+            # self.con_ecd = ec_dict['concrete']
+            # self.glass_ecd = ec_dict['glass']
+            # self.steel_ecd = ec_dict['steel']
+            # self.timber_ecd = ec_dict['timber']
+            # self.timber_ecd = ec_dict['stone']
+            # self.timber_ecd = ec_dict['insulation']
+            # self.agg_ec = OrderedDict(sorted(self.agg_ecd.items()))
+            # self.alu_ec = OrderedDict(sorted(self.alu_ecd.items()))
+            # self.asp_ec = OrderedDict(sorted(self.asp_ecd.items()))
+            # self.bit_ec = OrderedDict(sorted(self.bit_ecd.items()))
+            # self.cement_ec = OrderedDict(sorted(self.cement_ecd.items()))
+            # self.clay_ec = OrderedDict(sorted(self.clay_ecd.items()))
+            # self.con_ec = OrderedDict(sorted(self.con_ecd.items()))
+            # self.glass_ec = OrderedDict(sorted(self.glass_ecd.items()))
+            # self.steel_ec = OrderedDict(sorted(self.steel_ecd.items()))
+            # self.timber_ec = OrderedDict(sorted(self.timber_ecd.items()))
+            self.propdict = {k: self.ecs[k] for k in self.ecs}
+            # self.propdict = {'Aggregate': self.agg_ec, 'Aluminium': self.alu_ec, 'Asphalt': self.asp_ec, 'Bitumen': self.bit_ec, 'Cement': self.cement_ec,
+            #                  'Clay': self.clay_ec, 'Concrete': self.con_ec, 'Glass': self.glass_ec, 'Steel': self.steel_ec, 'Timber': self.timber_ec}
+            # for k in ec_dict:
+            #     if k not in ('aggregatesand', 'aluminium', 'asphalt', 'bitumen', 'cement', 'clay', 'concrete', 'glass', 'steel', 'timber'):
 
-#            print(ec_dict.keys())
+    def get_dat(self):
+        self.update()
+        mat_dict = {k: self.ecsd[k] for k in self.ecsd}
+        return mat_dict
 
+    def set_dat(self, dict):
+        self.ecsd = dict
 
-#def retmatdict(self, t, l):
-#    if self.envi_con_type in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling'):
-#        typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
-#                   ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
-#                   ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
-#                    ("8", "PCM", "Choose a material from the phase change database")]
-#        matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(), '3': envi_materials().metal_dat.keys(), '4': envi_materials().stone_dat.keys(),
-#                   '5': envi_materials().wood_dat.keys(), '6': envi_materials().gas_dat.keys(), '7': envi_materials().insulation_dat.keys(), '8': envi_materials().pcm_dat.keys()}
-#
-#    elif self.envi_con_type == 'Window':
-#        if not l % 2:
-#            typelist = [("0", "Glass", "Choose a material from the glass database")]
-#            matdict = {'0': envi_materials().glass_dat.keys()}
-#        else:
-#            typelist = [("0", "Gas", "Choose a material from the gas database")]
-#            matdict = {'0': envi_materials().wgas_dat.keys()}
-#    else:
-#        typelist = [('', '', '')]
-#    if t:
-#        return typelist
-#    else:
-#        return matdict
-#
-# #def envi_layerotype(self, context):
-#    return retmatdict(self, 1, 0)
-#
-#def envi_layer1type(self, context):
-#    return retmatdict(self, 1, 1)
-#
-#def envi_layer2type(self, context):
-#    return retmatdict(self, 1, 2)
-#
-#def envi_layer3type(self, context):
-#    return retmatdict(self, 1, 3)
-#
-#def envi_layer4type(self, context):
-#    return retmatdict(self, 1, 4)
-#
-#def envi_layero(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 0)[self.envi_type_lo])]
-#
-#def envi_layer1(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 1)[self.envi_type_l1])]
-#
-#def envi_layer2(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 2)[self.envi_type_l2])]
-#
-#def envi_layer3(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 3)[self.envi_type_l3])]
-#
-#def envi_layer4(self, context):
-#    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 4)[self.envi_type_l4])]
+    def ec_save(self):
+        mat_dict = {k: self.ecsd[k] for k in self.ecsd}
+        # mat_dict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
+        #            'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
+        #            'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('EC_database.json')), 'w') as mat_jfile:
+            mat_jfile.write(json.dumps(mat_dict, indent=2))
 
+        self.update()

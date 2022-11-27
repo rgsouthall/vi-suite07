@@ -377,12 +377,30 @@ class VI_PT_Ob(bpy.types.Panel):
 
             if ovp.embodied:
                 newrow(layout, 'Embodied class:', ovp, 'embodiedtype')
-                newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
-                newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
 
-                if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
-                    row = layout.row()
-                    row.operator("object.vi_embodied", text="Calc")
+                if ovp.embodiedtype != 'Custom':
+                    newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
+                    newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
+
+                    if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
+                        row = layout.row()
+                        row.operator("object.vi_embodied", text="Calc")
+                else:
+                    newrow(layout, "Embodied id:", ovp, "ec_id")
+                    newrow(layout, "Embodied type:", ovp, "ec_type")
+                    newrow(layout, "Embodied class:", ovp, "ec_class")
+                    newrow(layout, "Embodied name:", ovp, "ec_name")
+                    newrow(layout, "Embodied unit:", ovp, "ec_unit")
+
+                    if ovp.ec_unit in ('kg', 'm2', 'm3'):
+                        newrow(layout, "Embodied amount:", ovp, "ec_amount")
+
+                    newrow(layout, "Embodied value per amount:", ovp, "ec_kgco2e")
+                    newrow(layout, "Embodied density:", ovp, "ec_density")
+                    newrow(layout, "Lifespan:", ovp, "ec_life")
+
+                    if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_kgco2e, ovp.ec_density)):
+                        pass
 
         if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
             newrow(layout, 'IES file:', ovp, "ies_name")

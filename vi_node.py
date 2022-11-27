@@ -54,7 +54,7 @@ except Exception as e:
 os.chdir(cur_dir)
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
-envi_ec = envi_embodied()
+envi_ecs = envi_embodied()
 
 
 class ViNetwork(NodeTree):
@@ -1028,7 +1028,7 @@ class No_Li_Fc(Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades,
-                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands, self.ofile, self.hdrfile)])
+                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.ofile, self.hdrfile)])
         self['images'] = [bpy.path.abspath(self.hdrfile)]
 
     basename: StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update=nodeupdate)
@@ -1045,9 +1045,9 @@ class No_Li_Fc(Node, ViNodes):
     legend: BoolProperty(name='', default=True, update=nodeupdate)
     lw: IntProperty(name='', min=1, max=1000, default=100, update=nodeupdate)
     lh: IntProperty(name='', min=1, max=1000, default=200, update=nodeupdate)
-    contour: BoolProperty(name='', default=False, update=nodeupdate)
+    contour: EnumProperty(items=[("0", "None", "No contours"), ("1", "Contour", "Line contours"), ("2", "Bands", "Banded contours"), ("3", "Poster", "Posterised contours")],
+                         name="", description="Countour type", default="0", update=nodeupdate)
     overlay: BoolProperty(name='', default=False, update=nodeupdate)
-    bands: BoolProperty(name='', default=False, update=nodeupdate)
     coldict = {'0': 'def', '1': 'spec', '2': 'hot', '3': 'pm3d', '4': 'eco'}
     divisions: IntProperty(name='', min=1, max=50, default=8, update=nodeupdate)
     ofile: StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update=nodeupdate)
@@ -1089,14 +1089,12 @@ class No_Li_Fc(Node, ViNodes):
 
                 newrow(layout, 'Contour:', self, 'contour')
 
-                if self.contour:
+                if self.contour != '0':
                     newrow(layout, 'Overlay:', self, 'overlay')
 
                     if self.overlay:
                         newrow(layout, 'Overlay file:', self, 'ofile')
                         newrow(layout, 'Overlay exposure:', self, 'disp')
-
-                    newrow(layout, 'Bands:', self, 'bands')
 
                 row = layout.row()
                 row.operator("node.livifc", text='Process')
@@ -1106,7 +1104,7 @@ class No_Li_Fc(Node, ViNodes):
 
     def postsim(self):
         self['exportstate'] = [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades,
-                               self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
+                               self.legend, self.lw, self.lh, self.contour, self.overlay, self.ofile, self.hdrfile)]
         nodecolour(self, 0)
 
 
@@ -6171,50 +6169,72 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             nodecolour(self, 0)
 
     def ec_update(self, context):
+        self['ecentries'] = []
+
         try:
-            self['ecdict'] = envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+            self['ecdict'] = envi_ecs.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
             # if self['ecdict']['unit'] == 'm2':
             #     self['ecm2'] = self['ecdict']['ecdu']
             # elif self['ecdict']['unit'] == 'kg':
             self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
 
+#            for k in self['ecdict'].keys():
+            self['ecentries'] = [(k, envi_ecs.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+
         except Exception as e:
+            print(e)
             self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
 
-    lay_name: StringProperty(name = '', description = 'Custom layer name', update = lay_update)
-    layer: EnumProperty(items = [("0", "Database", "Select from database"),
+    lay_name: StringProperty(name='', description='Custom layer name', update=lay_update)
+    layer: EnumProperty(items=[("0", "Database", "Select from database"),
                                         ("1", "Custom", "Define custom material properties")],
-                                        name = "", description = "Class of layer", default = "0", update = lay_update)
+                                        name="", description="Class of layer", default="0", update=lay_update)
 
-    materialtype: EnumProperty(items = envi_layertype, name = "", description = "Layer material type", update = lay_update)
-    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0, update = ec_update)
-    embodiedtype: EnumProperty(items = envi_elayertype, name = "", description = "Layer embodied material class", update = ec_update)
-    embodiedclass: EnumProperty(items = envi_eclasstype, name = "", description = "Layer embodied class", update = ec_update)
-    embodiedmat: EnumProperty(items = envi_emattype, name = "", description = "Layer embodied material", update = ec_update)
-    ecm2: FloatProperty(name = "kgCo2e/m2", description = "Embodied carbon per metre squared", min = 0.0, default = 0.0)
-    material: EnumProperty(items = envi_layer, name = "", description = "Layer material", update = lay_update)
-    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100, options={'ANIMATABLE'})
-    tc: FloatProperty(name = "W/m.K", description = "Thermal conductivity (W/m.K)", min = 0.001, max = 10, default = 0.5)
-    rough: EnumProperty(items = [("VeryRough", "VeryRough", "Roughness"),
+    materialtype: EnumProperty(items=envi_layertype, name="", description="Layer material type", update=lay_update)
+    embodied: BoolProperty(name="", description="Embodied carbon", default=0, update=ec_update)
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class", update=ec_update)
+    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class", update=ec_update)
+    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material", update=ec_update)
+    ecm2: FloatProperty(name="kgCo2e/m2", description="Embodied carbon per metre squared", min=0.0, default=0.0)
+    material: EnumProperty(items=envi_layer, name="", description="Layer material", update=lay_update)
+    thi: FloatProperty(name="mm", description="Thickness (mm)", min=0.1, max=10000, default=100, options={'ANIMATABLE'})
+    tc: FloatProperty(name="W/m.K", description="Thermal conductivity (W/m.K)", min=0.001, max=10, default=0.5)
+    rough: EnumProperty(items=[("VeryRough", "VeryRough", "Roughness"),
                                   ("Rough", "Rough", "Roughness"),
                                   ("MediumRough", "MediumRough", "Roughness"),
                                   ("MediumSmooth", "MediumSmooth", "Roughness"),
                                   ("Smooth", "Smooth", "Roughness"),
                                   ("VerySmooth", "VerySmooth", "Roughness")],
-                                  name = "",
-                                  description = "Specify the material roughness for convection calculations",
-                                  default = "Rough")
+                                  name="",
+                                  description="Specify the material roughness for convection calculations",
+                                  default="Rough")
 
-    rho: FloatProperty(name = "kg/m^3", description = "Density", min = 0.001, max = 10000, default = 800)
-    shc: FloatProperty(name = "J/kg", description = "Thickness (mm)", min = 0.01, max = 10000, default = 800)
-    tab: FloatProperty(name = "", description = "Thermal absorptance", min = 0, max = 1, precision = 2, default = 0.7)
-    sab: FloatProperty(name = "", description = "Solar absorptance", min = 0, max = 1, precision = 2, default = 0.7)
-    vab: FloatProperty(name = "", description = "Visual absorptance", min = 0, max = 1, precision = 2, default = 0.7)
-    pcm: BoolProperty(name = "", description = "Phase Change Material", default = 0)
-    tctc: FloatProperty(name = "", description = "Temp. coeff. for thermal conductivity (W/m-K2)", min = 0, max = 50, default = 0)
-    tempemps: StringProperty(name = "", description = "Temperature/empalthy pairs (e.g. T1:E1 T2:E2)", default = "")
-    resist: FloatProperty(name = "", description = "", min = 0, default = 0)
-    envi_con_type: StringProperty(name = "", description = "Name")
+    rho: FloatProperty(name="kg/m^3", description="Density", min=0.001, max=10000, default=800)
+    shc: FloatProperty(name="J/kg", description="Thickness (mm)", min=0.01, max=10000, default=800)
+    tab: FloatProperty(name="", description="Thermal absorptance", min=0, max=1, precision=2, default=0.7)
+    sab: FloatProperty(name="", description="Solar absorptance", min=0, max=1, precision=2, default=0.7)
+    vab: FloatProperty(name="", description="Visual absorptance", min=0, max=1, precision=2, default=0.7)
+    pcm: BoolProperty(name="", description="Phase Change Material", default=0)
+    tctc: FloatProperty(name="", description="Temp. coeff. for thermal conductivity (W/m-K2)", min=0, max=50, default=0)
+    tempemps: StringProperty(name="", description="Temperature/empalthy pairs (e.g. T1:E1 T2:E2)", default="")
+    resist: FloatProperty(name="", description="", min=0, default=0)
+    envi_con_type: StringProperty(name="", description="Name")
+    ec_id: StringProperty(name="", description="Embodied id")
+    ec_type: StringProperty(name="", description="Embodied type")
+    ec_class: StringProperty(name="", description="Embodied class")
+    ec_name: StringProperty(name="", description="Embodied name")
+    ec_unit:EnumProperty(items=[("kg", "kg", "per kilogram"),
+                                  ("m2", "m2", "per square metre"),
+                                  ("m3", "m3", "per cubic metre"),
+                                  ("unit", "Unit", "per unit")],
+                                  name="",
+                                  description="Embodied carbon unit",
+                                  default="kg")
+    ec_amount: FloatProperty(name="", description="", min=0.1, default=1)
+    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
+    # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
+    ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
+    ec_life: IntProperty(name="y", description="Lifespan in years", min=1, max=100, default=60)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Op', 'Layer')
@@ -6245,26 +6265,45 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
             if self.lay_name:
                 row = layout.row()
-                row.operator('node.lay_save', text = "Layer Save")
+                row.operator('node.lay_save', text="Layer Save")
 
         newrow(layout, "Embodied:", self, "embodied")
 
         if self.embodied:
             newrow(layout, "Embodied type:", self, "embodiedtype")
-            newrow(layout, "Embodied class:", self, "embodiedclass")
-            newrow(layout, "Embodied material:", self, "embodiedmat")
 
-            try:
-                for k in envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat].keys():
+            if self.embodiedtype != 'Custom':
+                newrow(layout, "Embodied class:", self, "embodiedclass")
+                newrow(layout, "Embodied material:", self, "embodiedmat")
+
+                try:
+                    for ec in self['ecentries']:
+                        row = layout.row()
+                        row.label(text='{}: {}'.format(ec[0], ec[1]))
+
                     row = layout.row()
-                    row.label(text = '{}: {}'.format(k, envi_ec.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]))
+                    row.label(text='ec/m2: {}'.format(self['ecm2']))
 
-                row = layout.row()
-                row.label(text = 'ec/m2: {}'.format(self['ecm2']))
+                except Exception as e:
+                    print(e)
 
-            except Exception as e:
-                pass
+            else:
+                newrow(layout, "Embodied id:", self, "ec_id")
+                newrow(layout, "Embodied type:", self, "ec_type")
+                newrow(layout, "Embodied class:", self, "ec_class")
+                newrow(layout, "Embodied name:", self, "ec_name")
+                newrow(layout, "Embodied unit:", self, "ec_unit")
 
+                if self.ec_unit in ('kg', 'm2', 'm3'):
+                    newrow(layout, "Embodied amount:", self, "ec_amount")
+
+                newrow(layout, "Embodied value per amount:", self, "ec_kgco2e")
+                newrow(layout, "Embodied density:", self, "ec_density")
+                newrow(layout, "Lifespan:", self, "ec_life")
+
+                if all((self.ec_id, self.ec_name, self.ec_type, self.ec_class)):
+                    row = layout.row()
+                    row.operator('node.ec_save', text="Embodied Save")
 
     def ret_resist(self):
         if self.layer == '0':
@@ -6279,6 +6318,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
         return self.resist
 
+
     def save_laydict(self):
         '''Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance,
             Solar Absorbtance, Visible Absorbtance, Default thickness'''
@@ -6290,6 +6330,54 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             envi_mats.get_dat('9')[self.lay_name] = [self.tctc, self.tempemps]
 
         envi_mats.lay_save()
+
+    def save_ecdict(self):
+        '''ID, Quantity, unit, density, weight, ec per unit, ec per kg'''
+        if self.ec_unit == 'kg':
+            weight = self.ec_amount
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm2':
+            weight = self.ec_amount * self.ec_density * self.thi/1000
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm3':
+            weight = self.ec_amount * self.ec_density
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        else:
+            weight = ''
+            ecdu = self.ec_kgco2e
+            eckg = self.ec_kgco2e
+
+        ec_dict = envi_ecs.get_dat()
+
+        if self.ec_type not in ec_dict:
+            ec_dict[self.ec_type] = {}
+            ec_dict[self.ec_type][self.ec_class] = {}
+            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg)}
+        elif self.ec_class not in ec_dict[self.ec_type]:
+            ec_dict[self.ec_type][self.ec_class] = {}
+            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg)}
+        else:
+            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg)}
+        envi_ecs.set_dat(ec_dict)
+        envi_ecs.ec_save()
 
     def update(self):
         if not self.material:
@@ -6364,6 +6452,24 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     bl_idname = 'No_En_Mat_Tr'
     bl_label = 'EnVi transparent layer'
 
+    def ec_update(self, context):
+        self['ecentries'] = []
+
+        try:
+            self['ecdict'] = envi_ecs.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+            # self.ec_class = self.embodiedclass
+            # if self['ecdict']['unit'] == 'm2':
+            #     self['ecm2'] = self['ecdict']['ecdu']
+            # elif self['ecdict']['unit'] == 'kg':
+            self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
+
+#            for k in self['ecdict'].keys():
+            self['ecentries'] = [(k, envi_ecs.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+
+        except Exception as e:
+            print(e)
+            self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
+
     lay_name: StringProperty(name = '', description = 'Custom layer name')
     layer: EnumProperty(items = [("0", "Database", "Select from database"),
                                         ("1", "Custom", "Define custom material properties")],
@@ -6384,7 +6490,27 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     diff: BoolProperty(name = "", description = "Diffusing", default = 0)
     envi_con_type: StringProperty(name = "", description = "Name")
     resist: FloatProperty(name = "", description = "", min = 0, default = 0)
-    embodied: BoolProperty(name = "", description = "Embodied carbon", default = 0)
+    embodied: BoolProperty(name="", description="Embodied carbon", default=0, update=ec_update)
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class", update=ec_update)
+    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class", update=ec_update)
+    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material", update=ec_update)
+    ecm2: FloatProperty(name="kgCo2e/m2", description="Embodied carbon per metre squared", min=0.0, default=0.0)
+    ec_id: StringProperty(name="", description="Embodied id")
+    ec_type: StringProperty(name="", description="Embodied type")
+    ec_class: StringProperty(name="", description="Embodied class")
+    ec_name: StringProperty(name="", description="Embodied name")
+    ec_unit:EnumProperty(items=[("kg", "kg", "per kilogram"),
+                                  ("m2", "m2", "per square metre"),
+                                  ("m3", "m3", "per cubic metre"),
+                                  ("unit", "Unit", "per unit")],
+                                  name="",
+                                  description="Embodied carbon unit",
+                                  default="kg")
+    ec_amount: FloatProperty(name="", description="", min=0.1, default=1)
+    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
+    # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
+    ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
+    ec_life: IntProperty(name="y", description="Lifespan in years", min=1, max=100, default=60)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Tr', 'Layer')
@@ -6413,6 +6539,44 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
             if self.lay_name:
                 row = layout.row()
                 row.operator('node.lay_save', text = "Layer Save")
+
+        newrow(layout, "Embodied:", self, "embodied")
+
+        if self.embodied:
+            newrow(layout, "Embodied type:", self, "embodiedtype")
+
+            if self.embodiedtype != 'Custom':
+                newrow(layout, "Embodied class:", self, "embodiedclass")
+                newrow(layout, "Embodied material:", self, "embodiedmat")
+
+                try:
+                    for ec in self['ecentries']:
+                        row = layout.row()
+                        row.label(text='{}: {}'.format(ec[0], ec[1]))
+
+                    row = layout.row()
+                    row.label(text='ec/m2: {}'.format(self['ecm2']))
+
+                except Exception as e:
+                    print(e)
+
+            else:
+                newrow(layout, "Embodied id:", self, "ec_id")
+                newrow(layout, "Embodied type:", self, "ec_type")
+                newrow(layout, "Embodied class:", self, "ec_class")
+                newrow(layout, "Embodied name:", self, "ec_name")
+                newrow(layout, "Embodied unit:", self, "ec_unit")
+
+                if self.ec_unit in ('kg', 'm2', 'm3'):
+                    newrow(layout, "Embodied amount:", self, "ec_amount")
+
+                newrow(layout, "Embodied value per amount:", self, "ec_kgco2e")
+                newrow(layout, "Embodied density:", self, "ec_density")
+                newrow(layout, "Lifespan:", self, "ec_life")
+
+                if all((self.ec_id, self.ec_name, self.ec_type, self.ec_class)):
+                    row = layout.row()
+                    row.operator('node.ec_save', text="Embodied Save")
 
     def update(self):
         for sock in self.outputs:
