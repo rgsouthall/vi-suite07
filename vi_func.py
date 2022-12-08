@@ -44,6 +44,43 @@ def li_calcob(ob, li):
 
     return ovp.vi_type_string == 'LiVi Calc'
 
+
+def ec_update(self, context):
+    self['ecentries'] = []
+
+    if not self.ee.updated:
+        self.ee.update()
+
+    if self.embodiedtype in self.ee.propdict.keys():
+        if self.embodiedclass not in self.ee.propdict[self.embodiedtype]:
+            self.embodiedclass = list(self.ee.propdict[self.embodiedtype].keys())[0]
+
+        if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
+            self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
+        try:
+            self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+            self['ecm3'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']))
+            self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+
+        except Exception:
+            self['ecm3'] = 'N/A'
+
+
+def ret_datab(fname, r_w):
+    addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+    vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
+
+    if vi_prefs and vi_prefs.datab and os.path.isdir(vi_prefs.datab):
+        if os.path.isfile(os.path.join(vi_prefs.datab, fname)) or r_w == 'w':
+            datab = os.path.join(vi_prefs.datab, fname)
+        else:
+            datab = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', fname)
+    else:
+        datab = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', fname)
+
+    return datab
+
+
 def ret_plt():
     try:
         import matplotlib
@@ -51,6 +88,7 @@ def ret_plt():
         from matplotlib import pyplot as plt
         plt.figure()
         return plt
+
     except Exception as e:
         logentry('Matplotlib error: {}'.format(e))
         return 0

@@ -19,12 +19,12 @@
 import bpy
 import sys
 from .envi_func import retmenu
-from numpy import amax, amin, linspace, uint8
+from numpy import amax, amin, linspace, uint8, sin, cos, sign, deg2rad
 
 
 def label(dnode, metric, axis, variant):
     catdict = {'clim': 'Ambient', 'zone spatial': 'Zone spatial', 'zone temporal': 'Zone temporal',
-               'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame',
+               'Embodied carbon': 'Embodied carbon', 'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame',
                'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric}
     animdict = {'metric': dnode.inputs[axis].rtypemenu, 'type': metric}
 
@@ -38,6 +38,7 @@ def llabel(dnode, metric, axis, variant):
     rdict = {'Climate': 'Ambient',
              'Zone spatial': dnode.inputs[axis].zonemenu,
              'Zone temporal': dnode.inputs[axis].zonemenu,
+             'Embodied carbon': dnode.inputs[axis].zonemenu,
              'Linkage': dnode.inputs[axis].linkmenu,
              'Frames': 'Frames', 'Camera': dnode.inputs[axis].cammenu,
              'Position': dnode.inputs[axis].posmenu,
@@ -50,13 +51,13 @@ def llabel(dnode, metric, axis, variant):
 
 def statdata(res, stat):
     if stat == 'Average':
-        return([sum(r)/len(r) for r in res])
+        return ([sum(r)/len(r) for r in res])
     elif stat == 'Maximum':
-        return([max(r) for r in res])
+        return ([max(r) for r in res])
     elif stat == 'Minimum':
-        return([min(r) for r in res])
+        return ([min(r) for r in res])
     elif stat == 'Sum':
-        return([sum(r) for r in res])
+        return ([sum(r) for r in res])
 
 
 def rvariant(dnode):
@@ -85,7 +86,7 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, Sdate, Ed
             res = [[] for m in range(len(set(months)))]
             for h, val in enumerate(datastring):
                 res[months[h] - months[0]].append(val)
-        return(statdata(res, stattype))
+        return (statdata(res, stattype))
 
 
 def retframe(axis, dnode, frames):
@@ -112,7 +113,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     tdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Steps']
 
     if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
-        si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"] - bpy.context.scene.frame_start
+        si, ei = 0, dnode["End"] - dnode["Start"]
 
     elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation', 'VI Shadow Map'):
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day
@@ -264,6 +265,9 @@ def hmchart_disp(chart_op, plt, dnode, col):
         cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=ls, colors='Black', linewidths=dnode.lw)
         plt.clabel(cp, inline=True, fontsize=10)
 
+    if dnode.grid and dnode.cf:
+        ax.grid(True, which='both', zorder=10)
+
     cbar.set_label(label=var, size=16)
     cbar.ax.tick_params(labelsize=14)
 
@@ -275,4 +279,35 @@ def hmchart_disp(chart_op, plt, dnode, col):
     plt.xticks(size=14)
     plt.yticks(size=14)
     fig.tight_layout()
+    plt.show()
+
+
+def ec_pie(chart_op, plt, node):
+    plt.clf()
+    plt.close()
+    fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
+    recipe = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys()]
+    data = [225, 90]
+    data = [node['res']['ec'][k] for k in node['res']['ec'].keys()]
+    wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
+    cmap = plt.get_cmap('viridis')
+    colors = [list(cmap(i)[:3]) + [0.7] for i in linspace(0, 1, len(data))]
+    wedges, texts = ax.pie(data, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colors)
+    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="grey", lw=0.72)
+    kw = dict(arrowprops=dict(arrowstyle="-"), bbox=bbox_props, zorder=0, va="center")
+
+    for i, p in enumerate(wedges):
+        ang = (p.theta2 - p.theta1)/2. + p.theta1
+        y = sin(deg2rad(ang))
+        x = cos(deg2rad(ang))
+        horizontalalignment = {-1: "right", 1: "left"}[int(sign(x))]
+        connectionstyle = "arc, angleA=0, angleB={}, armA=20, armB=40, rad=5".format(ang)
+        kw["arrowprops"].update({"connectionstyle": connectionstyle})
+
+        ax.annotate(recipe[i], xy=(x, y), xytext=(1.15*sign(x), 1.4*y),
+                    horizontalalignment=horizontalalignment, **kw)
+
+    ax.annotate('Total kgCO2e\n{:.1f}\nTotal kgCO2e/m$^2$\n{:.1f}'.format(sum(float(e) for e in node['res']['ec'].values()), sum(float(e) for e in node['res']['ecm2'].values())),
+                xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center")
+
     plt.show()

@@ -21,18 +21,20 @@
 import os, json
 from collections import OrderedDict
 from .envi_func import epentry
+from .vi_func import ret_datab
 
 
 class envi_materials(object):
     '''Defines materials with a comma separated dictionary, with material name as key, giving
     (Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance,
     Solar Absorbtance, Visible Absorbtance, Default thickness)'''
+    updated = 0
 
     def __init__(self):
-        self.update()
+        self.updated = 0
 
     def update(self):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'r') as mat_jfile:
+        with open(ret_datab('Material_database.json', 'r'), 'r') as mat_jfile:
             mat_dict = json.loads(mat_jfile.read())
 
         self.metal_datd = mat_dict['Metal']
@@ -73,6 +75,8 @@ class envi_materials(object):
                     self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat, self.pcm_dat, self.pv_dat, self.plastic_dat):
             self.matdat.update(dat)
 
+        self.updated = 1
+
     def get_dat(self, mat_type):
         mat_dict = {'Glass': self.glass_datd, '3': self.metal_datd, '0': self.brick_datd, '1': self.cladding_datd,
                    '2': self.concrete_datd, '5': self.wood_datd, '4': self.stone_datd, '6': self.gas_datd,
@@ -83,8 +87,10 @@ class envi_materials(object):
         mat_dict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
                    'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
                    'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Material_database.json')), 'w') as mat_jfile:
+
+        with open(ret_datab('Material_database.json', 'w'), 'w') as mat_jfile:
             mat_jfile.write(json.dumps(mat_dict, indent=2))
+
         self.update()
 
     def omat_write(self, idf_file, name, stringmat, thickness):
@@ -116,7 +122,7 @@ class envi_materials(object):
 
         for i, te in enumerate(stringmat[1].split()):
             params += ('Temperature {} (C)'.format(i), 'Enthalpy {} (J/kg)'.format(i))
-            paramvs +=(te.split(':')[0], te.split(':')[1])
+            paramvs += (te.split(':')[0], te.split(':')[1])
 
         idf_file.write(epentry("MaterialProperty:PhaseChange", params, paramvs))
 
@@ -126,12 +132,17 @@ class envi_materials(object):
         idf_file.write(epentry("WindowMaterial:SimpleGlazingSystem", params, paramvs))
 
 
+envi_mats = envi_materials()
+
+
 class envi_constructions(object):
+    updated = 0
+
     def __init__(self):
         self.update()
 
     def update(self):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'r') as con_jfile:
+        with open(ret_datab('Construction_database.json', 'r'), 'r') as con_jfile:
             con_dict = json.loads(con_jfile.read())
 
         self.wall_cond = con_dict['Wall']
@@ -155,6 +166,7 @@ class envi_constructions(object):
         self.p = 0
         self.propdict = {'Wall': self.wall_con, 'Floor': self.floor_con, 'Roof': self.roof_con, 'Ceiling': self.ceil_con, 'Door': self.door_con,
                          'Window': self.glaze_con, 'PV': self.pv_con, 'Internal floor': self.ifloor_con, 'Internal wall': self.iwall_con}
+        self.updated = 1
 
     def con_write(self, idf_file, contype, name, nl, mn, cln):
         params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]
@@ -173,33 +185,33 @@ class envi_constructions(object):
         con_dict = {'Wall': self.wall_cond, 'Party wall': self.iwall_cond,
                     'Internal floor': self.ifloor_cond, 'Floor': self.floor_cond, 'Ceiling': self.ceil_cond,
                     'Door': self.door_cond, 'Glazing': self.glaze_cond, 'Roof': self.roof_cond}
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database.json')), 'w') as con_jfile:
+        with open(ret_datab('Construction_database.json', 'w'), 'w') as con_jfile:
             con_jfile.write(json.dumps(con_dict, indent=2))
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database_backup.json')), 'w') as con_bujfile:
-            con_bujfile.write(json.dumps(con_dict, indent=2))
+        # with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('Construction_database_backup.json')), 'w') as con_bujfile:
+        #     con_bujfile.write(json.dumps(con_dict, indent=2))
         self.update()
 
 
-def retmatdict(ect, t, l):
+def retmatdict(em_edict, ect, t, l):
     if ect in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling', 'Frame'):
-        typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"),
-                    ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
-                    ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
-                    ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
+        typelist = [("0", "Brick", "Choose a material from the brick database"), ("1", "Cladding", "Choose a material from the cladding database"),
+                    ("2", "Concrete", "Choose a material from the concrete database"), ("3", "Metal", "Choose a material from the metal database"),
+                    ("4", "Stone", "Choose a material from the stone database"), ("5", "Wood", "Choose a material from the wood database"),
+                    ("6", "Gas", "Choose a material from the gas database"), ("7", "Insulation", "Choose a material from the insulation database"),
                     ("8", "PCM", "Choose a material from the phase change database"), ("9", "PV", "Choose a material from the photovoltaic database"),
                     ("10", "Plastic", "Choose a material from the plastic database")]
-        matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(),
-                   '3': envi_materials().metal_dat.keys(), '4': envi_materials().stone_dat.keys(), '5': envi_materials().wood_dat.keys(),
-                   '6': envi_materials().gas_dat.keys(), '7': envi_materials().insulation_dat.keys(), '8': envi_materials().pcm_dat.keys(),
-                   '9': envi_materials().pv_dat.keys(), '10': envi_materials().plastic_dat.keys()}
+        matdict = {'0': em_edict.brick_dat.keys(), '1': em_edict.cladding_dat.keys(), '2': em_edict.concrete_dat.keys(),
+                   '3': em_edict.metal_dat.keys(), '4': em_edict.stone_dat.keys(), '5': em_edict.wood_dat.keys(),
+                   '6': em_edict.gas_dat.keys(), '7': em_edict.insulation_dat.keys(), '8': em_edict.pcm_dat.keys(),
+                   '9': em_edict.pv_dat.keys(), '10': em_edict.plastic_dat.keys()}
 
     elif ect == 'Window':
         if not l % 2:
             typelist = [("0", "Glass", "Choose a material from the glass database")]
-            matdict = {'0': envi_materials().glass_dat.keys()}
+            matdict = {'0': em_edict.glass_dat.keys()}
         else:
             typelist = [("0", "Gas", "Choose a material from the gas database")]
-            matdict = {'0': envi_materials().wgas_dat.keys()}
+            matdict = {'0': em_edict.wgas_dat.keys()}
     else:
         typelist = [('0', 'None', 'None')]
         matdict = {'0': ['None']}
@@ -216,7 +228,7 @@ def envi_con_list(self, context):
 
 def retuval(mat):
     if mat.envi_con_type not in ('None', 'Shading', 'Aperture', 'Window'):
-        resists, em, ec = [], envi_materials(), envi_constructions()
+        resists, em, ec = [], envi_mats, envi_constructions()
         thicks = [0.001 * tc for tc in (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)]
         laymats = (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)
         pstcs = []
@@ -237,6 +249,7 @@ def retuval(mat):
                 pi = 2 if psmat in em.gas_dat else 1
                 pstcs.append(float(em.matdat[psmat][pi]))
                 resists.append((thicks[p]/float(em.matdat[psmat][pi]), float(em.matdat[psmat][pi]))[em.matdat[psmat][0] == 'Gas'])
+
         uv = 1/(sum(resists) + 0.12 + 0.08)
         mat.envi_material_uv = '{:.3f}'.format(uv)
         return uv
@@ -245,30 +258,48 @@ def retuval(mat):
 
 
 def envi_layertype(self, context):
-    return retmatdict(self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')
+    if not self.em.updated:
+        self.em.update()
+
+    # em_types = [(k, k, '{} type'.format(k)) for k in self.em.propdict.keys()]
+    # return em_types
+    return retmatdict(self.em, self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')
 
 
 def envi_elayertype(self, context):
-    return [(k, k, '{} type'.format(k)) for k in envi_embodied().propdict.keys()] + [('Custom', 'Custom', 'Custom embodied carbon')]
+    if not self.ee.updated:
+        self.ee.update()
+
+    ec_types = [(k, k, '{} type'.format(k)) for k in self.ee.propdict.keys()] + [('Custom', 'Custom', 'Custom embodied carbon')]
+    return ec_types
 
 
 def envi_layer(self, context):
+    if not self.em.updated:
+        self.em.update()
+
     if self.materialtype:
-        return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self.envi_con_type, 0, self.bl_idname == 'No_En_Mat_Gas')[self.materialtype])]
+        return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self.em, self.envi_con_type, 0, self.bl_idname == 'No_En_Mat_Gas')[self.materialtype])]
     else:
         return [('', '', '')]
 
 
 def envi_eclasstype(self, context):
+    if not self.ee.updated:
+        self.ee.update()
+
     if self.embodiedtype and self.embodiedtype != 'Custom':
-        return [((mat, mat, 'Embodied class material')) for mat in envi_embodied().propdict[self.embodiedtype]]
+        return [((mat, mat, 'Embodied class material')) for mat in self.ee.propdict[self.embodiedtype]]
     else:
         return [('', '', '')]
 
 
 def envi_emattype(self, context):
-    if self.embodiedtype and self.embodiedtype != 'Custom':
-        return [((mat, mat, 'Embodied material')) for mat in envi_embodied().propdict[self.embodiedtype][self.embodiedclass]]
+    if not self.ee.updated:
+        self.ee.update()
+
+    if self.embodiedtype and self.embodiedclass and self.embodiedtype != 'Custom':
+        return [((mat, mat, 'Embodied material')) for mat in self.ee.propdict[self.embodiedtype][self.embodiedclass]]
     else:
         return [('', '', '')]
 
@@ -276,45 +307,22 @@ def envi_emattype(self, context):
 class envi_embodied(object):
     '''Defines materials with a comma separated dictionary, with material name as key, giving
     embodied energy metrics from ICE databsae v3.0'''
+    updated = 0
 
     def __init__(self):
-        self.update()
+        self.updated = 0
 
     def update(self):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('EC_database.json')), 'r') as ec_jfile:
+        with open(ret_datab('EC_database.json', 'r'), 'r') as ec_jfile:
             self.ecsd, self.ecs = {}, {}
             ec_dict = json.loads(ec_jfile.read())
 
             for k in ec_dict.keys():
                 self.ecsd[k.capitalize()] = ec_dict[k]
                 self.ecs[k.capitalize()] = OrderedDict(sorted(ec_dict[k].items()))
-            # self.agg_ecd = ec_dict['aggregatesand']
-            # self.alu_ecd = ec_dict['aluminium']
-            # self.asp_ecd = ec_dict['asphalt']
-            # self.bit_ecd = ec_dict['bitumen']
-            # self.cement_ecd = ec_dict['cement']
-            # self.clay_ecd = ec_dict['clay']
-            # self.con_ecd = ec_dict['concrete']
-            # self.glass_ecd = ec_dict['glass']
-            # self.steel_ecd = ec_dict['steel']
-            # self.timber_ecd = ec_dict['timber']
-            # self.timber_ecd = ec_dict['stone']
-            # self.timber_ecd = ec_dict['insulation']
-            # self.agg_ec = OrderedDict(sorted(self.agg_ecd.items()))
-            # self.alu_ec = OrderedDict(sorted(self.alu_ecd.items()))
-            # self.asp_ec = OrderedDict(sorted(self.asp_ecd.items()))
-            # self.bit_ec = OrderedDict(sorted(self.bit_ecd.items()))
-            # self.cement_ec = OrderedDict(sorted(self.cement_ecd.items()))
-            # self.clay_ec = OrderedDict(sorted(self.clay_ecd.items()))
-            # self.con_ec = OrderedDict(sorted(self.con_ecd.items()))
-            # self.glass_ec = OrderedDict(sorted(self.glass_ecd.items()))
-            # self.steel_ec = OrderedDict(sorted(self.steel_ecd.items()))
-            # self.timber_ec = OrderedDict(sorted(self.timber_ecd.items()))
+
             self.propdict = {k: self.ecs[k] for k in self.ecs}
-            # self.propdict = {'Aggregate': self.agg_ec, 'Aluminium': self.alu_ec, 'Asphalt': self.asp_ec, 'Bitumen': self.bit_ec, 'Cement': self.cement_ec,
-            #                  'Clay': self.clay_ec, 'Concrete': self.con_ec, 'Glass': self.glass_ec, 'Steel': self.steel_ec, 'Timber': self.timber_ec}
-            # for k in ec_dict:
-            #     if k not in ('aggregatesand', 'aluminium', 'asphalt', 'bitumen', 'cement', 'clay', 'concrete', 'glass', 'steel', 'timber'):
+        self.updated = 1
 
     def get_dat(self):
         self.update()
@@ -326,10 +334,8 @@ class envi_embodied(object):
 
     def ec_save(self):
         mat_dict = {k: self.ecsd[k] for k in self.ecsd}
-        # mat_dict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
-        #            'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
-        #            'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('EC_database.json')), 'w') as mat_jfile:
+
+        with open(ret_datab('EC_database.json', 'w'), 'w') as mat_jfile:
             mat_jfile.write(json.dumps(mat_dict, indent=2))
 
         self.update()

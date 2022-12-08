@@ -48,7 +48,8 @@ else:
         import matplotlib.pyplot as plt
         from kivy.app import App
         print('VI-Suite: Using system libraries')
-    except:
+
+    except Exception:
         print('VI-Suite: Using builtin libraries')
         if sys.version_info[0] > 3 or sys.version_info[1] >= 9:
             if os.environ.get('PYTHONPATH'):
@@ -139,14 +140,14 @@ else:
             try:
                 if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
                     os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
-            except:
+            except Exception:
                 print('{} not found'.format(fn))
 
         for fn in ('energyplus-22.1.0', 'ExpandObjects'):
             try:
                 if not os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK):
                     os.chmod(os.path.join(addonpath, 'EPFiles', sys.platform, fn), 0o775)
-            except:
+            except Exception:
                 print('{} not found'.format(fn))
 
         if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
@@ -170,17 +171,17 @@ else:
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Mat_Fr, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, No_Anim, So_Anim, No_En_Net_Anim, No_En_Mat_Anim, ViEnRXIn, ViEnRY1In, ViEnRY2In, ViEnRY3In
-    from .vi_node import So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc
+    from .vi_node import So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
-    from .vi_func import lividisplay, logentry, ob_to_stl
+    from .vi_func import lividisplay, logentry, ob_to_stl, ec_update
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
-    from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype
+    from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype, envi_embodied
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
-    from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim
-    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, OBJECT_OT_Embod, NODE_OT_En_UV, MAT_EnVi_Node_Remove
+    from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, NODE_OT_ECPie
+    from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify2, OBJECT_OT_Embod, NODE_OT_En_UV, NODE_OT_En_EC, MAT_EnVi_Node_Remove
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim, ADDON_OT_PyInstall
@@ -205,6 +206,9 @@ def abspath(self, context):
         self.oflib = bpy.path.abspath(self.oflib)
     if self.ofetc != bpy.path.abspath(self.ofetc):
         self.ofetc = bpy.path.abspath(self.ofetc)
+    if self.datab != bpy.path.abspath(self.datab):
+        self.datab = bpy.path.abspath(self.datab)
+
     path_update()
 
 
@@ -233,17 +237,17 @@ def unititems(self, context):
             return [('firradh', 'kWh (f)', 'kilo-Watt hours (solar spectrum)'),
                     ('firradhm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
         elif svp['liparams']['unit'] == 'DA (%)':
-            return[("da", "DA", "Daylight Autonomy"),
-                   ("sda", "sDA", "Spatial Daylight Autonomy"),
-                   ("udilow", "UDI (low)", "Useful daylight illuminance (low)"),
-                   ("udisup", "UDI (supp)", "Useful daylight illuminance (supplemented)"),
-                   ("udiauto", "UDI (auto)", "Useful daylight illuminance (autonomous)"),
-                   ("udihi", "UDI (high)", "Useful daylight illuminance (high)"),
-                   ("ase", "ASE", "Annual Sunlight Exposure"),
-                   ("maxlux", "Lux level (max)", "Maximum lux level"),
-                   ("avelux", "Lux level (ave)", "Average lux level"),
-                   ("minlux", "Lux level (min)", "Minimum lux level"),
-                   ("sv", "Perimeter area", "Perimeter")]
+            return [("da", "DA", "Daylight Autonomy"),
+                    ("sda", "sDA", "Spatial Daylight Autonomy"),
+                    ("udilow", "UDI (low)", "Useful daylight illuminance (low)"),
+                    ("udisup", "UDI (supp)", "Useful daylight illuminance (supplemented)"),
+                    ("udiauto", "UDI (auto)", "Useful daylight illuminance (autonomous)"),
+                    ("udihi", "UDI (high)", "Useful daylight illuminance (high)"),
+                    ("ase", "ASE", "Annual Sunlight Exposure"),
+                    ("maxlux", "Lux level (max)", "Maximum lux level"),
+                    ("avelux", "Lux level (ave)", "Average lux level"),
+                    ("minlux", "Lux level (min)", "Minimum lux level"),
+                    ("sv", "Perimeter area", "Perimeter")]
         elif svp['liparams']['unit'] == 'Sunlit time (%)':
             return [('sm', '% Sunlit', '% of time sunlit')]
         elif svp['liparams']['unit'] == 'SVF (%)':
@@ -275,7 +279,7 @@ def ret_envi_mats(self, context):
 def bsdf_direcs(self, context):
     try:
         return [tuple(i) for i in context.scene.vi_params['liparams']['bsdf_direcs']]
-    except:
+    except Exception:
         return [('None', 'None', 'None')]
 
 
@@ -288,15 +292,16 @@ class VIPreferences(AddonPreferences):
     ofbin: StringProperty(name='', description='OpenFOAM binary directory location', default='', subtype='DIR_PATH', update=abspath)
     oflib: StringProperty(name='', description='OpenFOAM library directory location', default='', subtype='DIR_PATH', update=abspath)
     ofetc: StringProperty(name='', description='OpenFOAM etc directory location', default='', subtype='DIR_PATH', update=abspath)
+    datab: StringProperty(name='', description='Database directory', default='', subtype='DIR_PATH', update=abspath)
     ui_dict = {"Radiance bin directory:": 'radbin', "Radiance lib directory:": 'radlib', "EnergyPlus bin directory:": 'epbin',
-               "EnergyPlus weather directory:": 'epweath', 'OpenFOAM bin directory': 'ofbin'}
+               "EnergyPlus weather directory:": 'epweath', 'Database directory': 'datab', 'OpenFOAM bin directory': 'ofbin'}
 
     def draw(self, context):
         layout = self.layout
 
         try:
             requests.get('https://www.google.com/')
-        except:
+        except Exception:
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
                 row = layout.row()
                 row.label(text='You do not seem to have an internet connection. Cannot download Python libraries')
@@ -522,25 +527,27 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     flovi_ofield: fprop("", "o field value", 0, 500, 0.03)
     flovi_probe: bprop("", "OpenFoam probe", False)
     embodied: BoolProperty(name="", description="Embodied carbon", default=0)
-    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class")
-    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class")
-    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material")
-    ec_id: StringProperty(name="", description="Embodied id")
-    ec_type: StringProperty(name="", description="Embodied type")
-    ec_class: StringProperty(name="", description="Embodied class")
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class", update=ec_update)
+    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class", update=ec_update)
+    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material", update=ec_update)
+    ec_id: StringProperty(name="", description="Embodied id (unique indentifier")
+    ec_type: StringProperty(name="", description="Embodied type e.g. Insulation")
+    ec_class: StringProperty(name="", description="Embodied class (class of type e.g. phenolic foam)")
     ec_name: StringProperty(name="", description="Embodied name")
-    ec_unit:EnumProperty(items=[("kg", "kg", "per kilogram"),
+    ec_unit: EnumProperty(items=[("kg", "kg", "per kilogram"),
                                   ("m2", "m2", "per square metre"),
                                   ("m3", "m3", "per cubic metre"),
                                   ("unit", "Unit", "per unit")],
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
-    ec_amount: FloatProperty(name="", description="", min=0.1, default=1)
+    ec_amount: FloatProperty(name="", description="", min=0.001, default=1, precision=3)
     ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
+    ec_mod: StringProperty(name="", description="Embodied modules reported")
+    ee = envi_embodied()
     write_stl = ob_to_stl
 
 
@@ -759,6 +766,7 @@ def path_update():
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin')
     ofbdir = os.path.abspath(vi_prefs.ofbin) if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin')
+    datadir = os.path.abspath(vi_prefs.datab) if vi_prefs and os.path.isdir(vi_prefs.datab) else os.path.join('{}'.format(addonpath), 'EPFiles')
 
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
@@ -783,9 +791,9 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            No_Vi_Im, No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify2, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
-           NODE_OT_En_UV, No_En_Net_Occ, So_En_Net_Occ, So_En_Net_Sched, So_En_Mat_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
+           NODE_OT_En_UV, NODE_OT_En_EC, No_En_Net_Occ, So_En_Net_Occ, So_En_Net_Sched, So_En_Mat_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
            No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Fr, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con,
-           So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc,
+           So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC, NODE_OT_EC, OBJECT_OT_EcS, NODE_OT_ECPie,
            So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
            No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, NODE_OT_Chart, NODE_OT_HMChart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Sched, No_En_Net_Inf,
            No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV, No_En_Mat_Sched,

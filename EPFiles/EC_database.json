@@ -1,5 +1,5 @@
 {
-  "Aggregatesand": {
+  "aggregatesand": {
     "general aggregate and sand": {
       "aggregates and sand  general uk  mixture of land won  marine  secondary and recycled  bulk  loose": {
         "id": "52bdfeb3-979f-4fcd-b4eb-6ffbda643c52",
@@ -8,7 +8,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.0075",
-        "eckg": "0.0075"
+        "eckg": "0.0075",
+        "modules": "A1-A3"
       },
       "aggregates and sand  general  virgin mixture of land won and marine  bulk  loose": {
         "id": "c47ba144-190c-4ed7-84c1-423159f8af34",
@@ -17,7 +18,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.0049",
-        "eckg": "0.0049"
+        "eckg": "0.0049",
+        "modules": "A1-A3"
       }
     },
     "land won gravel and sand": {
@@ -28,7 +30,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.0044",
-        "eckg": "0.0044"
+        "eckg": "0.0044",
+        "modules": "A1-A3"
       }
     },
     "marine sand and aggregate": {
@@ -39,7 +42,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.009",
-        "eckg": "0.009"
+        "eckg": "0.009",
+        "modules": "A1-A3"
       }
     },
     "recycled aggregate no heat treat": {
@@ -50,7 +54,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.0061",
-        "eckg": "0.0061"
+        "eckg": "0.0061",
+        "modules": "A1-A3"
       }
     },
     "recycled aggregate heat treat": {
@@ -61,7 +66,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.1188",
-        "eckg": "0.1188"
+        "eckg": "0.1188",
+        "modules": "A1-A3"
       }
     },
     "expanded clay agg and sand": {
@@ -72,7 +78,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.3932",
-        "eckg": "0.3932"
+        "eckg": "0.3932",
+        "modules": "A1-A3"
       }
     },
     "expanded foamed glass": {
@@ -83,7 +90,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.2776",
-        "eckg": "0.2776"
+        "eckg": "0.2776",
+        "modules": "A1-A3"
       }
     },
     "general secondary": {
@@ -94,7 +102,8 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.0633",
-        "eckg": "0.0633"
+        "eckg": "0.0633",
+        "modules": "A1-A3"
       }
     },
     "general secondary and recycled": {
@@ -105,11 +114,12 @@
         "density": "1600",
         "weight": "1",
         "ecdu": "0.0142",
-        "eckg": "0.0142"
+        "eckg": "0.0142",
+        "modules": "A1-A3"
       }
     }
   },
-  "Aluminium": {
+  "aluminium": {
     "general": {
       "general european mix inc imports": {
         "id": "baee69c9-da8e-40d6-91e3-1e21920eac57",
@@ -118,7 +128,8 @@
         "density": "2750",
         "weight": "1",
         "ecdu": "6.668717531",
-        "eckg": "6.6687"
+        "eckg": "6.6687",
+        "modules": "A1-A3"
       },
       "general worldwide": {
         "id": "d426cfaf-0b5e-4bd9-8521-8c517cad0d84",
@@ -127,7 +138,8 @@
         "density": "2750",
         "weight": "6",
         "ecdu": "13.05553999",
-        "eckg": "2.1759"
+        "eckg": "2.1759",
+        "modules": "A1-A3"
       },
       "north american": {
         "id": "a93ffedc-306b-4f93-896d-c82bd3509326",
@@ -136,7 +148,8 @@
         "density": "2750",
         "weight": "11",
         "ecdu": "5.651616031",
-        "eckg": "0.5138"
+        "eckg": "0.5138",
+        "modules": "A1-A3"
       },
       "africa": {
         "id": "fd6c2a9c-5670-48ef-aebe-95dc1c4b66ee",
@@ -145,7 +158,8 @@
         "density": "2750",
         "weight": "12",
         "ecdu": "12.4057499",
-        "eckg": "1.0338"
+        "eckg": "1.0338",
+        "modules": "A1-A3"
       },
       "china": {
         "id": "d659fa1d-56ed-472d-8614-3112403ee65f",
@@ -154,7 +168,8 @@
         "density": "2750",
         "weight": "13",
         "ecdu": "14.59356866",
-        "eckg": "1.1226"
+        "eckg": "1.1226",
+        "modules": "A1-A3"
       },
       "japan": {
         "id": "e017361b-9303-4cf3-bc0e-3e6899757314",
@@ -163,7 +178,8 @@
         "density": "2750",
         "weight": "14",
         "ecdu": "10.62451254",
-        "eckg": "0.7589"
+        "eckg": "0.7589",
+        "modules": "A1-A3"
       },
       "middle east": {
         "id": "85b0fc69-c217-4206-a039-a02739e48f06",
@@ -172,7 +188,8 @@
         "density": "2750",
         "weight": "15",
         "ecdu": "10.80980016",
-        "eckg": "0.7207"
+        "eckg": "0.7207",
+        "modules": "A1-A3"
       },
       "oceania": {
         "id": "5aca9f53-a281-469b-9abb-8b1ec958a0a4",
@@ -181,7 +198,8 @@
         "density": "2750",
         "weight": "16",
         "ecdu": "12.75208459",
-        "eckg": "0.797"
+        "eckg": "0.797",
+        "modules": "A1-A3"
       },
       "other asia": {
         "id": "0caa909f-ee29-469c-a417-2f6650d75588",
@@ -190,7 +208,8 @@
         "density": "2750",
         "weight": "17",
         "ecdu": "15.8690968",
-        "eckg": "0.9335"
+        "eckg": "0.9335",
+        "modules": "A1-A3"
       },
       "russia": {
         "id": "77191d2a-abe3-4987-8173-d61bf92990d5",
@@ -199,7 +218,8 @@
         "density": "2750",
         "weight": "18",
         "ecdu": "5.548323034",
-        "eckg": "0.3082"
+        "eckg": "0.3082",
+        "modules": "A1-A3"
       },
       "south america": {
         "id": "6d8c426f-8a30-49d0-96a2-894330719948",
@@ -208,7 +228,8 @@
         "density": "2750",
         "weight": "19",
         "ecdu": "8.319000554",
-        "eckg": "0.4378"
+        "eckg": "0.4378",
+        "modules": "A1-A3"
       },
       "south korea": {
         "id": "04d19365-41d3-45d4-a76b-5285a7236d62",
@@ -217,7 +238,8 @@
         "density": "2750",
         "weight": "20",
         "ecdu": "11.94685321",
-        "eckg": "0.5973"
+        "eckg": "0.5973",
+        "modules": "A1-A3"
       },
       "produced in europe": {
         "id": "ac6185c5-3cf9-4098-9ea3-b4495c2c4fc9",
@@ -226,7 +248,8 @@
         "density": "2750",
         "weight": "21",
         "ecdu": "5.583938203",
-        "eckg": "0.2659"
+        "eckg": "0.2659",
+        "modules": "A1-A3"
       }
     },
     "sheet": {
@@ -237,7 +260,8 @@
         "density": "2750",
         "weight": "2",
         "ecdu": "6.581176",
-        "eckg": "3.2906"
+        "eckg": "3.2906",
+        "modules": "A1-A3"
       },
       "sheet worldwide": {
         "id": "7c7cb7bb-2c99-45c1-9faf-b243fe91211d",
@@ -246,7 +270,8 @@
         "density": "2750",
         "weight": "7",
         "ecdu": "12.95589499",
-        "eckg": "1.8508"
+        "eckg": "1.8508",
+        "modules": "A1-A3"
       }
     },
     "foil": {
@@ -257,7 +282,8 @@
         "density": "2750",
         "weight": "3",
         "ecdu": "7.468978",
-        "eckg": "2.4897"
+        "eckg": "2.4897",
+        "modules": "A1-A3"
       },
       "foil worldwide": {
         "id": "3c7c1e9b-92f4-4eb1-aafc-6d6aadc0c0c8",
@@ -266,7 +292,8 @@
         "density": "2750",
         "weight": "8",
         "ecdu": "13.76689499",
-        "eckg": "1.7209"
+        "eckg": "1.7209",
+        "modules": "A1-A3"
       }
     },
     "profile": {
@@ -277,7 +304,8 @@
         "density": "2750",
         "weight": "4",
         "ecdu": "6.825242",
-        "eckg": "1.7063"
+        "eckg": "1.7063",
+        "modules": "A1-A3"
       },
       "extruded profile worldwide": {
         "id": "83145d5f-0190-4e79-8268-55261527f1be",
@@ -286,7 +314,8 @@
         "density": "2750",
         "weight": "9",
         "ecdu": "13.17639499",
-        "eckg": "1.464"
+        "eckg": "1.464",
+        "modules": "A1-A3"
       }
     },
     "cast": {
@@ -297,7 +326,8 @@
         "density": "2750",
         "weight": "5",
         "ecdu": "6.715190088",
-        "eckg": "1.343"
+        "eckg": "1.343",
+        "modules": "A1-A3"
       },
       "cast worldwide": {
         "id": "05d90509-833a-4812-80a6-d448a8f6fe37",
@@ -306,11 +336,12 @@
         "density": "2750",
         "weight": "10",
         "ecdu": "13.18689499",
-        "eckg": "1.3187"
+        "eckg": "1.3187",
+        "modules": "A1-A3"
       }
     }
   },
-  "Asphalt": {
+  "asphalt": {
     "general": {
       "3% (bitumen) binder content (by mass)": {
         "id": "11315520-7219-4f5e-b547-b6163702f5e5",
@@ -319,7 +350,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "50.09113047",
-        "eckg": "0.0501"
+        "eckg": "0.0501",
+        "modules": "A1-A3"
       },
       "3.5% binder content": {
         "id": "8ef6b7d8-efee-4e4f-b7c0-47b931af0086",
@@ -328,7 +360,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "51.12528323",
-        "eckg": "0.0511"
+        "eckg": "0.0511",
+        "modules": "A1-A3"
       },
       "4% binder content": {
         "id": "0ac4e0db-0c89-4ddd-b125-6764d5644471",
@@ -337,7 +370,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "52.15943598",
-        "eckg": "0.0522"
+        "eckg": "0.0522",
+        "modules": "A1-A3"
       },
       "4.5% binder content": {
         "id": "4da2e83d-ada7-400e-8879-d19b54bd05d6",
@@ -346,7 +380,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "53.19358873",
-        "eckg": "0.0532"
+        "eckg": "0.0532",
+        "modules": "A1-A3"
       },
       "5% binder content": {
         "id": "99229e40-4e9c-497e-b6d6-6c165374f159",
@@ -355,7 +390,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "54.22774149",
-        "eckg": "0.0542"
+        "eckg": "0.0542",
+        "modules": "A1-A3"
       },
       "5.5% binder content": {
         "id": "08563f44-9dcf-4de4-927e-12e141e63362",
@@ -364,7 +400,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "55.26189424",
-        "eckg": "0.0553"
+        "eckg": "0.0553",
+        "modules": "A1-A3"
       },
       "6% binder content": {
         "id": "457f6d07-c809-4faa-959a-c89528831b90",
@@ -373,7 +410,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "56.29604699",
-        "eckg": "0.0563"
+        "eckg": "0.0563",
+        "modules": "A1-A3"
       },
       "6.5% binder content": {
         "id": "df8f8a89-1cea-4293-a9bd-0961b6e563e2",
@@ -382,7 +420,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "57.33019975",
-        "eckg": "0.0573"
+        "eckg": "0.0573",
+        "modules": "A1-A3"
       },
       "7% binder content": {
         "id": "0717fee2-3a6a-4371-8bbd-34f628aabae6",
@@ -391,7 +430,8 @@
         "density": "2350",
         "weight": "1000",
         "ecdu": "58.3643525",
-        "eckg": "0.0584"
+        "eckg": "0.0584",
+        "modules": "A1-A3"
       }
     },
     "for roads": {
@@ -402,7 +442,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "14.19726303",
-        "eckg": "60.4139"
+        "eckg": "60.4139",
+        "modules": "A1-A3"
       },
       "road surface  asphalt  3.5% binder content": {
         "id": "c5acffc1-f327-4120-a87c-323de7b2175c",
@@ -411,7 +452,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "14.44271919",
-        "eckg": "61.4584"
+        "eckg": "61.4584",
+        "modules": "A1-A3"
       },
       "road surface  asphalt  4% binder content": {
         "id": "e0119c04-8f2e-4a0e-92d8-962f88476f0a",
@@ -420,7 +462,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "14.68817534",
-        "eckg": "62.5029"
+        "eckg": "62.5029",
+        "modules": "A1-A3"
       },
       "road surface  asphalt  4.5% binder content": {
         "id": "438ba4f4-b169-4bfa-8759-5b55cf8cb672",
@@ -429,7 +472,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "14.9336315",
-        "eckg": "63.5474"
+        "eckg": "63.5474",
+        "modules": "A1-A3"
       },
       "road surface   asphalt  5% binder content": {
         "id": "cfa629b7-74fa-4586-9903-6ff1bc4171a9",
@@ -438,7 +482,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "15.17908765",
-        "eckg": "64.5919"
+        "eckg": "64.5919",
+        "modules": "A1-A3"
       },
       "road surface   asphalt  5.5% binder content": {
         "id": "ce09662d-e29c-4582-9353-3eda80df698f",
@@ -447,7 +492,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "15.42454381",
-        "eckg": "65.6364"
+        "eckg": "65.6364",
+        "modules": "A1-A3"
       },
       "road surface    asphalt  6% binder content": {
         "id": "52cca6c6-1786-4704-b343-97adc4c454d3",
@@ -456,7 +502,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "15.66999997",
-        "eckg": "66.6809"
+        "eckg": "66.6809",
+        "modules": "A1-A3"
       },
       "road surface   asphalt  6.5% binder content": {
         "id": "7c04acf8-f8b0-4a4a-adb0-f8970c7e6917",
@@ -465,7 +512,8 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "15.91545612",
-        "eckg": "67.7253"
+        "eckg": "67.7253",
+        "modules": "A1-A3"
       },
       "road surface   asphalt  7% binder content": {
         "id": "9df596d2-b212-4715-af17-2bd04fe807fa",
@@ -474,11 +522,12 @@
         "density": "2350",
         "weight": "0.235",
         "ecdu": "16.16091228",
-        "eckg": "68.7698"
+        "eckg": "68.7698",
+        "modules": "A1-A3"
       }
     }
   },
-  "Bitumen": {
+  "bitumen": {
     "straight-run": {
       "run bitumen": {
         "id": "b1a650d5-eaf6-453d-ba08-8b22899ef1ba",
@@ -487,7 +536,8 @@
         "density": "1050",
         "weight": "1",
         "ecdu": "0.19086",
-        "eckg": "0.1909"
+        "eckg": "0.1909",
+        "modules": "A1-A3"
       }
     },
     "pmb": {
@@ -498,7 +548,8 @@
         "density": "1050",
         "weight": "1",
         "ecdu": "0.32629",
-        "eckg": "0.3263"
+        "eckg": "0.3263",
+        "modules": "A1-A3"
       }
     },
     "emulsion": {
@@ -509,11 +560,12 @@
         "density": "1050",
         "weight": "1",
         "ecdu": "0.221666",
-        "eckg": "0.2217"
+        "eckg": "0.2217",
+        "modules": "A1-A3"
       }
     }
   },
-  "Cement": {
+  "cement": {
     "average uk": {
       "average uk additions": {
         "id": "2c1fa10f-84eb-45ff-8175-fd7dac28299c",
@@ -522,7 +574,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.8321104",
-        "eckg": "0.8321"
+        "eckg": "0.8321",
+        "modules": "A1-A3"
       }
     },
     "cem i": {
@@ -533,7 +586,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.912",
-        "eckg": "0.912"
+        "eckg": "0.912",
+        "modules": "A1-A3"
       }
     },
     "with ggbs": {
@@ -544,7 +598,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.80284224",
-        "eckg": "0.8028"
+        "eckg": "0.8028",
+        "modules": "A1-A3"
       },
       "s ": {
         "id": "ea432c2f-ec59-4844-9c5e-a39bab3db639",
@@ -553,7 +608,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.67162944",
-        "eckg": "0.6716"
+        "eckg": "0.6716",
+        "modules": "A1-A3"
       },
       "50.5% ggbs ": {
         "id": "b090b64e-ec2a-41b6-bb56-2abe183194b0",
@@ -562,7 +618,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.47481024",
-        "eckg": "0.4748"
+        "eckg": "0.4748",
+        "modules": "A1-A3"
       },
       "73% ggbs ": {
         "id": "ff2520b9-3c4e-4aa0-8263-ce87b1ea02ac",
@@ -571,7 +628,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.27799104",
-        "eckg": "0.278"
+        "eckg": "0.278",
+        "modules": "A1-A3"
       },
       "88% ggbs ": {
         "id": "e474ecc8-00f2-480f-b286-58b4e67e196f",
@@ -580,7 +638,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.14677824",
-        "eckg": "0.1468"
+        "eckg": "0.1468",
+        "modules": "A1-A3"
       }
     },
     "with pozzzolanic ash": {
@@ -591,7 +650,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.797979447",
-        "eckg": "0.798"
+        "eckg": "0.798",
+        "modules": "A1-A3"
       },
       "p 28% natural pozzolanic ash ": {
         "id": "c3fdf942-1cea-4af8-ad33-647536bff638",
@@ -600,7 +660,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.661155732",
-        "eckg": "0.6612"
+        "eckg": "0.6612",
+        "modules": "A1-A3"
       },
       "q ": {
         "id": "7a92e673-b6a0-4055-90ff-a741f4c38d10",
@@ -609,7 +670,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0",
-        "eckg": "0"
+        "eckg": "0",
+        "modules": "A1-A3"
       },
       "23% cement replacement ": {
         "id": "fe6a2d9f-a422-4b9b-876c-5bed1b47ddc3",
@@ -618,7 +680,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.7066758",
-        "eckg": "0.7067"
+        "eckg": "0.7067",
+        "modules": "A1-A3"
       },
       "46% cement replacement ": {
         "id": "a14d6469-d5d4-40f9-af61-731f78a67d7d",
@@ -627,7 +690,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.5013543",
-        "eckg": "0.5014"
+        "eckg": "0.5014",
+        "modules": "A1-A3"
       }
     },
     "with pfa": {
@@ -638,7 +702,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.7979298",
-        "eckg": "0.7979"
+        "eckg": "0.7979",
+        "modules": "A1-A3"
       },
       "w ": {
         "id": "f167e986-fa9f-42a2-b710-bf0b380296b2",
@@ -647,7 +712,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.7979298",
-        "eckg": "0.7979"
+        "eckg": "0.7979",
+        "modules": "A1-A3"
       }
     },
     "misc": {
@@ -658,7 +724,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0",
-        "eckg": "0"
+        "eckg": "0",
+        "modules": "A1-A3"
       }
     },
     "portland limestone": {
@@ -669,7 +736,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.799467551",
-        "eckg": "0.7995"
+        "eckg": "0.7995",
+        "modules": "A1-A3"
       },
       "l": {
         "id": "926188fd-a472-4fdf-9d10-c3746487fee7",
@@ -678,7 +746,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.664360878",
-        "eckg": "0.6644"
+        "eckg": "0.6644",
+        "modules": "A1-A3"
       },
       "ll ": {
         "id": "d3797745-315a-4bda-89a4-fd2270bb8bb9",
@@ -687,7 +756,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.799467551",
-        "eckg": "0.7995"
+        "eckg": "0.7995",
+        "modules": "A1-A3"
       }
     },
     "composite": {
@@ -698,7 +768,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.77357664",
-        "eckg": "0.7736"
+        "eckg": "0.7736",
+        "modules": "A1-A3"
       },
       "24% ggbs and 24% cement replacement ": {
         "id": "a9588ccc-b304-43f0-b272-fe1ebbb6408f",
@@ -707,7 +778,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.488666376",
-        "eckg": "0.4887"
+        "eckg": "0.4887",
+        "modules": "A1-A3"
       },
       "36% ggbs and 36% cement replacement ": {
         "id": "3aab549a-1ad1-411a-9089-55850b0d3c93",
@@ -716,7 +788,8 @@
         "density": "1440",
         "weight": "1",
         "ecdu": "0.283634015",
-        "eckg": "0.2836"
+        "eckg": "0.2836",
+        "modules": "A1-A3"
       }
     },
     "mortar": {
@@ -727,7 +800,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.200194065",
-        "eckg": "0.2002"
+        "eckg": "0.2002",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:4 cement:sand mix) (using cem i cement)": {
         "id": "c88de8af-59d0-4d80-88e5-e46ae0948bd4",
@@ -736,7 +810,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.163220624",
-        "eckg": "0.1632"
+        "eckg": "0.1632",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:5 cement:sand mix) (using cem i cement)": {
         "id": "ec97ba61-4a94-43c0-b7e1-b8d98dd67093",
@@ -745,7 +820,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.138150101",
-        "eckg": "0.1382"
+        "eckg": "0.1382",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:6 cement:sand mix) (using cem i cement)": {
         "id": "4f029fb4-e328-4361-884a-a9b687ffc797",
@@ -754,7 +830,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.120031542",
-        "eckg": "0.12"
+        "eckg": "0.12",
+        "modules": "A1-A3"
       },
       "mortar (1:\u00bd:4\u00bd cement:lime:sand mix) (using cem i cement)": {
         "id": "ae1aa263-dd95-4ca4-9587-6c2d217af7ec",
@@ -763,7 +840,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.169327583",
-        "eckg": "0.1693"
+        "eckg": "0.1693",
+        "modules": "A1-A3"
       },
       "mortar (1:1:6 cement:lime:sand mix) (using cem i cement)": {
         "id": "ffcc35f7-65fc-4892-a224-3ae22f9029b5",
@@ -772,7 +850,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.152048505",
-        "eckg": "0.152"
+        "eckg": "0.152",
+        "modules": "A1-A3"
       },
       "mortar (1:2:9 cement:lime:sand mix) (using cem i cement)": {
         "id": "460bb6d3-3527-47a1-9075-deb89a0639c1",
@@ -781,7 +860,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.133334487",
-        "eckg": "0.1333"
+        "eckg": "0.1333",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:3 cement:sand mix) (using average uk cement mix)": {
         "id": "56fa92b8-deff-4e85-82ad-ca28c5f1d4f5",
@@ -790,7 +870,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.183125664",
-        "eckg": "0.1831"
+        "eckg": "0.1831",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:4 cement:sand mix) (using average uk cement mix)": {
         "id": "6fc325f3-78d3-4936-a70c-a98ca6415d04",
@@ -799,7 +880,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.149426736",
-        "eckg": "0.1494"
+        "eckg": "0.1494",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:5 cement:sand mix) (using average uk cement mix)": {
         "id": "77e42bcb-25ab-4d3b-8a77-464b481f6529",
@@ -808,7 +890,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.126576557",
-        "eckg": "0.1266"
+        "eckg": "0.1266",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:6 cement:sand mix) (using average uk cement mix)": {
         "id": "5ee6e3c8-a21c-4fde-b3c6-c3d0a71d4563",
@@ -817,7 +900,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.11006265",
-        "eckg": "0.1101"
+        "eckg": "0.1101",
+        "modules": "A1-A3"
       },
       "mortar or screed (1:\u00bd:4\u00bd cement:lime:sand mix) (using average uk cement mix)": {
         "id": "0b17ba55-59b2-4189-a8b6-c8ffe5095b16",
@@ -826,7 +910,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.157076142",
-        "eckg": "0.1571"
+        "eckg": "0.1571",
+        "modules": "A1-A3"
       },
       "mortar (1:1:6 cement:lime:sand mix) (using average uk cement mix)": {
         "id": "153c6979-cfde-4a1a-a3c8-721414d5de17",
@@ -835,7 +920,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.142493603",
-        "eckg": "0.1425"
+        "eckg": "0.1425",
+        "modules": "A1-A3"
       },
       "mortar (1:2:9 cement:lime:sand mix) (using average uk cement mix)": {
         "id": "fa093a52-2c26-44c4-90dd-a6861c1a78f3",
@@ -844,7 +930,8 @@
         "density": "2100",
         "weight": "1",
         "ecdu": "0.126700056",
-        "eckg": "0.1267"
+        "eckg": "0.1267",
+        "modules": "A1-A3"
       }
     },
     "admixtures": {
@@ -855,7 +942,8 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "1.666166667",
-        "eckg": "1.6662"
+        "eckg": "1.6662",
+        "modules": "A1-A3"
       },
       "concrete admixtures - air entrainers  europe": {
         "id": "bd93c857-814e-4228-be3f-1c6b2f5769f1",
@@ -864,7 +952,8 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "0.527",
-        "eckg": "0.527"
+        "eckg": "0.527",
+        "modules": "A1-A3"
       },
       "concrete admixtures - hardening accelerators": {
         "id": "b32a8d61-3007-44eb-b222-63ac18b90a24",
@@ -873,7 +962,8 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "2.28",
-        "eckg": "2.28"
+        "eckg": "2.28",
+        "modules": "A1-A3"
       },
       "concrete admixtures - plasticisers and superplasticisers": {
         "id": "9cc5647d-c8b8-43b9-b260-abc27e28feac",
@@ -882,7 +972,8 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "1.88",
-        "eckg": "1.88"
+        "eckg": "1.88",
+        "modules": "A1-A3"
       },
       "concrete admixtures - retarders": {
         "id": "a3b1eee3-3587-4c25-ad1f-5eb16f3617f8",
@@ -891,7 +982,8 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "1.31",
-        "eckg": "1.31"
+        "eckg": "1.31",
+        "modules": "A1-A3"
       },
       "concrete admixtures - set accelerators": {
         "id": "6d25191d-f935-4b59-b200-710512df7b53",
@@ -900,7 +992,8 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "1.33",
-        "eckg": "1.33"
+        "eckg": "1.33",
+        "modules": "A1-A3"
       },
       "concrete admixtures \u2013 water resisting admixtures": {
         "id": "27281301-542a-4bce-a695-fec0822d33ac",
@@ -909,11 +1002,12 @@
         "density": "1300",
         "weight": "1",
         "ecdu": "2.67",
-        "eckg": "2.67"
+        "eckg": "2.67",
+        "modules": "A1-A3"
       }
     }
   },
-  "Clay": {
+  "clay": {
     "brick": {
       "brick": {
         "id": "6ab355f4-7122-42a2-bc31-4c05e01f2b51",
@@ -922,7 +1016,8 @@
         "density": "1487",
         "weight": "1",
         "ecdu": "0.213",
-        "eckg": "0.213"
+        "eckg": "0.213",
+        "modules": "A1-A3"
       },
       "brick one brick 215 x 65 x 102.5mm": {
         "id": "497718fc-dff8-42d5-aa3b-9557e3149d87",
@@ -931,7 +1026,8 @@
         "density": "1487",
         "weight": "2.13",
         "ecdu": "0.45369",
-        "eckg": "0.213"
+        "eckg": "0.213",
+        "modules": "A1-A3"
       }
     },
     "clay": {
@@ -942,7 +1038,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "40.49742749",
-        "eckg": "0.2086"
+        "eckg": "0.2086",
+        "modules": "A1-A3"
       },
       "wall  clay brick  single skin  102.5 mm with mortar 1:4 cement:sand mix (using cem i cement)": {
         "id": "efd7e483-458d-4a87-b9d7-4602249f75b4",
@@ -951,7 +1048,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "38.04550451",
-        "eckg": "0.196"
+        "eckg": "0.196",
+        "modules": "A1-A3"
       },
       "wall  clay brick  single skin  102.5 mm with mortar 1:5 cement:sand mix (using cem i cement)": {
         "id": "0345ff22-b0a9-446f-9938-4a44c4070574",
@@ -960,7 +1058,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "36.38293299",
-        "eckg": "0.1874"
+        "eckg": "0.1874",
+        "modules": "A1-A3"
       },
       "wall  clay brick  single skin  102.5 mm with mortar 1:6 cement:sand mix (using cem i cement)": {
         "id": "f81dbf9a-2117-4eb2-8de5-91483ea208c8",
@@ -969,7 +1068,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "35.1813865",
-        "eckg": "0.1812"
+        "eckg": "0.1812",
+        "modules": "A1-A3"
       },
       "wall  clay brick  single skin  102.5 mm with mortar (1:\u00bd:4\u00bd cement:lime:sand mix) (using cem i cement)": {
         "id": "39c51628-f3cb-417a-ab4d-9c97a8ff689f",
@@ -978,7 +1078,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "38.45049232",
-        "eckg": "0.1981"
+        "eckg": "0.1981",
+        "modules": "A1-A3"
       },
       "wall  clay brick  single skin  102.5 mm with mortar (1:1:6 cement:lime:sand mix) (using cem i cement)": {
         "id": "3df4b077-fe5c-4aac-84cc-b034bc03fc22",
@@ -987,7 +1088,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "37.30461665",
-        "eckg": "0.1922"
+        "eckg": "0.1922",
+        "modules": "A1-A3"
       },
       "wall  clay brick  single skin  102.5 mm with mortar (1:2:9 cement:lime:sand mix) (using cem i cement)": {
         "id": "8a3ec0d4-00d0-4691-8413-6d26a0a2d2cd",
@@ -996,7 +1098,8 @@
         "density": "1894",
         "weight": "194.12",
         "ecdu": "36.06358175",
-        "eckg": "0.1858"
+        "eckg": "0.1858",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar 1:3 cement:sand mix (using cem i cement)": {
         "id": "2be0919f-ffa7-4e20-84d0-5b4152e5fdec",
@@ -1005,7 +1108,8 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "88.07540297",
-        "eckg": "0.2079"
+        "eckg": "0.2079",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar 1:4 cement:sand mix (using cem i cement)": {
         "id": "d3965503-3b0d-413f-83a8-dcdd01c2dd09",
@@ -1014,7 +1118,8 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "81.86386475",
-        "eckg": "0.1933"
+        "eckg": "0.1933",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar 1:5 cement:sand mix (using cem i cement)": {
         "id": "fa43cb61-0533-4002-9d9a-60f73992ba45",
@@ -1023,7 +1128,8 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "77.6520169",
-        "eckg": "0.1833"
+        "eckg": "0.1833",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar 1:6 cement:sand mix (using cem i cement)": {
         "id": "96775ad9-8a7c-47d2-8f8f-23b39e2f1456",
@@ -1032,7 +1138,8 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "74.60809913",
-        "eckg": "0.1761"
+        "eckg": "0.1761",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar (1:\u00bd:4\u00bd cement:lime:sand mix) (using cem i cement)": {
         "id": "5e0c258e-e18c-4c6a-961a-9ead2651c76e",
@@ -1041,7 +1148,8 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "82.88983387",
-        "eckg": "0.1957"
+        "eckg": "0.1957",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar (1:1:6 cement:lime:sand mix) (using cem i cement)": {
         "id": "fbb1a5f1-8e9a-40b9-9e04-c9b4edc3671f",
@@ -1050,7 +1158,8 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "79.98694884",
-        "eckg": "0.1888"
+        "eckg": "0.1888",
+        "modules": "A1-A3"
       },
       "wall  clay brick  double skin  215 mm with mortar (1:2:9 cement:lime:sand mix) (using cem i cement)": {
         "id": "414e3790-9b5c-4ad7-a344-9d3c610614bd",
@@ -1059,11 +1168,12 @@
         "density": "1970",
         "weight": "423.6",
         "ecdu": "76.84299377",
-        "eckg": "0.1814"
+        "eckg": "0.1814",
+        "modules": "A1-A3"
       }
     }
   },
-  "Concrete": {
+  "concrete": {
     "general": {
       "average uk mix": {
         "id": "e489ece4-79e7-42bd-a517-f603097ef5e4",
@@ -1072,7 +1182,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "246",
-        "eckg": "0.1034"
+        "eckg": "0.1034",
+        "modules": "A1-A3"
       }
     },
     "gen 0": {
@@ -1083,7 +1194,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "166.9362286",
-        "eckg": "0.0704"
+        "eckg": "0.0704",
+        "modules": "A1-A3"
       },
       "gen0 with 15% pfa cement": {
         "id": "18e5a998-4f70-4227-af74-c4043943466a",
@@ -1092,7 +1204,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "151.4656695",
-        "eckg": "0.0639"
+        "eckg": "0.0639",
+        "modules": "A1-A3"
       },
       "gen0 with 30% pfa cement": {
         "id": "faa643d9-33ea-464f-9a3c-cf11408858f1",
@@ -1101,7 +1214,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "134.1380234",
-        "eckg": "0.0566"
+        "eckg": "0.0566",
+        "modules": "A1-A3"
       },
       "gen0 with 40% pfa cement": {
         "id": "b40d1968-471b-4749-82a5-df65a6a28c3d",
@@ -1110,7 +1224,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "123.9653233",
-        "eckg": "0.0523"
+        "eckg": "0.0523",
+        "modules": "A1-A3"
       },
       "gen0 with 25% ggbs cement": {
         "id": "6046818d-f56d-476d-abe6-b852f509e508",
@@ -1119,7 +1234,8 @@
         "density": "2365",
         "weight": "2365",
         "ecdu": "130.2743555",
-        "eckg": "0.0551"
+        "eckg": "0.0551",
+        "modules": "A1-A3"
       },
       "gen0 with 50% ggbs cement": {
         "id": "b9657f6b-f3e4-4cda-b6fc-fa0bf890dd75",
@@ -1128,7 +1244,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "95.92334289",
-        "eckg": "0.0406"
+        "eckg": "0.0406",
+        "modules": "A1-A3"
       },
       "gen0 with 70% ggbs cement": {
         "id": "be47c42d-9e0c-4844-9660-c628a0efd57b",
@@ -1137,7 +1254,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "80.25153751",
-        "eckg": "0.034"
+        "eckg": "0.034",
+        "modules": "A1-A3"
       },
       "gen0 with 14% limestone cement": {
         "id": "79097d74-c103-44fc-9c0d-8fae9c9f6190",
@@ -1146,7 +1264,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "145.5996891",
-        "eckg": "0.0614"
+        "eckg": "0.0614",
+        "modules": "A1-A3"
       },
       "gen0 with 35% natural pozzolanic ash cement": {
         "id": "80537596-7cbd-418f-9bc3-f9a93bad5d0a",
@@ -1155,7 +1274,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "131.8983103",
-        "eckg": "0.0557"
+        "eckg": "0.0557",
+        "modules": "A1-A3"
       },
       "gen0 with average uk additions cement": {
         "id": "3adac904-8931-4cbe-815a-152c427743da",
@@ -1164,7 +1284,8 @@
         "density": "2365",
         "weight": "2365",
         "ecdu": "154.7037686",
-        "eckg": "0.0654"
+        "eckg": "0.0654",
+        "modules": "A1-A3"
       }
     },
     "gen 1": {
@@ -1175,7 +1296,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "230.347152",
-        "eckg": "0.0972"
+        "eckg": "0.0972",
+        "modules": "A1-A3"
       },
       "gen1 with 15% pfa cement": {
         "id": "3ee2f3fe-3753-48cd-8315-32be6f429c96",
@@ -1184,7 +1306,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "303.743419",
-        "eckg": "0.1282"
+        "eckg": "0.1282",
+        "modules": "A1-A3"
       },
       "gen1 with 30% pfa cement": {
         "id": "83a7957b-4ac7-4a82-b7c8-d82059d6c299",
@@ -1193,7 +1316,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "340.1827043",
-        "eckg": "0.1435"
+        "eckg": "0.1435",
+        "modules": "A1-A3"
       },
       "gen1 with 40% pfa cement": {
         "id": "71673d5e-c8c7-4b35-a8d2-97940e887b03",
@@ -1202,7 +1326,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "167.7041599",
-        "eckg": "0.0708"
+        "eckg": "0.0708",
+        "modules": "A1-A3"
       },
       "gen1 with 25% ggbs cement": {
         "id": "a3291faf-bf2a-48f5-9613-6c71be608c6e",
@@ -1211,7 +1336,8 @@
         "density": "2365",
         "weight": "2365",
         "ecdu": "243.316899",
-        "eckg": "0.1029"
+        "eckg": "0.1029",
+        "modules": "A1-A3"
       },
       "gen1 with 50% ggbs cement": {
         "id": "c4b56a54-c9c2-463c-8689-c5f3d4e6aa70",
@@ -1220,7 +1346,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "216.6350131",
-        "eckg": "0.0918"
+        "eckg": "0.0918",
+        "modules": "A1-A3"
       },
       "gen1 with 70% ggbs cement": {
         "id": "da45f3a3-b499-443a-b634-693a9c1b5313",
@@ -1229,7 +1356,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "103.2008303",
-        "eckg": "0.0437"
+        "eckg": "0.0437",
+        "modules": "A1-A3"
       },
       "gen1 with 14% limestone cement": {
         "id": "df9de071-e94b-4f0a-aeba-8cb30e35fda4",
@@ -1238,7 +1366,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "365.5114722",
-        "eckg": "0.1542"
+        "eckg": "0.1542",
+        "modules": "A1-A3"
       },
       "gen1 with 35% natural pozzolanic ash cement": {
         "id": "62b90c3d-a3da-4c99-b7a6-77a5025ce46d",
@@ -1247,7 +1376,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "179.3392074",
-        "eckg": "0.0757"
+        "eckg": "0.0757",
+        "modules": "A1-A3"
       },
       "gen1 with average uk additions cement": {
         "id": "5bd940fa-e317-4297-8e34-e8c7d0e44c13",
@@ -1256,7 +1386,8 @@
         "density": "2365",
         "weight": "2365",
         "ecdu": "212.5427432",
-        "eckg": "0.0899"
+        "eckg": "0.0899",
+        "modules": "A1-A3"
       }
     },
     "gen 2": {
@@ -1267,7 +1398,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "248.7541353",
-        "eckg": "0.105"
+        "eckg": "0.105",
+        "modules": "A1-A3"
       },
       "gen 2 with 15% pfa cement": {
         "id": "a1c1e337-e76b-410f-a51d-7af11be41cdc",
@@ -1276,7 +1408,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "227.7896224",
-        "eckg": "0.0961"
+        "eckg": "0.0961",
+        "modules": "A1-A3"
       },
       "gen 2 with 30% pfa cement": {
         "id": "a7a6de23-53ba-4f62-8ae1-3178d35556dd",
@@ -1285,7 +1418,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "202.5427211",
-        "eckg": "0.0855"
+        "eckg": "0.0855",
+        "modules": "A1-A3"
       },
       "gen 2 with 40% pfa cement": {
         "id": "90a2620f-14c7-4b15-a0ce-dbb21adc47be",
@@ -1294,7 +1428,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "180.2576952",
-        "eckg": "0.0761"
+        "eckg": "0.0761",
+        "modules": "A1-A3"
       },
       "gen 2 with 25% ggbs cement": {
         "id": "8207d167-0d67-497a-bd0a-6ee66a959482",
@@ -1303,7 +1438,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "191.6201794",
-        "eckg": "0.0812"
+        "eckg": "0.0812",
+        "modules": "A1-A3"
       },
       "gen 2 with 50% ggbs cement": {
         "id": "0028a50d-9c22-44c1-8f3d-bdbbe317ac1d",
@@ -1312,7 +1448,8 @@
         "density": "2350",
         "weight": "2350",
         "ecdu": "137.1308786",
-        "eckg": "0.0584"
+        "eckg": "0.0584",
+        "modules": "A1-A3"
       },
       "gen 2 with 70% ggbs cement": {
         "id": "2e68b7a7-4e1e-41c9-8b89-f3a3a58d8e80",
@@ -1321,7 +1458,8 @@
         "density": "2350",
         "weight": "2350",
         "ecdu": "109.9184347",
-        "eckg": "0.0468"
+        "eckg": "0.0468",
+        "modules": "A1-A3"
       },
       "gen 2 with 14% limestone cement": {
         "id": "d76dff34-1b8d-47d9-b28f-7503ea74782e",
@@ -1330,7 +1468,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "214.4599984",
-        "eckg": "0.0905"
+        "eckg": "0.0905",
+        "modules": "A1-A3"
       },
       "gen 2 with 35% natural pozzolanic ash cement": {
         "id": "18f420d6-3539-48d7-8a24-3faf8de5602e",
@@ -1339,7 +1478,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "192.9504743",
-        "eckg": "0.0814"
+        "eckg": "0.0814",
+        "modules": "A1-A3"
       },
       "gen 2 with average uk additions cement": {
         "id": "9b0e5e7a-c8b5-4756-9e1b-a37b4fe42a5b",
@@ -1348,7 +1488,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "229.155573",
-        "eckg": "0.0971"
+        "eckg": "0.0971",
+        "modules": "A1-A3"
       }
     },
     "gen 3": {
@@ -1359,7 +1500,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "267.0134028",
-        "eckg": "0.1127"
+        "eckg": "0.1127",
+        "modules": "A1-A3"
       },
       "gen 3 with 15% pfa cement": {
         "id": "ca5a2c02-24d3-4e6e-968d-95187cd57af9",
@@ -1368,7 +1510,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "244.3121887",
-        "eckg": "0.1031"
+        "eckg": "0.1031",
+        "modules": "A1-A3"
       },
       "gen 3 with 30% pfa cement": {
         "id": "d295bd1f-01c6-43ef-9883-0f130fd09a79",
@@ -1377,7 +1520,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "216.9717205",
-        "eckg": "0.0915"
+        "eckg": "0.0915",
+        "modules": "A1-A3"
       },
       "gen 3 with 40% pfa cement": {
         "id": "de5ab00e-f2b8-4656-bfb9-8b22bdaa0edf",
@@ -1386,7 +1530,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "192.8327911",
-        "eckg": "0.0814"
+        "eckg": "0.0814",
+        "modules": "A1-A3"
       },
       "gen 3 with 25% ggbs cement": {
         "id": "55a81ca7-d0d9-49a6-b947-c6db3f990a5f",
@@ -1395,7 +1540,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "205.2029622",
-        "eckg": "0.087"
+        "eckg": "0.087",
+        "modules": "A1-A3"
       },
       "gen 3 with 50% ggbs cement": {
         "id": "ad457719-83aa-4f7d-9679-ba017648a622",
@@ -1404,7 +1550,8 @@
         "density": "2350",
         "weight": "2350",
         "ecdu": "146.253587",
-        "eckg": "0.0622"
+        "eckg": "0.0622",
+        "modules": "A1-A3"
       },
       "gen 3 with 70% ggbs cement": {
         "id": "39ddcf19-55dd-4502-a4ad-da3e7770fa73",
@@ -1413,7 +1560,8 @@
         "density": "2350",
         "weight": "2350",
         "ecdu": "116.8326248",
-        "eckg": "0.0497"
+        "eckg": "0.0497",
+        "modules": "A1-A3"
       },
       "gen 3 with 14% limestone cement": {
         "id": "2f7020c3-bc73-4ed9-ac39-dba4401c8171",
@@ -1422,7 +1570,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "229.9913705",
-        "eckg": "0.0966"
+        "eckg": "0.0966",
+        "modules": "A1-A3"
       },
       "gen 3 with 35% natural pozzolanic ash cement": {
         "id": "a7166850-bd10-4930-a8bc-239257d83a74",
@@ -1431,7 +1580,8 @@
         "density": "2370",
         "weight": "2370",
         "ecdu": "206.5833018",
-        "eckg": "0.0872"
+        "eckg": "0.0872",
+        "modules": "A1-A3"
       },
       "gen 3 with average uk additions cement": {
         "id": "de20db9c-730a-4b92-ad08-0fb476f5b0d5",
@@ -1440,7 +1590,8 @@
         "density": "2360",
         "weight": "2360",
         "ecdu": "245.8722714",
-        "eckg": "0.1042"
+        "eckg": "0.1042",
+        "modules": "A1-A3"
       }
     },
     "20/25": {
@@ -1451,7 +1602,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "290.2277023",
-        "eckg": "0.1209"
+        "eckg": "0.1209",
+        "modules": "A1-A3"
       },
       "rc20/25 with 15% pfa cement": {
         "id": "8d3332e8-da53-4c14-a7b1-a0d0c99eb481",
@@ -1460,7 +1612,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "265.314751",
-        "eckg": "0.111"
+        "eckg": "0.111",
+        "modules": "A1-A3"
       },
       "rc20/25 with 30% pfa cement": {
         "id": "54e274fe-e810-4f2f-a477-d6d75fe2992c",
@@ -1469,7 +1622,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "235.3277993",
-        "eckg": "0.0989"
+        "eckg": "0.0989",
+        "modules": "A1-A3"
       },
       "rc20/25 with 40% pfa cement": {
         "id": "903dca19-9803-4dbf-8175-c4da9448b3f3",
@@ -1478,7 +1632,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "208.874795",
-        "eckg": "0.0878"
+        "eckg": "0.0878",
+        "modules": "A1-A3"
       },
       "rc20/25 with 25% ggbs cement": {
         "id": "6bd8fc0c-9733-4dcd-91e0-ce5eb528ecf3",
@@ -1487,7 +1642,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "225.5685765",
-        "eckg": "0.0942"
+        "eckg": "0.0942",
+        "modules": "A1-A3"
       },
       "rc20/25 with 50% ggbs cement": {
         "id": "53c7cc2c-1f9a-491c-be9d-10fb5e3daee6",
@@ -1496,7 +1652,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "162.1621738",
-        "eckg": "0.0679"
+        "eckg": "0.0679",
+        "modules": "A1-A3"
       },
       "rc20/25 with 70% ggbs cement": {
         "id": "9bb4112f-72ec-4837-bd30-ebb1bade9827",
@@ -1505,7 +1662,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "125.9870334",
-        "eckg": "0.0527"
+        "eckg": "0.0527",
+        "modules": "A1-A3"
       },
       "rc20/25 with 14% limestone cement": {
         "id": "ed8855af-f803-4ec9-8b10-79f6e86a0944",
@@ -1514,7 +1672,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "249.6673495",
-        "eckg": "0.104"
+        "eckg": "0.104",
+        "modules": "A1-A3"
       },
       "rc20/25 with 35% natural pozzolanic ash cement": {
         "id": "40a5bc71-4b3a-4164-a453-abd774e30bbd",
@@ -1523,7 +1682,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "223.9474702",
-        "eckg": "0.0941"
+        "eckg": "0.0941",
+        "modules": "A1-A3"
       },
       "rc20/25 with average uk additions cement": {
         "id": "146cd451-43cf-45d1-818b-8bf1cf9dd41a",
@@ -1532,7 +1692,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "267.1744039",
-        "eckg": "0.112"
+        "eckg": "0.112",
+        "modules": "A1-A3"
       }
     },
     "25/30": {
@@ -1543,7 +1704,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "308.5726393",
-        "eckg": "0.1286"
+        "eckg": "0.1286",
+        "modules": "A1-A3"
       },
       "rc25/30 with 15% pfa cement": {
         "id": "2fdd0eff-7148-465e-8c15-4db3adac065c",
@@ -1552,7 +1714,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "282.0245102",
-        "eckg": "0.118"
+        "eckg": "0.118",
+        "modules": "A1-A3"
       },
       "rc25/30 with 30% pfa cement": {
         "id": "0924aae5-168c-48b5-aa14-a84d1d10a72b",
@@ -1561,7 +1724,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "249.9928011",
-        "eckg": "0.105"
+        "eckg": "0.105",
+        "modules": "A1-A3"
       },
       "rc25/30 with 40% pfa cement": {
         "id": "6ad2fe19-7339-4511-b501-3851e32b3fa2",
@@ -1570,7 +1734,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "221.4646791",
-        "eckg": "0.0931"
+        "eckg": "0.0931",
+        "modules": "A1-A3"
       },
       "rc25/30 with 25% ggbs cement": {
         "id": "cc08491b-5c0b-4f14-bd28-4b653508322c",
@@ -1579,7 +1744,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "239.7397575",
-        "eckg": "0.1001"
+        "eckg": "0.1001",
+        "modules": "A1-A3"
       },
       "rc25/30 with 50% ggbs cement": {
         "id": "cdce592e-e917-45ca-9c17-d181628f36ab",
@@ -1588,7 +1754,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "172.0060315",
-        "eckg": "0.072"
+        "eckg": "0.072",
+        "modules": "A1-A3"
       },
       "rc25/30 with 70% ggbs cement": {
         "id": "9628c01a-8076-4471-8ade-f8b508e7af6a",
@@ -1597,7 +1764,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "132.8073788",
-        "eckg": "0.0556"
+        "eckg": "0.0556",
+        "modules": "A1-A3"
       },
       "rc25/30 with 14% limestone cement": {
         "id": "84123788-92f1-4b7d-8eb2-a253649702cf",
@@ -1606,7 +1774,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "265.9866862",
-        "eckg": "0.1108"
+        "eckg": "0.1108",
+        "modules": "A1-A3"
       },
       "rc25/30 with 35% natural pozzolanic ash cement": {
         "id": "6989a5fc-e7af-41f5-9901-2a4104b9b54a",
@@ -1615,7 +1784,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "237.5950858",
-        "eckg": "0.0998"
+        "eckg": "0.0998",
+        "modules": "A1-A3"
       },
       "rc25/30 with average uk additions cement": {
         "id": "0c8cd7f1-01a1-43f4-a6ee-1533859297db",
@@ -1624,7 +1794,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "283.8562271",
-        "eckg": "0.119"
+        "eckg": "0.119",
+        "modules": "A1-A3"
       }
     },
     "28/35": {
@@ -1635,7 +1806,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "326.8441453",
-        "eckg": "0.1362"
+        "eckg": "0.1362",
+        "modules": "A1-A3"
       },
       "rc28/35 with 15% pfa cement": {
         "id": "bbc52479-6687-4ae8-8a0b-2349c4772134",
@@ -1644,7 +1816,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "301.4218973",
-        "eckg": "0.1261"
+        "eckg": "0.1261",
+        "modules": "A1-A3"
       },
       "rc28/35 with 30% pfa cement": {
         "id": "857ce8bb-267a-44ca-a880-8fe36fa55db2",
@@ -1653,7 +1826,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "269.1463401",
-        "eckg": "0.1131"
+        "eckg": "0.1131",
+        "modules": "A1-A3"
       },
       "rc28/35 with 40% pfa cement": {
         "id": "8d471cad-9cc1-4c74-bc79-39f14b2d1ecf",
@@ -1662,7 +1836,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "234.7558401",
-        "eckg": "0.0986"
+        "eckg": "0.0986",
+        "modules": "A1-A3"
       },
       "rc28/35 with 25% ggbs cement": {
         "id": "aab6d50d-71aa-440e-bc25-6263dcdd2d1c",
@@ -1671,7 +1846,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "257.0847602",
-        "eckg": "0.1073"
+        "eckg": "0.1073",
+        "modules": "A1-A3"
       },
       "rc28/35 with 50% ggbs cement": {
         "id": "a663fdfc-88da-43d8-8ccf-ce132c44e5ba",
@@ -1680,7 +1856,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "186.2267305",
-        "eckg": "0.0779"
+        "eckg": "0.0779",
+        "modules": "A1-A3"
       },
       "rc28/35 with 70% ggbs cement": {
         "id": "98e3a082-2ea4-4c0c-a510-1e7f75fa352e",
@@ -1689,7 +1866,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "139.65553",
-        "eckg": "0.0584"
+        "eckg": "0.0584",
+        "modules": "A1-A3"
       },
       "rc28/35 with 14% limestone cement": {
         "id": "78a72548-8c10-4f7f-a45b-f707db4e5b1c",
@@ -1698,7 +1876,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "281.7236538",
-        "eckg": "0.1174"
+        "eckg": "0.1174",
+        "modules": "A1-A3"
       },
       "rc28/35 with 35% natural pozzolanic ash cement": {
         "id": "524848c1-4b2a-4fa3-8eb7-66b6f9ca3e81",
@@ -1707,7 +1886,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "252.0014638",
-        "eckg": "0.1059"
+        "eckg": "0.1059",
+        "modules": "A1-A3"
       },
       "rc28/35 with average uk additions cement": {
         "id": "598d7cf0-7eb3-418b-9cbb-ae6d9e0e0492",
@@ -1716,7 +1896,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "300.5608866",
-        "eckg": "0.126"
+        "eckg": "0.126",
+        "modules": "A1-A3"
       }
     },
     "32/40": {
@@ -1727,7 +1908,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "358.7580883",
-        "eckg": "0.1495"
+        "eckg": "0.1495",
+        "modules": "A1-A3"
       },
       "rc32/40 with 15% pfa cement": {
         "id": "474df7c9-02b9-4296-9a7b-07579a52bf0b",
@@ -1736,7 +1918,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "332.3990626",
-        "eckg": "0.1391"
+        "eckg": "0.1391",
+        "modules": "A1-A3"
       },
       "rc32/40 with 30% pfa cement": {
         "id": "3c7ff702-aae7-400f-bfc0-ffa170f02e10",
@@ -1745,7 +1928,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "297.8154561",
-        "eckg": "0.1251"
+        "eckg": "0.1251",
+        "modules": "A1-A3"
       },
       "rc32/40 with 40% pfa cement": {
         "id": "455773f1-d526-4b02-992b-e6e0f9652b49",
@@ -1754,7 +1938,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "259.2980961",
-        "eckg": "0.1089"
+        "eckg": "0.1089",
+        "modules": "A1-A3"
       },
       "rc32/40 with 25% ggbs cement": {
         "id": "27bd48ca-ac17-4281-8fe1-5da86f4e8fec",
@@ -1763,7 +1948,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "288.2423084",
-        "eckg": "0.1204"
+        "eckg": "0.1204",
+        "modules": "A1-A3"
       },
       "rc32/40 with 50% ggbs cement": {
         "id": "279dd3b7-a443-404e-9309-6fc5ca27d7f4",
@@ -1772,7 +1958,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "212.2368195",
-        "eckg": "0.0888"
+        "eckg": "0.0888",
+        "modules": "A1-A3"
       },
       "rc32/40 with 70% ggbs cement": {
         "id": "f0d4bbac-a2e2-4138-af35-cbd3ae4ae54b",
@@ -1781,7 +1968,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "151.5612633",
-        "eckg": "0.0634"
+        "eckg": "0.0634",
+        "modules": "A1-A3"
       },
       "rc32/40 with 14% limestone cement": {
         "id": "4d75613b-223d-412e-a856-65e9e42c7125",
@@ -1790,7 +1978,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "309.2021545",
-        "eckg": "0.1288"
+        "eckg": "0.1288",
+        "modules": "A1-A3"
       },
       "rc32/40 with 35% natural pozzolanic ash cement": {
         "id": "a8fbd12d-de5b-46df-a109-558358a5c4fe",
@@ -1799,7 +1988,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "278.6131947",
-        "eckg": "0.1171"
+        "eckg": "0.1171",
+        "modules": "A1-A3"
       },
       "rc32/40 with average uk additions cement": {
         "id": "8c86cd4d-2a12-4d75-a3aa-7e3069d9b0d3",
@@ -1808,7 +1998,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "329.7127771",
-        "eckg": "0.1382"
+        "eckg": "0.1382",
+        "modules": "A1-A3"
       }
     },
     "35/45": {
@@ -1819,7 +2010,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "386.0980356",
-        "eckg": "0.1609"
+        "eckg": "0.1609",
+        "modules": "A1-A3"
       },
       "rc35/45 with 15% pfa cement": {
         "id": "7ff52de9-197c-41f8-9632-5daa763a06a4",
@@ -1828,7 +2020,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "355.0069538",
-        "eckg": "0.1485"
+        "eckg": "0.1485",
+        "modules": "A1-A3"
       },
       "rc35/45 with 30% pfa cement": {
         "id": "420669c7-cd7c-4050-b728-bd58642d5d9c",
@@ -1837,7 +2030,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "315.8899735",
-        "eckg": "0.1327"
+        "eckg": "0.1327",
+        "modules": "A1-A3"
       },
       "rc35/45 with 40% pfa cement": {
         "id": "9e70bd0b-122a-465b-836f-bc8351d6bf1c",
@@ -1846,7 +2040,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "274.7589355",
-        "eckg": "0.1154"
+        "eckg": "0.1154",
+        "modules": "A1-A3"
       },
       "rc35/45 with 25% ggbs cement": {
         "id": "ecd9fa63-8081-40ed-911a-1b15043831b2",
@@ -1855,7 +2050,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "309.8375171",
-        "eckg": "0.1294"
+        "eckg": "0.1294",
+        "modules": "A1-A3"
       },
       "rc35/45 with 50% ggbs cement": {
         "id": "97756df7-6bbb-492f-add2-0434f91099bf",
@@ -1864,7 +2060,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "227.5854666",
-        "eckg": "0.0952"
+        "eckg": "0.0952",
+        "modules": "A1-A3"
       },
       "rc35/45 with 70% ggbs cement": {
         "id": "ffd3cb1a-c594-40c2-8264-a08097147e15",
@@ -1873,7 +2070,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "161.7651716",
-        "eckg": "0.0677"
+        "eckg": "0.0677",
+        "modules": "A1-A3"
       },
       "rc35/45 with 14% limestone cement": {
         "id": "02c04bd2-ec19-41b4-ba25-8dc9d2c88317",
@@ -1882,7 +2080,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "336.674536",
-        "eckg": "0.1403"
+        "eckg": "0.1403",
+        "modules": "A1-A3"
       },
       "rc35/45 with 35% natural pozzolanic ash cement": {
         "id": "e852a69e-6702-4e7a-b81a-e2ab8e8872c4",
@@ -1891,7 +2090,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "295.3847015",
-        "eckg": "0.1241"
+        "eckg": "0.1241",
+        "modules": "A1-A3"
       },
       "rc35/45 with average uk additions cement": {
         "id": "4fab0a24-4d11-4b62-b542-b57e1a69dba1",
@@ -1900,7 +2100,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "354.6488543",
-        "eckg": "0.1487"
+        "eckg": "0.1487",
+        "modules": "A1-A3"
       }
     },
     "40/50": {
@@ -1911,7 +2112,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "413.49428",
-        "eckg": "0.1723"
+        "eckg": "0.1723",
+        "modules": "A1-A3"
       },
       "rc40/50 with 15% pfa cement": {
         "id": "9a5168de-44f4-4767-bd8e-c9cbf7c30d9a",
@@ -1920,7 +2122,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "379.9504975",
-        "eckg": "0.159"
+        "eckg": "0.159",
+        "modules": "A1-A3"
       },
       "rc40/50 with 30% pfa cement": {
         "id": "a1c621f9-5954-4d31-ad0c-5cb08c1aced0",
@@ -1929,7 +2132,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "337.7518744",
-        "eckg": "0.1419"
+        "eckg": "0.1419",
+        "modules": "A1-A3"
       },
       "rc40/50 with 40% pfa cement": {
         "id": "1a534518-9268-4af3-ba07-03236ac47ba7",
@@ -1938,7 +2142,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "293.4569104",
-        "eckg": "0.1233"
+        "eckg": "0.1233",
+        "modules": "A1-A3"
       },
       "rc40/50 with 25% ggbs cement": {
         "id": "c6efb373-5fbf-4cb2-a327-c6c54844a4c9",
@@ -1947,7 +2152,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "331.3248846",
-        "eckg": "0.1383"
+        "eckg": "0.1383",
+        "modules": "A1-A3"
       },
       "rc40/50 with 50% ggbs cement": {
         "id": "2a5b6ee9-a9bb-4eb4-91f3-7bbc9bb91e31",
@@ -1956,7 +2162,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "242.6994721",
-        "eckg": "0.1015"
+        "eckg": "0.1015",
+        "modules": "A1-A3"
       },
       "rc40/50 with 70% ggbs cement": {
         "id": "2f422083-21ff-40b0-9015-7eca0f631328",
@@ -1965,7 +2172,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "171.8194699",
-        "eckg": "0.0719"
+        "eckg": "0.0719",
+        "modules": "A1-A3"
       },
       "rc40/50 with 14% limestone cement": {
         "id": "f95899c4-7100-4911-9a01-be134fbd14b9",
@@ -1974,7 +2182,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "366.8877514",
-        "eckg": "0.1529"
+        "eckg": "0.1529",
+        "modules": "A1-A3"
       },
       "rc40/50 with 35% natural pozzolanic ash cement": {
         "id": "ea0bd194-7de9-4b33-82c0-47bd6b4856f2",
@@ -1983,7 +2192,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "315.6692738",
-        "eckg": "0.1326"
+        "eckg": "0.1326",
+        "modules": "A1-A3"
       },
       "rc40/50 with average uk additions cement": {
         "id": "9b997728-8005-4a1f-a738-03663749a7f6",
@@ -1992,7 +2202,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "379.512788",
-        "eckg": "0.1591"
+        "eckg": "0.1591",
+        "modules": "A1-A3"
       }
     },
     "pav 1": {
@@ -2003,7 +2214,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "326.8349664",
-        "eckg": "0.1362"
+        "eckg": "0.1362",
+        "modules": "A1-A3"
       },
       "pav1 with 15% pfa cement": {
         "id": "bd2f5936-8a88-4a3b-ba5f-c796f3ea7a08",
@@ -2012,7 +2224,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "300.9284025",
-        "eckg": "0.1259"
+        "eckg": "0.1259",
+        "modules": "A1-A3"
       },
       "pav1 with 30% pfa cement": {
         "id": "60089661-c7b4-4e24-b185-96e32d2965aa",
@@ -2021,7 +2234,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "268.339556",
-        "eckg": "0.1127"
+        "eckg": "0.1127",
+        "modules": "A1-A3"
       },
       "pav1 with 40% pfa cement": {
         "id": "47ae3a22-cf9f-4625-8e40-06d18b567297",
@@ -2030,7 +2244,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "234.063691",
-        "eckg": "0.0983"
+        "eckg": "0.0983",
+        "modules": "A1-A3"
       },
       "pav1 with 25% ggbs cement": {
         "id": "0a20af51-ba0e-405c-a8f0-f178a5cc49cf",
@@ -2039,7 +2254,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "257.5958496",
-        "eckg": "0.1076"
+        "eckg": "0.1076",
+        "modules": "A1-A3"
       },
       "pav1 with 50% ggbs cement": {
         "id": "6b27b0e1-4a16-4040-b8c6-5f7ad2da09ee",
@@ -2048,7 +2264,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "186.9285865",
-        "eckg": "0.0782"
+        "eckg": "0.0782",
+        "modules": "A1-A3"
       },
       "pav1 with 70% ggbs cement": {
         "id": "0a3149bd-a742-44f0-9eb9-2826bcafb896",
@@ -2057,7 +2274,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "139.65553",
-        "eckg": "0.0584"
+        "eckg": "0.0584",
+        "modules": "A1-A3"
       },
       "pav1 with 14% limestone cement": {
         "id": "3e44d908-d9e4-41bb-b7ac-af90361513c8",
@@ -2066,7 +2284,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "280.5357933",
-        "eckg": "0.1169"
+        "eckg": "0.1169",
+        "modules": "A1-A3"
       },
       "pav1 with 35% natural pozzolanic ash cement": {
         "id": "4638d551-75be-436e-aebe-82368a67b7d8",
@@ -2075,7 +2294,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "251.2518294",
-        "eckg": "0.1056"
+        "eckg": "0.1056",
+        "modules": "A1-A3"
       },
       "pav1 with average uk additions cement": {
         "id": "32417be6-49ab-46ac-bfd1-86a159ef6095",
@@ -2084,7 +2304,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "300.5542574",
-        "eckg": "0.126"
+        "eckg": "0.126",
+        "modules": "A1-A3"
       }
     },
     "pav 2": {
@@ -2095,7 +2316,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "358.7678791",
-        "eckg": "0.1495"
+        "eckg": "0.1495",
+        "modules": "A1-A3"
       },
       "pav2 with 15% pfa cement": {
         "id": "4d90b39d-0b96-4b96-b04d-732f8c096a5f",
@@ -2104,7 +2326,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "332.873635",
-        "eckg": "0.1393"
+        "eckg": "0.1393",
+        "modules": "A1-A3"
       },
       "pav2 with 30% pfa cement": {
         "id": "b7353230-561f-4a93-924d-7fb1362fd93d",
@@ -2113,7 +2336,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "298.5905563",
-        "eckg": "0.1255"
+        "eckg": "0.1255",
+        "modules": "A1-A3"
       },
       "pav2 with 40% pfa cement": {
         "id": "f6cf5dc0-4bcc-4681-be41-75255e172d64",
@@ -2122,7 +2346,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "259.8547526",
-        "eckg": "0.1092"
+        "eckg": "0.1092",
+        "modules": "A1-A3"
       },
       "pav2 with 25% ggbs cement": {
         "id": "c49ab074-5cca-4f2c-aacd-158b4b7cbcb0",
@@ -2131,7 +2356,8 @@
         "density": "2395",
         "weight": "2395",
         "ecdu": "288.3197492",
-        "eckg": "0.1204"
+        "eckg": "0.1204",
+        "modules": "A1-A3"
       },
       "pav2 with 50% ggbs cement": {
         "id": "aaa8e9fc-5732-48dc-b757-bd3303fb7392",
@@ -2140,7 +2366,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "212.3378903",
-        "eckg": "0.0888"
+        "eckg": "0.0888",
+        "modules": "A1-A3"
       },
       "pav2 with 70% ggbs cement": {
         "id": "c879e065-4dad-418f-ba29-a46c9e329cb1",
@@ -2149,7 +2376,8 @@
         "density": "2390",
         "weight": "2390",
         "ecdu": "151.5690634",
-        "eckg": "0.0634"
+        "eckg": "0.0634",
+        "modules": "A1-A3"
       },
       "pav2 with 14% limestone cement": {
         "id": "8e540616-05d9-43cb-9170-565efec32bda",
@@ -2158,7 +2386,8 @@
         "density": "2400",
         "weight": "2400",
         "ecdu": "310.2906226",
-        "eckg": "0.1293"
+        "eckg": "0.1293",
+        "modules": "A1-A3"
       },
       "pav2 with 35% natural pozzolanic ash cement": {
         "id": "1516db56-0862-4553-aa97-94d4655fb656",
@@ -2167,7 +2396,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "279.2158395",
-        "eckg": "0.1173"
+        "eckg": "0.1173",
+        "modules": "A1-A3"
       },
       "pav2 with average uk additions cement": {
         "id": "0aba7254-f32b-430b-ab51-8f48005535df",
@@ -2176,7 +2406,8 @@
         "density": "2385",
         "weight": "2385",
         "ecdu": "329.7225043",
-        "eckg": "0.1382"
+        "eckg": "0.1382",
+        "modules": "A1-A3"
       }
     },
     "by cementitious content": {
@@ -2187,7 +2418,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "123.8613808",
-        "eckg": "0.052"
+        "eckg": "0.052",
+        "modules": "A1-A3"
       },
       "30% pfa cement replacement ": {
         "id": "6c760664-6bd7-4ea4-9606-d3b0564bcf61",
@@ -2196,7 +2428,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "96.34898079",
-        "eckg": "0.0405"
+        "eckg": "0.0405",
+        "modules": "A1-A3"
       },
       "40% pfa cement replacement ": {
         "id": "4e6ac948-2080-49c4-ad8f-0812a0fc32eb",
@@ -2205,7 +2438,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "87.17818079",
-        "eckg": "0.0366"
+        "eckg": "0.0366",
+        "modules": "A1-A3"
       },
       "50% ggbs cement replacement ": {
         "id": "76e2f26c-506b-4adc-99e0-c265872f1a1e",
@@ -2214,7 +2448,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "79.90618079",
-        "eckg": "0.0336"
+        "eckg": "0.0336",
+        "modules": "A1-A3"
       },
       "70% ggbs cement replacement ": {
         "id": "7b2dfc3b-248c-4e4d-8715-05ce2ff5ae46",
@@ -2223,7 +2458,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "62.32410079",
-        "eckg": "0.0262"
+        "eckg": "0.0262",
+        "modules": "A1-A3"
       },
       "average uk cement replacement rate ": {
         "id": "6a7c9c95-56cf-4419-b0a3-8d43b2a2d3d5",
@@ -2232,7 +2468,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "115.7813808",
-        "eckg": "0.0486"
+        "eckg": "0.0486",
+        "modules": "A1-A3"
       }
     },
     "by volumetric proportions": {
@@ -2243,7 +2480,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "497.0084837",
-        "eckg": "0.2088"
+        "eckg": "0.2088",
+        "modules": "A1-A3"
       },
       "1:1:2 cement:sand:aggregate with uk average cement replacement rate": {
         "id": "2a342238-7b4e-4674-93e8-d8f390c2c387",
@@ -2252,7 +2490,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "456.3808781",
-        "eckg": "0.1918"
+        "eckg": "0.1918",
+        "modules": "A1-A3"
       },
       "1:1.5:3 cement:sand:aggregate with uk average cement replacement rate": {
         "id": "1893f635-56e1-481d-8bf0-ba0ebf361d96",
@@ -2261,7 +2500,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "340.5026703",
-        "eckg": "0.1431"
+        "eckg": "0.1431",
+        "modules": "A1-A3"
       },
       "1:2:4 cement:sand:aggregate with uk average cement replacement rate": {
         "id": "22aea6bd-dd34-40d4-923a-5d282b9eda48",
@@ -2270,7 +2510,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "274.1530513",
-        "eckg": "0.1152"
+        "eckg": "0.1152",
+        "modules": "A1-A3"
       },
       "1:2.5:5 cement:sand:aggregate with uk average cement replacement rate": {
         "id": "95b5de75-484a-4fef-a8e3-9af67c5a9eed",
@@ -2279,7 +2520,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "231.1690789",
-        "eckg": "0.0971"
+        "eckg": "0.0971",
+        "modules": "A1-A3"
       },
       "1:3:6 cement:sand:aggregate with uk average cement replacement rate": {
         "id": "ddcfa068-63c6-4360-9672-a2a09eede5a8",
@@ -2288,7 +2530,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "202.7525807",
-        "eckg": "0.0852"
+        "eckg": "0.0852",
+        "modules": "A1-A3"
       },
       "1:4:8 cement:sand:aggregate with uk average cement replacement rate": {
         "id": "38819e67-d8b7-418e-86ce-50afd4665fab",
@@ -2297,7 +2540,8 @@
         "density": "2380",
         "weight": "2380",
         "ecdu": "163.7496805",
-        "eckg": "0.0688"
+        "eckg": "0.0688",
+        "modules": "A1-A3"
       }
     },
     "pre-cast": {
@@ -2308,7 +2552,8 @@
         "density": "2350",
         "weight": "1",
         "ecdu": "0.148487811",
-        "eckg": "0.1485"
+        "eckg": "0.1485",
+        "modules": "A1-A3"
       },
       "precast concrete pipe  dn600 unreinforced": {
         "id": "03eaf0ef-1e1f-4ef6-93d3-2ddd3b78a7ec",
@@ -2317,7 +2562,8 @@
         "density": "2350",
         "weight": "488",
         "ecdu": "72.46205192",
-        "eckg": "0.1485"
+        "eckg": "0.1485",
+        "modules": "A1-A3"
       },
       "precast concrete paving (blocks  slabs  channels and kerbs)": {
         "id": "96cb026c-a356-4064-b22d-9c2ccd45d204",
@@ -2326,7 +2572,8 @@
         "density": "2350",
         "weight": "1",
         "ecdu": "0.131104079",
-        "eckg": "0.1311"
+        "eckg": "0.1311",
+        "modules": "A1-A3"
       },
       "block medium density solid average strength per kg": {
         "id": "e4fe2761-b607-4514-9358-a02851f529e4",
@@ -2335,7 +2582,8 @@
         "density": "1425",
         "weight": "1",
         "ecdu": "0.091658172",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block high density solid average strength per kg": {
         "id": "5c37fbcb-ea00-4119-bed2-9ae0cbe42e06",
@@ -2344,7 +2592,8 @@
         "density": "1950",
         "weight": "1",
         "ecdu": "0.091658172",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "steel reinforced with world average steel": {
         "id": "a32f220f-44b8-4a53-919f-bdb830cdb8ac",
@@ -2353,7 +2602,8 @@
         "density": "2400",
         "weight": "1",
         "ecdu": "0.246972997",
-        "eckg": "0.247"
+        "eckg": "0.247",
+        "modules": "A1-A3"
       },
       "precast hollowcore concrete flooring  150mm  prestressed steel reinforced with world average steel": {
         "id": "1207f80c-2e8c-47ba-905a-e8630376c7b6",
@@ -2362,7 +2612,8 @@
         "density": "2000",
         "weight": "300",
         "ecdu": "54.8537284",
-        "eckg": "0.1828"
+        "eckg": "0.1828",
+        "modules": "A1-A3"
       },
       "aac concrete block": {
         "id": "dbb46a85-a0ef-4ab2-b830-82e554488410",
@@ -2371,7 +2622,8 @@
         "density": "600",
         "weight": "1",
         "ecdu": "0.28",
-        "eckg": "0.28"
+        "eckg": "0.28",
+        "modules": "A1-A3"
       },
       "steel reinforced with european recycled steel": {
         "id": "e6fcdd9b-2365-487d-a17c-b3e1b74175b8",
@@ -2380,7 +2632,8 @@
         "density": "2400",
         "weight": "1",
         "ecdu": "0.193947997",
-        "eckg": "0.1939"
+        "eckg": "0.1939",
+        "modules": "A1-A3"
       },
       "precast hollowcore concrete flooring  150mm  prestressed steel reinforced  with european recycled steel": {
         "id": "59e009a9-b8a9-430d-8e4d-376c270362c5",
@@ -2389,7 +2642,8 @@
         "density": "2000",
         "weight": "300",
         "ecdu": "51.3260812",
-        "eckg": "0.1711"
+        "eckg": "0.1711",
+        "modules": "A1-A3"
       }
     },
     "block wall": {
@@ -2400,7 +2654,8 @@
         "density": "1409",
         "weight": "10",
         "ecdu": "0.91658172",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid medium density average strength 90 mm thickness 440 mm length 215 mm width.": {
         "id": "10c59cb3-f230-412a-b063-bb4d752ad676",
@@ -2409,7 +2664,8 @@
         "density": "1351",
         "weight": "11.5",
         "ecdu": "1.054068978",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid medium density average strength 100 mm thickness 440 mm length 215 mm width.": {
         "id": "51643c8b-8361-448d-8a80-18476e4e2ff9",
@@ -2418,7 +2674,8 @@
         "density": "1459",
         "weight": "13.8",
         "ecdu": "1.264882773",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid medium density average strength 140 mm thickness 440 mm length 215 mm width.": {
         "id": "18b85295-3b6d-4981-96fe-f59ea290eece",
@@ -2427,7 +2684,8 @@
         "density": "1457",
         "weight": "19.3",
         "ecdu": "1.769002719",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid medium density average strength 190 mm thickness 440 mm length 215 mm width.": {
         "id": "db0c53ad-60e2-4ebb-bcab-54fbebac43ee",
@@ -2436,7 +2694,8 @@
         "density": "1363",
         "weight": "24.5",
         "ecdu": "2.245625214",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid high density average strength 75 mm thickness 440 mm length 215 mm width.": {
         "id": "c5460bce-cc3c-4988-80fa-d87a20dfa854",
@@ -2445,7 +2704,8 @@
         "density": "2016",
         "weight": "14.3",
         "ecdu": "1.310711859",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid high density average strength 90 mm thickness 440 mm length 215 mm width.": {
         "id": "5e28615a-81e4-4d1a-ac7f-cb198ac794d1",
@@ -2454,7 +2714,8 @@
         "density": "2020",
         "weight": "17.2",
         "ecdu": "1.576520558",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid high density average strength 100 mm thickness 440 mm length 215 mm width.": {
         "id": "3e8e90ff-1ee2-4c2b-9105-25a5909bac83",
@@ -2463,7 +2724,8 @@
         "density": "1987",
         "weight": "18.8",
         "ecdu": "1.723173633",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid high density average strength 140 mm thickness 440 mm length 215 mm width.": {
         "id": "dbf64af1-4264-4d6c-9cd2-c2941e4f91c4",
@@ -2472,7 +2734,8 @@
         "density": "2008",
         "weight": "26.6",
         "ecdu": "2.438107375",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid high density average strength 190 mm thickness 440 mm length 215 mm width.": {
         "id": "ee816aed-02f4-4785-a7f4-f29da817a344",
@@ -2481,7 +2744,8 @@
         "density": "2000",
         "weight": "35.95",
         "ecdu": "3.295111283",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block solid high density average strength 215 mm thickness 440 mm length 215 mm width.": {
         "id": "74aa3116-7bb7-42c4-8734-96b75ebcc163",
@@ -2490,7 +2754,8 @@
         "density": "1991",
         "weight": "40.5",
         "ecdu": "3.712155965",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block cellular high density average strength 100 mm thickness 440 mm length 215 mm width.": {
         "id": "26d7c656-06bd-457c-974d-6e89d9ec30b4",
@@ -2499,7 +2764,8 @@
         "density": "1564",
         "weight": "14.8",
         "ecdu": "1.356540945",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block cellular high density average strength 140 mm thickness 440 mm length 215 mm width.": {
         "id": "59dc271f-555a-40a8-bfc0-b0e60c454fd4",
@@ -2508,7 +2774,8 @@
         "density": "1608",
         "weight": "21.3",
         "ecdu": "1.952319063",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block hollowcore high density average strength 140 mm thickness 440 mm length 215 mm width.": {
         "id": "53dfd3c2-2ed7-458d-8da7-e7fc39501c72",
@@ -2517,7 +2784,8 @@
         "density": "1480",
         "weight": "19.6",
         "ecdu": "1.796500171",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block hollowcore high density average strength 190 mm thickness 440 mm length 215 mm width.": {
         "id": "83c8ba30-f2e9-4843-acaa-752c1faff5ca",
@@ -2526,7 +2794,8 @@
         "density": "1307",
         "weight": "23.5",
         "ecdu": "2.153967042",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "block hollowcore high density average strength 215 mm thickness 440 mm length 215 mm width.": {
         "id": "1604c63a-98aa-4b9d-8acc-6abb76816a82",
@@ -2535,7 +2804,8 @@
         "density": "1278",
         "weight": "26",
         "ecdu": "2.383112472",
-        "eckg": "0.0917"
+        "eckg": "0.0917",
+        "modules": "A1-A3"
       },
       "aac concrete block  average strength  100 mm thickness  440 mm length  215 mm width.": {
         "id": "fffa2f55-81e2-494b-997a-7235072aae69",
@@ -2544,7 +2814,8 @@
         "density": "600",
         "weight": "5.676",
         "ecdu": "1.58928",
-        "eckg": "0.28"
+        "eckg": "0.28",
+        "modules": "A1-A3"
       },
       "aac concrete block  average strength  140 mm thickness  440 mm length  215 mm width.": {
         "id": "6e111bfb-2567-468b-88e2-895f0386fc6b",
@@ -2553,7 +2824,8 @@
         "density": "600",
         "weight": "7.9464",
         "ecdu": "2.224992",
-        "eckg": "0.28"
+        "eckg": "0.28",
+        "modules": "A1-A3"
       },
       "aac concrete block  average strength  150 mm thickness  440 mm length  215 mm width.": {
         "id": "bd78f952-5c11-47c1-9ef4-74740cfdfd4b",
@@ -2562,7 +2834,8 @@
         "density": "600",
         "weight": "8.514",
         "ecdu": "2.38392",
-        "eckg": "0.28"
+        "eckg": "0.28",
+        "modules": "A1-A3"
       },
       "aac concrete block  average strength  215 mm thickness  440 mm length  215 mm width.": {
         "id": "7cde6577-45c5-4d03-8510-d5110eb70200",
@@ -2571,7 +2844,8 @@
         "density": "600",
         "weight": "12.2034",
         "ecdu": "3.416952",
-        "eckg": "0.28"
+        "eckg": "0.28",
+        "modules": "A1-A3"
       },
       "75 mm thickness wall  single skin concrete block  solid  medium density  average strength  inc. mortar   not inc. construction waste": {
         "id": "5141b7f5-eb16-457a-9708-2433cc436b4a",
@@ -2580,7 +2854,8 @@
         "density": "1473",
         "weight": "110.5",
         "ecdu": "10.87963375",
-        "eckg": "0.0985"
+        "eckg": "0.0985",
+        "modules": "A1-A3"
       },
       "90 mm thickness wall  single skin concrete block  solid  medium density  average strength  inc. mortar   not inc. construction waste": {
         "id": "96e9af4b-42c9-46a8-a756-f15a2099a84a",
@@ -2589,7 +2864,8 @@
         "density": "1418",
         "weight": "127.6",
         "ecdu": "12.59726963",
-        "eckg": "0.0987"
+        "eckg": "0.0987",
+        "modules": "A1-A3"
       },
       "100 mm thickness wall  single skin concrete block  solid  medium density  average strength  inc. mortar   not inc. construction waste": {
         "id": "22f8873f-1240-46a5-8379-2e3f79101b6a",
@@ -2598,7 +2874,8 @@
         "density": "1520",
         "weight": "152",
         "ecdu": "14.93391646",
-        "eckg": "0.0982"
+        "eckg": "0.0982",
+        "modules": "A1-A3"
       },
       "140 mm thickness wall  single skin concrete block  solid  medium density  average strength  inc. mortar   not inc. construction waste": {
         "id": "8f221ed3-5e0c-4f5c-a038-280c3a74409b",
@@ -2607,7 +2884,8 @@
         "density": "1519",
         "weight": "212.6",
         "ecdu": "20.88915141",
-        "eckg": "0.0983"
+        "eckg": "0.0983",
+        "modules": "A1-A3"
       },
       "190 mm thickness wall  single skin concrete block  solid  medium density  average strength  inc. mortar   not inc. construction waste": {
         "id": "103cf5bf-54d2-4eaa-bf6e-605f160e8a9f",
@@ -2616,7 +2894,8 @@
         "density": "1429",
         "weight": "271.6",
         "ecdu": "26.79792072",
-        "eckg": "0.0987"
+        "eckg": "0.0987",
+        "modules": "A1-A3"
       },
       "75 mm thickness wall  single skin concrete block  solid  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "f45fec8f-f26b-4bd0-954b-2954a8589aa4",
@@ -2625,7 +2904,8 @@
         "density": "2047",
         "weight": "153.5",
         "ecdu": "14.82093514",
-        "eckg": "0.0966"
+        "eckg": "0.0966",
+        "modules": "A1-A3"
       },
       "90 mm thickness wall  single skin concrete block  solid  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "fa834191-07a2-427d-9e3b-f7fe6939cd7b",
@@ -2634,7 +2914,8 @@
         "density": "2051",
         "weight": "184.6",
         "ecdu": "17.82178544",
-        "eckg": "0.0965"
+        "eckg": "0.0965",
+        "modules": "A1-A3"
       },
       "100 mm thickness wall  single skin concrete block  solid  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "37da3732-82a2-4e71-8e6d-3842e99103f0",
@@ -2643,7 +2924,8 @@
         "density": "2020",
         "weight": "202",
         "ecdu": "19.51682506",
-        "eckg": "0.0966"
+        "eckg": "0.0966",
+        "modules": "A1-A3"
       },
       "140 mm thickness wall  single skin concrete block  solid  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "10ea0ce4-ee88-42f2-9666-0f64d0d2a243",
@@ -2652,7 +2934,8 @@
         "density": "2040",
         "weight": "285.6",
         "ecdu": "27.58019797",
-        "eckg": "0.0966"
+        "eckg": "0.0966",
+        "modules": "A1-A3"
       },
       "190 mm thickness wall  single skin concrete block  solid  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "f7b46100-f48a-4167-ba6c-d256d2a8baca",
@@ -2661,7 +2944,8 @@
         "density": "2032",
         "weight": "386.1",
         "ecdu": "37.29278141",
-        "eckg": "0.0966"
+        "eckg": "0.0966",
+        "modules": "A1-A3"
       },
       "215 mm thickness wall  single skin concrete block  solid  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "b4ce8742-9e2b-468f-9749-78a4b913bd05",
@@ -2670,7 +2954,8 @@
         "density": "2024",
         "weight": "435.1",
         "ecdu": "42.03450042",
-        "eckg": "0.0966"
+        "eckg": "0.0966",
+        "modules": "A1-A3"
       },
       "100 mm thickness wall  single skin concrete block  cellular  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "692b6668-2304-48bc-bb20-f1269f5add7f",
@@ -2679,7 +2964,8 @@
         "density": "1620",
         "weight": "162",
         "ecdu": "15.85049818",
-        "eckg": "0.0978"
+        "eckg": "0.0978",
+        "modules": "A1-A3"
       },
       "140 mm thickness wall  single skin concrete block  cellular  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "2e1cebbb-3d44-415f-a303-c758a943cf47",
@@ -2688,7 +2974,8 @@
         "density": "1661",
         "weight": "232.6",
         "ecdu": "22.72231485",
-        "eckg": "0.0977"
+        "eckg": "0.0977",
+        "modules": "A1-A3"
       },
       "140 mm thickness wall  single skin concrete block  hollowcore  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "87b272c4-ec12-4ec9-9c20-7f9179e03bbe",
@@ -2697,7 +2984,8 @@
         "density": "1540",
         "weight": "215.6",
         "ecdu": "21.16412593",
-        "eckg": "0.0982"
+        "eckg": "0.0982",
+        "modules": "A1-A3"
       },
       "190 mm thickness wall  single skin concrete block  hollowcore  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "de0baf12-09bf-4f83-bd4f-9d9f4a95ff7d",
@@ -2706,7 +2994,8 @@
         "density": "1377",
         "weight": "261.6",
         "ecdu": "25.881339",
-        "eckg": "0.0989"
+        "eckg": "0.0989",
+        "modules": "A1-A3"
       },
       "215 mm thickness wall  single skin concrete block  hollowcore  high density  average strength  inc. mortar   not inc. construction waste": {
         "id": "f4d27041-43a2-4765-a106-438ed3140d4b",
@@ -2715,7 +3004,8 @@
         "density": "1349",
         "weight": "290.1",
         "ecdu": "28.74406548",
-        "eckg": "0.0991"
+        "eckg": "0.0991",
+        "modules": "A1-A3"
       },
       "100 mm thickness wall  single skin aac concrete block  average strength  inc. mortar   not inc. construction waste": {
         "id": "ed389f01-5e1c-4518-8f10-950c0d9a1543",
@@ -2724,7 +3014,8 @@
         "density": "708",
         "weight": "70.76",
         "ecdu": "18.17788873",
-        "eckg": "0.2569"
+        "eckg": "0.2569",
+        "modules": "A1-A3"
       },
       "140 mm thickness wall  single skin aac concrete block  average strength  inc. mortar   not inc. construction waste": {
         "id": "fd6ec79e-5124-4da4-81fd-c79f890bdfd3",
@@ -2733,7 +3024,8 @@
         "density": "708",
         "weight": "99.064",
         "ecdu": "25.44904422",
-        "eckg": "0.2569"
+        "eckg": "0.2569",
+        "modules": "A1-A3"
       },
       "150 mm thickness wall  single skin aac concrete block  average strength  inc. mortar   not inc. construction waste": {
         "id": "65770646-045c-49ac-b663-e90390a73a15",
@@ -2742,7 +3034,8 @@
         "density": "708",
         "weight": "106.14",
         "ecdu": "27.26683309",
-        "eckg": "0.2569"
+        "eckg": "0.2569",
+        "modules": "A1-A3"
       },
       "215 mm thickness wall  single skin aac concrete block  average strength  inc. mortar   not inc. construction waste": {
         "id": "ef6ab2df-83e5-45be-bcbd-f62852da551d",
@@ -2751,11 +3044,12 @@
         "density": "708",
         "weight": "152.134",
         "ecdu": "39.08246077",
-        "eckg": "0.2569"
+        "eckg": "0.2569",
+        "modules": "A1-A3"
       }
     }
   },
-  "Glass": {
+  "glass": {
     "general": {
       "single pane  per mm glass  1 mm of glass  ex frame": {
         "id": "759ba3f5-8e73-40b8-9e12-5a7a26d2a572",
@@ -2764,7 +3058,8 @@
         "density": "2500",
         "weight": "2.5",
         "ecdu": "3.592",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  3 mm of glass  ex frame": {
         "id": "3b191c04-f8d2-4313-bf3f-3c705e6d341c",
@@ -2773,7 +3068,8 @@
         "density": "2500",
         "weight": "7.5",
         "ecdu": "10.777",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  4 mm of glass  ex frame": {
         "id": "8af7a8de-48ae-4185-913e-c631a4fd2d46",
@@ -2782,7 +3078,8 @@
         "density": "2500",
         "weight": "10",
         "ecdu": "14.37",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  5 mm of glass  ex frame": {
         "id": "5ba4c578-48c4-42ba-892b-cceda1c601ed",
@@ -2791,7 +3088,8 @@
         "density": "2500",
         "weight": "12.5",
         "ecdu": "17.962",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  6 mm of glass  ex frame": {
         "id": "edd4da91-3e88-43b9-a271-40f849f7d921",
@@ -2800,7 +3098,8 @@
         "density": "2500",
         "weight": "15",
         "ecdu": "21.555",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  7 mm of glass  ex frame": {
         "id": "c78f9af8-1c50-435c-8853-9b5d073aa2cc",
@@ -2809,7 +3108,8 @@
         "density": "2500",
         "weight": "17.5",
         "ecdu": "25.147",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  8 mm of glass  ex frame": {
         "id": "be42eb31-1fbf-4b06-8baf-b85168feba7d",
@@ -2818,7 +3118,8 @@
         "density": "2500",
         "weight": "20",
         "ecdu": "28.739",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  10 mm of glass  ex frame": {
         "id": "ac639324-1492-4707-9483-f2a68586cb09",
@@ -2827,7 +3128,8 @@
         "density": "2500",
         "weight": "25",
         "ecdu": "35.924",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "single pane  12 mm of glass  ex frame": {
         "id": "75a26ff4-8d05-4653-81e8-02cc7621e093",
@@ -2836,7 +3138,8 @@
         "density": "2500",
         "weight": "30",
         "ecdu": "43.109",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       },
       "general per kg": {
         "id": "2e7ea6bd-df37-43ad-9062-2b8847c41de3",
@@ -2845,7 +3148,8 @@
         "density": "2500",
         "weight": "1",
         "ecdu": "1.437",
-        "eckg": "1.437"
+        "eckg": "1.437",
+        "modules": "A1-A3"
       }
     },
     "glazing double": {
@@ -2856,7 +3160,8 @@
         "density": "2500",
         "weight": "2.5",
         "ecdu": "4.064",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "double glazed unit  8 mm of glass  ex cavity and ex frame": {
         "id": "4badda00-77cd-4451-a035-e43380a16cc0",
@@ -2865,7 +3170,8 @@
         "density": "2500",
         "weight": "20",
         "ecdu": "32.512",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "double glazed unit  10 mm of glass  ex cavity and ex frame": {
         "id": "f4dc32ac-3a85-4181-9553-58d5fac12c84",
@@ -2874,7 +3180,8 @@
         "density": "2500",
         "weight": "25",
         "ecdu": "40.64",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "double glazed unit  12 mm of glass  ex cavity and ex frame": {
         "id": "47650475-2b37-473a-ba76-12457d4fb817",
@@ -2883,7 +3190,8 @@
         "density": "2500",
         "weight": "30",
         "ecdu": "48.768",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "double glazed unit  14 mm of glass  ex cavity and ex frame": {
         "id": "e318f8df-e995-4bd6-8e17-2b3c523bbfa8",
@@ -2892,7 +3200,8 @@
         "density": "2500",
         "weight": "35",
         "ecdu": "56.896",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "double glazed unit  16 mm of glass  ex cavity and ex frame": {
         "id": "1498ba7b-66f4-487e-98ab-cc080fc308b2",
@@ -2901,7 +3210,8 @@
         "density": "2500",
         "weight": "40",
         "ecdu": "65.024",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "double glazed unit  20 mm of glass  ex cavity and ex frame": {
         "id": "3209708a-a323-4352-89c4-2d349de646e6",
@@ -2910,7 +3220,8 @@
         "density": "2500",
         "weight": "50",
         "ecdu": "81.28",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       },
       "glazing double per kg": {
         "id": "973d41f7-a912-4352-8cd5-e1c9c640e68a",
@@ -2919,7 +3230,8 @@
         "density": "2500",
         "weight": "1",
         "ecdu": "1.626",
-        "eckg": "1.6256"
+        "eckg": "1.6256",
+        "modules": "A1-A3"
       }
     },
     "glazing triple": {
@@ -2930,7 +3242,8 @@
         "density": "2500",
         "weight": "2.5",
         "ecdu": "4.367",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       },
       "triple glazed unit  12 mm of glass  ex cavity and ex frame": {
         "id": "dd8bf0a5-424b-4b6c-a787-e9da59b33802",
@@ -2939,7 +3252,8 @@
         "density": "2500",
         "weight": "30",
         "ecdu": "52.41",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       },
       "triple glazed unit  15 mm of glass  ex cavity and ex frame": {
         "id": "44c11073-49fe-4dd2-a1ed-547579d3e003",
@@ -2948,7 +3262,8 @@
         "density": "2500",
         "weight": "37.5",
         "ecdu": "65.512",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       },
       "triple glazed unit  18 mm of glass  ex cavity and ex frame": {
         "id": "b22818b7-0186-4054-97fb-850e62924e9c",
@@ -2957,7 +3272,8 @@
         "density": "2500",
         "weight": "45",
         "ecdu": "78.615",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       },
       "triple glazed unit  20 mm of glass  ex cavity and ex frame": {
         "id": "66907ea0-30dc-43e8-9003-59c4a9d0b1bc",
@@ -2966,7 +3282,8 @@
         "density": "2500",
         "weight": "50",
         "ecdu": "87.35",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       },
       "triple glazed unit  24 mm of glass  ex cavity and ex frame": {
         "id": "8e7ce657-4494-403d-a7f2-a6fd1e4a5f2a",
@@ -2975,7 +3292,8 @@
         "density": "2500",
         "weight": "60",
         "ecdu": "104.819",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       },
       "glazing triple per kg": {
         "id": "91acbd6c-621c-441e-81a0-259a11df1829",
@@ -2984,7 +3302,8 @@
         "density": "2500",
         "weight": "1",
         "ecdu": "1.747",
-        "eckg": "1.747"
+        "eckg": "1.747",
+        "modules": "A1-A3"
       }
     },
     "multi layer safety filled core fire resistant toughened": {
@@ -2995,7 +3314,8 @@
         "density": "2500",
         "weight": "2.5",
         "ecdu": "5.204",
-        "eckg": "2.0818"
+        "eckg": "2.0818",
+        "modules": "A1-A3"
       },
       "multi layer safety  filled core  fire resistant  toughened  10 mm of glass  ex frame": {
         "id": "c7817997-9879-4218-99ad-a5a2e9282a46",
@@ -3004,7 +3324,8 @@
         "density": "2500",
         "weight": "25",
         "ecdu": "52.045",
-        "eckg": "2.0818"
+        "eckg": "2.0818",
+        "modules": "A1-A3"
       },
       "multi layer safety  filled core  fire resistant  toughened  12 mm of glass  ex frame": {
         "id": "d0ad3c71-1468-4942-8f01-ed21c20126ae",
@@ -3013,7 +3334,8 @@
         "density": "2500",
         "weight": "30",
         "ecdu": "62.454",
-        "eckg": "2.0818"
+        "eckg": "2.0818",
+        "modules": "A1-A3"
       },
       "multi layer safety  filled core  fire resistant  toughened  14 mm of glass  ex frame": {
         "id": "2e8878e1-1377-4fc6-8e73-afc11a79f327",
@@ -3022,7 +3344,8 @@
         "density": "2500",
         "weight": "35",
         "ecdu": "72.863",
-        "eckg": "2.0818"
+        "eckg": "2.0818",
+        "modules": "A1-A3"
       },
       "multi layer safety filled core fire resistant toughened per kg": {
         "id": "d54ddc62-96d2-4dc1-83d2-5619c7c1f8af",
@@ -3031,7 +3354,8 @@
         "density": "2500",
         "weight": "",
         "ecdu": "2.082",
-        "eckg": "#div/0!"
+        "eckg": "#div/0!",
+        "modules": "A1-A3"
       }
     },
     "multi layer safety unfilled": {
@@ -3042,7 +3366,8 @@
         "density": "2500",
         "weight": "40",
         "ecdu": "83.272",
-        "eckg": "2.0818"
+        "eckg": "2.0818",
+        "modules": "A1-A3"
       },
       "multi layer safety  per mm glass  1 mm of glass  ex frame": {
         "id": "af564eae-74be-46fd-88c3-ef69120b3e1c",
@@ -3051,7 +3376,8 @@
         "density": "2500",
         "weight": "2.5",
         "ecdu": "3.889",
-        "eckg": "1.5555"
+        "eckg": "1.5555",
+        "modules": "A1-A3"
       },
       "multi layer safety  8 mm of glass  ex frame": {
         "id": "2fa5bd1c-d99a-46af-a7f7-3cb06bdfa821",
@@ -3060,7 +3386,8 @@
         "density": "2500",
         "weight": "20",
         "ecdu": "31.11",
-        "eckg": "1.5555"
+        "eckg": "1.5555",
+        "modules": "A1-A3"
       },
       "multi layer safety  10 mm of glass  ex frame": {
         "id": "db7962e1-3d45-4acc-b4b2-795fc6e49407",
@@ -3069,7 +3396,8 @@
         "density": "2500",
         "weight": "25",
         "ecdu": "38.888",
-        "eckg": "1.5555"
+        "eckg": "1.5555",
+        "modules": "A1-A3"
       },
       "multi layer safety  12 mm of glass  ex frame": {
         "id": "5423fbe0-fc73-4093-b7d0-389f07daafd8",
@@ -3078,7 +3406,8 @@
         "density": "2500",
         "weight": "30",
         "ecdu": "46.665",
-        "eckg": "1.5555"
+        "eckg": "1.5555",
+        "modules": "A1-A3"
       },
       "multi layer safety unfilled per kg": {
         "id": "fe923f18-7def-4598-8dc1-c8907e55e0f7",
@@ -3087,7 +3416,8 @@
         "density": "2500",
         "weight": "",
         "ecdu": "1.556",
-        "eckg": "#div/0!"
+        "eckg": "#div/0!",
+        "modules": "A1-A3"
       }
     },
     "toughened": {
@@ -3098,7 +3428,8 @@
         "density": "2500",
         "weight": "40",
         "ecdu": "62.221",
-        "eckg": "1.5555"
+        "eckg": "1.5555",
+        "modules": "A1-A3"
       },
       "toughened  per mm glass  1 mm of glass  ex frame": {
         "id": "cb6f90c3-f348-4d85-8f74-a5b0a5e72743",
@@ -3107,7 +3438,8 @@
         "density": "2500",
         "weight": "2.5",
         "ecdu": "4.168",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  2 mm of glass  ex frame": {
         "id": "85c6b8b0-fb0f-4c81-b797-1ca78d96a1d6",
@@ -3116,7 +3448,8 @@
         "density": "2500",
         "weight": "5",
         "ecdu": "8.336",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  3 mm of glass  ex frame": {
         "id": "877045e2-d204-439c-b6ca-88b223914abe",
@@ -3125,7 +3458,8 @@
         "density": "2500",
         "weight": "7.5",
         "ecdu": "12.504",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  4 mm of glass  ex frame": {
         "id": "43e83b93-50fd-4394-a247-362e2d7f57b0",
@@ -3134,7 +3468,8 @@
         "density": "2500",
         "weight": "10",
         "ecdu": "16.672",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  5 mm of glass  ex frame": {
         "id": "b5a820e2-060f-4a12-9a63-b465a30c7a5d",
@@ -3143,7 +3478,8 @@
         "density": "2500",
         "weight": "12.5",
         "ecdu": "20.84",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  6 mm of glass  ex frame": {
         "id": "0d261764-b1c2-494f-affb-4751ad884e85",
@@ -3152,7 +3488,8 @@
         "density": "2500",
         "weight": "15",
         "ecdu": "25.008",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  8 mm of glass  ex frame": {
         "id": "69fbea76-aa07-4cfd-9099-2d503ae502fc",
@@ -3161,7 +3498,8 @@
         "density": "2500",
         "weight": "20",
         "ecdu": "33.345",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  10 mm of glass  ex frame": {
         "id": "b7644946-e96b-426a-b2a8-f8f95b6d8dd5",
@@ -3170,7 +3508,8 @@
         "density": "2500",
         "weight": "25",
         "ecdu": "41.681",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened  12 mm of glass  ex frame": {
         "id": "94098dff-fad7-4380-921a-006a28f7316a",
@@ -3179,7 +3518,8 @@
         "density": "2500",
         "weight": "30",
         "ecdu": "50.017",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "toughened per kg": {
         "id": "6dd32533-4802-40a7-844e-b5af00751b5b",
@@ -3188,7 +3528,8 @@
         "density": "2500",
         "weight": "",
         "ecdu": "1.667",
-        "eckg": "#div/0!"
+        "eckg": "#div/0!",
+        "modules": "A1-A3"
       }
     },
     "sky light or roof with frame": {
@@ -3199,7 +3540,8 @@
         "density": "2500",
         "weight": "37.5",
         "ecdu": "62.521",
-        "eckg": "1.6672"
+        "eckg": "1.6672",
+        "modules": "A1-A3"
       },
       "roof or skylight  inc frame": {
         "id": "48d3263f-c8c7-4cb0-a6fd-a0f260546663",
@@ -3208,7 +3550,8 @@
         "density": "2500",
         "weight": "86.4",
         "ecdu": "268",
-        "eckg": "3.1019"
+        "eckg": "3.1019",
+        "modules": "A1-A3"
       },
       "sky light or roof with frame per kg": {
         "id": "06b06b38-b5d7-4d45-b5ab-c53a4caa026d",
@@ -3217,11 +3560,12 @@
         "density": "2500",
         "weight": "",
         "ecdu": "3.102",
-        "eckg": "#div/0!"
+        "eckg": "#div/0!",
+        "modules": "A1-A3"
       }
     }
   },
-  "Steel": {
+  "steel": {
     "pipe": {
       "uo pipe": {
         "id": "2332f463-c8c4-4dad-b84f-83878528b1e9",
@@ -3230,7 +3574,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "3.02",
-        "eckg": "3.02"
+        "eckg": "3.02",
+        "modules": "A1-A3"
       },
       "welded pipe": {
         "id": "97ec0d4a-674e-4f90-bde8-933f953e5289",
@@ -3239,7 +3584,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.78",
-        "eckg": "2.78"
+        "eckg": "2.78",
+        "modules": "A1-A3"
       },
       "global seamless tube": {
         "id": "49ed1ca7-35e7-449c-ad42-3044c97f6bce",
@@ -3248,7 +3594,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.13",
-        "eckg": "2.13"
+        "eckg": "2.13",
+        "modules": "A1-A3"
       }
     },
     "sheet": {
@@ -3259,7 +3606,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.89",
-        "eckg": "2.89"
+        "eckg": "2.89",
+        "modules": "A1-A3"
       },
       "organic coated sheet": {
         "id": "e290682a-8d5b-4c46-acee-665b1ac7b393",
@@ -3268,7 +3616,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "3.06",
-        "eckg": "3.06"
+        "eckg": "3.06",
+        "modules": "A1-A3"
       },
       "rolled coil": {
         "id": "2f3e6b06-88a8-487d-b8ee-df5e913ba45d",
@@ -3277,7 +3626,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.73",
-        "eckg": "2.73"
+        "eckg": "2.73",
+        "modules": "A1-A3"
       },
       "cold rolled coil": {
         "id": "474c02b9-eaab-401e-a6ac-67addefba723",
@@ -3286,7 +3636,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.53",
-        "eckg": "2.53"
+        "eckg": "2.53",
+        "modules": "A1-A3"
       },
       "hot rolled coil": {
         "id": "43b7258b-a013-43a9-be29-28a1fce95fbf",
@@ -3295,7 +3646,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.28",
-        "eckg": "2.28"
+        "eckg": "2.28",
+        "modules": "A1-A3"
       }
     },
     "sheet galvanised": {
@@ -3306,7 +3658,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "3.03",
-        "eckg": "3.03"
+        "eckg": "3.03",
+        "modules": "A1-A3"
       },
       "dip galvanized steel": {
         "id": "96893a53-5849-493e-9de9-2248f3b510b4",
@@ -3315,7 +3668,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.76",
-        "eckg": "2.76"
+        "eckg": "2.76",
+        "modules": "A1-A3"
       }
     },
     "plate": {
@@ -3326,7 +3680,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.85",
-        "eckg": "2.85"
+        "eckg": "2.85",
+        "modules": "A1-A3"
       },
       "plate": {
         "id": "066e8bba-7cca-409e-a40c-32896173d18c",
@@ -3335,7 +3690,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.46",
-        "eckg": "2.46"
+        "eckg": "2.46",
+        "modules": "A1-A3"
       }
     },
     "wire": {
@@ -3346,7 +3702,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "2.27",
-        "eckg": "2.27"
+        "eckg": "2.27",
+        "modules": "A1-A3"
       }
     },
     "bar and rod": {
@@ -3357,7 +3714,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "1.99",
-        "eckg": "1.99"
+        "eckg": "1.99",
+        "modules": "A1-A3"
       },
       "rebar recycled europe eaf mid range": {
         "id": "0f0c28e0-5e47-466e-9bb2-a5b9fd7cd2db",
@@ -3366,7 +3724,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "0.73",
-        "eckg": "0.73"
+        "eckg": "0.73",
+        "modules": "A1-A3"
       }
     },
     "section": {
@@ -3377,7 +3736,8 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "1.55",
-        "eckg": "1.55"
+        "eckg": "1.55",
+        "modules": "A1-A3"
       }
     },
     "engineering": {
@@ -3388,11 +3748,12 @@
         "density": "7850",
         "weight": "1",
         "ecdu": "1.27",
-        "eckg": "1.27"
+        "eckg": "1.27",
+        "modules": "A1-A3"
       }
     }
   },
-  "Timber": {
+  "timber": {
     "general": {
       "average of all data ": {
         "id": "8aa6883b-aa36-49b3-88b9-94b597a45d23",
@@ -3401,7 +3762,8 @@
         "density": "623.5850835",
         "weight": "1",
         "ecdu": "0.49",
-        "eckg": "0.4928"
+        "eckg": "0.4928",
+        "modules": "A1-A3"
       }
     },
     "chipboard": {
@@ -3412,7 +3774,8 @@
         "density": "590.0166667",
         "weight": "1",
         "ecdu": "0.4",
-        "eckg": "0.4002"
+        "eckg": "0.4002",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "483c27b3-5d1f-4ddc-a60e-41e574c9930c",
@@ -3421,7 +3784,8 @@
         "density": "590.0166667",
         "weight": "1",
         "ecdu": "-1.12",
-        "eckg": "-1.1207"
+        "eckg": "-1.1207",
+        "modules": "A1-A3"
       }
     },
     "closed panel timber frame system": {
@@ -3432,7 +3796,8 @@
         "density": "unknown",
         "weight": "1",
         "ecdu": "0.45",
-        "eckg": "0.4525"
+        "eckg": "0.4525",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "4699961b-161d-48f8-a510-c8159b16e4e6",
@@ -3441,7 +3806,8 @@
         "density": "0",
         "weight": "1",
         "ecdu": "-1.1",
-        "eckg": "-1.1016"
+        "eckg": "-1.1016",
+        "modules": "A1-A3"
       }
     },
     "clt": {
@@ -3452,7 +3818,8 @@
         "density": "506.5",
         "weight": "1",
         "ecdu": "0.44",
-        "eckg": "0.4373"
+        "eckg": "0.4373",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "18a0ee24-1439-470b-b5b8-dd0c1d2fa6b0",
@@ -3461,7 +3828,8 @@
         "density": "506.5",
         "weight": "1",
         "ecdu": "-1.2",
-        "eckg": "-1.2041"
+        "eckg": "-1.2041",
+        "modules": "A1-A3"
       }
     },
     "fibreboard": {
@@ -3472,7 +3840,8 @@
         "density": "600.0074141",
         "weight": "1",
         "ecdu": "0.72",
-        "eckg": "0.7153"
+        "eckg": "0.7153",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "97ea485b-2715-4f20-9740-f92473875b45",
@@ -3481,7 +3850,8 @@
         "density": "600.0074141",
         "weight": "1",
         "ecdu": "-0.86",
-        "eckg": "-0.8632"
+        "eckg": "-0.8632",
+        "modules": "A1-A3"
       }
     },
     "glulam": {
@@ -3492,7 +3862,8 @@
         "density": "633.7085254",
         "weight": "1",
         "ecdu": "0.51",
-        "eckg": "0.5121"
+        "eckg": "0.5121",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "5169ef38-8983-4081-81a9-67718bbff035",
@@ -3501,7 +3872,8 @@
         "density": "633.7085254",
         "weight": "1",
         "ecdu": "-0.9",
-        "eckg": "-0.8957"
+        "eckg": "-0.8957",
+        "modules": "A1-A3"
       }
     },
     "hardboard": {
@@ -3512,7 +3884,8 @@
         "density": "807.7056",
         "weight": "1",
         "ecdu": "0.82",
-        "eckg": "0.8152"
+        "eckg": "0.8152",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "3e4d88c2-22d9-4c5a-add3-a662ba836036",
@@ -3521,7 +3894,8 @@
         "density": "807.7056",
         "weight": "1",
         "ecdu": "-0.82",
-        "eckg": "-0.824"
+        "eckg": "-0.824",
+        "modules": "A1-A3"
       }
     },
     "hardwood": {
@@ -3532,7 +3906,8 @@
         "density": "742.1111111",
         "weight": "1",
         "ecdu": "0.31",
-        "eckg": "0.3056"
+        "eckg": "0.3056",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "d3684610-e258-4426-a5c2-e8e142ac0130",
@@ -3541,7 +3916,8 @@
         "density": "742.1111111",
         "weight": "1",
         "ecdu": "-1.29",
-        "eckg": "-1.286"
+        "eckg": "-1.286",
+        "modules": "A1-A3"
       }
     },
     "laminate": {
@@ -3552,7 +3928,8 @@
         "density": "622.5",
         "weight": "1",
         "ecdu": "0.7",
-        "eckg": "0.6978"
+        "eckg": "0.6978",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "5bddda4c-ea46-4bea-862f-2ff7ea6632dd",
@@ -3561,7 +3938,8 @@
         "density": "622.5",
         "weight": "1",
         "ecdu": "-0.58",
-        "eckg": "-0.5804"
+        "eckg": "-0.5804",
+        "modules": "A1-A3"
       }
     },
     "laminated strand lumber": {
@@ -3572,7 +3950,8 @@
         "density": "615.5382345",
         "weight": "1",
         "ecdu": "0.5",
-        "eckg": "0.5041"
+        "eckg": "0.5041",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "562d915b-93e7-4538-98b3-22c45041b17b",
@@ -3581,7 +3960,8 @@
         "density": "615.5382345",
         "weight": "1",
         "ecdu": "-1.08",
-        "eckg": "-1.0841"
+        "eckg": "-1.0841",
+        "modules": "A1-A3"
       }
     },
     "laminated veneer lumber": {
@@ -3592,7 +3972,8 @@
         "density": "525.9209973",
         "weight": "1",
         "ecdu": "0.39",
-        "eckg": "0.3898"
+        "eckg": "0.3898",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "2cde6aba-a4be-485e-9406-a10570b86e00",
@@ -3601,7 +3982,8 @@
         "density": "525.9209973",
         "weight": "1",
         "ecdu": "-1.25",
-        "eckg": "-1.2466"
+        "eckg": "-1.2466",
+        "modules": "A1-A3"
       }
     },
     "mdf": {
@@ -3612,7 +3994,8 @@
         "density": "756.0599557",
         "weight": "1",
         "ecdu": "0.86",
-        "eckg": "0.8565"
+        "eckg": "0.8565",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "5f9fbf7e-3afe-4508-b1c3-4f4f8f1ecdeb",
@@ -3621,7 +4004,8 @@
         "density": "756.0599557",
         "weight": "1",
         "ecdu": "-0.64",
-        "eckg": "-0.6437"
+        "eckg": "-0.6437",
+        "modules": "A1-A3"
       }
     },
     "open panel timber frame system": {
@@ -3632,7 +4016,8 @@
         "density": "unknown",
         "weight": "1",
         "ecdu": "0.35",
-        "eckg": "0.3452"
+        "eckg": "0.3452",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "260b601f-dae9-40e4-9224-8cdbc7a6f12a",
@@ -3641,7 +4026,8 @@
         "density": "unknown",
         "weight": "1",
         "ecdu": "-1.27",
-        "eckg": "-1.269"
+        "eckg": "-1.269",
+        "modules": "A1-A3"
       }
     },
     "osb": {
@@ -3652,7 +4038,8 @@
         "density": "603.1255931",
         "weight": "1",
         "ecdu": "0.46",
-        "eckg": "0.4551"
+        "eckg": "0.4551",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "251f02b9-c7cb-40af-9a9a-e6bd700277b7",
@@ -3661,7 +4048,8 @@
         "density": "603.1255931",
         "weight": "1",
         "ecdu": "-1.05",
-        "eckg": "-1.0473"
+        "eckg": "-1.0473",
+        "modules": "A1-A3"
       }
     },
     "parquet": {
@@ -3672,7 +4060,8 @@
         "density": "599.5025",
         "weight": "1",
         "ecdu": "0.81",
-        "eckg": "0.8112"
+        "eckg": "0.8112",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "6eb1facb-2390-43ac-a418-f78d3f3e57df",
@@ -3681,7 +4070,8 @@
         "density": "599.5025",
         "weight": "1",
         "ecdu": "-0.81",
-        "eckg": "-0.813"
+        "eckg": "-0.813",
+        "modules": "A1-A3"
       }
     },
     "particle board": {
@@ -3692,7 +4082,8 @@
         "density": "686.8461538",
         "weight": "1",
         "ecdu": "0.66",
-        "eckg": "0.6643"
+        "eckg": "0.6643",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "6cecc9f8-ee3c-463b-84e1-7ddfd1ff9350",
@@ -3701,7 +4092,8 @@
         "density": "686.8461538",
         "weight": "1",
         "ecdu": "-0.81",
-        "eckg": "-0.815"
+        "eckg": "-0.815",
+        "modules": "A1-A3"
       }
     },
     "plywood": {
@@ -3712,7 +4104,8 @@
         "density": "507.5017987",
         "weight": "1",
         "ecdu": "0.68",
-        "eckg": "0.6815"
+        "eckg": "0.6815",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "af10b61e-65e9-477e-a8ac-1ed0291d5058",
@@ -3721,7 +4114,8 @@
         "density": "507.5017987",
         "weight": "1",
         "ecdu": "-0.93",
-        "eckg": "-0.9331"
+        "eckg": "-0.9331",
+        "modules": "A1-A3"
       }
     },
     "softwood": {
@@ -3732,7 +4126,8 @@
         "density": "538.2864258",
         "weight": "1",
         "ecdu": "0.26",
-        "eckg": "0.2626"
+        "eckg": "0.2626",
+        "modules": "A1-A3"
       },
       "including carbon storage": {
         "id": "94bbaccb-a57a-4de5-b4b7-dcecca73675c",
@@ -3741,7 +4136,8 @@
         "density": "538.2864258",
         "weight": "1",
         "ecdu": "-1.29",
-        "eckg": "-1.2919"
+        "eckg": "-1.2919",
+        "modules": "A1-A3"
       }
     },
     "wood i-beam": {
@@ -3752,7 +4148,8 @@
         "density": "unknown",
         "weight": "1",
         "ecdu": "0.48",
-        "eckg": "0.4833"
+        "eckg": "0.4833",
+        "modules": "A1-A3"
       }
     },
     "wood-plastic composite": {
@@ -3763,19 +4160,8 @@
         "density": "825",
         "weight": "1",
         "ecdu": "1.44",
-        "eckg": "1.44"
-      }
-    }
-  },
-  "Insulation": {
-    "Aerogel": {
-      "Spaceloft Aerogel Insulation": {
-        "id": "Spaceloft Aerogel Insulation EPD",
-        "quantity": "m3",
-        "density": "150.0000",
-        "weight": "15.0000",
-        "ecdu": "12.5000",
-        "eckg": "0.8333"
+        "eckg": "1.44",
+        "modules": "A1-A3"
       }
     }
   }

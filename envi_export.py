@@ -26,6 +26,16 @@ caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "Ada
 caodict = {"0": "", "1": "SimpleCombined", "2": "TARP", "3": "DOE-2", "4": "MoWiTT", "5": "AdaptiveConvectionAlgorithm"}
 
 
+def en_ec_export():
+    mat_eco2 = 0
+    for ob in bpy.data.objects:
+        for face in ob.polygons:
+            if ob.data.material_slots[face.material_index].material.envi_nodes:
+                for emnode in ob.data.material_slots[face.material_index].material.envi_nodes:
+                    if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
+                        mat_co2e += face.area * emnode['ecm2']
+
+
 def enpolymatexport(exp_op, node, locnode, em, ec):
     scene = bpy.context.scene
     svp = scene.vi_params
@@ -479,7 +489,7 @@ def pregeo(context, op):
                         get_con_node(oms[f.material_index].material.vi_params).envi_con_type != 'None']:
                     selobj(context.view_layer, ob)
 
-                    if ob.animation_data:
+                    if ob.animation_data and ob.animation_data.action:
                         scene.frame_set(int(ob.animation_data.action.frame_range[0]))
 
                     bm = bmesh.new()

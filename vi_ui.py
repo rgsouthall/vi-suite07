@@ -187,7 +187,6 @@ class VI_PT_3D(bpy.types.Panel):
 
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
-#                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
 
             if svp.vi_display:
                 newrow(layout, 'Display active', svp, 'vi_display')
@@ -265,53 +264,74 @@ class VI_PT_Mat(bpy.types.Panel):
                     if svp.get('flparams') and svp['flparams'].get('params'):
                         # if 'l' not in svp['flparams']['params']:
                         newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
+
                         if mvp.flovi_bmbnut_subtype == 'fixedValue':
                             newrow(layout, "Nut field:", mvp, "flovi_nut_field")
+
                             if not mvp.flovi_u_field:
                                 newrow(layout, "Nut value:", mvp, "flovi_bmbnut_val")
+
                         if 'k' in svp['flparams']['params']:
                             newrow(layout, "k type:", mvp, "flovi_k_subtype")
+
                             if mvp.flovi_k_subtype == 'fixedValue':
                                 newrow(layout, "K field:", mvp, "flovi_k_field")
+
                                 if not mvp.flovi_k_field:
                                     newrow(layout, "K value:", mvp, "flovi_k_val")
+
                             elif mvp.flovi_k_subtype == 'turbulentIntensityKineticEnergyInlet':
                                 newrow(layout, "K intensity:", mvp, "flovi_k_intensity")
                                 newrow(layout, "K field:", mvp, "flovi_k_field")
+
                                 if not mvp.flovi_k_field:
                                     newrow(layout, "K value:", mvp, "flovi_k_val")
                             newrow(layout, "Epsilon type:", mvp, "flovi_bmbe_subtype")
+
                             if mvp.flovi_bmbe_subtype == 'fixedValue':
                                 newrow(layout, "Epsilon field:", mvp, "flovi_e_field")
+
                                 if not mvp.flovi_e_field:
                                     newrow(layout, "Epsilon value:", mvp, "flovi_bmbe_val")
+
                         elif 'o' in svp['flparams']['params']:
                             newrow(layout, "k type:", mvp, "flovi_k_subtype")
+
                             if mvp.flovi_k_subtype == 'fixedValue':
                                 newrow(layout, "k field:", mvp, "flovi_k_field")
+
                                 if not mvp.flovi_k_field:
                                     newrow(layout, "k value:", mvp, "flovi_k_val")
+
                             newrow(layout, "Omega type:", mvp, "flovi_bmbo_subtype")
+
                             if mvp.flovi_bmbo_subtype == 'fixedValue':
                                 newrow(layout, "Omega field:", mvp, "flovi_o_field")
+
                                 if not mvp.flovi_o_field:
                                     newrow(layout, "Omega value:", mvp, "flovi_bmbo_val")
 
                         elif 's' in svp['flparams']['params']:
                             newrow(layout, "Nutilda type:", mvp, "flovi_bmbnutilda_subtype")
+
                             if mvp.flovi_bmbnutilda_subtype == 'fixedValue':
                                 newrow(layout, "Nutilda field:", mvp, "flovi_nutilda_field")
+
                                 if not mvp.flovi_nutilda_field:
                                     newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
 
                         if 't' in svp['flparams']['params']:
                             newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
+
                             if mvp.flovi_bmbt_subtype == 'fixedValue':
                                 newrow(layout, "T field:", mvp, "flovi_t_field")
+
                                 if not mvp.flovi_t_field:
                                     newrow(layout, "T value:", mvp, "flovi_bmbt_val")
+
                             elif mvp.flovi_bmbt_subtype == 'inletOutlet':
                                 newrow(layout, "T field:", mvp, "flovi_t_field")
+
                                 if not mvp.flovi_t_field:
                                     newrow(layout, "T inlet value:", mvp, "flovi_bmbti_val")
                                     newrow(layout, "T value:", mvp, "flovi_bmbt_val")
@@ -321,6 +341,7 @@ class VI_PT_Mat(bpy.types.Panel):
 
                             if mvp.flovi_prgh_subtype == 'totalPressure':
                                 newrow(layout, "p_rgh gamma:", mvp, "flovi_prgh_gamma")
+
                                 if not mvp.flovi_prgh_field:
                                     newrow(layout, "p0:", mvp, "flovi_prgh_p0")
                                     newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val")
@@ -331,11 +352,13 @@ class VI_PT_Mat(bpy.types.Panel):
 
                             if svp['flparams']['features']['buoy']:
                                 newrow(layout, "alphat type:", mvp, "flovi_a_subtype")
+
                             if svp['flparams']['features']['rad']:
                                 newrow(layout, "Rad type:", mvp, "flovi_rad_subtype")
                                 newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em")
                                 newrow(layout, "Emissivity value:", mvp, "flovi_rad_e")
                                 newrow(layout, "radiation value:", mvp, "flovi_rad_val")
+
                 newrow(layout, "Probe:", mvp, "flovi_probe")
 
 
@@ -381,14 +404,27 @@ class VI_PT_Ob(bpy.types.Panel):
                 if ovp.embodiedtype != 'Custom':
                     newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
                     newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
+                    newrow(layout, 'Lifespan:', ovp, 'ec_life')
 
-                    if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
+                    try:
+                        for ec in ovp['ecentries']:
+                            row = layout.row()
+                            row.label(text='{}: {}'.format(ec[0], ec[1]))
+
                         row = layout.row()
-                        row.operator("object.vi_embodied", text="Calc")
+                        row.label(text='ec/m3: {}'.format(ovp['ecm3']))
+
+                    except Exception as e:
+                        print(e)
+
+                    # if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
+                    #     row = layout.row()
+                    #     row.operator("object.vi_embodied", text="Calc")
                 else:
                     newrow(layout, "Embodied id:", ovp, "ec_id")
                     newrow(layout, "Embodied type:", ovp, "ec_type")
                     newrow(layout, "Embodied class:", ovp, "ec_class")
+                    newrow(layout, "Embodied modules:", ovp, "ec_mod")
                     newrow(layout, "Embodied name:", ovp, "ec_name")
                     newrow(layout, "Embodied unit:", ovp, "ec_unit")
 
@@ -399,8 +435,9 @@ class VI_PT_Ob(bpy.types.Panel):
                     newrow(layout, "Embodied density:", ovp, "ec_density")
                     newrow(layout, "Lifespan:", ovp, "ec_life")
 
-                    if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_kgco2e, ovp.ec_density)):
-                        pass
+                    if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_kgco2e, ovp.ec_density, ovp.ec_mod)):
+                        row = layout.row()
+                        row.operator("object.ec_save", text="Save")
 
         if (obj.type == 'LIGHT' and obj.data.type != 'SUN') or ovp.vi_type == '4':
             newrow(layout, 'IES file:', ovp, "ies_name")

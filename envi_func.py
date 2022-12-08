@@ -408,7 +408,7 @@ def enparametric(self, context):
             return [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
         else:
             return [("0", "Static", "Static results")]
-    except:
+    except Exception:
         return [("0", "Static", "Static results")]
 
 
@@ -429,6 +429,8 @@ def retrmenus(innode, node, axis, zrl):
 
     if not ztypes:
         ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone spatial' and zrl[0][m] == frame]))
+    if not ztypes:  # and node.parametricmenu == '1':
+        ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
 
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
     ztype = ztype if ztype else [('None', 'None', 'None')]
@@ -480,18 +482,18 @@ def retrmenus(innode, node, axis, zrl):
 #    valid = ['Vi Results']
     climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default=ctype[0][0]) if ctype else ''
     zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default=ztype[0][0]) if ztype else ''
-    zonermenu = bpy.props.EnumProperty(items=zrupdate, name="", description="Flow linkage result")  # if ztype else ''
-    linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default=ltype[0][0]) if ltype else ''
+    zonermenu = bpy.props.EnumProperty(items=zrupdate, name="", description="Zone result")  # if ztype else ''
+    linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage", default=ltype[0][0]) if ltype else ''
     linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default=lrtype[0][0]) if ltype else ''
-    enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default=entype[0][0]) if entype else ''
+    enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node", default=entype[0][0]) if entype else ''
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default=enrtype[0][0]) if entype else ''
-    posmenu = bpy.props.EnumProperty(items=ptype, name="", description="Position result", default=ptype[0][0]) if ptype else ''
+    posmenu = bpy.props.EnumProperty(items=ptype, name="", description="Position", default=ptype[0][0]) if ptype else ''
     posrmenu = bpy.props.EnumProperty(items=prtype, name="", description="Position result", default=prtype[0][0]) if ptypes else ''
-    cammenu = bpy.props.EnumProperty(items=camtype, name="", description="Camera result", default=camtype[0][0]) if camtype else ''
+    cammenu = bpy.props.EnumProperty(items=camtype, name="", description="Camera", default=camtype[0][0]) if camtype else ''
     camrmenu = bpy.props.EnumProperty(items=camrtype, name="", description="Camera result", default=camrtype[0][0]) if camtypes else ''
-    powmenu = bpy.props.EnumProperty(items=powtype, name="", description="Power result", default=powtype[0][0]) if powtype else ''
+    powmenu = bpy.props.EnumProperty(items=powtype, name="", description="Power", default=powtype[0][0]) if powtype else ''
     powrmenu = bpy.props.EnumProperty(items=powrtype, name="", description="Power result", default=powrtype[0][0]) if powrtype else ''
-    probemenu = bpy.props.EnumProperty(items=probetype, name="", description="Probe result", default=probetype[0][0]) if probetype else ''
+    probemenu = bpy.props.EnumProperty(items=probetype, name="", description="Probe", default=probetype[0][0]) if probetype else ''
     probermenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default=probertype[0][0]) if probertype else ''
     multmenu = bpy.props.FloatProperty(name="", description="Result multiplication factor", min=-10000, max=10000, default=1)
     return (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multmenu, statmenu)
@@ -538,10 +540,10 @@ def checkenvierrors(file, sim_op):
         sim_op.report({'ERROR'}, "There is a fatal error in the EnVi model, check the error file in Blender's text editor")
 
 
-def processf(pro_op, node):
+def processf(pro_op, node, con_node):
     scene = bpy.context.scene
     svp = scene.vi_params
-    reslists, areslists = [], []
+    reslists, areslists = con_node['reslists'], []
     frames = range(svp['enparams']['fs'], svp['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current]
 
     for frame in frames:
@@ -578,43 +580,6 @@ def processf(pro_op, node):
                 except Exception:
                     pass
 
-        #             if hdict[k][0] == 'Power' and hdict[k][2] == 'PV power (W)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in pow_dict:
-        #                     pow_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     pow_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV energy (J)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in en_dict:
-        #                     en_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     en_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in ef_dict:
-        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in ef_dict:
-        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #     for pd in pow_dict:
-        #         reslists.append([str(frame), 'Power', pd, 'Total power (W)', ' '.join([str(p) for p in pow_dict[pd]])])
-        #     for ed in en_dict:
-        #         reslists.append([str(frame), 'Power', ed, 'Total energy (J)', ' '.join([str(e) for e in en_dict[ed]])])
-        #     for ef in ef_dict:
-        #         fno = len([hd for hd in hdict if '_'.join(hdict[k][1].split('_')[:-1]) == ef and hdict[k][2] == 'PV efficiency (%)'])
-        #         reslists.append([str(frame), 'Power', ef, 'Average efficiency (%)', ' '.join([str(e) for e in ef_dict[ef]/fno])])
-        # print(pow_dict)
-
     rls = reslists
     zrls = list(zip(*rls))
 
@@ -630,6 +595,9 @@ def processf(pro_op, node):
 
     zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone temporal']
     zzonerls = list(zip(*zonerls))
+
+    # if ecs:
+    #     pass
 
     if len(frames) > 1:
         areslists = []
@@ -785,14 +753,15 @@ def zrupdate(self, context):
         rl = self.links[0].from_node['reslists']
         zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[1] == self.rtypemenu and zr[2] == self.zonemenu and zr[0] == self.framemenu] if self.node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == self.zonemenu and zr[0] == 'All']
         return zri
-    except:
+    except Exception as e:
+        print(e)
         return []
 
 
 def retmenu(dnode, axis, mtype):
     if mtype == 'Climate':
         return ['', dnode.inputs[axis].climmenu]
-    if mtype in ('Zone spatial', 'Zone temporal'):
+    if mtype in ('Zone spatial', 'Zone temporal', 'Embodied carbon'):
         return [dnode.inputs[axis].zonemenu, dnode.inputs[axis].zonermenu]
     elif mtype == 'Linkage':
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
@@ -812,25 +781,55 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].probemenu, dnode.inputs[axis].probermenu]
 
 
-def retdata(dnode, axis, mtype, resdict, frame):
-    if mtype == 'Climate':
-        return resdict[frame][mtype][dnode.inputs[axis].climmenu]
-    if mtype == ('Zone spatial', 'Zone temporal'):
-        return resdict[frame][mtype][dnode.inputs[axis].zonemenu][dnode.inputs[axis].zonermenu]
-    elif mtype == 'Linkage':
-        return resdict[frame][mtype][dnode.inputs[axis].linkmenu][dnode.inputs[axis].linkrmenu]
-    elif mtype == 'External':
-        return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
-    elif mtype == 'Chimney':
-        return resdict[frame][mtype][dnode.inputs[axis].chimmenu][dnode.inputs[axis].chimrmenu]
-    elif mtype == 'Position':
-        return resdict[frame][mtype][dnode.inputs[axis].posmenu][dnode.inputs[axis].posrmenu]
-    elif mtype == 'Camera':
-        return resdict[frame][mtype][dnode.inputs[axis].cammenu][dnode.inputs[axis].camrmenu]
-    elif mtype == 'Power':
-        return resdict[frame][mtype][dnode.inputs[axis].powmenu][dnode.inputs[axis].powrmenu]
-    elif mtype == 'Probe':
-        return resdict[frame][mtype][dnode.inputs[axis].probemenu][dnode.inputs[axis].probermenu]
+# def retdata(dnode, axis, mtype, resdict, frame):
+#     if mtype == 'Climate':
+#         return resdict[frame][mtype][dnode.inputs[axis].climmenu]
+#     if mtype == ('Zone spatial', 'Zone temporal', 'Embodied carbon'):
+#         return resdict[frame][mtype][dnode.inputs[axis].zonemenu][dnode.inputs[axis].zonermenu]
+#     elif mtype == 'Linkage':
+#         return resdict[frame][mtype][dnode.inputs[axis].linkmenu][dnode.inputs[axis].linkrmenu]
+#     elif mtype == 'External':
+#         return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
+#     elif mtype == 'Chimney':
+#         return resdict[frame][mtype][dnode.inputs[axis].chimmenu][dnode.inputs[axis].chimrmenu]
+#     elif mtype == 'Position':
+#         return resdict[frame][mtype][dnode.inputs[axis].posmenu][dnode.inputs[axis].posrmenu]
+#     elif mtype == 'Camera':
+#         return resdict[frame][mtype][dnode.inputs[axis].cammenu][dnode.inputs[axis].camrmenu]
+#     elif mtype == 'Power':
+#         return resdict[frame][mtype][dnode.inputs[axis].powmenu][dnode.inputs[axis].powrmenu]
+#     elif mtype == 'Probe':
+#         return resdict[frame][mtype][dnode.inputs[axis].probemenu][dnode.inputs[axis].probermenu]
+
+
+def write_ec(frame, coll, reslists):
+    ec_dict = {}
+    fa = coll.vi_params['enparams']['floorarea'][str(frame)]
+
+    for chil in coll.children:
+        for ob in chil.objects:
+            for mat in ob.data.materials:
+                con_node = get_con_node(mat.vi_params)
+
+                if mat not in ec_dict:
+                    ec_dict[mat] = {}
+                    ec_dict[mat]['area'] = 0
+                    ec_dict[mat]['ec'] = 0
+
+                for poly in ob.data.polygons:
+                    if ob.material_slots[poly.material_index].material == mat:
+                        ec_dict[mat]['area'] += poly.area
+                        ec_dict[mat]['ec'] += float(con_node.ret_ec()) * poly.area
+
+                reslists.append([str(frame), 'Embodied carbon', mat.name, 'Area (m2)', '{:.3f}'.format(ec_dict[mat]['area'])])
+                reslists.append([str(frame), 'Embodied carbon', mat.name, 'EC (kgCO2e)', '{:.3f}'.format(ec_dict[mat]['ec'])])
+                reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e)', '{:.3f}'.format(sum([ec_dict[k]['ec'] for k in ec_dict]))])
+
+                if fa:
+                    reslists.append([str(frame), 'Embodied carbon', mat.name, 'EC (kgCO2e/m2)', '{:.3f}'.format(ec_dict[mat]['ec']/fa)])
+                    reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e/m2)', '{:.3f}'.format(sum([ec_dict[k]['ec'] for k in ec_dict])/fa)])
+
+    return (reslists)
 
 
 # def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
@@ -842,3 +841,40 @@ def retdata(dnode, axis, mtype, resdict, frame):
 #     sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
 #     values = list(zip(sizevals, beamvals, skyvals))
 #     sunapply(scene, sun, values, solposs, frames)
+
+        #             if hdict[k][0] == 'Power' and hdict[k][2] == 'PV power (W)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in pow_dict:
+        #                     pow_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     pow_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV energy (J)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in en_dict:
+        #                     en_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     en_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in ef_dict:
+        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
+        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
+        #                 if pzn not in ef_dict:
+        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
+        #                 else:
+        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
+
+        #     for pd in pow_dict:
+        #         reslists.append([str(frame), 'Power', pd, 'Total power (W)', ' '.join([str(p) for p in pow_dict[pd]])])
+        #     for ed in en_dict:
+        #         reslists.append([str(frame), 'Power', ed, 'Total energy (J)', ' '.join([str(e) for e in en_dict[ed]])])
+        #     for ef in ef_dict:
+        #         fno = len([hd for hd in hdict if '_'.join(hdict[k][1].split('_')[:-1]) == ef and hdict[k][2] == 'PV efficiency (%)'])
+        #         reslists.append([str(frame), 'Power', ef, 'Average efficiency (%)', ' '.join([str(e) for e in ef_dict[ef]/fno])])
+        # print(pow_dict)
