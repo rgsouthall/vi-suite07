@@ -19,7 +19,7 @@
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
 from .vi_func import selobj, facearea, selmesh, create_coll, selobs, logentry
 from .envi_func import epentry, epschedwrite, get_con_node, boundpoly, get_zone_node, ret_areas
-from .envi_mat import retuval
+# from .envi_mat import retuval
 
 dtdf = datetime.date.fromordinal
 caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "AdaptiveConvectionAlgorithm"}

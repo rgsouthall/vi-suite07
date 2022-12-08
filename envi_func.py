@@ -232,7 +232,7 @@ def envilres(scene, resnode):
 
 
 def envizres(scene, eresobs, resnode, restype):
-    rl = resnode['reslists']
+    rl = list(resnode['reslists'])
     zrl = list(zip(*rl))
     resdict = retenresdict(scene)
 
@@ -802,32 +802,37 @@ def retmenu(dnode, axis, mtype):
 #         return resdict[frame][mtype][dnode.inputs[axis].probemenu][dnode.inputs[axis].probermenu]
 
 
-def write_ec(frame, coll, reslists):
-    ec_dict = {}
-    fa = coll.vi_params['enparams']['floorarea'][str(frame)]
+def write_ec(scene, frames, coll, reslists):
+    for frame in frames:
 
-    for chil in coll.children:
-        for ob in chil.objects:
-            for mat in ob.data.materials:
-                con_node = get_con_node(mat.vi_params)
+        ec_dict = {}
+        fa = coll.vi_params['enparams']['floorarea'][str(frame)]
 
-                if mat not in ec_dict:
-                    ec_dict[mat] = {}
-                    ec_dict[mat]['area'] = 0
-                    ec_dict[mat]['ec'] = 0
+        for chil in coll.children:
+            for ob in chil.objects:
+                for mat in ob.data.materials:
+                    con_node = get_con_node(mat.vi_params)
 
-                for poly in ob.data.polygons:
-                    if ob.material_slots[poly.material_index].material == mat:
-                        ec_dict[mat]['area'] += poly.area
-                        ec_dict[mat]['ec'] += float(con_node.ret_ec()) * poly.area
+                    if mat not in ec_dict:
+                        ec_dict[mat] = {}
+                        ec_dict[mat]['area'] = 0
+                        ec_dict[mat]['ec'] = 0
 
-                reslists.append([str(frame), 'Embodied carbon', mat.name, 'Area (m2)', '{:.3f}'.format(ec_dict[mat]['area'])])
-                reslists.append([str(frame), 'Embodied carbon', mat.name, 'EC (kgCO2e)', '{:.3f}'.format(ec_dict[mat]['ec'])])
-                reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e)', '{:.3f}'.format(sum([ec_dict[k]['ec'] for k in ec_dict]))])
+                    for poly in ob.data.polygons:
+                        if ob.material_slots[poly.material_index].material == mat:
+                            ec_dict[mat]['area'] += poly.area
+                            ec = con_node.ret_ec()
 
-                if fa:
-                    reslists.append([str(frame), 'Embodied carbon', mat.name, 'EC (kgCO2e/m2)', '{:.3f}'.format(ec_dict[mat]['ec']/fa)])
-                    reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e/m2)', '{:.3f}'.format(sum([ec_dict[k]['ec'] for k in ec_dict])/fa)])
+                            if ec !='N/A':
+                                ec_dict[mat]['ec'] += float(ec) * poly.area
+
+                    reslists.append([str(frame), 'Embodied carbon', mat.name, 'Area (m2)', '{:.3f}'.format(ec_dict[mat]['area'])])
+                    reslists.append([str(frame), 'Embodied carbon', mat.name, 'EC (kgCO2e)', '{:.3f}'.format(ec_dict[mat]['ec'])])
+                    reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e)', '{:.3f}'.format(sum([ec_dict[k]['ec'] for k in ec_dict]))])
+
+                    if fa:
+                        reslists.append([str(frame), 'Embodied carbon', mat.name, 'EC (kgCO2e/m2)', '{:.3f}'.format(ec_dict[mat]['ec']/fa)])
+                        reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e/m2)', '{:.3f}'.format(sum([ec_dict[k]['ec'] for k in ec_dict])/fa)])
 
     return (reslists)
 

@@ -286,9 +286,8 @@ def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
     fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
-    recipe = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys()]
-    data = [225, 90]
-    data = [node['res']['ec'][k] for k in node['res']['ec'].keys()]
+    recipe = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All']
+    data = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All']
     wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
     cmap = plt.get_cmap('viridis')
     colors = [list(cmap(i)[:3]) + [0.7] for i in linspace(0, 1, len(data))]
@@ -307,7 +306,7 @@ def ec_pie(chart_op, plt, node):
         ax.annotate(recipe[i], xy=(x, y), xytext=(1.15*sign(x), 1.4*y),
                     horizontalalignment=horizontalalignment, **kw)
 
-    ax.annotate('Total kgCO2e\n{:.1f}\nTotal kgCO2e/m$^2$\n{:.1f}'.format(sum(float(e) for e in node['res']['ec'].values()), sum(float(e) for e in node['res']['ecm2'].values())),
+    ax.annotate('Total kgCO2e\n{:.1f}\nTotal kgCO2e/m$^2$\n{:.1f}'.format(float(node['res']['ec']['All']), float(node['res']['ecm2']['All'])),
                 xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center")
 
     plt.show()

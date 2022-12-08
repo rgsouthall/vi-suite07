@@ -1905,7 +1905,6 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         scene = context.scene
 
-
         if viparams(self, scene):
             return {'CANCELLED'}
 
@@ -1913,6 +1912,7 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         svp['viparams']['vidisp'] = ''
         reslists = []
         node = context.node
+        frames = range(node.fs, node.fe + 1)
         (svp['enparams']['fs'], svp['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
 
@@ -1923,10 +1923,8 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
 
         node.preexport(scene)
 
-        for fi, frame in enumerate(range(node.fs, node.fe + 1)):
+        for fi, frame in enumerate(frames):
             scene.frame_set(frame)
-
-            reslists = write_ec(frame, bpy.data.collections['EnVi Geometry'], reslists)
 
             if locnode.outputs['Parameter'].links:
                 af = bpy.data.texts[locnode.outputs['Parameter'].links[0].to_node.anim_file].as_string()
@@ -1951,17 +1949,19 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         #             ec_dict[res[2] if res[3]
         #             reslists.append(['All', 'Embodied carbon', res[3], ])
 
-        scene.frame_set(node.fs)
+
 
         if context.active_object and not context.active_object.visible_get():
             if context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode='OBJECT')
 
         enpolymatexport(self, node, locnode, envi_materials(), envi_constructions())
+        reslists = write_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         node.exported, node.outputs['Context out'].hide = True, False
         node.postexport()
         node['reslists'] = reslists
+        scene.frame_set(node.fs)
         return {'FINISHED'}
 
 

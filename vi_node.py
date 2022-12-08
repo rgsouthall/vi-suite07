@@ -30,7 +30,7 @@ from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_men
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
-from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype, envi_con_list
+from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype
 from numpy import array, stack, where, unique
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
@@ -123,21 +123,25 @@ class No_Loc(Node, ViNodes):
 
             for wfile in glob.glob(epwpath+"/*.epw"):
                 with open(wfile, 'r') as wf:
-                    for wfl in wf.readlines():
-                        if wfl.split(',')[0].upper() == 'LOCATION':
-                            entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
-                            break
+                    try:
+                        for wfl in wf.readlines():
+                            if wfl.split(',')[0].upper() == 'LOCATION':
+                                entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
+                                break
 
-                        elif wfl.split(',')[0].upper() == "B'LOCATION":
-                            with open(wfile, 'rb') as wfb:
-                                for wfbl in wfb.readlines():
-                                    wfl = wfbl.decode()
+                            elif wfl.split(',')[0].upper() == "B'LOCATION":
+                                with open(wfile, 'rb') as wfb:
+                                    for wfbl in wfb.readlines():
+                                        wfl = wfbl.decode()
 
-                                    if wfl.split(',')[0].upper()[2:] == 'LOCATION':
-                                        entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
-                                        break
+                                        if wfl.split(',')[0].upper()[2:] == 'LOCATION':
+                                            entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
+                                            break
 
-                            logentry("Byte formatting found in file {}. Attempting to read byte format. If it fails remove leading b', end ' and all /r line endings".format(wfile))
+                                logentry("Byte formatting found in file {}. Attempting to read byte format. If it fails remove leading b', end ' and all /r line endings".format(wfile))
+
+                    except (TypeError, UnicodeDecodeError):
+                        logentry(f'Non-unicode character found in {wfile}')
 
             self['entries'] = entries if entries else [('None', 'None', 'None')]
 
@@ -2720,8 +2724,12 @@ class No_Vi_Metrics(Node, ViNodes):
             if len(self['rl'][0]):
                 frames = list(dict.fromkeys([z[0] for z in self['rl']]))
                 self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
-                znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal', 'Embodied carbon')])))
-                self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+                if self.metric == '3':
+                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', )])))
+                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
+                else:
+                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
+                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames]+ [('All', 'All', 'All zones')]
                 self.inputs[0].links[0].from_node.new_res = 0
                 self.res_update()
             else:
@@ -5666,7 +5674,22 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     bl_label = 'EnVi Construction'
     bl_icon = 'NODE_COMPOSITING'
 
+    def envi_con_list(self, context):
+        if not self.ec.updated:
+            self.ec.update()
+
+        return [(mat, mat, 'Construction') for mat in ((self.ec.wall_con, self.ec.iwall_con)[self.envi_con_con in ("Zone", "Thermal mass")],
+                                                        (self.ec.roof_con, self.ec.ceil_con)[self.envi_con_con in ("Zone", "Thermal mass")],
+                                                        (self.ec.floor_con, self.ec.ifloor_con)[self.envi_con_con in ("Zone", "Thermal mass")],
+                                                        self.ec.door_con, self.ec.glaze_con, self.ec.pv_con)[("Wall", "Roof", "Floor", "Door", "Window", "PV").index(self.envi_con_type)]]
+
     def con_update(self, context):
+        if not self.em.updated:
+            self.em.update()
+
+        if not self.ec.updated:
+            self.ec.update()
+
         if len(self.inputs) == 4:
             if self.envi_con_type == 'Shading':
                 self.inputs['Schedule'].hide = False
@@ -5752,9 +5775,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
         if self.envi_con_type in ('Wall', 'Floor', 'Roof'):
             if self.envi_con_makeup == '0':
-                ecs = envi_constructions()
+                # ecs = envi_constructions()
                 # ems = envi_materials()
-                con_layers = ecs.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
+                con_layers = self.ec.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
                 thicks = [0.001 * tc for tc in [self.lt0, self.lt1, self.lt2, self.lt3,
                                                 self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9][:len(con_layers)]]
 
@@ -5812,11 +5835,13 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     lt7: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
     lt8: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
     lt9: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
-    uv: StringProperty(name="", description="Construction U-Value", default="N/A")
-    ec: StringProperty(name="", description="Construction Embodied carbon", default="N/A")
-    frame_uv: StringProperty(name="", description="Frame U-Value", default="N/A")
+    cuv: StringProperty(name="", description="Construction U-Value", default="N/A")
+    cec: StringProperty(name="", description="Construction Embodied carbon", default="N/A")
+    frame_cuv: StringProperty(name="", description="Frame U-Value", default="N/A")
     envi_con_list: EnumProperty(items=envi_con_list, name="", description="Database construction")
     active: BoolProperty(name="", description="Active construction", default=False, update=active_update)
+    em = envi_materials()
+    ec = envi_constructions()
 
     # Frame parameters
     fclass: EnumProperty(items=[("0", "Simple spec.", "Simple frame designation"),
@@ -5900,7 +5925,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                         con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
 
-                        for l, layername in enumerate(envi_cons.propdict[con_type][self.envi_con_list]):
+                        for l, layername in enumerate(self.ec.propdict[con_type][self.envi_con_list]):
                             row = layout.row()
 
                             if layername in self.em.wgas_dat:
@@ -5961,7 +5986,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     row = layout.row()
                     row.operator('node.envi_uv', text = "UV Calc")
                     try:
-                        row.label(text = 'U-value  = {} W/m2.K'.format(self.frame_uv))
+                        row.label(text = 'U-value  = {} W/m2.K'.format(self.frame_cuv))
                     except:
                         row.label(text = 'U-value  = N/A')
 
@@ -5971,7 +5996,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                 if self.envi_con_makeup == '0':
                     try:
-                        row.label(text = 'U-value  = {} W/m2.K'.format(self.uv))
+                        row.label(text = 'U-value  = {} W/m2.K'.format(self.cuv))
                     except:
                         row.label(text = 'U-value  = N/A')
 
@@ -5979,7 +6004,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     row.operator('node.envi_uv', text = "UV Calc")
 
                     try:
-                        row.label(text = 'U-value  = {} W/m2.K'.format(self.uv))
+                        row.label(text = 'U-value  = {} W/m2.K'.format(self.cuv))
                     except:
                         row.label(text = 'U-value  = N/A')
 
@@ -5987,7 +6012,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     row.operator('node.envi_ec', text = "EC Calc")
 
                     try:
-                        row.label(text = 'EC  = {} kgCO2e/m2'.format(self.ec))
+                        row.label(text = 'EC  = {} kgCO2e/m2'.format(self.cec))
                     except:
                         row.label(text = 'EC  = N/A')
 
@@ -6017,8 +6042,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 resists.append(lsock.links[0].from_node.ret_resist())
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
-            self.uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
-        return self.uv
+            self.cuv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+        return self.cuv
 
     def ret_frame_uv(self):
         if self.envi_con_type == 'Window' and self.fclass == '2':
@@ -6029,8 +6054,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 resists.append(lsock.links[0].from_node.ret_resist())
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
-            self.frame_uv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
-        return self.frame_uv
+            self.frame_cuv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
+        return self.frame_cuv
 
     def ret_ec(self):
         if self.envi_con_makeup == '1':
@@ -6041,9 +6066,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 ecss.append(lsock.links[0].from_node.ret_ec())
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
-            self.ec = '{:.3f}'.format(sum(ecss))
+            self.cec = '{:.3f}'.format(sum(ecss))
 
-        return self.ec
+        return self.cec
 
     def ret_frame_ec(self):
         if self.envi_con_type == 'Window' and self.fclass == '2':
@@ -6054,8 +6079,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 ecs.append(lsock.links[0].from_node.ret_ec())
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
-            self.frame_ec = '{:.3f}'.format(sum(ecs))
-        return self.frame_ec
+            self.frame_cec = '{:.3f}'.format(sum(ecs))
+
+        return self.frame_cec
 
     def ret_nodes(self):
         nodes = [self]
@@ -6077,9 +6103,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 lay_name = lks[0].from_node.lay_name if lks[0].from_node.layer == '1' else lks[0].from_node.material
                 lay_names.append(lay_name)
 
-        envi_cons.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))[self.con_name] = lay_names
-        envi_cons.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))['{} (reversed)'.format(self.con_name)] = lay_names[::-1]
-        envi_cons.con_save()
+        self.ec.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))[self.con_name] = lay_names
+        self.ec.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))['{} (reversed)'.format(self.con_name)] = lay_names[::-1]
+        self.ec.con_save()
 
     def pv_ep_write(self, sn):
         self['matname'] = get_mat(self, 1).name
@@ -6121,7 +6147,12 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     def ep_write(self, mn):
         self['matname'] = get_mat(self, 1).name
         con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
-        # envi_mats = envi_materials()
+
+        if not self.ec.updated:
+            self.ec.update()
+
+        if not self.em.updated:
+            self.em.update()
 
         if self.envi_con_makeup == '0':
             if self.envi_con_type == 'Window' and self.envi_simple_glazing:
@@ -6133,7 +6164,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 ep_text += epentry("WindowMaterial:SimpleGlazingSystem", params, paramvs)
             else:
                 self.thicklist = [self.lt0, self.lt1, self.lt2, self.lt3, self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9]
-                mats = envi_cons.propdict[con_type][self.envi_con_list]
+                mats = self.ec.propdict[con_type][self.envi_con_list]
                 params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(mats) - 1)]
                 paramvs = [mn] + ['{}-layer-{}'.format(mn, mi) for mi, m in enumerate(mats)]
                 ep_text = epentry('Construction', params, paramvs)
@@ -6610,6 +6641,17 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     bl_idname = 'No_En_Mat_Tr'
     bl_label = 'EnVi transparent layer'
 
+    def lay_update(self, context):
+        if not self.em.updated:
+            self.em.update()
+
+        if self.layer == '1' and self.lay_name == '':
+            nodecolour(self, 1)
+        elif self.layer == '0' and not self.material:
+            nodecolour(self, 1)
+        else:
+            nodecolour(self, 0)
+
     def ec_update(self, context):
         self['ecentries'] = []
 
@@ -6634,9 +6676,9 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     lay_name: StringProperty(name='', description='Custom layer name')
     layer: EnumProperty(items=[("0", "Database", "Select from database"),
                                         ("1", "Custom", "Define custom material properties")],
-                                        name="", description="Composition of the layer", default="0")
+                                        name="", description="Composition of the layer", default="0", update=lay_update)
     materialtype: EnumProperty(items=envi_layertype, name="", description="Layer material type")
-    material: EnumProperty(items=envi_layer, name="", description="Layer material")
+    material: EnumProperty(items=envi_layer, name="", description="Layer material", update=lay_update)
     thi: FloatProperty(name="mm", description="Thickness (mm)", min=0.1, max=1000, default=6)
     tc: FloatProperty(name="W/m.K", description="Thermal Conductivity (W/m.K)", precision=3, min=0.1, max=10, default=0.8)
     stn: FloatProperty(name="", description="Solar normal transmittance", precision=3, min=0, max=1, default=0.7)
@@ -6769,6 +6811,9 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         envi_mats.lay_save()
 
     def ret_resist(self):
+        if not self.em.updated:
+            self.em.update()
+
         if self.layer == '0':
             matlist = list(self.em.matdat[self.material])
             self.resist = float(matlist[13])
@@ -6876,6 +6921,9 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
             nodecolour(self, 0)
 
     def ret_resist(self):
+        if not self.em.updated:
+            self.em.update()
+
         if self.layer == '0':
             matlist = list(self.em.matdat[self.material])
             self.resist = self.thi * 0.001/float(matlist[4])

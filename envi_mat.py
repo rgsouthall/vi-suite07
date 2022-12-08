@@ -139,7 +139,7 @@ class envi_constructions(object):
     updated = 0
 
     def __init__(self):
-        self.update()
+        self.updated = 0
 
     def update(self):
         with open(ret_datab('Construction_database.json', 'r'), 'r') as con_jfile:
@@ -170,7 +170,7 @@ class envi_constructions(object):
 
     def con_write(self, idf_file, contype, name, nl, mn, cln):
         params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]
-        paramvs = [mn] + cln#'{}-{}'.format(con[name][0], nl)]
+        paramvs = [mn] + cln  # '{}-{}'.format(con[name][0], nl)]
         idf_file.write(epentry('Construction', params, paramvs))
 
     def get_dat(self, mat_type):
@@ -221,9 +221,9 @@ def retmatdict(em_edict, ect, t, l):
         return matdict
 
 
-def envi_con_list(self, context):
-    ec = envi_constructions()
-    return [(mat, mat, 'Construction') for mat in ((ec.wall_con, ec.iwall_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.roof_con, ec.ceil_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.floor_con, ec.ifloor_con)[self.envi_con_con in ("Zone", "Thermal mass")], ec.door_con, ec.glaze_con, ec.pv_con)[("Wall", "Roof", "Floor", "Door", "Window", "PV").index(self.envi_con_type)]]
+# def envi_con_list(self, context):
+#     ec = envi_constructions()
+#     return [(mat, mat, 'Construction') for mat in ((ec.wall_con, ec.iwall_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.roof_con, ec.ceil_con)[self.envi_con_con in ("Zone", "Thermal mass")], (ec.floor_con, ec.ifloor_con)[self.envi_con_con in ("Zone", "Thermal mass")], ec.door_con, ec.glaze_con, ec.pv_con)[("Wall", "Roof", "Floor", "Door", "Window", "PV").index(self.envi_con_type)]]
 
 
 def retuval(mat):
@@ -237,12 +237,12 @@ def retuval(mat):
             lays = (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)
             ctcs = (mat.envi_export_lo_tc, mat.envi_export_l1_tc, mat.envi_export_l2_tc, mat.envi_export_l3_tc, mat.envi_export_l4_tc)
 
-            for l, lay in enumerate(lays):
+            for li, lay in enumerate(lays):
                 if lay == '1':
-                    dtc = em.matdat[laymats[l]][2] if em.matdat[laymats[l]][0] == 'Gas' else em.matdat[laymats[l]][1]
-                    resists.append((thicks[l]/float(dtc), float(dtc))[em.matdat[laymats[l]][0] == 'Gas'])
+                    dtc = em.matdat[laymats[li]][2] if em.matdat[laymats[li]][0] == 'Gas' else em.matdat[laymats[li]][1]
+                    resists.append((thicks[li]/float(dtc), float(dtc))[em.matdat[laymats[li]][0] == 'Gas'])
                 if lay == '2':
-                    resists.append(thicks[l]/ctcs[l])
+                    resists.append(thicks[li]/ctcs[l])
 
         elif mat.envi_con_makeup == '0':
             for p, psmat in enumerate(ec.propdict[mat.envi_con_type][mat.envi_con_list]):
