@@ -1828,7 +1828,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for a, b in zip(coords[:-1], coords[1:]):
             line_lengths.append(line_lengths[-1] + (a - b).length)
 
-        return(coords, line_lengths, breaks)
+        return (coords, line_lengths, breaks)
 
     def create_batch(self, scene, node):
         sp_vertex_shader = '''
@@ -1983,18 +1983,20 @@ class NODE_OT_SunPath(bpy.types.Operator):
     def draw_sp(self, op, context, node):
         try:
             # Draw lines
-            bgl.glEnable(bgl.GL_DEPTH_TEST)
-            bgl.glDepthFunc(bgl.GL_LESS)
-            bgl.glDepthMask(bgl.GL_FALSE)
-            bgl.glEnable(bgl.GL_BLEND)
-            bgl.glLineWidth(context.scene.vi_params.sp_line_width)
-            bgl.glPointSize(context.scene.vi_params.sp_sun_size)
-
             gpu.state.depth_test_set('LESS')
             gpu.state.depth_mask_set(False)
             gpu.state.blend_set('ALPHA')
             gpu.state.line_width_set(context.scene.vi_params.sp_line_width)
             gpu.state.point_size_set(context.scene.vi_params.sp_sun_size)
+            # bgl.glEnable(bgl.GL_DEPTH_TEST)
+            # bgl.glDepthFunc(bgl.GL_LESS)
+            # bgl.glDepthMask(bgl.GL_FALSE)
+            # bgl.glEnable(bgl.GL_BLEND)
+            # bgl.glLineWidth(context.scene.vi_params.sp_line_width)
+            # bgl.glPointSize(context.scene.vi_params.sp_sun_size)
+            # bgl.glEnable(bgl.GL_LINE_SMOOTH)
+            # bgl.glEnable(bgl.GL_MULTISAMPLE)
+
 
             try:
                 self.sp_shader.bind()
@@ -2041,18 +2043,22 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
             self.range_batch.draw(self.range_shader)
             self.globe_batch.draw(self.globe_shader)
-            bgl.glEnable(bgl.GL_LINE_SMOOTH)
-            bgl.glEnable(bgl.GL_MULTISAMPLE)
+
             self.sun_batch.draw(self.sun_shader)
             self.sp_batch.draw(self.sp_shader)
-            bgl.glDisable(bgl.GL_MULTISAMPLE)
-            bgl.glDisable(bgl.GL_LINE_SMOOTH)
-
-            bgl.glDisable(bgl.GL_BLEND)
-            bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
-            bgl.glDisable(bgl.GL_DEPTH_TEST)
-            bgl.glDepthMask(bgl.GL_TRUE)
-            bgl.glPointSize(1)
+            gpu.state.line_width_set(1)
+            gpu.state.point_size_set(1)
+            gpu.state.blend_set('NONE')
+            gpu.state.depth_mask_set(True)
+            gpu.state.depth_test_set('NONE')
+            # bgl.glDisable(bgl.GL_MULTISAMPLE)
+            # bgl.glDisable(bgl.GL_LINE_SMOOTH)
+            # gpu.state.blend_set('NONE')
+            # #bgl.glDisable(bgl.GL_BLEND)
+            # bgl.glClear(bgl.GL_DEPTH_BUFFER_BIT)
+            # bgl.glDisable(bgl.GL_DEPTH_TEST)
+            # bgl.glDepthMask(bgl.GL_TRUE)
+            # bgl.glPointSize(1)
 
         except Exception as e:
             logentry('Sun path error: {}'.format(e))
