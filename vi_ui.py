@@ -559,7 +559,7 @@ class VI_PT_Gridify(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         row = layout.row()
-        row.operator("object.vi_gridify2", text="Grid the object")
+        row.operator("object.vi_gridify", text="Grid the object")
 
 
 class TREE_PT_vi(bpy.types.Panel):

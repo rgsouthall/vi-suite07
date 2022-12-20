@@ -271,3 +271,42 @@ def vi_info(node, dim, svp, **kwargs):
     elif node.metric == '0' and node.energy_menu == '1':
         for met in ('Heating (W)', 'Cooling (W)', 'Temperatature (C)' , 'CO2 (ppm)', 'Ventilation (heat (W)', 'Fabric heat (W)', 'Power (W)'):
             pass
+
+    elif node.metric == '6':
+        imname = "Whole_life_carbon"
+        wlc = kwargs['wlc']
+        ec = kwargs['ec']
+        oc = kwargs['oc']
+        min_res = min((oc, ec, wlc))
+        max_res = max((oc, ec, wlc))
+        min_res = round(min_res, -2)
+        max_res = round(max_res, -2)
+
+
+        if min_res < 0:
+            min_res -= 100
+        print(min_res, max_res)
+        l_range = range(min_res, max_res + 1, 100)
+
+        l_diff = 300/len(l_range)
+        print(l_diff)
+        svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+        <svg
+        id="svg5"
+        version="1.1"
+        viewBox="0 0 400 400"
+        width="{0[0]}"
+        height="{0[1]}"
+        xmlns="http://www.w3.org/2000/svg"
+        xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
+
+        for ii, i in enumerate(l_range):
+            print(i)
+            svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1), 300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
+
+        svg_str += "</svg>"
+        print(svg_str)
+        return imname, bytearray(svg_str, encoding='utf-8')
+
+
+

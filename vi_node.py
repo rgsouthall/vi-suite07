@@ -2154,6 +2154,8 @@ class No_Vi_HMChart(Node, ViNodes):
             self['locs'] = [('0', 'None', "")]
             self['metrics'] = [('0', 'None', "")]
 
+        # self.nodeupdate(bpy.context)
+
     def ftype(self, context):
         return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['times'])) if res != 'All']
 
@@ -2167,7 +2169,7 @@ class No_Vi_HMChart(Node, ViNodes):
             return [('0', 'None', "")]
 
     def restype(self, context):
-        return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['rtypes'])) if res != 'Time']
+        return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['rtypes'])) if res not in ('Time', 'Embodied carbon')]
 
     def metric(self, context):
         lmenu = str(self.locmenu)
@@ -2232,7 +2234,7 @@ class No_Vi_HMChart(Node, ViNodes):
     varmin: IntProperty(name='', description="Variable minimum", default=0)
     varmax: IntProperty(name='', description="Varaible maximum", default=20)
     grid: BoolProperty(name="", description="Grid", default=0)
-    x, y, z = [], [], []
+    x, y, z = array([]), array([]), array([])
 
     def init(self, context):
         self['times'] = [('', '', "")]
@@ -2340,9 +2342,10 @@ class No_Vi_Metrics(Node, ViNodes):
     metric: EnumProperty(items=[("0", "Energy", "Energy results"),
                                 ("1", "Lighting", "Lighting results"),
                                 ("2", "Flow", "Flow results"),
-                                ("3", "Embodied", "Embodied carbon results"),
+                                ("3", "Embodied carbon", "Embodied carbon results"),
                                 ("4", "Comfort", "Comfort results"),
-                                ("5", "IAQ", "IAQ results")],
+                                ("5", "IAQ", "Internal air quality results"),
+                                ("6", "WLC", "WHole life carbon results")],
                                 name="", description="Results type", default="0", update=zupdate)
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results"),
                                     ("1", "RIBA 2030", "RIBA 2030 results"),
@@ -2393,12 +2396,14 @@ class No_Vi_Metrics(Node, ViNodes):
                 name="", description="Zone results", update=zupdate)
     frame_menu: EnumProperty(items=frames,
                 name="", description="Frame results", update=zupdate)
-    mod: FloatProperty(name="kWh", description="Energy modifier (kWh)", update=zupdate)
+    mod: FloatProperty(name="kWh/m2/y", description="Energy modifier (kWh)", update=zupdate)
     heat_type: EnumProperty(items=[('0', 'Gas', 'Gas based heating'), ('1', 'Electric', 'Electric based hheating')], name="", description="Heating energy source", default='0', update=zupdate)
     elec_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical heating system", default=1.0, update=zupdate)
     ac_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical cooling system", default=3.0, update=zupdate)
     gas_eff: FloatProperty(name="%", description="Efficiency of the gas heating system", default=90, min=1.0, max=100.0, update=zupdate)
-    carb_fac: FloatProperty(name="kgCO2/kWh", description="Electrical grid carbon facor", default=0.21, min=0.01, max=1, update=zupdate)
+    carb_fac: FloatProperty(name="kgCO2/kWh", description="Electrical grid carbon factor", default=0.21, min=0.01, max=1, update=zupdate)
+    carb_annc: FloatProperty(name="%", description="Annual change in carbon factor", default=-0.5, min=-100, max=100, update=zupdate)
+    ec_years: IntProperty(name="Years", description="Timespan for wmbodied carbon calculations", default=60, min=1, max=100, update=zupdate)
     probe_menu: EnumProperty(items=probes, name="", description="Probe results", update=zupdate)
     ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
     occ: BoolProperty(name="", description="Only occupied hours", update=zupdate)
@@ -2655,16 +2660,25 @@ class No_Vi_Metrics(Node, ViNodes):
                         row = layout.row()
 
                         if self.zone_menu == 'All':
-                            row.label(text='Total EC: {:.2f} kgCO2e'.format(sum(float(e) for e in self['res']['ec'].values())))
+                            row.label(text='Total EC: {:.2f} kgCO2e'.format(float(self['res']['ec']['All'])))
 
                             if self['res']['ecm2']:
                                 row = layout.row()
-                                row.label(text='Total EC/m2: {:.2f} kgCO2e/m2'.format(sum(float(e) for e in self['res']['ecm2'].values())))
+                                row.label(text='Total EC/m2: {:.2f} kgCO2e/m2'.format(float(self['res']['ecm2']['All'])))
+                            if self['res']['ecm2y']:
+                                row = layout.row()
+                                row.label(text='Total EC/m2/y: {:.2f} kgCO2e/m2/y'.format(float(self['res']['ecm2y']['All'])))
+                            if self['res']['vol']:
+                                row = layout.row()
+                                row.label(text='Total Volume: {:.2f} m3'.format(float(self['res']['vol']['All'])))
                         else:
-                            row.label(text='Total EC: {:.2f} kgCO2e'.format(self['res']['ec'][self.zone_menu]))
+                            row.label(text='EC: {:.2f} kgCO2e'.format(self['res']['ec'][self.zone_menu]))
                             if self['res']['ecm2']:
                                 row = layout.row()
                                 row.label(text='EC/m2: {:.2f} kgCO2e/m2'.format(self['res']['ecm2'][self.zone_menu]))
+                            if self['res']['ecm2y']:
+                                row = layout.row()
+                                row.label(text='EC/m2/y: {:.2f} kgCO2e/m2/y'.format(self['res']['ecm2y'][self.zone_menu]))
                             if self['res']['vol']:
                                 row = layout.row()
                                 row.label(text='Volume: {:.2f} m3'.format(self['res']['vol'][self.zone_menu]))
@@ -2703,6 +2717,22 @@ class No_Vi_Metrics(Node, ViNodes):
                         else:
                             row.label(text="CO2 data not available")
 
+                elif self.metric == '6':
+                    newrow(layout, 'Timespan:', self, "ec_years")
+                    newrow(layout, 'Heat type:', self, 'heat_type')
+
+                    if self.heat_type == '0':
+                        newrow(layout, 'Heating efficiency:', self, 'gas_eff')
+                    else:
+                        newrow(layout, 'Heating COP:', self, 'elec_cop')
+
+                    newrow(layout, 'Air-con COP:', self, 'ac_cop')
+                    newrow(layout, 'Carbon factor:', self, 'carb_fac')
+                    newrow(layout, 'Annual change:', self, 'carb_annc')
+                    newrow(layout, 'Unregulated consumption:', self, 'mod')
+                    row = layout.row()
+                    row.operator('node.vi_info', text='Infographic')
+
         if self.metric == '1':
             if self.light_menu == '2':
                 if self['res']['ratioDF'] >= 0:
@@ -2717,6 +2747,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 row = layout.row()
                 row.operator('node.ec_pie', text='Pie chart')
 
+
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
@@ -2724,12 +2755,15 @@ class No_Vi_Metrics(Node, ViNodes):
             if len(self['rl'][0]):
                 frames = list(dict.fromkeys([z[0] for z in self['rl']]))
                 self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
+
                 if self.metric == '3':
                     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', )])))
+                    print(self.metric, znames)
                     self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
                 else:
                     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
-                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames]+ [('All', 'All', 'All zones')]
+                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+
                 self.inputs[0].links[0].from_node.new_res = 0
                 self.res_update()
             else:
@@ -2980,6 +3014,7 @@ class No_Vi_Metrics(Node, ViNodes):
         elif self.metric == '3':
             self['res']['ec'] = {}
             self['res']['ecm2'] = {}
+            self['res']['ecm2y'] = {}
             self['res']['vol'] = {}
             self['res']['area'] = {}
 
@@ -2989,20 +3024,21 @@ class No_Vi_Metrics(Node, ViNodes):
                         self['res']['ec'][r[2]] = float(r[4])
                     elif r[3] == 'EC (kgCO2e/m2)':
                         self['res']['ecm2'][r[2]] = float(r[4])
+                    elif r[3] == 'EC (kgCO2e/m2/y)':
+                        self['res']['ecm2y'][r[2]] = float(r[4])
                     elif r[3] == 'Volume (m3)':
                         self['res']['vol'][r[2]] = float(r[4])
                     elif r[3] == 'Area (m2)':
                         self['res']['area'][r[2]] = float(r[4])
 
-
-
-                    # elif r[2] == 'All':
-                    #     self['res']['ec']['Total'] = float(r[4].split()[2])
-            # if self.em_menu == '0':
-            #     self['res']['ec'] = {o.name: o.vi_params['ecdict']['ec'] for o in bpy.context.visible_objects if o.vi_params.get('ecdict')}
-            #     self['res']['ec'] = {ec[2]: float(ec[3].split()[2]) for ec in self['rl'] if ec}
-            # elif self.em_menu == '1':
-            #     self['res']['ec'] = {'': ''}
+                    if r[2] == 'All' and r[3] == 'Total EC (kgCO2e)':
+                        self['res']['ec']['All'] = float(r[4])
+                    elif r[2] == 'All' and r[3] == 'Total EC (kgCO2e/m2)':
+                        self['res']['ecm2']['All'] = float(r[4])
+                    elif r[2] == 'All' and r[3] == 'Total EC (kgCO2e/m2/y)':
+                        self['res']['ecm2y']['All'] = float(r[4])
+                    elif r[2] == 'All' and r[3] == 'Total volume (m3)':
+                        self['res']['vol']['All'] = float(r[4])
 
         elif self.metric == '4':
             self['res']['oh'] = -1
@@ -5768,6 +5804,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             envi_con_type = 'Ceiling' if self.envi_con_con == 'Zone' else 'Roof'
         else:
             envi_con_type = ect
+
         return envi_con_type
 
     def uv_update(self, context):
@@ -5775,8 +5812,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
         if self.envi_con_type in ('Wall', 'Floor', 'Roof'):
             if self.envi_con_makeup == '0':
-                # ecs = envi_constructions()
-                # ems = envi_materials()
                 con_layers = self.ec.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
                 thicks = [0.001 * tc for tc in [self.lt0, self.lt1, self.lt2, self.lt3,
                                                 self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9][:len(con_layers)]]
@@ -5908,6 +5943,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             if self.envi_con_type != "Shading":
                 if self.envi_con_con in ('External', 'Zone') and not self.inputs['PV'].links:
                     newrow(layout, 'Air-flow:', self, "envi_afsurface")
+
                 newrow(layout, 'Specification:', self, "envi_con_makeup")
 
                 if self.envi_con_makeup == '0':
@@ -5946,6 +5982,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
             if self.envi_con_type in ('Window', 'Door'):
                 newrow(layout, 'Frame:', self, "fclass")
+
                 if self.fclass == '0' or self.envi_con_type == 'Door':
                     newrow(layout, 'Material:', self, "fmat")
                     newrow(layout, '% frame area:', self, "farea")
@@ -6094,6 +6131,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         return nodes
 
     def save_condict(self):
+        if not self.ec.updated:
+            self.ec.update()
+
         lks = self.inputs['Outer layer'].links
         lay_names = [lks[0].from_node.lay_name] if lks[0].from_node.layer == '1' else [lks[0].from_node.material]
 
@@ -6400,7 +6440,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
-    ec_amount: FloatProperty(name="", description="", min=0.001, default=1)
+    ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
     ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
@@ -6458,8 +6498,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                     row = layout.row()
                     row.label(text='ec/m2: {}'.format(self['ecm2']))
 
-                except Exception as e:
-                    print(e)
+                except Exception:
+                    pass
 
             else:
                 newrow(layout, "Embodied id:", self, "ec_id")
@@ -6709,7 +6749,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
-    ec_amount: FloatProperty(name="", description="", min=0.001, default=1)
+    ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
     ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)

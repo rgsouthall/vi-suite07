@@ -1956,10 +1956,11 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
                 bpy.ops.object.mode_set(mode='OBJECT')
 
         enpolymatexport(self, node, locnode, envi_materials(), envi_constructions())
-        reslists = write_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
+
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         node.exported, node.outputs['Context out'].hide = True, False
         node.postexport()
+        reslists = write_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
         node['reslists'] = reslists
         scene.frame_set(node.fs)
         return {'FINISHED'}
@@ -2171,9 +2172,9 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         return condition
 
 
-class OBJECT_OT_VIGridify2(bpy.types.Operator):
+class OBJECT_OT_VIGridify(bpy.types.Operator):
     ''''''
-    bl_idname = "object.vi_gridify2"
+    bl_idname = "object.vi_gridify"
     bl_label = "VI Gridify"
     bl_options = {"REGISTER", 'UNDO'}
 
@@ -2187,9 +2188,9 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         return (obj and obj.type == 'MESH')
 
     def execute(self, context):
-        self.o = bpy.context.active_object
-        mesh = bmesh.from_edit_mesh(self.o.data)
-        mesh.transform(self.o.matrix_world)
+        o = bpy.context.active_object
+        mesh = bmesh.from_edit_mesh(o.data)
+        mesh.transform(o.matrix_world)
         mesh.faces.ensure_lookup_table()
         mesh.verts.ensure_lookup_table()
         fs = [f for f in mesh.faces[:] if f.select]
@@ -2202,14 +2203,14 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
         rotation = Euler(radians(self.rotate) * self.norm, 'XYZ')
         self.upv.rotate(rotation)
         self.acv.rotate(rotation)
-        vertdots = [Vector.dot(self.upv, vert.co) for vert in fs[0].verts]
-        vertdots2 = [Vector.dot(self.acv, vert.co) for vert in fs[0].verts]
-        svpos = fs[0].verts[vertdots.index(min(vertdots))].co
-        svpos2 = fs[0].verts[vertdots2.index(min(vertdots2))].co
+        allverts = list(set([entry for sublist in [f.verts[:] for f in fs] for entry in sublist]))
+        alledges = list(set([entry for sublist in [f.edges[:] for f in fs] for entry in sublist]))
+        vertdots = [Vector.dot(self.upv, vert.co) for vert in allverts]
+        vertdots2 = [Vector.dot(self.acv, vert.co) for vert in allverts]
+        svpos = allverts[vertdots.index(min(vertdots))].co
+        svpos2 = allverts[vertdots2.index(min(vertdots2))].co
         res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
-        vs = fs[0].verts[:]
-        es = fs[0].edges[:]
-        gs = vs + es + fs
+        gs = allverts + alledges + fs
 
         while res1:
             res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos + ngs1 * self.upv, plane_no=self.upv, use_snap_center=0, clear_outer=0, clear_inner=0)
@@ -2228,9 +2229,11 @@ class OBJECT_OT_VIGridify2(bpy.types.Operator):
             gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
             ngs2 += gs2
 
-        mesh.transform(self.o.matrix_world.inverted())
-        bmesh.update_edit_mesh(self.o.data)
+        mesh.transform(o.matrix_world.inverted())
+        bmesh.update_edit_mesh(o.data)
         mesh.free()
+        bpy.ops.object.editmode_toggle()
+        bpy.ops.object.editmode_toggle()
         return {'FINISHED'}
 
 
@@ -2301,20 +2304,29 @@ class NODE_OT_EC(bpy.types.Operator):
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'EC (kgCO2e)', '{:.3f}'.format(float(ec))])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Volume (m3)', '{:.3f}'.format(vol)])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/node.fa)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(node.fa * node.tyears))])
                         bm.free()
                     else:
                         logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                         # self.report({'ERROR'}, f"{o.name} is non-manifold")
                         bm.free()
-            # reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
-            # reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2)', '{:.3f}'.format(sum(ecs)/node.fa)])
-            # reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(sum(vols))])
+
+            tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'EC (kgCO2e)'])
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e)', '{:.3f}'.format(tec)])
+            tecm2 = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'EC (kgCO2e/m2)'])
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2)', '{:.3f}'.format(tecm2)])
+            tecm2y = tecm2/node.tyears
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2/y)', '{:.3f}'.format(tecm2y)])
+            tvol = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Volume (m3)'])
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(tvol)])
 
         reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
 
         for o in obs:
+            reslists.append(['All', 'Embodied carbon', o.name, 'Total volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Volume (m3)'])])
             reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e)'])])
             reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2)'])])
+            reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2/y)'])])
 
         node['reslists'] = reslists
         node.postsim()

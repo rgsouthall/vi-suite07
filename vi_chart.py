@@ -286,14 +286,14 @@ def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
     fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
-    recipe = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All']
-    data = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All']
+    labels = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] >= 0]
+    values = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] >= 0]
     wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
     cmap = plt.get_cmap('viridis')
-    colors = [list(cmap(i)[:3]) + [0.7] for i in linspace(0, 1, len(data))]
-    wedges, texts = ax.pie(data, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colors)
-    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="grey", lw=0.72)
-    kw = dict(arrowprops=dict(arrowstyle="-"), bbox=bbox_props, zorder=0, va="center")
+    colors = [list(cmap(i)[:3]) + [0.7] for i in linspace(0, 1, len(values))]
+    wedges, texts = ax.pie(values, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colors)
+    bbox_props = dict(boxstyle="round,pad=0.3,rounding_size=0.1", fc="w", ec="grey", lw=0.72)
+    kw = dict(arrowprops=dict(arrowstyle="-"), bbox=bbox_props, zorder=0, va="baseline")
 
     for i, p in enumerate(wedges):
         ang = (p.theta2 - p.theta1)/2. + p.theta1
@@ -303,10 +303,12 @@ def ec_pie(chart_op, plt, node):
         connectionstyle = "arc, angleA=0, angleB={}, armA=20, armB=40, rad=5".format(ang)
         kw["arrowprops"].update({"connectionstyle": connectionstyle})
 
-        ax.annotate(recipe[i], xy=(x, y), xytext=(1.15*sign(x), 1.4*y),
-                    horizontalalignment=horizontalalignment, **kw)
+        ax.annotate(labels[i], xy=(x, y), xytext=(1.15*sign(x), 1.35*y),
+                    horizontalalignment=horizontalalignment, verticalalignment="baseline", **kw)
 
-    ax.annotate('Total kgCO2e\n{:.1f}\nTotal kgCO2e/m$^2$\n{:.1f}'.format(float(node['res']['ec']['All']), float(node['res']['ecm2']['All'])),
-                xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center")
+    ax.annotate('Total kgCO$_2$e\n{:.1f}\nTotal kgCO$_2$e/m$^2$\n{:.1f}\nTotal kgCO$_2$e/m$^2$/y\n{:.1f}'.format(float(node['res']['ec']['All']), float(node['res']['ecm2']['All']), float(node['res']['ecm2y']['All'])),
+                xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center", size=14)
 
     plt.show()
+
+# def ec_wlc(chart_op, plt, node):

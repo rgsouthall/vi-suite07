@@ -2043,7 +2043,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
             self.range_batch.draw(self.range_shader)
             self.globe_batch.draw(self.globe_shader)
-
             self.sun_batch.draw(self.sun_shader)
             self.sp_batch.draw(self.sp_shader)
             gpu.state.line_width_set(1)
@@ -3192,6 +3191,9 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             imname, svg_bytes = vi_info(node, dim, svp, sda=node['res']['sda'], sdapass=node['res']['sdapass'],
                                         ase=node['res']['ase'], asepass=node['res']['asepass'], o1=node['res']['o1'],
                                         tc=node['res']['tc'], totarea=node['res']['totarea'], svarea=node['res']['svarea'])
+        elif node.metric == '6':
+            dim = (600, 600)
+            imname, svg_bytes = vi_info(node, dim, svp, wlc=350, ec=150, oc=200)
 
         image = QImage.fromData(svg_bytes)
         image = image.convertToFormat(17)
