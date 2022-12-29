@@ -545,6 +545,7 @@ def processf(pro_op, node, con_node):
     frames = range(svp['enparams']['fs'], svp['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current]
 
     for frame in frames:
+        pvps = []
         pow_dict = {}
         en_dict = {}
         ef_dict = {}
@@ -572,11 +573,20 @@ def processf(pro_op, node, con_node):
                         vhs = [float(sl[1]) for sl in splitlines if sl[0] == k]
                     if hdict[k][0] == 'Zone temporal' and hdict[k][1] == zn and hdict[k][2] == 'Heating (W)':
                         hs = [float(sl[1]) for sl in splitlines if sl[0] == k]
+
                 try:
                     reslists.append([str(frame), 'Zone temporal', zn, 'Ventilation heating contribution (W)', ' '.join([str(vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
                     reslists.append([str(frame), 'Zone temporal', zn, 'Fabric heating contribution (W)', ' '.join([str(hs[i] - vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
                 except Exception:
                     pass
+
+            for r in reslists:
+                if r[0] == str(frame) and r[1] == 'Power' and r[3] == 'PV power (W)':
+                    pvps.append([float(r) for r in r[4].split()])
+
+            if pvps:
+                reslists.append([str(frame), 'Power', 'All', 'PV power (W)', ' '.join(['{:.3f}'.format(sum(pvpz)) for pvpz in zip(*pvps)])])
+
 
     rls = reslists
     zrls = list(zip(*rls))
@@ -782,16 +792,18 @@ def retmenu(dnode, axis, mtype):
 def write_ec(scene, frames, coll, reslists):
     for frame in frames:
         mat_dict = {}
+        zone_dict = {}
         fa = coll.vi_params['enparams']['floorarea'][str(frame)]
 
         for chil in coll.children:
-            zone_dict = {}
             chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)]
 
             for ob in chil.objects:
                 if chil.name not in zone_dict:
                     zone_dict[chil.name] = {}
                     zone_dict[chil.name]['ec'] = 0
+                    zone_dict[chil.name]['ecy'] = 0
+                    zone_dict[chil.name]['area'] = 0
 
                 for mat in ob.data.materials:
                     con_node = get_con_node(mat.vi_params)
@@ -800,32 +812,37 @@ def write_ec(scene, frames, coll, reslists):
                         mat_dict[mat.name] = {}
                         mat_dict[mat.name]['area'] = 0
                         mat_dict[mat.name]['ec'] = 0
+                        mat_dict[mat.name]['ecy'] = 0
 
                     for poly in ob.data.polygons:
                         if ob.material_slots[poly.material_index].material == mat:
                             mat_dict[mat.name]['area'] += poly.area
-                            ec = con_node.ret_ec()
+                            zone_dict[chil.name]['area'] += poly.area
+                            mat_ec = con_node.ret_ec()
 
-                            if ec !='N/A':
-                                mat_dict[mat.name]['ec'] += float(ec) * poly.area
-                                zone_dict[chil.name]['ec'] += float(ec) * poly.area
+                            if mat_ec[0] !='N/A':
+                                mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
+                                zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
+                                mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
+                                zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
 
             for zone in zone_dict:
-                reslists.append([str(frame), 'Embodied carbon', zone, 'EC (kgCO2e)', '{:.3f}'.format(zone_dict[zone]['ec'])])
-                reslists.append([str(frame), 'Embodied carbon', zone, 'EC (kgCO2e/m2)', '{:.3f}'.format(zone_dict[zone]['ec']/chil_fa)])
+                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/y)', '{:.3f}'.format(zone_dict[zone]['ecy'])])
+                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
+                reslists.append([str(frame), 'Embodied carbon', zone, 'Surface area (m2)', '{:.3f}'.format(zone_dict[zone]['area'])])
 
-        reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e)', '{:.3f}'.format(sum([mat_dict[mat]['ec'] for mat in mat_dict]))])
+        reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
+        reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
 
         if fa:
-            reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e/m2)', '{:.3f}'.format(sum([mat_dict[mat]['ec'] for mat in mat_dict])/fa)])
+            reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict])/fa)])
 
         for mat in mat_dict:
-            reslists.append([str(frame), 'Embodied carbon', mat, 'Area (m2)', '{:.3f}'.format(mat_dict[mat]['area'])])
-            reslists.append([str(frame), 'Embodied carbon', mat, 'EC (kgCO2e)', '{:.3f}'.format(mat_dict[mat]['ec'])])
+            reslists.append([str(frame), 'Embodied carbon', mat, 'Surface area (m2)', '{:.3f}'.format(mat_dict[mat]['area'])])
+            reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/y)', '{:.3f}'.format(mat_dict[mat]['ecy'])])
 
             if fa:
-                reslists.append([str(frame), 'Embodied carbon', mat, 'EC (kgCO2e/m2)', '{:.3f}'.format(mat_dict[mat]['ec']/fa)])
-                reslists.append([str(frame), 'Embodied carbon', 'All', 'EC (kgCO2e/m2)', '{:.3f}'.format(sum([mat_dict[mat]['ec'] for mat in mat_dict])/fa)])
+                reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/m2/y)', '{:.3f}'.format(mat_dict[mat]['ecy']/fa)])
 
     return (reslists)
 

@@ -26,7 +26,7 @@ from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
-from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu
+from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu, ret_datab
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import retrmenus, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
@@ -2211,10 +2211,13 @@ class No_Vi_HMChart(Node, ViNodes):
 
                         elif r[3] == self.metricmenu and r[2] == self.locmenu:
                             self.z = array([float(r) for r in r[4].split()])
+            try:
+                self.x = self.x.reshape(dno, hno)
+                self.y = self.y.reshape(dno, hno)
+                self.z = self.z.reshape(dno, hno)
+            except Exception:
+                logentry('Mis-match in result length. Try reconnecting the Heatmap chart node')
 
-            self.x = self.x.reshape(dno, hno)
-            self.y = self.y.reshape(dno, hno)
-            self.z = self.z.reshape(dno, hno)
 
     dpi: IntProperty(name='DPI', description="DPI of the shown figure", default=92, min=92)
     framemenu: EnumProperty(items=ftype, name="", description="Frame number")
@@ -2302,7 +2305,7 @@ class No_Vi_Metrics(Node, ViNodes):
     bl_label = 'VI Metrics'
 
     def zupdate(self, context):
-        self.res_update()
+        self.update()
 
     def zitems(self, context):
         if self.inputs[0].links:
@@ -2356,8 +2359,9 @@ class No_Vi_Metrics(Node, ViNodes):
                                     ("2", "RIBA 2030", "RIBA 2030 results")],
                                     name="", description="Results metric", default="0", update=zupdate)
     em_menu: EnumProperty(items=[("0", "Object", "Calculate from objects"),
-                                ("1", "Layer", "Calculate from EnVi layers")],
-                                name="", description="Results metric", default="0", update=zupdate)
+                                 ("1", "Surface", "Calculate from EnVi surfaces"),
+                                 ("2", "Zone", "Calculate from EnVi zones")],
+                                 name="", description="Results metric", default="0", update=zupdate)
     leed_menu: BoolProperty(name = "", description = "LEED space type", default = 0)
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
                                     ("1", "Office", "Office scenario"),
@@ -2396,14 +2400,16 @@ class No_Vi_Metrics(Node, ViNodes):
                 name="", description="Zone results", update=zupdate)
     frame_menu: EnumProperty(items=frames,
                 name="", description="Frame results", update=zupdate)
-    mod: FloatProperty(name="kWh/m2/y", description="Energy modifier (kWh)", update=zupdate)
+    mod: FloatProperty(name="kWh/m2/y", description="Energy modifier (kWh/m2/y)", update=zupdate)
+    hwmod: FloatProperty(name="kWh/m2/y", description="Hot water consumption (kWh/m2/y)", update=zupdate)
     heat_type: EnumProperty(items=[('0', 'Gas', 'Gas based heating'), ('1', 'Electric', 'Electric based hheating')], name="", description="Heating energy source", default='0', update=zupdate)
     elec_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical heating system", default=1.0, update=zupdate)
+    hw_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical hot water system", default=1.0, update=zupdate)
     ac_cop: FloatProperty(name="", description="Coefficient-of-performance of the electrical cooling system", default=3.0, update=zupdate)
     gas_eff: FloatProperty(name="%", description="Efficiency of the gas heating system", default=90, min=1.0, max=100.0, update=zupdate)
     carb_fac: FloatProperty(name="kgCO2/kWh", description="Electrical grid carbon factor", default=0.21, min=0.01, max=1, update=zupdate)
     carb_annc: FloatProperty(name="%", description="Annual change in carbon factor", default=-0.5, min=-100, max=100, update=zupdate)
-    ec_years: IntProperty(name="Years", description="Timespan for wmbodied carbon calculations", default=60, min=1, max=100, update=zupdate)
+    ec_years: IntProperty(name="Years", description="Timespan for embodied carbon calculations", default=60, min=1, max=100, update=zupdate)
     probe_menu: EnumProperty(items=probes, name="", description="Probe results", update=zupdate)
     ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
     occ: BoolProperty(name="", description="Only occupied hours", update=zupdate)
@@ -2428,20 +2434,26 @@ class No_Vi_Metrics(Node, ViNodes):
                     newrow(layout, 'Metric:', self, "light_menu")
 
                 newrow(layout, 'Frame', self, "frame_menu")
+
+                if self.metric == '3':
+                    newrow(layout, 'Embodied type:', self, "em_menu")
+
                 newrow(layout, 'Zone', self, "zone_menu")
 
                 if self.metric == '0':
                     if self['res'] and self['res'].get('hkwh'):
-                        newrow(layout, 'Heat type:', self, 'heat_type')
+                        newrow(layout, 'Heating type:', self, 'heat_type')
 
                         if self.heat_type == '0':
                             newrow(layout, 'Heating efficiency:', self, 'gas_eff')
                         else:
                             newrow(layout, 'Heating COP:', self, 'elec_cop')
-                            newrow(layout, 'Carbon factor:', self, 'carb_fac')
 
-                        newrow(layout, 'Air-con COP:', self, 'ac_cop')
+                        if self['res'].get('ckwh'):
+                            newrow(layout, 'Air-con COP:', self, 'ac_cop')
+
                         newrow(layout, 'Unregulated:', self, 'mod')
+                        newrow(layout, 'Carbon factor:', self, 'carb_fac')
 
                     if self.energy_menu == '0':
                         if self['res'].get('pvkwh'):
@@ -2468,6 +2480,9 @@ class No_Vi_Metrics(Node, ViNodes):
                                 row = layout.row()
                                 wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
                                 row.label(text="Hot water (kWh): {}".format(wkwh))
+                                row = layout.row()
+                                wkwhm2 = "{:.2f}".format(self['res']['wkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                                row.label(text="Hot water (kWh/m2): {}".format(wkwhm2))
                                 row = layout.row()
                                 ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A'
                                 row.label(text="ECF: {}".format(ecf))
@@ -2654,7 +2669,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                 elif self.metric == '3':
-                    newrow(layout, 'Embodied type:', self, "em_menu")
+                    newrow(layout, 'Timespan:', self, "ec_years")
 
                     if self['res']['ec']:
                         row = layout.row()
@@ -2670,21 +2685,26 @@ class No_Vi_Metrics(Node, ViNodes):
                                 row.label(text='Total EC/m2/y: {:.2f} kgCO2e/m2/y'.format(float(self['res']['ecm2y']['All'])))
                             if self['res']['vol']:
                                 row = layout.row()
-                                row.label(text='Total Volume: {:.2f} m3'.format(float(self['res']['vol']['All'])))
-                        else:
-                            row.label(text='EC: {:.2f} kgCO2e'.format(self['res']['ec'][self.zone_menu]))
-                            if self['res']['ecm2']:
-                                row = layout.row()
-                                row.label(text='EC/m2: {:.2f} kgCO2e/m2'.format(self['res']['ecm2'][self.zone_menu]))
-                            if self['res']['ecm2y']:
-                                row = layout.row()
-                                row.label(text='EC/m2/y: {:.2f} kgCO2e/m2/y'.format(self['res']['ecm2y'][self.zone_menu]))
-                            if self['res']['vol']:
-                                row = layout.row()
-                                row.label(text='Volume: {:.2f} m3'.format(self['res']['vol'][self.zone_menu]))
+                                row.label(text='Total volume: {:.2f} m3'.format(float(self['res']['vol']['All'])))
                             if self['res']['area']:
                                 row = layout.row()
-                                row.label(text='Area: {:.2f} m2'.format(self['res']['area'][self.zone_menu]))
+                                row.label(text='Total area: {:.2f} m2'.format(self['res']['area'][self.zone_menu]))
+                        else:
+                            ent_type = ('Object', 'Surface', 'Zone')[int(self.em_menu)]
+                            row.label(text='{} EC: {:.2f} kgCO2e'.format(ent_type, self['res']['ec'][self.zone_menu]))
+
+                            if self['res']['ecm2']:
+                                row = layout.row()
+                                row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(ent_type, self['res']['ecm2'][self.zone_menu]))
+                            if self['res']['ecm2y']:
+                                row = layout.row()
+                                row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(ent_type, self['res']['ecm2y'][self.zone_menu]))
+                            if self['res']['vol']:
+                                row = layout.row()
+                                row.label(text='{} volume: {:.2f} m3'.format(ent_type, self['res']['vol'][self.zone_menu]))
+                            if self['res']['area']:
+                                row = layout.row()
+                                row.label(text='{} area: {:.2f} m2'.format(ent_type, self['res']['area'][self.zone_menu]))
 
 
                 elif self.metric == '4':
@@ -2719,17 +2739,41 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 elif self.metric == '6':
                     newrow(layout, 'Timespan:', self, "ec_years")
-                    newrow(layout, 'Heat type:', self, 'heat_type')
+                    newrow(layout, 'Heating type:', self, 'heat_type')
 
                     if self.heat_type == '0':
                         newrow(layout, 'Heating efficiency:', self, 'gas_eff')
+
+                        if self['res']['ckwh']:
+                            newrow(layout, 'Cooling COP:', self, 'ac_cop')
+                            newrow(layout, 'Carbon factor:', self, 'carb_fac')
+                            newrow(layout, 'Annual change:', self, 'carb_annc')
                     else:
                         newrow(layout, 'Heating COP:', self, 'elec_cop')
+                        newrow(layout, 'Hot water COP:', self, 'hw_cop')
 
-                    newrow(layout, 'Air-con COP:', self, 'ac_cop')
-                    newrow(layout, 'Carbon factor:', self, 'carb_fac')
-                    newrow(layout, 'Annual change:', self, 'carb_annc')
-                    newrow(layout, 'Unregulated consumption:', self, 'mod')
+                        if self['res']['ckwh']:
+                            newrow(layout, 'Cooling EER:', self, 'ac_cop')
+
+                        newrow(layout, 'Carbon factor:', self, 'carb_fac')
+                        newrow(layout, 'Annual change:', self, 'carb_annc')
+
+                    newrow(layout, 'Unregulated', self, 'mod')
+                    newrow(layout, 'Hot water:', self, 'hwmod')
+
+                    if self['res']['ofwlc']:
+                        row = layout.row()
+                        row.label(text="Carbon offset: {:.1f} kgCO2e".format(self['res']['ofwlc']))
+                    if self['res']['owlc']:
+                        row = layout.row()
+                        row.label(text="Total operational carbon: {:.1f} kgCO2e".format(self['res']['owlc']))
+                    if self['res']['ecwlc']:
+                        row = layout.row()
+                        row.label(text="Total embodied carbon: {:.1f} kgCO2e".format(self['res']['ecwlc']))
+                    if self['res']['wlc']:
+                        row = layout.row()
+                        row.label(text="Whole-life carbon: {:.1f} kgCO2e".format(self['res']['wlc']))
+
                     row = layout.row()
                     row.operator('node.vi_info', text='Infographic')
 
@@ -2747,7 +2791,6 @@ class No_Vi_Metrics(Node, ViNodes):
                 row = layout.row()
                 row.operator('node.ec_pie', text='Pie chart')
 
-
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
@@ -2757,14 +2800,30 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
 
                 if self.metric == '3':
-                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', )])))
-                    print(self.metric, znames)
-                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
+                    if self.em_menu == '1':
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', ) and z[3] == "Surface EC (kgCO2e/y)"])))
+                    elif self.em_menu == '2':
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', ) and z[3] == "Zone EC (kgCO2e/y)"])))
+                    elif self.em_menu == '0':
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', ) and z[3] == "Object EC (kgCO2e/y)"])))
+
+                    if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
+                        self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+                    else:
+                        self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
+
                 else:
                     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
                     self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
 
                 self.inputs[0].links[0].from_node.new_res = 0
+
+                if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
+                    self.frame_menu = self['frames'][0][0]
+
+                if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
+                    self.zone_menu = self['znames'][0][0]
+
                 self.res_update()
             else:
                 self['rl'] = []
@@ -3020,25 +3079,42 @@ class No_Vi_Metrics(Node, ViNodes):
 
             for r in self['rl']:
                 if r[0] == self.frame_menu:
-                    if r[3] == 'EC (kgCO2e)':
-                        self['res']['ec'][r[2]] = float(r[4])
-                    elif r[3] == 'EC (kgCO2e/m2)':
-                        self['res']['ecm2'][r[2]] = float(r[4])
-                    elif r[3] == 'EC (kgCO2e/m2/y)':
-                        self['res']['ecm2y'][r[2]] = float(r[4])
-                    elif r[3] == 'Volume (m3)':
-                        self['res']['vol'][r[2]] = float(r[4])
-                    elif r[3] == 'Area (m2)':
-                        self['res']['area'][r[2]] = float(r[4])
+                    if self.em_menu == '0':
+                        if r[3] == 'Object EC (kgCO2e/y)':
+                            self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
+                        elif r[3] == 'Object EC (kgCO2e/m2/y)':
+                            self['res']['ecm2'][r[2]] = float(r[4])
+                            self['res']['ecm2y'][r[2]] = float(r[4])
+                        elif r[3] == 'Object Volume (m3)':
+                            self['res']['vol'][r[2]] = float(r[4])
+                    elif self.em_menu == '1':
+                        if r[3] == 'Surface EC (kgCO2e/y)':
+                            self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
+                        elif r[3] == 'Surface EC (kgCO2e/m2/y)':
+                            self['res']['ecm2'][r[2]] = float(r[4]) * self.ec_years
+                            self['res']['ecm2y'][r[2]] = float(r[4])
+                        elif r[3] == 'Surface Volume (m3)':
+                            self['res']['vol'][r[2]] = float(r[4])
+                        elif r[3] == 'Surface area (m2)':
+                            self['res']['area'][r[2]] = float(r[4])
+                    elif self.em_menu == '2':
+                        if r[3] == 'Zone EC (kgCO2e/y)':
+                            self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
+                        elif r[3] == 'Zone EC (kgCO2e/m2/y)':
+                            self['res']['ecm2'][r[2]] = float(r[4]) * self.ec_years
+                            self['res']['ecm2y'][r[2]] = float(r[4])
+                        elif r[3] == 'Surface area (m2)':
+                            self['res']['area'][r[2]] = float(r[4])
 
-                    if r[2] == 'All' and r[3] == 'Total EC (kgCO2e)':
-                        self['res']['ec']['All'] = float(r[4])
-                    elif r[2] == 'All' and r[3] == 'Total EC (kgCO2e/m2)':
-                        self['res']['ecm2']['All'] = float(r[4])
+                    if r[2] == 'All' and r[3] == 'Total EC (kgCO2e/y)':
+                        self['res']['ec']['All'] = float(r[4]) * self.ec_years
                     elif r[2] == 'All' and r[3] == 'Total EC (kgCO2e/m2/y)':
+                        self['res']['ecm2']['All'] = float(r[4]) * self.ec_years
                         self['res']['ecm2y']['All'] = float(r[4])
                     elif r[2] == 'All' and r[3] == 'Total volume (m3)':
                         self['res']['vol']['All'] = float(r[4])
+                    elif r[2] == 'All' and r[3] == 'Total surface area (m2)':
+                        self['res']['area']['All'] = float(r[4])
 
         elif self.metric == '4':
             self['res']['oh'] = -1
@@ -3075,19 +3151,69 @@ class No_Vi_Metrics(Node, ViNodes):
                                 co2s = array([float(p) for p in r[4].split()])
                                 self['res']['co2'] = 100 * len(where(co2s < 900)[0])/len(co2s)
 
-            # znames = set([z[2] for z in self['rl'] if z[1] == 'Zone'])
-            # for zn in znames:
-            #     for r in self['rl']:
-            #         if r[2] == zn:
-            #             if r[3] == 'CO2':
-            #                 self['res']['co2'][zn] = float(r[4].split()[-1])
+        elif self.metric == '6':
+            if bpy.data.collections.get('EnVi Geometry'):
+                self['res']['wlc'] = 0
+                self['res']['owlc'] = 0
+                self['res']['ecwlc'] = 0
+                self['res']['wlc'] = 0
+                self['res']['ofwlc'] = 0
+                self['res']['ckwh'] = 0
 
-        else:
-            if self.zone_menu != 'None':
-                try:
-                    self.zone_menu = 'None'
-                except:
-                    pass
+                pv_kwh = 0
+                heat_kwh = 0
+                aheat_kwh = 0
+                cool_kwh = 0
+                acool_kwh = 0
+                hours = 8760
+                cop = 1/self.elec_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
+                hw_cop = 1/self.hw_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
+                geo_coll = bpy.data.collections['EnVi Geometry']
+
+                if self.zone_menu == 'All':
+                    if geo_coll.vi_params['enparams'].get('floorarea'):
+                        self['res']['fa'] = geo_coll.vi_params['enparams']['floorarea'][str(self.frame_menu)]
+
+                elif self.zone_menu != '':
+                    if geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
+                        self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea'][str(self.frame_menu)]
+
+                if self.frame_menu and self.zone_menu:
+                    for r in self['rl']:
+                        if r[0] == self.frame_menu:
+                            if r[2] == self.zone_menu:
+                                if r[3] == 'Heating (W)':
+                                    heat_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+                                    aheat_kwh += heat_kwh
+                                    hours = len(r[4].split())
+                                if r[3] == 'Cooling (W)':
+                                    cool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+                                    acool_kwh += cool_kwh
+                                elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
+                                    ec_kgco2e = float(r[4])
+                            elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == self.zone_menu and r[3] == 'PV power (W)':
+                                pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[1] == 'Power' and self.zone_menu == 'All' and r[3] == 'PV power (W)':
+                                pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Heating (W)':
+                                aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                            elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Cooling (W)':
+                                acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                        # else:
+                        #     if self.zone_menu != 'None':
+                        #         try:
+                        #             self.zone_menu = 'None'
+                        #         except:
+                        #             pass
+
+                    (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
+                    o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
+                    self['res']['owlc'] = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                    self['res']['ecwlc'] = ec_kgco2e * self.ec_years
+                    self['res']['ofwlc'] = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                    self['res']['wlc'] = self['res']['owlc'] - self['res']['ofwlc'] + self['res']['ecwlc']
+                    self['res']['ckwh'] = cool_kwh
+
 
     def ret_metrics(self):
         if self.inputs['Results in'].links:
@@ -5297,6 +5423,7 @@ class No_En_Net_Sched(Node, EnViNodes):
         schedtext = epentry('Schedule:File', params, paramvs)
         return schedtext
 
+
 class No_En_Net_Prog(Node, EnViNodes):
     '''Node describing an EMS Program'''
     bl_idname = 'No_En_Net_Prog'
@@ -5350,6 +5477,7 @@ class No_En_Net_Prog(Node, EnViNodes):
             pparamvs = ['{}_controller'.format(self.name.replace(' ', '_'))] + [line.body.strip() for line in bpy.data.texts[self.text_file.lstrip()].lines if line.body and line.body.strip()[0] != '!']
             pentry = epentry('EnergyManagementSystem:Program', pparams, pparamvs)
             return sentries + aentries + cmentry + pentry
+
 
 class No_En_Net_EMSZone(Node, EnViNodes):
     '''Node describing a Energy management System routine'''
@@ -5746,29 +5874,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             self.pv_update()
             self.update()
 
-    # def t_update(self, context):
-    #     con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
-
-    #     for l, layername in enumerate(envi_cons.propdict[con_type][self.envi_con_list]):
-    #         row = layout.row()
-
-    #         if layername in envi_mats.wgas_dat:
-    #             row.label(text = '{} ({})'.format(layername, "14mm"))
-    #             row.prop(self, "lt{}".format(l))
-
-    #         elif layername in envi_mats.gas_dat:
-    #             row.label(text = '{} ({})'.format(layername, "20-50mm"))
-    #             row.prop(self, "lt{}".format(l))
-
-    #         elif layername in envi_mats.glass_dat:
-    #             row.label(text = '{} ({})'.format(layername, "{}mm".format(float(envi_mats.matdat[layername][3])*1000)))
-    #             row.prop(self, "lt{}".format(l))
-
-    #         else:
-    #             row.label(text = '{} ({})'.format(layername, "{}mm".format(envi_mats.matdat[layername][7])))
-    #             row.prop(self, "lt{}".format(l))
-
-
     def pv_update(self):
         if (self.envi_con_type in ('Wall', 'Roof') and self.envi_con_con != 'Thermal mass') or self.envi_con_type == 'Shading':
             self.inputs['PV'].hide = False
@@ -5871,7 +5976,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     lt8: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
     lt9: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
     cuv: StringProperty(name="", description="Construction U-Value", default="N/A")
-    cec: StringProperty(name="", description="Construction Embodied carbon", default="N/A")
+    cec: StringProperty(name="", description="Construction embodied carbon", default="N/A")
+    cecy: StringProperty(name="", description="Construction embodied carbon per year", default="N/A")
     frame_cuv: StringProperty(name="", description="Frame U-Value", default="N/A")
     envi_con_list: EnumProperty(items=envi_con_list, name="", description="Database construction")
     active: BoolProperty(name="", description="Active construction", default=False, update=active_update)
@@ -6027,6 +6133,15 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     except:
                         row.label(text = 'U-value  = N/A')
 
+                if self.envi_con_makeup == '1':
+                    row = layout.row()
+                    row.operator('node.envi_ec', text = "EC Calc")
+
+                    try:
+                        row.label(text = 'EC  = {} kgCO2e/m2'.format(self.cec))
+                    except:
+                        row.label(text = 'EC  = N/A')
+
 
             elif self.envi_con_type in ('Wall', 'Floor', 'Roof'):
                 row = layout.row()
@@ -6096,16 +6211,23 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
     def ret_ec(self):
         if self.envi_con_makeup == '1':
-            ecss = []
+            ecss, ecys = [], []
             lsock = self.inputs['Outer layer']
 
             while lsock.links:
-                ecss.append(lsock.links[0].from_node.ret_ec())
+                l_node = lsock.links[0].from_node
+
+                if l_node.embodied:
+                    node_ec = l_node.ret_ec()
+                    ecss.append(node_ec[0])
+                    ecys.append(node_ec[1])
+
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
             self.cec = '{:.3f}'.format(sum(ecss))
+            self.cecy = '{:.3f}'.format(sum(ecys))
 
-        return self.cec
+        return (self.cec, self.cecy)
 
     def ret_frame_ec(self):
         if self.envi_con_type == 'Window' and self.fclass == '2':
@@ -6113,7 +6235,11 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             lsock = self.inputs['Outer frame layer']
 
             while lsock.links:
-                ecs.append(lsock.links[0].from_node.ret_ec())
+                l_node = lsock.links[0].from_node
+
+                if l_node.embodied:
+                    ecs.append(lsock.links[0].from_node.ret_ec())
+
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
             self.frame_cec = '{:.3f}'.format(sum(ecs))
@@ -6215,15 +6341,15 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                     if self.em.namedict.get(presetmat) == None:
                         self.em.namedict[presetmat] = 0
-                        self.em.thickdict[presetmat] = [self.thicklist[pm]/1000]
+                        self.em.thickdict[presetmat] = [self.thicklist[pm] * 0.001]
                     else:
                         self.em.namedict[presetmat] = self.em.namedict[presetmat] + 1
-                        self.em.thickdict[presetmat].append(self.thicklist[pm]/1000)
+                        self.em.thickdict[presetmat].append(self.thicklist[pm] * 0.001)
 
                     if self.envi_con_type in ('Wall', 'Floor', 'Roof', 'Ceiling', 'Door') and presetmat not in self.em.gas_dat:
-                        self.resist += self.thicklist[pm]/1000/float(matlist[1])
+                        self.resist += self.thicklist[pm]* 0.001/float(matlist[1])
                         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
-                        paramvs = ['{}-layer-{}'.format(mn, pm), matlist[0], str(self.thicklist[pm]/1000)] + matlist[1:8]
+                        paramvs = ['{}-layer-{}'.format(mn, pm), matlist[0], str(self.thicklist[pm] * 0.001)] + matlist[1:8]
                         ep_text += epentry("Material", params, paramvs)
 
                         if presetmat in self.em.pcmd_datd:
@@ -6251,12 +6377,12 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                           'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
                           'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)',
                           'Dirt Correction Factor for Solar and Visible Transmittance', 'Solar Diffusing')
-                            paramvs = ['{}-layer-{}'.format(mn, pm)] + matlist[1:3] + [self.thicklist[pm]] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
+                            paramvs = ['{}-layer-{}'.format(mn, pm)] + matlist[1:3] + [self.thicklist[pm] * 0.001] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
                             ep_text += epentry("WindowMaterial:{}".format(matlist[0]), params, paramvs)
 
                         elif self.em.matdat[presetmat][0] == 'Gas':
                             params = ('Name', 'Gas Type', 'Thickness')
-                            paramvs = [layer_name] + [matlist[1]] + [self.thicklist[pm]]
+                            paramvs = [layer_name] + [matlist[1]] + [self.thicklist[pm] * 0.001]
                             ep_text += epentry("WindowMaterial:Gas", params, paramvs)
 
         elif self.envi_con_makeup == '1':
@@ -6277,7 +6403,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     ep_text += node.ep_write(n, mn)
                     self.resist += node.resist
 
-                    if node.get('embodied'):
+                    if node.get('embodied') and node['ecm2']:
                         ecm2 += float(node['ecm2'])
                 else:
                     get_mat(self, 1).vi_params.envi_shading = 1
@@ -6390,10 +6516,12 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             try:
                 self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
                 self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
+                self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001/self.ec_life)
                 self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
             except Exception as e:
                 self['ecm2'] = 'N/A'
+                self['ecm2y'] = 'N/A'
 
     lay_name: StringProperty(name='', description='Custom layer name', update=lay_update)
     layer: EnumProperty(items=[("0", "Database", "Select from database"),
@@ -6408,7 +6536,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     ecm2: FloatProperty(name="kgCo2e/m2", description="Embodied carbon per metre squared", min=0.0, default=0.0)
     material: EnumProperty(items=envi_layer, name="", description="Layer material", update=lay_update)
     thi: FloatProperty(name="mm", description="Thickness (mm)", min=0.1, max=10000, default=100, update=ec_update)
-    tc: FloatProperty(name="W/m.K", description="Thermal conductivity (W/m.K)", min=0.001, max=10, default=0.5)
+    tc: FloatProperty(name="W/m.K", description="Thermal conductivity (W/m.K)", min=0.001, max=10, precision=3, default=0.5)
     rough: EnumProperty(items=[("VeryRough", "VeryRough", "Roughness"),
                                   ("Rough", "Rough", "Roughness"),
                                   ("MediumRough", "MediumRough", "Roughness"),
@@ -6445,7 +6573,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_mod: StringProperty(name="", description="Embodied modules")
-    ec_life: IntProperty(name="Years", description="Lifespan in years", min=1, max=100, default=60)
+    ec_life: IntProperty(name="Years", description="Service life in years", min=1, max=100, default=60, update=ec_update)
     em = envi_materials()
     ee = envi_embodied()
 
@@ -6488,7 +6616,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             if self.embodiedtype != 'Custom':
                 newrow(layout, "Embodied class:", self, "embodiedclass")
                 newrow(layout, "Embodied material:", self, "embodiedmat")
-                newrow(layout, "Lifespan:", self, "ec_life")
+                newrow(layout, "Service life:", self, "ec_life")
 
                 try:
                     for ec in self['ecentries']:
@@ -6497,6 +6625,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
                     row = layout.row()
                     row.label(text='ec/m2: {}'.format(self['ecm2']))
+                    row = layout.row()
+                    row.label(text='ec/m2/y: {}'.format(self['ecm2y']))
 
                 except Exception:
                     pass
@@ -6514,7 +6644,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
                 newrow(layout, "Embodied value per amount:", self, "ec_kgco2e")
                 newrow(layout, "Embodied density:", self, "ec_density")
-                newrow(layout, "Lifespan:", self, "ec_life")
+                newrow(layout, "Service life:", self, "ec_life")
 
                 if all((self.ec_id, self.ec_name, self.ec_type, self.ec_class, self.ec_mod)):
                     row = layout.row()
@@ -6536,9 +6666,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     def ret_ec(self):
         self.ec_update(0)
         try:
-            return float(self['ecm2'])
+            return (float(self['ecm2']), float(self['ecm2y']))
         except:
-            return 0
+            return (0, 0)
 
     def save_laydict(self):
         '''Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance,
@@ -6559,7 +6689,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             eckg = self.ec_kgco2e/weight
             ecdu = self.ec_kgco2e
         elif self.ec_unit == 'm2':
-            weight = self.ec_amount * self.ec_density * self.thi/1000
+            weight = self.ec_amount * self.ec_density * self.thi * 0.001
             eckg = self.ec_kgco2e/weight
             ecdu = self.ec_kgco2e
         elif self.ec_unit == 'm3':
@@ -6708,10 +6838,12 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
             try:
                 self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
                 self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
+                self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001/self.ec_life)
                 self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
             except Exception as e:
                 self['ecm2'] = 'N/A'
+                self['ecm2y'] = 'N/A'
 
     lay_name: StringProperty(name='', description='Custom layer name')
     layer: EnumProperty(items=[("0", "Database", "Select from database"),
@@ -6753,7 +6885,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
-    ec_life: IntProperty(name="y", description="Lifespan in years", min=1, max=100, default=60)
+    ec_life: IntProperty(name="y", description="Service life in years", min=1, max=100, default=60, update=ec_update)
     ec_mod: StringProperty(name="", description="Embodied modules")
     em = envi_materials()
     ee = envi_embodied()
@@ -6794,6 +6926,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
             if self.embodiedtype != 'Custom':
                 newrow(layout, "Embodied class:", self, "embodiedclass")
                 newrow(layout, "Embodied material:", self, "embodiedmat")
+                newrow(layout, "Service life:", self, "ec_life")
 
                 try:
                     for ec in self['ecentries']:
@@ -6802,6 +6935,8 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
 
                     row = layout.row()
                     row.label(text='ec/m2: {}'.format(self['ecm2']))
+                    row = layout.row()
+                    row.label(text='ec/m2/y: {}'.format(self['ecm2y']))
 
                 except Exception as e:
                     print(e)
@@ -6819,7 +6954,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
 
                 newrow(layout, "Embodied value per amount:", self, "ec_kgco2e")
                 newrow(layout, "Embodied density:", self, "ec_density")
-                newrow(layout, "Lifespan:", self, "ec_life")
+                newrow(layout, "Service life:", self, "ec_life")
 
                 if all((self.ec_id, self.ec_name, self.ec_type, self.ec_class, self.ec_mod)):
                     row = layout.row()
@@ -6865,9 +7000,9 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     def ret_ec(self):
         self.ec_update(0)
         try:
-            return float(self['ecm2'])
+            return (float(self['ecm2']), float(self['ecm2y']))
         except:
-            return 0
+            return (0, 0)
 
     def ep_write(self, ln, mn):
         self.em.update()
@@ -6884,10 +7019,10 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
 
         if self.layer == '0':
             matlist = list(self.em.matdat[self.material])
-            paramvs = [layer_name] + matlist[1:3] + [self.thi] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
+            paramvs = [layer_name] + matlist[1:3] + [self.thi * 0.001] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
 
         else:
-            paramvs = ['{}-layer-{}'.format(mn, ln), 'SpectralAverage', '', self.thi/1000, '{:.3f}'.format(self.stn), '{:.3f}'.format(self.fsn), '{:.3f}'.format(self.bsn),
+            paramvs = ['{}-layer-{}'.format(mn, ln), 'SpectralAverage', '', self.thi * 0.001, '{:.3f}'.format(self.stn), '{:.3f}'.format(self.fsn), '{:.3f}'.format(self.bsn),
                        '{:.3f}'.format(self.vtn), '{:.3f}'.format(self.fvrn), '{:.3f}'.format(self.bvrn), '{:.3f}'.format(self.itn),
                        '{:.3f}'.format(self.fie), '{:.3f}'.format(self.bie), '{:.3f}'.format(self.tc), 1, ('No', 'Yes')[self.diff]]
 
@@ -6904,7 +7039,7 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
                                         name = "", description = "Composition of the layer", default = "0")
     materialtype: EnumProperty(items = envi_layertype, name = "", description = "Layer material type")
     material: EnumProperty(items = envi_layer, name = "", description = "Layer material")
-    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 1000, default = 14)
+    thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10, default = 14)
     ccA: FloatProperty(name = "W/m.K", description = "Conductivity coefficient A", min = 0.1, max = 10, default = 0.003, precision = 5)
     ccB: FloatProperty(name = "W/m.K^2", description = "Conductivity coefficient B", min = 0.0, max = 10, default = 0.00008, precision = 5)
     ccC: FloatProperty(name = "W/m.K^3", description = "Conductivity coefficient C", min = 0.0, max = 10, default = 0, precision = 5)
@@ -6974,7 +7109,7 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
         return self.resist
 
     def ret_ec(self):
-        return 0
+        return (0, 0)
 
     def ep_write(self, ln, mn):
         for material in bpy.data.materials:
@@ -6982,13 +7117,13 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
                 break
         if self.layer == '0':
             params = ('Name', 'Gas Type', 'Thickness')
-            paramvs = ['{}-layer-{}'.format(mn, ln), self.material, self.thi]
+            paramvs = ['{}-layer-{}'.format(mn, ln), self.material, self.thi * 0.001]
 
         else:
             params = ('gap name', 'type', 'thickness', 'Conductivity Coefficient A', 'Conductivity Coefficient B', 'Conductivity Coefficient C',
                       'Conductivity Viscosity A', 'Conductivity Viscosity B', 'Conductivity Viscosity C', 'Specific Heat Coefficient A',
                       'Specific Heat Coefficient B', 'Specific Heat Coefficient C', 'Molecular Weight', 'Specific Heat Ratio')
-            paramvs = ['{}-layer-{}'.format(mn, ln), 'Custom', '{:.3f}'.format(self.thi), '{:.3f}'.format(self.ccA), '{:.3f}'.format(self.ccB),
+            paramvs = ['{}-layer-{}'.format(mn, ln), 'Custom', '{:.3f}'.format(self.thi * 0.001), '{:.3f}'.format(self.ccA), '{:.3f}'.format(self.ccB),
                        '{:.3f}'.format(self.ccC), '{:.3f}'.format(self.vcA), '{:.3f}'.format(self.vcB), '{:.3f}'.format(self.vcC), '{:.3f}'.format(self.shcA),
                        '{:.3f}'.format(self.shcB), '{:.3f}'.format(self.shcC), '{:.3f}'.format(self.mw), '{:.3f}'.format(self.shr)]
 
@@ -7006,7 +7141,7 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
     ihe: FloatProperty(name = "", description = "Infrared Hemispherical Emissivity", min = 0.0, max = 1, default = 0.9)
     it: FloatProperty(name = "", description = "Infrared Transmittance", min = 0.0, max = 1, default = 0.0)
     thi: FloatProperty(name = "mm", description = "Thickness", min = 0.1, max = 1000, default = 5)
-    tc: FloatProperty(name = "W/m.K", description = "Conductivity", min = 0.0001, max = 10, default = 0.1)
+    tc: FloatProperty(name = "W/m.K", description = "Conductivity", min = 0.0001, max = 10, precision=3, default = 0.1)
     sgd: FloatProperty(name = "mm", description = "Shade to glass distance", min = 0.1, max = 1000, default = 50)
     tom: FloatProperty(name = "", description = "Top opening multiplier", min = 0.0, max = 1, default = 0.5)
     bom: FloatProperty(name = "", description = "Bottom opening multiplier", min = 0.0, max = 1, default = 0.5)
@@ -7080,7 +7215,7 @@ class No_En_Mat_Sc(Node, EnViMatNodes):
     dsr: FloatProperty(name = "", description = "Diffuse solar reflectance", min = 0.0, max = 0.99, default = 0.5)
     vr: FloatProperty(name = "", description = "Visible reflectance", min = 0.0, max = 1, default = 0.6)
     the: FloatProperty(name = "", description = "Thermal Hemispherical Emissivity", min = 0.0, max = 1, default = 0.9)
-    tc: FloatProperty(name = "W/m.K", description = "Conductivity", min = 0.0001, max = 10, default = 0.1)
+    tc: FloatProperty(name = "W/m.K", description = "Conductivity", min=0.0001, max=10, precision=3, default=0.1)
     sme: FloatProperty(name = "mm", description = "Screen Material Spacing", min = 1, max = 1000, default = 50)
     smd: FloatProperty(name = "mm", description = "Screen Material Diameter", min = 1, max = 1000, default = 25)
     sgd: FloatProperty(name = "mm", description = "Screen to glass distance", min = 1, max = 1000, default = 25)
@@ -7248,7 +7383,7 @@ class No_En_Mat_SG(Node, EnViMatNodes):
     # mats = [((mat, mat, 'Layer material')) for mat in envi_mats.glass_dat.keys()]
     material: EnumProperty(items = envi_layer, name = "", description = "Glass material")
     thi: FloatProperty(name = "mm", description = "Thickness (mm)", min = 0.1, max = 10000, default = 100)
-    tc: FloatProperty(name = "W/m.K", description = "Thermal Conductivity (W/m.K)", min = 0.1, max = 10000, default = 100)
+    tc: FloatProperty(name = "W/m.K", description = "Thermal Conductivity (W/m.K)", min = 0.1, max = 10000, precision=3, default = 100)
     stn: FloatProperty(name = "", description = "Solar normal transmittance", min = 0, max = 1, default = 0.7)
     fsn: FloatProperty(name = "", description = "Solar front normal reflectance", min = 0, max = 1, default = 0.7)
     bsn: FloatProperty(name = "", description = "Solar back normal reflectance", min = 0, max = 1, default = 0.7)
@@ -7311,7 +7446,7 @@ class No_En_Mat_SG(Node, EnViMatNodes):
             paramvs = [layer_name] + matlist[1:3] + [self.thi] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
 
         else:
-            paramvs = ['{}-layer-{}'.format(material.name, ln), 'SpectralAverage', '', self.thi/1000, '{:.3f}'.format(self.stn), '{:.3f}'.format(self.fsn), '{:.3f}'.format(self.bsn),
+            paramvs = ['{}-layer-{}'.format(material.name, ln), 'SpectralAverage', '', self.thi * 0.001, '{:.3f}'.format(self.stn), '{:.3f}'.format(self.fsn), '{:.3f}'.format(self.bsn),
                        '{:.3f}'.format(self.vtn), '{:.3f}'.format(self.fvrn), '{:.3f}'.format(self.bvrn), '{:.3f}'.format(self.itn),
                        '{:.3f}'.format(self.fie), '{:.3f}'.format(self.bie), '{:.3f}'.format(self.tc), 1, ('No', 'Yes')[self.diff]]
 
@@ -7426,103 +7561,101 @@ class No_En_Mat_PV(Node, EnViMatNodes):
     l = -40
 
     def ret_e1dmenu(self, context):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('PV_database.json')), 'r') as pv_json:
-            e1ddict = json.loads(pv_json.read())
-        return [(p, p, '{} module'.format(p)) for p in e1ddict]
+        with open(ret_datab('PV_database.json', 'r'), 'r') as e1d_jfile:
+            e1d_dict = json.loads(e1d_jfile.read())
+        return [(p, p, '{} module'.format(p)) for p in e1d_dict]
 
     def ret_sandiamenu(self, context):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('SandiaPVdata.json')), 'r') as sandia_json:
-            sandiadict = json.loads(sandia_json.read())
-        return [(p, p, '{} module'.format(p)) for p in sandiadict]
+        # with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('SandiaPVdata.json')), 'r') as sandia_json:
+        #     sandiadict = json.loads(sandia_json.read())
+        return [(p, p, '{} module'.format(p)) for p in self.sandiadict]
 
-    def ret_e1ddict(self):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('PV_database.json')), 'r') as pv_json:
-            e1ddict = json.loads(pv_json.read())
-            return e1ddict
+    # def ret_e1ddict(self):
+    #     with open(ret_datab('PV_database.json', 'r'), 'r') as e1d_jfile:
+    #         e1d_dict = json.loads(e1d_jfile.read())
+    #         return e1d_dict
 
     def save_e1ddict(self):
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('PV_database.json')), 'r') as pv_json:
-            e1ddict = json.loads(pv_json.read())
+        with open(ret_datab('PV_database.json', 'r'), 'r') as e1d_jfile:
+            e1d_dict = json.loads(e1d_jfile.read())
 
-        e1ddict[self.pv_name] = [self.scc, self.ocv, self.mv, self.mc, self.tcscc, self.tcocv, self.mis, self.ctnoct, self.mod_area]
-        self.e1ddict = e1ddict
-#        self.e1dmenu = self.pv_name
+        e1d_dict[self.pv_name] = [f'{self.scc:.2f}', f'{self.ocv:.2f}', f'{self.mv:.2f}', f'{self.mc:.2f}', f'{self.tcscc:.3f}', f'{self.tcocv:.3f}', f'{self.cis:.2f}', f'{self.ctnoct:.2f}', f'{self.mod_area:.2f}']
+        #self.e1d_dict = e1d_dict
 
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('PV_database.json')), 'w') as e1d_jfile:
-            e1d_jfile.write(json.dumps(e1ddict))
+        with open(ret_datab('PV_database.json', 'w'), 'w') as e1d_jfile:
+            e1d_jfile.write(json.dumps(e1d_dict, indent=2))
 
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('PV_database.json')), 'r') as pv_json:
-        e1ddict = json.loads(pv_json.read())
+    # with open(ret_datab('PV_database.json', 'r'), 'r') as e1d_jfile:
+    #     e1d_dict = json.loads(e1d_jfile.read())
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', '{}'.format('SandiaPVdata.json')), 'r') as sandia_json:
         sandiadict = json.loads(sandia_json.read())
 
-    ct: EnumProperty(items = [("0", "Crystalline", "Do not model reflected beam component"),
+    ct: EnumProperty(items=[("0", "Crystalline", "Do not model reflected beam component"),
                                ("1", "Amorphous", "Model reflectred beam as beam")],
-                                name = "", description = "Photovoltaic Type", default = "0")
+                                name="", description="Photovoltaic Type", default="0")
 
-    hti: EnumProperty(items = [("Decoupled", "Decoupled", "Decoupled"),
+    hti: EnumProperty(items=[("Decoupled", "Decoupled", "Decoupled"),
                                ("DecoupledUllebergDynamic", "Ulleberg", "DecoupledUllebergDynamic"),
                                ("IntegratedSurfaceOutsideFace", "SurfaceOutside", "IntegratedSurfaceOutsideFace"),
                                ("IntegratedTranspiredCollector", "Transpired", "IntegratedTranspiredCollector"),
                                ("IntegratedExteriorVentedCavity", "ExteriorVented", "IntegratedExteriorVentedCavity"),
                                ("PhotovoltaicThermalSolarCollector", "PVThermal", "PhotovoltaicThermalSolarCollector")],
-                                name = "", description = "Conversion Efficiency Input Mode'", default = "Decoupled")
+                                name="", description="Conversion Efficiency Input Mode'", default="Decoupled")
 
-    pp: EnumProperty(items = [("0", "Simple", "Do not model reflected beam component"),
+    pp: EnumProperty(items=[("0", "Simple", "Do not model reflected beam component"),
                                ("1", "One-Diode", "Model reflectred beam as beam"),
                                ("2", "Sandia", "Model reflected beam as diffuse")],
-                                name = "", description = "Photovoltaic Performance Object Type", default = "0", update = pv_update)
-    pv_name: StringProperty(name = '', description = 'Name of the custom PV model', default = '')
-    e1dmenu: EnumProperty(items = ret_e1dmenu, name = "", description = "Module type")
-    smenu: EnumProperty(items = ret_sandiamenu, name = "", description = "Module type")
-    mod_area: FloatProperty(name = "m2", description = "PV module area", min = 0.1, default = 5)
-    pvsa: FloatProperty(name = "%", description = "Fraction of Surface Area with Active Solar Cells", min = 50, max = 100, default = 90)
-    aa: FloatProperty(name = "m2", description = "Active area", min = 0.1, max = 10000, default = 5)
-    eff: FloatProperty(name = "%", description = "Visible reflectance", min = 0.0, max = 100, default = 20)
-    ssp: IntProperty(name = "", description = "Number of series strings in parallel", min = 1, max = 100, default = 1)
-    mis: IntProperty(name = "", description = "Number of modules in series", min = 1, max = 100, default = 1)
-    cis: IntProperty(name = "", description = "Number of cells in series", min = 1, max = 100, default = 36)
-    tap: FloatProperty(name = "", description = "Transmittance absorptance product", min = -1, max = 1, default = 0.9)
-    sbg: FloatProperty(name = "eV", description = "Semiconductor band-gap", min = 0.1, max = 5, default = 1.12)
-    sr: FloatProperty(name = "W", description = "Shunt resistance", min = 1, default = 1000000)
-    scc: FloatProperty(name = "Amps", description = "Short circuit current", min = 1, max = 1000, default = 25)
-    sgd: FloatProperty(name = "mm", description = "Screen to glass distance", min = 1, max = 1000, default = 25)
-    ocv: FloatProperty(name = "V", description = "Open circuit voltage", min = 0.0, max = 100, default = 60)
-    rt: FloatProperty(name = "C", description = "Reference temperature", min = 0, max = 40, default = 25)
-    ri: FloatProperty(name = "W/m2", description = "Reference insolation", min = 100, max = 2000, default = 1000)
-    mc: FloatProperty(name = "Amps", description = "Module current at maximum power", min = 1, max = 10, default = 5.6)
-    mv: FloatProperty(name = "V", description = "Module voltage at maximum power", min = 0.0, max = 75, default = 17)
-    tcscc: FloatProperty(name = "A/K", description = "Temperature Coefficient of Short Circuit Current", precision = 5, min = 0.00001, max = 0.01, default = 0.002)
-    tcocv: FloatProperty(name = "V/K", description = "Temperature Coefficient of Open Circuit Voltage", precision = 5, min = -0.5, max = 0, default = -0.1)
-    atnoct: FloatProperty(name = "C", description = "Reference ambient temperature", min = 0, max = 40, default = 20)
-    ctnoct: FloatProperty(name = "C", description = "Nominal Operating Cell Temperature Test Cell Temperature", min = 0, max = 60, default = 45)
-    inoct: FloatProperty(name = "W/m2", description = "Nominal Operating Cell Temperature Test Insolation", min = 100, max = 2000, default = 800)
-    hlc: FloatProperty(name = "W/m2.K", description = "Module heat loss coefficient", min = 0.0, max = 50, default = 30)
-    thc: FloatProperty(name = " J/m2.K", description = " Total Heat Capacity", min = 10000, max = 100000, default = 50000)
+                                name="", description="Photovoltaic Performance Object Type", default="0", update=pv_update)
+    pv_name: StringProperty(name='', description='Name of the custom PV model', default='')
+    e1dmenu: EnumProperty(items=ret_e1dmenu, name="", description="Module type")
+    smenu: EnumProperty(items=ret_sandiamenu, name="", description="Module type")
+    mod_area: FloatProperty(name="m2", description="PV module area", min=0.1, default=5)
+    pvsa: FloatProperty(name="%", description="Fraction of Surface Area with Active Solar Cells", min=50, max=100, default=90)
+    aa: FloatProperty(name="m2", description="Active area", min=0.1, max=10000, default=5)
+    eff: FloatProperty(name="%", description="Visible reflectance", min=0.0, max=100, default=20)
+    ssp: IntProperty(name="", description="Number of series strings in parallel", min=1, max=100, default=1)
+    mis: IntProperty(name="", description="Number of modules in series", min=1, max=100, default=1)
+    cis: IntProperty(name="", description="Number of cells in series", min=1, max=100, default=36)
+    tap: FloatProperty(name="", description="Transmittance absorptance product", min=-1, max=1, precision=3, default=0.9)
+    sbg: FloatProperty(name="eV", description="Semiconductor band-gap", min=0.1, max=5, default=1.12)
+    sr: FloatProperty(name="W", description="Shunt resistance", min=1, default=1000000)
+    scc: FloatProperty(name="Amps", description="Short circuit current", min=1, max=1000, default=25)
+    sgd: FloatProperty(name="mm", description="Screen to glass distance", min=1, max=1000, default=25)
+    ocv: FloatProperty(name="V", description="Open circuit voltage", min=0.0, max=100, default=60)
+    rt: FloatProperty(name="C", description="Reference temperature", min=0, max=40, default=25)
+    ri: FloatProperty(name="W/m2", description="Reference insolation", min=100, max=2000, default=1000)
+    mc: FloatProperty(name="Amps", description="Module current at maximum power", min=1, max=10, precision=3, default=5.6)
+    mv: FloatProperty(name="V", description="Module voltage at maximum power", min=0.0, max=75, precision=3, default=17)
+    tcscc: FloatProperty(name="A/K", description="Temperature Coefficient of Short Circuit Current", precision=5, min=0.00001, max=0.01, default=0.002)
+    tcocv: FloatProperty(name="V/K", description="Temperature Coefficient of Open Circuit Voltage", precision=5, min=-0.5, max=0, default=-0.1)
+    atnoct: FloatProperty(name="C", description="Reference ambient temperature", min=0, max=40, default=20)
+    ctnoct: FloatProperty(name="C", description="Nominal Operating Cell Temperature Test Cell Temperature", min=0, max=60, default=45)
+    inoct: FloatProperty(name="W/m2", description="Nominal Operating Cell Temperature Test Insolation", min=100, max=2000, default=800)
+    hlc: FloatProperty(name="W/m2.K", description="Module heat loss coefficient", min=0.0, max=50, default=30)
+    thc: FloatProperty(name=" J/m2.K", description=" Total Heat Capacity", min=10000, max=100000, default=50000)
 
     def init(self, context):
         mat = bpy.data.materials[self.id_data.name]
+
         if not mat.vi_params.get('enparams'):
             mat.vi_params['enparams'] = {'area' : -1}
+
         self['area'] = 0
         self.inputs.new('So_En_Mat_PVG', 'PV Generator')
         self.inputs.new('So_En_Mat_Sched', 'PV Schedule')
-#        self.inputs['PV Schedule'].hide = True
         self.outputs.new('So_En_Mat_PV', 'PV')
 
     def draw_buttons(self, context, layout):
         mat = bpy.data.materials[self.id_data.name]
         row = layout.row()
-#        print(self['area'], mat.vi_params['enparams']['area'])
-#        if self['area'] != mat.vi_params['enparams']['area']:
         row.operator('node.pv_area', text = "Area Calc")
+
         try:
             row.label(text = '{:.2f} m2'.format(self['area']))
         except:
             row.label(text = 'Area  = N/A')
-        #else:
-#            row.label(text = 'Area: {:.2f}m2'.format(self['area']))
+
         newrow(layout, "Heat transfer:", self, "hti")
         newrow(layout, 'Type:', self, 'pp')
 
@@ -7545,9 +7678,11 @@ class No_En_Mat_PV(Node, EnViMatNodes):
                 newrow(layout, "TCSCC:", self, "tcscc")
                 newrow(layout, "TCOCV:", self, "tcocv")
                 newrow(layout, "Nominal temp.:", self, "ctnoct")
+
                 if self.pv_name:
                     row=layout.row()
                     row.operator('node.pv_save', text = "PV Save")
+
             newrow(layout, "Trans*absorp:", self, "tap")
             newrow(layout, "Band gap:", self, "sbg")
             newrow(layout, "Shunt:", self, "sr")
@@ -7569,10 +7704,13 @@ class No_En_Mat_PV(Node, EnViMatNodes):
                 nodecolour(self, 0)
 
     def ep_write(self, sn, area):
-        self['matname'] = get_mat(self, 1).name
-        marea = (area, (self.mod_area, self.e1ddict[self.e1dmenu][8])[self.e1dmenu != 'Custom'], self.sandiadict[self.smenu][0])[int(self.pp)]
+        with open(ret_datab('PV_database.json', 'r'), 'r') as e1d_jfile:
+            e1d_dict = json.loads(e1d_jfile.read())
 
-        if marea /area > 1.01:
+        self['matname'] = get_mat(self, 1).name
+        marea = float((area, (self.mod_area, e1d_dict[self.e1dmenu][8])[self.e1dmenu != 'Custom'], self.sandiadict[self.smenu][0])[int(self.pp)])
+
+        if marea/area > 1.01:
             logentry("No PV data exported as the face {} area is smaller than the module area".format(sn))
             return '! No PV data exported as the face {} area is smaller than the module area\n\n'.format(sn)
 
@@ -7582,7 +7720,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
 
         paramvs = ['{}-pv'.format(sn), sn,
                    ('PhotovoltaicPerformance:Simple', 'PhotovoltaicPerformance:EquivalentOne-Diode', 'PhotovoltaicPerformance:Sandia')[int(self.pp)], '{}-pv-performance'.format(sn),
-                   self.hti, self.ssp, area/marea]
+                   self.hti, self.ssp, int(area/marea)]
 
         ep_text = epentry('Generator:Photovoltaic', params, paramvs)
 
@@ -7602,11 +7740,11 @@ class No_En_Mat_PV(Node, EnViMatNodes):
                       'Temperature Coefficient of Open Circuit Voltage (V/K)', 'Nominal Operating Cell Temperature Test Ambient Temperature (C)',
                       'Nominal Operating Cell Temperature Test Cell Temperature (C)', 'Nominal Operating Cell Temperature Test Insolation (W/m2)',
                       'Module Heat Loss Coefficient (W/m2-K)', 'Total Heat Capacity (J/m2-K)')
-            paramvs = ('{}-pv-performance'.format(sn), ('CrystallineSilicon', 'AmorphousSilicon')[int(self.ct)], (self.cis, self.e1ddict[self.e1dmenu][6])[self.e1dmenu != 'Custom'], (self.mod_area, self.e1ddict[self.e1dmenu][8])[self.e1dmenu != 'Custom'],
-                       self.tap, self.sbg, self.sr, (self.scc, self.e1ddict[self.e1dmenu][0])[self.e1dmenu != 'Custom'], (self.ocv, self.e1ddict[self.e1dmenu][1])[self.e1dmenu != 'Custom'],
-                       self.rt, self.ri, (self.mc, self.e1ddict[self.e1dmenu][3])[self.e1dmenu != 'Custom'], (self.mv, self.e1ddict[self.e1dmenu][2])[self.e1dmenu != 'Custom'],
-                       (self.tcscc, self.e1ddict[self.e1dmenu][4])[self.e1dmenu != 'Custom'], (self.tcocv, self.e1ddict[self.e1dmenu][5])[self.e1dmenu != 'Custom'],
-                       self.atnoct, (self.ctnoct, self.e1ddict[self.e1dmenu][7])[self.e1dmenu != 'Custom'], self.inoct, self.hlc, self.thc)
+            paramvs = ('{}-pv-performance'.format(sn), ('CrystallineSilicon', 'AmorphousSilicon')[int(self.ct)], (self.cis, e1d_dict[self.e1dmenu][6])[self.e1dmenu != 'Custom'], (self.mod_area, e1d_dict[self.e1dmenu][8])[self.e1dmenu != 'Custom'],
+                       f'{self.tap:.3f}', f'{self.sbg:.3f}', self.sr, (f'{self.scc:.3f}', e1d_dict[self.e1dmenu][0])[self.e1dmenu != 'Custom'], (f'{self.ocv:.3f}', e1d_dict[self.e1dmenu][1])[self.e1dmenu != 'Custom'],
+                       self.rt, self.ri, (f'{self.mc:.3f}', e1d_dict[self.e1dmenu][3])[self.e1dmenu != 'Custom'], (f'{self.mv:.3f}', e1d_dict[self.e1dmenu][2])[self.e1dmenu != 'Custom'],
+                       (f'{self.tcscc:.3f}', e1d_dict[self.e1dmenu][4])[self.e1dmenu != 'Custom'], (f'{self.tcocv:.3f}', e1d_dict[self.e1dmenu][5])[self.e1dmenu != 'Custom'],
+                       self.atnoct, (self.ctnoct, e1d_dict[self.e1dmenu][7])[self.e1dmenu != 'Custom'], self.inoct, self.hlc, self.thc)
             ep_text += epentry('PhotovoltaicPerformance:EquivalentOne-Diode', params, paramvs)
 
         elif self.pp == '2':

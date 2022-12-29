@@ -286,8 +286,8 @@ def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
     fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
-    labels = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] >= 0]
-    values = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] >= 0]
+    labels = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
+    values = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
     wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
     cmap = plt.get_cmap('viridis')
     colors = [list(cmap(i)[:3]) + [0.7] for i in linspace(0, 1, len(values))]

@@ -681,7 +681,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_probe: bprop("", "Turn on pressure monitoring", False)
 
 class VI_Params_Collection(bpy.types.PropertyGroup):
-    envi_zone: bprop("EnVi Zone", "Flag to tell EnVi to export this collection", False)
+    envi_zone: bprop("", "Flag to tell EnVi to export this collection", False)
     envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
 
 class VI_Params_Link(bpy.types.PropertyGroup):

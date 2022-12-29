@@ -1972,7 +1972,10 @@ class NODE_OT_En_PVA(bpy.types.Operator):
 
     def execute(self, context):
         node = context.node
-        node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['area']
+        try:
+            node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['pvarea']
+        except Exception:
+            node['area'] = 0
         return {'FINISHED'}
 
 
@@ -1983,7 +1986,6 @@ class NODE_OT_En_PVS(bpy.types.Operator):
     def execute(self, context):
         node = context.node
         node.save_e1ddict()
-#        node['area'] = bpy.data.materials[node.id_data.name].vi_params['enparams']['area']
         return {'FINISHED'}
 
 

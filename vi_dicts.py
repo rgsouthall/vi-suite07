@@ -140,7 +140,7 @@ lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Lin
 
 presdict = {'Generator Produced DC Electricity Energy [J] !Hourly': 'PV energy (J)',
             'Generator Produced DC Electricity Rate [W] !Hourly': 'PV power (W)',
-            'Generator PV Array Efficiency [] !Hourly': 'PV efficiency (%)',
+            'Generator PV Array Efficiency [] !Hourly': 'PV efficiency',
             'Generator PV Cell Temperature [C] !Hourly': 'PV temperature (C)'}
 
 hdict = {}

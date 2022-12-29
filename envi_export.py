@@ -115,6 +115,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 cvp = coll.vi_params
                 cvp['enparams']['floorarea'][str(frame)] = sum([ret_areas(o) for o in coll.objects if o.vi_params.envi_type == '0'])
 
+
                 if coll.objects[0].vi_params.envi_type == '0':
                     params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                               'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
@@ -132,6 +133,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                      'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
 
         gens = []
+        pv_areas = {}
 
         for coll in geo_colls:
             for obj in coll.objects:
@@ -159,9 +161,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                             en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
 
                                         if emnode.inputs['PV'].links:
-                                            pvnode = emnode.inputs['PV'].links[0].from_node
-                                            en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index)))
-                                            gens.append('{}_{}-pv'.format(obj.name, face.index))
+                                            pv_node = emnode.inputs['PV'].links[0].from_node
+                                            pvgen_node = pv_node.inputs['PV Generator'].links[0].from_node
+                                            en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index)))
+                                            gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
 
                                     elif emnode.envi_con_type in ('Door', 'Window') and emnode.envi_con_makeup != "2":
                                         if len(face.verts) > 4:
@@ -197,9 +200,15 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                         en_idf.write(epentry('Shading:{}:Detailed'.format('Building'), params, paramvs))
 
                                         if emnode.inputs['PV'].links:
-                                            pvnode = emnode.inputs['PV'].links[0].from_node
-                                            en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
-                                            gens.append('{}_{}-pv'.format(obj.name, face.index))
+                                            pv_node = emnode.inputs['PV'].links[0].from_node
+                                            pvgen_node = pv_node.inputs['PV Generator'].links[0].from_node
+                                            en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
+
+                                            if mat.name not in pv_areas:
+                                                pv_areas[mat.name] = 0
+
+                                            pv_areas[mat.name] += face.calc_area()
+                                            gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
 
                 elif coll in shade_colls:
                     for face in bm.faces:
@@ -213,10 +222,19 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                             for emnode in mat.vi_params.envi_nodes.nodes:
                                 if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                                     if emnode.inputs['PV'].links:
-                                        pvnode = emnode.inputs['PV'].links[0].from_node
-                                        en_idf.write(pvnode.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
-                                        gens.append('{}_{}-pv'.format(obj.name, face.index))
+                                        pv_node = emnode.inputs['PV'].links[0].from_node
+                                        pvgen_node = pv_node.inputs['PV Generator'].links[0].from_node
+                                        en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
+
+                                        if mat.name not in pv_areas:
+                                            pv_areas[mat.name] = 0
+
+                                        pv_areas[mat.name] += face.calc_area()
+                                        gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
                 bm.free()
+        print(pv_areas)
+        for mn in pv_areas:
+            bpy.data.materials[mn].vi_params['enparams']['pvarea'] = pv_areas[mn]
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: SCHEDULES ===========\n\n")
         params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type', 'Unit Type')
@@ -290,7 +308,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: GENERATORS ===========\n\n")
 
-        if gen:
+        if gens:
             params = ('Name', 'Generator List Name', 'Generator Operation Scheme Type',
                       'Generator Demand Limit Scheme Purchased Electric Demand Limit {W}',
                       'Generator Track Schedule Name Scheme Schedule Name',
@@ -300,14 +318,14 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             en_idf.write(epentry("ElectricLoadCenter:Distribution", params, paramvs))
 
             params = ('Name', 'Availability Schedule Name', 'Zone Name', 'Radiative Fraction', 'Inverter Efficiency')
-            paramvs = ('Simple Ideal Inverter', '', '', 0.0, 1.0)
+            paramvs = ('Simple Ideal Inverter', '', '', f'{gens[0][2]:.3f}', f'{gens[0][1] * 0.01:.3f}')
             en_idf.write(epentry("ElectricLoadCenter:Inverter:Simple", params, paramvs))
-            params = ["Name"] + [item for i, pv in enumerate(gens) for item in ['Generator {} Name'.format(i), 'Generator {} Object Type'.format(i),
-                                                                                'Generator {} Rated Electric Power Output (W)'.format(i),
-                                                                                'Generator {} Availability Schedule Name'.format(i),
-                                                                                'Generator {} Rated Thermal to Electrical Power Ratio'.format(i)]]
+            params = ["Name"] + [item for i, pv in enumerate(gens) for item in ['Generator {} Name'.format(pv[0]), 'Generator {} Object Type'.format(pv[0]),
+                                                                                'Generator {} Rated Electric Power Output (W)'.format(pv[0]),
+                                                                                'Generator {} Availability Schedule Name'.format(pv[0]),
+                                                                                'Generator {} Rated Thermal to Electrical Power Ratio'.format(pv[0])]]
 
-            paramvs = ['PVs'] + [item for pv in gens for item in [pv, 'Generator:Photovoltaic', '20000', '', '']]
+            paramvs = ['PVs'] + [item for pv in gens for item in [pv[0], 'Generator:Photovoltaic', '', '', '']]
             en_idf.write(epentry("ElectricLoadCenter:Generators", params, paramvs))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
