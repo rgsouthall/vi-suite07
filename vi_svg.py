@@ -291,9 +291,7 @@ def vi_info(node, dim, svp, **kwargs):
                 min_res -= 100
 
             l_range = range(min_res, max_res + 1, 100)
-
             l_diff = 300/len(l_range)
-            print(l_diff)
             svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
             <svg
             id="svg5"
@@ -305,7 +303,7 @@ def vi_info(node, dim, svp, **kwargs):
             xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
 
             for ii, i in enumerate(l_range):
-                svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1), 300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
+                svg_str += '<rect x="{}" y="{}" width="{}" height="{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1), 300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
 
             svg_str += "</svg>"
             return imname, bytearray(svg_str, encoding='utf-8')
@@ -330,7 +328,10 @@ def vi_info(node, dim, svp, **kwargs):
             cols = ('#440154', '#20A387', '#FDE725')
             pointsx = [120 + r * res_xscale for r in range(len(kwargs['wlc']))]
             svg_str += '<rect width="{0[0]}" height="{0[1]}" style="fill:white;stroke:none;stroke-width:5"/>\n'.format(dim)
-            svg_str += '<line x1="120" y1="{0:.3f}" x2="900" y2="{0:.3f}" style="stroke:green;stroke-width:4"/>\n'.format(650 + min_val * res_new)
+
+            if min_val <= 0:
+                svg_str += '<line x1="120" y1="{0:.3f}" x2="900" y2="{0:.3f}" style="stroke:green;stroke-width:4"/>\n'.format(650 + min_val * res_new)
+
             svg_str += '<rect x="120" y="100" width="780" height="550" style="fill:none;stroke:grey;stroke-width:4"/>\n'.format(650 + min_val * res_new)
             svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:Nimbus Sans Narrow">kgCO<tspan font-size="30">2</tspan>e</text>\n'.format(650 + min_val * res_new)
             svg_str += '<text x="{}" y="725" text-anchor="middle" style="font-size:36px;font-family:Nimbus Sans Narrow">Scenario</text>\n'.format(dim[0] * 0.5)
@@ -349,8 +350,9 @@ def vi_info(node, dim, svp, **kwargs):
                 pointsz = list(zip(pointsx, pointsy))
                 points = ' '.join(['{:.2f},{:.2f}'.format(p[0], p[1]) for p in pointsz])
                 svg_str += '<polyline points="{}" style="fill:none;stroke:{};stroke-width:5"/>\n'.format(points, cols[ri])
-                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{}"/>\n'.format(50 + ri * 200, cols[ri])
-                svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>'.format(105 + ri * 200, ('Whole-life', 'Operational', 'Embodied')[ri])
+                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{}"/>\n'.format(50 + ri * 225, cols[ri])
+                svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>'.format(110 + ri * 225, ('Whole-life', 'Operational', 'Embodied')[ri])
+                svg_str += '<text x="700" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">Zone: {}</text>'.format(node.zone_menu)
 
                 for point in pointsz:
                     svg_str += '<circle cx="{0[0]}" cy="{0[1]}" r="10" style="fill:{1};stroke:black;stroke-width:1"/>\n'.format(point, cols[ri])
