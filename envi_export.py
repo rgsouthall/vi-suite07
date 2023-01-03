@@ -516,6 +516,10 @@ def pregeo(context, op):
                     bmesh.ops.triangulate(bm, faces=bm.faces)
                     bpy.ops.object.duplicate(linked=False)
                     no = context.active_object
+                    
+                    for mod in no.modifiers:
+                        bpy.ops.object.modifier_apply(modifier=mod.name)
+                        
                     k = 0
 
                     if no.animation_data and no.animation_data.action:
