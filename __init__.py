@@ -836,7 +836,10 @@ def unregister():
     nodeitems_utils.unregister_node_categories("Vi Nodes")
 
     for cl in reversed(classes):
-        bpy.utils.unregister_class(cl)
+        try:
+            bpy.utils.unregister_class(cl)
+        except:
+            pass
 
     if update_chart_node in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_chart_node)

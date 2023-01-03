@@ -273,40 +273,91 @@ def vi_info(node, dim, svp, **kwargs):
             pass
 
     elif node.metric == '6':
-        imname = "Whole_life_carbon"
-        wlc = kwargs['wlc']
-        ec = kwargs['ec']
-        oc = kwargs['oc']
-        min_res = min((oc, ec, wlc))
-        max_res = max((oc, ec, wlc))
-        min_res = round(min_res, -2)
-        max_res = round(max_res, -2)
+        if len(kwargs['wlc']) == 1:
+            imname = "Whole_life_carbon"
+            wlc = kwargs['wlc']
+            ec = kwargs['ec']
+            oc = kwargs['oc']
 
+            if kwargs.get('of'):
+                of = kwargs['of']
 
-        if min_res < 0:
-            min_res -= 100
-        print(min_res, max_res)
-        l_range = range(min_res, max_res + 1, 100)
+            min_res = min((oc, ec, wlc))
+            max_res = max((oc, ec, wlc))
+            min_res = round(min_res, -2)
+            max_res = round(max_res, -2)
 
-        l_diff = 300/len(l_range)
-        print(l_diff)
-        svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-        <svg
-        id="svg5"
-        version="1.1"
-        viewBox="0 0 400 400"
-        width="{0[0]}"
-        height="{0[1]}"
-        xmlns="http://www.w3.org/2000/svg"
-        xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
+            if min_res < 0:
+                min_res -= 100
 
-        for ii, i in enumerate(l_range):
-            print(i)
-            svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1), 300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
+            l_range = range(min_res, max_res + 1, 100)
 
-        svg_str += "</svg>"
-        print(svg_str)
-        return imname, bytearray(svg_str, encoding='utf-8')
+            l_diff = 300/len(l_range)
+            print(l_diff)
+            svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <svg
+            id="svg5"
+            version="1.1"
+            viewBox="0 0 {0[0]} {0[0]}"
+            width="{0[0]}"
+            height="{0[1]}"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
+
+            for ii, i in enumerate(l_range):
+                svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1), 300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
+
+            svg_str += "</svg>"
+            return imname, bytearray(svg_str, encoding='utf-8')
+        else:
+            imname = "Whole_life_carbon"
+            svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <svg
+            id="svg5"
+            version="1.1"
+            viewBox="0 0 {0[0]} {0[1]}"
+            width="{0[0]}"
+            height="{0[1]}"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
+
+            max_val = max([max(res) for res in (kwargs['wlc'], kwargs['oc'], kwargs['ec'])])
+            min_val = min([min(res) for res in (kwargs['wlc'], kwargs['oc'], kwargs['ec'])])
+            res_new = (dim[1] - 250)/(max_val-min_val)
+            res_yscale = 275/max((abs(max_val), abs(min_val)))
+            valsay = [min_val + y * round(max_val - min_val, -2) * 0.2 for y in range(6)]
+            res_xscale = (dim[0] - 220)/(len(kwargs['wlc']) - 1)
+            cols = ('#440154', '#20A387', '#FDE725')
+            pointsx = [120 + r * res_xscale for r in range(len(kwargs['wlc']))]
+            svg_str += '<rect width="{0[0]}" height="{0[1]}" style="fill:white;stroke:none;stroke-width:5"/>\n'.format(dim)
+            svg_str += '<line x1="120" y1="{0:.3f}" x2="900" y2="{0:.3f}" style="stroke:green;stroke-width:4"/>\n'.format(650 + min_val * res_new)
+            svg_str += '<rect x="120" y="100" width="780" height="550" style="fill:none;stroke:grey;stroke-width:4"/>\n'.format(650 + min_val * res_new)
+            svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:Nimbus Sans Narrow">kgCO<tspan font-size="30">2</tspan>e</text>\n'.format(650 + min_val * res_new)
+            svg_str += '<text x="{}" y="725" text-anchor="middle" style="font-size:36px;font-family:Nimbus Sans Narrow">Scenario</text>\n'.format(dim[0] * 0.5)
+            svg_str += '<text x="{}" y="50" text-anchor="middle" style="font-size:42px;font-family:Nimbus Sans Narrow">Whole-life Carbon</text>\n'.format(dim[0] * 0.5)
+
+            for ipx, pointx in enumerate(pointsx):
+                svg_str += '<line x1="{0}" y1="100" x2="{0}" y2="660" style="stroke:grey;stroke-width:2"/>\n'.format(pointx)
+                svg_str += '<text x="{}" y="690" text-anchor="middle" style="font-size:30 px;font-family:Nimbus Sans Narrow">{}</text>\n'.format(pointx, ipx + 1)
+
+            for ivy, valy in enumerate(valsay):
+                svg_str += '<line x1="120" y1="{0}" x2="900" y2="{0}" style="stroke:grey;stroke-width:2"/>\n'.format((dim[1] - 150) - (valy - min_val) * res_new)
+                svg_str += '<text x="75" y="{}" text-anchor="middle" style="font-size:30px;font-family:Nimbus Sans Narrow">{:.0f}</text>\n'.format((dim[1] - 150) - (valy - min_val) * res_new + 10, valy)
+
+            for ri, res in enumerate((kwargs['wlc'], kwargs['oc'], kwargs['ec'])):
+                pointsy = [(dim[1] - 150) - (r - min_val) * res_new for r in res]
+                pointsz = list(zip(pointsx, pointsy))
+                points = ' '.join(['{:.2f},{:.2f}'.format(p[0], p[1]) for p in pointsz])
+                svg_str += '<polyline points="{}" style="fill:none;stroke:{};stroke-width:5"/>\n'.format(points, cols[ri])
+                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{}"/>\n'.format(50 + ri * 200, cols[ri])
+                svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>'.format(105 + ri * 200, ('Whole-life', 'Operational', 'Embodied')[ri])
+
+                for point in pointsz:
+                    svg_str += '<circle cx="{0[0]}" cy="{0[1]}" r="10" style="fill:{1};stroke:black;stroke-width:1"/>\n'.format(point, cols[ri])
+
+            svg_str += "</svg>"
+            return imname, bytearray(svg_str, encoding='utf-8')
+
 
 
 

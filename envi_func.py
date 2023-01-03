@@ -414,22 +414,26 @@ def retrmenus(innode, node, axis, zrl):
     ftype = [(frame, frame, "Plot "+frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']
     frame = 'All' if node.parametricmenu == '1' and len(ftype) > 1 else zrl[0][0]
 
+    invalids = ['Zone temporal'] if frame == 'All' else ['Embodied carbon', 'Zone spatial']
+
     if axis == 'X-axis':
-        rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame]))
+        rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame and zrl[1][ri] not in invalids]))
     else:
-        rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame and zrl[1][ri] != 'Time']))
+        rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame and zrl[1][ri] not in ['Time'] + invalids]))
 
     rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
     rtype = rtype if rtype else [('None', 'None', 'None')]
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
     ctype = ctype if ctype else [('None', 'None', 'None')]
-    ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone temporal' and zrl[0][m] == frame]))
+    ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == ('Zone temporal', 'Zone spatial')[frame == 'All'] and zrl[0][m] == frame]))
 
-    if not ztypes:
-        ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone spatial' and zrl[0][m] == frame]))
-    if not ztypes:  # and node.parametricmenu == '1':
-        ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
+    # if frame == 'All':
+    #     ztypes += list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone spatial' and zrl[0][m] == frame]))
+    #     ztypes += list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
 
+    # if frame == 'All':
+    #     ztypes += list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
+    #     print(ztypes)
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
     ztype = ztype if ztype else [('None', 'None', 'None')]
 
@@ -473,6 +477,12 @@ def retrmenus(innode, node, axis, zrl):
     probertypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Probe' and zrl[0][m] == frame]))
     probertype = [(metric, metric, "Plot " + metric) for metric in probertypes]
     probertype = probertype if probertype else [('None', 'None', 'None')]
+    ectypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
+    ectype = [(metric, metric, "Plot " + metric) for metric in ectypes]
+    ectype = ectype if ectype else [('None', 'None', 'None')]
+    ecrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
+    ecrtype = [(metric, metric, "Plot " + metric) for metric in ecrtypes]
+    ecrtype = ecrtype if ecrtype else [('None', 'None', 'None')]
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default=ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default=rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value'), ('Sum', 'Sum', 'Sum Value')],
@@ -493,8 +503,11 @@ def retrmenus(innode, node, axis, zrl):
     powrmenu = bpy.props.EnumProperty(items=powrtype, name="", description="Power result", default=powrtype[0][0]) if powrtype else ''
     probemenu = bpy.props.EnumProperty(items=probetype, name="", description="Probe", default=probetype[0][0]) if probetype else ''
     probermenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default=probertype[0][0]) if probertype else ''
+    ecmenu = bpy.props.EnumProperty(items=ectype, name="", description="EC", default=ectype[0][0]) if ectype else ''
+    ecrmenu = bpy.props.EnumProperty(items=ecrupdate, name="", description="EC result") # if ecrtype else ''
     multmenu = bpy.props.FloatProperty(name="", description="Result multiplication factor", min=-10000, max=10000, default=1)
-    return (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, multmenu, statmenu)
+    return (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, posmenu, posrmenu,
+            cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu)
 
 
 def processh(lines, znlist):
@@ -759,17 +772,25 @@ def processf(pro_op, node, con_node):
 def zrupdate(self, context):
     try:
         rl = self.links[0].from_node['reslists']
-        zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[1] == self.rtypemenu and zr[2] == self.zonemenu and zr[0] == self.framemenu] if self.node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == self.zonemenu and zr[0] == 'All']
+        zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[1] == self.rtypemenu and zr[2] == self.zonemenu and zr[0] == self.framemenu] if self.node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[0] == 'All' and zr[1] == self.rtypemenu and zr[2] == self.zonemenu]
         return zri
     except Exception as e:
         print(e)
         return []
 
+def ecrupdate(self, context):
+    try:
+        rl = self.links[0].from_node['reslists']
+        zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[1] == self.rtypemenu and zr[2] == self.ecmenu and zr[0] == self.framemenu] if self.node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[0] == 'All' and zr[1] == self.rtypemenu and zr[2] == self.ecmenu]
+        return zri
+    except Exception as e:
+        print(e)
+        return []
 
 def retmenu(dnode, axis, mtype):
     if mtype == 'Climate':
         return ['', dnode.inputs[axis].climmenu]
-    if mtype in ('Zone spatial', 'Zone temporal', 'Embodied carbon'):
+    if mtype in ('Zone spatial', 'Zone temporal'):
         return [dnode.inputs[axis].zonemenu, dnode.inputs[axis].zonermenu]
     elif mtype == 'Linkage':
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
@@ -787,10 +808,12 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].powmenu, dnode.inputs[axis].powrmenu]
     elif mtype == 'Probe':
         return [dnode.inputs[axis].probemenu, dnode.inputs[axis].probermenu]
-
+    if mtype == 'Embodied carbon':
+        return [dnode.inputs[axis].ecmenu, dnode.inputs[axis].ecrmenu]
 
 def write_ec(scene, frames, coll, reslists):
     for frame in frames:
+        scene.frame_set(frame)
         mat_dict = {}
         zone_dict = {}
         fa = coll.vi_params['enparams']['floorarea'][str(frame)]
@@ -825,11 +848,11 @@ def write_ec(scene, frames, coll, reslists):
                                 zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
                                 mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
                                 zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
-
-            for zone in zone_dict:
-                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/y)', '{:.3f}'.format(zone_dict[zone]['ecy'])])
-                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
-                reslists.append([str(frame), 'Embodied carbon', zone, 'Surface area (m2)', '{:.3f}'.format(zone_dict[zone]['area'])])
+        print(zone_dict)
+        for zone in zone_dict:
+            reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/y)', '{:.3f}'.format(zone_dict[zone]['ecy'])])
+            reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
+            reslists.append([str(frame), 'Embodied carbon', zone, 'Surface area (m2)', '{:.3f}'.format(zone_dict[zone]['area'])])
 
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
@@ -844,6 +867,12 @@ def write_ec(scene, frames, coll, reslists):
             if fa:
                 reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/m2/y)', '{:.3f}'.format(mat_dict[mat]['ecy']/fa)])
 
+    if len(frames) > 1:
+        for zone in zone_dict:
+            reslists.append(['All', 'Embodied carbon', zone, 'Zone EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == zone and ec[3] == 'Zone EC (kgCO2e/y)'])])
+        for mat in mat_dict:
+            reslists.append(['All', 'Embodied carbon', mat, 'Surface EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == mat and ec[3] == 'Surface EC (kgCO2e/y)'])])
+    scene.frame_set(frames[0])
     return (reslists)
 
 

@@ -172,6 +172,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     menusy1 = retmenu(dnode, 'Y-axis 1', dnode.inputs['Y-axis 1'].rtypemenu)
 
     try:
+        print(framey1, dnode.inputs['Y-axis 1'].rtypemenu, menusy1[0], menusy1[1])
         y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].rtypemenu and ry1[2] == menusy1[0] and ry1[3] == menusy1[1]][0]
     except Exception as e:
         chart_op.report({'ERROR'}, 'Invalid data on the y1 axis: {}'.format(e))

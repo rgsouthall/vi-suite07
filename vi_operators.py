@@ -2032,13 +2032,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
 
         while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr=PIPE))
-            errtext = self.esimruns[-1].stderr.read().decode()
 
-            if 'Fatal' in errtext:
-                logentry('There is something wrong with the Energyplus installation. Check the message below')
-                logentry('If using EMS a local installation of EnergyPlus is required')
-                logentry(errtext)
-                return {self.terminate('CANCELLED', context)}
 
             # if 'EnergyPlus Completed Successfully' not in errtext:
             #     logentry('Energyplus error: {}'.format(errtext))
@@ -2057,6 +2051,16 @@ class NODE_OT_En_Sim(bpy.types.Operator):
             self.e += 1
 
         if event.type == 'TIMER':
+            for esim in self.esimruns:
+                if esim.poll() is None:
+                    errtext = esim.stderr.read().decode()
+
+                    if 'Fatal' in errtext:
+                        logentry('There is something wrong with the Energyplus installation. Check the message below')
+                        logentry('If using EMS a local installation of EnergyPlus is required')
+                        logentry(errtext)
+                        return {self.terminate('CANCELLED', context)}
+
             if len(self.esimruns) > 1:
                 self.percent = 100 * sum([esim.poll() is not None for esim in self.esimruns])/self.lenframes
             else:
@@ -2095,7 +2099,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                             if not [f for f in nfns if f.split(".")[1] == "eso"]:
                                 errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor."
                             else:
-                                errtext = "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
+                                errtext = "There was an error in the input IDF file in{}.idf. Check the *.err file in Blender's text editor.".format(self.frame)
 
                             self.report({'ERROR'}, errtext)
                             return {self.terminate('CANCELLED', context)}
@@ -2297,38 +2301,46 @@ class NODE_OT_EC(bpy.types.Operator):
                         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
                     if all([e.is_manifold for e in bm.edges]):
-
                         vol = bm.calc_volume()
                         vols.append(vol)
                         ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
                         ec = float(ecdict['eckg']) * float(ecdict['density']) * vol * node.tyears / float(ovp.ec_life)
                         ecs.append(ec)
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'EC (kgCO2e)', '{:.3f}'.format(float(ec))])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Volume (m3)', '{:.3f}'.format(vol)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/node.fa)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(node.fa * node.tyears))])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/node.tyears)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/node.fa)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(node.fa * node.tyears))])
                         bm.free()
                     else:
                         logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                         # self.report({'ERROR'}, f"{o.name} is non-manifold")
                         bm.free()
 
-            tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'EC (kgCO2e)'])
+            tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e)'])
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e)', '{:.3f}'.format(tec)])
-            tecm2 = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'EC (kgCO2e/m2)'])
+            tecy = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/y)'])
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(tecy)])
+            tecm2 = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/m2)'])
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2)', '{:.3f}'.format(tecm2)])
             tecm2y = tecm2/node.tyears
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2/y)', '{:.3f}'.format(tecm2y)])
             tvol = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Volume (m3)'])
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(tvol)])
 
-        reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
+        if len(frames) > 1:
+            reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
 
-        for o in obs:
-            reslists.append(['All', 'Embodied carbon', o.name, 'Total volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Volume (m3)'])])
-            reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e)'])])
-            reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2)'])])
-            reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2/y)'])])
+            for o in obs:
+                reslists.append(['All', 'Embodied carbon', o.name, 'Total volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Volume (m3)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/y)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2/y)'])])
+
+            reslists.append(['All', 'Embodied carbon', 'All', 'EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'EC (kgCO2e/y)'])])
+            reslists.append(['All', 'Embodied carbon', 'All', 'EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'EC (kgCO2e)'])])
+            reslists.append(['All', 'Embodied carbon', 'All', 'EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'EC (kgCO2e/m2/y)'])])
 
         node['reslists'] = reslists
         node.postsim()

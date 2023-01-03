@@ -1868,22 +1868,22 @@ class So_En_ResU(NodeSocket):
         layout.label(text=self.bl_label)
 
 class ViEnRXIn(So_En_ResU):
-    '''Chart input socket'''
+    '''Chart x input socket'''
     bl_idname = 'ViEnRXIn'
     bl_label = 'X-axis'
 
 class ViEnRY1In(So_En_ResU):
-    '''Chart input socket'''
+    '''Chart y1 input socket'''
     bl_idname = 'ViEnRY1In'
     bl_label = 'Y-axis 1'
 
 class ViEnRY2In(So_En_ResU):
-    '''Chart input socket'''
+    '''Chart y2 input socket'''
     bl_idname = 'ViEnRY2In'
     bl_label = 'Y-axis 2'
 
 class ViEnRY3In(So_En_ResU):
-    '''Chart input socket'''
+    '''Chart y3 input socket'''
     bl_idname = 'ViEnRY3In'
     bl_label = 'Y-axis 3'
 
@@ -1989,14 +1989,14 @@ class No_Vi_Chart(Node, ViNodes):
                 frame = zrl[0][0]
 
             class ViEnRXIn(So_En_Res):
-                '''Energy geometry out socket'''
+                '''Chart x socket'''
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
-                valid: ['Vi Results']
 
+                valid: ['Vi Results']
                 (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
                 enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'X-axis', zrl)
+                powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'X-axis', zrl)
                 framemenu: fmenu
                 rtypemenu: rtypemenu
                 climmenu: climmenu
@@ -2010,6 +2010,8 @@ class No_Vi_Chart(Node, ViNodes):
                 powrmenu: powrmenu
                 porbemenu: probemenu
                 probermenu: probermenu
+                ecmenu: ecmenu
+                ecrmenu: ecrmenu
                 multmenu: multmenu
                 statmenu: statmenu
                 multfactor: multmenu
@@ -2024,14 +2026,14 @@ class No_Vi_Chart(Node, ViNodes):
                     innode = self.inputs['Y-axis 1'].links[0].from_node
 
                     class ViEnRY1In(So_En_Res):
-                        '''Energy geometry out socket'''
+                        '''Chart y1 socket'''
                         bl_idname = 'ViEnRY1In'
                         bl_label = 'Y-axis 1'
-                        valid: ['Vi Results']
 
+                        valid: ['Vi Results']
                         (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
                         enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                        powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 1', zrl)
+                        powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 1', zrl)
                         framemenu: fmenu
                         rtypemenu: rtypemenu
                         climmenu: climmenu
@@ -2045,6 +2047,8 @@ class No_Vi_Chart(Node, ViNodes):
                         powrmenu: powrmenu
                         porbemenu: probemenu
                         probermenu: probermenu
+                        ecmenu: ecmenu
+                        ecrmenu: ecrmenu
                         multmenu: multmenu
                         statmenu: statmenu
                         multfactor: multmenu
@@ -2070,7 +2074,7 @@ class No_Vi_Chart(Node, ViNodes):
                         valid: ['Vi Results']
                         (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
                         enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                        powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 2', zrl)
+                        powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 2', zrl)
                         framemenu: fmenu
                         rtypemenu: rtypemenu
                         climmenu: climmenu
@@ -2084,6 +2088,8 @@ class No_Vi_Chart(Node, ViNodes):
                         powrmenu: powrmenu
                         porbemenu: probemenu
                         probermenu: probermenu
+                        ecmenu: ecmenu
+                        ecrmenu: ecrmenu
                         multmenu: multmenu
                         statmenu: statmenu
                         multfactor: multmenu
@@ -2107,7 +2113,7 @@ class No_Vi_Chart(Node, ViNodes):
                         valid: ['Vi Results']
                         (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
                         enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                        powrmenu, probemenu, probermenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 3', zrl)
+                        powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 3', zrl)
                         framemenu: fmenu
                         rtypemenu: rtypemenu
                         climmenu: climmenu
@@ -2121,6 +2127,8 @@ class No_Vi_Chart(Node, ViNodes):
                         powrmenu: powrmenu
                         porbemenu: probemenu
                         probermenu: probermenu
+                        ecmenu: ecmenu
+                        ecrmenu: ecrmenu
                         multmenu: multmenu
                         statmenu: statmenu
                         multfactor: multmenu
@@ -2154,8 +2162,6 @@ class No_Vi_HMChart(Node, ViNodes):
             self['locs'] = [('0', 'None', "")]
             self['metrics'] = [('0', 'None', "")]
 
-        # self.nodeupdate(bpy.context)
-
     def ftype(self, context):
         return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['times'])) if res != 'All']
 
@@ -2171,16 +2177,21 @@ class No_Vi_HMChart(Node, ViNodes):
     def restype(self, context):
         return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['rtypes'])) if res not in ('Time', 'Embodied carbon')]
 
-    def metric(self, context):
+    def ret_metric(self):
         lmenu = str(self.locmenu)
-        metrics = [res for ri, res in enumerate(self['metrics']) if self.resmenu in ('Zone temporal', 'Climate', 'Power') and self['rtypes'][ri] == self.resmenu and (self['locs'][ri], '0')[self.resmenu == 'Climate'] == lmenu]
 
-        if any(metrics):
-            return [(res, res, "Plot {}".format(res)) for res in sorted(set(metrics))]
+        if self.resmenu in ('Zone temporal', 'Climate', 'Power'):
+            self['vmetrics'] = sorted(set([res for ri, res in enumerate(self['metrics']) if self['rtypes'][ri] == self.resmenu and (self['locs'][ri], '0')[self.resmenu == 'Climate'] == lmenu]))
+
+    def metric(self, context):
+        if any(self['metrics']):
+            return [(res, res, "Plot {}".format(res)) for res in self['vmetrics']]
         else:
             return [('0', 'None', "")]
 
     def mupdate(self, context):
+        self.ret_metric()
+
         if self.locmenu not in [l[0] for l in self.loctype(context)]:
             self.locmenu = self.loctype(context)[0][0]
 
@@ -2217,7 +2228,6 @@ class No_Vi_HMChart(Node, ViNodes):
                 self.z = self.z.reshape(dno, hno)
             except Exception:
                 logentry('Mis-match in result length. Try reconnecting the Heatmap chart node')
-
 
     dpi: IntProperty(name='DPI', description="DPI of the shown figure", default=92, min=92)
     framemenu: EnumProperty(items=ftype, name="", description="Frame number")
@@ -2295,7 +2305,7 @@ class No_Vi_HMChart(Node, ViNodes):
                 if self.cl or self.cf:
                     newrow(layout, 'Contour levels:', self, "clevels")
 
-                if self.framemenu and self.metricmenu != '0' and self.metricmenu in [l[0] for l in self.metric(context)]:
+                if self.framemenu and self.metricmenu != '0':
                     row = layout.row()
                     row.operator("node.hmchart", text='Create heatmap')
 
@@ -2761,12 +2771,15 @@ class No_Vi_Metrics(Node, ViNodes):
                     newrow(layout, 'Unregulated', self, 'mod')
                     newrow(layout, 'Hot water:', self, 'hwmod')
 
+                    if self['res']['owlc']:
+                        row = layout.row()
+                        row.label(text="Gross operational carbon: {:.1f} kgCO2e".format(self['res']['owlc']))
                     if self['res']['ofwlc']:
                         row = layout.row()
                         row.label(text="Carbon offset: {:.1f} kgCO2e".format(self['res']['ofwlc']))
                     if self['res']['owlc']:
                         row = layout.row()
-                        row.label(text="Total operational carbon: {:.1f} kgCO2e".format(self['res']['owlc']))
+                        row.label(text="Net operational carbon: {:.1f} kgCO2e".format(self['res']['owlc'] - self['res']['ofwlc']))
                     if self['res']['ecwlc']:
                         row = layout.row()
                         row.label(text="Total embodied carbon: {:.1f} kgCO2e".format(self['res']['ecwlc']))
@@ -2801,11 +2814,11 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 if self.metric == '3':
                     if self.em_menu == '1':
-                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', ) and z[3] == "Surface EC (kgCO2e/y)"])))
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Surface EC (kgCO2e/y)"])))
                     elif self.em_menu == '2':
-                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', ) and z[3] == "Zone EC (kgCO2e/y)"])))
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
                     elif self.em_menu == '0':
-                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Embodied carbon', ) and z[3] == "Object EC (kgCO2e/y)"])))
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
 
                     if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
@@ -3083,9 +3096,9 @@ class No_Vi_Metrics(Node, ViNodes):
                         if r[3] == 'Object EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
                         elif r[3] == 'Object EC (kgCO2e/m2/y)':
-                            self['res']['ecm2'][r[2]] = float(r[4])
+                            self['res']['ecm2'][r[2]] = float(r[4]) * self.ec_years
                             self['res']['ecm2y'][r[2]] = float(r[4])
-                        elif r[3] == 'Object Volume (m3)':
+                        elif r[3] == 'Object volume (m3)':
                             self['res']['vol'][r[2]] = float(r[4])
                     elif self.em_menu == '1':
                         if r[3] == 'Surface EC (kgCO2e/y)':
@@ -3093,7 +3106,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Surface EC (kgCO2e/m2/y)':
                             self['res']['ecm2'][r[2]] = float(r[4]) * self.ec_years
                             self['res']['ecm2y'][r[2]] = float(r[4])
-                        elif r[3] == 'Surface Volume (m3)':
+                        elif r[3] == 'Surface volume (m3)':
                             self['res']['vol'][r[2]] = float(r[4])
                         elif r[3] == 'Surface area (m2)':
                             self['res']['area'][r[2]] = float(r[4])
@@ -3160,12 +3173,8 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['ofwlc'] = 0
                 self['res']['ckwh'] = 0
 
-                pv_kwh = 0
-                heat_kwh = 0
-                aheat_kwh = 0
-                cool_kwh = 0
-                acool_kwh = 0
                 hours = 8760
+                owlcs, ecwlcs, ofwlcs, wlcs = [], [], [], []
                 cop = 1/self.elec_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 hw_cop = 1/self.hw_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 geo_coll = bpy.data.collections['EnVi Geometry']
@@ -3178,41 +3187,64 @@ class No_Vi_Metrics(Node, ViNodes):
                     if geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
                         self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea'][str(self.frame_menu)]
 
-                if self.frame_menu and self.zone_menu:
-                    for r in self['rl']:
-                        if r[0] == self.frame_menu:
-                            if r[2] == self.zone_menu:
-                                if r[3] == 'Heating (W)':
-                                    heat_kwh = sum([float(h) for h in r[4].split()]) * 0.001
-                                    aheat_kwh += heat_kwh
-                                    hours = len(r[4].split())
-                                if r[3] == 'Cooling (W)':
-                                    cool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
-                                    acool_kwh += cool_kwh
-                                elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
-                                    ec_kgco2e = float(r[4])
-                            elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == self.zone_menu and r[3] == 'PV power (W)':
-                                pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
-                            elif r[1] == 'Power' and self.zone_menu == 'All' and r[3] == 'PV power (W)':
-                                pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
-                            elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Heating (W)':
-                                aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
-                            elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Cooling (W)':
-                                acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
-                        # else:
-                        #     if self.zone_menu != 'None':
-                        #         try:
-                        #             self.zone_menu = 'None'
-                        #         except:
-                        #             pass
+                for frame in [f[0] for f in self['frames']]:
+                    pv_kwh = 0
+                    heat_kwh = 0
+                    aheat_kwh = 0
+                    cool_kwh = 0
+                    acool_kwh = 0
 
-                    (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
-                    o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
-                    self['res']['owlc'] = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
-                    self['res']['ecwlc'] = ec_kgco2e * self.ec_years
-                    self['res']['ofwlc'] = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
-                    self['res']['wlc'] = self['res']['owlc'] - self['res']['ofwlc'] + self['res']['ecwlc']
-                    self['res']['ckwh'] = cool_kwh
+                    if self.frame_menu and self.zone_menu:
+                        for r in self['rl']:
+                            if r[0] == frame:
+                                if r[2] == self.zone_menu:
+                                    if r[3] == 'Heating (W)':
+                                        heat_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+                                        aheat_kwh += heat_kwh
+                                        hours = len(r[4].split())
+                                    if r[3] == 'Cooling (W)':
+                                        cool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+                                        acool_kwh += cool_kwh
+                                    elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
+                                        ec_kgco2e = float(r[4])
+
+                                elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == self.zone_menu and r[3] == 'PV power (W)':
+                                    pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                                elif r[1] == 'Power' and self.zone_menu == 'All' and r[3] == 'PV power (W)':
+                                    pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                                elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Heating (W)':
+                                    aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                                elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Cooling (W)':
+                                    acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                            # else:
+                            #     if self.zone_menu != 'None':
+                            #         try:
+                            #             self.zone_menu = 'None'
+                            #         except:
+                            #             pass
+
+                        (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
+                        o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
+                        owlc = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                        ecwlc = ec_kgco2e * self.ec_years
+                        ofwlc = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                        wlc = owlc + ecwlc - ofwlc
+
+                        if self.frame_menu == frame:
+                            self['res']['owlc'] = owlc
+                            self['res']['ecwlc'] = ecwlc
+                            self['res']['ofwlc'] = ofwlc
+                            self['res']['wlc'] = wlc
+
+                        owlcs.append(owlc - ofwlc)
+                        ecwlcs.append(ecwlc)
+                        ofwlcs.append(ofwlc)
+                        wlcs.append(wlc)
+
+                self['res']['ec'] = ecwlcs
+                self['res']['of'] = ofwlcs
+                self['res']['wl'] = wlcs
+                self['res']['oc'] = owlcs
 
 
     def ret_metrics(self):
@@ -3404,7 +3436,7 @@ class So_En_Res(NodeSocket):
 
     def draw(self, context, layout, node, text):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'],
-                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"), "Embodied carbon": ("zonemenu", "zonermenu"),
+                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"), "Embodied carbon": ("ecmenu", "ecrmenu"),
                     "Linkage": ("linkmenu", "linkrmenu"), "External": ("enmenu", "enrmenu"), "Position": ("posmenu", "posrmenu"),
                     "Camera": ("cammenu", "camrmenu"), "Power": ("powmenu", "powrmenu"),
                     "Probe": ("probemenu", "probermenu")}
@@ -4565,7 +4597,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
         paramvs = ('{}_Air'.format(zn), zn + '_hvacsched', '{}_supairnode'.format(zn), '', '', self.envi_hvacht, self.envi_hvacct, 0.015, 0.009, self['limittype'][self.envi_hvachlt],
                    '{:.4f}'.format(self.envi_hvachaf) if self.envi_hvachlt in ('0', '2') else '', self.envi_hvacshc if self.envi_hvachlt in ('1', '2') else '', self['limittype'][self.envi_hvacclt],
                    '{:.4f}'.format(self.envi_hvaccaf) if self.envi_hvacclt in ('0', '2') else '', self.envi_hvacscc if self.envi_hvacclt in ('1', '2') else '',
-                   '', '', 'ConstantSupplyHumidityRatio', '', 'ConstantSupplyHumidityRatio', (zn + ' Outdoor Air', '')[self.envi_hvacoam == '0'], '', '', '', ('None', 'Sensible')[int(self.envi_hvachr)], self.envi_hvachre, '')
+                   '', '', 'ConstantSupplyHumidityRatio', '', 'ConstantSupplyHumidityRatio', (zn + ' Outdoor Air', '')[self.envi_hvacoam == '0'], '', '', '', ('None', 'Sensible')[int(self.envi_hvachr)], '{:.2f}'.format(self.envi_hvachre), '')
         entry = epentry('ZoneHVAC:IdealLoadsAirSystem', params, paramvs)
 
         if self.envi_hvacoam != '0':

@@ -3192,8 +3192,8 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
                                         ase=node['res']['ase'], asepass=node['res']['asepass'], o1=node['res']['o1'],
                                         tc=node['res']['tc'], totarea=node['res']['totarea'], svarea=node['res']['svarea'])
         elif node.metric == '6':
-            dim = (600, 600)
-            imname, svg_bytes = vi_info(node, dim, svp, wlc=350, ec=150, oc=200)
+            dim = (1000, 800)
+            imname, svg_bytes = vi_info(node, dim, svp, wlc=node['res']['wl'], ec=node['res']['ec'], oc=node['res']['oc'])
 
         image = QImage.fromData(svg_bytes)
         image = image.convertToFormat(17)
