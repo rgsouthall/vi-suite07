@@ -854,8 +854,10 @@ def write_ec(scene, frames, coll, reslists):
 
         for zone in zone_dict:
             reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/y)', '{:.3f}'.format(zone_dict[zone]['ecy'])])
-            reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
             reslists.append([str(frame), 'Embodied carbon', zone, 'Surface area (m2)', '{:.3f}'.format(zone_dict[zone]['area'])])
+
+            if chil_fa:
+                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
 
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
