@@ -819,36 +819,39 @@ def write_ec(scene, frames, coll, reslists):
         fa = coll.vi_params['enparams']['floorarea'][str(frame)]
 
         for chil in coll.children:
-            chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)]
+            try:
+                chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)]
 
-            for ob in chil.objects:
-                if chil.name not in zone_dict:
-                    zone_dict[chil.name] = {}
-                    zone_dict[chil.name]['ec'] = 0
-                    zone_dict[chil.name]['ecy'] = 0
-                    zone_dict[chil.name]['area'] = 0
+                for ob in chil.objects:
+                    if chil.name not in zone_dict:
+                        zone_dict[chil.name] = {}
+                        zone_dict[chil.name]['ec'] = 0
+                        zone_dict[chil.name]['ecy'] = 0
+                        zone_dict[chil.name]['area'] = 0
 
-                for mat in ob.data.materials:
-                    con_node = get_con_node(mat.vi_params)
+                    for mat in ob.data.materials:
+                        con_node = get_con_node(mat.vi_params)
 
-                    if mat.name not in mat_dict:
-                        mat_dict[mat.name] = {}
-                        mat_dict[mat.name]['area'] = 0
-                        mat_dict[mat.name]['ec'] = 0
-                        mat_dict[mat.name]['ecy'] = 0
+                        if mat.name not in mat_dict:
+                            mat_dict[mat.name] = {}
+                            mat_dict[mat.name]['area'] = 0
+                            mat_dict[mat.name]['ec'] = 0
+                            mat_dict[mat.name]['ecy'] = 0
 
-                    for poly in ob.data.polygons:
-                        if ob.material_slots[poly.material_index].material == mat:
-                            mat_dict[mat.name]['area'] += poly.area
-                            zone_dict[chil.name]['area'] += poly.area
-                            mat_ec = con_node.ret_ec()
+                        for poly in ob.data.polygons:
+                            if ob.material_slots[poly.material_index].material == mat:
+                                mat_dict[mat.name]['area'] += poly.area
+                                zone_dict[chil.name]['area'] += poly.area
+                                mat_ec = con_node.ret_ec()
 
-                            if mat_ec[0] !='N/A':
-                                mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
-                                zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
-                                mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
-                                zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
-        print(zone_dict)
+                                if mat_ec[0] !='N/A':
+                                    mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
+                                    zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
+                                    mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
+                                    zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
+            except:
+                pass
+
         for zone in zone_dict:
             reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/y)', '{:.3f}'.format(zone_dict[zone]['ecy'])])
             reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
