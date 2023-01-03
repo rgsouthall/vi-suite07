@@ -282,8 +282,8 @@ def vi_info(node, dim, svp, **kwargs):
             if kwargs.get('of'):
                 of = kwargs['of']
 
-            min_res = min((oc, ec, wlc))
-            max_res = max((oc, ec, wlc))
+            min_res = min((oc[0], ec[0], wlc[0]))
+            max_res = max((oc[0], ec[0], wlc[0]))
             min_res = round(min_res, -2)
             max_res = round(max_res, -2)
 

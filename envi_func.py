@@ -581,17 +581,17 @@ def processf(pro_op, node, con_node):
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
 
             for zn in [coll.name.upper() for coll in bpy.data.collections['EnVi Geometry'].children]:
+                hs, vhs = 0, 0
+
                 for k in sorted(hdict.keys(), key=int):
                     if hdict[k][0] == 'Zone temporal' and hdict[k][1] == zn and hdict[k][2] == 'Ventilation heat (W)':
                         vhs = [float(sl[1]) for sl in splitlines if sl[0] == k]
                     if hdict[k][0] == 'Zone temporal' and hdict[k][1] == zn and hdict[k][2] == 'Heating (W)':
                         hs = [float(sl[1]) for sl in splitlines if sl[0] == k]
 
-                try:
+                if vhs and hs:
                     reslists.append([str(frame), 'Zone temporal', zn, 'Ventilation heating contribution (W)', ' '.join([str(vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
                     reslists.append([str(frame), 'Zone temporal', zn, 'Fabric heating contribution (W)', ' '.join([str(hs[i] - vhs[i]) if hs[i] > 0.01 else '0' for i in range(len(hs))])])
-                except Exception:
-                    pass
 
             for r in reslists:
                 if r[0] == str(frame) and r[1] == 'Power' and r[3] == 'PV power (W)':
