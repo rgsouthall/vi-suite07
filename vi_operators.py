@@ -2091,6 +2091,9 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                         else:
                             bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
 
+                            with open(os.path.join(self.nd, efilename), 'r') as e_file:
+                                bpy.data.texts[efilename].from_string(e_file.read())
+
                         if '**  Fatal  **' in bpy.data.texts[efilename].as_string():
                             self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
                             return {self.terminate('CANCELLED', context)}

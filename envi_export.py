@@ -115,8 +115,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 cvp = coll.vi_params
                 cvp['enparams']['floorarea'][str(frame)] = sum([ret_areas(o) for o in coll.objects if o.vi_params.envi_type == '0'])
 
-
-                if coll.objects[0].vi_params.envi_type == '0':
+                if any([ob.vi_params.envi_type == '0' for ob in coll.objects]):
                     params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                               'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
                     paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
@@ -516,10 +515,10 @@ def pregeo(context, op):
                     bmesh.ops.triangulate(bm, faces=bm.faces)
                     bpy.ops.object.duplicate(linked=False)
                     no = context.active_object
-                    
+
                     for mod in no.modifiers:
                         bpy.ops.object.modifier_apply(modifier=mod.name)
-                        
+
                     k = 0
 
                     if no.animation_data and no.animation_data.action:
@@ -632,17 +631,16 @@ def pregeo(context, op):
                 new_ob.name = '{}'.format(chil.name)
 
                 if new_ob.vi_params.envi_type == '1':
-#                    chil.vi_params.envi_zone == 1
+                    for poly in new_ob.data.polygons:
+                        if not new_ob.material_slots[poly.material_index].material:
 
-                    if 'en_shading' not in [m.name for m in bpy.data.materials]:
-                        bpy.data.materials.new('en_shading')
+                            if 'en_shading' not in [m.name for m in bpy.data.materials]:
+                                shad_mat = bpy.data.materials.new('en_shading')
 
-                    if not new_ob.material_slots:
-                        bpy.ops.material.new()
-                        bpy.ops.object.material_slot_add()
-
-                    new_ob.material_slots[0].material = bpy.data.materials['en_shading']
-                    new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
+                                if shad_mat not in new_ob.data.materials:
+                                    bpy.ops.object.material_slot_add()
+                                    new_ob.material_slots[0].material = shad_mat
+                                    new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
 
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name="EnVi Network")
