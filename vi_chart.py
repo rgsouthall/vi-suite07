@@ -74,15 +74,18 @@ def rvariant(dnode):
 
 
 def timedata(datastring, timetype, stattype, months, days, dos, dnode, Sdate, Edate):
-    if dnode.inputs['X-axis'].resultmenu != 'Time':
+    if dnode.inputs['X-axis'].resultmenu != 'Time' or timetype == '0':
         return datastring
     else:
         if timetype == '1' and dnode.inputs['X-axis'].resultmenu == 'Time':
             res = [[] for d in range(len(set(dos)))]
+
             for h, val in enumerate(datastring):
                 res[dos[h] - dos[0]].append(val)
+
         elif timetype == '2' and dnode.inputs['X-axis'].resultmenu == 'Time':
             res = [[] for m in range(len(set(months)))]
+
             for h, val in enumerate(datastring):
                 res[months[h] - months[0]].append(val)
 
