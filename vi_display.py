@@ -39,7 +39,11 @@ from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
 # from bpy.app.handlers import persistent
-from PyQt5.QtGui import QImage
+from PyQt5.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter
+from PyQt5.QtPrintSupport import QPrinter
+from PyQt5.QtSvg import QSvgRenderer
+from PyQt5.QtCore import QSizeF, QMarginsF
+
 
 try:
     import matplotlib
@@ -3194,6 +3198,20 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         elif node.metric == '6':
             dim = (1000, 800)
             imname, svg_bytes = vi_info(node, dim, svp, wlc=node['res']['wl'], ec=node['res']['ec'], oc=node['res']['oc'])
+
+            qtsvg = QSvgRenderer()
+            qtsvg.load(svg_bytes)
+            printer = QPdfWriter(os.path.join(svp['viparams']['newdir'], "WLC.pdf"))
+            printer.setPageSize(QPagedPaintDevice.A4)
+            printer.setPageSizeMM(QSizeF(dim[0]*0.2, dim[1]*0.2))
+            printer.setPageMargins(QMarginsF(0, 0, 0, 0))
+            printer.setResolution(72)
+            painter = QPainter(printer)
+            qtsvg.render(painter)
+            painter.end()
+
+        with open(os.path.join(svp['viparams']['newdir'], "metric.svg"), 'w') as metric_file:
+            metric_file.write(svg_bytes.decode())
 
         image = QImage.fromData(svg_bytes)
         image = image.convertToFormat(17)

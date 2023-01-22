@@ -33,7 +33,7 @@ from xml.dom.minidom import parseString
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied
-from .envi_func import write_ec
+from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
 from .flovi_func import ofheader, fvcdwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh
@@ -235,13 +235,13 @@ class NODE_OT_WindRose(bpy.types.Operator):
         svp['viparams']['vidisp'], svp.vi_display = 'wr', 0
         svp['viparams']['visimcontext'] = 'Wind'
         rl = locnode['reslists']
-        cdoys = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
-        cwd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
+        cdoys = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == 'Time' and r[3] == 'DOS'][0]]
+        cwd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == 'Exterior' and r[3] == 'Wind Direction (deg)'][0]]
 
         if simnode.temp:
-            cd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Temperature (degC)'][0]]
+            cd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == 'Exterior' and r[3] == 'Temperature (degC)'][0]]
         else:
-            cd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]]
+            cd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == 'Exterior' and r[3] == 'Wind Speed (m/s)'][0]]
 
         doys = list(range(simnode.sdoy, simnode.edoy + 1)) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
         awd = array([wd for di, wd in enumerate(cwd) if cdoys[di] in doys])
@@ -442,7 +442,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                     minres.append(ovp['omin']['svf{}'.format(frame)])
                     maxres.append(ovp['omax']['svf{}'.format(frame)])
 
-            reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
+            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
             reslists.append(['All', 'Zone spatial', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
             reslists.append(['All', 'Zone spatial', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
             reslists.append(['All', 'Zone spatial', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
@@ -532,10 +532,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
         logentry(f'Conducting shadow map calculation with {simnode.interval} samples per hour for {int(len(direcs)/simnode.interval)} total hours and {lvaldirecs} available sun hours')
 
         for frame in frange:
-            reslists.append([str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])])
-            reslists.append([str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])])
-            reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
-            reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'Month', ' '.join([str(t.month) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
 
         for oi, o in enumerate(calcobs):
             ovp = o.vi_params
@@ -614,10 +614,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     minres.append(ovp['omin']['sm{}'.format(frame)])
                     maxres.append(ovp['omax']['sm{}'.format(frame)])
 
-            reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
-            reslists.append(['All', 'Zone spatial', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
-            reslists.append(['All', 'Zone spatial', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
-            reslists.append(['All', 'Zone spatial', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
+            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Min. sunlit %', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Ave. sunlit %', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
+            reslists.append(['All', 'Zone spatial', o.name, 'Max. sunlit %', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
 
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
@@ -1960,6 +1960,8 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         node.exported, node.outputs['Context out'].hide = True, False
         node.postexport()
+        svp['ecparams'] = {'ec_text': 'Scenario, Entity, Entity name, ID, Class, Type, Sub-type, Modules, Volume (m3)/Surface (m2), EC (kgCO2e), EC (kgCO2e/y), EC (kgCO2e/m2), EC (kgCO2e/m2/y)\n'}
+        reslists = write_ob_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
         reslists = write_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
         node['reslists'] = reslists
         scene.frame_set(node.fs)
@@ -2332,7 +2334,7 @@ class NODE_OT_EC(bpy.types.Operator):
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(tvol)])
 
         if len(frames) > 1:
-            reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
+            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
 
             for o in obs:
                 reslists.append(['All', 'Embodied carbon', o.name, 'Total volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Volume (m3)'])])
@@ -2385,6 +2387,37 @@ class OBJECT_OT_Embod(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
+class NODE_OT_Chart_new(bpy.types.Operator, ExportHelper):
+    bl_idname = "node.chart_new"
+    bl_label = "Chart"
+    bl_description = "Create a 2D graph from the results file"
+    bl_register = True
+    bl_undo = True
+
+    def invoke(self, context, event):
+        node = context.node
+        innode = node.inputs['Results in'].links[0].from_node
+        rl = innode['reslists']
+        zrl = list(zip(*rl))
+        year = context.scene.vi_params.year
+
+        # try:
+        #     node.inputs['X-axis'].framemenu
+        # except Exception as e:
+        #     if node.inputs['X-axis'].framemenu not in zrl[0]:
+        #         self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
+        #         return {'CANCELLED'}
+
+        if not mp:
+            self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
+            return {'CANCELLED'}
+
+        plt.clf()
+        Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
+        Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
+        chart_disp(self, plt, node, innodes, Sdate, Edate)
+        return {'FINISHED'}
 
 class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
     bl_idname = "node.chart"
@@ -3300,7 +3333,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Y velocity', ' '.join(['{:5f}'.format(u) for u in uy_vals])])
                             self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Z velocity', ' '.join(['{:5f}'.format(u) for u in uz_vals])])
 
-                    self.reslists.append([str(frame_c), 'Time', '', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
+                    self.reslists.append([str(frame_c), 'Time', 'Time', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
@@ -3340,7 +3373,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 return {'PASS_THROUGH'}
 
             if len(self.frames) > 1:
-                self.reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in self.frames])])
+                self.reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in self.frames])])
 
                 for oname in self.o_dict[str(self.frames[0])]:
                     for param in self.o_dict[str(self.frames[0])][oname]:

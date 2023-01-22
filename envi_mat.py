@@ -20,8 +20,7 @@
 # EnVi materials databases
 import os, json
 from collections import OrderedDict
-from .envi_func import epentry
-from .vi_func import ret_datab
+from .vi_func import ret_datab, epentry
 
 
 class envi_materials(object):

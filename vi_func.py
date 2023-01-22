@@ -1859,6 +1859,10 @@ def sunpath(context):
                 suns[h].data.angle = math.pi * svp.sp_sun_angle/180
 
 
+def epentry(header, params, paramvs):
+    return '{}\n'.format(header+(',', '')[header == ''])+'\n'.join([('    ', '')[header == '']+'{:{width}}! - {}'.format(str(pv[0])+(',', ';')[pv[1] == params[-1]],
+                                                                    pv[1], width=80 + (0, 4)[header == '']) for pv in zip(paramvs, params)]) + ('\n\n', '')[header == '']
+
 def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:
         fl = epwfile.readline()

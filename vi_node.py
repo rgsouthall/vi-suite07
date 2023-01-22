@@ -19,16 +19,16 @@
 
 
 import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json
-# from collections import OrderedDict
+from collections import OrderedDict
 from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, StringProperty, FloatVectorProperty
 from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
-from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu, ret_datab
+from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu, ret_datab, epentry
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
-from .envi_func import retrmenus, enresprops, epentry, epschedwrite, processf, get_mat, get_con_node
+from .envi_func import retrmenus, enresprops, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype
 from numpy import array, stack, where, unique
@@ -155,11 +155,11 @@ class No_Loc(Node, ViNodes):
                     times = ('Month', 'Day', 'Hour', 'DOS')
 
                     for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1, 4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
-                        reslists.append(['0', 'Time', '', times[t], ti])
+                        reslists.append(['0', 'Time', 'Time', times[t], ti])
 
                     for c in {"Temperature (degC)": 6, 'Humidity (%)': 8, "Direct Solar (W/m^2)": 14, "Diffuse Solar (W/m^2)": 15,
                               'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
-                        reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
+                        reslists.append(['0', 'Climate', 'Exterior', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
 
                     self.outputs['Location out']['epwtext'] = epwfile.read()
                     self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
@@ -388,8 +388,8 @@ class No_Li_Con(Node, ViNodes):
     edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=1, update=nodeupdate)
     interval: FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update=nodeupdate)
     hdr: BoolProperty(name="", description="Export HDR panoramas", default=False, update=nodeupdate)
-    skyname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update=nodeupdate)
-    mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update=nodeupdate)
+    skyname: StringProperty(name="", description="Name of the radiance sky file", default="", update=nodeupdate)
+    mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", update=nodeupdate)
     resname: StringProperty()
     turb: FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update=nodeupdate)
     cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update=nodeupdate)
@@ -496,8 +496,9 @@ class No_Li_Con(Node, ViNodes):
 
             elif self.skyprog == '3':
                 row = layout.row()
-                row.operator('node.skyselect', text='Sky select')
-                row.prop(self, 'skyname')
+                #row.operator('node.skyselect', text='Sky select')
+                row.prop_search(self, 'skyname', bpy.data, 'texts', text='', icon='NONE')
+                # row.prop(self, 'skyname')
 
             row = layout.row()
 
@@ -685,14 +686,14 @@ class No_Li_Con(Node, ViNodes):
                     return 'Error'
 
             elif self.skyprog == '3':
-                if self.skyname and os.path.isfile(self.skyname):
-                    shutil.copyfile(self.skyname, "{}-0.sky".format(svp['viparams']['filebase']))
+                if self.skyname and bpy.data.texts.get(self.skyname):
+                    # shutil.copyfile(self.skyname, "{}-0.sky".format(svp['viparams']['filebase']))
 
-                    with open(self.skyname, 'r') as radfiler:
-                        self['Text'][str(scene.frame_current)] = radfiler.read()
+                    # with open(self.skyname, 'r') as radfiler:
+                    self['Text'][str(scene.frame_current)] = bpy.data.texts[self.skyname].as_string()
 
-                        if self.hdr:
-                            hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
+                    if self.hdr:
+                        hdrexport(scene, 0, scene.frame_current, self, bpy.data.texts[self.skyname].as_string())
                 else:
                     export_op.report({'ERROR'}, "Not a valid Radiance sky file")
                     return 'Error'
@@ -1773,6 +1774,7 @@ class No_En_Sim(Node, ViNodes):
                     elif dnode.bl_idname == 'No_Vi_HMChart':
                         dnode.update()
 
+
 class No_En_IF(Node, ViNodes):
     '''Node for EnergyPlus input file selection'''
     bl_idname = 'ViEnInNode'
@@ -1822,6 +1824,7 @@ class No_En_IF(Node, ViNodes):
         if not self.inputs['Location in'].links:
             nodecolour(self, 1)
 
+
 class No_En_RF(Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
     bl_idname = 'ViEnRFNode'
@@ -1855,11 +1858,14 @@ class No_En_RF(Node, ViNodes):
         self['exportstate'] = [self.resfilename]
         nodecolour(self, 0)
 
+
 class So_En_ResU(NodeSocket):
     '''Vi unlinked results socket'''
     bl_idname = 'So_En_ResU'
     bl_label = 'Axis'
     valid = ['Vi Results']
+
+    r_len: IntProperty()
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
@@ -1867,25 +1873,227 @@ class So_En_ResU(NodeSocket):
     def draw(self, context, layout, node, text):
         layout.label(text=self.bl_label)
 
-class ViEnRXIn(So_En_ResU):
-    '''Chart x input socket'''
-    bl_idname = 'ViEnRXIn'
-    bl_label = 'X-axis'
+
+class ViEnRIn(So_En_ResU):
+    '''Chart input socket'''
+    bl_idname = 'ViEnRIn'
+    bl_label = 'Axis'
+
+    def f_menu(self, context):
+        frs = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys() if frame]
+
+        if frs:
+            return frs
+        else:
+            return [('None', 'None', 'None')]
+
+    def r_menu(self, context):
+        try:
+            ress = [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu].keys() if res]
+            if ress:
+                return ress
+            else:
+                return [('None', 'None', 'None')]
+        except:
+            return [('None', 'None', 'None')]
+
+    def z_menu(self, context):
+        try:
+            zres = [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][self.resultmenu].keys() if res]
+
+            if zres:
+                return zres
+            else:
+                return [('None', 'None', 'None')]
+        except:
+            try:
+                r = list(self['resdict'][self.framemenu].keys())[0]
+                z = list(self['resdict'][self.framemenu][r].keys())[0]
+                self.zonemenu = list(self['resdict'][self.framemenu][r].keys())[0]
+                return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys() if res]
+            except:
+                return [('None', 'None', 'None')]
+
+    def m_menu(self, context):
+        try:
+            m_entries =  [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][self.resultmenu][self.zonemenu] if res]
+
+            if m_entries:
+                return m_entries
+            else:
+                return [('None', 'None', 'None')]
+        except:
+            # try:
+            #     r = list(self['resdict'][self.framemenu].keys())[0]
+            #     z = list(self['resdict'][self.framemenu][r].keys())[0]
+            #     return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][r][z] if res]
+            # except:
+            return [('None', 'None', 'None')]
+
+    def f_update(self, context):
+        if not self.framemenu:
+            self.framemenu = self.f_menu(context)[0][0]
+
+        self.r_update(context)
+
+    def r_update(self, context):
+        try:
+            innode = self.links[0].from_node
+            rl = innode['reslists']
+            zrl = list(zip(*rl))
+            self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
+        except:
+            self.r_len = 0
+
+        if not self.resultmenu:
+            self.resultmenu = self.r_menu(context)[0][0]
+
+        self.z_update(context)
+
+        if self.name == 'X-axis':
+            if self.resultmenu == 'Time':
+                startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                self.node["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                self.node['Start'], self.node['End'] = startday, endday
+
+            elif self.resultmenu == 'Frames':
+                frames = [int(k) for k in set(zrl[0]) if k != 'All']
+                startframe, endframe = min(frames), max(frames)
+                frame = 'All'
+                self.node["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                self.node['Start'], self.node['End'] = startframe, endframe
+
+            else:
+                xs = range(1, 1 + self.r_len)
+                startx, endx = min(xs), max(xs)
+                self.node["_RNA_UI"] = {"Start": {"min":startx, "max":endx}, "End": {"min":startx, "max":endx}}
+                self.node['Start'], self.node['End'] = startx, endx
+
+    def z_update(self, context):
+        try:
+            innode = self.links[0].from_node
+            rl = innode['reslists']
+            self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
+        except:
+            self.r_len = 0
+
+        if not self.zonemenu:
+            self.zonemenu = self.z_menu(context)[0][0]
+
+        self.m_update(context)
+
+    def m_update(self, context):
+        try:
+            innode = self.links[0].from_node
+            rl = innode['reslists']
+            self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
+        except:
+            self.r_len = 0
+
+        if self.name == 'X-axis':
+            if not self.metricmenu:
+                self.metricmenu = self.m_menu(context)[0][0]
+
+            self.update_menus(('Y-axis 1', 'Y-axis 2', 'Y-axis 3'))
+        else:
+            if not self.metricmenu:
+                self.metricmenu = self.m_menu(context)[0][0]
+
+    def update_menus(self, axes):
+        rl = self.node.inputs['X-axis'].links[0].from_node['reslists']
+
+        if rl:
+            self.r_len = [len(res[4].split()) for res in rl if res[0] == self.node.inputs['X-axis'].framemenu and res[1] == self.node.inputs['X-axis'].resultmenu and res[2] == self.node.inputs['X-axis'].zonemenu and res[3] == self.node.inputs['X-axis'].metricmenu][0]
+
+            for ax in axes:
+                if self.node.inputs[ax].links:
+                    rl = self.node.inputs[ax].links[0].from_node['reslists']
+                    resdict = {}
+
+                    for r in rl:
+                        if r and len(r[4].split()) == self.node.inputs['X-axis'].r_len and r[1] not in ('Time', 'Frames'):
+                            resdict[r[0]] = {} if r[0] not in resdict else resdict[r[0]]
+
+                            try:
+                                resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
+                                resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
+                                resdict[r[0]][r[1]][r[2]].append(r[3])
+                            except:
+                                pass
+
+                    self.node.inputs[ax]['resdict'] = resdict
+                    self.node.inputs[ax].r_len = self.node.inputs['X-axis'].r_len if resdict else 0
+
+            # self.update_entries(axes)
+
+    def update_entries(self, context):
+        axes = ('X-axis', 'Y-axis 1', 'Y-axis 2', 'Y-axis 3')
+
+        for ax in axes:
+            if self.node.inputs[ax].framemenu not in [m[0] for m in self.node.inputs[ax].f_menu(context)]:
+                self.node.inputs[ax].framemenu = [m[0] for m in self.node.inputs[ax].f_menu(context)][0]
+            if self.node.inputs[ax].resultmenu not in [m[0] for m in self.node.inputs[ax].r_menu(context)]:
+                self.node.inputs[ax].resultmenu = [m[0] for m in self.node.inputs[ax].r_menu(context)][0]
+            if self.node.inputs[ax].zonemenu not in [m[0] for m in self.node.inputs[ax].z_menu(context)]:
+                self.node.inputs[ax].zonemenu = [m[0] for m in self.node.inputs[ax].z_menu(context)][0]
+            if self.node.inputs[ax].metricmenu not in [m[0] for m in self.node.inputs[ax].m_menu(context)]:
+                self.node.inputs[ax].metricmenu = [m[0] for m in self.node.inputs[ax].m_menu(context)][0]
+
+
+    framemenu: EnumProperty(items=f_menu, name="", description="Frame number", update=f_update)
+    resultmenu: EnumProperty(items=r_menu, name="", description="Result type", update=r_update)
+    zonemenu: EnumProperty(items=z_menu, name="", description="Location display", update=z_update)
+    metricmenu: EnumProperty(items=m_menu, name="", description="Metric display", update=m_update)
+    multfactor: FloatProperty(name="", description="Result multiplication factor", min=-10000, max=10000, default=1)
+    statmenu: EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value'), ('Sum', 'Sum', 'Sum Value')],
+                                      name="", description="Zone result", default='Average')
+
+    def draw(self, context, layout, node, text):
+        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'],
+                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"),
+                    "Embodied carbon": ("ecmenu", "ecrmenu"), "Linkage": ("linkmenu", "linkrmenu"),
+                    "External": ("enmenu", "enrmenu"), "Position": ("posmenu", "posrmenu"),
+                    "Camera": ("cammenu", "camrmenu"), "Power": ("powmenu", "powrmenu"),
+                    "Probe": ("probemenu", "probermenu")}
+        row = layout.row()
+
+        if self.links and self.links[0].from_node.get('frames'):
+            row.prop(self, "framemenu", text=text)
+            row.prop(self, "resultmenu")
+
+            if self.resultmenu not in ('None', 'Time', 'Frames', 'Climate'):
+                row.prop(self, "zonemenu")
+
+            if self.zonemenu not in ('None', 'Time'):
+                row.prop(self, "metricmenu")
+
+            if self.resultmenu not in ('Time', 'Frames') and self.node.timemenu in ('1', '2') and self.node.inputs['X-axis'].resultmenu == 'Time':
+                row.prop(self, "statmenu")
+
+            if self.resultmenu not in ('Time', 'Frames'):
+                row.prop(self, 'multfactor')
+
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 0.0, 0.75)
 
 class ViEnRY1In(So_En_ResU):
     '''Chart y1 input socket'''
     bl_idname = 'ViEnRY1In'
     bl_label = 'Y-axis 1'
 
+
 class ViEnRY2In(So_En_ResU):
     '''Chart y2 input socket'''
     bl_idname = 'ViEnRY2In'
     bl_label = 'Y-axis 2'
 
+
 class ViEnRY3In(So_En_ResU):
     '''Chart y3 input socket'''
     bl_idname = 'ViEnRY3In'
     bl_label = 'Y-axis 3'
+
 
 class No_Vi_Chart(Node, ViNodes):
     '''Node for 2D results plotting'''
@@ -1902,17 +2110,16 @@ class No_Vi_Chart(Node, ViNodes):
     charttype: EnumProperty(items=ctypes, name="", default="0")
     timemenu: EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
                            name="", description="Results frequency", default="0")
-    parametricmenu: EnumProperty(items=pmitems, name="", description="Parametric result display", update=nodeupdate)
     bl_width_max = 800
     dpi: IntProperty(name='DPI', description="DPI of the shown figure", default=92, min=92)
 
     def init(self, context):
-        self.inputs.new("ViEnRXIn", "X-axis")
-        self.inputs.new("ViEnRY1In", "Y-axis 1")
+        self.inputs.new("ViEnRIn", "X-axis")
+        self.inputs.new("ViEnRIn", "Y-axis 1")
         self.inputs["Y-axis 1"].hide = True
-        self.inputs.new("ViEnRY2In", "Y-axis 2")
+        self.inputs.new("ViEnRIn", "Y-axis 2")
         self.inputs["Y-axis 2"].hide = True
-        self.inputs.new("ViEnRY3In", "Y-axis 3")
+        self.inputs.new("ViEnRIn", "Y-axis 3")
         self.inputs["Y-axis 3"].hide = True
         self['Start'], self['End'] = 1, 365
         self['pmitems'] = [("0", "Static", "Static results")]
@@ -1921,31 +2128,33 @@ class No_Vi_Chart(Node, ViNodes):
     def draw_buttons(self, context, layout):
         if self.inputs['X-axis'].links:
             innode = self.inputs['X-axis'].links[0].from_node
+            rsx = self.inputs['X-axis']
 
             if innode.get('reslists') and len(innode['reslists']) > 1:
-                newrow(layout, 'Animated:', self, 'parametricmenu')
-
-                if self.parametricmenu == '0':
+                if rsx.resultmenu == 'Time':
                     (sdate, edate) = retdates(self['Start'], self['End'], context.scene.vi_params.year)
                     label = "Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month)
-                else:
-                    row = layout.row()
+                elif rsx.resultmenu == 'Frames':
                     label = "Frame"
+                else:
+                    label = 'X range'
 
-                if self.parametricmenu != '0' or 'Time' in [r[1] for r in innode['reslists']]:
-                    row = layout.row()
-                    row.label(text = label)
-                    row.prop(self, '["Start"]')
-                    row.prop(self, '["End"]')
+                row = layout.row()
+                row.label(text=label)
+                row.prop(self, '["Start"]')
+                row.prop(self, '["End"]')
+                row = layout.row()
+                row.label(text="Chart type:")
+                row.prop(self, "charttype")
 
-                if self.parametricmenu == '0':
-                    row = layout.row()
-                    row.label(text = "Chart type:")
-                    row.prop(self, "charttype")
+                if rsx.resultmenu == 'Time':
                     row.prop(self, "timemenu")
-                    row.prop(self, "dpi")
 
-                if self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
+                row.prop(self, "dpi")
+
+                r_lens = [sock.r_len for sock in self.inputs if sock.links]
+
+                if len(r_lens) > 1 and all([r == r_lens[0] for r in r_lens]):
                     row = layout.row()
                     row.operator("node.chart", text = 'Create plot')
                     row = layout.row()
@@ -1955,194 +2164,223 @@ class No_Vi_Chart(Node, ViNodes):
                 row.label(text = "No results")
 
     def update(self):
-        # try
-        # if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists'] or len(self.inputs['X-axis'].links[0].from_node['reslists']) < 2:
-        #     if self.inputs.get('Y-axis 1'):
-        #         self.inputs['Y-axis 1'].hide = True
-        try:
-            innode = self.inputs['X-axis'].links[0].from_node
-            rl = innode['reslists']
-            zrl = list(zip(*rl))
+        if self.inputs.get('X-axis'):
+            if self.inputs['X-axis'].links and self.inputs['X-axis'].links[0].from_node.get('reslists'):
+                rsx = self.inputs['X-axis']
+                innode = rsx.links[0].from_node
+                rl = innode['reslists']
+                zrl = list(zip(*rl))
+                rsx['resdict'] = {}
+                resdict = {}
 
-            try:
-                if len(set(zrl[0])) > 1:
-                    self['pmitems'] = [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
-                else:
-                    self['pmitems'] = [("0", "Static", "Static results")]
-            except:
-                self['pmitems'] = [("0", "Static", "Static results")]
+                for r in rl:
+                    if r:
+                        resdict[r[0]] = {} if r[0] not in resdict else resdict[r[0]]
 
-            time.sleep(0.1)
+                        try:
+                            resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
+                            resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
+                            resdict[r[0]][r[1]][r[2]].append(r[3])
+                        except:
+                            pass
 
-            if self.parametricmenu == '1' and len(set(zrl[0])) > 1:
-                frames = [int(k) for k in set(zrl[0]) if k != 'All']
-                startframe, endframe = min(frames), max(frames)
-                frame = 'All'
-                self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
-                self['Start'], self['End'] = startframe, endframe
-            else:
-                if 'Month' in zrl[3]:
-                    startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
-                    endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
-                    self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
-                    self['Start'], self['End'] = startday, endday
-                frame = zrl[0][0]
+                rsx['resdict'] = resdict
 
-            class ViEnRXIn(So_En_Res):
-                '''Chart x socket'''
-                bl_idname = 'ViEnRXIn'
-                bl_label = 'X-axis'
+                if resdict:
+                    i = 0
 
-                valid: ['Vi Results']
-                (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
-                enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'X-axis', zrl)
-                framemenu: fmenu
-                rtypemenu: rtypemenu
-                climmenu: climmenu
-                zonemenu: zonemenu
-                zonermenu: zonermenu
-                linkmenu: linkmenu
-                linkrmenu: linkrmenu
-                enmenu: enmenu
-                enrmenu: enrmenu
-                powmenu: powmenu
-                powrmenu: powrmenu
-                porbemenu: probemenu
-                probermenu: probermenu
-                ecmenu: ecmenu
-                ecrmenu: ecrmenu
-                multmenu: multmenu
-                statmenu: statmenu
-                multfactor: multmenu
+                    while rsx.framemenu not in [r[0] for r in rsx.f_menu(0)] and i < 5:
+                        try:
+                            rsx.framemenu = rsx.f_menu(self)[0][0]
+                        except:
+                            i += 1
 
-            bpy.utils.register_class(ViEnRXIn)
+                    i = 0
 
-            if self.inputs.get('Y-axis 1'):
-                self.inputs['Y-axis 1'].hide = False
+                    while rsx.resultmenu not in [r[0] for r in rsx.r_menu(0)] and i < 5:
+                        try:
+                            rsx.resultmenu = rsx.r_menu(0)[0][0]
+                        except:
+                            i += 1
 
-            if self.inputs.get('Y-axis 1'):
-                if self.inputs['Y-axis 1'].links and self.inputs['Y-axis 1'].links[0].from_node['reslists']:
-                    innode = self.inputs['Y-axis 1'].links[0].from_node
+                    i = 0
 
-                    class ViEnRY1In(So_En_Res):
-                        '''Chart y1 socket'''
-                        bl_idname = 'ViEnRY1In'
-                        bl_label = 'Y-axis 1'
+                    while rsx.zonemenu not in [r[0] for r in rsx.z_menu(0)] and i < 5:
+                        try:
+                            rsx.zonemenu = rsx.z_menu(0)[0][0]
+                        except:
+                            i += 1
 
-                        valid: ['Vi Results']
-                        (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
-                        enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                        powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 1', zrl)
-                        framemenu: fmenu
-                        rtypemenu: rtypemenu
-                        climmenu: climmenu
-                        zonemenu: zonemenu
-                        zonermenu: zonermenu
-                        linkmenu: linkmenu
-                        linkrmenu: linkrmenu
-                        enmenu: enmenu
-                        enrmenu: enrmenu
-                        powmenu: powmenu
-                        powrmenu: powrmenu
-                        porbemenu: probemenu
-                        probermenu: probermenu
-                        ecmenu: ecmenu
-                        ecrmenu: ecrmenu
-                        multmenu: multmenu
-                        statmenu: statmenu
-                        multfactor: multmenu
+                    i = 0
 
-                    bpy.utils.register_class(ViEnRY1In)
+                    while rsx.metricmenu not in [r[0] for r in rsx.m_menu(0)] and i < 5:
+                        try:
+                            rsx.metricmenu = rsx.m_menu(0)[0][0]
+                        except:
+                            i += 1
+
+                    rsx.metricmenu = rsx.metricmenu
+
+                    if rsx.resultmenu == 'Time':
+                        startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                        endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                        self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                        self['Start'], self['End'] = startday, endday
+
+                    elif rsx.resultmenu == 'Frames':
+                        frames = [int(k) for k in set(zrl[0]) if k != 'All']
+                        startframe, endframe = min(frames), max(frames)
+                        frame = 'All'
+                        self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                        self['Start'], self['End'] = startframe, endframe
+
+                    else:
+                        xs = range(1, 1 + [len(res[4].split()) for res in rl if res[0] == rsx.framemenu and res[1] == rsx.resultmenu and res[2] == rsx.zonemenu and res[3] == rsx.metricmenu][0])
+                        startx, endx = min(xs), max(xs)
+                        self["_RNA_UI"] = {"Start": {"min":startx, "max":endx}, "End": {"min":startx, "max":endx}}
+                        self['Start'], self['End'] = startx, endx
+
+                    if self.inputs.get('Y-axis 1'):
+                        self.inputs['Y-axis 1'].hide = False
+
+                    if self.inputs.get('Y-axis 1'):
+                        if self.inputs['Y-axis 1'].links and self.inputs['Y-axis 1'].links[0].from_node['reslists']:
+                            rsy1 = self.inputs['Y-axis 1']
+                            rsy1.update_menus(('Y-axis 1', ))
+
+                            i = 0
+
+                            while rsy1.framemenu not in [r[0] for r in rsy1.f_menu(0)] and i < 5:
+                                try:
+                                    rsy1.framemenu = rsy1.f_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+
+                            while rsy1.resultmenu not in [r[0] for r in rsy1.r_menu(0)]  and i < 5:
+                                try:
+                                    rsy1.resultmenu = rsy1.r_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+                            while rsy1.zonemenu not in [r[0] for r in rsy1.z_menu(0)]  and i < 5:
+                                try:
+                                    rsy1.zonemenu = rsy1.z_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+
+                            while rsy1.metricmenu not in [r[0] for r in rsy1.m_menu(0)]  and i < 5:
+                                try:
+                                    rsy1.metricmenu = rsy1.m_menu(0)[0][0]
+                                except:
+                                    i += 1
+
+                            rsy1.framemenu = rsy1.framemenu
+                            rsy1.resultmenu = rsy1.resultmenu
+                            rsy1.zonemenu = rsy1.zonemenu
+                            rsy1.metricmenu = rsy1.metricmenu
+
+                            if self.inputs.get('Y-axis 2'):
+                                self.inputs['Y-axis 2'].hide = False
+
+                        else:
+                            if self.inputs.get('Y-axis 2'):
+                                self.inputs['Y-axis 2'].hide = True
 
                     if self.inputs.get('Y-axis 2'):
-                        self.inputs['Y-axis 2'].hide = False
+                        if self.inputs['Y-axis 2'].links and self.inputs['Y-axis 2'].links[0].from_node['reslists']:
+                            rsy2 = self.inputs['Y-axis 2']
+                            rsy2.update_menus(('Y-axis 2', ))
 
-                else:
-                    if self.inputs.get('Y-axis 2'):
-                        self.inputs['Y-axis 2'].hide = True
+                            i = 0
 
-            if self.inputs.get('Y-axis 2'):
-                if self.inputs['Y-axis 2'].links and self.inputs['Y-axis 2'].links[0].from_node['reslists']:
-                    innode = self.inputs[2].links[0].from_node
+                            while rsy2.framemenu not in [r[0] for r in rsy2.f_menu(0)] and i < 5:
+                                try:
+                                    rsy2.framemenu = rsy2.f_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
 
-                    class ViEnRY2In(So_En_Res):
-                        '''Energy geometry out socket'''
-                        bl_idname = 'ViEnRY2In'
-                        bl_label = 'Y-axis 2'
+                            while rsy2.resultmenu not in [r[0] for r in rsy2.r_menu(0)]  and i < 5:
+                                try:
+                                    rsy2.resultmenu = rsy2.r_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+                            while rsy2.zonemenu not in [r[0] for r in rsy2.z_menu(0)]  and i < 5:
+                                try:
+                                    rsy2.zonemenu = rsy2.z_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
 
-                        valid: ['Vi Results']
-                        (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
-                        enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                        powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 2', zrl)
-                        framemenu: fmenu
-                        rtypemenu: rtypemenu
-                        climmenu: climmenu
-                        zonemenu: zonemenu
-                        zonermenu: zonermenu
-                        linkmenu: linkmenu
-                        linkrmenu: linkrmenu
-                        enmenu: enmenu
-                        enrmenu: enrmenu
-                        powmenu: powmenu
-                        powrmenu: powrmenu
-                        porbemenu: probemenu
-                        probermenu: probermenu
-                        ecmenu: ecmenu
-                        ecrmenu: ecrmenu
-                        multmenu: multmenu
-                        statmenu: statmenu
-                        multfactor: multmenu
+                            while rsy2.metricmenu not in [r[0] for r in rsy2.m_menu(0)]  and i < 5:
+                                try:
+                                    rsy2.metricmenu = rsy2.m_menu(0)[0][0]
+                                except:
+                                    i += 1
 
-                    bpy.utils.register_class(ViEnRY2In)
+                            rsy2.framemenu = rsy2.framemenu
+                            rsy2.resultmenu = rsy2.resultmenu
+                            rsy2.zonemenu = rsy2.zonemenu
+                            rsy2.metricmenu = rsy2.metricmenu
+
+                            if self.inputs.get('Y-axis 3'):
+                                self.inputs['Y-axis 3'].hide = False
+                        else:
+                            self.inputs['Y-axis 3'].hide = True
 
                     if self.inputs.get('Y-axis 3'):
-                        self.inputs['Y-axis 3'].hide = False
+                        if self.inputs['Y-axis 3'].links and self.inputs['Y-axis 3'].links[0].from_node['reslists']:
+                            rsy3 = self.inputs['Y-axis 3']
+                            rsy3.update_menus(('Y-axis 3', ))
+
+                            i = 0
+
+                            while rsy3.framemenu not in [r[0] for r in rsy3.f_menu(0)] and i < 5:
+                                try:
+                                    rsy3.framemenu = rsy3.f_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+
+                            while rsy3.resultmenu not in [r[0] for r in rsy3.r_menu(0)]  and i < 5:
+                                try:
+                                    rsy3.resultmenu = rsy3.r_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+                            while rsy3.zonemenu not in [r[0] for r in rsy3.z_menu(0)]  and i < 5:
+                                try:
+                                    rsy3.zonemenu = rsy3.z_menu(0)[0][0]
+                                except:
+                                    i += 1
+                            i = 0
+
+                            while rsy3.metricmenu not in [r[0] for r in rsy3.m_menu(0)]  and i < 5:
+                                try:
+                                    rsy3.metricmenu = rsy3.m_menu(0)[0][0]
+                                except:
+                                    i += 1
+
+                            rsy3.framemenu = rsy3.framemenu
+                            rsy3.resultmenu = rsy3.resultmenu
+                            rsy3.zonemenu = rsy3.zonemenu
+                            rsy3.metricmenu = rsy3.metricmenu
+
                 else:
-                    self.inputs['Y-axis 3'].hide = True
+                    self.inputs['Y-axis 1']['resdict'], self.inputs['Y-axis 2']['resdict'], self.inputs['Y-axis 3']['resdict'] = {}, {}, {}
+                    if self.inputs.get('Y-axis 1'):
+                        self.inputs['Y-axis 1'].hide = True
+                    if self.inputs.get('Y-axis 2'):
+                        self.inputs['Y-axis 2'].hide = True
+                    if self.inputs.get('Y-axis 3'):
+                        self.inputs['Y-axis 3'].hide = True
+            else:
+                if self.inputs.get('Y-axis 1'):
+                    self.inputs['Y-axis 1'].hide = True
 
-            if self.inputs.get('Y-axis 3'):
-                if self.inputs['Y-axis 3'].links and self.inputs['Y-axis 3'].links[0].from_node['reslists']:
-                    innode = self.inputs[3].links[0].from_node
-
-                    class ViEnRY3In(So_En_Res):
-                        '''Energy geometry out socket'''
-                        bl_idname = 'ViEnRY3In'
-                        bl_label = 'Y-axis 3'
-
-                        valid: ['Vi Results']
-                        (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu,
-                        enmenu, enrmenu, posmenu, posrmenu, cammenu, camrmenu, powmenu,
-                        powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu) = retrmenus(innode, self, 'Y-axis 3', zrl)
-                        framemenu: fmenu
-                        rtypemenu: rtypemenu
-                        climmenu: climmenu
-                        zonemenu: zonemenu
-                        zonermenu: zonermenu
-                        linkmenu: linkmenu
-                        linkrmenu: linkrmenu
-                        enmenu: enmenu
-                        enrmenu: enrmenu
-                        powmenu: powmenu
-                        powrmenu: powrmenu
-                        porbemenu: probemenu
-                        probermenu: probermenu
-                        ecmenu: ecmenu
-                        ecrmenu: ecrmenu
-                        multmenu: multmenu
-                        statmenu: statmenu
-                        multfactor: multmenu
-
-                    bpy.utils.register_class(ViEnRY3In)
-
-        except Exception as e:
-            if self.inputs.get('Y-axis 1'):
-                self.inputs['Y-axis 1'].hide = True
-
-def loctype(self, context):
-    rmenu = str(self.resmenu)
-    locs = [res for ri, res in enumerate(self['locs']) if self['rtypes'][ri] == rmenu]
-    return [(res, res, "Plot {}".format(res)) for res in set(locs)]
 
 class No_Vi_HMChart(Node, ViNodes):
     '''Node for 2D results plotting'''
@@ -2150,53 +2388,100 @@ class No_Vi_HMChart(Node, ViNodes):
     bl_label = 'VI Heatmap'
 
     def update(self):
+        resdict = {}
         if self.inputs['Results in'].links:
             innode = self.inputs['Results in'].links[0].from_node
-            self['times'] = list(dict.fromkeys([rl[0] for rl in innode['reslists']]))
-            self['rtypes'] = [rl[1] for rl in innode['reslists'] if rl[0] != 'All']
-            self['locs'] = [rl[2] for rl in innode['reslists'] if rl[0] != 'All']
-            self['metrics'] = [rl[3] for rl in innode['reslists'] if rl[0] != 'All']
-        else:
-            self['times'] = [('', 'None', "")]
-            self['rtypes'] = [('0', 'None', "")]
-            self['locs'] = [('0', 'None', "")]
-            self['metrics'] = [('0', 'None', "")]
 
-    def ftype(self, context):
-        return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['times'])) if res != 'All']
+            for rl in innode['reslists']:
+                if rl[0] != 'All':
+                    resdict[rl[0]] = {} if rl[0] not in resdict else resdict[rl[0]]
 
-    def loctype(self, context):
-        rmenu = str(self.resmenu)
-        locs = [res for ri, res in enumerate(self['locs']) if self['rtypes'][ri] == rmenu]
+                try:
+                    if rl[1] in ('Zone temporal', 'Power', 'Climate'):
+                        resdict[rl[0]][rl[1]] = {} if rl[1] not in resdict[rl[0]] else resdict[rl[0]][rl[1]]
+                        resdict[rl[0]][rl[1]][rl[2]] = [] if rl[2] not in resdict[rl[0]][rl[1]] else resdict[rl[0]][rl[1]][rl[2]]
+                        resdict[rl[0]][rl[1]][rl[2]].append(rl[3])
+                except:
+                    pass
 
-        if any(locs):
-            return [(res, res, "Plot {}".format(res)) for res in sorted(set(locs))]
-        else:
-            return [('0', 'None', "")]
+            self['resdict'] = resdict
+            self['times'] = list(resdict.keys())
 
-    def restype(self, context):
-        return [(res, res, "Plot {}".format(res)) for res in sorted(set(self['rtypes'])) if res not in ('Time', 'Embodied carbon')]
+            i = 0
 
-    def ret_metric(self):
-        lmenu = str(self.locmenu)
+            while self.framemenu not in [r[0] for r in self.f_menu(0)] and i < 5:
+                try:
+                    self.framemenu = self.f_menu(self)[0][0] # list(resdict.keys())[0]
+                except:
+                    i += 1
 
-        if self.resmenu in ('Zone temporal', 'Climate', 'Power'):
-            self['vmetrics'] = sorted(set([res for ri, res in enumerate(self['metrics']) if self['rtypes'][ri] == self.resmenu and (self['locs'][ri], '0')[self.resmenu == 'Climate'] == lmenu]))
+            i = 0
 
-    def metric(self, context):
-        if any(self['metrics']):
-            return [(res, res, "Plot {}".format(res)) for res in self['vmetrics']]
-        else:
-            return [('0', 'None', "")]
+            while self.resmenu not in [r[0] for r in self.r_menu(0)] and i < 5:
+                try:
+                    self.resmenu = self.r_menu(0)[0][0]
+                except:
+                    i += 1
+
+            i = 0
+
+            while self.locmenu not in [r[0] for r in self.z_menu(0)] and i < 5:
+                try:
+                    self.locmenu = self.z_menu(0)[0][0]
+                except:
+                    i += 1
+
+            i = 0
+
+            while self.metricmenu not in [r[0] for r in self.m_menu(0)] and i < 5:
+                try:
+                    self.metricmenu = self.m_menu(0)[0][0]
+                except:
+                    i += 1
+
+    def f_menu(self, context):
+        return [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys()]
+
+    def r_menu(self, context):
+        try:
+            ress = [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu].keys()]
+            if ress:
+                return ress
+            else:
+                return [('None', 'None', 'None')]
+        except:
+            return [('None', 'None', 'None')]
+
+    def z_menu(self, context):
+        try:
+            return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][self.resmenu].keys()]
+        except:
+            try:
+                r = list(self['resdict'][self.framemenu].keys())[0]
+                z = list(self['resdict'][self.framemenu][r].keys())[0]
+                self.locmenu = list(self['resdict'][self.framemenu][r].keys())[0]
+                return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys()]
+            except:
+                return [('None', 'None', 'None')]
+
+
+    def m_menu(self, context):
+        try:
+            return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][self.resmenu][self.locmenu]]
+        except:
+            try:
+                r = list(self['resdict'][self.framemenu].keys())[0]
+                z = list(self['resdict'][self.framemenu][r].keys())[0]
+                return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][r][z]]
+            except:
+                return [('None', 'None', 'None')]
 
     def mupdate(self, context):
-        self.ret_metric()
+        if self.locmenu not in [l[0] for l in self.z_menu(context)]:
+            self.locmenu = self.z_menu(context)[0][0]
 
-        if self.locmenu not in [l[0] for l in self.loctype(context)]:
-            self.locmenu = self.loctype(context)[0][0]
-
-        if self.metricmenu not in [l[0] for l in self.metric(context)]:
-            self.metricmenu = self.metric(context)[0][0]
+        if self.metricmenu not in [l[0] for l in self.m_menu(context)]:
+            self.metricmenu = self.m_menu(context)[0][0]
 
     def nodeupdate(self, context):
         if self.inputs['Results in'].links:
@@ -2226,14 +2511,15 @@ class No_Vi_HMChart(Node, ViNodes):
                 self.x = self.x.reshape(dno, hno)
                 self.y = self.y.reshape(dno, hno)
                 self.z = self.z.reshape(dno, hno)
+
             except Exception:
                 logentry('Mis-match in result length. Try reconnecting the Heatmap chart node')
 
     dpi: IntProperty(name='DPI', description="DPI of the shown figure", default=92, min=92)
-    framemenu: EnumProperty(items=ftype, name="", description="Frame number")
-    resmenu: EnumProperty(items=restype, name="", description="Result type", update=mupdate)
-    locmenu: EnumProperty(items=loctype, name="", description="Result location", update=mupdate)
-    metricmenu: EnumProperty(items=metric, name="", description="Result metric", update=mupdate)
+    framemenu: EnumProperty(items=f_menu, name="", description="Frame number")
+    resmenu: EnumProperty(items=r_menu, name="", description="Result type", update=mupdate)
+    locmenu: EnumProperty(items=z_menu, name="", description="Result location", update=mupdate)
+    metricmenu: EnumProperty(items=m_menu, name="", description="Result metric", update=mupdate)
     metricrange: EnumProperty(items=[('0', 'Auto', 'Automatic range based on max/min values'), ('1', 'Custom', 'Custom range based on input values')], name="", description="Result metric")
     cf: BoolProperty(name="", description="Contour fill", default=0)
     cl: BoolProperty(name="", description="Contour fill", default=0)
@@ -2268,10 +2554,7 @@ class No_Vi_HMChart(Node, ViNodes):
                 row.prop(self, "dpi")
                 row = layout.row()
                 row.prop(self, "resmenu")
-
-                if self.resmenu != 'Climate':
-                    row.prop(self, "locmenu")
-
+                row.prop(self, "locmenu")
                 row.prop(self, "metricmenu")
                 row = layout.row()
                 row.label(text = 'Days:')
@@ -2305,7 +2588,7 @@ class No_Vi_HMChart(Node, ViNodes):
                 if self.cl or self.cf:
                     newrow(layout, 'Contour levels:', self, "clevels")
 
-                if self.framemenu and self.metricmenu != '0':
+                if self.framemenu and self.metricmenu != 'None':
                     row = layout.row()
                     row.operator("node.hmchart", text='Create heatmap')
 
@@ -2427,6 +2710,8 @@ class No_Vi_Metrics(Node, ViNodes):
     def init(self, context):
         self['res'] = {}
         self.inputs.new('So_Vi_Res', 'Results in')
+        self.outputs.new('So_Vi_Res', 'Results out')
+        # self.outputs['Results out'].hide = True
         self['riba_en'] = {'0': 35, '1': 55, '2': 60}
 
     def draw_buttons(self, context, layout):
@@ -2703,18 +2988,19 @@ class No_Vi_Metrics(Node, ViNodes):
                             ent_type = ('Object', 'Surface', 'Zone')[int(self.em_menu)]
                             row.label(text='{} EC: {:.2f} kgCO2e'.format(ent_type, self['res']['ec'][self.zone_menu]))
 
-                            if self['res']['ecm2']:
+                            if self['res']['ecm2'] and self.zone_menu != 'None':
                                 row = layout.row()
                                 row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(ent_type, self['res']['ecm2'][self.zone_menu]))
-                            if self['res']['ecm2y']:
+                            if self['res']['ecm2y'] and self.zone_menu != 'None':
                                 row = layout.row()
                                 row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(ent_type, self['res']['ecm2y'][self.zone_menu]))
-                            if self['res']['vol']:
+                            if self['res']['vol'] and self.zone_menu != 'None':
                                 row = layout.row()
                                 row.label(text='{} volume: {:.2f} m3'.format(ent_type, self['res']['vol'][self.zone_menu]))
-                            if self['res']['area']:
-                                row = layout.row()
-                                row.label(text='{} area: {:.2f} m2'.format(ent_type, self['res']['area'][self.zone_menu]))
+                            if self.em_menu != '0':
+                                if self['res']['area'] and self.zone_menu != 'None':
+                                    row = layout.row()
+                                    row.label(text='{} area: {:.2f} m2'.format(ent_type, self['res']['area'][self.zone_menu]))
 
 
                 elif self.metric == '4':
@@ -3090,6 +3376,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['vol'] = {}
             self['res']['area'] = {}
 
+            entity = ('Object', 'Surface', 'Zone')[int(self.em_menu)]
             for r in self['rl']:
                 if r[0] == self.frame_menu:
                     if self.em_menu == '0':
@@ -3127,7 +3414,8 @@ class No_Vi_Metrics(Node, ViNodes):
                     elif r[2] == 'All' and r[3] == 'Total volume (m3)':
                         self['res']['vol']['All'] = float(r[4])
                     elif r[2] == 'All' and r[3] == 'Total surface area (m2)':
-                        self['res']['area']['All'] = float(r[4])
+                        if self.em_menu != '0':
+                            self['res']['area']['All'] = float(r[4])
 
         elif self.metric == '4':
             self['res']['oh'] = -1
@@ -3174,7 +3462,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['ckwh'] = 0
 
                 hours = 8760
-                owlcs, ecwlcs, ofwlcs, wlcs = [], [], [], []
+                owlcs, ecwlcs, ofwlcs, wlcs, reslists = [], [], [], [], []
                 cop = 1/self.elec_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 hw_cop = 1/self.hw_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 geo_coll = bpy.data.collections['EnVi Geometry']
@@ -3207,6 +3495,8 @@ class No_Vi_Metrics(Node, ViNodes):
                                         acool_kwh += cool_kwh
                                     elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
                                         ec_kgco2e = float(r[4])
+                                    elif r[3] == 'PV power (W)':
+                                        pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
 
                                 elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == self.zone_menu and r[3] == 'PV power (W)':
                                     pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
@@ -3216,6 +3506,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
                                 elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Cooling (W)':
                                     acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
+
                             # else:
                             #     if self.zone_menu != 'None':
                             #         try:
@@ -3236,15 +3527,73 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ofwlc'] = ofwlc
                             self['res']['wlc'] = wlc
 
-                        owlcs.append(owlc - ofwlc)
+                        owlcs.append(owlc)
                         ecwlcs.append(ecwlc)
                         ofwlcs.append(ofwlc)
                         wlcs.append(wlc)
+
+                    reslists.append([str(frame), 'Carbon', self.zone_menu, 'Carbon offset (kgCO2e)', '{:.3f}'.format(ofwlc)])
+                    reslists.append([str(frame), 'Carbon', self.zone_menu, 'Gross operational carbon (kgCO2e)', '{:.3f}'.format(owlc)])
+                    reslists.append([str(frame), 'Carbon', self.zone_menu, 'Embodied carbon (kgCO2e)', '{:.3f}'.format(ecwlc)])
+                    reslists.append([str(frame), 'Carbon', self.zone_menu, 'Net operational carbon (kgCO2e)', '{:.3f}'.format(owlc - ofwlc)])
+                    reslists.append([str(frame), 'Carbon', self.zone_menu, 'Whole-life carbon (kgCO2e)', '{:.3f}'.format(wlc)])
 
                 self['res']['ec'] = ecwlcs
                 self['res']['of'] = ofwlcs
                 self['res']['wl'] = wlcs
                 self['res']['oc'] = owlcs
+                reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f[0]) for f in self['frames']])])
+                reslists.append(['All', 'Carbon', self.zone_menu, 'Carbon offset (kgCO2e)', ' '.join(['{:.3f}'.format(ofwlc) for ofwlc in ofwlcs])])
+                reslists.append(['All', 'Carbon', self.zone_menu, 'Gross operational carbon (kgCO2e)', ' '.join(['{:.3f}'.format(owlc) for owlc in owlcs])])
+                reslists.append(['All', 'Carbon', self.zone_menu, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format(ecwlc) for ecwlc in ecwlcs])])
+                reslists.append(['All', 'Carbon', self.zone_menu, 'Net operational carbon (kgCO2e)', ' '.join(['{:.3f}'.format(owlcs[i] - ofwlc) for i, ofwlc in enumerate(ofwlcs)])])
+                reslists.append(['All', 'Carbon', self.zone_menu, 'Whole-life carbon (kgCO2e)', ' '.join(['{:.3f}'.format(wlc) for wlc in wlcs])])
+                self['reslists'] = reslists
+
+    def ret_reslists(self, zones):
+        reslists = []
+
+        for frame in [f[0] for f in self['frames']]:
+            for zone in zones:
+                for r in self['rl']:
+                    if r[2] == zone:
+                        if r[3] == 'Heating (W)':
+                            heat_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+                            aheat_kwh += heat_kwh
+                            hours = len(r[4].split())
+                        if r[3] == 'Cooling (W)':
+                            cool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+                            acool_kwh += cool_kwh
+                        elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
+                            ec_kgco2e = float(r[4])
+                        elif r[3] == 'PV power (W)':
+                            pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+
+                    elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == zone and r[3] == 'PV power (W)':
+                        pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                    elif r[1] == 'Power' and zone == 'All' and r[3] == 'PV power (W)':
+                        pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                    elif r[1] == 'Zone temporal' and zone == 'All' and r[3] == 'Heating (W)':
+                        aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
+                    elif r[1] == 'Zone temporal' and zone == 'All' and r[3] == 'Cooling (W)':
+                        acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
+
+                (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
+                o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
+                owlc = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                ecwlc = ec_kgco2e * self.ec_years
+                ofwlc = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                wlc = owlc + ecwlc - ofwlc
+
+                owlcs.append(owlc)
+                ecwlcs.append(ecwlc)
+                ofwlcs.append(ofwlc)
+                wlcs.append(wlc)
+                # reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f[0]) for f in self['frames']])])
+                # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])
+                # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])])
+                # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ])
+
 
 
     def ret_metrics(self):
@@ -3436,8 +3785,9 @@ class So_En_Res(NodeSocket):
 
     def draw(self, context, layout, node, text):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'],
-                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"), "Embodied carbon": ("ecmenu", "ecrmenu"),
-                    "Linkage": ("linkmenu", "linkrmenu"), "External": ("enmenu", "enrmenu"), "Position": ("posmenu", "posrmenu"),
+                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"),
+                    "Embodied carbon": ("ecmenu", "ecrmenu"), "Linkage": ("linkmenu", "linkrmenu"),
+                    "External": ("enmenu", "enrmenu"), "Position": ("posmenu", "posrmenu"),
                     "Camera": ("cammenu", "camrmenu"), "Power": ("powmenu", "powrmenu"),
                     "Probe": ("probemenu", "probermenu")}
         row = layout.row()
@@ -4185,7 +4535,7 @@ class No_En_Net_Zone(Node, EnViNodes):
         self.afs = 0
         col = bpy.data.collections[self.zone]
 
-        for obj in col.objects:
+        for obj in [o for o in col.objects if not o.vi_params.embodied]:
             odm = [m.material for m in obj.material_slots]
             bfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con == 'Zone'], key=lambda face: -face.center[2])
             sfacelist = sorted([face for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_afsurface == 1 and get_con_node(odm[face.material_index].vi_params).envi_con_type not in ('Window', 'Door')], key=lambda face: -face.center[2])

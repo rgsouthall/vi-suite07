@@ -404,7 +404,7 @@ class VI_PT_Ob(bpy.types.Panel):
                 if ovp.embodiedtype != 'Custom':
                     newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
                     newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
-                    newrow(layout, 'Lifespan:', ovp, 'ec_life')
+                    newrow(layout, 'Service life:', ovp, 'ec_life')
 
                     try:
                         for ec in ovp['ecentries']:

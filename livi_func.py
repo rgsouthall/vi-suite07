@@ -617,7 +617,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Green irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradgm2res]) for g in rgeom])])
 
     if len(frames) > 1:
-        reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
+        reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join([str(f) for f in frames])])
 
         if svp['liparams']['unit'] == 'W/m2 (f)':
             reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average full irradiance (W/m2)', ' '.join(['{:.3f}'.format(self['oave']['firradm2{}'.format(frame)]) for frame in frames])])
@@ -849,10 +849,10 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     self['livires']['cbdm_hours'] = cbdm_hours
 
     for f, frame in enumerate(frames):
-        reslists = [[str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])]]
-        reslists.append([str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])])
-        reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
-        reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+        reslists = [[str(frame), 'Time', 'Time', 'Month', ' '.join([str(t.month) for t in times])]]
+        reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
+        reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
+        reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
 
         for restype in restypes:
             geom.layers.float.new('{}{}'.format(restype, frame))

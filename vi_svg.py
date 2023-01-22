@@ -335,11 +335,12 @@ def vi_info(node, dim, svp, **kwargs):
             svg_str += '<rect x="120" y="100" width="780" height="550" style="fill:none;stroke:grey;stroke-width:4"/>\n'.format(650 + min_val * res_new)
             svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:Nimbus Sans Narrow">kgCO<tspan font-size="30">2</tspan>e</text>\n'.format(650 + min_val * res_new)
             svg_str += '<text x="{}" y="725" text-anchor="middle" style="font-size:36px;font-family:Nimbus Sans Narrow">Scenario</text>\n'.format(dim[0] * 0.5)
-            svg_str += '<text x="{}" y="50" text-anchor="middle" style="font-size:42px;font-family:Nimbus Sans Narrow">Whole-life Carbon</text>\n'.format(dim[0] * 0.5)
+            svg_str += '<text x="{}" y="40" text-anchor="middle" style="font-size:38px;font-family:Nimbus Sans Narrow">Whole-life Carbon</text>\n'.format(dim[0] * 0.5)
+            svg_str += '<text x="{}" y="80" text-anchor="middle" style="font-size:36px;font-family:Nimbus Sans Narrow">Zone: {}</text>\n'.format(dim[0] * 0.5, node.zone_menu)
 
             for ipx, pointx in enumerate(pointsx):
                 svg_str += '<line x1="{0}" y1="100" x2="{0}" y2="660" style="stroke:grey;stroke-width:2"/>\n'.format(pointx)
-                svg_str += '<text x="{}" y="690" text-anchor="middle" style="font-size:30 px;font-family:Nimbus Sans Narrow">{}</text>\n'.format(pointx, ipx + 1)
+                svg_str += '<text x="{}" y="690" text-anchor="middle" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>\n'.format(pointx, ipx + 1)
 
             for ivy, valy in enumerate(valsay):
                 svg_str += '<line x1="120" y1="{0}" x2="900" y2="{0}" style="stroke:grey;stroke-width:2"/>\n'.format((dim[1] - 150) - (valy - min_val) * res_new)
@@ -350,9 +351,9 @@ def vi_info(node, dim, svp, **kwargs):
                 pointsz = list(zip(pointsx, pointsy))
                 points = ' '.join(['{:.2f},{:.2f}'.format(p[0], p[1]) for p in pointsz])
                 svg_str += '<polyline points="{}" style="fill:none;stroke:{};stroke-width:5"/>\n'.format(points, cols[ri])
-                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{}"/>\n'.format(50 + ri * 225, cols[ri])
+                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{};stroke:black;stroke-width:2"/>\n'.format(50 + ri * 225, cols[ri])
                 svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>'.format(110 + ri * 225, ('Whole-life', 'Operational', 'Embodied')[ri])
-                svg_str += '<text x="700" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">Zone: {}</text>'.format(node.zone_menu)
+                # svg_str += '<text x="700" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">Zone: {}</text>'.format(node.zone_menu)
 
                 for point in pointsz:
                     svg_str += '<circle cx="{0[0]}" cy="{0[1]}" r="10" style="fill:{1};stroke:black;stroke-width:1"/>\n'.format(point, cols[ri])

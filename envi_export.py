@@ -17,8 +17,8 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
-from .vi_func import selobj, facearea, selmesh, create_coll, selobs, logentry
-from .envi_func import epentry, epschedwrite, get_con_node, boundpoly, get_zone_node, ret_areas
+from .vi_func import selobj, facearea, selmesh, create_coll, selobs, logentry, epentry
+from .envi_func import get_con_node, boundpoly, get_zone_node, ret_areas, epschedwrite
 # from .envi_mat import retuval
 
 dtdf = datetime.date.fromordinal
@@ -34,7 +34,6 @@ def en_ec_export():
                 for emnode in ob.data.material_slots[face.material_index].material.envi_nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                         mat_co2e += face.area * emnode['ecm2']
-
 
 def enpolymatexport(exp_op, node, locnode, em, ec):
     scene = bpy.context.scene
@@ -142,7 +141,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 bm.transform(obj.matrix_world)
                 bm.normal_update()
 
-                if coll in zone_colls:
+                if mats and coll in zone_colls:
                     for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_nodes]:
                         mat = mats[face.material_index]
 
@@ -231,7 +230,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                         pv_areas[mat.name] += face.calc_area()
                                         gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
                 bm.free()
-        print(pv_areas)
+
         for mn in pv_areas:
             bpy.data.materials[mn].vi_params['enparams']['pvarea'] = pv_areas[mn]
 
@@ -494,6 +493,7 @@ def pregeo(context, op):
         c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
         cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH' and o.vi_params.vi_type == '1']
+        emobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH' and o.vi_params.vi_type == '0' and o.vi_params.embodied]
 
         if c.vi_params.envi_zone:
             eg.children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
@@ -564,11 +564,37 @@ def pregeo(context, op):
                     c.objects.unlink(no)
                     bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
 
+            for emob in emobs:
+                selobj(context.view_layer, emob)
+
+                if emob.animation_data:
+                    scene.frame_set(int(emob.animation_data.action.frame_range[0]))
+
+                bpy.ops.object.duplicate(linked=False)
+                nemob = context.active_object
+
+                k = 0
+
+                if no.animation_data and no.animation_data.action:
+                    for fc in no.animation_data.action.fcurves:
+                        if fc.data_path == 'location':
+                            for kp in fc.keyframe_points:
+                                kp.co[1] += context.node.geo_offset[k]
+                            k += 1
+
+                if not k:
+                    nemob.location += context.node.geo_offset
+
+                nemob.name = '{}_em'.format(emob.name)
+                c.objects.unlink(nemob)
+                bpy.data.collections['EN_{}'.format(c_name)].objects.link(nemob)
+
     for chil in eg.children:
         if chil.objects:
             chil.vi_params.envi_zone = 0
 
-            for o in chil.objects:
+            for o in [o for o in chil.objects if not o.vi_params.embodied]:
+
                 oms = o.material_slots
                 bm = bmesh.new()
                 bm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
@@ -617,15 +643,16 @@ def pregeo(context, op):
                 if not len(bm.faces):
                     bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True)
                 else:
-                    if o.vi_params.envi_type == '0':
-                        chil.vi_params.envi_zone = 1
+                    for cob in chil.objects:
+                        if not all([get_con_node(ms.material.vi_params).envi_con_type in ('None', 'Shading') for ms in cob.material_slots if get_con_node(ms.material.vi_params)]):
+                            chil.vi_params.envi_zone = 1
 
                     bm.to_mesh(o.data)
 
                 bm.free()
 
             if chil.objects:
-                selobs(context.view_layer, [o.name for o in chil.objects])
+                selobs(context.view_layer, [o.name for o in chil.objects if not o.vi_params.embodied])
                 bpy.ops.object.join()
                 new_ob = bpy.context.active_object
                 new_ob.name = '{}'.format(chil.name)
@@ -664,7 +691,8 @@ def pregeo(context, op):
         cvp['enparams']['floorarea'] = {}
 
         if coll.objects:
-            for oi, ob in enumerate(coll.objects):
+            for oi, ob in enumerate([ob for ob in coll.objects if not ob.vi_params.embodied]):
+                # if not all([ms.material.get_con_node().envi_con_type in ('None', 'Shading') for ms in ob.material_slots])
                 done_mats = []
                 ovp = ob.vi_params
                 omats = [ms.material for ms in ob.material_slots]
