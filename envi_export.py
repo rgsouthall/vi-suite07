@@ -100,6 +100,20 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                         if emnode.inputs['PV'].links:
                             gen = 1
                             pvs.append(emnode)
+
+            elif mvp.envi_reversed and bpy.data.materials.get(mvp.envi_rev_enum):
+                mvp = bpy.data.materials[mvp.envi_rev_enum].vi_params
+
+                if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export:
+                    for emnode in mvp.envi_nodes.nodes:
+                        if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
+                            if emnode.envi_con_type == 'Window':
+                                en_idf.write(emnode.ep_write(mat.name))
+                            else:
+                                if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
+                                    en_idf.write(emnode.ep_write(mat.name))
+
+
         em.namedict = {}
         em.thickdict = {}
 
@@ -465,6 +479,7 @@ def pregeo(context, op):
     scene = context.scene
     svp = scene.vi_params
     depsgraph = bpy.context.evaluated_depsgraph_get()
+    dcdict = {'Wall': (1, 1, 1, 1), 'Partition': (1, 1, 0, 1), 'Window': (0, 1, 1, 1), 'Roof': (0, 1, 0, 1), 'Ceiling': (1, 1, 0, 1), 'Floor': (0.44, 0.185, 0.07, 1), 'Shading': (1, 0, 0, 1)}
 
     if context.active_object and context.active_object.mode == 'EDIT':
         bpy.ops.object.editmode_toggle()
@@ -589,12 +604,13 @@ def pregeo(context, op):
                 c.objects.unlink(nemob)
                 bpy.data.collections['EN_{}'.format(c_name)].objects.link(nemob)
 
+    done_mats = []
+
     for chil in eg.children:
         if chil.objects:
             chil.vi_params.envi_zone = 0
 
             for o in [o for o in chil.objects if not o.vi_params.embodied]:
-
                 oms = o.material_slots
                 bm = bmesh.new()
                 bm.from_mesh(o.evaluated_get(depsgraph).to_mesh())
@@ -607,6 +623,46 @@ def pregeo(context, op):
                 bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 0.001], context='FACES')
                 bmesh.ops.triangulate(bm, faces=[face for face in bm.faces if not all([loop.is_convex for loop in face.loops])])
 
+                for s, sm in enumerate(o.material_slots):
+                    if sm.material and sm.material not in done_mats:
+                        done_mats.append(sm.material)
+                        mat = sm.material
+                        mvp = mat.vi_params
+
+                        if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
+                            mvp.envi_nodes = mvp.envi_nodes.copy()
+                            mvp.envi_nodes.name = mat.name
+
+                        if mvp.envi_nodes and mvp.envi_nodes.users > 1:
+                            mvp.envi_nodes.user_clear()
+                            mvp.envi_nodes = bpy.data.node_groups[mat.name]
+
+                        emnode = get_con_node(mvp)
+
+                        if not emnode and not mvp.envi_reversed:
+                            op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
+                        elif emnode and any([n.use_custom_color for n in emnode.ret_nodes()]):
+                            op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
+                            return
+                        elif mvp.envi_reversed:
+                            emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
+                            emnode.ret_uv()
+                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
+                            mvp.envi_export = True
+
+                            if emnode.envi_con_type in dcdict:
+                                mat.diffuse_color = dcdict[mct]
+                            if emnode.inputs['PV'].links:
+                                mat.diffuse_color = (1, 1, 0, 1)
+                        else:
+                            emnode.ret_uv()
+                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
+                            mvp.envi_export = True
+
+                            if emnode.envi_con_type in dcdict:
+                                mat.diffuse_color = dcdict[mct]
+                            if emnode.inputs['PV'].links:
+                                mat.diffuse_color = (1, 1, 0, 1)
                 # try:
                 #     for kb in bm.verts.layers.shape.keys():
                 #         val = bm.verts.layers.shape.get(kb)
@@ -626,9 +682,9 @@ def pregeo(context, op):
                 #bm.transform(omw.inverted())
 
                 if o.vi_params.envi_type == '0':
-                    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material], context='FACES')
-                    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context='FACES')
-                    bmesh.ops.delete(bm, geom=[f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context='FACES')
+                    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_export], context='FACES')
+                    #bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context='FACES')
+                    #bmesh.ops.delete(bm, geom=[f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context='FACES')
 
                     if not bm.faces.layers.int.get('viuid'):
                         bm.faces.layers.int.new('viuid')
@@ -681,7 +737,7 @@ def pregeo(context, op):
     enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0, 'pcm': 0}
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]
-    dcdict = {'Wall': (1, 1, 1, 1), 'Partition': (1, 1, 0, 1), 'Window': (0, 1, 1, 1), 'Roof': (0, 1, 0, 1), 'Ceiling': (1, 1, 0, 1), 'Floor': (0.44, 0.185, 0.07, 1), 'Shading': (1, 0, 0, 1)}
+
     ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}
     linklist = []
 
@@ -693,7 +749,7 @@ def pregeo(context, op):
         if coll.objects:
             for oi, ob in enumerate([ob for ob in coll.objects if not ob.vi_params.embodied]):
                 # if not all([ms.material.get_con_node().envi_con_type in ('None', 'Shading') for ms in ob.material_slots])
-                done_mats = []
+
                 ovp = ob.vi_params
                 omats = [ms.material for ms in ob.material_slots]
                 keys = [k for k in ovp.keys() if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica')]
@@ -708,46 +764,7 @@ def pregeo(context, op):
 
 #                ovp['enparams']["floorarea"][str(scene.frame_current)] = ret_areas(ob)
 
-                for s, sm in enumerate(ob.material_slots):
-                    if sm.material and sm.material not in done_mats:
-                        done_mats.append(sm.material)
-                        mat = sm.material
-                        mvp = mat.vi_params
 
-                        if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
-                            mvp.envi_nodes = mvp.envi_nodes.copy()
-                            mvp.envi_nodes.name = mat.name
-
-                        if mvp.envi_nodes and mvp.envi_nodes.users > 1:
-                            mvp.envi_nodes.user_clear()
-                            mvp.envi_nodes = bpy.data.node_groups[mat.name]
-
-                        emnode = get_con_node(mvp)
-
-                        if not emnode and not mvp.envi_reversed:
-                            op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
-                        elif emnode and any([n.use_custom_color for n in emnode.ret_nodes()]):
-                            op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
-                            return
-                        elif mvp.envi_reversed:
-                            emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
-                            emnode.ret_uv()
-                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
-                            mvp.envi_export = True
-
-                            if emnode.envi_con_type in dcdict:
-                                mat.diffuse_color = dcdict[mct]
-                            if emnode.inputs['PV'].links:
-                                mat.diffuse_color = (1, 1, 0, 1)
-                        else:
-                            emnode.ret_uv()
-                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
-                            mvp.envi_export = True
-
-                            if emnode.envi_con_type in dcdict:
-                                mat.diffuse_color = dcdict[mct]
-                            if emnode.inputs['PV'].links:
-                                mat.diffuse_color = (1, 1, 0, 1)
 
 #            cvp['enparams']['floorarea'] = {str()}
 

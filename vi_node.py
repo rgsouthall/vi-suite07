@@ -6714,7 +6714,11 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 mats = self.ec.propdict[con_type][self.envi_con_list]
                 params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(mats) - 1)]
                 paramvs = [mn] + ['{}-layer-{}'.format(mn, mi) for mi, m in enumerate(mats)]
-                ep_text = epentry('Construction', params, paramvs)
+
+                if mn == self.id_data.name:
+                    ep_text = epentry('Construction', params, paramvs)
+                else:
+                    ep_text += epentry('Construction', params, [paramvs[0]] + paramvs[1:][::-1])
 
                 for pm, presetmat in enumerate(mats):
                     matlist = list(self.em.matdat[presetmat])
@@ -6793,7 +6797,10 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 in_sock = node.inputs['Layer']
                 n += 1
 
-            ep_text += epentry('Construction', params, paramvs)
+            if mn == self.id_data.name:
+                ep_text += epentry('Construction', params, paramvs)
+            else:
+                ep_text += epentry('Construction', params, [paramvs[0]] + paramvs[1:][::-1])
 
             if get_mat(self, 1).vi_params.envi_shading:
                 in_sock = self.inputs['Outer layer']
@@ -6814,6 +6821,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         ep_text += node.ep_write(n, mn)
 
                     n += 1
+
                 ep_text += epentry('Construction', params, paramvs)
 
         if self.envi_con_type in ('Window', 'Door'):
