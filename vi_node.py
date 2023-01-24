@@ -3096,7 +3096,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
             if len(self['rl'][0]):
                 frames = list(dict.fromkeys([z[0] for z in self['rl']]))
-                self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
+                self['frames'] =  [(f, f, 'Frame') for f in frames]
 
                 if self.metric == '3':
                     if self.em_menu == '1':
@@ -3466,16 +3466,17 @@ class No_Vi_Metrics(Node, ViNodes):
                 cop = 1/self.elec_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 hw_cop = 1/self.hw_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 geo_coll = bpy.data.collections['EnVi Geometry']
+                frames = [f[0] for f in self['frames'] if f[0] != 'All']
 
                 if self.zone_menu == 'All':
                     if geo_coll.vi_params['enparams'].get('floorarea'):
-                        self['res']['fa'] = geo_coll.vi_params['enparams']['floorarea'][str(self.frame_menu)]
+                        self['res']['fa'] = list(geo_coll.vi_params['enparams']['floorarea'].values())
 
                 elif self.zone_menu != '':
                     if geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
-                        self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea'][str(self.frame_menu)]
+                        self['res']['fa'] = list(geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea'].values())
 
-                for frame in [f[0] for f in self['frames']]:
+                for frame in frames:
                     pv_kwh = 0
                     heat_kwh = 0
                     aheat_kwh = 0
@@ -3515,7 +3516,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             #             pass
 
                         (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
-                        o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
+                        o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa'][int(frame) - int(frames[0])]
                         owlc = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
                         ecwlc = ec_kgco2e * self.ec_years
                         ofwlc = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
@@ -3593,8 +3594,6 @@ class No_Vi_Metrics(Node, ViNodes):
                 # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])
                 # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])])
                 # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ])
-
-
 
     def ret_metrics(self):
         if self.inputs['Results in'].links:

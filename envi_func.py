@@ -902,6 +902,7 @@ def write_ec(scene, frames, coll, reslists):
 
     return (reslists)
 
+
 def write_ob_ec(scene, frames, coll, reslists):
     svp = scene.vi_params
     envi_ec = envi_embodied()
@@ -953,7 +954,7 @@ def write_ob_ec(scene, frames, coll, reslists):
 
     ec_text = svp['ecparams']['ec_text'] = ec_text
 
-    with open(os.path.join(svp['viparams']['newdir'], '/home/ryan/ec.csv'), 'w') as ec_file:
+    with open(os.path.join(svp['viparams']['newdir'], 'ec.csv'), 'w') as ec_file:
         ec_file.write(ec_text)
 
     reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])

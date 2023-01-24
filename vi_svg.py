@@ -250,7 +250,8 @@ def vi_info(node, dim, svp, **kwargs):
         for b in range(20):
             bfill = "255, 128, 128" if (b + 1) * 5 > asepass else "128, 255, 128"
             alpha = 1.0 if -5 <= ase - ((b + 1) * 5) <= 0 else 0.4
-            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke-width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill, alpha, 25 + int(b%4) * 75,
+            svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke-width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill,
+                                                                                                                                                                     alpha, 25 + int(b%4) * 75,
                                                                                                                                                                      350 - int(b/4) * 50, 75, 50)
 
             if alpha == 1.0:
@@ -269,11 +270,11 @@ def vi_info(node, dim, svp, **kwargs):
         pass
 
     elif node.metric == '0' and node.energy_menu == '1':
-        for met in ('Heating (W)', 'Cooling (W)', 'Temperatature (C)' , 'CO2 (ppm)', 'Ventilation (heat (W)', 'Fabric heat (W)', 'Power (W)'):
+        for met in ('Heating (W)', 'Cooling (W)', 'Temperatature (C)', 'CO2 (ppm)', 'Ventilation (heat (W)', 'Fabric heat (W)', 'Power (W)'):
             pass
 
     elif node.metric == '6':
-        if len(kwargs['wlc']) == 1:
+        if node.frame_menu != 'All':
             imname = "Whole_life_carbon"
             wlc = kwargs['wlc']
             ec = kwargs['ec']
@@ -290,7 +291,7 @@ def vi_info(node, dim, svp, **kwargs):
             if min_res < 0:
                 min_res -= 100
 
-            l_range = range(min_res, max_res + 1, 100)
+            l_range = range(int(min_res), int(max_res) + 1, 100)
             l_diff = 300/len(l_range)
             svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
             <svg
@@ -303,12 +304,13 @@ def vi_info(node, dim, svp, **kwargs):
             xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
 
             for ii, i in enumerate(l_range):
-                svg_str += '<rect x="{}" y="{}" width="{}" height="{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1), 300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
+                svg_str += '<rect x="{}" y="{}" width="{}" height="{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1),
+                                                                                                                                  300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
 
             svg_str += "</svg>"
             return imname, bytearray(svg_str, encoding='utf-8')
         else:
-            imname = "Whole_life_carbon"
+            imname = f"Whole_life_carbon_{node.zone_menu}"
             svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
             <svg
             id="svg5"
@@ -360,7 +362,3 @@ def vi_info(node, dim, svp, **kwargs):
 
             svg_str += "</svg>"
             return imname, bytearray(svg_str, encoding='utf-8')
-
-
-
-
