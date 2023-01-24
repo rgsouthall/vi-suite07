@@ -914,12 +914,16 @@ def write_ob_ec(scene, frames, coll, reslists):
         fa = coll.vi_params['enparams']['floorarea'][str(frame)]
         scene.frame_set(frame)
         ecs, vols = [], []
+        foecs = {}
 
         for chil in coll.children:
             chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)] if chil.vi_params['enparams']['floorarea'].get(str(frame)) else fa
             cecs = []
 
             for o in chil.objects:
+                if o.name not in foecs:
+                    foecs[o.name] = []
+
                 ovp = o.vi_params
 
                 if o.type == 'MESH' and ovp.embodied and ovp.vi_type == '0':
@@ -936,6 +940,7 @@ def write_ob_ec(scene, frames, coll, reslists):
                         ec = float(ecdict['eckg']) * float(ecdict['density']) * vol
                         cecs.append(ec)
                         ecs.append(ec)
+                        foecs[o.name].append(ec)
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/ovp.ec_life)])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
@@ -957,7 +962,7 @@ def write_ob_ec(scene, frames, coll, reslists):
     with open(os.path.join(svp['viparams']['newdir'], 'ec.csv'), 'w') as ec_file:
         ec_file.write(ec_text)
 
-    reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
+    reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', ' '.join(['{:.3f}'.format(foec) for foec in foecs[o.name]])])
     scene.frame_set(frames[0])
     return (reslists)
 
