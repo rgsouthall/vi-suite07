@@ -113,7 +113,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                 if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
                                     en_idf.write(emnode.ep_write(mat.name))
 
-
         em.namedict = {}
         em.thickdict = {}
 
@@ -156,10 +155,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 bm.normal_update()
 
                 if mats and coll in zone_colls:
-                    for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_nodes]:
+                    for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_export]:
                         mat = mats[face.material_index]
+                        mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params 
 
-                        for emnode in mat.vi_params.envi_nodes.nodes:
+                        for emnode in mvp.envi_nodes.nodes:
                             if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                                 vcos = [v.co for v in face.verts]
                                 (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
@@ -541,7 +541,6 @@ def pregeo(context, op):
                             if fc.data_path == 'location':
                                 for kp in fc.keyframe_points:
                                     kp.co[1] += context.node.geo_offset[k]
-
                                 k += 1
 
                     if not k:

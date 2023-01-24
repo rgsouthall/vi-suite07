@@ -3462,6 +3462,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['ckwh'] = 0
 
                 hours = 8760
+                ofcs = {}
                 owlcs, ecwlcs, ofwlcs, wlcs, reslists = [], [], [], [], []
                 cop = 1/self.elec_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
                 hw_cop = 1/self.hw_cop if self.heat_type == '1' else 1/(self.gas_eff * 0.01)
@@ -3543,6 +3544,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['res']['of'] = ofwlcs
                 self['res']['wl'] = wlcs
                 self['res']['oc'] = owlcs
+                self['res']['noc'] = [owlcs[i] - ofwlc for i, ofwlc in enumerate(ofwlcs)]
                 reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f[0]) for f in self['frames']])])
                 reslists.append(['All', 'Carbon', self.zone_menu, 'Carbon offset (kgCO2e)', ' '.join(['{:.3f}'.format(ofwlc) for ofwlc in ofwlcs])])
                 reslists.append(['All', 'Carbon', self.zone_menu, 'Gross operational carbon (kgCO2e)', ' '.join(['{:.3f}'.format(owlc) for owlc in owlcs])])

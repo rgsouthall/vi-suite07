@@ -278,13 +278,9 @@ def vi_info(node, dim, svp, **kwargs):
             imname = "Whole_life_carbon"
             wlc = kwargs['wlc']
             ec = kwargs['ec']
-            oc = kwargs['oc']
-
-            if kwargs.get('of'):
-                of = kwargs['of']
-
-            min_res = min((oc[0], ec[0], wlc[0]))
-            max_res = max((oc[0], ec[0], wlc[0]))
+            noc = kwargs['noc']
+            min_res = min((noc[0], ec[0], wlc[0]))
+            max_res = max((noc[0], ec[0], wlc[0]))
             min_res = round(min_res, -2)
             max_res = round(max_res, -2)
 
@@ -321,8 +317,8 @@ def vi_info(node, dim, svp, **kwargs):
             xmlns="http://www.w3.org/2000/svg"
             xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
 
-            max_val = max([max(res) for res in (kwargs['wlc'], kwargs['oc'], kwargs['ec'])])
-            min_val = min([min(res) for res in (kwargs['wlc'], kwargs['oc'], kwargs['ec'])])
+            max_val = max([max(res) for res in (kwargs['wlc'], kwargs['noc'], kwargs['ec'])])
+            min_val = min([min(res) for res in (kwargs['wlc'], kwargs['noc'], kwargs['ec'])])
             res_new = (dim[1] - 250)/(max_val-min_val)
             res_yscale = 275/max((abs(max_val), abs(min_val)))
             valsay = [min_val + y * round(max_val - min_val, -2) * 0.2 for y in range(6)]
@@ -348,7 +344,7 @@ def vi_info(node, dim, svp, **kwargs):
                 svg_str += '<line x1="120" y1="{0}" x2="900" y2="{0}" style="stroke:grey;stroke-width:2"/>\n'.format((dim[1] - 150) - (valy - min_val) * res_new)
                 svg_str += '<text x="75" y="{}" text-anchor="middle" style="font-size:30px;font-family:Nimbus Sans Narrow">{:.0f}</text>\n'.format((dim[1] - 150) - (valy - min_val) * res_new + 10, valy)
 
-            for ri, res in enumerate((kwargs['wlc'], kwargs['oc'], kwargs['ec'])):
+            for ri, res in enumerate((kwargs['wlc'], kwargs['noc'], kwargs['ec'])):
                 pointsy = [(dim[1] - 150) - (r - min_val) * res_new for r in res]
                 pointsz = list(zip(pointsx, pointsy))
                 points = ' '.join(['{:.2f},{:.2f}'.format(p[0], p[1]) for p in pointsz])
