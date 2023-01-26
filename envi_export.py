@@ -643,16 +643,16 @@ def pregeo(context, op):
                         elif emnode and any([n.use_custom_color for n in emnode.ret_nodes()]):
                             op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
                             return
-                        elif mvp.envi_reversed:
-                            emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
-                            emnode.ret_uv()
-                            mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
-                            mvp.envi_export = True
+                        # elif mvp.envi_reversed:
+                        #     emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
+                        #     emnode.ret_uv()
+                        #     mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
+                        #     mvp.envi_export = True
 
-                            if emnode.envi_con_type in dcdict:
-                                mat.diffuse_color = dcdict[mct]
-                            if emnode.inputs['PV'].links:
-                                mat.diffuse_color = (1, 1, 0, 1)
+                        #     if emnode.envi_con_type in dcdict:
+                        #         mat.diffuse_color = dcdict[mct]
+                        #     if emnode.inputs['PV'].links:
+                        #         mat.diffuse_color = (1, 1, 0, 1)
                         else:
                             emnode.ret_uv()
                             mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
@@ -747,8 +747,6 @@ def pregeo(context, op):
 
         if coll.objects:
             for oi, ob in enumerate([ob for ob in coll.objects if not ob.vi_params.embodied]):
-                # if not all([ms.material.get_con_node().envi_con_type in ('None', 'Shading') for ms in ob.material_slots])
-
                 ovp = ob.vi_params
                 omats = [ms.material for ms in ob.material_slots]
                 keys = [k for k in ovp.keys() if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica')]
@@ -760,12 +758,6 @@ def pregeo(context, op):
                     op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(ob.name))
                 elif None in omats:
                     op.report({'WARNING'}, 'Object {} has an empty material slot'.format(ob.name))
-
-#                ovp['enparams']["floorarea"][str(scene.frame_current)] = ret_areas(ob)
-
-
-
-#            cvp['enparams']['floorarea'] = {str()}
 
             for link in enng.links:
                 if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):

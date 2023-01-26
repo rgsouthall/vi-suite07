@@ -69,6 +69,7 @@ def get_mat(node, ee):
 
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
+        
         ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
 
@@ -79,7 +80,7 @@ def get_con_node(mvp):
         else:
             return ecanodes[0]
 
-    elif mvp.envi_reversed:
+    elif mvp.envi_reversed: 
         ecnodes = [n for n in bpy.data.materials[mvp.envi_rev_enum].vi_params.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
 
