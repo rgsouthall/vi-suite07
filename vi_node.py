@@ -1881,11 +1881,14 @@ class ViEnRIn(So_En_ResU):
     bl_label = 'Axis'
 
     def f_menu(self, context):
-        frs = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys() if frame]
+        try:
+            frs = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys() if frame]
 
-        if frs:
-            return frs
-        else:
+            if frs:
+                return frs
+            else:
+                return [('None', 'None', 'None')]
+        except:
             return [('None', 'None', 'None')]
 
     def r_menu(self, context):
