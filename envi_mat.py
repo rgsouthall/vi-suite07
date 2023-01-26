@@ -78,14 +78,14 @@ class envi_materials(object):
 
     def get_dat(self, mat_type):
         mat_dict = {'Glass': self.glass_datd, '3': self.metal_datd, '0': self.brick_datd, '1': self.cladding_datd,
-                   '2': self.concrete_datd, '5': self.wood_datd, '4': self.stone_datd, '6': self.gas_datd,
-                   'WGas': self.wgas_datd, '7': self.insulation_datd, '8': self.pcm_datd, '9': self.pcmd_datd, '10': self.plastic_datd}
+                    '2': self.concrete_datd, '5': self.wood_datd, '4': self.stone_datd, '6': self.gas_datd,
+                    'WGas': self.wgas_datd, '7': self.insulation_datd, '8': self.pcm_datd, '9': self.pcmd_datd, '10': self.plastic_datd}
         return mat_dict[mat_type]
 
     def lay_save(self):
         mat_dict = {'Glass': self.glass_datd, 'Metal': self.metal_datd, 'Brick': self.brick_datd, 'Cladding': self.cladding_datd,
-                   'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
-                   'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}
+                    'Concrete': self.concrete_datd, 'Wood': self.wood_datd, 'Stone': self.stone_datd, 'Gas': self.gas_datd,
+                    'WGas': self.wgas_datd, 'Insulation': self.insulation_datd, 'PCM': self.pcm_datd, 'PCMD': self.pcmd_datd, 'Plastic': self.plastic_datd}
 
         with open(ret_datab('Material_database.json', 'w'), 'w') as mat_jfile:
             mat_jfile.write(json.dumps(mat_dict, indent=2))

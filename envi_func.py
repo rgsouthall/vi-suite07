@@ -384,11 +384,12 @@ def envizres(scene, eresobs, resnode, restype):
             mdcb.keyframe_points[frame].co = frame, cv[frame][2]
             txtl.keyframe_points[frame].co = frame, 1
 
+
 def enunits(self, context):
     try:
         resstring = retenvires(context.scene)
         return [(k, k, 'Display {}'.format(k)) for k in sorted(context.active_object[resstring].keys())]
-    except:
+    except Exception:
         return [('', '', '')]
 
 
@@ -396,7 +397,7 @@ def enpunits(self, context):
     try:
         resstring = retenvires(context.scene)
         return [(k, k, 'Display {}'.format(k)) for k in context.active_object[resstring].keys()]
-    except:
+    except Exception:
         return []
 
 
@@ -606,7 +607,6 @@ def processf(pro_op, node, con_node):
             if pvps:
                 reslists.append([str(frame), 'Power', 'All', 'PV power (W)', ' '.join(['{:.3f}'.format(sum(pvpz)) for pvpz in zip(*pvps)])])
 
-
     rls = reslists
     zrls = list(zip(*rls))
 
@@ -715,8 +715,7 @@ def processf(pro_op, node, con_node):
                         if allfas:
                             areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(s[1])*0.001/fas[si]) for si, s in enumerate([s for s in shgs if s[0] == zn])])])
 
-                except Exception as e:
-                    print(e)
+                except Exception:
                     pro_op.report({'ERROR'}, "There are no zone results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
                     return
 
@@ -727,8 +726,9 @@ def processf(pro_op, node, con_node):
 
                     if allfas:
                         areslists.append(['All', 'Zone spatial', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond/fas[ci]) for ci, cond in enumerate([c for c in conds if c[0] == zn])])])
-                except:
+                except Exception:
                     pass
+
             if aheats and acools:
                 try:
                     aconds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in aheats if h[0] == zn], [sum(h[1])*0.001 for h in acools if h[0] == zn]])]
@@ -736,11 +736,11 @@ def processf(pro_op, node, con_node):
 
                     if allfas:
                         areslists.append(['All', 'Zone spatial', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond/fas[ai]) for ai, acond in enumerate([a for a in aconds if a[0] == zn])])])
-                except:
+                except Exception:
                     pass
 
         powrls = [powrl for powrl in rls if powrl[1] == 'Power']
-        zpowrls = list(zip(*powrls))
+        # zpowrls = list(zip(*powrls))
         pows = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Power' and zrls[3][zi] == 'PV power (W)']
 
         for zpv in set([pow[0] for pow in pows]):
@@ -790,6 +790,7 @@ def zrupdate(self, context):
         print(e)
         return [('None', 'None', 'Nothing to plot')]
 
+
 def ecrupdate(self, context):
     try:
         rl = self.links[0].from_node['reslists']
@@ -798,6 +799,7 @@ def ecrupdate(self, context):
     except Exception as e:
         print(e)
         return [('None', 'None', 'Nothing to plot')]
+
 
 def retmenu(dnode, axis, mtype):
     if mtype == 'Climate':
@@ -822,6 +824,7 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].probemenu, dnode.inputs[axis].metricmenu]
     if mtype == 'Embodied carbon':
         return [dnode.inputs[axis].ecmenu, dnode.inputs[axis].metricmenu]
+
 
 def write_ec(scene, frames, coll, reslists):
     ec_text = scene.vi_params['ecparams']['ec_text']
@@ -859,13 +862,13 @@ def write_ec(scene, frames, coll, reslists):
                                 zone_dict[chil.name]['area'] += poly.area
                                 mat_ec = con_node.ret_ec()
 
-                                if mat_ec[0] !='N/A':
+                                if mat_ec[0] != 'N/A':
                                     mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
                                     zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
                                     mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
                                     zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
 
-            except:
+            except Exception:
                 pass
 
             for line in ec_text.split('\n'):
@@ -882,7 +885,10 @@ def write_ec(scene, frames, coll, reslists):
             if chil_fa:
                 reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
 
-            ec_text += '{}, Zone, {}, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {:.2f}, {:.2f}\n'.format(frame, zone, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', zone_dict[zone]['ec'], zone_dict[zone]['ecy'], zone_dict[zone]['ec']/chil_fa, zone_dict[zone]['ecy']/chil_fa)
+            ecm2 = '{:.2f}'.format(zone_dict[zone]['ec']/chil_fa) if chil_fa else 'N/A'
+            ecym2 = '{:.2f}'.format(zone_dict[zone]['ecy']/chil_fa) if chil_fa else 'N/A'
+            ec_text += '{}, Zone, {}, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, zone, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
+                                                                                                       zone_dict[zone]['ec'], zone_dict[zone]['ecy'], ecm2, ecym2)
 
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
@@ -897,7 +903,11 @@ def write_ec(scene, frames, coll, reslists):
             if fa:
                 reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/m2/y)', '{:.3f}'.format(mat_dict[mat]['ecy']/fa)])
 
-            ec_text += '{}, Material, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {:.2f}, {:.2f}, {:.2f}\n'.format(frame, mat, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', mat_dict[mat]['area'], mat_dict[mat]['ec'], mat_dict[mat]['ecy'], mat_dict[mat]['ec']/chil_fa, mat_dict[mat]['ecy']/chil_fa)
+            ecm2 = '{:.2f}'.format(mat_dict[mat]['ec']/chil_fa) if chil_fa else 'N/A'
+            ecym2 = '{:.2f}'.format(mat_dict[mat]['ecy']/chil_fa) if chil_fa else 'N/A'
+            ec_text += '{}, Material, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, mat, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
+                                                                                                               mat_dict[mat]['area'], mat_dict[mat]['ec'], mat_dict[mat]['ecy'],
+                                                                                                               ecm2, ecym2)
 
     if len(frames) > 1:
         for zone in zone_dict:

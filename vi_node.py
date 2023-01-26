@@ -177,7 +177,7 @@ class No_Loc(Node, ViNodes):
     def retentries(self, context):
         try:
             return [tuple(e) for e in self['entries']]
-        except:
+        except Exception:
             return [('None', 'None', 'None')]
 
     weather: EnumProperty(name='', description="Weather file", items=retentries, options={'SKIP_SAVE'}, update=updatelatlong)
@@ -197,7 +197,7 @@ class No_Loc(Node, ViNodes):
 
         try:
             NodeTree.get_from_context(context).use_fake_user = True
-        except:
+        except Exception:
             pass
 
     def update(self):
@@ -343,7 +343,8 @@ class No_Li_Con(Node, ViNodes):
         suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.visible_get()]
 
         if self.contextmenu == 'Basic' and ((self.skyprog == '0' and self['skynum'] < 2) or (self.skyprog == '1' and self.epsilon > 1)):
-            starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
+            starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + \
+                datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
             self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.animated else [scene.frame_current]
             frames = range(self.startframe, self['endframe'] + 1) if self.animated else [scene.frame_current]
             scene.frame_start, scene.frame_end = self.startframe, frames[-1]
@@ -428,7 +429,8 @@ class No_Li_Con(Node, ViNodes):
 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
-        self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+        self['whitesky'] = ("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \n"
+                            "void glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
         self.outputs.new('So_Li_Con', 'Context out')
         self.inputs.new('So_Vi_Loc', 'Location in')
         self.outputs['Context out'].hide = True
@@ -496,9 +498,7 @@ class No_Li_Con(Node, ViNodes):
 
             elif self.skyprog == '3':
                 row = layout.row()
-                #row.operator('node.skyselect', text='Sky select')
                 row.prop_search(self, 'skyname', bpy.data, 'texts', text='', icon='NONE')
-                # row.prop(self, 'skyname')
 
             row = layout.row()
 
@@ -712,7 +712,8 @@ class No_Li_Con(Node, ViNodes):
                 self['preview'] = 1
                 self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
             else:
-                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                self['Text'][str(scene.frame_current)] = ("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \n"
+                                                          "void glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
 
                 if self.sourcemenu2 == '0':
                     with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
@@ -826,7 +827,7 @@ class No_Li_Im(Node, ViNodes):
         try:
             return min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]),\
                     max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])
-        except:
+        except Exception:
             return 0, 0
 
     def init(self, context):
@@ -920,8 +921,8 @@ class No_Li_Im(Node, ViNodes):
             cam = bpy.data.objects[self.camera.lstrip()]
             cang = cam.data.angle if not self.fisheye else self.fov
             2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
-            vh = 180/math.pi*cang if self.x >= self.y else 180/math.pi* 2 * math.atan((0.5 * self.x) / (0.5 * self.y / math.tan(cang / 2)))
-            vv = 180/math.pi*cang if self.x < self.y else 180/math.pi* 2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
+            vh = 180/math.pi * cang if self.x >= self.y else 180/math.pi * 2 * math.atan((0.5 * self.x) / (0.5 * self.y / math.tan(cang / 2)))
+            vv = 180/math.pi * cang if self.x < self.y else 180/math.pi * 2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             pmaps.append(self.pmap)
             self['pmapgnos'][sf] = self.pmapgno
@@ -1006,8 +1007,8 @@ class No_Li_Gl(Node, ViNodes):
             if os.path.isfile(bpy.path.abspath(self.hdrfile)):
                 newrow(layout, 'View image', self, 'vffile')
 
-        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
-#            if os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
+        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images']
+                and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(bpy.path.abspath(self.hdrfile)):
             newrow(layout, 'Base name:', self, 'hdrname')
             newrow(layout, 'Random:', self, 'rand')
 
@@ -1056,7 +1057,7 @@ class No_Li_Fc(Node, ViNodes):
     lw: IntProperty(name='', min=1, max=1000, default=100, update=nodeupdate)
     lh: IntProperty(name='', min=1, max=1000, default=200, update=nodeupdate)
     contour: EnumProperty(items=[("0", "None", "No contours"), ("1", "Contour", "Line contours"), ("2", "Bands", "Banded contours"), ("3", "Poster", "Posterised contours")],
-                         name="", description="Countour type", default="0", update=nodeupdate)
+                          name="", description="Countour type", default="0", update=nodeupdate)
     overlay: BoolProperty(name='', default=False, update=nodeupdate)
     coldict = {'0': 'def', '1': 'spec', '2': 'hot', '3': 'pm3d', '4': 'eco'}
     divisions: IntProperty(name='', min=1, max=50, default=8, update=nodeupdate)
@@ -1480,7 +1481,7 @@ class No_Vi_EC(Node, ViNodes):
         row.operator("node.ec_calc", text='Calculate')
 
     def presim(self, context):
-        self['frames'] = [context.scene.frame_current] if not self.parametric else range(self.startframe, self.endframe +1)
+        self['frames'] = [context.scene.frame_current] if not self.parametric else range(self.startframe, self.endframe + 1)
 
     def postsim(self):
         self.outputs['Results out'].hide = False
@@ -1488,7 +1489,7 @@ class No_Vi_EC(Node, ViNodes):
         self['exportstate'] = self.ret_params()
 
         if self.outputs[0].links:
-            for dnode in set([l.to_node for l in self.outputs[0].links]):
+            for dnode in set([link.to_node for link in self.outputs[0].links]):
                 if dnode.bl_idname == 'No_Vi_Metrics':
                     dnode.update()
 
@@ -1894,7 +1895,7 @@ class ViEnRIn(So_En_ResU):
                 return ress
             else:
                 return [('None', 'None', 'None')]
-        except:
+        except Exception:
             return [('None', 'None', 'None')]
 
     def z_menu(self, context):
@@ -1905,13 +1906,13 @@ class ViEnRIn(So_En_ResU):
                 return zres
             else:
                 return [('None', 'None', 'None')]
-        except:
+        except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
                 z = list(self['resdict'][self.framemenu][r].keys())[0]
                 self.zonemenu = list(self['resdict'][self.framemenu][r].keys())[0]
                 return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys() if res]
-            except:
+            except Exception:
                 return [('None', 'None', 'None')]
 
     def m_menu(self, context):
@@ -1922,12 +1923,12 @@ class ViEnRIn(So_En_ResU):
                 return m_entries
             else:
                 return [('None', 'None', 'None')]
-        except:
+        except Exception:
             # try:
             #     r = list(self['resdict'][self.framemenu].keys())[0]
             #     z = list(self['resdict'][self.framemenu][r].keys())[0]
             #     return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][r][z] if res]
-            # except:
+            # except Exception:
             return [('None', 'None', 'None')]
 
     def f_update(self, context):
@@ -1942,7 +1943,7 @@ class ViEnRIn(So_En_ResU):
             rl = innode['reslists']
             zrl = list(zip(*rl))
             self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
-        except:
+        except Exception:
             self.r_len = 0
 
         if not self.resultmenu:
@@ -1975,7 +1976,7 @@ class ViEnRIn(So_En_ResU):
             innode = self.links[0].from_node
             rl = innode['reslists']
             self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
-        except:
+        except Exception:
             self.r_len = 0
 
         if not self.zonemenu:
@@ -1988,7 +1989,7 @@ class ViEnRIn(So_En_ResU):
             innode = self.links[0].from_node
             rl = innode['reslists']
             self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
-        except:
+        except Exception:
             self.r_len = 0
 
         if self.name == 'X-axis':
@@ -2019,7 +2020,7 @@ class ViEnRIn(So_En_ResU):
                                 resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
                                 resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
                                 resdict[r[0]][r[1]][r[2]].append(r[3])
-                            except:
+                            except Exception:
                                 pass
 
                     self.node.inputs[ax]['resdict'] = resdict
@@ -2181,7 +2182,7 @@ class No_Vi_Chart(Node, ViNodes):
                             resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
                             resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
                             resdict[r[0]][r[1]][r[2]].append(r[3])
-                        except:
+                        except Exception:
                             pass
 
                 rsx['resdict'] = resdict
@@ -2192,7 +2193,7 @@ class No_Vi_Chart(Node, ViNodes):
                     while rsx.framemenu not in [r[0] for r in rsx.f_menu(0)] and i < 5:
                         try:
                             rsx.framemenu = rsx.f_menu(self)[0][0]
-                        except:
+                        except Exception:
                             i += 1
 
                     i = 0
@@ -2200,7 +2201,7 @@ class No_Vi_Chart(Node, ViNodes):
                     while rsx.resultmenu not in [r[0] for r in rsx.r_menu(0)] and i < 5:
                         try:
                             rsx.resultmenu = rsx.r_menu(0)[0][0]
-                        except:
+                        except Exception:
                             i += 1
 
                     i = 0
@@ -2208,7 +2209,7 @@ class No_Vi_Chart(Node, ViNodes):
                     while rsx.zonemenu not in [r[0] for r in rsx.z_menu(0)] and i < 5:
                         try:
                             rsx.zonemenu = rsx.z_menu(0)[0][0]
-                        except:
+                        except Exception:
                             i += 1
 
                     i = 0
@@ -2216,7 +2217,7 @@ class No_Vi_Chart(Node, ViNodes):
                     while rsx.metricmenu not in [r[0] for r in rsx.m_menu(0)] and i < 5:
                         try:
                             rsx.metricmenu = rsx.m_menu(0)[0][0]
-                        except:
+                        except Exception:
                             i += 1
 
                     rsx.metricmenu = rsx.metricmenu
@@ -2253,27 +2254,27 @@ class No_Vi_Chart(Node, ViNodes):
                             while rsy1.framemenu not in [r[0] for r in rsy1.f_menu(0)] and i < 5:
                                 try:
                                     rsy1.framemenu = rsy1.f_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
 
                             while rsy1.resultmenu not in [r[0] for r in rsy1.r_menu(0)]  and i < 5:
                                 try:
                                     rsy1.resultmenu = rsy1.r_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
                             while rsy1.zonemenu not in [r[0] for r in rsy1.z_menu(0)]  and i < 5:
                                 try:
                                     rsy1.zonemenu = rsy1.z_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
 
                             while rsy1.metricmenu not in [r[0] for r in rsy1.m_menu(0)]  and i < 5:
                                 try:
                                     rsy1.metricmenu = rsy1.m_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
 
                             rsy1.framemenu = rsy1.framemenu
@@ -2298,27 +2299,27 @@ class No_Vi_Chart(Node, ViNodes):
                             while rsy2.framemenu not in [r[0] for r in rsy2.f_menu(0)] and i < 5:
                                 try:
                                     rsy2.framemenu = rsy2.f_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
 
                             while rsy2.resultmenu not in [r[0] for r in rsy2.r_menu(0)]  and i < 5:
                                 try:
                                     rsy2.resultmenu = rsy2.r_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
                             while rsy2.zonemenu not in [r[0] for r in rsy2.z_menu(0)]  and i < 5:
                                 try:
                                     rsy2.zonemenu = rsy2.z_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
 
                             while rsy2.metricmenu not in [r[0] for r in rsy2.m_menu(0)]  and i < 5:
                                 try:
                                     rsy2.metricmenu = rsy2.m_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
 
                             rsy2.framemenu = rsy2.framemenu
@@ -2341,27 +2342,27 @@ class No_Vi_Chart(Node, ViNodes):
                             while rsy3.framemenu not in [r[0] for r in rsy3.f_menu(0)] and i < 5:
                                 try:
                                     rsy3.framemenu = rsy3.f_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
 
                             while rsy3.resultmenu not in [r[0] for r in rsy3.r_menu(0)]  and i < 5:
                                 try:
                                     rsy3.resultmenu = rsy3.r_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
                             while rsy3.zonemenu not in [r[0] for r in rsy3.z_menu(0)]  and i < 5:
                                 try:
                                     rsy3.zonemenu = rsy3.z_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
                             i = 0
 
                             while rsy3.metricmenu not in [r[0] for r in rsy3.m_menu(0)]  and i < 5:
                                 try:
                                     rsy3.metricmenu = rsy3.m_menu(0)[0][0]
-                                except:
+                                except Exception:
                                     i += 1
 
                             rsy3.framemenu = rsy3.framemenu
@@ -2401,7 +2402,7 @@ class No_Vi_HMChart(Node, ViNodes):
                         resdict[rl[0]][rl[1]] = {} if rl[1] not in resdict[rl[0]] else resdict[rl[0]][rl[1]]
                         resdict[rl[0]][rl[1]][rl[2]] = [] if rl[2] not in resdict[rl[0]][rl[1]] else resdict[rl[0]][rl[1]][rl[2]]
                         resdict[rl[0]][rl[1]][rl[2]].append(rl[3])
-                except:
+                except Exception:
                     pass
 
             self['resdict'] = resdict
@@ -2412,7 +2413,7 @@ class No_Vi_HMChart(Node, ViNodes):
             while self.framemenu not in [r[0] for r in self.f_menu(0)] and i < 5:
                 try:
                     self.framemenu = self.f_menu(self)[0][0] # list(resdict.keys())[0]
-                except:
+                except Exception:
                     i += 1
 
             i = 0
@@ -2420,7 +2421,7 @@ class No_Vi_HMChart(Node, ViNodes):
             while self.resmenu not in [r[0] for r in self.r_menu(0)] and i < 5:
                 try:
                     self.resmenu = self.r_menu(0)[0][0]
-                except:
+                except Exception:
                     i += 1
 
             i = 0
@@ -2428,7 +2429,7 @@ class No_Vi_HMChart(Node, ViNodes):
             while self.locmenu not in [r[0] for r in self.z_menu(0)] and i < 5:
                 try:
                     self.locmenu = self.z_menu(0)[0][0]
-                except:
+                except Exception:
                     i += 1
 
             i = 0
@@ -2436,7 +2437,7 @@ class No_Vi_HMChart(Node, ViNodes):
             while self.metricmenu not in [r[0] for r in self.m_menu(0)] and i < 5:
                 try:
                     self.metricmenu = self.m_menu(0)[0][0]
-                except:
+                except Exception:
                     i += 1
 
     def f_menu(self, context):
@@ -2449,31 +2450,31 @@ class No_Vi_HMChart(Node, ViNodes):
                 return ress
             else:
                 return [('None', 'None', 'None')]
-        except:
+        except Exception:
             return [('None', 'None', 'None')]
 
     def z_menu(self, context):
         try:
             return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][self.resmenu].keys()]
-        except:
+        except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
                 z = list(self['resdict'][self.framemenu][r].keys())[0]
                 self.locmenu = list(self['resdict'][self.framemenu][r].keys())[0]
                 return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys()]
-            except:
+            except Exception:
                 return [('None', 'None', 'None')]
 
 
     def m_menu(self, context):
         try:
             return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][self.resmenu][self.locmenu]]
-        except:
+        except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
                 z = list(self['resdict'][self.framemenu][r].keys())[0]
                 return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][r][z]]
-            except:
+            except Exception:
                 return [('None', 'None', 'None')]
 
     def mupdate(self, context):
@@ -2604,7 +2605,7 @@ class No_Vi_Metrics(Node, ViNodes):
         if self.inputs[0].links:
             try:
                 return [tuple(z) for z in self['znames']]
-            except:
+            except Exception:
                 return [('None', 'None', 'None')]
 
         # elif self.metric == '3' and self.em_menu == '0':
@@ -2619,7 +2620,7 @@ class No_Vi_Metrics(Node, ViNodes):
         if self.inputs[0].links:
             try:
                 return [tuple(f) for f in self['frames']]
-            except:
+            except Exception:
                 return [('None', 'None', 'None')]
         else:
             return [('None', 'None', 'None')]
@@ -2629,7 +2630,7 @@ class No_Vi_Metrics(Node, ViNodes):
             try:
                 probes = set([z[3] for z in self['rl']])
                 return [(m.lower(), m, 'Probe metric') for m in probes if m != 'Steps'] + [('wpc', 'WPC', 'Probe menu')]
-            except:
+            except Exception:
                 return [('None', 'None', 'None')]
         else:
             return [('None', 'None', 'None')]
@@ -3317,7 +3318,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 try:
                     self['res']['avDF'] = round(sum(df * dfareas)/sum(dfareas), 2)
                     self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
-                except:
+                except Exception:
                     pass
 
             elif self.light_menu == '1':
@@ -3453,14 +3454,14 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['co2'] = 100 * len(where(co2s < 900)[0])/len(co2s)
 
         elif self.metric == '6':
-            if bpy.data.collections.get('EnVi Geometry'):
-                self['res']['wlc'] = 0
-                self['res']['owlc'] = 0
-                self['res']['ecwlc'] = 0
-                self['res']['wlc'] = 0
-                self['res']['ofwlc'] = 0
-                self['res']['ckwh'] = 0
+            self['res']['wlc'] = 0
+            self['res']['owlc'] = 0
+            self['res']['ecwlc'] = 0
+            self['res']['wlc'] = 0
+            self['res']['ofwlc'] = 0
+            self['res']['ckwh'] = 0
 
+            if bpy.data.collections.get('EnVi Geometry'):
                 hours = 8760
                 ofcs = {}
                 owlcs, ecwlcs, ofwlcs, wlcs, reslists = [], [], [], [], []
@@ -3502,19 +3503,10 @@ class No_Vi_Metrics(Node, ViNodes):
 
                                 elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == self.zone_menu and r[3] == 'PV power (W)':
                                     pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
-                                elif r[1] == 'Power' and self.zone_menu == 'All' and r[3] == 'PV power (W)':
-                                    pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
                                 elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Heating (W)':
                                     aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
                                 elif r[1] == 'Zone temporal' and self.zone_menu == 'All' and r[3] == 'Cooling (W)':
                                     acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
-
-                            # else:
-                            #     if self.zone_menu != 'None':
-                            #         try:
-                            #             self.zone_menu = 'None'
-                            #         except:
-                            #             pass
 
                         (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
                         o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa'][int(frame) - int(frames[0])]
@@ -3623,7 +3615,7 @@ class No_CSV(Node, ViNodes):
 
             row = layout.row()
             row.operator('node.csvexport', text='Export CSV file')
-        except:
+        except Exception:
             pass
 
     def update(self):
@@ -5153,7 +5145,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     controls: EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel', update = supdate)
     mvof: FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
     lvof: FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
-    uvof: FloatProperty(default = 1, min = 1, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
+    uvof: FloatProperty(default = 100, min = 1, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
     amfcc: FloatProperty(default = 0.001, min = 0.00001, max = 1, precision = 5, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
     amfec: FloatProperty(default = 0.65, min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
     lvo: EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], name = '', default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
@@ -5251,8 +5243,8 @@ class No_En_Net_SSFlow(Node, EnViNodes):
             newrow(layout, "Control type:", self, 'controls')
             if self.linkmenu in ('SO', 'DO') and self.controls == 'Temperature':
                 newrow(layout, "Limit OF:", self, 'mvof')
-                newrow(layout, "Lower OF:", self, 'lvof')
-                newrow(layout, "Upper OF:", self, 'uvof')
+                newrow(layout, "Lower deltaT:", self, 'lvof')
+                newrow(layout, "Upper deltaT:", self, 'uvof')
 
         row = layout.row()
         row.label(text = 'Component options:')
@@ -5536,7 +5528,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
         try:
             nodecolour(self, 1) if not self.extnode and self.id_data['enviparams']['wpca'] else nodecolour(self, 0)
             self.id_data.interface_update(bpy.context)
-        except:
+        except Exception:
             nodecolour(self, 1)
 
 class No_En_Net_ACon(Node, EnViNodes):
@@ -5622,7 +5614,7 @@ class No_En_Net_ACon(Node, EnViNodes):
             nodecolour(self, self.wpctype == 'Input' and not self.inputs['WPC Array'].is_linked)
             for node in [node for node in bpy.data.node_groups[self['nodeid'].split('@')[1]].nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
                 node.legal()
-        except:
+        except Exception:
             pass
 
 class No_En_Net_WPC(Node, EnViNodes):
@@ -5698,7 +5690,7 @@ class No_En_Net_Sched(Node, EnViNodes):
                                 err = 1
                 nodecolour(self, err)
 
-        except:
+        except Exception:
             nodecolour(self, 1)
 
     source: EnumProperty(name = '', items = [("0", "Node", "Generate schedule within the node"), ("1", "File", "Select schedule file")], default = '0', update = tupdate)
@@ -5892,13 +5884,13 @@ class No_En_Net_EMSZone(Node, EnViNodes):
 
             self.inputs[0].hide = False
             nodecolour(self, 0)
-        except:
+        except Exception:
             self.inputs[0].hide = True
             nodecolour(self, 1)
 
         for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'So_En_Net_Act']:
             try: self.inputs.remove(iname)
-            except: pass
+            except Exception: pass
 
         for sock in sorted(set(sssocklist)):
             if not self.inputs.get(sock):
@@ -6513,7 +6505,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     row.operator('node.envi_uv', text = "UV Calc")
                     try:
                         row.label(text = 'U-value  = {} W/m2.K'.format(self.frame_cuv))
-                    except:
+                    except Exception:
                         row.label(text = 'U-value  = N/A')
 
                 if self.envi_con_makeup == '1':
@@ -6522,7 +6514,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                     try:
                         row.label(text = 'EC  = {} kgCO2e/m2'.format(self.cec))
-                    except:
+                    except Exception:
                         row.label(text = 'EC  = N/A')
 
 
@@ -6532,7 +6524,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 if self.envi_con_makeup == '0':
                     try:
                         row.label(text = 'U-value  = {} W/m2.K'.format(self.cuv))
-                    except:
+                    except Exception:
                         row.label(text = 'U-value  = N/A')
 
                 elif self.envi_con_makeup == '1':
@@ -6540,7 +6532,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                     try:
                         row.label(text = 'U-value  = {} W/m2.K'.format(self.cuv))
-                    except:
+                    except Exception:
                         row.label(text = 'U-value  = N/A')
 
                     row = layout.row()
@@ -6548,7 +6540,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                     try:
                         row.label(text = 'EC  = {} kgCO2e/m2'.format(self.cec))
-                    except:
+                    except Exception:
                         row.label(text = 'EC  = N/A')
 
         if self.envi_con_makeup == '1' and self.envi_con_type != 'Shading':
@@ -6559,6 +6551,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 row.operator('node.con_save', text = "Save")
 
     def update(self):
+        if not self.em.updated:
+            self.em.update()
+
         if len(self.inputs) == 4:
             self.valid()
 
@@ -6643,14 +6638,18 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         if not self.ec.updated:
             self.ec.update()
 
+        self.em.update()
+
         lks = self.inputs['Outer layer'].links
         lay_names = [lks[0].from_node.lay_name] if lks[0].from_node.layer == '1' else [lks[0].from_node.material]
 
         while lks:
             lks = lks[0].from_node.inputs[0].links
+
             if lks:
                 lay_name = lks[0].from_node.lay_name if lks[0].from_node.layer == '1' else lks[0].from_node.material
                 lay_names.append(lay_name)
+
 
         self.ec.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))[self.con_name] = lay_names
         self.ec.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))['{} (reversed)'.format(self.con_name)] = lay_names[::-1]
@@ -6884,6 +6883,18 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     bl_label = 'EnVi opaque layer'
 
     def lay_update(self, context):
+        if not self.em.updated:
+            self.em.update()
+
+        c_vals = self.em.get_dat(self.materialtype)[self.material]
+        self.rough = c_vals[0]
+        self.tc = float(c_vals[1])
+        self.rho = float(c_vals[2])
+        self.shc = float(c_vals[3])
+        self.tab = float(c_vals[4])
+        self.sab = float(c_vals[5])
+        self.vab = float(c_vals[6])
+
         if self.layer == '1' and self.lay_name == '':
             nodecolour(self, 1)
         elif self.layer == '0' and not self.material:
@@ -7058,7 +7069,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         self.ec_update(0)
         try:
             return (float(self['ecm2']), float(self['ecm2y']))
-        except:
+        except Exception:
             return (0, 0)
 
     def save_laydict(self):
@@ -7392,7 +7403,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         self.ec_update(0)
         try:
             return (float(self['ecm2']), float(self['ecm2y']))
-        except:
+        except Exception:
             return (0, 0)
 
     def ep_write(self, ln, mn):
@@ -8044,7 +8055,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
 
         try:
             row.label(text = '{:.2f} m2'.format(self['area']))
-        except:
+        except Exception:
             row.label(text = 'Area  = N/A')
 
         newrow(layout, "Heat transfer:", self, "hti")
@@ -8206,7 +8217,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
                             err = 1
             nodecolour(self, err)
 
-        except:
+        except Exception:
             nodecolour(self, 1)
 
     source: EnumProperty(name = '', items = [("0", "None", "No file"), ("1", "Select", "Select file")], default = '0')
