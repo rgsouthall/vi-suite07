@@ -19,7 +19,6 @@
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
 from .vi_func import selobj, facearea, selmesh, create_coll, selobs, logentry, epentry
 from .envi_func import get_con_node, boundpoly, get_zone_node, ret_areas, epschedwrite
-# from .envi_mat import retuval
 
 dtdf = datetime.date.fromordinal
 caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "AdaptiveConvectionAlgorithm"}
@@ -35,7 +34,8 @@ def en_ec_export():
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                         mat_co2e += face.area * emnode['ecm2']
 
-def enpolymatexport(exp_op, node, locnode, em, ec):
+
+def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
     scene = bpy.context.scene
     svp = scene.vi_params
     svp['viparams']['hvactemplate'] = 0
@@ -45,8 +45,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         pvs = []
         gen = 0
         scene.frame_set(frame)
-        geo_coll = bpy.data.collections['EnVi Geometry']
+        # geo_coll = bpy.data.collections['EnVi Geometry']
         geo_colls = geo_coll.children
+        gcvp = geo_coll.vi_params
         zone_colls = [gc for gc in geo_colls if gc.vi_params.envi_zone]
         shade_colls = [gc for gc in geo_colls if not gc.vi_params.envi_zone]
         zonenames = [c.name for c in geo_colls]
@@ -67,7 +68,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                                                                                                                                    svp['enparams']['epversion']))
         params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
                   'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
-        paramvs = ((node.loc, 'Default')[not node.loc], '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)], '0.004', '0.4', 'FullInteriorAndExteriorWithReflections', '15')
+        paramvs = ((node.loc, 'Default')[not node.loc], '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)], '0.004', '0.4',
+                   ('MinimalShadowing', 'FullExterior', 'FullInteriorAndExterior', 'FullExteriorWithReflections', 'FullInteriorAndExteriorWithReflections')[int(node.solar)], '15')
         en_idf.write(epentry('Building', params, paramvs))
         params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Default frequency of calculation', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')
         paramvs = ('Timestep, {}'.format(node.timesteps), 'SurfaceConvectionAlgorithm:Inside, TARP', 'SurfaceConvectionAlgorithm:Outside, TARP',
@@ -87,31 +89,19 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
 
         for mat in bpy.data.materials:
-            mvp = mat.vi_params
+            mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
 
             if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export:
                 for emnode in mvp.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
                         if emnode.envi_con_type == 'Window':
-                            en_idf.write(emnode.ep_write(mat.name))
+                            en_idf.write(emnode.ep_write(mat.name, mvp.id_data.name))
                         else:
                             if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
-                                en_idf.write(emnode.ep_write(mat.name))
+                                en_idf.write(emnode.ep_write(mat.name, mvp.id_data.name))
                         if emnode.inputs['PV'].links:
                             gen = 1
                             pvs.append(emnode)
-
-            elif mvp.envi_reversed and bpy.data.materials.get(mvp.envi_rev_enum):
-                mvp = bpy.data.materials[mvp.envi_rev_enum].vi_params
-
-                if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export:
-                    for emnode in mvp.envi_nodes.nodes:
-                        if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
-                            if emnode.envi_con_type == 'Window':
-                                en_idf.write(emnode.ep_write(mat.name))
-                            else:
-                                if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
-                                    en_idf.write(emnode.ep_write(mat.name))
 
         em.namedict = {}
         em.thickdict = {}
@@ -125,15 +115,13 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             if znode:
                 znode.update()
                 cvp = coll.vi_params
-                cvp['enparams']['floorarea'][str(frame)] = sum([ret_areas(o) for o in coll.objects if o.vi_params.envi_type == '0'])
+                cvp['enparams']['floorarea'][str(frame)] = sum([ret_areas(o) for o in coll.objects])
+                params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
+                          'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
+                paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(znode['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
+                en_idf.write(epentry('Zone', params, paramvs))
 
-                if any([ob.vi_params.envi_type == '0' for ob in coll.objects]):
-                    params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
-                              'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
-                    paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(coll.objects[0]['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
-                    en_idf.write(epentry('Zone', params, paramvs))
-
-        geo_coll.vi_params['enparams']['floorarea'][str(frame)] = sum([float(coll.vi_params['enparams']['floorarea'][str(frame)]) for coll in zone_colls])
+        gcvp['enparams']['floorarea'][str(frame)] = sum([float(coll.vi_params['enparams']['floorarea'][str(frame)]) for coll in zone_colls])
         params = ('Starting Vertex Position', 'Vertex Entry Direction', 'Coordinate System')
         paramvs = ('UpperRightCorner', 'Counterclockwise', 'World')
         en_idf.write(epentry('GlobalGeometryRules', params, paramvs))
@@ -157,18 +145,19 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 if mats and coll in zone_colls:
                     for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_export]:
                         mat = mats[face.material_index]
-                        mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params 
+                        mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
 
                         for emnode in mvp.envi_nodes.nodes:
                             if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
+                                emecc = emnode.envi_con_type if not mat.vi_params.envi_reversed or emnode.envi_con_type not in ('Floor', 'Roof') else ('Floor', 'Roof')[emnode.envi_con_type == 'Floor']
                                 vcos = [v.co for v in face.verts]
                                 (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
 
                                 if obc:
-                                    if emnode.envi_con_type in ('Wall', "Floor", "Roof"):
+                                    if emecc in ('Wall', "Floor", "Roof"):
                                         if emnode.envi_con_makeup != "2":
                                             params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
-                                            paramvs = ['{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name, coll.name, '', obc, obco, se, we, 'autocalculate',
+                                            paramvs = ['{}_{}'.format(obj.name, face.index), emecc, mat.name, coll.name, '', obc, obco, se, we, 'autocalculate',
                                                        len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
                                             en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
 
@@ -178,7 +167,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                             en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index)))
                                             gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
 
-                                    elif emnode.envi_con_type in ('Door', 'Window') and emnode.envi_con_makeup != "2":
+                                    elif emecc in ('Door', 'Window') and emnode.envi_con_makeup != "2":
                                         if len(face.verts) > 4:
                                             exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
 
@@ -187,18 +176,18 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                         paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', '{}-frame'.format(mat.name), coll.name, '', obc, obco, se, we, 'autocalculate',
                                                    len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
                                         en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
-                                        obound = ('win-', 'door-')[emnode.envi_con_type == 'Door']+obco if obco else obco
+                                        obound = ('win-', 'door-')[emecc == 'Door']+obco if obco else obco
                                         params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground',
                                                   'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
 
                                         if emnode.fclass in ('0', '2'):
-                                            paramvs = [('win-', 'door-')[emnode.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name,
+                                            paramvs = [('win-', 'door-')[emecc == 'Door']+'{}_{}'.format(obj.name, face.index), emecc, mat.name,
                                                        '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '1',
                                                        len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*(1 - emnode.farea * 0.01),
                                                                                                                           yav+(vco[1]-yav)*(1 - emnode.farea * 0.01),
                                                                                                                           zav+(vco[2]-zav)*(1 - emnode.farea * 0.01))) for vco in vcos]
                                         else:
-                                            paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), emnode.envi_con_type, mat.name,
+                                            paramvs = [('win-', 'door-')[emecc == 'Door']+'{}_{}'.format(obj.name, face.index), emecc, mat.name,
                                                        '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '{}-fad'.format(mat.name), '1',
                                                        len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((vco[0] + (1, -1)[vco[0] - xav > 0]*(0.001+emnode.fw, 0)[abs(vco[0] - xav) < 0.0001],
                                                                                                                           vco[1] + (1, -1)[vco[1] - yav > 0]*(0.001+emnode.fw, 0)[abs(vco[1] - yav) < 0.0001],
@@ -206,7 +195,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
                                         en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
 
-                                    elif emnode.envi_con_type == 'Shading' and obj.vi_params.envi_type != '1':
+                                    elif emecc == 'Shading':
                                         params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
                                         paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
                                         en_idf.write(epentry('Shading:{}:Detailed'.format('Building'), params, paramvs))
@@ -269,7 +258,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
                     try:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_hvacsched', 'Fraction'))
-                    except:
+                    except Exception:
                         en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00, 1']]]]))
 
                     hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
@@ -353,13 +342,18 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
+
         for zn in zonenodes:
             for hvaclink in zn.inputs['HVAC'].links:
                 hvacnode = hvaclink.from_node
+
                 if hvacnode.envi_hvact:
                     en_idf.write(hvacnode.hvactwrite(zn.zone))
                 else:
                     en_idf.write(hvacnode.ephwrite(zn.zone))
+
+                if hvacnode.envi_hvacoam != 'None':
+                    node.ressah = True
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
         for zn in zonenodes:
@@ -531,8 +525,12 @@ def pregeo(context, op):
                     bpy.ops.object.duplicate(linked=False)
                     no = context.active_object
 
-                    for mod in no.modifiers:
-                        bpy.ops.object.modifier_apply(modifier=mod.name)
+                    if no.modifiers:
+                        op.report({'WARNING'}, f'Modifiers have been applied to object {no.name}. Check material allocation and any zone linkages')
+                        logentry(f'Modifiers have been applied to {no.name}. Personally, I recommend applying all modifiers in the base geometry. Makes life easier.')
+
+                        for mod in no.modifiers:
+                            bpy.ops.object.modifier_apply(modifier=mod.name)
 
                     k = 0
 
@@ -549,31 +547,6 @@ def pregeo(context, op):
                     no['auto_volume'] = bm.calc_volume()
                     ob.evaluated_get(depsgraph).to_mesh_clear()
                     bm.free()
-                    no.name = 'en_{}'.format(c_name)
-                    c.objects.unlink(no)
-                    bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
-
-                elif ob.vi_params.envi_type == '1':
-                    selobj(context.view_layer, ob)
-
-                    if ob.animation_data:
-                        scene.frame_set(int(ob.animation_data.action.frame_range[0]))
-
-                    bpy.ops.object.duplicate(linked=False)
-                    no = context.active_object
-                    k = 0
-
-                    if no.animation_data and no.animation_data.action:
-                        for fc in no.animation_data.action.fcurves:
-                            if fc.data_path == 'location':
-                                for kp in fc.keyframe_points:
-                                    kp.co[1] += context.node.geo_offset[k]
-
-                                k += 1
-
-                    if not k:
-                        no.location += context.node.geo_offset
-
                     no.name = 'en_{}'.format(c_name)
                     c.objects.unlink(no)
                     bpy.data.collections['EN_{}'.format(c_name)].objects.link(no)
@@ -626,74 +599,38 @@ def pregeo(context, op):
                     if sm.material and sm.material not in done_mats:
                         done_mats.append(sm.material)
                         mat = sm.material
-                        mvp = mat.vi_params
-
-                        if mvp.envi_nodes and mvp.envi_nodes.name != mat.name:
-                            mvp.envi_nodes = mvp.envi_nodes.copy()
-                            mvp.envi_nodes.name = mat.name
-
-                        if mvp.envi_nodes and mvp.envi_nodes.users > 1:
-                            mvp.envi_nodes.user_clear()
-                            mvp.envi_nodes = bpy.data.node_groups[mat.name]
-
+                        mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
                         emnode = get_con_node(mvp)
 
                         if not emnode and not mvp.envi_reversed:
                             op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
+
                         elif emnode and any([n.use_custom_color for n in emnode.ret_nodes()]):
                             op.report({'ERROR'}, 'There is a red node in the {} material node tree. This material has not been exported.'.format(mat.name))
                             return
-                        # elif mvp.envi_reversed:
-                        #     emnode = get_con_node(bpy.data.materials[mvp.envi_rev_enum].vi_params)
-                        #     emnode.ret_uv()
-                        #     mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
-                        #     mvp.envi_export = True
 
-                        #     if emnode.envi_con_type in dcdict:
-                        #         mat.diffuse_color = dcdict[mct]
-                        #     if emnode.inputs['PV'].links:
-                        #         mat.diffuse_color = (1, 1, 0, 1)
                         else:
                             emnode.ret_uv()
                             mct = 'Partition' if emnode.envi_con_con == 'Zone' else emnode.envi_con_type
                             mvp.envi_export = True
+                            mat.vi_params.envi_export = True
 
                             if emnode.envi_con_type in dcdict:
                                 mat.diffuse_color = dcdict[mct]
                             if emnode.inputs['PV'].links:
                                 mat.diffuse_color = (1, 1, 0, 1)
-                # try:
-                #     for kb in bm.verts.layers.shape.keys():
-                #         val = bm.verts.layers.shape.get(kb)
-                #         print(val)
-                # except:
-                #     pass
-                    #for kbv in kb.data:
-                        #kbv.co += context.node.geo_offset
-                # else:
-                #     for v in o.data.vertices:
-                #         v.co += context.node.geo_offset
-                #bm.transform(omw)
-                #for key in bm.verts.layers.shape.keys():
 
-                #for v in bm.verts:
-                    #v.co += context.node.geo_offset
-                #bm.transform(omw.inverted())
+                bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_export], context='FACES')
 
-                if o.vi_params.envi_type == '0':
-                    bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_export], context='FACES')
-                    #bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_nodes], context='FACES')
-                    #bmesh.ops.delete(bm, geom=[f for f in bm.faces if get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context='FACES')
+                if not bm.faces.layers.int.get('viuid'):
+                    bm.faces.layers.int.new('viuid')
 
-                    if not bm.faces.layers.int.get('viuid'):
-                        bm.faces.layers.int.new('viuid')
+                uid = bm.faces.layers.int['viuid']
+                exp_faces = [f for f in bm.faces if oms[f.material_index].material.vi_params.envi_nodes or oms[f.material_index].material.vi_params.envi_reversed]
 
-                    uid = bm.faces.layers.int['viuid']
-                    exp_faces = [f for f in bm.faces if oms[f.material_index].material.vi_params.envi_nodes]
-
-                    for face in bm.faces:
-                        uids = [f[uid] for f in exp_faces]
-                        face[uid] = face[uid] if face[uid] else max(uids) + 1
+                for face in bm.faces:
+                    uids = [f[uid] for f in exp_faces]
+                    face[uid] = face[uid] if face[uid] else max(uids) + 1
 
                 if not len(bm.faces):
                     bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True)
@@ -712,18 +649,6 @@ def pregeo(context, op):
                 new_ob = bpy.context.active_object
                 new_ob.name = '{}'.format(chil.name)
 
-                if new_ob.vi_params.envi_type == '1':
-                    for poly in new_ob.data.polygons:
-                        if not new_ob.material_slots[poly.material_index].material:
-
-                            if 'en_shading' not in [m.name for m in bpy.data.materials]:
-                                shad_mat = bpy.data.materials.new('en_shading')
-
-                                if shad_mat not in new_ob.data.materials:
-                                    bpy.ops.object.material_slot_add()
-                                    new_ob.material_slots[0].material = shad_mat
-                                    new_ob.material_slots[0].material.diffuse_color = (1, 0, 0, 1)
-
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name="EnVi Network")
 
@@ -735,7 +660,7 @@ def pregeo(context, op):
     svp.envi_nodes = enng
     enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0, 'pcm': 0}
-    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children] or scene.objects[node.zone].vi_params.envi_type == '1')]
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children])]
 
     ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}
     linklist = []
@@ -749,12 +674,12 @@ def pregeo(context, op):
             for oi, ob in enumerate([ob for ob in coll.objects if not ob.vi_params.embodied]):
                 ovp = ob.vi_params
                 omats = [ms.material for ms in ob.material_slots]
-                keys = [k for k in ovp.keys() if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica')]
+                keys = [k for k in ovp.keys() if k not in ('vi_type', 'envi_oca', 'envi_ica')]
 
                 for k in keys:
                     del ovp[k]
 
-                if ovp.envi_type == '0' and not omats:
+                if not omats:
                     op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(ob.name))
                 elif None in omats:
                     op.report({'WARNING'}, 'Object {} has an empty material slot'.format(ob.name))
@@ -764,25 +689,24 @@ def pregeo(context, op):
                     linklist.append([link.from_socket.node.name, link.from_socket.viuid, link.to_socket.node.name, link.to_socket.viuid])
                     enng.links.remove(link)
 
-            if context.view_layer.objects[coll.name].vi_params.envi_type != '1':
-                if coll.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
-                    enng.nodes.new(type=ezdict[context.view_layer.objects[coll.name].vi_params.envi_type]).zone = coll.name
-                else:
-                    for node in enng.nodes:
-                        if hasattr(node, 'zone') and node.zone == coll.name:
-                            node.zupdate(bpy.context)
-                        if hasattr(node, 'emszone') and node.emszone == coll.name:
-                            node.zupdate(bpy.context)
-                        if hasattr(node, 'zone') and node.zone == coll.name:
-                            node.uvsockupdate()
+            if coll.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+                enng.nodes.new(type='No_En_Net_Zone').zone = coll.name
+            else:
+                for node in enng.nodes:
+                    if hasattr(node, 'zone') and node.zone == coll.name:
+                        node.zupdate(bpy.context)
+                    if hasattr(node, 'emszone') and node.emszone == coll.name:
+                        node.zupdate(bpy.context)
+                    if hasattr(node, 'zone') and node.zone == coll.name:
+                        node.uvsockupdate()
 
             for node in enng.nodes:
                 if [sock.bl_idname in ('So_En_Net_SFlow', 'So_En_Net_SFlow') for sock in node.inputs]:
                     enng['enviparams']['afn'] = 1
 
-                if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
-                    enng.nodes.new(type='No_En_Net_ACon')
-                    enng.use_fake_user = 1
+            if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
+                enng.nodes.new(type='No_En_Net_ACon')
+                enng.use_fake_user = 1
         else:
             bpy.data.collections.remove(coll)
 

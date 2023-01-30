@@ -1836,8 +1836,6 @@ class MAT_EnVi_Node_Remove(bpy.types.Operator):
                         m = 1
             if not m:
                 print(mat.name)
-#            if mat.envi_nodes and mat not in bpy.data.collections
-#            bpy.data.materials.remove(mat)
 
         return {'FINISHED'}
 
@@ -1908,11 +1906,16 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         if viparams(self, scene):
             return {'CANCELLED'}
 
+        if not bpy.data.collections.get('EnVi Geometry'):
+            return {'CANCELLED'}
+        else:
+            eg_coll = bpy.data.collections['EnVi Geometry']
+
         svp = scene.vi_params
         svp['viparams']['vidisp'] = ''
         reslists = []
         node = context.node
-        frames = range(node.fs, node.fe + 1)
+        frames = range(node.fs, node.fe + 1) if node.animated else [scene.frame_current]
         (svp['enparams']['fs'], svp['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
 
@@ -1943,27 +1946,18 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
 
             shutil.copyfile(locnode.weather, os.path.join(svp['viparams']['newdir'], "in{}.epw".format(frame)))
 
-        # for frame in range(node.fs, node.fe + 1):
-        #     for res in reslists:
-        #         if res[0] == str(frame):
-        #             ec_dict[res[2] if res[3]
-        #             reslists.append(['All', 'Embodied carbon', res[3], ])
-
-
-
         if context.active_object and not context.active_object.visible_get():
             if context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode='OBJECT')
 
-        enpolymatexport(self, node, locnode, envi_materials(), envi_constructions())
-
+        enpolymatexport(self, eg_coll, node, locnode, envi_materials(), envi_constructions())
+        svp['ecparams'] = {'ec_text': 'Scenario, Entity, Entity name, ID, Class, Type, Sub-type, Modules, Volume (m3)/Surface (m2), EC (kgCO2e), EC (kgCO2e/y), EC (kgCO2e/m2), EC (kgCO2e/m2/y)\n'}
+        reslists = write_ob_ec(scene, eg_coll, frames, reslists)
+        reslists = write_ec(scene, eg_coll, frames, reslists)
+        node['reslists'] = reslists
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         node.exported, node.outputs['Context out'].hide = True, False
         node.postexport()
-        svp['ecparams'] = {'ec_text': 'Scenario, Entity, Entity name, ID, Class, Type, Sub-type, Modules, Volume (m3)/Surface (m2), EC (kgCO2e), EC (kgCO2e/y), EC (kgCO2e/m2), EC (kgCO2e/m2/y)\n'}
-        reslists = write_ob_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
-        reslists = write_ec(scene, frames, bpy.data.collections['EnVi Geometry'], reslists)
-        node['reslists'] = reslists
         scene.frame_set(node.fs)
         return {'FINISHED'}
 
@@ -2034,22 +2028,6 @@ class NODE_OT_En_Sim(bpy.types.Operator):
 
         while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr=PIPE))
-
-
-            # if 'EnergyPlus Completed Successfully' not in errtext:
-            #     logentry('Energyplus error: {}'.format(errtext))
-            #     self.report({'ERROR'}, "Fatal error reported in the EnergyPLus error file. Check the file in Blender's text editor")
-
-            #     for f in range(self.frame, self.frame + len(self.esimruns)):
-            #         efilename = "{}{}out.err".format(self.resname, f)
-
-            #         if os.path.isfile(os.path.join(self.nd, efilename)):
-            #             if efilename not in [im.name for im in bpy.data.texts]:
-            #                 bpy.data.texts.load(os.path.join(self.nd, efilename))
-            #             else:
-            #                 bpy.data.texts[efilename].filepath = os.path.join(self.nd, efilename)
-
-            #     return {self.terminate('CANCELLED', context)}
             self.e += 1
 
         if event.type == 'TIMER':

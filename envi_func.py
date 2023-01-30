@@ -24,6 +24,7 @@ from .vi_func import logentry, facearea, epentry
 from .vi_dicts import rnu, arnu, zresdict, envdict, enresdict, presdict, lresdict
 from .envi_mat import envi_embodied
 
+
 def epschedwrite(name, stype, ts, fs, us):
     params = ['Name', 'Schedule Type Limits Name']
     paramvs = [name, stype]
@@ -41,6 +42,7 @@ def epschedwrite(name, stype, ts, fs, us):
                 paramvs.append(us[t][f][u][0])
 
     return epentry('Schedule:Compact', params, paramvs)
+
 
 def ret_areas(o):
     ovp = o.vi_params
@@ -69,7 +71,7 @@ def get_mat(node, ee):
 
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
-        
+
         ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
 
@@ -80,7 +82,7 @@ def get_con_node(mvp):
         else:
             return ecanodes[0]
 
-    elif mvp.envi_reversed: 
+    elif mvp.envi_reversed:
         ecnodes = [n for n in bpy.data.materials[mvp.envi_rev_enum].vi_params.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
 
@@ -138,6 +140,10 @@ def boundpoly(obj, emnode, poly, enng):
                     return (('', '', '', ''))
                 else:
                     return (("Surface", insock.links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+
+                if len(poly.vertices) != len(bpoly.vertices):
+                    logentry(f'Boundary surfaces {obj.name}-{poly.index} and {bobj.name}-{bpoly.index} vertices do not match. Made adiabatic')
+                    return (("Adiabatic", "", "NoSun", "NoWind"))
 
             elif outsock.links:
                 bobj = bpy.data.objects[outsock.links[0].to_node.zone]
@@ -314,7 +320,8 @@ def envizres(scene, eresobs, resnode, restype):
             bpy.ops.object.material_slot_add()
             mat = bpy.data.materials.new(name='{}_{}'.format(o.name, restype.lower()))
             ores.material_slots[0].material = mat
-            bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+            bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False,
+                                                                                              False, False, False, False, False, False, False, False))
             txt = bpy.context.active_object
             bpy.context.object.data.extrude = 0.005
             bpy.ops.object.material_slot_add()
@@ -335,7 +342,8 @@ def envizres(scene, eresobs, resnode, restype):
                 ores[resstring][restype] = vals
 
             if not ores.children:
-                bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+                bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False,
+                                                                                                  False, False, False, False, False, False, False))
                 txt = bpy.context.active_object
                 bpy.context.object.data.extrude = 0.005
                 bpy.ops.object.material_slot_add()
@@ -432,22 +440,8 @@ def retrmenus(innode, node, axis, zrl):
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
     ctype = ctype if ctype else [('None', 'None', 'None')]
     ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == ('Zone temporal', 'Zone spatial')[frame == 'All'] and zrl[0][m] == frame]))
-
-    # if frame == 'All':
-    #     ztypes += list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone spatial' and zrl[0][m] == frame]))
-    #     ztypes += list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
-
-    # if frame == 'All':
-    #     ztypes += list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Embodied carbon' and zrl[0][m] == frame]))
-    #     print(ztypes)
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
     ztype = ztype if ztype else [('None', 'None', 'None')]
-
-    # try:
-    #     zrtype = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == node.zonemenu and zr[0] == node.framemenu] if node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == node.zonemenu and zr[0] == 'All']
-    # except Exception as e:
-    #     zrtype = [('None', 'None', 'None')]
-
     ptypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
     ptype = [(metric, metric, "Plot " + metric) for metric in ptypes]
     ptype = ptype if ptype else [('None', 'None', 'None')]
@@ -493,7 +487,6 @@ def retrmenus(innode, node, axis, zrl):
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default=rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value'), ('Sum', 'Sum', 'Sum Value')],
                                       name="", description="Zone result", default='Average')
-#    valid = ['Vi Results']
     climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default=ctype[0][0]) if ctype else ''
     zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default=ztype[0][0]) if ztype else ''
     zonermenu = bpy.props.EnumProperty(items=zrupdate, name="", description="Zone result")  # if ztype else ''
@@ -506,13 +499,11 @@ def retrmenus(innode, node, axis, zrl):
     cammenu = bpy.props.EnumProperty(items=camtype, name="", description="Camera", default=camtype[0][0]) if camtype else ''
     camrmenu = bpy.props.EnumProperty(items=camrtype, name="", description="Camera result", default=camrtype[0][0]) if camtypes else ''
     powmenu = bpy.props.EnumProperty(items=powtype, name="", description="Power", default=powtype[0][0]) if powtype else ''
-    # if powmenu not in ([p[0] for p in powtype]):
-    #     powmenu = 'None'
     powrmenu = bpy.props.EnumProperty(items=powrtype, name="", description="Power result", default=powrtype[0][0]) if powrtype else ''
     probemenu = bpy.props.EnumProperty(items=probetype, name="", description="Probe", default=probetype[0][0]) if probetype else ''
     probermenu = bpy.props.EnumProperty(items=probertype, name="", description="Probe result", default=probertype[0][0]) if probertype else ''
     ecmenu = bpy.props.EnumProperty(items=ectype, name="", description="EC", default=ectype[0][0]) if ectype else ''
-    ecrmenu = bpy.props.EnumProperty(items=ecrupdate, name="", description="EC result") # if ecrtype else ''
+    ecrmenu = bpy.props.EnumProperty(items=ecrupdate, name="", description="EC result")
     multmenu = bpy.props.FloatProperty(name="", description="Result multiplication factor", min=-10000, max=10000, default=1)
     return (fmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, posmenu, posrmenu,
             cammenu, camrmenu, powmenu, powrmenu, probemenu, probermenu, ecmenu, ecrmenu, multmenu, statmenu)
@@ -827,7 +818,7 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].ecmenu, dnode.inputs[axis].metricmenu]
 
 
-def write_ec(scene, frames, coll, reslists):
+def write_ec(scene, coll, frames, reslists):
     ec_text = scene.vi_params['ecparams']['ec_text']
     svp = scene.vi_params
 
@@ -889,7 +880,7 @@ def write_ec(scene, frames, coll, reslists):
             ecm2 = '{:.2f}'.format(zone_dict[zone]['ec']/chil_fa) if chil_fa else 'N/A'
             ecym2 = '{:.2f}'.format(zone_dict[zone]['ecy']/chil_fa) if chil_fa else 'N/A'
             ec_text += '{}, Zone, {}, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, zone, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
-                                                                                                       zone_dict[zone]['ec'], zone_dict[zone]['ecy'], ecm2, ecym2)
+                                                                                               zone_dict[zone]['ec'], zone_dict[zone]['ecy'], ecm2, ecym2)
 
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
         reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
@@ -907,8 +898,8 @@ def write_ec(scene, frames, coll, reslists):
             ecm2 = '{:.2f}'.format(mat_dict[mat]['ec']/chil_fa) if chil_fa else 'N/A'
             ecym2 = '{:.2f}'.format(mat_dict[mat]['ecy']/chil_fa) if chil_fa else 'N/A'
             ec_text += '{}, Material, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, mat, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
-                                                                                                               mat_dict[mat]['area'], mat_dict[mat]['ec'], mat_dict[mat]['ecy'],
-                                                                                                               ecm2, ecym2)
+                                                                                                       mat_dict[mat]['area'], mat_dict[mat]['ec'], mat_dict[mat]['ecy'],
+                                                                                                       ecm2, ecym2)
 
     if len(frames) > 1:
         for zone in zone_dict:
@@ -925,7 +916,7 @@ def write_ec(scene, frames, coll, reslists):
     return (reslists)
 
 
-def write_ob_ec(scene, frames, coll, reslists):
+def write_ob_ec(scene, coll, frames, reslists):
     svp = scene.vi_params
     envi_ec = envi_embodied()
     envi_ec.update()
@@ -939,7 +930,11 @@ def write_ob_ec(scene, frames, coll, reslists):
         foecs = {}
 
         for chil in coll.children:
-            chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)] if chil.vi_params['enparams']['floorarea'].get(str(frame)) else fa
+            try:
+                chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)] if chil.vi_params['enparams']['floorarea'].get(str(frame)) else fa
+            except Exception:
+                chil_fa = 0
+
             cecs = []
 
             for o in chil.objects:
@@ -968,7 +963,9 @@ def write_ob_ec(scene, frames, coll, reslists):
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/chil_fa)])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(chil_fa * ovp.ec_life))])
-                        ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec/ovp.ec_life, ec/chil_fa, ec/(chil_fa * ovp.ec_life))
+                        ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedtype, ovp.embodiedclass,
+                                                                                                             ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec/ovp.ec_life, ec/chil_fa,
+                                                                                                             ec/(chil_fa * ovp.ec_life))
                         bm.free()
                     else:
                         logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
@@ -984,75 +981,8 @@ def write_ob_ec(scene, frames, coll, reslists):
     with open(os.path.join(svp['viparams']['newdir'], 'ec.csv'), 'w') as ec_file:
         ec_file.write(ec_text)
 
-    reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', ' '.join(['{:.3f}'.format(foec) for foec in foecs[o.name]])])
+    if len(frames) > 1:
+        reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', ' '.join(['{:.3f}'.format(foec) for foec in foecs[o.name]])])
+
     scene.frame_set(frames[0])
     return (reslists)
-
-
-# def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
-#     frames = range(scene.frame_start, scene.frame_end)
-#     times = [datetime.datetime(2015, mdata[hi], ddata[hi], h - 1, 0) for hi, h in enumerate(hdata)]
-#     solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
-#     beamvals = [0.01 * d for d in dirsol]
-#     skyvals =  [1 + 0.01 * d for d in difsol]
-#     sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
-#     values = list(zip(sizevals, beamvals, skyvals))
-#     sunapply(scene, sun, values, solposs, frames)
-
-        #             if hdict[k][0] == 'Power' and hdict[k][2] == 'PV power (W)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in pow_dict:
-        #                     pow_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     pow_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV energy (J)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in en_dict:
-        #                     en_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     en_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in ef_dict:
-        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #             elif hdict[k][0] == 'Power' and hdict[k][2] == 'PV efficiency (%)':
-        #                 pzn = '_'.join(hdict[k][1].split('_')[:-1])
-        #                 if pzn not in ef_dict:
-        #                     ef_dict[pzn] = array([float(p) for p in bdict[k].split(' ')])
-        #                 else:
-        #                     ef_dict[pzn] += array([float(p) for p in bdict[k].split(' ')])
-
-        #     for pd in pow_dict:
-        #         reslists.append([str(frame), 'Power', pd, 'Total power (W)', ' '.join([str(p) for p in pow_dict[pd]])])
-        #     for ed in en_dict:
-        #         reslists.append([str(frame), 'Power', ed, 'Total energy (J)', ' '.join([str(e) for e in en_dict[ed]])])
-        #     for ef in ef_dict:
-        #         fno = len([hd for hd in hdict if '_'.join(hdict[k][1].split('_')[:-1]) == ef and hdict[k][2] == 'PV efficiency (%)'])
-        #         reslists.append([str(frame), 'Power', ef, 'Average efficiency (%)', ' '.join([str(e) for e in ef_dict[ef]/fno])])
-        # print(pow_dict)
-
-
-# def retdata(dnode, axis, mtype, resdict, frame):
-#     if mtype == 'Climate':
-#         return resdict[frame][mtype][dnode.inputs[axis].climmenu]
-#     if mtype == ('Zone spatial', 'Zone temporal', 'Embodied carbon'):
-#         return resdict[frame][mtype][dnode.inputs[axis].zonemenu][dnode.inputs[axis].zonermenu]
-#     elif mtype == 'Linkage':
-#         return resdict[frame][mtype][dnode.inputs[axis].linkmenu][dnode.inputs[axis].linkrmenu]
-#     elif mtype == 'External':
-#         return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
-#     elif mtype == 'Chimney':
-#         return resdict[frame][mtype][dnode.inputs[axis].chimmenu][dnode.inputs[axis].chimrmenu]
-#     elif mtype == 'Position':
-#         return resdict[frame][mtype][dnode.inputs[axis].posmenu][dnode.inputs[axis].posrmenu]
-#     elif mtype == 'Camera':
-#         return resdict[frame][mtype][dnode.inputs[axis].cammenu][dnode.inputs[axis].camrmenu]
-#     elif mtype == 'Power':
-#         return resdict[frame][mtype][dnode.inputs[axis].powmenu][dnode.inputs[axis].powrmenu]
-#     elif mtype == 'Probe':
-#         return resdict[frame][mtype][dnode.inputs[axis].probemenu][dnode.inputs[axis].probermenu]

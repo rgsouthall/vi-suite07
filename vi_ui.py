@@ -390,8 +390,8 @@ class VI_PT_Ob(bpy.types.Panel):
                 row = layout.row()
                 row.operator('object.vi_genoct', text="Generate Octree")
 
-            elif ovp.vi_type == '1':
-                newrow(layout, "Type:", ovp, 'envi_type')
+            # elif ovp.vi_type == '1':
+            #     newrow(layout, "Type:", ovp, 'envi_type')
 
             elif ovp.vi_type == '2':
                 pass

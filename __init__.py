@@ -506,7 +506,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     li_bsdf_rcparam: sprop("", "rcontrib parameters", 1024, "")
     bsdf_running: bprop("", "Running BSDF calculation", False)
     retsv = retsv
-    envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object")], "", "Specify the EnVi surface type", "0")
+    # envi_type: eprop([("0", "Construction", "Thermal Construction"), ("1", "Shading", "Shading Object")], "", "Specify the EnVi surface type", "0")
     flovi_solver: EnumProperty(items=[('icoFoam', 'IcoFoam', 'Transient laminar solver'), ('simpleFoam', 'SimpleFoam', 'Transient turbulent solver'),
                                       ('bBSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Bouyant Boussinesq Turbulent solver'), ('bSimpleFoam', 'buoyantSimpleFoam', 'Bouyant Turbulent solver')],
                                name="", default='icoFoam')
