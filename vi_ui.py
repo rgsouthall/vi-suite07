@@ -320,7 +320,7 @@ class VI_PT_Mat(bpy.types.Panel):
                                 if not mvp.flovi_nutilda_field:
                                     newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
 
-                        if 't' in svp['flparams']['params']:
+                        if svp['flparams']['solver_type'] == 'bf':
                             newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
 
                             if mvp.flovi_bmbt_subtype == 'fixedValue':
@@ -350,8 +350,8 @@ class VI_PT_Mat(bpy.types.Panel):
                                     newrow(layout, "p_rgh p:", mvp, "flovi_prgh_p")
                                     newrow(layout, "p_rgh value:", mvp, "flovi_prgh_val")
 
-                            if svp['flparams']['features']['buoy']:
-                                newrow(layout, "alphat type:", mvp, "flovi_a_subtype")
+#                            if svp['flparams']['features']['buoy']:
+                            newrow(layout, "alphat type:", mvp, "flovi_a_subtype")
 
                             if svp['flparams']['features']['rad']:
                                 newrow(layout, "Rad type:", mvp, "flovi_rad_subtype")

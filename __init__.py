@@ -167,7 +167,7 @@ else:
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
     from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op, No_En_Mat_Sched
     from .vi_node import So_En_Net_Occ, So_En_Net_Sched, So_En_Mat_Sched, No_En_Net_Sched, No_En_Sim, No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Inf
-    from .vi_node import No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
+    from .vi_node import No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV
     from .vi_node import So_En_Mat_PVG, No_En_Mat_PVG, No_Vi_Metrics, So_En_Mat_Tr, So_En_Mat_Gas, So_En_Mat_Fr, So_En_Net_Bound, No_En_Net_ACon, No_En_Net_Ext
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_WPC, No_Anim, So_Anim, No_En_Net_Anim, No_En_Mat_Anim, ViEnRIn
@@ -614,7 +614,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     # FloVi Materials
     flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
     flovi_mat = fvmat
-    flovi_bmbp_subtype: EnumProperty(items = ret_fvbp_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbp_subtype: EnumProperty(items=ret_fvbp_menu, name="", description="FloVi sub-type boundary")
     flovi_bmbp_val: fprop("", "Pressure value", -1000, 1000, 0.0)
     flovi_p_field: bprop("", "Take boundary velocity from the field velocity", False)
     flovi_bmbp_p0val: fprop("", "Pressure value", -1000, 1000, 0)
@@ -681,8 +681,9 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_probe: bprop("", "Turn on pressure monitoring", False)
 
 class VI_Params_Collection(bpy.types.PropertyGroup):
-    envi_zone: bprop("", "Flag to tell EnVi to export this collection", False)
-    envi_geo: bprop("EnVi Zone", "Flag to tell EnVi this is a geometry collection", False)
+    envi_collection: bprop("", "Flag to tell EnVi to export this collection", False)
+    envi_zone: bprop("", "Flag to tell EnVi this is a geometry collection", False)
+    envi_shade: bprop("", "Flag to tell EnVi this is a shader collection", False)
 
 class VI_Params_Link(bpy.types.PropertyGroup):
     vi_uid: iprop("ID", "Unique ID", 0, 10000, 0)
@@ -796,7 +797,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC, NODE_OT_EC, OBJECT_OT_EcS, NODE_OT_ECPie,
            So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
            No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, NODE_OT_Chart, NODE_OT_HMChart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Sched, No_En_Net_Inf,
-           No_En_Net_TC, No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV, No_En_Mat_Sched,
+           No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV, No_En_Mat_Sched,
            So_En_Mat_PVG, No_En_Mat_PVG, NODE_OT_En_PVA, No_Vi_Metrics, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, So_En_Net_Bound,
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense,
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group,

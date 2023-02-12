@@ -287,8 +287,9 @@ def vi_info(node, dim, svp, **kwargs):
             if min_res < 0:
                 min_res -= 100
 
-            l_range = range(int(min_res), int(max_res) + 1, 100)
-            l_diff = 300/len(l_range)
+            l_interval = int(round((max_res - min_res)/7, -2))
+            l_range = range(int(min_res), int(max_res) + 1, l_interval)
+            l_diff = 400/len(l_range)
             svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
             <svg
             id="svg5"
@@ -298,12 +299,35 @@ def vi_info(node, dim, svp, **kwargs):
             height="{0[1]}"
             xmlns="http://www.w3.org/2000/svg"
             xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
+            svg_str += '''<defs>
+            <radialGradient id="WLC_grad" gradientUnits="userSpaceOnUse"
+            cx="500" cy="500" r="300" fx="500" fy="500">
+            <stop offset="0%" stop-color="green" />
+            <stop offset="50%" stop-color="blue" />
+            <stop offset="100%" stop-color="red" />
+            </radialGradient>
+            </defs>'''
+            svg_str += '<rect x="0" y="0" width="{0[0]}" height="1000" style="fill:white;stroke:black;stroke-width:5"/>\n'.format(dim)
 
             for ii, i in enumerate(l_range):
-                svg_str += '<rect x="{}" y="{}" width="{}" height="{}" style="fill:none;stroke:black;stroke-width:10"/>\n'.format(300 + l_diff*(ii + 1), 300 + l_diff*(ii+1), 300, 300 - l_diff*(ii+1),
-                                                                                                                                  300 - l_diff*(ii+1), 300 + l_diff*(ii+1))
-
+                svg_str += '<rect x="{0}" y="{1}" width="{2}" height="{3}" style="fill:none;stroke:rgb({4}, {4}, {4});stroke-width:4"/>\n'.format(100 + l_diff*(ii), 100 + l_diff*(ii),
+                                                                                                                                              800 - 2 * l_diff*(ii), 800 - 2 * l_diff*(ii),
+                                                                                                                                              255 - (200 - 20 * ii))
+                svg_str += '<rect x="460" y="{}" width="80" height="25" style="fill:white;stroke:none"/>\n'.format(90 + l_diff*(ii) + 800 - 2 * l_diff*(ii))
+                svg_str += '<text x="500" y="{}" text-anchor="middle" style="font-size:32px;font-family:Nimbus Sans Narrow">{}</text>\n'.format(110 + l_diff*(ii) + 800 - 2 * l_diff*(ii), i)
+            svg_str += '<text x="500" y="75" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">Whole-life Carbon</text>\n'
+            svg_str += '<text x="75" y="500" transform="rotate(-90,75,500)" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">Net operational carbon</text>\n'
+            svg_str += '<text x="925" y="500" transform="rotate(90,925,500)" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">Embodied carbon</text>\n'
+            svg_str += '<text x="500" y="975" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">kgCO2e</text>\n'
+            wlc_pos = 500 - ((wlc[0] - min_res)/(max_res - min_res)) * (900-500)
+            noc_pos = 500 - ((noc[0] - min_res)/(max_res - min_res)) * (900-500)
+            ec_pos = 500 + ((ec[0] - min_res)/(max_res - min_res)) * (900-500)
+            svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:url(#WLC_grad);stroke:black;stroke-width:4"/>\n'.format(noc_pos, 500, 500, wlc_pos, ec_pos, 500)
+            svg_str += '<circle cx="500" cy="{0}" r="25" style="fill:green;stroke:black;stroke-width:4"/>\n'.format(wlc_pos)
+            svg_str += '<circle cx="{}" cy="500" r="25" style="fill:green;stroke:black;stroke-width:4"/>\n'.format(noc_pos)
+            svg_str += '<circle cx="{}" cy="500" r="25" style="fill:green;stroke:black;stroke-width:4"/>\n'.format(ec_pos)
             svg_str += "</svg>"
+
             return imname, bytearray(svg_str, encoding='utf-8')
         else:
             imname = f"Whole_life_carbon_{node.zone_menu}"

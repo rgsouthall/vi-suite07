@@ -565,11 +565,11 @@ class Calculating(App):\n\
     def timer(self, dt):\n\
         with open('"+file+"', 'r') as pffile:\n\
             for ri, r in enumerate(pffile.readlines()):\n\
-                if r.split()[0] in ('Time', 'Ux', 'Uy', 'Uz', 'p', 'k', 'epsilon'):\n\
+                if r.split()[0] in ('Time', 'Ux', 'Uy', 'Uz', 'p', 'k', 'epsilon', 'p_rgh', 'e'):\n\
                     try:\n\
                         if r.split()[0] == 'Time':\n\
                             self.tpb.value = float(r.split()[1])\n\
-                            self.tt.text = '{:.5f}'.format(float(r.split()[1]))\n\
+                            self.tt.text = '{:.1f}'.format(float(r.split()[1]))\n\
                         else:\n\
                             li = self.labels.index(r.split()[0])\n\
                             self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\

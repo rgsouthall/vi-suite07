@@ -2722,69 +2722,45 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                         pass
 
             svp['flparams']['et'] = casenode.etime
-            svp['flparams']['features'] = {'turb': {'laminar': '', 'kEpsilon': 'kE', 'kOmega': 'kO', 'SpalartAllmaras': 'sA'}[casenode.turbulence]}
+            svp['flparams']['features'] = {'turb': {'kEpsilon': 'kE'}}
             svp['flparams']['features']['rad'] = casenode.buoyancy and casenode.radiation
             svp['flparams']['features']['buoy'] = casenode.buoyancy
-            svp['flparams']['features']['buoss'] = casenode.buoyancy and casenode.buossinesq
             base_residuals = ['Ux', 'Uy', 'Uz']
-            turb_residuals = {'laminar': [], 'kEpsilon': ['k', 'epsilon'], 'kOmega': ['k', 'omega'], 'SpalartAllmaras': ['nuTilda']}[casenode.turbulence]
+            turb_residuals = ['k', 'epsilon']
             rad_residuals = ['G'] if svp['flparams']['features']['rad'] else []
-            buoy_residuals = ['p_rgh'] if svp['flparams']['features']['buoy'] else ['p']
+            buoy_residuals = ['p_rgh', 'e'] if casenode.buoyancy else ['p']
 
             if casenode.buoyancy:
-                buoss_residuals = ['e'] if casenode.buossinesq else ['h']
+                svp['flparams']['pref'] = casenode.pabsval
+                svp['flparams']['solver'] = 'buoyantFoam'
+                svp['flparams']['solver_type'] = 'bf'
+                svp['flparams']['params'] = 'bke'
             else:
-                buoss_residuals = []
+                svp['flparams']['solver'] = 'simpleFoam'
+                svp['flparams']['pref'] = casenode.pnormval
+                svp['flparams']['solver_type'] = 'sf'
+                svp['flparams']['params'] = 'ke'
 
-            if casenode.transience == '0':
-                if casenode.buoyancy:
-                    svp['flparams']['pref'] = casenode.pabsval
-                    svp['flparams']['solver'] = 'buoyantSimpleFoam'
-
-                    if not casenode.buossinesq:
-                        svp['flparams']['solver_type'] = 'bsf'
-
-                else:
-                    svp['flparams']['solver'] = 'simpleFoam'
-                    svp['flparams']['pref'] = casenode.pnormval
-
-                    if casenode.turbulence == 'laminar':
-                        svp['flparams']['solver_type'] = 'lsf'
-
-                    svp['flparams']['solver_type'] = 'sf'
-
-                svp['flparams']['residuals'] = base_residuals + buoy_residuals + turb_residuals + buoss_residuals + rad_residuals
-
-            elif casenode.transience == '1':
-                if casenode.buoyancy:
-                    svp['flparams']['solver'] = 'buoyantPimpleFoam'
-                    if not casenode.buossinesq:
-                        svp['flparams']['solver_type'] = 'bpf'
-                    else:
-                        svp['flparams']['solver_type'] = 'bbpf'
-                else:
-                    svp['flparams']['solver'] = 'pimpleFoam'
-                    svp['flparams']['solver_type'] = 'pf'
-
+            svp['flparams']['residuals'] = base_residuals + buoy_residuals + turb_residuals + rad_residuals
             svp['flparams']['st'] = casenode.stime
             svp['flparams']['presid'] = casenode.presid
             svp['flparams']['uresid'] = casenode.uresid
             svp['flparams']['keoresid'] = casenode.keoresid
 
             with open(os.path.join(frame_ofsfb, 'controlDict'), 'w') as cdfile:
-                cdfile.write(fvcdwrite(svp, dp, casenode.solver, casenode.stime, casenode.dtime, casenode.etime))
+                cdfile.write(fvcdwrite(svp, casenode, dp))
             with open(os.path.join(frame_ofsfb, 'fvSolution'), 'w') as fvsolfile:
-                fvsolfile.write(fvsolwrite(casenode, svp['flparams']['features']))
+                fvsolfile.write(fvsolwrite(svp, casenode))
             with open(os.path.join(frame_ofsfb, 'fvSchemes'), 'w') as fvschfile:
-                fvschfile.write(fvschwrite(casenode, svp['flparams']['features']))
+                fvschfile.write(fvschwrite(svp, casenode))
             with open(os.path.join(frame_ofcfb, 'momentumTransport'), 'w') as mtfile:
                 mtfile.write(fvmtwrite(casenode, svp['flparams']['features']))
 
             if casenode.buoyancy:
                 with open(os.path.join(frame_ofcfb, 'pRef'), 'w') as pfile:
                     pfile.write(fvprefwrite(casenode))
-                with open(os.path.join(frame_ofcfb, 'thermophysicalProperties'), 'w') as tppfile:
-                    tppfile.write(fvtppwrite(casenode, svp['flparams']['features']))
+                with open(os.path.join(frame_ofcfb, 'physicalProperties'), 'w') as tppfile:
+                    tppfile.write(fvtppwrite(svp))
                 with open(os.path.join(frame_ofcfb, 'g'), 'w') as gfile:
                     gfile.write(fvgwrite())
 
@@ -2962,7 +2938,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 # ngpyfile.write("m = geo.GenerateMesh(mp = mp)\n")
 
                 with TaskManager():
-                    m = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)
+                    m = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE, quad_dominated=True)
 
                 logentry("Netgen surface mesh generated")
                 # ngpyfile.write("els = [e for e in m.Elements2D()]:\n")

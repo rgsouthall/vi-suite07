@@ -49,7 +49,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
         geo_colls = geo_coll.children
         gcvp = geo_coll.vi_params
         zone_colls = [gc for gc in geo_colls if gc.vi_params.envi_zone]
-        shade_colls = [gc for gc in geo_colls if not gc.vi_params.envi_zone]
+        shade_colls = [gc for gc in geo_colls if gc.vi_params.envi_shade]
         zonenames = [c.name for c in geo_colls]
         en_idf = open(os.path.join(svp['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
@@ -498,13 +498,13 @@ def pregeo(context, op):
         if material.users == 0:
             bpy.data.materials.remove(material)
 
-    for c in [c for c in bpy.data.collections if c.name != 'EnVi Geometry' and c.name not in [c.name for c in eg.children]]:
-        c.vi_params.envi_zone = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
+    for c in [c for c in bpy.data.collections if c != scene.collection and c.name != 'EnVi Geometry' and c.name not in [c.name for c in eg.children]]:
+        c.vi_params.envi_collection = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
         cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH' and o.vi_params.vi_type == '1']
         emobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH' and o.vi_params.vi_type == '0' and o.vi_params.embodied]
 
-        if c.vi_params.envi_zone:
+        if c.vi_params.envi_collection:
             eg.children.link(bpy.data.collections.new('EN_{}'.format(c_name)))
 
             for ob in cobs:
@@ -580,6 +580,7 @@ def pregeo(context, op):
 
     for chil in eg.children:
         if chil.objects:
+            chil.vi_params.envi_shader = 0
             chil.vi_params.envi_zone = 0
 
             for o in [o for o in chil.objects if not o.vi_params.embodied]:
@@ -638,6 +639,8 @@ def pregeo(context, op):
                     for cob in chil.objects:
                         if not all([get_con_node(ms.material.vi_params).envi_con_type in ('None', 'Shading') for ms in cob.material_slots if get_con_node(ms.material.vi_params)]):
                             chil.vi_params.envi_zone = 1
+                        else:
+                            chil.vi_params.envi_shader = 1
 
                     bm.to_mesh(o.data)
 
@@ -660,55 +663,56 @@ def pregeo(context, op):
     svp.envi_nodes = enng
     enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0, 'pcm': 0}
-    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children])]
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and (node.zone not in [c.name for c in eg.children if c.vi_params.envi_zone])]
 
-    ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}
+    # ezdict = {'0': 'No_En_Net_Zone', '2': 'No_En_Net_TC'}
     linklist = []
 
     for coll in eg.children:
         cvp = coll.vi_params
-        cvp['enparams'] = {}
-        cvp['enparams']['floorarea'] = {}
+        if cvp.envi_zone:
+            cvp['enparams'] = {}
+            cvp['enparams']['floorarea'] = {}
 
-        if coll.objects:
-            for oi, ob in enumerate([ob for ob in coll.objects if not ob.vi_params.embodied]):
-                ovp = ob.vi_params
-                omats = [ms.material for ms in ob.material_slots]
-                keys = [k for k in ovp.keys() if k not in ('vi_type', 'envi_oca', 'envi_ica')]
+            if coll.objects:
+                for oi, ob in enumerate([ob for ob in coll.objects if not ob.vi_params.embodied]):
+                    ovp = ob.vi_params
+                    omats = [ms.material for ms in ob.material_slots]
+                    keys = [k for k in ovp.keys() if k not in ('vi_type', 'envi_oca', 'envi_ica')]
 
-                for k in keys:
-                    del ovp[k]
+                    for k in keys:
+                        del ovp[k]
 
-                if not omats:
-                    op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(ob.name))
-                elif None in omats:
-                    op.report({'WARNING'}, 'Object {} has an empty material slot'.format(ob.name))
+                    if not omats:
+                        op.report({'WARNING'}, 'Object {} is specified as a thermal zone but has no materials'.format(ob.name))
+                    elif None in omats:
+                        op.report({'WARNING'}, 'Object {} has an empty material slot'.format(ob.name))
 
-            for link in enng.links:
-                if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):
-                    linklist.append([link.from_socket.node.name, link.from_socket.viuid, link.to_socket.node.name, link.to_socket.viuid])
-                    enng.links.remove(link)
+                for link in enng.links:
+                    if link.from_socket.bl_idname in ('So_En_Net_Bound', 'So_En_Net_SFlow', 'So_En_Net_SSFlow'):
+                        linklist.append([link.from_socket.node.name, link.from_socket.viuid, link.to_socket.node.name, link.to_socket.viuid])
+                        enng.links.remove(link)
 
-            if coll.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
-                enng.nodes.new(type='No_En_Net_Zone').zone = coll.name
-            else:
+                if coll.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+                    enng.nodes.new(type='No_En_Net_Zone').zone = coll.name
+                else:
+                    for node in enng.nodes:
+                        if hasattr(node, 'zone') and node.zone == coll.name:
+                            node.zupdate(bpy.context)
+                        if hasattr(node, 'emszone') and node.emszone == coll.name:
+                            node.zupdate(bpy.context)
+                        if hasattr(node, 'zone') and node.zone == coll.name:
+                            node.uvsockupdate()
+
                 for node in enng.nodes:
-                    if hasattr(node, 'zone') and node.zone == coll.name:
-                        node.zupdate(bpy.context)
-                    if hasattr(node, 'emszone') and node.emszone == coll.name:
-                        node.zupdate(bpy.context)
-                    if hasattr(node, 'zone') and node.zone == coll.name:
-                        node.uvsockupdate()
+                    if [sock.bl_idname in ('So_En_Net_SFlow', 'So_En_Net_SFlow') for sock in node.inputs]:
+                        enng['enviparams']['afn'] = 1
 
-            for node in enng.nodes:
-                if [sock.bl_idname in ('So_En_Net_SFlow', 'So_En_Net_SFlow') for sock in node.inputs]:
-                    enng['enviparams']['afn'] = 1
-
-            if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
-                enng.nodes.new(type='No_En_Net_ACon')
-                enng.use_fake_user = 1
-        else:
-            bpy.data.collections.remove(coll)
+                if 'No_En_Net_ACon' not in [node.bl_idname for node in enng.nodes]:
+                    enng.nodes.new(type='No_En_Net_ACon')
+                    enng.use_fake_user = 1
+            else:
+                bpy.data.collections.remove(coll)
 
     for ll in linklist:
         try:
@@ -735,7 +739,7 @@ def writeafn(exp_op, en_idf, enng):
         enng['enviparams']['crref'] = 1
 
     extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Ext']
-    zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Zone']
+    zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Zone' and len([ins for ins in enode.inputs if ins.bl_idname in ('So_En_Net_SSFlow', 'So_En_Net_SFlow')]) > 1]
     ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SSFlow']
     safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SFlow']
 

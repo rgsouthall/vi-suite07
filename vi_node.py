@@ -2693,6 +2693,8 @@ class No_Vi_Metrics(Node, ViNodes):
                                 name="", description="Comfort type", default="0", update=zupdate)
     iaq_menu: EnumProperty(items=[("0", "RIBA 2030", "RIBA 2030 CO2 Criteria")],
                                 name="", description="IAQ type", default="0", update=zupdate)
+    ec_menu: EnumProperty(items=[("0", "RIBA 2030", "RIBA 2030 Embodied Carbon Criteria")],
+                                name="", description="Embodied carbon standard", default="0", update=zupdate)
     zone_menu: EnumProperty(items=zitems,
                 name="", description="Zone results", update=zupdate)
     frame_menu: EnumProperty(items=frames,
@@ -2731,6 +2733,8 @@ class No_Vi_Metrics(Node, ViNodes):
                     newrow(layout, 'Metric:', self, "energy_menu")
                 elif self.metric == '1':
                     newrow(layout, 'Metric:', self, "light_menu")
+                elif self.metric == '3':
+                    newrow(layout, 'Embodied standard:', self, "ec_menu")
 
                 newrow(layout, 'Frame', self, "frame_menu")
 
@@ -2977,9 +2981,9 @@ class No_Vi_Metrics(Node, ViNodes):
                                     row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                 elif self.metric == '3':
-                    newrow(layout, 'Timespan:', self, "ec_years")
-
                     if self['res']['ec']:
+                        # newrow(layout, 'Type', self, 'riba_menu')
+                        newrow(layout, 'Timespan:', self, "ec_years")
                         row = layout.row()
 
                         if self.zone_menu == 'All':
@@ -3152,7 +3156,7 @@ class No_Vi_Metrics(Node, ViNodes):
         self['res']['ahkwh'] = 0
         self['res']['ckwh'] = 0
         self['res']['ackwh'] = 0
-        
+
         if self.metric == '0' and bpy.data.collections.get('EnVi Geometry') and 'Heating (W)' in [metric[0][3] for metric in zip(self['rl'])]:
             geo_coll = bpy.data.collections['EnVi Geometry']
             heat_mod = self.gas_eff/100 if self.heat_type == '0' else self.elec_cop
@@ -3579,9 +3583,9 @@ class No_Vi_Metrics(Node, ViNodes):
                         acool_kwh = aaircool_kwh if aaircool_kwh > acool_kwh else acool_kwh
                         (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
                         o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa'][int(frame) - int(frames[0])]
-                        owlc = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                        owlc = o_kwh * sum([self.carb_fac * (1 + (self.carb_annc * 0.01))**i for i in range(self.ec_years)])
                         ecwlc = ec_kgco2e * self.ec_years
-                        ofwlc = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+                        ofwlc = pv_kwh * sum([self.carb_fac * (1 + (self.carb_annc * 0.01))**i for i in range(self.ec_years)])
                         wlc = owlc + ecwlc - ofwlc
 
                         if self.frame_menu == frame:
@@ -3886,60 +3890,59 @@ class No_Flo_Case(Node, ViNodes):
     bl_icon = 'FILE_FOLDER'
 
     def ret_params(self):
-        return [str(x) for x in (self.transience, self.turbulence, self.buoyancy, self.buossinesq,
+        return [str(x) for x in (self.buoyancy,
                                  self.dtime, self.etime, self.pnormval, self.pabsval, self.uval, self.tval, self.nutval, self.nutildaval,
                                  self.kval, self.epval, self.oval, self.presid, self.uresid, self.keoresid, self.aval, self.p_rghval,
-                                 self.Gval, self.radmodel, self.solar, self.sun)]
+                                 self.Gval, self.radmodel, self.solar, self.sun, self.comfort)]
 
     def nodeupdate(self, context):
-        context.scene.vi_params.vi_nodes = self.id_data
+        # context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != self.ret_params())
-        params = ''
+        # params = ''
 
-        if self.buoyancy:
-            params += 't'
+        # if self.buoyancy:
+        #     params += 't'
 
-            if self.buossinesq:
-                params += 'b'
-            if self.radiation:
-                if self.radmodel == '0':
-                    params += 'p'
-                else:
-                    params += 'f'
+        #     if self.buossinesq:
+        #         params += 'b'
+        #     if self.radiation:
+        #         if self.radmodel == '0':
+        #             params += 'p'
+        #         else:
+        #             params += 'f'
 
-        if self.turbulence == 'laminar':
-            params += 'l'
-        elif self.turbulence == 'kEpsilon':
-            params += 'k'
-        elif self.turbulence == 'kOmega':
-            params += 'o'
-        elif self.turbulence == 'SpalartAllmaras':
-            params += 's'
+        # if self.turbulence == 'laminar':
+        #     params += 'l'
+        # elif self.turbulence == 'kEpsilon':
+        #     params += 'k'
+        # elif self.turbulence == 'kOmega':
+        #     params += 'o'
+        # elif self.turbulence == 'SpalartAllmaras':
+        #     params += 's'
 
-        if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('solver_type'):
-            context.scene.vi_params['flparams']['params'] = params
+        # if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('solver_type'):
+        #     context.scene.vi_params['flparams']['params'] = params
 
     parametric: BoolProperty(name='', description='Parametric simulation', default=0, update=nodeupdate)
     frame_start: IntProperty(name="", description="Start frame", min=0, default=0, update=nodeupdate)
     frame_end: IntProperty(name="", description="End frame", min=0, default=0, update=nodeupdate)
-    solver: EnumProperty(name='', items=[('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description='Solver selection', default='simpleFoam')
-    transience: EnumProperty(name='', items=[('0', 'Steady', 'Steady state simulation'),
-                                                 ('1', 'Transient', 'Transient simulation')], description='Transience selection', default='0', update=nodeupdate)
+    # solver: EnumProperty(name='', items=[('simpleFoam', 'SimpleFoam', 'SimpleFoam solver')], description='Solver selection', default='simpleFoam')
+    # transience: EnumProperty(name='', items=[('0', 'Steady', 'Steady state simulation'),
+    #                                              ('1', 'Transient', 'Transient simulation')], description='Transience selection', default='0', update=nodeupdate)
 
-    turbulence: EnumProperty(items=[('laminar', 'Laminar', 'Steady state turbulence solver'),
-                                      ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
-                                      ('kOmega', 'k-Omega', 'Transient turbulence solver'),
-                                      ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name="",
-                                        default='kEpsilon', update=nodeupdate)
+    # turbulence: EnumProperty(items=[('laminar', 'Laminar', 'Steady state turbulence solver'),
+    #                                   ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
+    #                                   ('kOmega', 'k-Omega', 'Transient turbulence solver'),
+    #                                   ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name="",
+    #                                     default='kEpsilon', update=nodeupdate)
     buoyancy: BoolProperty(name='', description='Thermal', default=0, update=nodeupdate)
     radiation: BoolProperty(name='', description='Radiation', default=0, update=nodeupdate)
     solar: BoolProperty(name='', description='Radiation', default=0, update=nodeupdate)
     sun: StringProperty(name="", description="Sun for solar radiation analysis", default="", update=nodeupdate)
-    buossinesq: BoolProperty(name='', description='Buossinesq approximation', default=0, update=nodeupdate)
+    # buossinesq: BoolProperty(name='', description='Buossinesq approximation', default=0, update=nodeupdate)
     stime: FloatProperty(name='', description='Simulation start time', min=0, max=10, default=0)
     dtime: FloatProperty(name='', description='False time step', min=0.001, max=10, default=0.005, precision=4, update=nodeupdate)
     etime: FloatProperty(name='', description='Simulation end time', min=1, max=1000, default=5, update=nodeupdate)
-
     pval: FloatProperty(name="", description="Field pressure (relative)", min=-500, max=500, default=0.0, update=nodeupdate)
     pnormval: FloatProperty(name="", description="Field pressure (normalised)", min=-500, max=500, default=0.0, update=nodeupdate)
     pabsval: IntProperty(name="", description="Field pressure (absolute)", min=0, max=10000000, default=100000, update=nodeupdate)
@@ -3959,7 +3962,7 @@ class No_Flo_Case(Node, ViNodes):
     epval: FloatProperty(name="", description="Epsilon domain value", min=0.001, max=500, default=0.03, update=nodeupdate)
     oval: FloatProperty(name="", description="Omega domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
 #    hval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
-    enval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
+   #  enval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
     presid: FloatProperty(name="", description="p convergence criteria", precision=6, min=0.000001, max=0.01, default=0.0001, update=nodeupdate)
     uresid: FloatProperty(name="", description="U convergence criteria", precision=6, min=0.000001, max=0.5, default=0.0001, update=nodeupdate)
     keoresid: FloatProperty(name="", description="k/e/o convergence criteria", precision=6, min=0.000001, max=0.5, default=0.0001, update=nodeupdate)
@@ -3968,6 +3971,11 @@ class No_Flo_Case(Node, ViNodes):
     p_rghval: FloatProperty(name="", description="p_rgh value", min=-1000000, max=1000000, default=0.0, update=nodeupdate)
     Gval: FloatProperty(name="", description="Field radiation value", min=0.0, max=500, default=0.0, update=nodeupdate)
     radmodel: EnumProperty(name='', items=[('0', 'P1', 'P1 radiation model'), ('1', 'fvDOM', 'fvDOM radiation model')], description='Radiation model selection', default='0', update=nodeupdate)
+    comfort: BoolProperty(name='', description='Comfort parameters', default=0, update=nodeupdate)
+    clo: FloatProperty(name="clo", description="Clothing level", min=0.25, max=1.5, default=0.75, update=nodeupdate)
+    met: FloatProperty(name="met", description="Metabolic rate", min=0.5, max=5, default=1, update=nodeupdate)
+    rh: FloatProperty(name="%", description="Relative humidity", min=0, max=100, default=60, update=nodeupdate)
+    age: BoolProperty(name='', description='Air age', default=0, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -3988,27 +3996,24 @@ class No_Flo_Case(Node, ViNodes):
             subrow.prop(self, 'frame_start')
             subrow.prop(self, 'frame_end')
 
-        newrow(layout, 'Transience:', self, 'transience')
-
-        if self.transience == '0':
-            newrow(layout, 'Turbulence:', self, 'turbulence')
-
-#        newrow(layout, 'Start time:', self, 'stime')
         newrow(layout, 'Time step:', self, 'dtime')
         newrow(layout, 'End time:', self, 'etime')
-
-       # if self.turbulence != 'laminar':
         newrow(layout, 'Buoyancy:', self, 'buoyancy')
 
         if self.buoyancy:
-            newrow(layout, 'Buossinesq:', self, 'buossinesq')
+            newrow(layout, 'Comfort:', self, 'comfort')
+            if self.comfort:
+                newrow(layout, 'Clothing', self, 'clo')
+                newrow(layout, 'Metabolic', self, 'met')
+                newrow(layout, 'Humidity', self, 'rh')
+            newrow(layout, 'Age:', self, 'age')
             newrow(layout, 'Radiation:', self, 'radiation')
-
-        if not self.buoyancy:
-            newrow(layout, 'Field pressure:', self, 'pnormval')
-        else:
             newrow(layout, 'Field pressure:', self, 'pabsval')
             newrow(layout, 'Field p_rgh:', self, 'p_rghval')
+
+
+        else:
+            newrow(layout, 'Field pressure:', self, 'pnormval')
 
         newrow(layout, 'Reference pressure:', self, 'p_ref')
 
@@ -4016,40 +4021,19 @@ class No_Flo_Case(Node, ViNodes):
             newrow(layout, 'Reference pressure:', self, 'p_ref_val')
             newrow(layout, 'Reference point:', self, 'p_ref_point')
 
-        if self.turbulence == 'kEpsilon':
-            newrow(layout, 'k value:', self, 'kval')
-            newrow(layout, 'Epsilon value:', self, 'epval')
-
-        elif self.turbulence == 'kOmega':
-            newrow(layout, 'k Value:', self, 'kval')
-            newrow(layout, 'Omega value:', self, 'oval')
-
-            newrow(layout, 'Nut Value:', self, 'nutval')
-
-            if self.buoyancy:
-                newrow(layout, 'T value:', self, 'tval')
-                newrow(layout, 'Radiation:', self, 'radiation')
-
-                if self.radiation:
-                    newrow(layout, 'Rad model:', self, 'radmodel')
-                    newrow(layout, 'G value:', self, 'Gval')
-                    newrow(layout, 'Solar:', self, 'solar')
-
-                    if self.solar:
-                        layout.prop_search(self, 'sun', bpy.data, 'lights', text='Sun', icon='NONE')
+        newrow(layout, 'Field k:', self, 'kval')
+        newrow(layout, 'Field epsilon:', self, 'epval')
 
         if self.buoyancy:
-            newrow(layout, 'T value:', self, 'tval')
-            newrow(layout, 'alphat value:', self, 'aval')
-            if self.buossinesq:
-                newrow(layout, 'e value:', self, 'enval')
-            else:
-                newrow(layout, 'h value:', self, 'enval')
+            newrow(layout, 'Field T:', self, 'tval')
+            newrow(layout, 'Field alphat:', self, 'aval')
 
             if self.radiation:
                 newrow(layout, 'Solar:', self, 'solar')
+
                 if self.solar:
-                    layout.prop_search(self, 'sun', bpy.data, 'lights', text='SUn*', icon='NONE')
+                    layout.prop_search(self, 'sun', bpy.data, 'lights', text='Sun', icon='NONE')
+
                 newrow(layout, 'Rad model:', self, 'radmodel')
                 newrow(layout, 'G value:', self, 'Gval')
 
@@ -4064,18 +4048,10 @@ class No_Flo_Case(Node, ViNodes):
 
         newrow(layout, 'p Residual:', self, 'presid')
         newrow(layout, 'U Residual:', self, 'uresid')
+        newrow(layout, 'k/epsilon Residual:', self, 'keoresid')
 
-        if self.turbulence != 'laminar':
-            newrow(layout, 'k/e/o Residual:', self, 'keoresid')
-
-            if self.buoyancy:
-                if self.buossinesq:
-                    newrow(layout, 'e residual:', self, 'enresid')
-                else:
-                    newrow(layout, 'h residual:', self, 'enresid')
-
-            if self.turbulence != 'laminar':
-                newrow(layout, 'k/e/o Residual:', self, 'keoresid')
+        if self.buoyancy:
+            newrow(layout, 'e residual:', self, 'enresid')
 
         row = layout.row()
         row.operator("node.flovi_case", text = "Export")
@@ -4763,120 +4739,120 @@ class No_En_Net_Zone(Node, EnViNodes):
         paramvs = (self.zone, self.control, tempschedname, mvof, lowerlim, upperlim, '0.0', '300000.0', vaschedname)
         return epentry('AirflowNetwork:MultiZone:Zone', params, paramvs)
 
-class No_En_Net_TC(Node, EnViNodes):
-    '''Zone Thermal Chimney node'''
-    bl_idname = 'No_En_Net_TC'
-    bl_label = 'Chimney'
-    bl_icon = 'SOUND'
+# class No_En_Net_TC(Node, EnViNodes):
+#     '''Zone Thermal Chimney node'''
+#     bl_idname = 'No_En_Net_TC'
+#     bl_label = 'Chimney'
+#     bl_icon = 'SOUND'
 
-    def zupdate(self, context):
-        zonenames= []
-        obj = bpy.data.objects[self.zone]
-        odm = obj.data.materials
-        bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con  == 'Zone' and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'So_En_Net_Bound']]
+#     def zupdate(self, context):
+#         zonenames= []
+#         obj = bpy.data.objects[self.zone]
+#         odm = obj.data.materials
+#         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if get_con_node(odm[face.material_index].vi_params).envi_con_con  == 'Zone' and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'So_En_Net_Bound']]
 
-        for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'So_En_Net_Bound']:
-            self.outputs.remove(oname)
+#         for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'So_En_Net_Bound']:
+#             self.outputs.remove(oname)
 
-        for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'So_En_Net_Bound']:
-            self.inputs.remove(iname)
+#         for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'So_En_Net_Bound']:
+#             self.inputs.remove(iname)
 
-        for sock in sorted(set(bsocklist)):
-            if not self.outputs.get(sock):
-                self.outputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
-            if not self.inputs.get(sock):
-                self.inputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
+#         for sock in sorted(set(bsocklist)):
+#             if not self.outputs.get(sock):
+#                 self.outputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
+#             if not self.inputs.get(sock):
+#                 self.inputs.new('So_En_Net_Bound', sock).sn = sock.split('_')[-2]
 
-        for sock in (self.inputs[:] + self.outputs[:]):
-            if sock.bl_idname == 'So_En_Net_Bound' and sock.links:
-                zonenames += [(link.from_node.zone, link.to_node.zone)[sock.is_output] for link in sock.links]
+#         for sock in (self.inputs[:] + self.outputs[:]):
+#             if sock.bl_idname == 'So_En_Net_Bound' and sock.links:
+#                 zonenames += [(link.from_node.zone, link.to_node.zone)[sock.is_output] for link in sock.links]
 
-        nodecolour(self, all([get_con_node(mat.vi_params).envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials if mat and mat.vi_params.envi_nodes]))
-        self['zonenames'] = zonenames
+#         nodecolour(self, all([get_con_node(mat.vi_params).envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials if mat and mat.vi_params.envi_nodes]))
+#         self['zonenames'] = zonenames
 
-    def supdate(self, context):
-        self.inputs.new['Schedule'].hide = False if self.sched == 'Sched' else True
+#     def supdate(self, context):
+#         self.inputs.new['Schedule'].hide = False if self.sched == 'Sched' else True
 
-    zone: StringProperty(name = '', default = "en_Chimney")
-    sched: EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
-    waw: FloatProperty(name = '', min = 0.001, default = 1)
-    ocs: FloatProperty(name = '', min = 0.001, default = 1)
-    odc: FloatProperty(name = '', min = 0.001, default = 0.6)
+#     zone: StringProperty(name = '', default = "en_Chimney")
+#     sched: EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
+#     waw: FloatProperty(name = '', min = 0.001, default = 1)
+#     ocs: FloatProperty(name = '', min = 0.001, default = 1)
+#     odc: FloatProperty(name = '', min = 0.001, default = 0.6)
 
-    def init(self, context):
-        self.inputs.new('So_En_Net_Sched', 'Schedule')
-        self['zonenames'] = []
+#     def init(self, context):
+#         self.inputs.new('So_En_Net_Sched', 'Schedule')
+#         self['zonenames'] = []
 
-    def draw_buttons(self, context, layout):
-        newrow(layout, 'Zone:', self, 'zone')
-        newrow(layout, 'Schedule:', self, 'sched')
-        newrow(layout, 'Width Absorber:', self, 'waw')
-        newrow(layout, 'Outlet area:', self, 'ocs')
-        newrow(layout, 'Outlet DC:', self, 'odc')
+#     def draw_buttons(self, context, layout):
+#         newrow(layout, 'Zone:', self, 'zone')
+#         newrow(layout, 'Schedule:', self, 'sched')
+#         newrow(layout, 'Width Absorber:', self, 'waw')
+#         newrow(layout, 'Outlet area:', self, 'ocs')
+#         newrow(layout, 'Outlet DC:', self, 'odc')
 
-        for z, zn in enumerate(self['zonenames']):
-            row=layout.row()
-            row.label(zn)
-            row=layout.row()
-            row.prop(self, '["Distance {}"]'.format(z))
-            row=layout.row()
-            row.prop(self, '["Relative Ratio {}"]'.format(z))
-            row=layout.row()
-            row.prop(self, '["Cross Section {}"]'.format(z))
+#         for z, zn in enumerate(self['zonenames']):
+#             row=layout.row()
+#             row.label(zn)
+#             row=layout.row()
+#             row.prop(self, '["Distance {}"]'.format(z))
+#             row=layout.row()
+#             row.prop(self, '["Relative Ratio {}"]'.format(z))
+#             row=layout.row()
+#             row.prop(self, '["Cross Section {}"]'.format(z))
 
-    def update(self):
-        bi, bo = 1, 1
-        zonenames, fheights, fareas = [], [], []
+#     def update(self):
+#         bi, bo = 1, 1
+#         zonenames, fheights, fareas = [], [], []
 
-        for inp in [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound']:
-            self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
+#         for inp in [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound']:
+#             self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
-        for outp in [outp for outp in self.outputs if outp.bl_idname in 'So_En_Net_Bound']:
-            self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+#         for outp in [outp for outp in self.outputs if outp.bl_idname in 'So_En_Net_Bound']:
+#             self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
 
-        if [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound' and not inp.hide and not inp.links]:
-            bi = 0
+#         if [inp for inp in self.inputs if inp.bl_idname == 'So_En_Net_Bound' and not inp.hide and not inp.links]:
+#             bi = 0
 
-        if [outp for outp in self.outputs if outp.bl_idname == 'So_En_Net_Bound' and not outp.hide and not outp.links]:
-            bo = 0
+#         if [outp for outp in self.outputs if outp.bl_idname == 'So_En_Net_Bound' and not outp.hide and not outp.links]:
+#             bo = 0
 
-        nodecolour(self, not all((bi, bo)))
+#         nodecolour(self, not all((bi, bo)))
 
-        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.bl_idname == 'So_En_Net_Bound']:
-            if sock.links and self.zone in [o.name for o in bpy.data.objects]:
-                zonenames += [link.to_node.zone for link in sock.links]
-                fheights += [max([(bpy.data.objects[self.zone].matrix_world * vert.co)[2] for vert in bpy.data.objects[self.zone].data.vertices]) - (bpy.data.objects[link.to_node.zone].matrix_world * bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)].center)[2] for link in sock.links]
-                fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in sock.links]
+#         for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.bl_idname == 'So_En_Net_Bound']:
+#             if sock.links and self.zone in [o.name for o in bpy.data.objects]:
+#                 zonenames += [link.to_node.zone for link in sock.links]
+#                 fheights += [max([(bpy.data.objects[self.zone].matrix_world * vert.co)[2] for vert in bpy.data.objects[self.zone].data.vertices]) - (bpy.data.objects[link.to_node.zone].matrix_world * bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)].center)[2] for link in sock.links]
+#                 fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in sock.links]
 
-            self['zonenames'] = zonenames
+#             self['zonenames'] = zonenames
 
-            for z, zn in enumerate(self['zonenames']):
-                self['Distance {}'.format(z)] = fheights[z]
-                self['Relative Ratio {}'.format(z)] = 1.0
-                self['Cross Section {}'.format(z)] = fareas[z]
+#             for z, zn in enumerate(self['zonenames']):
+#                 self['Distance {}'.format(z)] = fheights[z]
+#                 self['Relative Ratio {}'.format(z)] = 1.0
+#                 self['Cross Section {}'.format(z)] = fareas[z]
 
-        for sock in self.outputs:
-            socklink(sock, self.id_data.name)
+#         for sock in self.outputs:
+#             socklink(sock, self.id_data.name)
 
-    def uvsockupdate(self):
-        for sock in self.outputs:
-            socklink(sock, self.id_data.name)
+#     def uvsockupdate(self):
+#         for sock in self.outputs:
+#             socklink(sock, self.id_data.name)
 
-            if sock.bl_idname == 'EnViBoundSocket':
-                uvsocklink(sock, self.id_data.name)
+#             if sock.bl_idname == 'EnViBoundSocket':
+#                 uvsocklink(sock, self.id_data.name)
 
-    def epwrite(self):
-        scheduled = 1 if self.inputs['Schedule'].links and not self.inputs['Schedule'].links[0].to_node.use_custom_color else 0
-        paramvs = ('{}_TC'.format(self.zone), self.zone, ('', '{}_TCSched'.format(self.zone))[scheduled], self.waw, self.ocs, self.odc)
-        params = ('Name of Thermal Chimney System', 'Name of Thermal Chimney Zone', 'Availability Schedule Name', 'Width of the Absorber Wall',
-                  'Cross Sectional Area of Air Channel Outlet', 'Discharge Coefficient')
+#     def epwrite(self):
+#         scheduled = 1 if self.inputs['Schedule'].links and not self.inputs['Schedule'].links[0].to_node.use_custom_color else 0
+#         paramvs = ('{}_TC'.format(self.zone), self.zone, ('', '{}_TCSched'.format(self.zone))[scheduled], self.waw, self.ocs, self.odc)
+#         params = ('Name of Thermal Chimney System', 'Name of Thermal Chimney Zone', 'Availability Schedule Name', 'Width of the Absorber Wall',
+#                   'Cross Sectional Area of Air Channel Outlet', 'Discharge Coefficient')
 
-        for z, zn in enumerate(self['zonenames']):
-            params += (' Zone Name {}'.format(z + 1), 'Distance from the Top of the Thermal Chimney to Inlet {}'.format(z + 1), 'Relative Ratios of Air Flow Rates Passing through Zone {}'.format(z + 1),
-                       'Cross Sectional Areas of Air Channel Inlet {}'.format(z + 1))
-            paramvs += (zn, self['Distance {}'.format(z)], self['Relative Ratio {}'.format(z)], self['Cross Section {}'.format(z)])
+#         for z, zn in enumerate(self['zonenames']):
+#             params += (' Zone Name {}'.format(z + 1), 'Distance from the Top of the Thermal Chimney to Inlet {}'.format(z + 1), 'Relative Ratios of Air Flow Rates Passing through Zone {}'.format(z + 1),
+#                        'Cross Sectional Areas of Air Channel Inlet {}'.format(z + 1))
+#             paramvs += (zn, self['Distance {}'.format(z)], self['Relative Ratio {}'.format(z)], self['Cross Section {}'.format(z)])
 
-        return epentry('ZoneThermalChimney', params, paramvs)
+#         return epentry('ZoneThermalChimney', params, paramvs)
 
 
 class No_En_Net_Hvac(Node, EnViNodes):
