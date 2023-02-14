@@ -100,6 +100,7 @@ else:
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
                 upg = '' if sys.platform == 'linux' else '--upgrade'
+                
                 if sys.platform == 'win32':
                     kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                 else:
