@@ -151,7 +151,7 @@ def clear_coll(c, coll):
             bpy.data.objects.remove(o)
 
         elif coll.name == 'FloVi Mesh' and o.vi_params.vi_type_string != 'FloVi Mesh':
-            c.scene.collection.link(o)
+            c.scene.collection.objects.link(o)
             coll.objects.unlink(o)
         elif coll.name == 'FloVi Mesh':
             coll.objects.unlink(o)

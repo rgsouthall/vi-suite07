@@ -2938,7 +2938,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 # ngpyfile.write("m = geo.GenerateMesh(mp = mp)\n")
 
                 with TaskManager():
-                    m = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE, quad_dominated=True)
+                    m = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)
 
                 logentry("Netgen surface mesh generated")
                 # ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
@@ -3287,31 +3287,41 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Y velocity', ' '.join(['{:5f}'.format(u) for u in uy_vals])])
                             self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Z velocity', ' '.join(['{:5f}'.format(u) for u in uz_vals])])
 
-                    self.reslists.append([str(frame_c), 'Time', 'Time', 'Steps', ' '.join(['{}'.format(f) for f in resarray[0]])])
+                    self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
+                vfs = []
+                times = []
                 vf_run = Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, frame_coffb)), stdout=PIPE)
 
+                # with open('{}'.format(os.path.join(frame_coffb, 'postProcessing', 'triSurfaceVolumetricFlowRate(name={}.stl)'.format(oname))) as vf_file:
+                #     for line in vf_file.readlines():
+                #         if line[0] != '#':
+                #             ls = line.split()
+                #             times.append(ls[0])
+                #             vfs.append(ls[1])
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
 
                 self.o_dict[str(frame_c)][oname] = {}
 
                 for line in vf_run.stdout.readlines()[::-1]:
+                    print('line', line.decode())
                     if "U =" in line.decode():
                         vf = line.decode().split()[-1]
-
-                        try:
-                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for f in resarray[0]])])
-                        except:
-                            pass
+                        vfs.append(vf)
                         self.o_dict[str(frame_c)][oname]['Q'] = float(vf)
 
                     elif 'Time =' in line.decode():
-                        ti = line.decode().split()[-1]
+                        ti = line.decode().split()[-1].strip('s')
+                        times.append(ti)
                         logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, ti, vf))
-                        break
+                        #break
+
+                if vfs and times:
+                    self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs])])
+                    self.reslists.append([str(frame_c), 'Timestep', 'Surface', 'Seconds', ' '.join(['{}'.format(ti) for ti in times])])
 
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals), frame_n)
@@ -3320,8 +3330,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     if self.processes > 1:
                         self.runs.append(Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes,
                                                                                                                                  svp['flparams']['solver'],
-                                                                                                                                 frame_noffb)),
-                                               stdout=fvprogress))
+                                                                                                                                 frame_noffb)), stdout=fvprogress))
                     else:
                         self.runs.append(Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", frame_noffb)), stdout=fvprogress))
                 return {'PASS_THROUGH'}

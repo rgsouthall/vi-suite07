@@ -488,7 +488,7 @@ def fvcdwrite(svp, node, dp):
 
         for p in ps:
             cdict['functions'][p.name] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name), 'writeControl': 'timeStep',
-                                          'writeInterval': '1', 'fields': '({0})'.format(probe_vars),
+                                          'writeInterval': '10', 'fields': '({0})'.format(probe_vars),
                                           'probeLocations\n(\n{}\n)'.format('   ({0[0]} {0[1]} {0[2]})'.format(p.location)): ''}
 
         probe_text = '''functions
@@ -577,12 +577,21 @@ def fvsolwrite(svp, node):
     if svp['flparams']['solver_type'] == 'bf':
         sol_sol_dict['nNonOrthogonalCorrectors'] = '1'
         sol_dict['relaxationFactors']['equations']['U'] = '0.2'
-        sol_dict['relaxationFactors']['equations']['e'] = '0.1'
+        sol_dict['relaxationFactors']['equations']['e'] = '0.2'
         sol_dict['relaxationFactors']['equations']['"(k|epsilon|R)"'] = '0.7'
         sol_dict['relaxationFactors']['fields'] = {'p_rgh': '0.7'}
         sol_sol_dict['residualControl']['"(k|epsilon)"'] = '{:.5f}'.format(node.keoresid)
         sol_sol_dict['residualControl']['e'] = '{:.5f}'.format(node.enresid)
         sol_sol_dict['residualControl']['p_rgh'] = '{:.5f}'.format(node.presid)
+
+        if node.p_ref != '0':
+            sol_sol_dict['pRefValue'] = '{}'.format(node.p_ref_val)
+
+            if node.p_ref:
+                sol_sol_dict['pRefPoint'] = '({0[0]} {0[1]} {0[2]})'.format(bpy.data.objects[node.p_ref_point].location)
+            else:
+                sol_sol_dict['pRefCell'] = '0'
+
         sol_dict['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-8', 'relTol': '0.01'}
         sol_dict['solvers']['"U|e|k|epsilon"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}
 

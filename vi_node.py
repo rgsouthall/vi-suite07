@@ -2008,8 +2008,11 @@ class ViEnRIn(So_En_ResU):
         rl = self.node.inputs['X-axis'].links[0].from_node['reslists']
 
         if rl:
-            self.r_len = [len(res[4].split()) for res in rl if res[0] == self.node.inputs['X-axis'].framemenu and res[1] == self.node.inputs['X-axis'].resultmenu and res[2] == self.node.inputs['X-axis'].zonemenu and res[3] == self.node.inputs['X-axis'].metricmenu][0]
-
+            try:
+                self.r_len = [len(res[4].split()) for res in rl if res[0] == self.node.inputs['X-axis'].framemenu and res[1] == self.node.inputs['X-axis'].resultmenu and res[2] == self.node.inputs['X-axis'].zonemenu and res[3] == self.node.inputs['X-axis'].metricmenu][0]
+            except:
+                self.r_len = 0
+                
             for ax in axes:
                 if self.node.inputs[ax].links:
                     rl = self.node.inputs[ax].links[0].from_node['reslists']
@@ -3942,7 +3945,7 @@ class No_Flo_Case(Node, ViNodes):
     # buossinesq: BoolProperty(name='', description='Buossinesq approximation', default=0, update=nodeupdate)
     stime: FloatProperty(name='', description='Simulation start time', min=0, max=10, default=0)
     dtime: FloatProperty(name='', description='False time step', min=0.001, max=10, default=0.005, precision=4, update=nodeupdate)
-    etime: FloatProperty(name='', description='Simulation end time', min=1, max=1000, default=5, update=nodeupdate)
+    etime: FloatProperty(name='', description='Simulation end time', min=1, default=5, update=nodeupdate)
     pval: FloatProperty(name="", description="Field pressure (relative)", min=-500, max=500, default=0.0, update=nodeupdate)
     pnormval: FloatProperty(name="", description="Field pressure (normalised)", min=-500, max=500, default=0.0, update=nodeupdate)
     pabsval: IntProperty(name="", description="Field pressure (absolute)", min=0, max=10000000, default=100000, update=nodeupdate)
