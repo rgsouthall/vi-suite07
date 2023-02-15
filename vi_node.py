@@ -4106,7 +4106,7 @@ class No_Flo_NG(Node, ViNodes):
         addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
         vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
 
-        if os.path.isdir(vi_prefs.ofbin) or sys.platform == 'darwin':
+        if os.path.isdir(vi_prefs.ofbin) or sys.platform in ('darwin', 'win32'):
             if self.inputs and self.inputs['Case in'].links:
                 if ng:
                     # newrow(layout, 'Join geometries:', self, 'geo_join')

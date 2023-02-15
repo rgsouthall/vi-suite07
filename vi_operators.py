@@ -3024,16 +3024,17 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 scene = context.scene
                 svp = scene.vi_params
 
-                if os.path.isfile(os.path.join(offb, 'ng.mesh')):
+                if os.path.isfile(os.path.join(frame_offb, 'ng.mesh')):
                     os.chdir(offb)
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
-                        nntfcmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
-                    elif sys.platform == 'darwin':
-                        print("OSX command to open openfoam docker image: {}".format("docker container run -ti --rm -v $PWD:/data -w /data openfoamplus/of_v2012_centos73:release /bin/bash"))
-                        nntfcmd = 'openfoam-docker / netgenNeutralToFoam -case ./{} ./{}'.format(frame, 'ng.mesh')
+                        nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
+                        subprocess.Popen(shlex.spli(nntf_cmd)).wait()
+                    elif sys.platform in ('darwin', 'win32'):
+                        nntf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
+                        # nntf_cmd = 'openfoam-docker / netgenNeutralToFoam -case ./{} ./{}'.format(frame, 'ng.mesh')
+                        subprocess.Popen(nntf_cmd).wait()
+                    logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
                     
-                    logentry(f'Running netgenNeutraltoFoam with command: {nntfcmd}')
-                    subprocess.Popen(shlex.split(nntfcmd)).wait()
 
                     if not os.path.isdir(os.path.join(frame_offb, st, 'polyMesh')):
                         os.makedirs(os.path.join(frame_offb, st, 'polyMesh'))
@@ -3080,12 +3081,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                             pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -noFunctionObjects -noFields -overwrite {}'.format(frame, self.expnode.yang)), 
                                                     stdout=PIPE, stderr=PIPE)
-                        elif sys.platform == 'darwin':
-                            pdm = Popen(shlex.split('openfoam-docker / polyDualMesh -case ./{} -noFunctionObjects -concaveMultiCells -overwrite {}'.format(frame, self.expnode.yang)), 
-                                                    stdout=PIPE, stderr=PIPE)
+                        elif sys.platform in ('darwin', 'win32'):
+                            pdm_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -noFields -overwrite {}"'.format(frame_offb, self.expnode.yang)
+                            print(pdm_cmd)
+                            pdm = Popen(pdm_cmd, stdout=PIPE, stderr=PIPE)
+                            #pdm = Popen(shlex.split('openfoam-docker / polyDualMesh -case ./{} -noFunctionObjects -concaveMultiCells -overwrite {}'.format(frame, self.expnode.yang)), 
+                            #                        stdout=PIPE, stderr=PIPE)
 
                         for line in pdm.stdout:
-                            print('line', line.decode())
                             if 'FOAM aborting' in line.decode():
                                 logentry('polyDualMesh error. Check the mesh in Netgen')
                                 pdm_error = 1
@@ -3093,15 +3096,17 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         if not pdm_error:
                             if sys.platform == 'linux':
                                 cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, self.expnode.yang)
-                            elif sys.platform == 'darwin':
-                                cpf_cmd = 'openfoam-docker / combinePatchFaces -overwrite -case ./{} {}'.format(frame, self.expnode.yang)
-                            
-                            Popen(shlex.split(cpf_cmd)).wait()
+                            elif sys.platform in ('darwin', 'win32'):
+                                cpf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
+                                print(cpf_cmd)
+                            Popen(cpf_cmd).wait()
                             
                             if sys.platform == 'linux':
                                 cm = Popen(shlex.split('foamExec checkMesh -case ./{}'.format(frame)), stdout=PIPE)
-                            elif sys.platform == 'darwin':
-                                cm = Popen(shlex.split('openfoam-docker / checkMesh -case ./{}'.format(frame)), stdout=PIPE)
+                            elif sys.platform in ('darwin', 'win32'):
+                                cm_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "checkMesh -case data"'.format(frame_offb)
+                                print(cm_cmd)
+                                cm = Popen(cm_cmd, stdout=PIPE)
 
                             for line in cm.stdout:
                                 if '***Error' in line.decode():
