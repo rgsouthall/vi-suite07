@@ -563,7 +563,7 @@ class Calculating(App):\n\
         return self.bl\n\
 \n\
     def timer(self, dt):\n\
-        with open('"+file+"', 'r') as pffile:\n\
+        with open(r'"+file+"', 'r') as pffile:\n\
             for ri, r in enumerate(pffile.readlines()):\n\
                 if r.split()[0] in ('Time', 'Ux', 'Uy', 'Uz', 'p', 'k', 'epsilon', 'p_rgh', 'e'):\n\
                     try:\n\
