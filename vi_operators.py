@@ -3077,16 +3077,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                     os.path.join(frame_offb, st, 'polyMesh'))
 
                     if self.expnode.poly:
-                        # os.chdir(offb)
                         if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                             pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -noFunctionObjects -noFields -overwrite {}'.format(frame, self.expnode.yang)), 
                                                     stdout=PIPE, stderr=PIPE)
                         elif sys.platform in ('darwin', 'win32'):
                             pdm_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -noFields -overwrite {}"'.format(frame_offb, self.expnode.yang)
-                            print(pdm_cmd)
                             pdm = Popen(pdm_cmd, stdout=PIPE, stderr=PIPE)
-                            #pdm = Popen(shlex.split('openfoam-docker / polyDualMesh -case ./{} -noFunctionObjects -concaveMultiCells -overwrite {}'.format(frame, self.expnode.yang)), 
-                            #                        stdout=PIPE, stderr=PIPE)
 
                         for line in pdm.stdout:
                             if 'FOAM aborting' in line.decode():
@@ -3098,14 +3094,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                 cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, self.expnode.yang)
                             elif sys.platform in ('darwin', 'win32'):
                                 cpf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
-                                print(cpf_cmd)
+
                             Popen(cpf_cmd).wait()
                             
                             if sys.platform == 'linux':
                                 cm = Popen(shlex.split('foamExec checkMesh -case ./{}'.format(frame)), stdout=PIPE)
                             elif sys.platform in ('darwin', 'win32'):
                                 cm_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "checkMesh -case data"'.format(frame_offb)
-                                print(cm_cmd)
                                 cm = Popen(cm_cmd, stdout=PIPE)
 
                             for line in cm.stdout:
@@ -3144,21 +3139,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         for file in os.listdir(os.path.join(frame_ofcfb, 'polyMesh')):
                             shutil.copy(os.path.join(os.path.join(frame_ofcfb, 'polyMesh'), file), os.path.join(frame_offb, st, 'polyMesh'))
 
-                    #     oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
-                    #     self.expnode.post_export()
-
-                    # else:
             try:
                 oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
             except Exception:
                 logentry('Netgen volume meshing failed. Try meshing the produced STL in Netgen')
                 self.report({'ERROR'}, 'Volume meshing failed')
                 return {'CANCELLED'}
+            
             self.expnode.post_export()
-
-#        except Exception as e:
-#                logentry("Netgen error: {}".format(e))
-#                return {'CANCELLED'}
             self.kivyrun.kill()
             create_coll(context, self.curcoll.name)
             self.expnode.running = 0
@@ -3174,7 +3162,6 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
-        # svp = scene.vi_params
         dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2']
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3']
         obs = dobs + gobs
@@ -3182,12 +3169,6 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
         meshnode = boundnode.inputs['Mesh in'].links[0].from_node
         casenode = meshnode.inputs['Case in'].links[0].from_node
         fvvarwrite(scene, obs, casenode)
-
-        # if boundnode.pv:
-        #     subprocess.Popen(shlex.split('foamExec paraFoam -builtin -case {}'.format(svp['flparams']['offilebase'])))
-        # else:
-        #     open("{}".format(os.path.join(svp['flparams']['offilebase'], 'project.foam')), "w")
-
         boundnode.post_export()
         return {'FINISHED'}
 
