@@ -128,12 +128,15 @@ def setscenelivivals(scene):
 def validradparams(params):
     valids = ('-ps', '-pt', '-pj', '-dj', '-ds', '-dt', '-dc', '-dr', '-dp', '-ss', '-st', '-sj', '-ab',
               '-av', '-aa',	'-ar', '-ad', '-as', '-lr', '-lw', '-u+')
+
     for p, param in enumerate(params.split()):
-        if not p%2 and (param not in valids):
+        if not p % 2 and (param not in valids):
             return 0
-        elif p%2:
-            try: float(param)
-            except: return 0
+        elif p % 2:
+            try:
+                float(param)
+            except Exception:
+                return 0
     return 1
 
 

@@ -1680,7 +1680,7 @@ def selmesh(sel):
 def retdp(mres, dp):
     try:
         dp = 0 if ceil(log10(100/mres)) < 0 or not dp else ceil(log10(100/mres))
-    except:
+    except Exception:
         dp = 0
     return dp
 
@@ -1900,7 +1900,7 @@ def solarPosition(doy, lst, lat, lon):
     altitude = radToDeg*beta
     phi = 2*pi - phi if ast <= 12 or ast >= 24 else phi
     azimuth = radToDeg*phi
-    return([altitude, azimuth, beta, phi])
+    return ([altitude, azimuth, beta, phi])
 
 
 def solarRiseSet(doy, beta, lat, lon, riseset):
@@ -1912,10 +1912,10 @@ def solarRiseSet(doy, beta, lat, lon, riseset):
     try:
         phi = acos((sin(beta) * sin(ll) - sin(delta))/(cos(beta) * cos(ll)))
         phi = pi - phi if riseset == 'morn' else pi + phi
-    except:
+    except Exception:
         phi = 0
 
-    return(phi*radToDeg)
+    return (phi*radToDeg)
 
 # def set_legend(ax):
 #    l = ax.legend(borderaxespad = -4)
@@ -1951,11 +1951,11 @@ def gentarget(tarnode, result):
         res = sum(result)
 
     if tarnode.value > res and tarnode.ab == '0':
-        return(1)
+        return (1)
     elif tarnode.value < res and tarnode.ab == '1':
-        return(1)
+        return (1)
     else:
-        return(0)
+        return (0)
 
 
 def selobj(vl, geo):
@@ -1967,7 +1967,7 @@ def selobj(vl, geo):
         ob.select_set(1) if ob == geo else ob.select_set(0)
     try:
         vl.objects.active = geo
-    except:
+    except Exception:
         pass
 
 
@@ -1994,17 +1994,12 @@ def delobj(vl, delgeo):
     bpy.ops.object.delete(use_global=True)
 
 
-#    if vl.objects.active and vl.objects.active.hide == 'False':
-#        bpy.ops.object.mode_set(mode = 'OBJECT')
-#    for ob in vl.objects:
-#        ob.select = True if ob == geo else False
-#    vl.objects.active = geo
-
 def joinobj(vl, obs):
     bpy.ops.object.select_all(action='DESELECT')
+
     for o in obs:
         o.select_set(state=True)
-#        o.select = True
+
     vl.objects.active = obs[-1]
     bpy.ops.object.join()
     return bpy.context.active_object
@@ -2017,9 +2012,11 @@ def nodeid(node):
 
 
 def nodecolour(node, prob):
-    (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3))
+    (node.use_custom_color, node.color) = (1, (0.8, 0.3, 0.3)) if prob else (0, (0.8, 0.3, 0.3))
+
     if prob:
         node.hide = False
+
     return not prob
 
 
@@ -2049,7 +2046,7 @@ def socklink(sock, ng):
 
                 if not valset or len(valset) < min((len(valid1), len(valid2))):
                     bpy.data.node_groups[ng].links.remove(link)
-        except:
+        except Exception:
             if sock.links:
                 bpy.data.node_groups[ng].links.remove(sock.links[-1])
 
@@ -2064,7 +2061,7 @@ def socklink2(sock, ng):
 
             if not valset or len(valset) < min((len(valid1), len(valid2))):
                 ng.links.remove(link)
-    except:
+    except Exception:
         if sock.links:
             ng.links.remove(sock.links[-1])
 
@@ -2076,7 +2073,7 @@ def uvsocklink(sock, ng):
             uv2 = link.to_socket.uvalue
             if uv1 != uv2:
                 bpy.data.node_groups[ng].links.remove(link)
-    except:
+    except Exception:
         pass
 
 
@@ -2087,7 +2084,7 @@ def uvsocklink2(sock, ng):
             uv2 = link.to_socket.uvalue
             if uv1 != uv2:
                 ng.links.remove(link)
-    except:
+    except Exception:
         pass
 
 
