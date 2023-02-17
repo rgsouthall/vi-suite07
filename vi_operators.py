@@ -2911,7 +2911,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                        optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
                                        delaunay=True, maxoutersteps=self.expnode.maxsteps)
                 # bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
-
                 bm = bmesh.new()
                 bm.from_object(o, dp)
                 bm.transform(o.matrix_world)
@@ -3024,11 +3023,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 scene = context.scene
                 svp = scene.vi_params
 
-                if os.path.isfile(os.path.join(frame_offb, 'ng.mesh')):
+                if os.path.isfile(os.path.join(offb, 'ng.mesh')):
+                    print('mesh')
                     os.chdir(offb)
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                         nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
-                        subprocess.Popen(shlex.spli(nntf_cmd)).wait()
+                        subprocess.Popen(shlex.split(nntf_cmd)).wait()
                     elif sys.platform in ('darwin', 'win32'):
                         nntf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
                         # nntf_cmd = 'openfoam-docker / netgenNeutralToFoam -case ./{} ./{}'.format(frame, 'ng.mesh')
@@ -3092,10 +3092,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         if not pdm_error:
                             if sys.platform == 'linux':
                                 cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, self.expnode.yang)
+                                Popen(shlex.split(cpf_cmd)).wait()
                             elif sys.platform in ('darwin', 'win32'):
                                 cpf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
-
-                            Popen(cpf_cmd).wait()
+                                Popen(cpf_cmd).wait()
 
                             if sys.platform == 'linux':
                                 cm = Popen(shlex.split('foamExec checkMesh -case ./{}'.format(frame)), stdout=PIPE)
@@ -3142,8 +3142,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             try:
                 oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
 
-            except Exception:
-                logentry('Netgen volume meshing failed. Try meshing the produced STL in Netgen')
+            except Exception as e:
+                logentry('Netgen volume meshing failed: {}'.format(e))
                 self.report({'ERROR'}, 'Volume meshing failed')
                 return {'CANCELLED'}
 

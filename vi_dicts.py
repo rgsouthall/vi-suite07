@@ -144,3 +144,49 @@ presdict = {'Generator Produced DC Electricity Energy [J] !Hourly': 'PV energy (
             'Generator PV Cell Temperature [C] !Hourly': 'PV temperature (C)'}
 
 hdict = {}
+
+flovi_p_dict = {'0': {'Outlet': {'totalPressure': {'type': 'totalPressure', 'p0': 'uniform {}'.format('x'), 'gamma': '{}'.format('y'), 'value': '{}'.format('z')}},
+                      'Solid': {'zeroGradient': {'type': 'zeroGradient'}},
+                      'Inlet': {'zeroGradient': {'type': 'zeroGradient'}},
+                      'Sky': {'symmetry': {'type': 'symmetry'}}},
+                '1': {'0': '', '1': '', '2': ''},
+                '2': {'0': '', '1': '', '2': ''},
+                '3': {'0': '', '1': '', '2': ''},
+                '4': {'0': '', '1': '', '2': ''}}
+
+flovi_U_dict = {'0': {'Outlet': {'pressureInletOutletVelocity': {'type': 'pressureInletOutletVelocity', 'value': '$internalField'}},
+                      'Solid': {'noSlip': {'type': 'noSlip'}},
+                      'Inlet': {'fixedValue': {'type': 'fixedValue', 'value': '{}'.format('val')}},
+                      'Sky': {'symmetry': {'type': 'symmetry'}}},
+                '1': {'0': '', '1': '', '2': ''},
+                '2': {'0': '', '1': '', '2': ''},
+                '3': {'0': '', '1': '', '2': ''},
+                '4': {'0': '', '1': '', '2': ''}}
+
+flovi_k_dict = {'0': {'Outlet': {'inletOutlet': {'type': 'inletOutlet', 'inletValue': '$internalField', 'value': '$internalField'}},
+                      'Solid': {'kqRWallFunction': {'type': 'kqRWallFunction', 'value': '$internalField'}},
+                      'Inlet': {'fixedValue': {'type': 'fixedValue', 'value': '$internalField'}},
+                      'Sky': {'symmetry': {'type': 'symmetry'}}},
+                '1': {'0': '', '1': '', '2': ''},
+                '2': {'0': '', '1': '', '2': ''},
+                '3': {'0': '', '1': '', '2': ''},
+                '4': {'0': '', '1': '', '2': ''}}
+
+flovi_epsilon_dict = {'0': {'Outlet': {'inletOutlet': {'type': 'inletOutlet', 'inletValue': '$internalField', 'value': '$internalField'}},
+                      'Solid': {'epsilonWallFunction': {'type': 'epsilonWallFunction', 'value': '$internalField'}},
+                      'Inlet': {'fixedValue': {'type': 'fixedValue', 'value': '$internalField'}},
+                      'Sky': {'symmetry': {'type': 'symmetry'}}},
+                '1': {'0': '', '1': '', '2': ''},
+                '2': {'0': '', '1': '', '2': ''},
+                '3': {'0': '', '1': '', '2': ''},
+                '4': {'0': '', '1': '', '2': ''}}
+
+flovi_nut_dict = {'0': {'Outlet': {'calculated': {'type': 'calculated', 'value': '$internalField'}},
+                      'Solid': {'nutkWallFunction': {'type': 'nutkWallFunction', 'value': '$internalField'}},
+                      'Inlet': {'calculated': {'type': 'calculated', 'value': '$internalField'}},
+                      'Sky': {'symmetry': {'type': 'symmetry'}}},
+                '1': {'0': '', '1': '', '2': ''},
+                '2': {'0': '', '1': '', '2': ''},
+                '3': {'0': '', '1': '', '2': ''},
+                '4': {'0': '', '1': '', '2': ''}}
+

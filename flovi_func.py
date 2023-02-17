@@ -197,7 +197,6 @@ def fvmat(self, svp, mn, bound, frame):
         val = 'uniform {}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
         pdict = {'0': self.flovi_bmbp_subtype, '1': self.flovi_bmbp_subtype, '2': 'symmetry', '3': 'empty'}
         ptdict = {'zeroGradient': 'zeroGradient',
-
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'calculated': 'calculated;\n    value    $internalField',
                   'freestreamPressure': 'freestreamPressure;\n  freestreamValue {}'.format(val),
