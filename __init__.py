@@ -178,7 +178,8 @@ else:
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype, envi_embodied
-    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu
+    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu
+    from .flovi_func import ret_fvb_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, NODE_OT_ECPie
@@ -613,9 +614,10 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     li_dirt_level: fprop("", "Level of reflectivity reduction", 0, 1, 0.5)
 
     # FloVi Materials
-    flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
+    #flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
+    flovi_bmb_type: EnumProperty(items=ret_fvb_menu, name="", description="FloVi boundary")
     flovi_mat = fvmat
-    flovi_bmbp_subtype: EnumProperty(items=ret_fvbp_menu, name="", description="FloVi sub-type boundary")
+    flovi_bmbp_subtype: EnumProperty(items=ret_fvbp_menu, name="", description="FloVi boundary sub-type")
     flovi_bmbp_val: fprop("", "Pressure value", -1000, 1000, 0.0)
     flovi_p_field: bprop("", "Take boundary velocity from the field velocity", False)
     flovi_bmbp_p0val: fprop("", "Pressure value", -1000, 1000, 0)

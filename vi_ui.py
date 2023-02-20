@@ -223,7 +223,7 @@ class VI_PT_Mat(bpy.types.Panel):
                 newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")
                 newrow(layout, "Type:", mvp, "flovi_bmb_type")
 
-                if mvp.flovi_bmb_type in ('0', '1') and svp.get('flparams') and svp['flparams'].get('solver_type'):
+                if svp.get('flparams') and svp['flparams'].get('solver_type'):
                     newrow(layout, "p type:", mvp, "flovi_bmbp_subtype")
 
                     if mvp.flovi_bmbp_subtype in ('fixedValue', 'totalPressure'):

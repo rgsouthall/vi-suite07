@@ -3901,10 +3901,12 @@ class No_Flo_Case(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
-        if self.scenario in ('2', '3'):
+        if self.scenario in ('2', '3') and self.buoyancy == 0:
             self.buoyancy = 1
-        elif self.scenario in ('0', '1'):
+        elif self.scenario in ('0', '1') and self.buoyancy == 1:
             self.buoyancy = 0
+
+        context.scene.vi_params['flparams']['scenario'] = self.scenario
 
     scenario: EnumProperty(items=[('0', 'External flow', 'Wind induced flow'), ('1', 'Internal flow', 'Internal forced flow'), ('2', 'Forced convection', 'Forced convection'),
                                   ('3', 'Free convection', 'Free convection'), ('4', 'Custom', 'Custom scenario')], name='', description='Scenario type', default=0, update=nodeupdate)

@@ -2759,8 +2759,8 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             if casenode.buoyancy:
                 with open(os.path.join(frame_ofcfb, 'pRef'), 'w') as pfile:
                     pfile.write(fvprefwrite(casenode))
-                with open(os.path.join(frame_ofcfb, 'physicalProperties'), 'w') as tppfile:
-                    tppfile.write(fvtppwrite(svp))
+                with open(os.path.join(frame_ofcfb, 'physicalProperties'), 'w') as ppfile:
+                    ppfile.write(fvtppwrite(svp))
                 with open(os.path.join(frame_ofcfb, 'g'), 'w') as gfile:
                     gfile.write(fvgwrite())
 
@@ -2768,8 +2768,8 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                     with open(os.path.join(frame_ofcfb, 'radiationProperties'), 'w') as rpfile:
                         rpfile.write(fvrpwrite(casenode))
             else:
-                with open(os.path.join(frame_ofcfb, 'transportProperties'), 'w') as tpfile:
-                    tpfile.write(fvtpwrite())
+                with open(os.path.join(frame_ofcfb, 'physicalProperties'), 'w') as ppfile:
+                    ppfile.write(fvtpwrite())
 
         casenode.post_case()
         return {'FINISHED'}
@@ -3024,14 +3024,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 svp = scene.vi_params
 
                 if os.path.isfile(os.path.join(offb, 'ng.mesh')):
-                    print('mesh')
                     os.chdir(offb)
+
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                         nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
                     elif sys.platform in ('darwin', 'win32'):
                         nntf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
-                        # nntf_cmd = 'openfoam-docker / netgenNeutralToFoam -case ./{} ./{}'.format(frame, 'ng.mesh')
                         subprocess.Popen(nntf_cmd).wait()
 
                     logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
