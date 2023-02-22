@@ -20,12 +20,12 @@ import bpy, bmesh, os, mathutils
 from math import cos, sin, pi
 from mathutils import Vector
 from .vi_func import selobj
-from .vi_dicts import flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict
+from .vi_dicts import flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict, flovi_t_dict, flovi_a_dict, flovi_prgh_dict
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM:    The Open Source CFD Toolbox        |
-|  \\    /   O peration     | Version:     8                                  |
+|  \\    /   O peration     | Version:     10                                 |
 |   \\  /    A nd           | Web:         www.OpenFOAM.org                   |
 |    \\/     M anipulation  | Created by:  FloVi (part of the VI-Suite)       |
 \*---------------------------------------------------------------------------*/''' + '\n\n'
@@ -81,7 +81,7 @@ flovi_rad_bounds = {'bf': {'0': ('MarshakRadiation',), '1': ('MarshakRadiation',
 
 
 def ret_fvb_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1'):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
         #print(mat.name, flovi_p_dict[context.scene.vi_params['flparams']['scenario']].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']].keys()]
     else:
@@ -89,7 +89,7 @@ def ret_fvb_menu(mat, context):
 
 
 def ret_fvbp_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1'):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
         # print(mat.name, flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()]
         
@@ -98,7 +98,7 @@ def ret_fvbp_menu(mat, context):
 
 
 def ret_fvbu_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1'):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
         # print(mat.name, flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
     else:
@@ -106,7 +106,7 @@ def ret_fvbu_menu(mat, context):
 
 
 def ret_fvbnut_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1'):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
         # print(mat.name, flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
     else:
@@ -118,7 +118,7 @@ def ret_fvbnutilda_menu(mat, context):
 
 
 def ret_fvbk_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1'):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
         # print(mat.name, flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
     else:
@@ -126,7 +126,7 @@ def ret_fvbk_menu(mat, context):
 
 
 def ret_fvbepsilon_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1'):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
         # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
     else:
@@ -138,15 +138,27 @@ def ret_fvbomega_menu(mat, context):
 
 
 def ret_fvbt_menu(mat, context):
-    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
+        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+    else:
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvba_menu(mat, context):
-    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
+        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+    else:
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvbprgh_menu(mat, context):
-    return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] in ('0', '1', '2'):
+        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+    else:
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvrad_menu(mat, context):
@@ -490,8 +502,8 @@ def fvcdwrite(svp, node, dp):
     ps, ss, bs = [], [], []
     solver = svp['flparams']['solver']
     htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
-    cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '{}'.format(node.stime), 'stopAt': 'endTime',
-             'endTime': '{}'.format(node.etime), 'deltaT': '{:.5f}'.format(node.dtime), 'writeControl': 'timeStep', 'writeInterval': '10',
+    cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '0', 'stopAt': 'endTime',
+             'endTime': f'{node.etime}', 'deltaT': f'{node.dtime:.5f}', 'writeControl': 'timeStep', 'writeInterval': f'{node.w_int}',
              'purgeWrite': '{}'.format(0), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
              'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
 

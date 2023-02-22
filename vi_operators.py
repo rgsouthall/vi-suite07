@@ -2742,7 +2742,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                 svp['flparams']['params'] = 'ke'
 
             svp['flparams']['residuals'] = base_residuals + buoy_residuals + turb_residuals + rad_residuals
-            svp['flparams']['st'] = casenode.stime
+            svp['flparams']['st'] = 0
             svp['flparams']['presid'] = casenode.presid
             svp['flparams']['uresid'] = casenode.uresid
             svp['flparams']['keoresid'] = casenode.keoresid
@@ -3030,8 +3030,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
                     elif sys.platform in ('darwin', 'win32'):
-                        nntf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
-                        subprocess.Popen(nntf_cmd).wait()
+                        nntf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
+                        logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
+                        subprocess.Popen(nntf_cmd, shell=True).wait()
 
                     logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
 
@@ -3080,8 +3081,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -noFunctionObjects -noFields -overwrite {}'.format(frame, self.expnode.yang)),
                                                     stdout=PIPE, stderr=PIPE)
                         elif sys.platform in ('darwin', 'win32'):
-                            pdm_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -noFields -overwrite {}"'.format(frame_offb, self.expnode.yang)
-                            pdm = Popen(pdm_cmd, stdout=PIPE, stderr=PIPE)
+                            pdm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -noFields -overwrite {}"'.format(frame_offb, self.expnode.yang)
+                            pdm = Popen(pdm_cmd, shell=True, stdout=PIPE, stderr=PIPE)
 
                         for line in pdm.stdout:
                             if 'FOAM aborting' in line.decode():
@@ -3093,14 +3094,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                 cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, self.expnode.yang)
                                 Popen(shlex.split(cpf_cmd)).wait()
                             elif sys.platform in ('darwin', 'win32'):
-                                cpf_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
-                                Popen(cpf_cmd).wait()
+                                cpf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
+                                Popen(cpf_cmd, shell=True).wait()
 
                             if sys.platform == 'linux':
                                 cm = Popen(shlex.split('foamExec checkMesh -case ./{}'.format(frame)), stdout=PIPE)
                             elif sys.platform in ('darwin', 'win32'):
-                                cm_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "checkMesh -case data"'.format(frame_offb)
-                                cm = Popen(cm_cmd, stdout=PIPE)
+                                cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "checkMesh -case data"'.format(frame_offb)
+                                cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
                             for line in cm.stdout:
                                 if '***Error' in line.decode():
@@ -3217,7 +3218,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
-                    Popen('docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "foamExec reconstructPar -case data"'.format(frame_coffb)).wait()
+                    Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "foamExec reconstructPar -case data"'.format(frame_coffb), shell=True).wait()
 
             logentry('Cancelling FloVi simulation')
             return {'CANCELLED'}
@@ -3235,7 +3236,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
-                    Popen('docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "reconstructPar -case data"'.format(frame_coffb))
+                    Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "reconstructPar -case data"'.format(frame_coffb), shell=True)
 
             for oname in svp['flparams']['probes']:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
@@ -3305,7 +3306,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen('docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case data/{}"'.format(frame_coffb, oname))
+                    vf_run = Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case data/{}"'.format(frame_coffb, oname), shell=True)
 
                 # with open('{}'.format(os.path.join(frame_coffb, 'postProcessing', 'triSurfaceVolumetricFlowRate(name={}.stl)'.format(oname))) as vf_file:
                 #     for line in vf_file.readlines():
@@ -3410,20 +3411,20 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 pp_cmd = "foamExec postProcess -func writeCellCentres -case {}".format(frame_offb)
                 Popen(shlex.split(pp_cmd)).wait()
             elif sys.platform in ('darwin', 'win32'):
-                pp_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "postProcess -func writeCellCentres -case data"'.format(frame_offb)
-                Popen(shlex.split(pp_cmd)).wait()
+                pp_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func writeCellCentres -case data"'.format(frame_offb)
+                Popen(pp_cmd, shell=True).wait()
 
             if self.processes > 1:
                 with open(os.path.join(frame_offb, 'system', 'decomposeParDict'), 'w') as fvdcpfile:
                     fvdcpfile.write(fvdcpwrite(self.processes))
 
-                if sys.platform =='linux':
+                if sys.platform == 'linux':
                     dcp_cmd = "foamExec decomposePar -force -case {}".format(frame_offb)
                     Popen(shlex.split(dcp_cmd)).wait()
 
                 elif sys.platform in ('darwin', 'win32'):
-                    dcp_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "decomposePar -force -case data"'.format(frame_offb)
-                    Popen(dcp_cmd).wait()
+                    dcp_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "decomposePar -force -case data"'.format(frame_offb)
+                    Popen(dcp_cmd, shell=True).wait()
                 # print('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], frame_offb))
 
         with open(self.fpfile, 'w') as fvprogress:
@@ -3433,16 +3434,17 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                                                                                                                          svp['flparams']['solver'],
                                                                                                                          fframe_offb)), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
-                    self.runs.append(Popen('docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(fframe_offb, self.processes,
-                                                                                                                         svp['flparams']['solver']), stdout=fvprogress))
+                    self.runs.append(Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(fframe_offb, self.processes,
+                                                                                                                         svp['flparams']['solver']), shell=True, stdout=fvprogress))
             else:
-                if sys.platform =='linux':
+                if sys.platform == 'linux':
                     sol_cmd = '{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", fframe_offb)
                     self.runs.append(Popen(shlex.split(sol_cmd), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
                     # solver = 'buoyantBoussinesqSimpleFoam' if svp['flparams']['solver'] == 'bsf' else svp['flparams']['solver']
-                    sol_cmd = 'docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(fframe_offb, svp['flparams']['solver'])
-                    self.runs.append(Popen(sol_cmd, stdout=fvprogress))
+                    sol_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(fframe_offb, svp['flparams']['solver'])
+                    logentry('Running solver with command: {}'.format(sol_cmd))
+                    self.runs.append(Popen(sol_cmd, shell=True, stdout=fvprogress))
 
                 logentry('Running solver with command: {}'.format(sol_cmd))
 
