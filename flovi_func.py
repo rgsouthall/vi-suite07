@@ -221,7 +221,7 @@ def fvboundwrite(o):
 
 
 def write_bound(o, m, ns, nf):
-    b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Sky': 'symmetry', 'Solid': 'wall'}
+    b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Sky': 'symmetry', 'Solid': 'wall', '0': 'patch', '1': 'wall'}
     # t = ("patch", "wall", "symmetry", "empty")[int(m.vi_params.flovi_bmb_type)]
     t = b_dict[m.vi_params.flovi_bmb_type]
 
