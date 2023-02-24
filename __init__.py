@@ -471,7 +471,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     # LiVi object properties
     livi_merr: bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
     ies_name: bpy.props.StringProperty(name="", description="Name of the IES file", default="", subtype="FILE_PATH")
-    ies_strength: fprop("", "Strength of IES lamp", 0, 1, 1)
+    ies_strength: fprop("", "IES brightness multiplier", 0, 1, 1)
     ies_unit: eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
     ies_colmenu: eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
     ies_rgb: fvprop(3, "", 'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)

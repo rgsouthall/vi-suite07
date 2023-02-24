@@ -3368,6 +3368,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             self.simnode['reslists'] = self.reslists
             self.simnode.post_sim()
 
+            if svp['flparams']['solver'] == 'buoyantFoam':
+                if sys.platform == 'linux':
+                    Popen(shlex.split("foamExec postProcess -func comfort -case {}".format(frame_coffb)))
+
             if self.pv and sys.platform == 'linux':
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
 
