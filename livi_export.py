@@ -275,8 +275,9 @@ def radgexport(export_op, node):
                     dat_str = dat_file.read()
                     dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
 
-                    for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u'):
+                    for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u', f'-{frame}.s'):
                         dat_str = dat_str.replace(iesname+suf, f'"{iesname}{suf}"')
+
                     dat_str = dat_str.replace(f' {iesname}-{frame}.d', f' "{iesname}-{frame}.d"')
 
                 with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'w') as dat_file:
