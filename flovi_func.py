@@ -326,6 +326,7 @@ def fvmat(self, svp, mn, bound, frame):
         p0val = 'uniform {:.4f}'.format(self.flovi_prgh_p0) if not self.flovi_prgh_field else '$internalField'
         prghdict = {'0': self.flovi_prgh_subtype, '1': self.flovi_prgh_subtype, '2': 'symmetry', '3': 'empty'}
         prghtdict = {'totalPressure': 'totalPressure;\n    rho  rho;\n    gamma   1;\n    p0    uniform 0;\n    value    {}'.format(val),
+                     'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
                      'fixedFluxPressure': 'fixedFluxPressure;\n    value    {}'.format(val),
                      'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                      'prghEntrainmentPressure': 'prghEntrainmentPressure;\n    p0       $internalField'.format(p0val),
@@ -346,6 +347,7 @@ def fvmat(self, svp, mn, bound, frame):
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
+
         entry = ttdict[self.flovi_a_subtype]
 
     elif bound == 'e':
