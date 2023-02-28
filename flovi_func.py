@@ -83,7 +83,7 @@ flovi_rad_bounds = {'bf': {'0': ('MarshakRadiation',), '1': ('MarshakRadiation',
 def ret_fvb_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         #print(mat.name, flovi_p_dict[context.scene.vi_params['flparams']['scenario']].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']].keys()]
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']]]
     else:
         return [("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")]
 
@@ -91,7 +91,7 @@ def ret_fvb_menu(mat, context):
 def ret_fvbp_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()]
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
         
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
@@ -100,7 +100,7 @@ def ret_fvbp_menu(mat, context):
 def ret_fvbu_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -108,7 +108,7 @@ def ret_fvbu_menu(mat, context):
 def ret_fvbnut_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -120,7 +120,7 @@ def ret_fvbnutilda_menu(mat, context):
 def ret_fvbk_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -128,7 +128,7 @@ def ret_fvbk_menu(mat, context):
 def ret_fvbepsilon_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -140,7 +140,7 @@ def ret_fvbomega_menu(mat, context):
 def ret_fvbt_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -148,7 +148,7 @@ def ret_fvbt_menu(mat, context):
 def ret_fvba_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 
@@ -156,7 +156,7 @@ def ret_fvba_menu(mat, context):
 def ret_fvbprgh_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams']['scenario'] != '4':
         # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys()] 
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]] 
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
 

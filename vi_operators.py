@@ -3264,7 +3264,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.o_dict[str(frame_c)][oname][f] = float(resarray[1:][-1][-1])
 
                             for ri, r in enumerate(resarray[1:]):
-                                self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                                self.reslists.append([str(frame_c), 'Zone spatial', oname, resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
                         elif f in ('U'):
                             ts = []
@@ -3292,10 +3292,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.o_dict[str(frame_c)][oname]['Ux'] = ux_vals[-1]
                             self.o_dict[str(frame_c)][oname]['Uy'] = uy_vals[-1]
                             self.o_dict[str(frame_c)][oname]['Uz'] = uz_vals[-1]
-                            self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Speed', ' '.join(['{:5f}'.format(u) for u in u_vals])])
-                            self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'X velocity', ' '.join(['{:5f}'.format(u) for u in ux_vals])])
-                            self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Y velocity', ' '.join(['{:5f}'.format(u) for u in uy_vals])])
-                            self.reslists.append([str(frame_c), 'Zone spatial', svp['flparams']['probes'][ri], 'Z velocity', ' '.join(['{:5f}'.format(u) for u in uz_vals])])
+                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Speed', ' '.join(['{:5f}'.format(u) for u in u_vals])])
+                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'X velocity', ' '.join(['{:5f}'.format(u) for u in ux_vals])])
+                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Y velocity', ' '.join(['{:5f}'.format(u) for u in uy_vals])])
+                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Z velocity', ' '.join(['{:5f}'.format(u) for u in uz_vals])])
 
                     self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
                     self.simnode['frames'] = [f for f in self.frames]
@@ -3321,7 +3321,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 self.o_dict[str(frame_c)][oname] = {}
 
                 for line in vf_run.stdout.readlines()[::-1]:
-                    print('line', line.decode())
                     if "U =" in line.decode():
                         vf = line.decode().split()[-1]
                         vfs.append(vf)
@@ -3331,7 +3330,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         ti = line.decode().split()[-1].strip('s')
                         times.append(ti)
                         logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, ti, vf))
-                        #break
 
                 if vfs and times:
                     self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs])])
@@ -3372,8 +3370,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec postProcess -func comfort -case {}".format(frame_coffb)))
 
-            if self.pv and sys.platform == 'linux':
-                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
+            # if self.pv and sys.platform == 'linux':
+            #     Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
 
             return {'FINISHED'}
 
