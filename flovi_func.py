@@ -221,7 +221,9 @@ def fvboundwrite(o):
 
 
 def write_bound(o, m, ns, nf):
-    b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Inlet/outlet': 'patch', 'Sky': 'symmetry', 'Solid': 'wall', '0': 'patch', '1': 'wall'}
+    b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Inlet/outlet': 'patch', 'Sky': 'symmetry', 
+              'Solid': 'wall', '0': 'patch', '1': 'wall', 'Velocity in': 'patch', 'Pressure in': 'patch',
+              'Pressure out': 'patch', 'Velocity out': 'patch'}
     # t = ("patch", "wall", "symmetry", "empty")[int(m.vi_params.flovi_bmb_type)]
     t = b_dict[m.vi_params.flovi_bmb_type]
 
@@ -296,10 +298,11 @@ def fvmat(self, svp, mn, bound, frame):
         entry = ntdict[self.flovi_bmbnut_subtype]
     
     elif bound == 'k':
-        val = '{:.4f}'.format(self.flovi_k_val) if not self.flovi_k_field else '$internalField'
-        ival = '{:.4f}'.format(self.flovi_k_intensity) if not self.flovi_k_field else '$internalField'
+        val = 'uniform {:.4f}'.format(self.flovi_k_val) if not self.flovi_k_field else '$internalField'
+        ival = '{:.4f}'.format(self.flovi_k_intensity)
         kdict = {'0': self.flovi_k_subtype, '1': self.flovi_k_subtype, '2': 'symmetry', '3': 'empty'}
-        ktdict = {'fixedValue': 'fixedValue;\n    value    $internalField',
+        ktdict = {'zeroGradient': 'zeroGradient',
+                  'fixedValue': 'fixedValue;\n    value    $internalField',
                   'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField',
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField',
@@ -325,8 +328,9 @@ def fvmat(self, svp, mn, bound, frame):
         val = 'uniform {:.4f}'.format(self.flovi_prgh_val) if not self.flovi_prgh_field else '$internalField'
         p0val = 'uniform {:.4f}'.format(self.flovi_prgh_p0) if not self.flovi_prgh_field else '$internalField'
         prghdict = {'0': self.flovi_prgh_subtype, '1': self.flovi_prgh_subtype, '2': 'symmetry', '3': 'empty'}
-        prghtdict = {'totalPressure': 'totalPressure;\n    rho  rho;\n    gamma   1;\n    p0    uniform 0;\n    value    {}'.format(val),
-                     'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+        prghtdict = {'zeroGradient': 'zeroGradient',
+                     'totalPressure': 'totalPressure;\n    rho  rho;\n    gamma   1;\n    p0    uniform 0;\n    value    {}'.format(val),
+                     'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
                      'fixedFluxPressure': 'fixedFluxPressure;\n    value    {}'.format(val),
                      'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                      'prghEntrainmentPressure': 'prghEntrainmentPressure;\n    p0       $internalField'.format(p0val),
@@ -352,13 +356,14 @@ def fvmat(self, svp, mn, bound, frame):
 
     elif bound == 'e':
         edict = {'0': self.flovi_bmbe_subtype, '1': self.flovi_bmbe_subtype, '2': 'symmetry', '3': 'empty'}
-        etdict = {'symmetry': 'symmetry',
+        etdict = {'zeroGradient': 'zeroGradient',
+                  'symmetry': 'symmetry',
                   'empty': 'empty',
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
                   'fixedValue': 'fixedValue;\n    value    $internalField',
                   'epsilonWallFunction': 'epsilonWallFunction;\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField',
-                  'turbulentMixingLengthDissipationRateInlet': 'turbulentMixingLengthDissipationRateInlet;\n    mixingLength  0.0168\n    value    $internalField'}
+                  'turbulentMixingLengthDissipationRateInlet': 'turbulentMixingLengthDissipationRateInlet;\n    mixingLength  0.0168;\n    value    $internalField'}
         # entry = etdict[edict[self.flovi_bmb_type]]
         entry = etdict[self.flovi_bmbe_subtype]
 
@@ -510,7 +515,9 @@ def fvcdwrite(svp, node, dp):
              'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
 
     if node.comfort:
-        cdict['functions']['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo:.1f}', 'metabolicRate': f'{node.met:.1f}', 'relHumidity': f'{node.rh:.1f}', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
+        cdict['functions']['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo:.1f}', 
+                                         'metabolicRate': f'{node.met:.1f}', 'relHumidity': f'{node.rh * 0.01:.1f}', 'meanVelocity': '1',
+                                         'writeControl': 'writeTime', 'executeControl': 'writeTime'}
     if node.age:
         cdict['functions']['age'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'age', 'diffusion': 'on', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
 

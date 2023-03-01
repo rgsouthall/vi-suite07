@@ -644,7 +644,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 
     flovi_k_subtype: EnumProperty(items = ret_fvbk_menu, name = "", description = "FloVi sub-type boundary")
     flovi_k_val: fprop("", "k value", -1000, 1000, 0.0)
-    flovi_k_intensity: fprop("", "k value", -1000, 1000, 0.0)
+    flovi_k_intensity: fprop("", "k value", -1000, 1000, 0.14)
     flovi_k_field: bprop("", "Take boundary k from the field k", False)
 
     flovi_bmbe_subtype: EnumProperty(items = ret_fvbepsilon_menu, name = "", description = "FloVi sub-type boundary")

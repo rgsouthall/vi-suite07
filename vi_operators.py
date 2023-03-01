@@ -3089,23 +3089,27 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                 logentry('polyDualMesh error. Check the mesh in Netgen')
                                 pdm_error = 1
 
-                        if not pdm_error:
-                            if sys.platform == 'linux':
-                                cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, self.expnode.yang)
-                                Popen(shlex.split(cpf_cmd)).wait()
-                            elif sys.platform in ('darwin', 'win32'):
-                                cpf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
-                                Popen(cpf_cmd, shell=True).wait()
+                    if not pdm_error:
+                        if sys.platform == 'linux':
+                            cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, self.expnode.yang)
+                            Popen(shlex.split(cpf_cmd)).wait()
+                        elif sys.platform in ('darwin', 'win32'):
+                            cpf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, self.expnode.yang)
+                            Popen(cpf_cmd, shell=True).wait()
 
-                            if sys.platform == 'linux':
-                                cm = Popen(shlex.split('foamExec checkMesh -case ./{}'.format(frame)), stdout=PIPE)
-                            elif sys.platform in ('darwin', 'win32'):
-                                cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "checkMesh -case data"'.format(frame_offb)
-                                cm = Popen(cm_cmd, shell=True, stdout=PIPE)
+                        if sys.platform == 'linux':
+                            cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
+                        elif sys.platform in ('darwin', 'win32'):
+                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "checkMesh -case data"'.format(frame_offb)
+                            cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
-                            for line in cm.stdout:
-                                if '***Error' in line.decode():
-                                    logentry('Mesh errors:{}'.format(line.decode()))
+                        for line in cm.stdout:
+                            if '***Error' in line.decode():
+                                logentry('Mesh errors:{}'.format(line.decode()))
+                            elif '*Number' in line.decode() and sys.platform == 'linux':
+                                Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
+                            else:
+                                print(line.decode())
 
                         for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                             if entry.is_file():
@@ -3366,12 +3370,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             self.simnode['reslists'] = self.reslists
             self.simnode.post_sim()
 
-            if svp['flparams']['solver'] == 'buoyantFoam':
-                if sys.platform == 'linux':
-                    Popen(shlex.split("foamExec postProcess -func comfort -case {}".format(frame_coffb)))
+            # if svp['flparams']['solver'] == 'buoyantFoam':
+            #     if sys.platform == 'linux':
+            #         Popen(shlex.split("foamExec postProcess -func comfort -case {}".format(frame_coffb)))
 
-            # if self.pv and sys.platform == 'linux':
-            #     Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
+            if self.pv and sys.platform == 'linux':
+                Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
 
             return {'FINISHED'}
 

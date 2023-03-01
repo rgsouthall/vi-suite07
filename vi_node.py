@@ -3930,11 +3930,11 @@ class No_Flo_Case(Node, ViNodes):
     sun: StringProperty(name="", description="Sun for solar radiation analysis", default="", update=nodeupdate)
     # buossinesq: BoolProperty(name='', description='Buossinesq approximation', default=0, update=nodeupdate)
     # stime: FloatProperty(name='', description='Simulation start time', min=0, max=10, default=0)
-    dtime: FloatProperty(name='', description='False time step', min=0.001, max=10, default=0.005, precision=4, update=nodeupdate)
+    dtime: FloatProperty(name='', description='False time step', min=0.001, max=10, default=0.5, precision=4, update=nodeupdate)
     etime: FloatProperty(name='', description='Simulation end time', min=1, default=5, update=nodeupdate)
     w_step: EnumProperty(items=[('0', 'None', 'No reference pressure'), ('1', 'Relative', 'Relative reference pressure'), ('2', 'Absolute', 'Absolute reference pressure')],
                         name='', description='Write step', default=0, update=nodeupdate)
-    w_int: IntProperty(name="", description="Write interval in time steps", min=1, max=1000, default=10, update=nodeupdate)
+    w_int: IntProperty(name="", description="Write interval in time steps", min=1, default=10, update=nodeupdate)
     pval: FloatProperty(name="", description="Field pressure (relative)", min=-500, max=500, default=0.0, update=nodeupdate)
     pnormval: FloatProperty(name="", description="Field pressure (normalised)", min=-500, max=500, default=0.0, update=nodeupdate)
     pabsval: IntProperty(name="", description="Field pressure (absolute)", min=0, max=10000000, default=100000, update=nodeupdate)
