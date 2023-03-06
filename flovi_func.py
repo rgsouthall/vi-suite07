@@ -224,7 +224,6 @@ def write_bound(o, m, ns, nf):
     b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Inlet/outlet': 'patch', 'Sky': 'symmetry', 
               'Solid': 'wall', '0': 'patch', '1': 'wall', 'Velocity in': 'patch', 'Pressure in': 'patch',
               'Pressure out': 'patch', 'Velocity out': 'patch'}
-    # t = ("patch", "wall", "symmetry", "empty")[int(m.vi_params.flovi_bmb_type)]
     t = b_dict[m.vi_params.flovi_bmb_type]
 
     return '''   {0}_{1}

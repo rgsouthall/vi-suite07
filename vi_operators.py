@@ -2315,15 +2315,15 @@ class NODE_OT_EC(bpy.types.Operator):
             reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
 
             for o in obs:
-                reslists.append(['All', 'Embodied carbon', o.name, 'Total volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Volume (m3)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/y)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'EC (kgCO2e/m2/y)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'Object volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object volume (m3)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e/y)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e/m2)'])])
+                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e/m2/y)'])])
 
-            reslists.append(['All', 'Embodied carbon', 'All', 'EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'EC (kgCO2e/y)'])])
-            reslists.append(['All', 'Embodied carbon', 'All', 'EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'EC (kgCO2e)'])])
-            reslists.append(['All', 'Embodied carbon', 'All', 'EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'EC (kgCO2e/m2/y)'])])
+            reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e/y)'])])
+            reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e)'])])
+            reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e/m2/y)'])])
 
         node['reslists'] = reslists
         node.postsim()
@@ -2353,7 +2353,6 @@ class OBJECT_OT_Embod(bpy.types.Operator):
 
         if all([e.is_manifold for e in bm.edges]):
             envi_ec = envi_embodied()
-
             vol = bm.calc_volume()
             ovp['ecdict'] = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
             ovp['ecdict']['ec'] = float(ovp['ecdict']['eckg']) * float(ovp['ecdict']['density']) * vol
@@ -2366,36 +2365,36 @@ class OBJECT_OT_Embod(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class NODE_OT_Chart_new(bpy.types.Operator, ExportHelper):
-    bl_idname = "node.chart_new"
-    bl_label = "Chart"
-    bl_description = "Create a 2D graph from the results file"
-    bl_register = True
-    bl_undo = True
+# class NODE_OT_Chart_new(bpy.types.Operator, ExportHelper):
+#     bl_idname = "node.chart_new"
+#     bl_label = "Chart"
+#     bl_description = "Create a 2D graph from the results file"
+#     bl_register = True
+#     bl_undo = True
 
-    def invoke(self, context, event):
-        node = context.node
-        innode = node.inputs['Results in'].links[0].from_node
-        rl = innode['reslists']
-        zrl = list(zip(*rl))
-        year = context.scene.vi_params.year
+#     def invoke(self, context, event):
+#         node = context.node
+#         innode = node.inputs['Results in'].links[0].from_node
+#         rl = innode['reslists']
+#         zrl = list(zip(*rl))
+#         year = context.scene.vi_params.year
 
-        # try:
-        #     node.inputs['X-axis'].framemenu
-        # except Exception as e:
-        #     if node.inputs['X-axis'].framemenu not in zrl[0]:
-        #         self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
-        #         return {'CANCELLED'}
+#         # try:
+#         #     node.inputs['X-axis'].framemenu
+#         # except Exception as e:
+#         #     if node.inputs['X-axis'].framemenu not in zrl[0]:
+#         #         self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
+#         #         return {'CANCELLED'}
 
-        if not mp:
-            self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
-            return {'CANCELLED'}
+#         if not mp:
+#             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
+#             return {'CANCELLED'}
 
-        plt.clf()
-        Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
-        Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
-        chart_disp(self, plt, node, innodes, Sdate, Edate)
-        return {'FINISHED'}
+#         plt.clf()
+#         Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
+#         Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
+#         chart_disp(self, plt, node, innodes, Sdate, Edate)
+#         return {'FINISHED'}
 
 class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
     bl_idname = "node.chart"
@@ -2439,17 +2438,11 @@ class NODE_OT_HMChart(bpy.types.Operator, ExportHelper):
     def invoke(self, context, event):
         node = context.node
         node.nodeupdate(context)
-        # innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
-        # rl = innodes[0]['reslists']
-        # zrl = list(zip(*rl))
-        # year = context.scene.vi_params.year
 
         if not mp:
             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
 
-        # Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)
-        # Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)for x in range(20):
         hmchart_disp(self, plt, node, context.scene.vi_params.vi_leg_col)
         return {'FINISHED'}
 
@@ -2463,17 +2456,11 @@ class NODE_OT_ECPie(bpy.types.Operator, ExportHelper):
 
     def invoke(self, context, event):
         node = context.node
-        # innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
-        # rl = innodes[0]['reslists']
-        # zrl = list(zip(*rl))
-        # year = context.scene.vi_params.year
 
         if not mp:
             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
 
-        # Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)
-        # Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)for x in range(20):
         ec_pie(self, plt, node)
         return {'FINISHED'}
 
@@ -2486,7 +2473,6 @@ class NODE_OT_MInfo(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        # metnode = context.node
         svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
     <svg width="300" height="300" viewBox="0 0 300 300" id="smile" version="1.1">
         <path
@@ -2563,12 +2549,15 @@ class TREE_OT_goto_mat(bpy.types.Operator):
 
         for obj in context.view_layer.objects:
             obj_materials = [slot.material for slot in obj.material_slots]
+
             if mat in obj_materials:
                 objs_with_mat += 1
                 obj.select_set(True)
-                if not active_set:  # set first object as active
+
+                if not active_set:  
                     active_set = True
                     context.view_layer.objects.active = obj
+
                     if mat != obj.active_material:
                         for i, x in enumerate(obj.material_slots):
                             if x.material == mat:
@@ -2592,7 +2581,7 @@ class TREE_OT_goto_group(bpy.types.Operator):
     tree: bpy.props.StringProperty(default="")
 
     def execute(self, context):
-        try:  # Go up one group as many times as possible - error will occur when the top level is reached
+        try:
             while True:
                 bpy.ops.node.tree_path_parent()
         except:
@@ -3017,7 +3006,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 offb = svp['flparams']['offilebase']
                 frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
                 frame_ofcfb = os.path.join(frame_offb, 'constant')
-                # frame_ofsfb = os.path.join(frame_offb, 'system')
                 st = '0'
                 pdm_error = 0
                 scene = context.scene
