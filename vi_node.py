@@ -23,7 +23,7 @@ from collections import OrderedDict
 from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, StringProperty, FloatVectorProperty
 from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
-from subprocess import Popen
+from subprocess import Popen, PIPE
 from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
 from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
 from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu, ret_datab, epentry
@@ -36,7 +36,6 @@ from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 import matplotlib
 matplotlib.use('qt5agg', force=True)
-# import matplotlib.pyplot as plt
 cur_dir = os.getcwd()
 
 try:
@@ -50,6 +49,31 @@ try:
 except Exception as e:
     print('Problem with Netgen installation: {}'.format(e))
     ng = 0
+
+ofoam = 0
+
+if sys.platform in ('darwin', 'win32'):
+    dck_run = Popen('docker images --quiet', shell=True, stdout=PIPE)
+    
+    for line in dck_run.stdout.readlines():
+        if 'dce34e9a03e1' in line.decode():
+            ofoam = 1
+
+elif sys.platform == 'linux':
+    addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+    vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
+
+    if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
+        ofoam = 1
+
+#     import netgen
+#     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+#     from netgen.stl import STLGeometry
+#     from pyngcore import SetNumThreads, TaskManager
+#     ng = 1
+# except Exception as e:
+#     print('Problem with Netgen installation: {}'.format(e))
+#     ng = 0
 
 os.chdir(cur_dir)
 envi_mats = envi_materials()
@@ -4096,37 +4120,41 @@ class No_Flo_NG(Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
-        vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
 
-        if os.path.isdir(vi_prefs.ofbin) or sys.platform in ('darwin', 'win32'):
-            if self.inputs and self.inputs['Case in'].links:
-                if ng:
-                    # newrow(layout, 'Join geometries:', self, 'geo_join')
-                    # if self.geo_join:
-                    #     newrow(layout, 'Domain extraction:', self, 'd_diff')
-                    newrow(layout, 'Cell size:', self, 'maxcs')
-                    newrow(layout, 'Position corr:', self, 'pcorr')
-                    newrow(layout, 'Angular corr:', self, 'acorr')
-                    newrow(layout, 'Distinction angle:', self, 'yang')
-                    newrow(layout, 'Inflation:', self, 'grading')
-                    newrow(layout, 'Optimisations:', self, 'optimisations')
-                    newrow(layout, 'Attempts:', self, 'maxsteps')
-                    newrow(layout, 'Polygonal:', self, 'poly')
+        if self.inputs and self.inputs['Case in'].links:
+            if ng and ofoam:
+                # newrow(layout, 'Join geometries:', self, 'geo_join')
+                # if self.geo_join:
+                #     newrow(layout, 'Domain extraction:', self, 'd_diff')
+                newrow(layout, 'Cell size:', self, 'maxcs')
+                newrow(layout, 'Position corr:', self, 'pcorr')
+                newrow(layout, 'Angular corr:', self, 'acorr')
+                newrow(layout, 'Distinction angle:', self, 'yang')
+                newrow(layout, 'Inflation:', self, 'grading')
+                newrow(layout, 'Optimisations:', self, 'optimisations')
+                newrow(layout, 'Attempts:', self, 'maxsteps')
+                newrow(layout, 'Polygonal:', self, 'poly')
 
-                    if not self.running:
-                        row = layout.row()
-                        row.operator("node.flovi_ng", text = "Generate")
+                if not self.running:
+                    row = layout.row()
+                    row.operator("node.flovi_ng", text="Generate")
+            
+            elif not ng:
+                row = layout.row()
+                row.label(text = 'Netgen not found')
+            
+            elif not ofoam:
+                if sys.platform == 'linux':
+                    row = layout.row()
+                    row.label(text='No OpenFOAM directory set')
                 else:
                     row = layout.row()
-                    row.label(text = 'Netgen not found')
-        else:
-            row = layout.row()
-            row.label(text = 'No OpenFOAM directory set')
+                    row.label(text='No docker container running')
 
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+        
         self.running = 0
 
     def post_export(self):
