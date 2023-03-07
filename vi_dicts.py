@@ -166,6 +166,7 @@ flovi_p_dict = {'0': {'Outlet': ('totalPressure', 'fixedValue'),
 
 flovi_u_dict = {'0': {'Outlet': ('pressureInletOutletVelocity', ),
                       'Inlet': ('fixedValue', 'atmBoundaryLayerInletVelocity'),
+                      'Solid': ('noSlip', ),
                       'Sky': ('symmetry', )},
                 '1': {'Inlet': ('fixedValue', ), 
 					  'Outlet': ('pressureInletOutletVelocity', ), 

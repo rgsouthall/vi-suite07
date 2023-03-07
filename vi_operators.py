@@ -50,7 +50,6 @@ try:
     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep
     from netgen.stl import STLGeometry
     from pyngcore import SetNumThreads, TaskManager
-
 except Exception as e:
     print(e)
 
