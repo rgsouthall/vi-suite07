@@ -1414,7 +1414,7 @@ class draw_legend(Base_Display):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
         self.base_unit = unit
         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
-        self.dpi = 96
+        self.dpi = 72
         self.levels = levels
         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
         self.f_indices = [(0, 1, 2), (2, 3, 0)]
@@ -1521,9 +1521,9 @@ class draw_legend(Base_Display):
 
             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.5), self.mydimen * 1.15/(self.lh * self.ydiff))
             blf.enable(0, 8)
-            blf.enable(self.font_id, blf.SHADOW)
-            blf.shadow(self.font_id, 0, 0.2, 0.2, 0.2, 1)
-            blf.shadow_offset(self.font_id, 0, 0)
+            #blf.enable(self.font_id, blf.SHADOW)
+            #blf.shadow(self.font_id, 0, 0.2, 0.2, 0.2, 1)
+            #blf.shadow_offset(self.font_id, 1, 1)
             blf.size(self.font_id, int(12/fontscale), self.dpi)
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
                          self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.5, 0)
@@ -1539,7 +1539,7 @@ class draw_legend(Base_Display):
                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + (i + 0.25) * self.lh * self.ydiff - ndimen[1]*0.5), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
 
-            blf.disable(self.font_id, blf.SHADOW)
+            #blf.disable(self.font_id, blf.SHADOW)
             blf.disable(0, 8)
 
     def create_batch(self):
