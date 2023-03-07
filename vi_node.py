@@ -54,17 +54,18 @@ ofoam = 0
 
 if sys.platform in ('darwin', 'win32'):
     dck_run = Popen('docker images --quiet', shell=True, stdout=PIPE)
-    
+
     for line in dck_run.stdout.readlines():
         if 'dce34e9a03e1' in line.decode():
             ofoam = 1
 
-elif sys.platform == 'linux':
-    addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
-    vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
+# elif sys.platform == 'linux':
+#     addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+#     vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
+#     print('prefs', addonfolder, bpy.context.preferences.addons['{}'.format(addonfolder)], vi_prefs)
 
-    if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
-        ofoam = 1
+#     if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
+#         ofoam = 1
 
 #     import netgen
 #     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
@@ -4120,6 +4121,12 @@ class No_Flo_NG(Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
+        if sys.platform == 'linux':
+            addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+            vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
+
+            if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
+                ofoam = 1
 
         if self.inputs and self.inputs['Case in'].links:
             if ng and ofoam:
@@ -4138,11 +4145,11 @@ class No_Flo_NG(Node, ViNodes):
                 if not self.running:
                     row = layout.row()
                     row.operator("node.flovi_ng", text="Generate")
-            
+
             elif not ng:
                 row = layout.row()
                 row.label(text = 'Netgen not found')
-            
+
             elif not ofoam:
                 if sys.platform == 'linux':
                     row = layout.row()
@@ -4154,7 +4161,7 @@ class No_Flo_NG(Node, ViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
-        
+
         self.running = 0
 
     def post_export(self):
