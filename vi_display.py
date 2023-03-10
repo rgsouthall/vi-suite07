@@ -3226,7 +3226,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             printer.setPageSize(QPagedPaintDevice.A4)
             printer.setPageSizeMM(QSizeF(dim[0]*0.2, dim[1]*0.2))
             printer.setPageMargins(QMarginsF(0, 0, 0, 0))
-            printer.setResolution(72)
+            printer.setResolution(300)
             painter = QPainter(printer)
             qtsvg.render(painter)
             painter.end()
@@ -3262,7 +3262,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
                 im.scale(ipwidth, ipheight)
 
         im.pixels.foreach_set((arr/255))
-        im.scale(int(dim[0]/2), int(dim[1]/2))
+        im.scale(int(dim[0]), int(dim[1]))
         area = context.area
         t = area.type
         area.type = 'IMAGE_EDITOR'

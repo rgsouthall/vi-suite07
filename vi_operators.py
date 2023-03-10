@@ -1206,6 +1206,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         scontext = self.simnode['coptions']['Context']
         subcontext = self.simnode['coptions']['Type']
         patches = self.simnode['coptions']['cbdm_res']
+        rh = (146, 578, 0, 2306).index(patches) + 1
         svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
 
         if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -1279,9 +1280,9 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame))
             else:
                 if self.simnode.pmap:
-                    rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
+                    rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
                 else:
-                    rccmds.append('rcontrib -w  -h -I -fo -bn {} {} -n {} -f tregenza.cal -b tbin -m sky_glow "{}-{}.oct"'.format(patches, self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame))
+                    rccmds.append('rcontrib -w  -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp['viparams']['filebase'], frame))
 
         try:
             tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']

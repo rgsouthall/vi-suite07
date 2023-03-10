@@ -16,10 +16,10 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bmesh, os, datetime, shlex, sys, math, pickle
+import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate
+from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
@@ -270,7 +270,9 @@ def cbdmmtx(self, scene, locnode, export_op):
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
             oconvcmd = "oconv -w -"
             Popen(shlex.split(oconvcmd), stdin=PIPE, stdout=wsfile).communicate(input=self['whitesky'].encode(sys.getfilesystemencoding()))
+        
         return ("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), "{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])))
+    
     else:
         export_op.report({'ERROR'}, "Not a valid EPW file")
         return ('', '')
@@ -278,43 +280,59 @@ def cbdmmtx(self, scene, locnode, export_op):
 
 def cbdmhdr(node, scene):
     patches = (146, 578, 2306)[node.cbdm_res - 1]
+    cbdm_res = (146, 578, 0, 2306).index(patches) + 1
     svp = scene.vi_params
-    targethdr = os.path.join(svp['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
-    latlonghdr = os.path.join(svp['viparams']['newdir'], node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))
+    svpnd = svp['viparams']['newdir']
+    targethdr = os.path.join(svpnd, node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
+    temphdr = os.path.join(svpnd, "temp.hdr")
+    latlonghdr = os.path.join(svpnd, node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))
     skyentry = hdrsky(node.hdrname, '1', 0, 1000) if node.sourcemenu == '1' and node.cbanalysismenu == '0' else hdrsky(targethdr, '1', 0, 1000)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
-        pcombfiles = ''.join(["{} ".format(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(patches)])
+        pcombfiles = ''.join(["{} ".format(os.path.join(svpnd, 'ps{}.hdr'.format(i))) for i in range(patches)])
         vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
-        rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f reinhart{}.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'],
-                                                                                                                                                                 node.cbdm_res,
-                                                                                                                                                                 os.path.join(svp['viparams']['newdir'], 'p%d.hdr'),
-                                                                                                                                                                 os.path.join(svp['viparams']['newdir'],
+        rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -e MF:{} -f reinhart.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'],
+                                                                                                                                                                 cbdm_res,
+                                                                                                                                                                 os.path.join(svpnd, 'p%d.hdr'),
+                                                                                                                                                                 os.path.join(svpnd,
                                                                                                                                                                  svp['viparams']['filename']))
 
         vwrun = Popen(shlex.split(vwcmd), stdout=PIPE)
         rcrun = Popen(shlex.split(rcontribcmd), stderr=PIPE, stdin=vwrun.stdout)
-
+        rcrun.wait()
+        
         for line in rcrun.stderr:
             logentry('HDR generation error: {}'.format(line))
 
         for j in range(patches):
-            with open(os.path.join(svp['viparams']['newdir'], "ps{}.hdr".format(j)), 'w') as psfile:
-                Popen(shlex.split('pcomb -s {} "{}"'.format(vals[j], os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(j)))), stdout=psfile).wait()
-
-        with open(targethdr, 'w') as epwhdr:
-            if sys.platform == 'win32':
-                Popen("pcomb -h {}".format(pcombfiles), stdout=epwhdr).wait()
+            with open(os.path.join(svpnd, "ps{}.hdr".format(j)), 'w') as psfile:
+                Popen(shlex.split('pcomb -h -s {} "{}"'.format(vals[j], os.path.join(svpnd, 'p{}.hdr'.format(j)))), stdout=psfile).wait()
+            
+            if not j:
+                shutil.copyfile(os.path.join(svpnd, 'ps0.hdr'), os.path.join(svpnd, 'temp.hdr'))
             else:
-                Popen(shlex.split('pcomb -h {}'.format(pcombfiles)), stdout=epwhdr).wait()
+                with open(os.path.join(svpnd, "running.hdr"), 'w') as runhdr:
+                    Popen(shlex.split('pcomb -h "{}" "{}"'.format(os.path.join(svpnd, 'temp.hdr'), os.path.join(svpnd, 'ps{}.hdr'.format(j)))), stdout=runhdr).wait()
+                
+                shutil.copyfile(os.path.join(svpnd, 'running.hdr'), os.path.join(svpnd, 'temp.hdr'))
+        
+        shutil.copyfile(os.path.join(svpnd, 'temp.hdr'), targethdr)
+        os.remove(os.path.join(svpnd, 'temp.hdr'))
+        os.remove(os.path.join(svpnd, 'running.hdr'))
 
-        [os.remove(os.path.join(svp['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range(patches)]
-        [os.remove(os.path.join(svp['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(patches)]
+        # with open(targethdr, 'w') as epwhdr:
+        #     if sys.platform == 'win32':
+        #         Popen("pcomb -h {}".format(pcombfiles), stdout=epwhdr).wait()
+        #     else:
+        #         Popen(shlex.split('pcomb -h {}'.format(pcombfiles)), stdout=epwhdr).wait()
+
+        [os.remove(os.path.join(svpnd, 'p{}.hdr'.format(i))) for i in range(patches)]
+        [os.remove(os.path.join(svpnd, 'ps{}.hdr'.format(i))) for i in range(patches)]
         node.hdrname = targethdr
 
         if node.hdr:
-            with open('{}.oct'.format(os.path.join(svp['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
+            with open('{}.oct'.format(os.path.join(svpnd, node['epwbase'][0])), 'w') as hdroct:
                 Popen(shlex.split('oconv -w - '), stdin=PIPE, stdout=hdroct, stderr=STDOUT).communicate(input=skyentry.encode(sys.getfilesystemencoding()))
 
             cntrun = Popen('cnt 750 1500'.split(), stdout=PIPE)
@@ -323,7 +341,7 @@ def cbdmhdr(node, scene):
             rcalcrun = Popen(shlex.split(rccmd), stdin=cntrun.stdout, stdout=PIPE)
 
             with open(latlonghdr, 'w') as panohdr:
-                rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}.oct"'.format(svp['viparams']['nproc'], os.path.join(svp['viparams']['newdir'], node['epwbase'][0]))
+                rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac "{}.oct"'.format(svp['viparams']['nproc'], os.path.join(svpnd, node['epwbase'][0]))
                 logentry('Running rtrace: {}'.format(rtcmd))
                 Popen(shlex.split(rtcmd), stdin=rcalcrun.stdout, stdout=panohdr)
 
@@ -843,10 +861,12 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     cbdm_days = list(set([t.timetuple().tm_yday for t in times]))
     cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'] + 1)]
     dno, hno = len(cbdm_days), len(cbdm_hours)
+    sdah = 10 if simnode['coptions']['ay'] else hno
     (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax'])
     vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     vecvalsns = array([vv[2:] for vv in vecvalsns if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     hours = vecvals.shape[0]
+    hour_array = array([t.hour for t in times])
     restypes = ('da', 'sda', 'sv', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firradh', 'firradhm2', 'maxlux', 'minlux', 'avelux')
     self['livires']['cbdm_days'] = cbdm_days
     self['livires']['cbdm_hours'] = cbdm_hours
@@ -873,7 +893,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         totarea = sum(areas)
 
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
-            sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+            sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
             sensarray = nsum(resarray*illumod, axis = 2).astype(float32)
@@ -910,14 +930,15 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 finalilluns = inner(illuarrayns, vecvalsns).astype(float32)
                 sensrunpa = Popen(shlex.split(rccmds[f][:36]+ '1' + rccmds[f][37:]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarraypa = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunpa[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
-                sdabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
+                dabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
                 asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)
-                dabool = choose(finalillu >= simnode['coptions']['dalux'], [0, 1]).astype(int8)
                 udilbool = choose(finalillu < simnode['coptions']['damin'], [0, 1]).astype(int8)
                 udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
                 udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
                 udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)
                 svbool = choose(nsum(nsum(resarraypa, axis = 1), axis = 1) > 0, [0, 1]).astype(int8)
+                sdafinalillu = finalillu[:, logical_and(8 <= hour_array, hour_array < 18)] if simnode['coptions']['ay'] else finalillu
+                sdabool = choose(sdafinalillu >= 300, [0, 1]).astype(int8)
                 daareares = (dabool.T*chareas).T
                 udilareares = (udilbool.T*chareas).T
                 udisareares = (udisbool.T*chareas).T
@@ -926,13 +947,13 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 aseareares = (asebool.T*chareas).T
                 sdaareares = (sdabool.T*chareas).T
                 sdaarearespa = (sdabool.T*chareas*svbool).T
-                dares = dabool.sum(axis = 1)*100/hours
-                udilow = udilbool.sum(axis = 1)*100/hours
-                udisup = udisbool.sum(axis = 1)*100/hours
-                udiauto = udiabool.sum(axis = 1)*100/hours
-                udihi = udihbool.sum(axis = 1)*100/hours
-                sdares = sdabool.sum(axis = 1)*100/hours
-                aseres = asebool.sum(axis = 1)*1.0
+                dares = dabool.sum(axis=1)*100/hours
+                udilow = udilbool.sum(axis=1)*100/hours
+                udisup = udisbool.sum(axis=1)*100/hours
+                udiauto = udiabool.sum(axis=1)*100/hours
+                udihi = udihbool.sum(axis=1)*100/hours
+                sdares = sdabool.sum(axis=1)*100/(dno * sdah)
+                aseres = asebool.sum(axis=1)*1.0
 
                 if not ch:
                     totfinalillu = finalillu
@@ -945,7 +966,6 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     totsdaareapa = nsum(sdaarearespa, axis = 0)
                     totasearea = nsum(aseareares, axis = 0)
                     svarea = nsum(chareas * svbool)
-#                    print(svarea)
                 else:
                     nappend(totfinalillu, finalillu)
                     totdaarea += nsum(100 * daareares/totarea, axis = 0)
@@ -1034,11 +1054,11 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['sv{}'.format(frame)] = max(svres)
             self['omin']['sv{}'.format(frame)] = min(svres)
             self['oave']['sv{}'.format(frame)] = nmean(svres)
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([str(p) for p in totdaarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-a Area (%)', ' '.join([str(p) for p in totudiaarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([str(p) for p in totudisarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([str(p) for p in totudilarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([str(p) for p in totudiharea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([f'{p:.2f}' for p in totdaarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-a Area (%)', ' '.join([f'{p:.2f}' for p in totudiaarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([f'{p:.2f}' for p in totudisarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([f'{p:.2f}' for p in totudilarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([f'{p:.2f}' for p in totudiharea])])
             overallsdaareapa = sum([g.calc_area() for g in geom if g[rt] and g[ressv] == 1.0]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[ressv]])
             overallsdaarea = totarea
             self['omax']['sda{}'.format(frame)] = max(sdas)
@@ -1048,17 +1068,17 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omin']['ase{}'.format(frame)] = min(ases)
             self['oave']['ase{}'.format(frame)] = sum(ases)/reslen
             self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose().tolist()
-            self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, hno).transpose().tolist()
-            self['livires']['sdaareapa{}'.format(frame)] = (100 * totsdaareapa/svarea).reshape(dno, hno).transpose().tolist()
+            self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, sdah).transpose().tolist()
+            self['livires']['sdaareapa{}'.format(frame)] = (100 * totsdaareapa/svarea).reshape(dno, sdah).transpose().tolist()
             self['livires']['totarea{}'.format(frame)] = totarea
             self['livires']['svarea{}'.format(frame)] = svarea
             self['livires']['ase{}'.format(frame)] = sum(areas[array(ases) > 250])/totarea
             sumsdaareas = sum(areas[array(sdas) >= 50])
             self['livires']['sda{}'.format(frame)] = sumsdaareas/totarea
             self['livires']['sdapa{}'.format(frame)] = sumsdaareas/svarea
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/totarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([str(p) for p in 100 * totsdaareapa/svarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join(['{:.2f}'.format(p) for p in 100 * totasearea/totarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaarea/totarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaareapa/svarea])])
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join([f'{p:.2f}' for p in 100 * totasearea/totarea])])
 
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)

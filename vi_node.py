@@ -414,8 +414,7 @@ class No_Li_Con(Node, ViNodes):
     edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=1, update=nodeupdate)
     interval: FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update=nodeupdate)
     hdr: BoolProperty(name="", description="Export HDR panoramas", default=False, update=nodeupdate)
-    skyname: StringProperty(name="", description="Name of the radiance sky file", default="", update=nodeupdate)
-    mtxname: StringProperty(name="", description="Name of the radiance sky file", default="", update=nodeupdate)
+    skyname: StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update=nodeupdate)
     resname: StringProperty()
     turb: FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update=nodeupdate)
     cusacc: StringProperty(name="Custom parameters", description="Custom Radiance simulation parameters", default="", update=nodeupdate)
@@ -428,7 +427,7 @@ class No_Li_Con(Node, ViNodes):
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
     sourcemenu: EnumProperty(name="", description="Source type", items=sourcetype, default='0', update=nodeupdate)
     sourcemenu2: EnumProperty(name="", description="Source type", items=sourcetype2, default='0', update=nodeupdate)
-    hdrname: StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update=nodeupdate)
+    hdrname: StringProperty(name="", description="Name of the composite HDR sky file", default="", subtype="FILE_PATH", update=nodeupdate)
     hdrmap: EnumProperty(items=[("0", "Polar", "Latitude/longitude (equirectangular) format"), ("1", "Angular", "Light probe or angular map format")],
                          name="", description="Type of HDR panorama mapping", default="0", update=nodeupdate)
     hdrangle: FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update=nodeupdate)
@@ -437,7 +436,7 @@ class No_Li_Con(Node, ViNodes):
     weekdays: BoolProperty(name='', default=False, update=nodeupdate)
     cbdm_start_hour:  IntProperty(name='', default=8, min=1, max=24, update=nodeupdate)
     cbdm_end_hour:  IntProperty(name='', default=20, min=1, max=24, update=nodeupdate)
-    cbdm_res: IntProperty(name='', default=1, min=1, max=2, update=nodeupdate)
+    cbdm_res: IntProperty(name='', default=1, min=1, max=3, update=nodeupdate)
     dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
     damin: IntProperty(name='lux', default=100, min=1, max=2000, update=nodeupdate)
     dasupp: IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
@@ -448,7 +447,7 @@ class No_Li_Con(Node, ViNodes):
     endmonth: IntProperty(name='', default=12, min=1, max=12, description='End Month', update=nodeupdate)
     startframe: IntProperty(name='', default=0, min=0, description='Start Frame', update=nodeupdate)
     leed4: BoolProperty(name='', description='LEED v4 Compliance',  default=False, update=nodeupdate)
-    ay: BoolProperty(name='', description='All year simulation',  default=True, update=nodeupdate)
+    ay: BoolProperty(name='', description='All year simulation',  default=False, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
     sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
 
@@ -535,7 +534,7 @@ class No_Li_Con(Node, ViNodes):
         elif self.contextmenu == 'CBDM':
             newrow(layout, 'Type:', self, 'cbanalysismenu')
 
-            if self.cbanalysismenu == '0':
+            if self.cbanalysismenu == '0' and self.sourcemenu != '1':
                 newrow(layout, "Spectrum:", self, 'spectrummenu')
 
             newrow(layout, 'All year:', self, 'ay')
@@ -731,7 +730,9 @@ class No_Li_Con(Node, ViNodes):
                 (self['mtxfile'], self['mtxfilens']) = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
 
             elif self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
-                self['mtxfile'] = self.mtxname
+                self['mtxfile'] = bpy.path.abspath(self.mtxname)
+                matrix_ns = '.'.join(self['mtxfile'].split('.')[:-2] + [self['mtxfile'].split('.')[-2] + 'ns'] + [self['mtxfile'].split('.')[-1]])
+                self['mtxfilens'] = matrix_ns
 
             if self.cbanalysismenu == '0':
                 self['preview'] = 1
@@ -744,8 +745,9 @@ class No_Li_Con(Node, ViNodes):
                     with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 else:
-                    with open(self.mtxname, 'r') as mtxfile:
+                    with open(bpy.path.abspath(self.mtxname), 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
+                
                 if self.hdr:
                     cbdmhdr(self, scene)
 
@@ -1619,7 +1621,8 @@ class No_En_Con(Node, ViNodes):
                                  ("1", "Urban", "Urban, Industrial, Forest"), ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
                                  ("3", "Country", "Flat, Open Country"), ("4", "Ocean", "Ocean, very flat country")],
                           name="", description="Exposure context", default="0", options={'SKIP_SAVE'}, update=nodeupdate)
-    solar: EnumProperty(items=[("0", "MinimalShadowing", ""), ("1", "FullExterior", ""), ("2", "FullInteriorAndExterior", ""), ("3", "FullExteriorWithReflections", ""), ("4", "FullInteriorAndExteriorWithReflections", "")],
+    solar: EnumProperty(items=[("0", "MinimalShadowing", ""), ("1", "FullExterior", ""), ("2", "FullInteriorAndExterior", ""), 
+                               ("3", "FullExteriorWithReflections", ""), ("4", "FullInteriorAndExteriorWithReflections", "")],
                         name="", description="Solar calcs", default="2", update=nodeupdate)
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
@@ -2425,11 +2428,11 @@ class No_Vi_HMChart(Node, ViNodes):
             innode = self.inputs['Results in'].links[0].from_node
 
             for rl in innode['reslists']:
-                if rl[0] != 'All':
+                if rl and rl[0] != 'All':
                     resdict[rl[0]] = {} if rl[0] not in resdict else resdict[rl[0]]
 
                 try:
-                    if rl[1] in ('Zone temporal', 'Power', 'Climate'):
+                    if rl and rl[1] in ('Zone temporal', 'Power', 'Climate'):
                         resdict[rl[0]][rl[1]] = {} if rl[1] not in resdict[rl[0]] else resdict[rl[0]][rl[1]]
                         resdict[rl[0]][rl[1]][rl[2]] = [] if rl[2] not in resdict[rl[0]][rl[1]] else resdict[rl[0]][rl[1]][rl[2]]
                         resdict[rl[0]][rl[1]][rl[2]].append(rl[3])
@@ -2472,21 +2475,33 @@ class No_Vi_HMChart(Node, ViNodes):
                     i += 1
 
     def f_menu(self, context):
-        return [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys()]
+        try:
+            frames = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys()]
+            
+            if frames:
+                return frames
+            else:
+                return [('None', 'None', 'None')]
+
+        except Exception:
+            return [('None', 'None', 'None')]
 
     def r_menu(self, context):
         try:
             ress = [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu].keys()]
+            
             if ress:
                 return ress
             else:
                 return [('None', 'None', 'None')]
+        
         except Exception:
             return [('None', 'None', 'None')]
 
     def z_menu(self, context):
         try:
             return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][self.resmenu].keys()]
+        
         except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
@@ -2687,7 +2702,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                  ("1", "Surface", "Calculate from EnVi surfaces"),
                                  ("2", "Zone", "Calculate from EnVi zones")],
                                  name="", description="Results metric", default="0", update=zupdate)
-    leed_menu: BoolProperty(name = "", description = "LEED space type", default = 0)
+    leed_menu: BoolProperty(name="", description="LEED space type", default=0)
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
                                     ("1", "Office", "Office scenario"),
                                     ("2", "School", "School scenario")],
@@ -2712,11 +2727,11 @@ class No_Vi_Metrics(Node, ViNodes):
                                         ("1", "Other", "Patient scenario")],
                                     name="", description="BREEAM retail space type", default="0", update=zupdate)
     breeam_othermenu: EnumProperty(items=[("0", "Cells", "Custody cells context"),
-                                        ("1", "Atrium", "Communal area scenario"),
-                                        ("2", "Care", "Patient care scenario"),
-                                        ("3", "Lecture", "Lecture scenario"),
-                                        ("4", "Other", "All other scenario")],
-                                        name="", description="BREEAM other space type", default="0", update=zupdate)
+                                          ("2", "Care", "Patient care scenario"),
+                                          ("3", "Lecture", "Lecture scenario"),
+                                          ("4", "Other", "All other scenario")],
+                                   name="", description="BREEAM other space type", default="0", update=zupdate)
+    g_roof: BoolProperty(name="", description="Glazed roof", default=0, update=zupdate)
     com_menu: EnumProperty(items=[("0", "Overheating", "Overheating analysis")],
                                 name="", description="Comfort type", default="0", update=zupdate)
     iaq_menu: EnumProperty(items=[("0", "RIBA 2030", "RIBA 2030 CO2 Criteria")],
@@ -2865,80 +2880,107 @@ class No_Vi_Metrics(Node, ViNodes):
                         avDF = 'N/A' if self['res']['avDF'] < 0 else self['res']['avDF']
                         minDF = 'N/A' if self['res']['minDF'] < 0 else self['res']['minDF']
                         ratioDF = 'N/A' if self['res']['ratioDF'] < 0 else self['res']['ratioDF']
+                        sda = 'N/A' if self['res']['sda'] < 0 else self['res']['sda']
                         credits = 0
                         newrow(layout, 'Space:', self, "breeam_menu")
+                        
+                        if self.breeam_menu == '0':
+                            # if avDF >= 2 and ratioDF >= 0.3:
+                            newrow(layout, 'Education space:', self, "breeam_edumenu")
+                        
+                        elif self.breeam_menu == '1':
+                                # if ratioDF >= 0.3:
+                                newrow(layout, 'Health space:', self, "breeam_healthmenu")
+
+                        elif self.breeam_menu == '2':
+                            # if ratioDF >= 0.3:
+                            newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
+
+                        elif self.breeam_menu == '3':
+                            newrow(layout, 'Retail space:', self, "breeam_retailmenu")
+
+                        elif self.breeam_menu == '4':
+                            newrow(layout, 'Other space:', self, "breeam_othermenu")
+
+                        newrow(layout, 'Glazed roof:', self, "g_roof")
 
                         if 'N/A' not in (areaDF, avDF):
                             if self.breeam_menu == '0':
-                                if avDF >= 2 and ratioDF >= 0.3:
-                                    newrow(layout, 'Education space:', self, "breeam_edumenu")
-                                    if self.breeam_edumenu == '0':
-                                        if areaDF >= 80:
-                                            credits = 2
-                                    elif self.breeam_edumenu == '1':
-                                        if areaDF >= 60:
-                                            credits = 1
-                                        if areaDF >= 80:
-                                            credits = 2
+                                # if avDF >= 2 and ratioDF >= 0.3:
+                                # newrow(layout, 'Education space:', self, "breeam_edumenu")
+                                if self.breeam_edumenu == '0':
+                                    if areaDF >= 80:
+                                        credits = 2
+                                elif self.breeam_edumenu == '1':
+                                    if areaDF >= 60:
+                                        credits = 1
+                                    if areaDF >= 80:
+                                        credits = 2
 
                             elif self.breeam_menu == '1':
-                                if ratioDF >= 0.3:
-                                    newrow(layout, 'Health space:', self, "breeam_healthmenu")
-                                    if self.breeam_healthmenu == '0':
-                                        if avDF >= 2 and areaDF >= 80:
-                                            credits = 2
-                                    elif self.breeam_healthmenu == '1':
-                                        if avDF >= 3 and areaDF >= 80:
-                                            credits = 2
+                                # if ratioDF >= 0.3:
+                                # newrow(layout, 'Health space:', self, "breeam_healthmenu")
+                                if self.breeam_healthmenu == '0':
+                                    if areaDF >= 80:
+                                        credits = 2
+                                elif self.breeam_healthmenu == '1':
+                                    if areaDF >= 80:
+                                        credits = 2
 
                             elif self.breeam_menu == '2':
-                                if ratioDF >= 0.3:
-                                    newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
-                                    if avDF >=2 and areaDF >= 80:
-                                        credits = 1
+                                # if ratioDF >= 0.3:
+                                # newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
+                                if areaDF >= 80:
+                                    credits = 1
 
                             elif self.breeam_menu == '3':
-                                newrow(layout, 'Retail space:', self, "breeam_retailmenu")
+                                # newrow(layout, 'Retail space:', self, "breeam_retailmenu")
                                 if self.breeam_retailmenu == '0':
                                     if areaDF >= 35:
                                         credits = 1
 
                                 elif self.breeam_retailmenu == '1':
-                                    if areaDF >= 80 and ratioDF >= 0.3 and avDF >= 2:
+                                    if areaDF >= 80:
                                         credits = 1
 
                             elif self.breeam_menu == '4':
-                                newrow(layout, 'Other space:', self, "breeam_othermenu")
+                                # newrow(layout, 'Other space:', self, "breeam_othermenu")
                                 if self.breeam_othermenu == '0':
-                                    if avDF >= 1.5 and areaDF >= 80:
+                                    if areaDF >= 80:
                                         credits = 1
 
                                 elif self.breeam_othermenu == '1':
-                                    if avDF >= 3 and areaDF >= 80 and (ratioDF >= 0.7 or minDF > 2.1):
+                                    if areaDF >= 80:
                                         credits = 1
 
                                 elif self.breeam_othermenu == '2':
-                                    if avDF >= 3 and areaDF >= 80:
+                                    if areaDF >= 80:
                                         credits = 1
 
                                 elif self.breeam_othermenu == '3':
-                                    if avDF >= 2 and areaDF >= 80:
+                                    if areaDF >= 80:
                                         credits = 1
 
                                 elif self.breeam_othermenu == '4':
-                                    if avDF >= 2 and areaDF >= 80:
+                                    if areaDF >= 80:
                                         credits = 1
 
-                        row = layout.row()
-                        row.label(text="Average DF: {}%".format(avDF))
-                        row = layout.row()
-                        row.label(text="Minimum DF: {}%".format(minDF))
-                        row = layout.row()
-                        row.label(text="Uniformity: {}".format(ratioDF))
-                        row = layout.row()
-                        row.label(text="Compliant area: {}%".format(areaDF))
-                        row = layout.row()
-                        row.label(text="Credits: {}".format(credits))
+                            row = layout.row()
+                            row.label(text="Average DF: {}%".format(avDF))
+                            row = layout.row()
+                            row.label(text="Minimum DF: {}%".format(minDF))
+                            row = layout.row()
+                            row.label(text="Uniformity: {}".format(ratioDF))
+                            row = layout.row()
+                            row.label(text="Compliant area: {}%".format(areaDF))
+                            row = layout.row()
+                            row.label(text="Credits: {}".format(credits))
+
+                        elif sda != 'N/A':
+                            row = layout.row()
+                            row.label(text=f"Hours above target: {sda}")
+                            # row = layout.row()
+                            # row.label(text=f"Area above target: {sdaarea}")
 
                     elif self.light_menu == '1':
                         newrow(layout, 'Healthcare', self, 'leed_menu')
@@ -3316,6 +3358,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['ratioDF'] = -1
             self['res']['ase'] = -1
             self['res']['sda'] = -1
+            self['res']['sdaarea'] = -1
             self['res']['asepass'] = -1
             self['res']['sdapass'] = -1
             self['res']['sv'] = -1
@@ -3323,21 +3366,28 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['o1'] = -1
             self['res']['areaDF'] = -1
             self['res']['minDF'] = -1
+            mir = 0.7 if self.g_roof else 0.3
 
             if self.light_menu == '0':
                 if self.breeam_menu == '0':
                     mDF = 2
                     mA = 0.8
+                    sdah = 2000
+                    sdal = 300
+                    sdaml = 90
                     cred = 2
 
-                    if self.breeam_edumenu == '1':
-                        mA = 0.6
-                        cred = 1
+                    # if self.breeam_edumenu == '1':
+                    #     mA = 0.6
+                    #     cred = 1
 
                 elif self.breeam_menu == '1':
                     cred = 2
                     mA = 0.8
                     mDF = 2
+                    sdah = 2650
+                    sdal = 300
+                    sdaml = 90
 
                     if self.breeam_healthmenu == '1':
                         mDF = 3
@@ -3346,6 +3396,17 @@ class No_Vi_Metrics(Node, ViNodes):
                     cred = 1
                     mDF = 2
                     mA = 0.8
+                    msdaA = 1
+                    sdah = 3450
+                    sdal = 100
+                    sdaml = 30
+
+                    if self.breeam_multimenu == '2':
+                        sdah = 2650
+                        sdal = 200
+                        sdaml = 60
+                        msdaA = 0.8
+
                 elif self.breeam_menu == '3':
                     cred = 1
                     mDF = 2
@@ -3356,7 +3417,11 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 elif self.breeam_menu == '4':
                     cred = 1
-                    mA = 0.8
+                    
+                    if self.breeam_retailmenu == '0':
+                        mA = 0.35
+                    elif self.breeam_retailmenu == '1':
+                        mA = 0.8
 
                     if self.breeam_othermenu == '0':
                         mDF = 1.5
@@ -3372,24 +3437,38 @@ class No_Vi_Metrics(Node, ViNodes):
                                 dfareas = array([float(p) for p in r[4].split()])
                             elif r[3] == 'DF (%)':
                                 df = array([float(p) for p in r[4].split()])
+                            elif r[3] == 'Spatial Daylight Autonomy (% area)':
+                                sareas = array([float(p) for p in r[4].split()])
 
                 try:
-                    self['res']['avDF'] = round(nsum(df * dfareas)/nsum(dfareas), 2)
                     tdf = stack((df, dfareas), axis=1)
                     stdf = tdf[tdf[:, 0].argsort()][::-1]
                     aDF = stdf[0][0]
                     rarea = stdf[0][1]
+                    ir = stdf[0][0]/(nsum(df)/len(df))
                     i = 1
 
-                    while (aDF >= mDF and i < len(df)):
+                    while (aDF >= mDF and i < len(df) and ir >= mir):
                         aDF = nsum(stdf[0: i + 1, 0] * dfareas[0: i + 1])/nsum(dfareas[0: i + 1])
+                        ir = stdf[i][0]/aDF
                         rarea += stdf[i][1]
                         i += 1
 
+                    self['res']['avDF'] = round(aDF, 2)
                     self['res']['areaDF'] = round(100 * rarea/nsum(dfareas), 2)
-                    self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
+                    self['res']['ratioDF'] = round(ir, 2)
                     self['res']['minDF'] = round(min(df), 2)
 
+                except Exception as e:
+                    print(e)
+                
+                try:
+                    vsareas = sareas[where(sareas > mA * 100)]
+                    self['res']['sda'] = len(vsareas)
+
+                    if self['res']['sda'] > sdah:
+                        credits = cred 
+                
                 except Exception as e:
                     print(e)
 
@@ -3424,6 +3503,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                         self['res']['asepass'] = 10
                                     elif r[3] == 'Spatial Daylight Autonomy (% area)':
                                         self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
+                                        print(self['res']['sda'])
                                     elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':
                                         self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
                                     elif r[3] == 'UDI-a Area (%)':

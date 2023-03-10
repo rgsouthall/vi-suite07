@@ -162,9 +162,9 @@ class VI_PT_3D(bpy.types.Panel):
                     if svp.vi_disp_mat:
                         newrow(layout, 'Emitter strength:', svp, "vi_disp_ems")
 
-                    if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
-                        newrow(layout, 'Scatter max:', svp, "vi_scatt_max_val")
-                        newrow(layout, 'Scatter min:', svp, "vi_scatt_min_val")
+                    # if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
+                    #     newrow(layout, 'Scatter max:', svp, "vi_scatt_max_val")
+                    #     newrow(layout, 'Scatter min:', svp, "vi_scatt_min_val")
 
                     if cao and cao.type == 'MESH':
                         newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')

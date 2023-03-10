@@ -175,16 +175,16 @@ def vi_info(node, dim, svp, **kwargs):
 
         if node.leed_menu:
             sda1points = 1 if sda >= sdapass[0] else 0
-            comps[1] = '>=' if sda >= sdapass[0] else '&lt;'
         else:
             sda1points = 2 if sda >= sdapass[0] else 0
 
+        comps[1] = '>=' if sda >= sdapass[0] else '&lt;'
         sda2points = 1 if sda >= sdapass[1] else 0
         comps[2] = '>=' if sda >= sdapass[1] else '&lt;'
-        '''<text x="350" y="115" style="font-size: 20px;font-family:Nimbus Sans Narrow">Perimeter: {:.2f}m<tspan dy = "-10">2</tspan></text>'''
+        '''<text x="350" y="115" style="font-size: 20px;font-family:arial">Perimeter: {:.2f}m<tspan dy = "-10">2</tspan></text>'''
         hc_svg = '''
-        <text x="350" y="130" style="font-size: 26px;font-family:Nimbus Sans Narrow">Perimeter: {:.2f}%</text>
-        <text x="350" y="165" style="font-size: 26px;font-family:Nimbus Sans Narrow">Perimeter {} 90%: {}</text>
+        <text x="350" y="130" style="font-size: 26px;font-family:arial">Perimeter: {:.2f}%</text>
+        <text x="350" y="165" style="font-size: 26px;font-family:arial">Perimeter {} 90%: {}</text>
         '''.format(100 * svarea/totarea, comps[3], ('Fail', 'Pass')[svarea/totarea >= 0.9]) if node.leed_menu else ""
 
         svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -196,6 +196,7 @@ def vi_info(node, dim, svp, **kwargs):
         height="{0[1]}"
         xmlns="http://www.w3.org/2000/svg"
         xmlns:svg="http://www.w3.org/2000/svg">
+        
         <defs
             id="defs111">
             <linearGradient
@@ -218,33 +219,34 @@ def vi_info(node, dim, svp, **kwargs):
                 y2="400"
                 gradientUnits="userSpaceOnUse" />
         </defs>
+
         <rect style="fill:url(#linearGradient2);stroke:rgb(0,0,0);stroke-width:0" width="{0[0]}" height="{0[1]}"/>
-        <text text-anchor="middle" x="300" y="50" style="font-size: 32px;font-family:Nimbus Sans Narrow">LEED v4 (Option 1) Daylighting Analysis</text>
-        <text x="25" y="100" style="font-size: 26px;font-family:Nimbus Sans Narrow">Sensor location: {1}</text>
-        <text x="25" y="130" style="font-size: 26px;font-family:Nimbus Sans Narrow">Floor area: {2:.2f}m<tspan dy = "-10">2</tspan></text>{3}
-        <text x="350" y="270" style="font-size: 32px;font-family:Nimbus Sans Narrow">ASE {12[0]} {4}%: {5}</text>
-        <text x="355" y="300" style="font-size: 26px;font-family:Nimbus Sans Narrow">({13} Points achievable)</text>
-        <text x="350" y="555" style="font-size: 32px;font-family:Nimbus Sans Narrow">sDA {12[1]} {6}%: {7}</text>
-        <text x="400" y="585" style="font-size: 26px;font-family:Nimbus Sans Narrow">({8} Points)</text>
-        <text x="350" y="645" style="font-size: 32px;font-family:Nimbus Sans Narrow">sDA {12[2]} {9}%: {10}</text>
-        <text x="400" y="675" style="font-size: 26px;font-family:Nimbus Sans Narrow">({11} Points)</text>
-        <text text-anchor="middle" x="175" y="750" style="font-size: 22px;font-family:Nimbus Sans Narrow">Spatial Daylight Autonomy (300/50%)</text>
-        <text text-anchor="middle" x="175" y="425" style="font-size: 22px;font-family:Nimbus Sans Narrow">Annual Sunlight Exposure (1000/250)</text>
+        <text text-anchor="middle" x="300" y="50" style="font-size: 32px;font-family:arial">LEED v4 (Option 1) Daylighting Analysis</text>
+        <text x="25" y="100" style="font-size: 26px;font-family:arial">Sensor location: {1}</text>
+        <text x="25" y="130" style="font-size: 26px;font-family:arial">Floor area: {2:.2f}m<tspan dy = "-10">2</tspan></text>{3}
+        <text x="350" y="270" style="font-size: 30px;font-family:arial">ASE {12[0]} {4}%: {5}</text>
+        <text x="355" y="300" style="font-size: 24px;font-family:arial">({13} Points achievable)</text>
+        <text x="350" y="555" style="font-size: 30px;font-family:arial">sDA {12[1]} {6}%: {7}</text>
+        <text x="400" y="585" style="font-size: 24px;font-family:arial">({8} Points)</text>
+        <text x="350" y="645" style="font-size: 30px;font-family:arial">sDA {12[2]} {9}%: {10}</text>
+        <text x="400" y="675" style="font-size: 24px;font-family:arial">({11} Points)</text>
+        <text text-anchor="middle" x="175" y="750" style="font-size: 20px;font-family:arial">Spatial Daylight Autonomy (300/50%)</text>
+        <text text-anchor="middle" x="175" y="425" style="font-size: 20px;font-family:arial">Annual Sunlight Exposure (1000/250)</text>
         """.format(dim, node.zone_menu, totarea, hc_svg, asepass, ('Pass', 'Fail')[ase >= asepass], sdapass[0], ('Fail', 'Pass')[sda >= sdapass[0]],
-                   sda1points, sdapass[1], ('Fail', 'Pass')[sda >= sdapass[1]], sda2points, comps, asepoints)
+                   sda1points, sdapass[1], ('Fail', 'Pass')[sda >= sdapass[1]], sda2points, comps, asepoints, os.path.join(svp['viparams']['addonpath'], 'Fonts', 'NotoSans-Regular.ttf'))
 
         for b in range(20):
             bfill = "128, 128, 255" if (b + 1) * 5 <= sdapass[1] else "128, 255, 128"
             bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else bfill
-            alpha = 0.9 if -5 <= sda - ((b + 1) * 5) <= 0 else 0.4
+            alpha = 0.95 if -5 <= sda - ((b + 1) * 5) <= 0 else 0.4
             svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke-width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill,
                                                                                                                                                                      alpha,
-                                                                                                                                                                     (25 + int(b % 4) * 75, 250 - int(b%4) * 75)[int(b/4 % 2)],
+                                                                                                                                                                     25 + int(b%4) * 75,
                                                                                                                                                                      675 - int(b/4) * 50,
                                                                                                                                                                      75,
                                                                                                                                                                      50)
 
-            if alpha == 0.9:
+            if alpha == 0.95:
                 svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(65 + int(b % 4) * 75, 708 - int(b/4) * 50, sda)
 
         for b in range(20):
@@ -257,7 +259,7 @@ def vi_info(node, dim, svp, **kwargs):
             if alpha == 1.0:
                 svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(65 + int(b % 4) * 75, 383 - int(b/4) * 50, ase)
 
-        svg_str += '        <text x="350" y="770" style="font-size: 26px">Total points: {} of {}</text>'.format(credits, tcredits)
+        svg_str += '        <text x="350" y="780" style="font-size: 26px">Total points: {} of {}</text>'.format(credits, tcredits)
 
         svg_str += "</svg>"
 
@@ -314,11 +316,11 @@ def vi_info(node, dim, svp, **kwargs):
                                                                                                                                               800 - 2 * l_diff*(ii), 800 - 2 * l_diff*(ii),
                                                                                                                                               255 - (200 - 20 * ii))
                 svg_str += '<rect x="460" y="{}" width="80" height="25" style="fill:white;stroke:none"/>\n'.format(90 + l_diff*(ii) + 800 - 2 * l_diff*(ii))
-                svg_str += '<text x="500" y="{}" text-anchor="middle" style="font-size:32px;font-family:Nimbus Sans Narrow">{}</text>\n'.format(110 + l_diff*(ii) + 800 - 2 * l_diff*(ii), i)
-            svg_str += '<text x="500" y="75" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">Whole-life Carbon</text>\n'
-            svg_str += '<text x="75" y="500" transform="rotate(-90,75,500)" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">Net operational carbon</text>\n'
-            svg_str += '<text x="925" y="500" transform="rotate(90,925,500)" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">Embodied carbon</text>\n'
-            svg_str += '<text x="500" y="975" text-anchor="middle" style="font-size:48px;font-family:Nimbus Sans Narrow">kgCO2e</text>\n'
+                svg_str += '<text x="500" y="{}" text-anchor="middle" style="font-size:32px;font-family:arial">{}</text>\n'.format(110 + l_diff*(ii) + 800 - 2 * l_diff*(ii), i)
+            svg_str += '<text x="500" y="75" text-anchor="middle" style="font-size:48px;font-family:arial">Whole-life Carbon</text>\n'
+            svg_str += '<text x="75" y="500" transform="rotate(-90,75,500)" text-anchor="middle" style="font-size:48px;font-family:arial">Net operational carbon</text>\n'
+            svg_str += '<text x="925" y="500" transform="rotate(90,925,500)" text-anchor="middle" style="font-size:48px;font-family:arial">Embodied carbon</text>\n'
+            svg_str += '<text x="500" y="975" text-anchor="middle" style="font-size:48px;font-family:arial">kgCO2e</text>\n'
             wlc_pos = 500 - ((wlc[0] - min_res)/(max_res - min_res)) * (900-500)
             noc_pos = 500 - ((noc[0] - min_res)/(max_res - min_res)) * (900-500)
             ec_pos = 500 + ((ec[0] - min_res)/(max_res - min_res)) * (900-500)
@@ -355,18 +357,18 @@ def vi_info(node, dim, svp, **kwargs):
                 svg_str += '<line x1="120" y1="{0:.3f}" x2="900" y2="{0:.3f}" style="stroke:green;stroke-width:4"/>\n'.format(650 + min_val * res_new)
 
             svg_str += '<rect x="120" y="100" width="780" height="550" style="fill:none;stroke:grey;stroke-width:4"/>\n'.format(650 + min_val * res_new)
-            svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:Nimbus Sans Narrow">kgCO<tspan font-size="30">2</tspan>e</text>\n'.format(650 + min_val * res_new)
-            svg_str += '<text x="{}" y="725" text-anchor="middle" style="font-size:36px;font-family:Nimbus Sans Narrow">Scenario</text>\n'.format(dim[0] * 0.5)
-            svg_str += '<text x="{}" y="40" text-anchor="middle" style="font-size:38px;font-family:Nimbus Sans Narrow">Whole-life Carbon</text>\n'.format(dim[0] * 0.5)
-            svg_str += '<text x="{}" y="80" text-anchor="middle" style="font-size:36px;font-family:Nimbus Sans Narrow">Zone: {}</text>\n'.format(dim[0] * 0.5, node.zone_menu)
+            svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:arial">kgCO<tspan font-size="30">2</tspan>e</text>\n'.format(650 + min_val * res_new)
+            svg_str += '<text x="{}" y="725" text-anchor="middle" style="font-size:36px;font-family:arial">Scenario</text>\n'.format(dim[0] * 0.5)
+            svg_str += '<text x="{}" y="40" text-anchor="middle" style="font-size:38px;font-family:arial">Whole-life Carbon</text>\n'.format(dim[0] * 0.5)
+            svg_str += '<text x="{}" y="80" text-anchor="middle" style="font-size:36px;font-family:arial">Zone: {}</text>\n'.format(dim[0] * 0.5, node.zone_menu)
 
             for ipx, pointx in enumerate(pointsx):
                 svg_str += '<line x1="{0}" y1="100" x2="{0}" y2="660" style="stroke:grey;stroke-width:2"/>\n'.format(pointx)
-                svg_str += '<text x="{}" y="690" text-anchor="middle" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>\n'.format(pointx, ipx + 1)
+                svg_str += '<text x="{}" y="690" text-anchor="middle" style="font-size:30px;font-family:arial">{}</text>\n'.format(pointx, ipx + 1)
 
             for ivy, valy in enumerate(valsay):
                 svg_str += '<line x1="120" y1="{0}" x2="900" y2="{0}" style="stroke:grey;stroke-width:2"/>\n'.format((dim[1] - 150) - (valy - min_val) * res_new)
-                svg_str += '<text x="75" y="{}" text-anchor="middle" style="font-size:30px;font-family:Nimbus Sans Narrow">{:.0f}</text>\n'.format((dim[1] - 150) - (valy - min_val) * res_new + 10, valy)
+                svg_str += '<text x="75" y="{}" text-anchor="middle" style="font-size:30px;font-family:arial">{:.0f}</text>\n'.format((dim[1] - 150) - (valy - min_val) * res_new + 10, valy)
 
             for ri, res in enumerate((kwargs['wlc'], kwargs['noc'], kwargs['ec'])):
                 pointsy = [(dim[1] - 150) - (r - min_val) * res_new for r in res]
@@ -374,8 +376,8 @@ def vi_info(node, dim, svp, **kwargs):
                 points = ' '.join(['{:.2f},{:.2f}'.format(p[0], p[1]) for p in pointsz])
                 svg_str += '<polyline points="{}" style="fill:none;stroke:{};stroke-width:5"/>\n'.format(points, cols[ri])
                 svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{};stroke:black;stroke-width:2"/>\n'.format(50 + ri * 225, cols[ri])
-                svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">{}</text>'.format(110 + ri * 225, ('Whole-life', 'Operational', 'Embodied')[ri])
-                # svg_str += '<text x="700" y="770" style="font-size:30px;font-family:Nimbus Sans Narrow">Zone: {}</text>'.format(node.zone_menu)
+                svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:arial">{}</text>'.format(110 + ri * 225, ('Whole-life', 'Operational', 'Embodied')[ri])
+                # svg_str += '<text x="700" y="770" style="font-size:30px;font-family:arial">Zone: {}</text>'.format(node.zone_menu)
 
                 for point in pointsz:
                     svg_str += '<circle cx="{0[0]}" cy="{0[1]}" r="10" style="fill:{1};stroke:black;stroke-width:1"/>\n'.format(point, cols[ri])

@@ -265,6 +265,7 @@ def unititems(self, context):
                     ('firradb', 'W (blue)', 'Blue irradiance')]
         else:
             return [('None', 'None', 'None')]
+    
     except Exception as e:
         logentry(f'Error: {e}. Check the LiVi Result Type menu')
         return [('None', 'None', 'None')]

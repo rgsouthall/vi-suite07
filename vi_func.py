@@ -719,6 +719,7 @@ def viparams(op, scene):
     svp['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
     svp['viparams']['nproc'] = str(multiprocessing.cpu_count())
     svp['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
+    svp['viparams']['addonpath'] = os.path.dirname(os.path.abspath(__file__))
     svp['viparams']['filepath'] = bpy.data.filepath
     svp['viparams']['filename'] = fn
     svp['viparams']['filedir'] = fd
