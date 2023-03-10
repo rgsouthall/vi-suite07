@@ -436,7 +436,7 @@ class No_Li_Con(Node, ViNodes):
     weekdays: BoolProperty(name='', default=False, update=nodeupdate)
     cbdm_start_hour:  IntProperty(name='', default=8, min=1, max=24, update=nodeupdate)
     cbdm_end_hour:  IntProperty(name='', default=20, min=1, max=24, update=nodeupdate)
-    cbdm_res: IntProperty(name='', default=1, min=1, max=3, update=nodeupdate)
+    cbdm_res: IntProperty(name='', default=1, min=1, max=(3, 2)[sys.platform == 'win32'], update=nodeupdate)
     dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
     damin: IntProperty(name='lux', default=100, min=1, max=2000, update=nodeupdate)
     dasupp: IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
