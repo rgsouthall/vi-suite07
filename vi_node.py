@@ -390,6 +390,9 @@ class No_Li_Con(Node, ViNodes):
                 selobj(context.view_layer, so)
                 bpy.ops.object.delete()
 
+        if sys.platform == 'win32' and (self.hdr or self.cbanalysismenu == '0') and self.cbdm_res == 3:
+            self.cbdm_res = 2
+
     spectrumtype = [('0', "Visible", "Visible radiation spectrum calculation"), ('1', "Full", "Full radiation spectrum calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
                ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description")]
@@ -436,7 +439,7 @@ class No_Li_Con(Node, ViNodes):
     weekdays: BoolProperty(name='', default=False, update=nodeupdate)
     cbdm_start_hour:  IntProperty(name='', default=8, min=1, max=24, update=nodeupdate)
     cbdm_end_hour:  IntProperty(name='', default=20, min=1, max=24, update=nodeupdate)
-    cbdm_res: IntProperty(name='', default=1, min=1, max=(3, 2)[sys.platform == 'win32'], update=nodeupdate)
+    cbdm_res: IntProperty(name='', default=1, min=1, max=3, update=nodeupdate)
     dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
     damin: IntProperty(name='lux', default=100, min=1, max=2000, update=nodeupdate)
     dasupp: IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
