@@ -453,6 +453,7 @@ class No_Li_Con(Node, ViNodes):
     ay: BoolProperty(name='', description='All year simulation',  default=False, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
     sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
+    _valid = 1
 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
@@ -591,10 +592,21 @@ class No_Li_Con(Node, ViNodes):
                 row = layout.row()
                 row.operator("node.liexport", text="Export")
 
-        elif (self.contextmenu == 'CBDM' and self.cbanalysismenu == '0' and self.sourcemenu2 == '1') or \
-             (self.contextmenu == 'CBDM' and self.cbanalysismenu != '0' and self.sourcemenu == '1'):
-            row = layout.row()
-            row.operator("node.liexport", text="Export")
+        elif (self.contextmenu == 'CBDM' and self.cbanalysismenu == '0' and self.sourcemenu == '1'):
+            if os.path.isfile(bpy.path.abspath(self.hdrname)):
+                row = layout.row()
+                row.operator("node.liexport", text="Export")
+            else:
+                row = layout.row()
+                row.label(text="ERROR: No valid HDR file")
+        
+        elif (self.contextmenu == 'CBDM' and self.cbanalysismenu != '0' and self.sourcemenu2 == '1'):
+            if os.path.isfile(bpy.path.abspath(self.mtxname)):
+                row = layout.row()
+                row.operator("node.liexport", text="Export")
+            else:
+                row = layout.row()
+                row.label(text="ERROR: No valid MTX file")
 
         elif self.inputs['Location in'].links and self.inputs['Location in'].links[0].from_node.loc == '1' and self.inputs['Location in'].links[0].from_node.weather != 'None':
             row = layout.row()
@@ -670,6 +682,7 @@ class No_Li_Con(Node, ViNodes):
         self['watts'] = 1 if self.contextmenu == "CBDM" and ((self.cbanalysismenu == '0' and self.spectrummenu == '1') or self.cbanalysismenu == '1') else 0
 
     def export(self, scene, export_op):
+        self._valid = 1
         svp = scene.vi_params
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' else scene.frame_current
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.animated else scene.frame_current
@@ -739,7 +752,7 @@ class No_Li_Con(Node, ViNodes):
 
             if self.cbanalysismenu == '0':
                 self['preview'] = 1
-                self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
+                self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene, export_op)
             else:
                 self['Text'][str(scene.frame_current)] = ("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \n"
                                                           "void glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
@@ -749,10 +762,22 @@ class No_Li_Con(Node, ViNodes):
                         self['Options']['MTX'] = mtxfile.read()
                 else:
                     with open(bpy.path.abspath(self.mtxname), 'r') as mtxfile:
+                        for line in mtxfile.readlines():
+                            if line.split('=')[0] == 'NCOLS':
+                                if len(self.times) != int(line.split('=')[1]):
+                                    export_op.report({'ERROR'}, "Outdated MTX file")
+                                    self._valid = 0
+                                    return
+
                         self['Options']['MTX'] = mtxfile.read()
                 
                 if self.hdr:
-                    cbdmhdr(self, scene)
+                    cbdmhdr(self, scene, export_op)
+    
+    # def check_mtx(self):
+    #     if self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
+
+
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
@@ -772,7 +797,9 @@ class No_Li_Con(Node, ViNodes):
                            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
                            'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
                            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
-        nodecolour(self, 0)
+        
+        if self._valid:
+            nodecolour(self, 0)
         self.outputs['Context out'].hide = False
         self['exportstate'] = self.ret_params()
 

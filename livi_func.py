@@ -278,7 +278,7 @@ def cbdmmtx(self, scene, locnode, export_op):
         return ('', '')
 
 
-def cbdmhdr(node, scene):
+def cbdmhdr(node, scene, exp_op):
     patches = (146, 578, 2306)[node.cbdm_res - 1]
     cbdm_res = (146, 578, 0, 2306).index(patches) + 1
     svp = scene.vi_params
@@ -289,7 +289,18 @@ def cbdmhdr(node, scene):
     skyentry = hdrsky(node.hdrname, '1', 0, 1000) if node.sourcemenu == '1' and node.cbanalysismenu == '0' else hdrsky(targethdr, '1', 0, 1000)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
-        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
+        mtxlines = open(node['mtxfile'], 'r').readlines()
+        
+        for line in mtxlines:
+            if line.split('=')[0] == 'NCOLS':
+                mtxhours = int(line.split('=')[1])
+                
+                if mtxhours != len(node.times):
+                    exp_op.report({'ERROR'}, "Outdated MTX file")
+                    node._valid = 0
+                    return
+
+        vecvals, vals = mtx2vals(mtxlines, datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(svpnd, 'ps{}.hdr'.format(i))) for i in range(patches)])
         vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
         rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -e MF:{} -f reinhart.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'],
