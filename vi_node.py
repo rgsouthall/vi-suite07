@@ -494,6 +494,7 @@ class No_Li_Con(Node, ViNodes):
                         newrow(layout, "End hour {}:{}:".format(int(self.ehour), int((self.ehour*60) % 60)), self, 'ehour')
                         newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                         newrow(layout, "Interval (hours):", self, 'interval')
+                    
                     newrow(layout, "Turbidity", self, 'turb')
 
             elif self.skyprog == '1':
@@ -579,7 +580,7 @@ class No_Li_Con(Node, ViNodes):
             if self.sourcemenu2 == '1' and self.cbanalysismenu in ('1', '2'):
                 newrow(layout, "MTX file:", self, 'mtxname')
 
-            if self.sourcemenu == '1' and self.cbanalysismenu == '0':
+            elif self.sourcemenu == '1' and self.cbanalysismenu == '0':
                 newrow(layout, "HDR file:", self, 'hdrname')
             else:
                 newrow(layout, 'Resolution:', self, 'cbdm_res')
@@ -727,9 +728,6 @@ class No_Li_Con(Node, ViNodes):
 
             elif self.skyprog == '3':
                 if self.skyname and bpy.data.texts.get(self.skyname):
-                    # shutil.copyfile(self.skyname, "{}-0.sky".format(svp['viparams']['filebase']))
-
-                    # with open(self.skyname, 'r') as radfiler:
                     self['Text'][str(scene.frame_current)] = bpy.data.texts[self.skyname].as_string()
 
                     if self.hdr:

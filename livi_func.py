@@ -279,8 +279,8 @@ def cbdmmtx(self, scene, locnode, export_op):
 
 
 def cbdmhdr(node, scene, exp_op):
-    patches = (146, 578, 2306)[node.cbdm_res - 1]
-    cbdm_res = (146, 578, 0, 2306).index(patches) + 1
+    # patches = (146, 578, 2306)[node.cbdm_res - 1]
+    # cbdm_res = (146, 578, 0, 2306).index(patches) + 1
     svp = scene.vi_params
     svpnd = svp['viparams']['newdir']
     targethdr = os.path.join(svpnd, node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
@@ -292,7 +292,10 @@ def cbdmhdr(node, scene, exp_op):
         mtxlines = open(node['mtxfile'], 'r').readlines()
         
         for line in mtxlines:
-            if line.split('=')[0] == 'NCOLS':
+            if line.split('=')[0] == 'NROWS':
+                patches = int(line.split('=')[1])
+                cbdm_res = (146, 578, 0, 2306).index(patches) + 1
+            elif line.split('=')[0] == 'NCOLS':
                 mtxhours = int(line.split('=')[1])
                 
                 if mtxhours != len(node.times):
@@ -850,7 +853,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params
     self['livires'] = {}
     self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
-    patches = simnode['coptions']['cbdm_res']
+    # patches = simnode['coptions']['cbdm_res']
     selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
     bm.from_mesh(self.id_data.data)
@@ -860,15 +863,22 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     reslen = len(geom)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
-
+    mtxlines = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines()
+    mtxlinesns = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines()
+    
+    for line in mtxlines:
+        if line.split("=")[0] == 'NROWS':
+            patches = int(line.split("=")[1])
+            break
+    
     if self.get('wattres'):
         del self['wattres']
 
     illumod = array((47.4, 120, 11.6)).astype(float32)
     wattmod = array((0.265, 0.67, 0.065)).astype(float32)
     times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]
-    vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2015, 1, 1).weekday(), simnode, times)
-    vecvalsns, valsns = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines(), datetime.datetime(2015, 1, 1).weekday(), simnode, times)
+    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(2015, 1, 1).weekday(), simnode, times)
+    vecvalsns, valsns = mtx2vals(mtxlinesns, datetime.datetime(2015, 1, 1).weekday(), simnode, times)
     cbdm_days = list(set([t.timetuple().tm_yday for t in times]))
     cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'] + 1)]
     dno, hno = len(cbdm_days), len(cbdm_hours)
