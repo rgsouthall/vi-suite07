@@ -256,16 +256,16 @@ def cbdmmtx(self, scene, locnode, export_op):
                 elif csh <= float(ls[2]) <= ceh and sdoy <= datetime.datetime(svp['year'], int(ls[0]), int(ls[1])).timetuple().tm_yday <= edoy and datetime.datetime(svp['year'], int(ls[0]), int(ls[1])).weekday() <= (6, 4)[self.weekdays]:
                     weafile.write(line)
 
-        gdmcmd = ("gendaymtx -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']],
+        gdmcmd = ('gendaymtx -m {} {} "{}"'.format(res, ('-O0', '-O1')[self['watts']],
                   "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
-        gdmcmdns = ("gendaymtx -d -m {} {} {}".format(res, ('-O0', '-O1')[self['watts']],
+        gdmcmdns = ('gendaymtx -d -m {} {} "{}"'.format(res, ('-O0', '-O1')[self['watts']],
                     "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
 
         with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
-            Popen(gdmcmd.split(), stdout=mtxfile, stderr=STDOUT).communicate()
+            Popen(shlex.split(gdmcmd), stdout=mtxfile, stderr=STDOUT).communicate()
 
         with open("{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
-            Popen(gdmcmdns.split(), stdout=mtxfile, stderr=STDOUT).communicate()
+            Popen(shlex.split(gdmcmdns), stdout=mtxfile, stderr=STDOUT).communicate()
 
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
             oconvcmd = "oconv -w -"
