@@ -453,8 +453,7 @@ class No_Li_Con(Node, ViNodes):
     ay: BoolProperty(name='', description='All year simulation',  default=False, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
     sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
-    _valid = 1
-
+ 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
         self['whitesky'] = ("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \n"
@@ -585,8 +584,8 @@ class No_Li_Con(Node, ViNodes):
             else:
                 newrow(layout, 'Resolution:', self, 'cbdm_res')
 
-                if self.cbanalysismenu != '0':
-                    newrow(layout, 'HDR:', self, 'hdr')
+            if self.cbanalysismenu != '0':
+                newrow(layout, 'HDR:', self, 'hdr')
 
         if self.contextmenu == 'Basic':
             if int(self.skymenu) > 2 or int(self.skyprog) > 1 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
@@ -761,12 +760,15 @@ class No_Li_Con(Node, ViNodes):
                 else:
                     with open(bpy.path.abspath(self.mtxname), 'r') as mtxfile:
                         for line in mtxfile.readlines():
-                            if line.split('=')[0] == 'NCOLS':
-                                if len(self.times) != int(line.split('=')[1]):
-                                    export_op.report({'ERROR'}, "Outdated MTX file")
-                                    self._valid = 0
-                                    return
-
+                            if line.split('=')[0] == 'NROWS':
+                                self.cbdm_res = (146, 578, 2306).index(int(line.split('=')[1])) + 1
+                                break
+                            # elif line.split('=')[0] == 'NCOLS':
+                            #     if len(self.times) != int(line.split('=')[1]):
+                            #         export_op.report({'ERROR'}, "Outdated MTX file")
+                            #         self._valid = 0
+                            #         return
+                            
                         self['Options']['MTX'] = mtxfile.read()
                 
                 if self.hdr:
@@ -796,8 +798,8 @@ class No_Li_Con(Node, ViNodes):
                            'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
                            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
         
-        if self._valid:
-            nodecolour(self, 0)
+        # if self._valid:
+        nodecolour(self, 0)
         self.outputs['Context out'].hide = False
         self['exportstate'] = self.ret_params()
 

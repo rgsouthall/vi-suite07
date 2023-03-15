@@ -279,8 +279,8 @@ def cbdmmtx(self, scene, locnode, export_op):
 
 
 def cbdmhdr(node, scene, exp_op):
-    # patches = (146, 578, 2306)[node.cbdm_res - 1]
-    # cbdm_res = (146, 578, 0, 2306).index(patches) + 1
+    patches = (146, 578, 2306)[node.cbdm_res - 1]
+    cbdm_res = (146, 578, 0, 2306).index(patches) + 1
     svp = scene.vi_params
     svpnd = svp['viparams']['newdir']
     targethdr = os.path.join(svpnd, node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
@@ -291,17 +291,17 @@ def cbdmhdr(node, scene, exp_op):
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         mtxlines = open(node['mtxfile'], 'r').readlines()
         
-        for line in mtxlines:
-            if line.split('=')[0] == 'NROWS':
-                patches = int(line.split('=')[1])
-                cbdm_res = (146, 578, 0, 2306).index(patches) + 1
-            elif line.split('=')[0] == 'NCOLS':
-                mtxhours = int(line.split('=')[1])
+        # for line in mtxlines:
+        #     if line.split('=')[0] == 'NROWS':
+        #         patches = int(line.split('=')[1])
+        #         cbdm_res = (146, 578, 0, 2306).index(patches) + 1
+        #     elif line.split('=')[0] == 'NCOLS':
+        #         mtxhours = int(line.split('=')[1])
                 
-                if mtxhours != len(node.times):
-                    exp_op.report({'ERROR'}, "Outdated MTX file")
-                    node._valid = 0
-                    return
+        #         if mtxhours != len(node.times):
+        #             exp_op.report({'ERROR'}, "Outdated MTX file")
+        #             node._valid = 0
+        #             return
 
         vecvals, vals = mtx2vals(mtxlines, datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(svpnd, 'ps{}.hdr'.format(i))) for i in range(patches)])
