@@ -150,16 +150,16 @@ def ret_radentry(self, radname, mod):
             tn = (((0.8402528435 + 0.0072522239 * self.radtransmit * self.radtransmit) ** 0.5) - 0.9166530661)/(0.0036261119 * self.radtransmit)
             tn = (tn, tn, tn)
 
-        radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
-                '{} {} {}\n'.format(mod, ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) + \
-                {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
-                    '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(tn),
-                    '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radtrans, self.radior),
-                    '3': '0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {3:.3f} {4:.3f}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtransdiff, self.radtranspec),
-                    '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
-                    '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in (self.radcolour, ct2RGB(self.radct))[self.radcolmenu == '1']]),
-                    '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
-                    '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+        radentry = ('# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' +
+                    '{} {} {}\n'.format(mod, ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) +
+                    {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
+                     '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(tn),
+                     '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radtrans, self.radior),
+                     '3': '0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {3:.3f} {4:.3f}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtransdiff, self.radtranspec),
+                     '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
+                     '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in (self.radcolour, ct2RGB(self.radct))[self.radcolmenu == '1']]),
+                     '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough),
+                     '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n')
     return radentry
 
 
@@ -270,9 +270,9 @@ def cbdmmtx(self, scene, locnode, export_op):
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
             oconvcmd = "oconv -w -"
             Popen(shlex.split(oconvcmd), stdin=PIPE, stdout=wsfile).communicate(input=self['whitesky'].encode(sys.getfilesystemencoding()))
-        
+
         return ("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), "{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])))
-    
+
     else:
         export_op.report({'ERROR'}, "Not a valid EPW file")
         return ('', '')
@@ -290,14 +290,14 @@ def cbdmhdr(node, scene, exp_op):
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         mtxlines = open(node['mtxfile'], 'r').readlines()
-        
+
         # for line in mtxlines:
         #     if line.split('=')[0] == 'NROWS':
         #         patches = int(line.split('=')[1])
         #         cbdm_res = (146, 578, 0, 2306).index(patches) + 1
         #     elif line.split('=')[0] == 'NCOLS':
         #         mtxhours = int(line.split('=')[1])
-                
+
         #         if mtxhours != len(node.times):
         #             exp_op.report({'ERROR'}, "Outdated MTX file")
         #             node._valid = 0
@@ -315,22 +315,22 @@ def cbdmhdr(node, scene, exp_op):
         vwrun = Popen(shlex.split(vwcmd), stdout=PIPE)
         rcrun = Popen(shlex.split(rcontribcmd), stderr=PIPE, stdin=vwrun.stdout)
         rcrun.wait()
-        
+
         for line in rcrun.stderr:
             logentry('HDR generation error: {}'.format(line))
 
         for j in range(patches):
             with open(os.path.join(svpnd, "ps{}.hdr".format(j)), 'w') as psfile:
                 Popen(shlex.split('pcomb -h -s {} "{}"'.format(vals[j], os.path.join(svpnd, 'p{}.hdr'.format(j)))), stdout=psfile).wait()
-            
+
             if not j:
                 shutil.copyfile(os.path.join(svpnd, 'ps0.hdr'), os.path.join(svpnd, 'temp.hdr'))
             else:
                 with open(os.path.join(svpnd, "running.hdr"), 'w') as runhdr:
                     Popen(shlex.split('pcomb -h "{}" "{}"'.format(os.path.join(svpnd, 'temp.hdr'), os.path.join(svpnd, 'ps{}.hdr'.format(j)))), stdout=runhdr).wait()
-                
+
                 shutil.copyfile(os.path.join(svpnd, 'running.hdr'), os.path.join(svpnd, 'temp.hdr'))
-        
+
         shutil.copyfile(os.path.join(svpnd, 'temp.hdr'), targethdr)
         os.remove(os.path.join(svpnd, 'temp.hdr'))
         os.remove(os.path.join(svpnd, 'running.hdr'))
@@ -865,12 +865,12 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     mtxlines = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines()
     mtxlinesns = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines()
-    
+
     for line in mtxlines:
         if line.split("=")[0] == 'NROWS':
             patches = int(line.split("=")[1])
             break
-    
+
     if self.get('wattres'):
         del self['wattres']
 

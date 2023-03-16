@@ -1097,56 +1097,57 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 if self.simnode.pmappreview:
                     create_empty_coll(context, 'LiVi Results')
                     gpmbm = bmesh.new()
+                    bmesh.ops.create_icosphere(gpmbm, subdivisions=2, radius=0.025, calc_uvs=False)
+                    lvo = len(gpmbm.verts)
 
-                    for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)),
-                                                    stdout=PIPE, stderr=PIPE).stdout):
-                        dl = line.decode().split()
-                        matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
-                        bmesh.ops.create_icosphere(gpmbm, subdivisions=2, diameter=0.05, matrix=matrix, calc_uvs=False)
+                    if self.simnode.pmapgno:
+                        verts_out, faces_out = [], []
 
-                        if li > self.simnode.pmapvno:
-                            break
+                        for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)),
+                                                        stdout=PIPE, stderr=PIPE).stdout):
+                            dl = line.decode().split()
+                            matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                            nbm = gpmbm.copy()
+                            bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
+                            verts_out += [v.co.to_tuple() for v in nbm.verts]
+                            faces_out += [[lvo + j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                            nbm.free()
 
-                    gpmmesh = bpy.data.meshes.new("GPM_Mesh")
-                    gpmbm.to_mesh(gpmmesh)
-                    gpmbm.free()
-                    gpmobj = bpy.data.objects.new("GlobalPM", gpmmesh)
-                    gpmobj.vi_params.vi_type_string = 'LiVi Res'
-                    scene.collection.objects.link(gpmobj)
-                    move_to_coll(bpy.context, 'LiVi Results', gpmobj)
+                            if li > self.simnode.pmapgno:
+                                break
 
-                    if cpentry:
-                        cpmbm = bmesh.new()
+                        gpm_mesh = bpy.data.meshes.new('gpm_mesh')
+                        gpm_mesh.from_pydata(verts_out, [], faces_out)
+                        gpmobj = bpy.data.objects.new('GlobalPM', gpm_mesh)
+                        gpmobj.vi_params.vi_type_string = 'LiVi Res'
+                        scene.collection.objects.link(gpmobj)
+                        move_to_coll(bpy.context, 'LiVi Results', gpmobj)
+
+                    if self.simnode.pmapcno:
+                        verts_out, faces_out = [], []
 
                         for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
-                            bmesh.ops.create_icosphere(cpmbm, subdivisions=2, diameter=0.05, matrix=matrix, calc_uvs=False)
+                            nbm = gpmbm.copy()
+                            bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
+                            verts_out += [v.co.to_tuple() for v in nbm.verts]
+                            faces_out += [[lvo + j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                            nbm.free()
 
-                            if li > self.simnode.pmapvno:
+                            if li > self.simnode.pmapcno:
                                 break
 
-                        cpmmesh = bpy.data.meshes.new("CPM_Mesh")
-                        cpmbm.to_mesh(cpmmesh)
-                        cpmbm.free()
-                        cpmobj = bpy.data.objects.new("CausticPM", cpmmesh)
+                        cpm_mesh = bpy.data.meshes.new('cpm_mesh')
+                        cpm_mesh.from_pydata(verts_out, [], faces_out)
+                        cpmobj = bpy.data.objects.new('CausticPM', cpm_mesh)
                         cpmobj.vi_params.vi_type_string = 'LiVi Res'
                         scene.collection.objects.link(cpmobj)
                         move_to_coll(bpy.context, 'LiVi Results', cpmobj)
 
-                    # with open("{0}-{1}pmd.oct".format(svp['viparams']['filebase'], frame), 'wb') as octfile:
-                    #     occmd = 'oconv -i "{0}-{1}.oct" "!pmapdump {0}-{1}.gpm{2}"'.format(svp['viparams']['filebase'], frame, (' {}-{}.cpm'.format(svp['viparams']['filebase'], frame), '')[not self.simnode.pmapcno])
-                    #     logentry('Running pmapdump: {}'.format(occmd))
-                    #     ocrun = Popen(shlex.split(occmd), stdout = octfile, stderr = PIPE)
-                    #     ocrun.wait()
-                    # for line in ocrun.stderr:
-                    #     logentry('Pmap preview error: {}'.format(line.decode()))
+                    gpmbm.free()
 
-                    # rvucmd = 'rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} "{6}-{7}pmd.oct"'.format(svp['viparams']['wnproc'],
-                    #              vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
-
-#                else:
                 rvucmd = 'rvu -w {11} -ap "{8}" 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'],
                                  vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
 
@@ -2554,7 +2555,7 @@ class TREE_OT_goto_mat(bpy.types.Operator):
                 objs_with_mat += 1
                 obj.select_set(True)
 
-                if not active_set:  
+                if not active_set:
                     active_set = True
                     context.view_layer.objects.active = obj
 
