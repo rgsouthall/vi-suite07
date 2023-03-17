@@ -1055,13 +1055,14 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
             if self.simnode.pmap:
                 self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon Map')
-                amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
+                amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}-{}'.format(self.pmfile, frame), 'w')
-                pmcmd = 'mkpmap {8} -t 2 -e "{1}" {6} -fo+ -bv{9} -apD 0.1 {0} -apg "{7}-{2}.gpm" {3} {4} {5} "{7}-{2}.oct"'.format(pportentry,
-                                                                                                                                    '{}-{}'.format(self.pmfile, frame),
-                                                                                                                                    frame, self.simnode.pmapgno,
-                                                                                                                                    cpentry, amentry,
-                                                                                                                                    ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], svp['viparams']['filebase'], self.simnode.pmapoptions, ('-', '+')[self.simnode.bfv])
+                pmcmd = 'mkpmap {8} -t 2 -e "{1}" {6} -fo+ -bv{9} -apD 0.1 {0} {3} {4} {5} "{7}-{2}.oct"'.format(pportentry,
+                                                                                                                 '{}-{}'.format(self.pmfile, frame),
+                                                                                                                 frame, gpentry,
+                                                                                                                 cpentry, amentry,
+                                                                                                                 ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], 
+                                                                                                                 svp['viparams']['filebase'], self.simnode.pmapoptions, ('-', '+')[self.simnode.bfv])
                 logentry('Photon map command: {}'.format(pmcmd))
                 os.chdir(svp['viparams']['newdir'])
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
@@ -1113,7 +1114,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             faces_out += [[lvo + j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
                             nbm.free()
 
-                            if li > self.simnode.pmapgno:
+                            if li > self.simnode.pmapgno or li > 10000:
                                 break
 
                         gpm_mesh = bpy.data.meshes.new('gpm_mesh')
@@ -1136,7 +1137,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             faces_out += [[lvo + j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
                             nbm.free()
 
-                            if li > self.simnode.pmapcno:
+                            if li > self.simnode.pmapcno or li > 10000:
                                 break
 
                         cpm_mesh = bpy.data.meshes.new('cpm_mesh')
@@ -1148,8 +1149,9 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                     gpmbm.free()
 
-                rvucmd = 'rvu -w {11} -ap "{8}" 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'],
-                                 vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                rvucmd = 'rvu -w {11} {12} {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'],
+                                 vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), 
+                                 cpfileentry, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu], gpfileentry)
 
             else:
                 rvucmd = 'rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'],
@@ -1232,13 +1234,13 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                            'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
                            'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
                            'fatal - no valid photon ports found\n': 'Re-export the geometry'}
-                amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
+                amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
                 if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
-                    pmcmd = 'mkpmap {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} -apg "{1}-{2}.gpm" {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                    pmcmd = 'mkpmap {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, gpentry, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 else:
-                    pmcmd = 'mkpmap {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}.cpm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                    pmcmd = 'mkpmap {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}-{2}.copm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
 
                 logentry('Generating photon map: {}'.format(pmcmd))
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
@@ -1275,13 +1277,15 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                 if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
                     os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
+
                 if self.simnode.pmap:
-                    rtcmds.append('rtrace -n {0} -w {1} -ap "{2}-{3}.gpm" 50 {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry))
+                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry. gpfileentry))
                 else:
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame))
             else:
                 if self.simnode.pmap:
-                    rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
+                    rccmds.append('rcontrib -w  -h -I -fo -ap {2}-{3}.copm {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
+                    #rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
                 else:
                     rccmds.append('rcontrib -w  -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp['viparams']['filebase'], frame))
 

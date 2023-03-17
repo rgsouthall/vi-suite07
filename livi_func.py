@@ -394,9 +394,11 @@ def retpmap(node, frame, scene):
     ammats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.vi_params.mattype == '1' and mat.vi_params.radmatmenu == '7' and mat.vi_params.get('radentry')])
     pportentry = ' '.join(['-apo {}'.format(ppm) for ppm in pportmats.split()]) if pportmats else ''
     amentry = '-aps {}'.format(ammats) if ammats else ''
+    gpentry = '-apg "{}-{}.gpm" {}'.format(svp['viparams']['filebase'], frame, node.pmapgno) if node.pmapgno else ''
     cpentry = '-apc "{}-{}.cpm" {}'.format(svp['viparams']['filebase'], frame, node.pmapcno) if node.pmapcno else ''
+    gpfileentry = '-ap "{}-{}.gpm" 50'.format(svp['viparams']['filebase'], frame) if node.pmapgno else ''
     cpfileentry = '-ap "{}-{}.cpm" 50'.format(svp['viparams']['filebase'], frame) if node.pmapcno else ''
-    return amentry, pportentry, cpentry, cpfileentry
+    return amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry
 
 
 def retsv(self, scene, frame, rtframe, chunk, rt):
@@ -853,7 +855,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params
     self['livires'] = {}
     self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
-    # patches = simnode['coptions']['cbdm_res']
+    print(rccmds)
     selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
     bm.from_mesh(self.id_data.data)
@@ -915,13 +917,14 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+            print(sensrun[1])
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
             sensarray = nsum(resarray*illumod, axis = 2).astype(float32)
             finalillu = inner(sensarray, vecvals).astype(float64)
 
             if svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1':
-                wattarray  = nsum(resarray*wattmod, axis = 2).astype(float32)
+                wattarray  = nsum(resarray*wattmod, axis=2).astype(float32)
                 firradm2array = inner(wattarray, vecvals).astype(float32)
                 firradarray = (firradm2array.T * chareas).T.astype(float32)
                 kwh = 0.001 * nsum(firradarray, axis = 1)
@@ -943,13 +946,22 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     gp[firradm2] = kwhm2[gi]
 
             elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
-                illuarray = nsum(resarray*illumod, axis = 2).astype(float32)
-                finalillu = inner(illuarray, vecvals).astype(float32)
-                sensrunns = Popen(shlex.split(rccmds[f][:36]+ '1' + rccmds[f][37:]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+                # illuarray = nsum(resarray*illumod, axis = 2).astype(float32)
+                # finalillu = inner(illuarray, vecvals).astype(float32)
+                # print('ns', rccmds[f][:36]+ '1' + rccmds[f][37:])
+                rclist = shlex.split(rccmds[f])
+                rclist[rclist.index('-ab') + 1] = '1'
+
+                if '-ap' in rclist:
+                    rclist[rclist.index('-ap') + 1] = ''
+                    rclist[rclist.index('-ap')] = ''
+                    
+                rccmd = ' '.join(rclist)
+                sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarrayns = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
                 illuarrayns = nsum(resarrayns*illumod, axis = 2).astype(float32)
                 finalilluns = inner(illuarrayns, vecvalsns).astype(float32)
-                sensrunpa = Popen(shlex.split(rccmds[f][:36]+ '1' + rccmds[f][37:]), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+                sensrunpa = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarraypa = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunpa[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
                 dabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
                 asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)

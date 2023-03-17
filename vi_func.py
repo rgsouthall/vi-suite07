@@ -903,7 +903,7 @@ def clearscene(context, op):
         context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
 
     for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
-        if ob.vi_params.vi_type_string != 'LiVi Calc':
+        if ob.vi_params.vi_type_string not in ('LiVi Calc', 'LiVi Res'):
             v, f, svv, svf = [0] * 4
 
             if 'export' in op.name or 'simulation' in op.name:
@@ -919,6 +919,7 @@ def clearscene(context, op):
                         livires = bm.faces.layers.float['res{}'.format(f)]
                         bm.faces.layers.float.remove(livires)
                         f += 1
+                
                 bm.to_mesh(ob.data)
                 bm.free()
 
