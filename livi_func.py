@@ -855,7 +855,6 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params
     self['livires'] = {}
     self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
-    print(rccmds)
     selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
     bm.from_mesh(self.id_data.data)
@@ -916,8 +915,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         totarea = sum(areas)
 
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
-            sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
-            print(sensrun[1])
+            sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
             sensarray = nsum(resarray*illumod, axis = 2).astype(float32)
@@ -949,7 +947,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 # illuarray = nsum(resarray*illumod, axis = 2).astype(float32)
                 # finalillu = inner(illuarray, vecvals).astype(float32)
                 # print('ns', rccmds[f][:36]+ '1' + rccmds[f][37:])
-                rclist = shlex.split(rccmds[f])
+                rclist = rccmds[f].split()
                 rclist[rclist.index('-ab') + 1] = '1'
 
                 if '-ap' in rclist:
