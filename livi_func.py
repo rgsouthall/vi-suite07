@@ -862,7 +862,6 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     bm.normal_update()
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
-    reslen = len(geom)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     mtxlines = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines()
     mtxlinesns = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines()
@@ -908,34 +907,36 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             rtframe = frame
         else:
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
-            rtframe  = max(kints) if frame > max(kints) else min(kints)
+            rtframe = max(kints) if frame > max(kints) else min(kints)
 
         rt = geom.layers.string['rt{}'.format(rtframe)]
-        areas = array([g.calc_area() for g in geom if g[rt]] if svp['liparams']['cp'] == '0' else [vertarea(bm, g) for g in geom if g[rt]])
+        rgeom = [v for v in bm.verts if v[rt]] if self['cpoint'] == '1' else [f for f in bm.faces if f[rt]]
+        reslen = len(rgeom)
+        areas = array([g.calc_area() for g in rgeom] if svp['liparams']['cp'] == '0' else [vertarea(bm, g) for g in rgeom])
         totarea = sum(areas)
 
-        for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(svp['viparams']['nproc']) * 40)):
+        for ch, chunk in enumerate(chunks([g for g in rgeom], int(svp['viparams']['nproc']) * 40)):
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
-            sensarray = nsum(resarray*illumod, axis = 2).astype(float32)
+            sensarray = nsum(resarray*illumod, axis=2).astype(float32)
             finalillu = inner(sensarray, vecvals).astype(float64)
 
             if svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1':
-                wattarray  = nsum(resarray*wattmod, axis=2).astype(float32)
+                wattarray = nsum(resarray*wattmod, axis=2).astype(float32)
                 firradm2array = inner(wattarray, vecvals).astype(float32)
                 firradarray = (firradm2array.T * chareas).T.astype(float32)
-                kwh = 0.001 * nsum(firradarray, axis = 1)
-                kwhm2 = 0.001 * nsum(firradm2array, axis = 1)
+                kwh = 0.001 * nsum(firradarray, axis=1)
+                kwhm2 = 0.001 * nsum(firradm2array, axis=1)
 
                 if not ch:
-                    totfinalwatt = nsum(firradarray, axis = 0)
-                    totfinalwattm2 = average(firradm2array, axis = 0)
+                    totfinalwatt = nsum(firradarray, axis=0)
+                    totfinalwattm2 = average(firradm2array, axis=0)
                     finalkwh = kwh
                     finalkwhm2 = kwhm2
                 else:
-                    totfinalwatt += nsum(firradarray, axis = 0)
-                    totfinalwattm2 += average(firradm2array, axis = 0)
+                    totfinalwatt += nsum(firradarray, axis=0)
+                    totfinalwattm2 += average(firradm2array, axis=0)
                     finalkwh = concatenate((finalkwh, kwh))
                     finalkwhm2 = concatenate((finalkwhm2, kwhm2))
 
@@ -953,13 +954,13 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 if '-ap' in rclist:
                     rclist[rclist.index('-ap') + 1] = ''
                     rclist[rclist.index('-ap')] = ''
-                    
+
                 rccmd = ' '.join(rclist)
-                sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
+                sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarrayns = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
-                illuarrayns = nsum(resarrayns*illumod, axis = 2).astype(float32)
+                illuarrayns = nsum(resarrayns*illumod, axis=2).astype(float32)
                 finalilluns = inner(illuarrayns, vecvalsns).astype(float32)
-                sensrunpa = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr = PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
+                sensrunpa = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarraypa = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunpa[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
                 dabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
                 asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)
@@ -967,7 +968,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
                 udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
                 udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)
-                svbool = choose(nsum(nsum(resarraypa, axis = 1), axis = 1) > 0, [0, 1]).astype(int8)
+                svbool = choose(nsum(nsum(resarraypa, axis=1), axis=1) > 0, [0, 1]).astype(int8)
                 sdafinalillu = finalillu[:, logical_and(8 <= hour_array, hour_array < 18)] if simnode['coptions']['ay'] else finalillu
                 sdabool = choose(sdafinalillu >= 300, [0, 1]).astype(int8)
                 daareares = (dabool.T*chareas).T
@@ -1042,14 +1043,14 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'ave kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
 
         elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
-            dares = [gp[resda] for gp in geom]
-            udilow = [gp[resudilow] for gp in geom]
-            udisup = [gp[resudisup] for gp in geom]
-            udiauto = [gp[resudiauto] for gp in geom]
-            udihi = [gp[resudihi] for gp in geom]
-            sdas = [gp[ressda] for gp in geom]
-            ases = [gp[resase] for gp in geom]
-            svres = [gp[ressv] for gp in geom]
+            dares = [gp[resda] for gp in rgeom]
+            udilow = [gp[resudilow] for gp in rgeom]
+            udisup = [gp[resudisup] for gp in rgeom]
+            udiauto = [gp[resudiauto] for gp in rgeom]
+            udihi = [gp[resudihi] for gp in rgeom]
+            sdas = [gp[ressda] for gp in rgeom]
+            ases = [gp[resase] for gp in rgeom]
+            svres = [gp[ressv] for gp in rgeom]
             self['omax']['udilow{}'.format(frame)] = max(udilow)
             self['omin']['udilow{}'.format(frame)] = min(udilow)
             self['oave']['udilow{}'.format(frame)] = nmean(udilow)
@@ -1065,18 +1066,18 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['da{}'.format(frame)] = max(dares)
             self['omin']['da{}'.format(frame)] = min(dares)
             self['oave']['da{}'.format(frame)] = nmean(dares)
-            self['omax']['maxlux{}'.format(frame)] = max(nmax(totfinalillu, axis = 1).astype(float64))
-            self['omin']['maxlux{}'.format(frame)] = min(nmax(totfinalillu, axis = 1).astype(float64))
-            self['oave']['maxlux{}'.format(frame)] = nmean(nmax(totfinalillu, axis = 1).astype(float64))
-            self['omax']['minlux{}'.format(frame)] = max(nmin(totfinalillu, axis = 1).astype(float64))
-            self['omin']['minlux{}'.format(frame)] = min(nmin(totfinalillu, axis = 1).astype(float64))
-            self['oave']['minlux{}'.format(frame)] = nmean(nmin(totfinalillu, axis = 1).astype(float64))
-            self['omax']['avelux{}'.format(frame)] = max(nmean(totfinalillu, axis = 1).astype(float64))
-            self['omin']['avelux{}'.format(frame)] = min(nmean(totfinalillu, axis = 1).astype(float64))
-            self['oave']['avelux{}'.format(frame)] = nmean(nmean(totfinalillu, axis = 1).astype(float64))
-            self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis = 0).flatten().reshape(dno, hno).transpose().tolist()
-            self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis = 0).reshape(dno, hno).transpose().tolist()
-            self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis = 0).reshape(dno, hno).transpose().tolist()
+            self['omax']['maxlux{}'.format(frame)] = max(nmax(totfinalillu, axis=1).astype(float64))
+            self['omin']['maxlux{}'.format(frame)] = min(nmax(totfinalillu, axis=1).astype(float64))
+            self['oave']['maxlux{}'.format(frame)] = nmean(nmax(totfinalillu, axis=1).astype(float64))
+            self['omax']['minlux{}'.format(frame)] = max(nmin(totfinalillu, axis=1).astype(float64))
+            self['omin']['minlux{}'.format(frame)] = min(nmin(totfinalillu, axis=1).astype(float64))
+            self['oave']['minlux{}'.format(frame)] = nmean(nmin(totfinalillu, axis=1).astype(float64))
+            self['omax']['avelux{}'.format(frame)] = max(nmean(totfinalillu, axis=1).astype(float64))
+            self['omin']['avelux{}'.format(frame)] = min(nmean(totfinalillu, axis=1).astype(float64))
+            self['oave']['avelux{}'.format(frame)] = nmean(nmean(totfinalillu, axis=1).astype(float64))
+            self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis=0).flatten().reshape(dno, hno).transpose().tolist()
+            self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis=0).reshape(dno, hno).transpose().tolist()
+            self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis=0).reshape(dno, hno).transpose().tolist()
             self['livires']['daarea{}'.format(frame)] = totdaarea.reshape(dno, hno).transpose().tolist()
             self['livires']['udiaarea{}'.format(frame)] = totudiaarea.reshape(dno, hno).transpose().tolist()
             self['livires']['udisarea{}'.format(frame)] = totudisarea.reshape(dno, hno).transpose().tolist()
@@ -1090,7 +1091,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([f'{p:.2f}' for p in totudisarea])])
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([f'{p:.2f}' for p in totudilarea])])
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([f'{p:.2f}' for p in totudiharea])])
-            overallsdaareapa = sum([g.calc_area() for g in geom if g[rt] and g[ressv] == 1.0]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[ressv]])
+            overallsdaareapa = sum([g.calc_area() for g in rgeom if g[ressv] == 1.0]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in rgeom if g[ressv]])
             overallsdaarea = totarea
             self['omax']['sda{}'.format(frame)] = max(sdas)
             self['omin']['sda{}'.format(frame)] = min(sdas)
