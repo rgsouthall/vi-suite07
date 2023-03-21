@@ -1240,20 +1240,17 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                     pmcmd = 'mkpmap {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, gpentry, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 else:
-                    pmcmd = 'mkpmap {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 -apC "{1}-{2}.copm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                    pmcmd = 'mkpmap {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}-{2}.copm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
 
                 logentry('Generating photon map: {}'.format(pmcmd))
-                os.chdir(svp['viparams']['newdir'])
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
 
                 while pmrun.poll() is None:
-                    sleep(5)
+                    sleep(10)
                     with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '%' in line:
-                                for entry in line.split():
-                                    if '%' in entry:
-                                        curres = float(entry.strip('%'))/len(frames)
+                                curres = float(line.split()[6][:-2])/len(frames)
                                 break
 
                     if pfile.check(curres) == 'CANCELLED':
@@ -1282,13 +1279,12 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
 
                 if self.simnode.pmap:
-                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry, gpfileentry))
+                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry. gpfileentry))
                 else:
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame))
             else:
                 if self.simnode.pmap:
-                    rccmds.append('rcontrib -w  -h -I -fo -ap "{2}-{3}.copm" {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
-                    #rccmds.append('rcontrib -w  -h -I -fo -ap {2}.cpm -bn {4} {0} -n {1} -f tregenza.cal -b tbin -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, patches))
+                    rccmds.append('rcontrib -w  -h -I -fo -ap {2}-{3}.copm {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
                 else:
                     rccmds.append('rcontrib -w  -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp['viparams']['filebase'], frame))
 

@@ -984,8 +984,8 @@ class No_Li_Im(Node, ViNodes):
             pmaps.append(self.pmap)
             self['pmapgnos'][sf] = self.pmapgno
             self['pmapcnos'][sf] = self.pmapcno
-            self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['cpfileentry'] = retpmap(self, frame, scene)
-
+            self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['gpentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['gpfileentry'], self['pmparams'][sf]['cpfileentry'] = retpmap(self, frame, scene)
+            # amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry
             if self.fisheye and self.fov == 180:
                 self['viewparams'][sf]['-vth'] = ''
 
