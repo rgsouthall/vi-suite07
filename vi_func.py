@@ -287,7 +287,7 @@ def move_obs(s_coll, coll, t_string):
 
 def cmap(svp):
     cols = retcols(ret_mcm().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
-    cols = [[col[0], col[1], col[2], svp.vi_disp_trans] for col in cols]
+    cols = [[col[0], col[1], col[2], 1 - svp.vi_disp_trans] for col in cols]
 
     for i in range(svp.vi_leg_levels):
         matname = '{}#{}'.format('vi-suite', i)
@@ -308,10 +308,10 @@ def cmap(svp):
         node_output = nodes.new(type='ShaderNodeOutputMaterial')
         node_output.location = 400, 0
 
-        if svp.vi_disp_trans < 1:
+        if svp.vi_disp_trans > 0:
             # create transparency node
             node_material = nodes.new(type='ShaderNodeBsdfTransparent')
-            node_material.inputs[0].default_value[3] = svp.vi_disp_trans
+            node_material.inputs[0].default_value[3] = 1 - svp.vi_disp_trans
         elif svp.vi_disp_mat:
             # create emission node
             node_material = nodes.new(type='ShaderNodeEmission')
@@ -332,7 +332,7 @@ def cmap(svp):
         node_material.location = 0, 0
 
         # create output node
-        if svp.vi_disp_trans == 1 and svp.vi_disp_mat:
+        if 1 - svp.vi_disp_trans == 1 and svp.vi_disp_mat:
             links.new(node_mix.outputs[0], node_output.inputs[0])
         else:
             links.new(node_material.outputs[0], node_output.inputs[0])
@@ -1846,11 +1846,6 @@ def sunpath(context):
                 suns[h].location.x = -(100**2 - (suns[h].location.z)**2)**0.5 * sin(phi)
                 suns[h].location.y = -(100**2 - (suns[h].location.z)**2)**0.5 * cos(phi)
                 suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi
-#            suns[h].hide_viewport = True if alt <= 0 else False
-
-#            if suns[h].children:
-#                suns[h].children[0].hide_viewport = True if alt <= 0 else False
-#            if alt > 0:
                 suns[h].data.energy = sun_strength
 
                 if scene.render.engine == 'CYCLES':
@@ -2189,9 +2184,9 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
             st1y.keyframe_points.add(len(frames))
             st1z.keyframe_points.add(len(frames))
 
-        for bnode in bnodes:
-            b1 = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(bnode.name))
-            b1.keyframe_points.add(len(frames))
+        # for bnode in bnodes:
+        #     b1 = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(bnode.name))
+        #     b1.keyframe_points.add(len(frames))
 
     for f, frame in enumerate(frames):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]

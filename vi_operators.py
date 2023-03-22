@@ -1262,6 +1262,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
                 with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as pmapfile:
                     pmlines = pmapfile.readlines()
+
                     if pmlines:
                         for line in pmlines:
                             if line in errdict:
@@ -1279,7 +1280,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
 
                 if self.simnode.pmap:
-                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry. gpfileentry))
+                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry, gpfileentry))
                 else:
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame))
             else:

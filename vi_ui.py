@@ -170,9 +170,9 @@ class VI_PT_3D(bpy.types.Panel):
                         newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')
 
                     if int(svp.vi_disp_3d) == 1:
-                        newrow(layout, "3D Level", svp, "vi_disp_3dlevel")
+                        newrow(layout, "3D Level:", svp, "vi_disp_3dlevel")
 
-                    newrow(layout, "Transparency", svp, "vi_disp_trans")
+                    newrow(layout, "Transparency:", svp, "vi_disp_trans")
 
                     if context.mode != "EDIT":
                         row = layout.row()
