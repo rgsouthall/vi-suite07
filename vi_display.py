@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, blf, mathutils, datetime, os, bgl, inspect, gpu, bmesh
+import bpy, blf, mathutils, datetime, os, inspect, gpu, bmesh
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
@@ -577,22 +577,24 @@ class results_bar():
                 self.batches[si].draw(s)
             elif si == 1:
                 s.uniform_float("color", (0, 0, 0, 1))
-                bgl.glEnable(bgl.GL_BLEND)
-                bgl.glEnable(bgl.GL_LINE_SMOOTH)
+                # bgl.glEnable(bgl.GL_BLEND)
+                # bgl.glEnable(bgl.GL_LINE_SMOOTH)
                 self.batches[si].draw(s)
-                bgl.glDisable(bgl.GL_LINE_SMOOTH)
-                bgl.glDisable(bgl.GL_BLEND)
+                # bgl.glDisable(bgl.GL_LINE_SMOOTH)
+                # bgl.glDisable(bgl.GL_BLEND)
             else:
                 im = bpy.data.images[self.images[si - 2]]
+                texture = gpu.texture.from_image(im)
 
                 if im.gl_load():
                     raise Exception()
 
-                bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-                s.uniform_int("image", 0)
+                # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+                s.uniform_sampler("image", texture)
+                #s.uniform_int("image", 0)
                 self.batches[si].draw(s)
 
 # def spnumdisplay(disp_op, context):
@@ -942,37 +944,42 @@ class draw_bsdf(Base_Display):
             self.back_shader.uniform_float("size", (400, 650))
             self.back_shader.uniform_float("spos", (self.lspos))
             self.back_batch.draw(self.back_shader)
-            bgl.glEnable(bgl.GL_DEPTH_TEST)
-            bgl.glDepthFunc(bgl.GL_LESS)
-            bgl.glLineWidth(1)
+            gpu.state.depth_test_set('LESS')
+            gpu.state.depth_mask_set(False)
+            gpu.state.line_width_set(1)
+            # bgl.glEnable(bgl.GL_DEPTH_TEST)
+            # bgl.glDepthFunc(bgl.GL_LESS)
+            # bgl.glLineWidth(1)
             self.image_shader.bind()
             self.image_shader.uniform_float("size", self.isize)
             self.image_shader.uniform_float("spos", self.lspos)
             im = bpy.data.images[self.image]
+            texture = gpu.texture.from_image(im)
 
             if im.gl_load():
                 raise Exception()
 
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-            self.image_shader.uniform_int("image", 0)
+            # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+            self.image_shader.uniform_sampler("image", texture)
             self.image_batch.draw(self.image_shader)
 
             self.iimage_shader.bind()
             self.iimage_shader.uniform_float("size", self.iisize)
             self.iimage_shader.uniform_float("spos", (self.lspos[0] + 50, self.lepos[1] - 280))
             iim = bpy.data.images[self.iimage]
+            texture = gpu.texture.from_image(iim)
 
             if iim.gl_load():
                 raise Exception()
 
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, iim.bindcode)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-            self.iimage_shader.uniform_int("image", 0)
+            # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            # bgl.glBindTexture(bgl.GL_TEXTURE_2D, iim.bindcode)
+            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+            self.iimage_shader.uniform_sampler("image", texture)
             self.iimage_batch.draw(self.iimage_shader)
             self.arc_shader.bind()
             self.arc_shader.uniform_float("size", (1, 1))
@@ -1394,15 +1401,16 @@ class draw_scatter(Base_Display):
 
             if self.image in [i.name for i in bpy.data.images]:
                 im = bpy.data.images[self.image]
+                texture = gpu.texture.from_image(im)
 
                 if im.gl_load():
                     raise Exception()
 
-                bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-                bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-                self.image_shader.uniform_int("image", 0)
+                # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+                # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+                self.image_shader.uniform_sampler("image", texture)
                 self.image_batch.draw(self.image_shader)
 
     def show_plot(self, context):
@@ -1608,92 +1616,6 @@ class draw_legend(Base_Display):
         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords, "colour": self.colours}, indices=fl_indices)
 
 
-def draw_icon_new(self):
-    image = bpy.data.images[self.image]
-    shader = gpu.shader.from_builtin('2D_IMAGE')
-    batch = batch_for_shader(
-        shader, 'TRI_FAN',
-        {
-            "pos": ((305, self.height - 80), (345, self.height - 80), (345, self.height - 40), (305, self.height - 40)),
-            "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),
-        },
-    )
-
-    if image.gl_load():
-        raise Exception()
-
-    def draw():
-        bgl.glActiveTexture(bgl.GL_TEXTURE0)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-        shader.bind()
-        shader.uniform_int("image", 0)
-        batch.draw(shader)
-
-    draw()
-
-
-def draw_icon(self):
-    drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)
-    drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
-    bgl.glEnable(bgl.GL_BLEND)
-    bpy.data.images[self.image].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
-    bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.image].bindcode[0])
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-    bgl.glEnable(bgl.GL_TEXTURE_2D)
-    bgl.glColor4f(1, 1, 1, 1)
-    bgl.glBegin(bgl.GL_QUADS)
-    bgl.glTexCoord2i(0, 0)
-    bgl.glVertex2f(self.spos[0] + 1, self.spos[1] + 1)
-    bgl.glTexCoord2i(1, 0)
-    bgl.glVertex2f(self.epos[0] - 1, self.spos[1] + 1)
-    bgl.glTexCoord2i(1, 1)
-    bgl.glVertex2f(self.epos[0] - 1, self.epos[1] - 1)
-    bgl.glTexCoord2i(0, 1)
-    bgl.glVertex2f(self.spos[0] + 1, self.epos[1] - 1)
-    bgl.glEnd()
-    bgl.glDisable(bgl.GL_TEXTURE_2D)
-    bgl.glDisable(bgl.GL_BLEND)
-    bgl.glFlush()
-
-
-def draw_image(self, topgap):
-    draw_icon(self)
-    self.xdiff = self.lepos[0] - self.lspos[0]
-    self.ydiff = self.lepos[1] - self.lspos[1]
-    if not self.resize:
-        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
-        self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]
-    else:
-        self.lspos = [self.spos[0], self.lspos[1]]
-        self.lepos = [self.lepos[0], self.spos[1]]
-
-    bpy.data.images[self.gimage].reload()
-    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
-    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
-    bgl.glEnable(bgl.GL_BLEND)
-    bpy.data.images[self.gimage].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
-    bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.gimage].bindcode[0])
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-    bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-    bgl.glEnable(bgl.GL_TEXTURE_2D)
-    bgl.glColor4f(1, 1, 1, 1)
-    bgl.glBegin(bgl.GL_QUADS)
-    bgl.glTexCoord2i(0, 0)
-    bgl.glVertex2f(self.lspos[0] + 5, self.lspos[1] + 5)
-    bgl.glTexCoord2i(1, 0)
-    bgl.glVertex2f(self.lepos[0] - 5, self.lspos[1] + 5)
-    bgl.glTexCoord2i(1, 1)
-    bgl.glVertex2f(self.lepos[0] - 5, self.lepos[1] - topgap)
-    bgl.glTexCoord2i(0, 1)
-    bgl.glVertex2f(self.lspos[0] + 5, self.lepos[1] - topgap)
-    bgl.glEnd()
-    bgl.glDisable(bgl.GL_TEXTURE_2D)
-    bgl.glFlush()
-
-
 def draw_dhscatter(self, x, y, z, tit, xlab, ylab, zlab, valmin, valmax, col):
     self.plt.close()
     x = [x[0] - 0.5] + [xval + 0.5 for xval in x]
@@ -1712,74 +1634,74 @@ def draw_dhscatter(self, x, y, z, tit, xlab, ylab, zlab, valmin, valmax, col):
     self.fig.tight_layout()
 
 
-def draw_table(self):
-    draw_icon(self)
-    font_id = 0
-    blf.enable(0, 4)
-    blf.enable(0, 8)
-    blf.shadow(font_id, 5, 0.9, 0.9, 0.9, 1)
-    blf.size(font_id, 44, self.fontdpi)
-    rcshape = self.rcarray.shape
-    [rowno, colno] = self.rcarray.shape
+# def draw_table(self):
+#     draw_icon_new(self)
+#     font_id = 0
+#     blf.enable(0, 4)
+#     blf.enable(0, 8)
+#     blf.shadow(font_id, 5, 0.9, 0.9, 0.9, 1)
+#     blf.size(font_id, 44, self.fontdpi)
+#     rcshape = self.rcarray.shape
+#     [rowno, colno] = self.rcarray.shape
 
-    self.xdiff = self.lepos[0] - self.lspos[0]
-    self.ydiff = self.lepos[1] - self.lspos[1]
-    colpos = [int(0.01 * self.xdiff)]
+#     self.xdiff = self.lepos[0] - self.lspos[0]
+#     self.ydiff = self.lepos[1] - self.lspos[1]
+#     colpos = [int(0.01 * self.xdiff)]
 
-    if not self.resize:
-        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
-        self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]
-    else:
-        self.lspos = [self.spos[0], self.lspos[1]]
-        self.lepos = [self.lepos[0], self.spos[1]]
+#     if not self.resize:
+#         self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+#         self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]
+#     else:
+#         self.lspos = [self.spos[0], self.lspos[1]]
+#         self.lepos = [self.lepos[0], self.spos[1]]
 
-    coltextwidths = array([int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
-    colscale = sum(coltextwidths)/(self.xdiff * 0.98)
-    colwidths = (coltextwidths/colscale).astype(int)
+#     coltextwidths = array([int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
+#     colscale = sum(coltextwidths)/(self.xdiff * 0.98)
+#     colwidths = (coltextwidths/colscale).astype(int)
 
-    for cw in colwidths:
-        colpos.append(cw + colpos[-1])
+#     for cw in colwidths:
+#         colpos.append(cw + colpos[-1])
 
-    maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry if e]) for entry in self.rcarray.T])
-    rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
-    rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
-    rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
-    rowtops = [int(self.lepos[1] - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
-    rowbots = [int(self.lepos[1] - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
-    rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
+#     maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry if e]) for entry in self.rcarray.T])
+#     rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
+#     rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
+#     rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
+#     rowtops = [int(self.lepos[1] - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
+#     rowbots = [int(self.lepos[1] - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
+#     rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
 
-    if abs(max(colscale, rowscale) - 1) > 0.05:
-        self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
+#     if abs(max(colscale, rowscale) - 1) > 0.05:
+#         self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
 
-    blf.size(font_id, 48, self.fontdpi)
-    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
-    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+#     blf.size(font_id, 48, self.fontdpi)
+#     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
+#     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
 
-    for r in range(rcshape[0]):
-        for c in range(rcshape[1]):
-            if self.rcarray[r][c]:
-                if c == 0:
-                    blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
-                    # .format(self.rcarray[r][c]))[1])), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
-                else:
-                    blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5),
-                                 int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
-                drawloop(int(self.lspos[0] + colpos[c]), rowtops[r], self.lspos[0] + colpos[c + 1], rowbots[r])
-                if self.rcarray[r][c] == 'Pass':
-                    bgl.glColor3f(0.0, 0.6, 0.0)
-                elif self.rcarray[r][c] == 'Fail':
-                    bgl.glColor3f(0.6, 0.0, 0.0)
-                else:
-                    bgl.glColor3f(0.0, 0.0, 0.0)
-                blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+#     for r in range(rcshape[0]):
+#         for c in range(rcshape[1]):
+#             if self.rcarray[r][c]:
+#                 if c == 0:
+#                     blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
+#                     # .format(self.rcarray[r][c]))[1])), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
+#                 else:
+#                     blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5),
+#                                  int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
+#                 drawloop(int(self.lspos[0] + colpos[c]), rowtops[r], self.lspos[0] + colpos[c + 1], rowbots[r])
+#                 if self.rcarray[r][c] == 'Pass':
+#                     bgl.glColor3f(0.0, 0.6, 0.0)
+#                 elif self.rcarray[r][c] == 'Fail':
+#                     bgl.glColor3f(0.6, 0.0, 0.0)
+#                 else:
+#                     bgl.glColor3f(0.0, 0.0, 0.0)
+#                 blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
 
-    bgl.glDisable(bgl.GL_BLEND)
-    blf.disable(0, 8)
-    blf.disable(0, 4)
-    bgl.glEnd()
-    bgl.glFlush()
+#     bgl.glDisable(bgl.GL_BLEND)
+#     blf.disable(0, 8)
+#     blf.disable(0, 4)
+#     bgl.glEnd()
+#     bgl.glFlush()
 
 
 def save_plot(self, scene, filename):
@@ -2482,15 +2404,16 @@ class wr_scatter(Base_Display):
             self.image_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.image_shader.uniform_float("spos", self.lspos)
             im = bpy.data.images[self.image]
+            texture = gpu.texture.from_image(self.image)
 
             if im.gl_load():
                 raise Exception()
 
-            bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-            bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-            self.image_shader.uniform_int("image", 0)
+            # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+            # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+            self.image_shader.uniform_sampler("image", texture)
             self.image_batch.draw(self.image_shader)
 
     def show_plot(self, context):
@@ -3278,3 +3201,88 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         bpy.ops.image.view_zoom_ratio(ov, ratio=1)
         area.type = t
         return {'FINISHED'}
+
+# def draw_icon_new(self):
+#     image = bpy.data.images[self.image]
+#     shader = gpu.shader.from_builtin('2D_IMAGE')
+#     batch = batch_for_shader(
+#         shader, 'TRI_FAN',
+#         {
+#             "pos": ((305, self.height - 80), (345, self.height - 80), (345, self.height - 40), (305, self.height - 40)),
+#             "texCoord": ((0, 0), (1, 0), (1, 1), (0, 1)),
+#         },
+#     )
+
+#     if image.gl_load():
+#         raise Exception()
+
+#     def draw():
+#         bgl.glActiveTexture(bgl.GL_TEXTURE0)
+#         bgl.glBindTexture(bgl.GL_TEXTURE_2D, image.bindcode)
+#         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+#         bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+#         shader.bind()
+#         shader.uniform_int("image", 0)
+#         batch.draw(shader)
+
+#     draw()
+
+
+# def draw_icon(self):
+#     drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)
+#     drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bpy.data.images[self.image].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+#     bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.image].bindcode[0])
+#     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+#     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+#     bgl.glEnable(bgl.GL_TEXTURE_2D)
+#     bgl.glColor4f(1, 1, 1, 1)
+#     bgl.glBegin(bgl.GL_QUADS)
+#     bgl.glTexCoord2i(0, 0)
+#     bgl.glVertex2f(self.spos[0] + 1, self.spos[1] + 1)
+#     bgl.glTexCoord2i(1, 0)
+#     bgl.glVertex2f(self.epos[0] - 1, self.spos[1] + 1)
+#     bgl.glTexCoord2i(1, 1)
+#     bgl.glVertex2f(self.epos[0] - 1, self.epos[1] - 1)
+#     bgl.glTexCoord2i(0, 1)
+#     bgl.glVertex2f(self.spos[0] + 1, self.epos[1] - 1)
+#     bgl.glEnd()
+#     bgl.glDisable(bgl.GL_TEXTURE_2D)
+#     bgl.glDisable(bgl.GL_BLEND)
+#     bgl.glFlush()
+
+
+# def draw_image(self, topgap):
+#     draw_icon_new(self)
+#     self.xdiff = self.lepos[0] - self.lspos[0]
+#     self.ydiff = self.lepos[1] - self.lspos[1]
+#     if not self.resize:
+#         self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+#         self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]
+#     else:
+#         self.lspos = [self.spos[0], self.lspos[1]]
+#         self.lepos = [self.lepos[0], self.spos[1]]
+
+#     bpy.data.images[self.gimage].reload()
+#     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
+#     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bpy.data.images[self.gimage].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+#     bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.gimage].bindcode[0])
+#     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+#     bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+#     bgl.glEnable(bgl.GL_TEXTURE_2D)
+#     bgl.glColor4f(1, 1, 1, 1)
+#     bgl.glBegin(bgl.GL_QUADS)
+#     bgl.glTexCoord2i(0, 0)
+#     bgl.glVertex2f(self.lspos[0] + 5, self.lspos[1] + 5)
+#     bgl.glTexCoord2i(1, 0)
+#     bgl.glVertex2f(self.lepos[0] - 5, self.lspos[1] + 5)
+#     bgl.glTexCoord2i(1, 1)
+#     bgl.glVertex2f(self.lepos[0] - 5, self.lepos[1] - topgap)
+#     bgl.glTexCoord2i(0, 1)
+#     bgl.glVertex2f(self.lspos[0] + 5, self.lepos[1] - topgap)
+#     bgl.glEnd()
+#     bgl.glDisable(bgl.GL_TEXTURE_2D)
+#     bgl.glFlush()

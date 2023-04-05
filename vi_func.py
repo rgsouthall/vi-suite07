@@ -919,7 +919,7 @@ def clearscene(context, op):
                         livires = bm.faces.layers.float['res{}'.format(f)]
                         bm.faces.layers.float.remove(livires)
                         f += 1
-                
+
                 bm.to_mesh(ob.data)
                 bm.free()
 

@@ -249,11 +249,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
         vawd = awd[validdata]
         vad = ad[validdata]
         simnode['maxres'], simnode['minres'], simnode['avres'] = max(cd), min(cd), sum(cd)/len(cd)
-#        maxf = simnode.max_freq_val if simnode.max_freq == '1' else 0
         sbinvals = arange(0, int(ceil(max(vad))), 2)
         dbinvals = arange(-11.25, 372.25, 22.5)
         dfreq = histogram(awd, bins=dbinvals)[0]
-#        adfreq = histogram(cd, bins=dbinvals)[0]
         dfreq[0] = dfreq[0] + dfreq[-1]
         dfreq = dfreq[:-1]
         fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
@@ -1061,7 +1059,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                                                                                                                  '{}-{}'.format(self.pmfile, frame),
                                                                                                                  frame, gpentry,
                                                                                                                  cpentry, amentry,
-                                                                                                                 ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], 
+                                                                                                                 ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'],
                                                                                                                  svp['viparams']['filebase'], self.simnode.pmapoptions, ('-', '+')[self.simnode.bfv])
                 logentry('Photon map command: {}'.format(pmcmd))
                 os.chdir(svp['viparams']['newdir'])
@@ -1150,7 +1148,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     gpmbm.free()
 
                 rvucmd = 'rvu -w {11} {12} {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'],
-                                 vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame), 
+                                 vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame),
                                  cpfileentry, cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu], gpfileentry)
 
             else:
