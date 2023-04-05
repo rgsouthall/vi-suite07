@@ -235,10 +235,10 @@ def li_display(context, disp_op, simnode):
     svp.li_disp_menu = unit2res[svp['liparams']['unit']]
     setscenelivivals(scene)
 
-    try:
-        scene.display_settings.display_device = 'None'
-    except Exception:
-        pass
+    # try:
+    #     scene.display_settings.display_device = 'None'
+    # except Exception:
+    #     pass
 
     (rcol, mtype) = ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 

@@ -408,7 +408,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_leg_levels: IntProperty(name="", description="Day of year", min=2, max=100, default=20, update=leg_update)
     vi_leg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0', update=leg_update)
     wind_type: eprop([("0", "Speed", "Wind Speed (m/s)"), ("1", "Direction", "Wind Direction (deg. from North)")], "", "Wind metric", "0")
-    vi_disp_trans: FloatProperty(name="", description="Sensing material transparency", min=0, max=1, default=1, update=t_update)
+    vi_disp_trans: FloatProperty(name="", description="Sensing material transparency", min=0, max=1, default=0, update=t_update)
     vi_disp_wire: BoolProperty(name="", description="Draw wire frame", default=0, update=w_update)
     vi_disp_mat: BoolProperty(name="", description="Turn on/off result material emission", default=0, update=col_update)
     vi_disp_ems: FloatProperty(name="", description="Emissive strength", default=1, min=0, update=col_update)
