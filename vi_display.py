@@ -559,10 +559,10 @@ class results_bar():
             self.xpos = xpos
 
             v_coords = ((self.xpos, rh - self.yoffset - self.size), (self.xpos + self.no * self.size, rh - self.yoffset - self.size),
-                        (self.xpos + self.no * self.size, rh - self.yoffset), (self.xpos, rh - self.yoffset))
+                        (self.xpos + self.no * self.size, rh - self.yoffset), (self.xpos, rh - self.yoffset), (self.xpos, rh - self.yoffset - self.size))
 
             self.batches = [batch_for_shader(self.shaders[1], 'TRIS', {"pos": v_coords}, indices=self.f_indices),
-                            batch_for_shader(self.shaders[0], 'LINE_LOOP', {"pos": v_coords})]
+                            batch_for_shader(self.shaders[0], 'LINE_STRIP', {"pos": v_coords})]
 
             for i in range(self.no):
                 pos = self.ret_coords(self.xpos, rh, i)
@@ -1416,7 +1416,7 @@ class draw_legend(Base_Display):
         self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
         self.dpi = 72
         self.levels = levels
-        self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
+        self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]
         self.f_indices = [(0, 1, 2), (2, 3, 0)]
         self.update(context)
         self.create_batch()
@@ -1517,7 +1517,7 @@ class draw_legend(Base_Display):
             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.line_shader.uniform_float("spos", self.lspos)
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
-            self.line_batch.draw(self.line_shader)
+            # self.line_batch.draw(self.line_shader)
 
             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.5), self.mydimen * 1.15/(self.lh * self.ydiff))
             blf.enable(0, 8)
@@ -1666,7 +1666,7 @@ class draw_legend(Base_Display):
         # self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
         (vl_coords, fl_indices) = self.ret_coords()
         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
-        self.basel_batch = batch_for_shader(self.basel_shader, 'LINE_LOOP', {"position": self.v_coords})
+        self.basel_batch = batch_for_shader(self.basel_shader, 'LINE_STRIP', {"position": self.v_coords})
         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords, "colour": self.colours}, indices=fl_indices)
 
