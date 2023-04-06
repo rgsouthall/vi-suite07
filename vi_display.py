@@ -577,11 +577,7 @@ class results_bar():
                 self.batches[si].draw(s)
             elif si == 1:
                 s.uniform_float("color", (0, 0, 0, 1))
-                # bgl.glEnable(bgl.GL_BLEND)
-                # bgl.glEnable(bgl.GL_LINE_SMOOTH)
                 self.batches[si].draw(s)
-                # bgl.glDisable(bgl.GL_LINE_SMOOTH)
-                # bgl.glDisable(bgl.GL_BLEND)
             else:
                 im = bpy.data.images[self.images[si - 2]]
                 texture = gpu.texture.from_image(im)
@@ -589,10 +585,6 @@ class results_bar():
                 if im.gl_load():
                     raise Exception()
 
-                # bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
                 s.uniform_sampler("image", texture)
                 #s.uniform_int("image", 0)
                 self.batches[si].draw(s)
@@ -1605,10 +1597,73 @@ class draw_legend(Base_Display):
 
             '''
 
-        self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.basel_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
+        '''New code for cross-platform shaders'''
+        base_shader = gpu.types.GPUShaderCreateInfo()
+        base_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
+        base_shader.push_constant('VEC2', 'spos')
+        base_shader.push_constant('VEC2', 'size')
+        base_shader.push_constant('VEC4', 'colour')
+        base_shader.vertex_in(0, 'VEC2', 'position')
+        # self.base_shader_iface = gpu.types.GPUStageInterfaceInfo('base_interface')
+        base_shader.fragment_out(0, 'VEC4', 'FragColour')
+        base_shader.vertex_source(
+            '''
+            void main()
+            {
+                float xpos = spos[0] + position[0] * size[0];
+                float ypos = spos[1] + position[1] * size[1];
+                gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+            }
+            '''
+        )
+        base_shader.fragment_source(
+            '''
+            void main()
+                {
+                    FragColour = colour;
+                }
+            '''
+        )
+
+        col_shader = gpu.types.GPUShaderCreateInfo()
+        col_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
+        col_shader.push_constant('VEC2', 'spos')
+        col_shader.push_constant('VEC2', 'size')
+        col_shader.vertex_in(0, 'VEC2', 'position')
+        col_shader.vertex_in(1, 'VEC4', 'colour')
+        col_shader_iface = gpu.types.GPUStageInterfaceInfo('col_interface')
+        col_shader_iface.flat('VEC4', 'f_colour')
+        col_shader.vertex_out(col_shader_iface)
+        col_shader.fragment_out(0, 'VEC4', 'FragColour')
+
+        col_shader.vertex_source(
+            '''
+            void main()
+            {
+                float xpos = spos[0] + position[0] * size[0];
+                float ypos = spos[1] + position[1] * size[1];
+                gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+                f_colour = colour;
+            }
+            '''
+        )
+        col_shader.fragment_source(
+            '''
+            void main()
+                {
+                    FragColour = f_colour;
+                }
+            '''
+        )
+
+        self.base_shader = gpu.shader.create_from_info(base_shader)
+        self.basel_shader = gpu.shader.create_from_info(base_shader)
+        self.line_shader = gpu.shader.create_from_info(base_shader)
+        self.col_shader = gpu.shader.create_from_info(col_shader)
+        # self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+        # self.basel_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+        # self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+        # self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
         (vl_coords, fl_indices) = self.ret_coords()
         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
         self.basel_batch = batch_for_shader(self.basel_shader, 'LINE_LOOP', {"position": self.v_coords})
