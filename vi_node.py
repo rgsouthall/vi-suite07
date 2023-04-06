@@ -286,7 +286,7 @@ class No_Li_Geo(Node, ViNodes):
 
     cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"), ("1", "Vertices", "Export vertices for calculation points")],
                          name="", description="Specify the calculation point geometry", default="0", update=nodeupdate)
-    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, precision=3, update=nodeupdate)
+    offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.02, precision=3, update=nodeupdate)
     animated: BoolProperty(name="", description="Animated analysis", default=0, update=nodeupdate)
     startframe: IntProperty(name="", description="Start frame for animation", min=0, default=0, update=nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min=0, default=0, update=nodeupdate)
@@ -453,7 +453,7 @@ class No_Li_Con(Node, ViNodes):
     ay: BoolProperty(name='', description='All year simulation',  default=False, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
     sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
- 
+
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
         self['whitesky'] = ("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \n"
@@ -493,7 +493,7 @@ class No_Li_Con(Node, ViNodes):
                         newrow(layout, "End hour {}:{}:".format(int(self.ehour), int((self.ehour*60) % 60)), self, 'ehour')
                         newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                         newrow(layout, "Interval (hours):", self, 'interval')
-                    
+
                     newrow(layout, "Turbidity", self, 'turb')
 
             elif self.skyprog == '1':
@@ -530,7 +530,7 @@ class No_Li_Con(Node, ViNodes):
 
             row = layout.row()
 
-            if self.skyprog in ("0", "1"):
+            if self.skyprog in ("0", "1", "3"):
                 newrow(layout, 'HDR:', self, 'hdr')
 
             newrow(layout, 'Split channels:', self, 'sp')
@@ -599,7 +599,7 @@ class No_Li_Con(Node, ViNodes):
             else:
                 row = layout.row()
                 row.label(text="ERROR: No valid HDR file")
-        
+
         elif (self.contextmenu == 'CBDM' and self.cbanalysismenu != '0' and self.sourcemenu2 == '1'):
             if os.path.isfile(bpy.path.abspath(self.mtxname)):
                 row = layout.row()
@@ -717,10 +717,12 @@ class No_Li_Con(Node, ViNodes):
                     self['Text'][str(frame)] = skytext
 
             elif self.skyprog == '2':
-                if self.hdrname and os.path.isfile(self.hdrname):
+                hdr_loc = bpy.path.abspath(self.hdrname)
+                if self.hdrname and os.path.isfile(hdr_loc):
                     if self.hdrname not in bpy.data.images:
                         bpy.data.images.load(self.hdrname)
-                    self['Text'][str(scene.frame_current)] = hdrsky(self.hdrname, self.hdrmap, self.hdrangle, self.hdrradius)
+
+                    self['Text'][str(scene.frame_current)] = hdrsky(hdr_loc, self.hdrmap, self.hdrangle, self.hdrradius)
                 else:
                     export_op.report({'ERROR'}, "Not a valid HDR file")
                     return 'Error'
@@ -768,16 +770,14 @@ class No_Li_Con(Node, ViNodes):
                             #         export_op.report({'ERROR'}, "Outdated MTX file")
                             #         self._valid = 0
                             #         return
-                            
+
                         self['Options']['MTX'] = mtxfile.read()
-                
+
                 if self.hdr:
                     cbdmhdr(self, scene, export_op)
-    
+
     # def check_mtx(self):
     #     if self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
-
-
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
@@ -797,7 +797,7 @@ class No_Li_Con(Node, ViNodes):
                            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
                            'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
                            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
-        
+
         # if self._valid:
         nodecolour(self, 0)
         self.outputs['Context out'].hide = False
@@ -1225,36 +1225,38 @@ class No_Li_Sim(Node, ViNodes):
         if self.inputs['Context in'].links and self.inputs['Geometry in'].links:
             cinnode = self.inputs['Context in'].links[0].from_node
             ginnode = self.inputs['Geometry in'].links[0].from_node
-            row = layout.row()
-            row.label(text='Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
-            newrow(layout, 'Photon map:', self, 'pmap')
 
-            if self.pmap:
-                newrow(layout, 'Global photons:', self, 'pmapgno')
-                newrow(layout, 'Caustic photons:', self, 'pmapcno')
-                newrow(layout, 'Back face visability:', self, 'bfv')
-                newrow(layout, 'Photon options:', self, 'pmapoptions')
-                newrow(layout, 'Preview photons:', self, 'pmappreview')
-
-            row = layout.row()
-            row.label(text="Accuracy:")
-            row.prop(self, self['simdict'][cinnode['Options']['Context']])
-
-            if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
+            if cinnode.get('Options'):
                 row = layout.row()
-                row.prop(self, 'cusacc')
+                row.label(text='Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
+                newrow(layout, 'Photon map:', self, 'pmap')
 
-            if not self.run and (self.simacc != '3' or self.validparams):
-                if cinnode['Options']['Preview']:
+                if self.pmap:
+                    newrow(layout, 'Global photons:', self, 'pmapgno')
+                    newrow(layout, 'Caustic photons:', self, 'pmapcno')
+                    newrow(layout, 'Back face visability:', self, 'bfv')
+                    newrow(layout, 'Photon options:', self, 'pmapoptions')
+                    newrow(layout, 'Preview photons:', self, 'pmappreview')
+
+                row = layout.row()
+                row.label(text="Accuracy:")
+                row.prop(self, self['simdict'][cinnode['Options']['Context']])
+
+                if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] == 'CBDM'):
                     row = layout.row()
-                    row.prop(self, "camera")
+                    row.prop(self, 'cusacc')
 
-                    if self.camera != 'None':
-                        row.operator("node.radpreview", text='Preview')
+                if not self.run and (self.simacc != '3' or self.validparams):
+                    if cinnode['Options']['Preview']:
+                        row = layout.row()
+                        row.prop(self, "camera")
 
-                if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
-                    row = layout.row()
-                    row.operator("node.livicalc", text='Calculate')
+                        if self.camera != 'None':
+                            row.operator("node.radpreview", text='Preview')
+
+                    if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
+                        row = layout.row()
+                        row.operator("node.livicalc", text='Calculate')
 
     def update(self):
         for sock in self.outputs:
@@ -1651,7 +1653,7 @@ class No_En_Con(Node, ViNodes):
                                  ("1", "Urban", "Urban, Industrial, Forest"), ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
                                  ("3", "Country", "Flat, Open Country"), ("4", "Ocean", "Ocean, very flat country")],
                           name="", description="Exposure context", default="0", options={'SKIP_SAVE'}, update=nodeupdate)
-    solar: EnumProperty(items=[("0", "MinimalShadowing", ""), ("1", "FullExterior", ""), ("2", "FullInteriorAndExterior", ""), 
+    solar: EnumProperty(items=[("0", "MinimalShadowing", ""), ("1", "FullExterior", ""), ("2", "FullInteriorAndExterior", ""),
                                ("3", "FullExteriorWithReflections", ""), ("4", "FullInteriorAndExteriorWithReflections", "")],
                         name="", description="Solar calcs", default="2", update=nodeupdate)
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -2507,7 +2509,7 @@ class No_Vi_HMChart(Node, ViNodes):
     def f_menu(self, context):
         try:
             frames = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys()]
-            
+
             if frames:
                 return frames
             else:
@@ -2519,19 +2521,19 @@ class No_Vi_HMChart(Node, ViNodes):
     def r_menu(self, context):
         try:
             ress = [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu].keys()]
-            
+
             if ress:
                 return ress
             else:
                 return [('None', 'None', 'None')]
-        
+
         except Exception:
             return [('None', 'None', 'None')]
 
     def z_menu(self, context):
         try:
             return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][self.resmenu].keys()]
-        
+
         except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
@@ -2913,11 +2915,11 @@ class No_Vi_Metrics(Node, ViNodes):
                         sda = 'N/A' if self['res']['sda'] < 0 else self['res']['sda']
                         credits = 0
                         newrow(layout, 'Space:', self, "breeam_menu")
-                        
+
                         if self.breeam_menu == '0':
                             # if avDF >= 2 and ratioDF >= 0.3:
                             newrow(layout, 'Education space:', self, "breeam_edumenu")
-                        
+
                         elif self.breeam_menu == '1':
                                 # if ratioDF >= 0.3:
                                 newrow(layout, 'Health space:', self, "breeam_healthmenu")
@@ -3447,7 +3449,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 elif self.breeam_menu == '4':
                     cred = 1
-                    
+
                     if self.breeam_retailmenu == '0':
                         mA = 0.35
                     elif self.breeam_retailmenu == '1':
@@ -3491,14 +3493,14 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 except Exception as e:
                     print(e)
-                
+
                 try:
                     vsareas = sareas[where(sareas > mA * 100)]
                     self['res']['sda'] = len(vsareas)
 
                     if self['res']['sda'] > sdah:
-                        credits = cred 
-                
+                        credits = cred
+
                 except Exception as e:
                     print(e)
 

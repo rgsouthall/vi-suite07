@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, bpy_extras, math
+import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, blf, bpy_extras, math
 # from collections import OrderedDict
 from subprocess import Popen
 from numpy import array, digitize, amax, amin, average, clip, char, int8, frombuffer, uint8, multiply, float32
@@ -1385,126 +1385,126 @@ def livisimacc(simnode):
     return (simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
 
 
-def drawpoly(x1, y1, x2, y2, r, g, b, a):
-    bgl.glLineWidth(1)
-    bgl.glColor4f(r, g, b, a)
-    bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glVertex2i(x1, y2)
-    bgl.glVertex2i(x2, y2)
-    bgl.glVertex2i(x2, y1)
-    bgl.glVertex2i(x1, y1)
-    bgl.glEnd()
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+# def drawpoly(x1, y1, x2, y2, r, g, b, a):
+#     bgl.glLineWidth(1)
+#     bgl.glColor4f(r, g, b, a)
+#     bgl.glBegin(bgl.GL_POLYGON)
+#     bgl.glVertex2i(x1, y2)
+#     bgl.glVertex2i(x2, y2)
+#     bgl.glVertex2i(x2, y1)
+#     bgl.glVertex2i(x1, y1)
+#     bgl.glEnd()
+#     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
 
 
-def drawtri(posx, posy, l, d, hscale, radius):
-    r, g, b = colorsys.hsv_to_rgb(0.75 - l * 0.75, 1.0, 1.0)
-    a = 0.9
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glColor4f(r, g, b, a)
-    bgl.glVertex2f(posx - l * 0.5 * hscale * (radius - 20)*sin(d*pi/180), posy - l * 0.5 * hscale * (radius - 20)*cos(d*pi/180))
-    bgl.glVertex2f(posx + hscale * (l**0.5) * (radius/4 - 5)*cos(d*pi/180), posy - hscale * (l**0.5) * (radius/4 - 5)*sin(d*pi/180))
-    bgl.glVertex2f(posx + l**0.5 * hscale * (radius - 20)*sin(d*pi/180), posy + l**0.5 * hscale * (radius - 20)*cos(d*pi/180))
-    bgl.glVertex2f(posx - hscale * (l**0.5) * (radius/4 - 5)*cos(d*pi/180), posy + hscale * (l**0.5) * (radius/4 - 5)*sin(d*pi/180))
-    bgl.glEnd()
-    bgl.glDisable(bgl.GL_BLEND)
+# def drawtri(posx, posy, l, d, hscale, radius):
+#     r, g, b = colorsys.hsv_to_rgb(0.75 - l * 0.75, 1.0, 1.0)
+#     a = 0.9
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bgl.glBegin(bgl.GL_POLYGON)
+#     bgl.glColor4f(r, g, b, a)
+#     bgl.glVertex2f(posx - l * 0.5 * hscale * (radius - 20)*sin(d*pi/180), posy - l * 0.5 * hscale * (radius - 20)*cos(d*pi/180))
+#     bgl.glVertex2f(posx + hscale * (l**0.5) * (radius/4 - 5)*cos(d*pi/180), posy - hscale * (l**0.5) * (radius/4 - 5)*sin(d*pi/180))
+#     bgl.glVertex2f(posx + l**0.5 * hscale * (radius - 20)*sin(d*pi/180), posy + l**0.5 * hscale * (radius - 20)*cos(d*pi/180))
+#     bgl.glVertex2f(posx - hscale * (l**0.5) * (radius/4 - 5)*cos(d*pi/180), posy + hscale * (l**0.5) * (radius/4 - 5)*sin(d*pi/180))
+#     bgl.glEnd()
+#     bgl.glDisable(bgl.GL_BLEND)
 
 
-def drawcircle(center, radius, resolution, fill, a, r, g, b):
-    bgl.glColor4f(r, g, b, a)
-    bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-    bgl.glLineWidth(1.5)
+# def drawcircle(center, radius, resolution, fill, a, r, g, b):
+#     bgl.glColor4f(r, g, b, a)
+#     bgl.glEnable(bgl.GL_LINE_SMOOTH)
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+#     bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+#     bgl.glLineWidth(1.5)
 
-    if fill:
-        bgl.glBegin(bgl.GL_POLYGON)
-    else:
-        bgl.glBegin(bgl.GL_LINE_STRIP)
+#     if fill:
+#         bgl.glBegin(bgl.GL_POLYGON)
+#     else:
+#         bgl.glBegin(bgl.GL_LINE_STRIP)
 
-    for i in range(resolution+1):
-        vec = Vector((cos(i/resolution*2*pi), sin(i/resolution*2*pi)))
-        v = vec * radius + center
-        bgl.glVertex2f(v.x, v.y)
-    bgl.glEnd()
-
-
-def drawbsdfcircle(centre, radius, resolution, fill, col, w, h, z, lw):
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-    bgl.glLineWidth(lw)
-    if not fill:
-        if col:
-            bgl.glColor4f(*col)
-
-        bgl.glBegin(bgl.GL_LINE_LOOP)
-    else:
-        bgl.glColor4f(*col)
-        bgl.glLineWidth(2.5)
-        bgl.glBegin(bgl.GL_POLYGON)
-    for p in range(0, resolution):
-        bgl.glVertex3f(centre[0] + radius * math.sin(math.pi * p/180) * w, centre[1] + radius * math.cos(math.pi * p/180) * h, z)
-
-    bgl.glEnd()
-    bgl.glDisable(bgl.GL_BLEND)
+#     for i in range(resolution+1):
+#         vec = Vector((cos(i/resolution*2*pi), sin(i/resolution*2*pi)))
+#         v = vec * radius + center
+#         bgl.glVertex2f(v.x, v.y)
+#     bgl.glEnd()
 
 
-def drawwedge(c, phis, rs, col, w, h):
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_FASTEST)
-    (z, lw, col) = (0.1, 3, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
-    bgl.glColor4f(*col)
-    bgl.glLineWidth(lw)
-    bgl.glBegin(bgl.GL_LINE_LOOP)
-    for p in range(phis[0], phis[1] + 1):
-        bgl.glVertex3f(*radial2xy(c, rs[0], p, w, h), z)
-    for p in range(phis[1], phis[0] - 1, -1):
-        bgl.glVertex3f(*radial2xy(c, rs[1], p, w, h), z)
-    bgl.glLineWidth(1)
+# def drawbsdfcircle(centre, radius, resolution, fill, col, w, h, z, lw):
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bgl.glEnable(bgl.GL_LINE_SMOOTH)
+#     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+#     bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+#     bgl.glLineWidth(lw)
+#     if not fill:
+#         if col:
+#             bgl.glColor4f(*col)
 
-    bgl.glEnd()
-    bgl.glDisable(bgl.GL_BLEND)
+#         bgl.glBegin(bgl.GL_LINE_LOOP)
+#     else:
+#         bgl.glColor4f(*col)
+#         bgl.glLineWidth(2.5)
+#         bgl.glBegin(bgl.GL_POLYGON)
+#     for p in range(0, resolution):
+#         bgl.glVertex3f(centre[0] + radius * math.sin(math.pi * p/180) * w, centre[1] + radius * math.cos(math.pi * p/180) * h, z)
+
+#     bgl.glEnd()
+#     bgl.glDisable(bgl.GL_BLEND)
+
+
+# def drawwedge(c, phis, rs, col, w, h):
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bgl.glEnable(bgl.GL_LINE_SMOOTH)
+#     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+#     bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_FASTEST)
+#     (z, lw, col) = (0.1, 3, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
+#     bgl.glColor4f(*col)
+#     bgl.glLineWidth(lw)
+#     bgl.glBegin(bgl.GL_LINE_LOOP)
+#     for p in range(phis[0], phis[1] + 1):
+#         bgl.glVertex3f(*radial2xy(c, rs[0], p, w, h), z)
+#     for p in range(phis[1], phis[0] - 1, -1):
+#         bgl.glVertex3f(*radial2xy(c, rs[1], p, w, h), z)
+#     bgl.glLineWidth(1)
+
+#     bgl.glEnd()
+#     bgl.glDisable(bgl.GL_BLEND)
 
 
 def radial2xy(c, theta, phi, w, h):
     return c[0] + theta * sin(math.pi * phi/180) * w, c[1] + theta * math.cos(math.pi * phi/180) * h
 
 
-def drawloop(x1, y1, x2, y2):
-    bgl.glLineWidth(1)
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(x1, y2)
-    bgl.glVertex2i(x2, y2)
-    bgl.glVertex2i(x2, y1)
-    bgl.glVertex2i(x1, y1)
-    bgl.glEnd()
+# def drawloop(x1, y1, x2, y2):
+#     bgl.glLineWidth(1)
+#     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#     bgl.glBegin(bgl.GL_LINE_LOOP)
+#     bgl.glVertex2i(x1, y2)
+#     bgl.glVertex2i(x2, y2)
+#     bgl.glVertex2i(x2, y1)
+#     bgl.glVertex2i(x1, y1)
+#     bgl.glEnd()
 
 
-def drawsquare(c, w, h, col):
-    vxs = (c[0] + 0.5 * w, c[0] + 0.5 * w, c[0] - 0.5 * w, c[0] - 0.5 * w)
-    vys = (c[1] - 0.5 * h, c[1] + 0.5 * h, c[1] + 0.5 * h, c[1] - 0.5 * h)
+# def drawsquare(c, w, h, col):
+#     vxs = (c[0] + 0.5 * w, c[0] + 0.5 * w, c[0] - 0.5 * w, c[0] - 0.5 * w)
+#     vys = (c[1] - 0.5 * h, c[1] + 0.5 * h, c[1] + 0.5 * h, c[1] - 0.5 * h)
 
-    if col:
-        bgl.glColor4f(*col)
-        z = 0.1
-        bgl.glBegin(bgl.GL_POLYGON)
-    else:
-        z = 0.05
-        bgl.glLineWidth(1)
-        bgl.glColor4f(0, 0, 0, 1)
-        bgl.glBegin(bgl.GL_LINE_LOOP)
-    for v in range(4):
-        bgl.glVertex3f(vxs[v], vys[v], z)
-    bgl.glLineWidth(1)
-    bgl.glColor4f(0, 0, 0, 1)
-    bgl.glEnd()
+#     if col:
+#         bgl.glColor4f(*col)
+#         z = 0.1
+#         bgl.glBegin(bgl.GL_POLYGON)
+#     else:
+#         z = 0.05
+#         bgl.glLineWidth(1)
+#         bgl.glColor4f(0, 0, 0, 1)
+#         bgl.glBegin(bgl.GL_LINE_LOOP)
+#     for v in range(4):
+#         bgl.glVertex3f(vxs[v], vys[v], z)
+#     bgl.glLineWidth(1)
+#     bgl.glColor4f(0, 0, 0, 1)
+#     bgl.glEnd()
 
 
 def drawfont(text, fi, lencrit, height, x1, y1):
@@ -2174,7 +2174,7 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
         scene.world.node_tree.animation_data_create()
         scene.world.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi World Node")
         stnodes = [stnode for stnode in scene.world.node_tree.nodes if stnode.bl_label == 'Sky Texture']
-        bnodes = [bnode for bnode in scene.world.node_tree.nodes if bnode.bl_label == 'Background']
+        # bnodes = [bnode for bnode in scene.world.node_tree.nodes if bnode.bl_label == 'Background']
 
         for stnode in stnodes:
             st1x = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index=0)
@@ -2203,7 +2203,8 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
                 st1x.keyframe_points[f].co = frame, skydir[0]
                 st1y.keyframe_points[f].co = frame, skydir[1]
                 st1z.keyframe_points[f].co = frame, skydir[2]
-            b1.keyframe_points[f].co = frame, values[f][2]
+
+            # b1.keyframe_points[f].co = frame, values[f][2]
 
         if scene.render.engine == 'CYCLES' and sun.data.node_tree:
             for emnode in emnodes:

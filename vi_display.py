@@ -21,7 +21,7 @@ import bpy, blf, mathutils, datetime, os, inspect, gpu, bmesh
 from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 from bpy_extras import view3d_utils
-from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, drawloop, drawpoly, retdp
+from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, retcols, retdp
 from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im, move_obs
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
@@ -3170,7 +3170,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
                               generated_type='BLANK', float=False, use_stereo_3d=False)
             im = bpy.data.images[imname]
-            im.colorspace_settings.name = 'Linear'
+            im.colorspace_settings.name = 'sRGB'
 
         else:
             im = bpy.data.images[imname]

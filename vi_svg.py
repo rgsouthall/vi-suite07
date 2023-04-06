@@ -126,30 +126,30 @@ def vi_info(node, dim, svp, **kwargs):
         <defs>
             <linearGradient id="lGadf" x1="60" x2="190" y1="335" y2="{7:.3f}" gradientUnits="userSpaceOnUse">
                 <stop style="stop-color:rgb({1})" offset=".26316"/>
-                <stop style="stop-color:rgb({1});stop-opacity:.2392" offset="1"/>
+                <stop style="stop-color:rgb({1});stop-opacity:.6392" offset="1"/>
             </linearGradient>
             <linearGradient id="lGir" x1="210" x2="340" y1="335" y2="{9:.3f}" gradientUnits="userSpaceOnUse">
                 <stop style="stop-color:rgb({4})" offset=".26316"/>
-                <stop style="stop-color:rgb({4});stop-opacity:.2392" offset="1"/>
+                <stop style="stop-color:rgb({4});stop-opacity:.6392" offset="1"/>
             </linearGradient>
         </defs>
 
         <rect style="fill:rgb(255, 255, 255)" width="{0[0]}" height="{0[1]}"/>
-        <text text-anchor="middle" x="200" y="32" style="font-size: 18px">RIBA 2030 Climate Challenge - Daylighting</text>
-        <text text-anchor="middle" x="125" y="60" style="font-size: 26px">DF</text>
-        <text text-anchor="middle" x="275" y="60" style="font-size: 26px">IR</text>
-        <text text-anchor="middle" x="125" y="75" style="font-size: 13px">Average Daylight Factor</text>
-        <text text-anchor="middle" x="275" y="75" style="font-size: 13px">Illuminance Ratio</text>
+        <text text-anchor="middle" x="200" y="32" style="font-size:18px;font-family:arial">RIBA 2030 Climate Challenge - Daylighting</text>
+        <text text-anchor="middle" x="125" y="60" style="font-size:26px;font-family:arial">DF</text>
+        <text text-anchor="middle" x="275" y="60" style="font-size:26px;font-family:arial">IR</text>
+        <text text-anchor="middle" x="125" y="75" style="font-size:13px;font-family:arial">Average Daylight Factor</text>
+        <text text-anchor="middle" x="275" y="75" style="font-size:13px;font-family:arial">Illuminance Ratio</text>
         <rect ry="4" x="60" y="{2:.3f}" width="130" height="{3:.3f}" style="fill:rgb({1});fill-rule:evenodd;fill:url(#lGadf);stroke-width:0.5;stroke:#000000"/>
         <rect ry="4" x="210" y="{5:.3f}" width="130" height="{6:.3f}" style="fill:rgb({4});fill-rule:evenodd;fill:url(#lGir);stroke-width:0.5;stroke:#000000"/>
-        <text text-anchor="middle" x="30" y="209" style="font-size: 24px">2.0</text>
-        <text text-anchor="middle" x="370" y="209" style="font-size: 24px">0.4</text>
+        <text text-anchor="middle" x="30" y="209" style="font-size:24px;font-family:arial">2.0</text>
+        <text text-anchor="middle" x="370" y="209" style="font-size:24px;font-family:arial">0.4</text>
         <path d="m50 200h300" style="fill:none;stroke-dasharray:5, 5;stroke-width:1;stroke:#4d4d4d"/>
         <path d="m50 340h300" style="fill:none;stroke-width:1;stroke:#000000"/>
         <path d="m200 80v270" style="fill:none;stroke-width:1;stroke:#000000"/>
-        <text text-anchor="middle" x="125" y="365" style="font-size: 24px">{8}</text>
-        <text text-anchor="middle" x="275" y="365" style="font-size: 24px">{10}</text>
-        <text x="10" y="390" style="font-size: 16px">Sensor location: {11}</text>
+        <text text-anchor="middle" x="125" y="365" style="font-size:24px;font-family:arial">{8}</text>
+        <text text-anchor="middle" x="275" y="365" style="font-size:24px;font-family:arial">{10}</text>
+        <text x="10" y="390" style="font-size:16px;font-family:arial">Sensor location: {11}</text>
         </svg>
         """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, 335 - adfheight, aDF, 335 - irheight, ir, node.zone_menu)
 
@@ -196,7 +196,7 @@ def vi_info(node, dim, svp, **kwargs):
         height="{0[1]}"
         xmlns="http://www.w3.org/2000/svg"
         xmlns:svg="http://www.w3.org/2000/svg">
-        
+
         <defs
             id="defs111">
             <linearGradient
@@ -236,9 +236,9 @@ def vi_info(node, dim, svp, **kwargs):
                    sda1points, sdapass[1], ('Fail', 'Pass')[sda >= sdapass[1]], sda2points, comps, asepoints, os.path.join(svp['viparams']['addonpath'], 'Fonts', 'NotoSans-Regular.ttf'))
 
         for b in range(20):
-            bfill = "128, 128, 255" if (b + 1) * 5 <= sdapass[1] else "128, 255, 128"
-            bfill = "255, 128, 128" if (b + 1) * 5 <= sdapass[0] else bfill
-            alpha = 0.95 if -5 <= sda - ((b + 1) * 5) <= 0 else 0.4
+            bfill = "0, 0, 255" if (b + 1) * 5 <= sdapass[1] else "0, 255, 0"
+            bfill = "255, 0, 0" if (b + 1) * 5 <= sdapass[0] else bfill
+            alpha = 0.95 if -5 <= sda - ((b + 1) * 5) <= 0 else 0.45
             svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke-width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill,
                                                                                                                                                                      alpha,
                                                                                                                                                                      25 + int(b%4) * 75,
@@ -247,19 +247,19 @@ def vi_info(node, dim, svp, **kwargs):
                                                                                                                                                                      50)
 
             if alpha == 0.95:
-                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(65 + int(b % 4) * 75, 708 - int(b/4) * 50, sda)
+                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size:24px;font-family:arial">{:.1f}</text>'.format(65 + int(b % 4) * 75, 708 - int(b/4) * 50, sda)
 
         for b in range(20):
-            bfill = "255, 128, 128" if (b + 1) * 5 > asepass else "128, 255, 128"
-            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) <= 0 else 0.4
+            bfill = "255, 0, 0" if (b + 1) * 5 > asepass else "0, 255, 0"
+            alpha = 1.0 if -5 <= ase - ((b + 1) * 5) <= 0 else 0.45
             svg_str += '        <rect style="fill:rgb({})" fill-opacity="{}" stroke="rgb(0, 0, 0)" stroke-width="1" x="{}" y="{}" width="{}" height="{}"/>\n'.format(bfill,
                                                                                                                                                                      alpha, 25 + int(b%4) * 75,
                                                                                                                                                                      350 - int(b/4) * 50, 75, 50)
 
             if alpha == 1.0:
-                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size: 24px">{:.1f}</text>'.format(65 + int(b % 4) * 75, 383 - int(b/4) * 50, ase)
+                svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size:24px;font-family:arial">{:.1f}</text>'.format(65 + int(b % 4) * 75, 383 - int(b/4) * 50, ase)
 
-        svg_str += '        <text x="350" y="780" style="font-size: 26px">Total points: {} of {}</text>'.format(credits, tcredits)
+        svg_str += '        <text x="350" y="780" style="font-size:26px;font-family:arial">Total points: {} of {}</text>'.format(credits, tcredits)
 
         svg_str += "</svg>"
 
