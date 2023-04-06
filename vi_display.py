@@ -589,51 +589,6 @@ class results_bar():
                 #s.uniform_int("image", 0)
                 self.batches[si].draw(s)
 
-# def spnumdisplay(disp_op, context):
-#     scene = context.scene
-#     svp = scene.vi_params
-
-#     if bpy.data.objects.get('SPathMesh'):
-#         spob = bpy.data.objects['SPathMesh']
-#         ob_mat = spob.matrix_world
-#         mid_x, mid_y, width, height = viewdesc(context)
-#         vl = ret_vp_loc(context)
-#         blf_props(scene, width, height)
-
-#         if svp.sp_hd:
-#             pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]
-#             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
-#             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
-#             vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl,
-#                           pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]
-
-#             if vispoints:
-#                 hs = [pvals[pi] for pi in vispoints]
-#                 posis = [p2ds[pi] for pi in vispoints]
-#                 draw_index(posis, hs, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
-
-#         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and svp['spparams']['suns'] == '0':
-#             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
-
-#             if sobs and svp.sp_td:
-#                 sunloc = ob_mat@sobs[0].location
-#                 solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
-
-#                 try:
-#                     if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
-#                         soltime = datetime.datetime.fromordinal(scene.solday)
-#                         soltime += datetime.timedelta(hours = scene.sp_sh)
-#                         sre = sobs[0].rotation_euler
-#                         blf_props(scene, width, height)
-#                         draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi),
-#                                    svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
-
-#                 except Exception as e:
-#                     logentry("Something went wrong with sun path number display: {}".format(e))
-#         blf.disable(0, 4)
-#     else:
-#         return
-
 
 class draw_bsdf(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
@@ -1072,63 +1027,67 @@ class wr_legend(Base_Display):
             blf.disable(0, 4)
 
     def create_batch(self):
-        base_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1];
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-                }
+        base_shader = gpu.types.GPUShaderCreateInfo()
+        base_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
+        base_shader.push_constant('VEC2', 'spos')
+        base_shader.push_constant('VEC2', 'size')
+        base_shader.push_constant('VEC4', 'colour')
+        base_shader.vertex_in(0, 'VEC2', 'position')
+        base_shader.fragment_out(0, 'VEC4', 'FragColour')
+        base_shader.vertex_source(
             '''
-
-        base_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-
+            void main()
+            {
+                float xpos = spos[0] + position[0] * size[0];
+                float ypos = spos[1] + position[1] * size[1];
+                gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+            }
+            '''
+        )
+        base_shader.fragment_source(
+            '''
             void main()
                 {
                     FragColour = colour;
                 }
-
             '''
+        )
 
-        col_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-            in vec4 colour;
-            flat out vec4 f_colour;
-
+        col_shader = gpu.types.GPUShaderCreateInfo()
+        col_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
+        col_shader.push_constant('VEC2', 'spos')
+        col_shader.push_constant('VEC2', 'size')
+        # col_shader.push_constant('VEC4', 'colour')
+        col_shader.vertex_in(0, 'VEC2', 'position')
+        col_shader.vertex_in(1, 'VEC4', 'colour')
+        col_shader_iface = gpu.types.GPUStageInterfaceInfo('col_interface')
+        col_shader_iface.flat('VEC4', 'f_colour')
+        col_shader.vertex_out(col_shader_iface)
+        col_shader.fragment_out(0, 'VEC4', 'FragColour')
+        col_shader.vertex_source(
+            '''
             void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1];
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-                   f_colour = colour;
-                }
+            {
+                float xpos = spos[0] + position[0] * size[0];
+                float ypos = spos[1] + position[1] * size[1];
+                gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+                f_colour = colour;
+            }
             '''
-
-        col_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            flat in vec4 f_colour;
-
+        )
+        col_shader.fragment_source(
+            '''
             void main()
                 {
                     FragColour = f_colour;
                 }
-
             '''
+        )
 
-        self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
+        self.base_shader = gpu.shader.create_from_info(base_shader)
+        # self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+        self.line_shader = gpu.shader.create_from_info(base_shader)
+        self.col_shader = gpu.shader.create_from_info(col_shader)
         v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
         f_indices = [(0, 1, 2), (2, 3, 0)]
         lh = 1/(self.levels + 1.25)
@@ -1142,7 +1101,7 @@ class wr_legend(Base_Display):
             vl_coords += [(0, i * lh), (0.4, i * lh), (0.4, (i + 1) * lh), (0, (i + 1) * lh)]
 
         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": v_coords}, indices=f_indices)
-        self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})
+        self.line_batch = batch_for_shader(self.line_shader, 'LINE_STRIP', {"position": vl_coords})
         self.col_batch = batch_for_shader(self.col_shader, 'TRIS', {"position": vl_coords[4:], "colour": self.colours}, indices=fl_indices)
         self.lh = lh
 
@@ -1160,7 +1119,7 @@ class wr_table(Base_Display):
     def update(self, context):
         self.cao = context.active_object
 
-        if self.cao and self.cao.vi_params['VIType'] == 'Wind_Plane':
+        if self.cao and self.cao.vi_params.get('VIType') and self.cao.vi_params['VIType'] == 'Wind_Plane':
             self.rcarray = array(self.cao.vi_params['table'])
         else:
             self.rcarray = array([['Invalid object']])
@@ -1277,136 +1236,6 @@ class wr_table(Base_Display):
 
             blf.disable(0, 8)
             blf.disable(0, 4)
-
-
-class draw_scatter(Base_Display):
-    def __init__(self, context, pos, width, height, xdiff, ydiff, op):
-        Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
-        self.font_id = 0
-        self.dpi = int(0.15 * ydiff)
-        self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
-        self.vi_coords = [(0.02, 0.02), (0.02, 0.98), (0.98, 0.98), (0.98, 0.02)]
-        self.f_indices = ((0, 1, 2), (2, 3, 0))
-        self.tex_coords = ((0, 0), (0, 1), (1, 1), (1, 0))
-        self.create_batch()
-        self.line_shader.bind()
-        self.line_shader.uniform_float("colour", (0, 0, 0, 1))
-        self.image = op.image
-
-    def update(self, op):
-        self.plt = plt
-        draw_dhscatter(self, op.xdata, op.ydata, op.zdata, op.title, op.xtitle, op.ytitle, op.scatt_legend, op.zmin, op.zmax, op.scattcol)
-        mp2im(self.fig, op.image)
-
-    def create_batch(self):
-        base_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1];
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-                }
-        '''
-
-        base_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-
-            void main()
-                {
-                    FragColour = colour;
-                }
-
-            '''
-        image_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 texCoord;
-            in vec2 position;
-            out vec2 texCoord_interp;
-
-            void main()
-            {
-              float xpos = spos[0] + position[0] * size[0];
-              float ypos = spos[1] + position[1] * size[1];
-              gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-//              gl_Position.z = 1.0;
-              texCoord_interp = texCoord;
-            }
-        '''
-
-        image_fragment_shader = '''
-            in vec2 texCoord_interp;
-            out vec4 fragColor;
-
-            uniform sampler2D image;
-
-            void main()
-            {
-              fragColor = texture(image, texCoord_interp);
-            }
-
-        '''
-        self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
-        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
-        self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": self.v_coords})
-        self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
-
-    def draw(self, context):
-        self.ah = context.area.regions[2].height
-        self.aw = context.area.regions[2].width
-
-        if self.expand:
-            if self.resize:
-                self.xdiff = self.lepos[0] - self.lspos[0]
-                self.ydiff = self.lepos[1] - self.lspos[1]
-            elif self.move:
-                self.lspos[1] = self.lepos[1] - self.ydiff
-                self.lepos[0] = self.lspos[0] + self.xdiff
-            if self.lepos[1] > self.ah:
-                self.lspos[1] = self.ah - self.ydiff
-                self.lepos[1] = self.ah
-            if self.lspos[0] < self.aw:
-                self.lspos[0] = self.aw
-
-            self.base_shader.bind()
-            self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.base_shader.uniform_float("spos", self.lspos)
-            self.base_shader.uniform_float("colour", self.hl)
-            self.base_batch.draw(self.base_shader)
-            self.line_shader.bind()
-            self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.line_shader.uniform_float("spos", self.lspos)
-            self.line_shader.uniform_float("colour", (0, 0, 0, 1))
-            self.line_batch.draw(self.line_shader)
-            self.image_shader.bind()
-            self.image_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.image_shader.uniform_float("spos", self.lspos)
-
-            if self.image in [i.name for i in bpy.data.images]:
-                im = bpy.data.images[self.image]
-                texture = gpu.texture.from_image(im)
-
-                if im.gl_load():
-                    raise Exception()
-
-                # bgl.glActiveTexture(bgl.GL_TEXTURE0)
-                # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-                # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-                self.image_shader.uniform_sampler("image", texture)
-                self.image_batch.draw(self.image_shader)
-
-    def show_plot(self, context):
-        show_plot(self, context)
 
 
 class draw_legend(Base_Display):
@@ -1543,60 +1372,6 @@ class draw_legend(Base_Display):
             blf.disable(0, 8)
 
     def create_batch(self):
-        base_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1];
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                }
-            '''
-
-        base_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-
-            void main()
-                {
-                    FragColour = colour;
-                }
-
-            '''
-
-        col_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-            in vec4 colour;
-            flat out vec4 f_colour;
-
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1];
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-                   f_colour = colour;
-                }
-            '''
-
-        col_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-            flat in vec4 f_colour;
-
-            void main()
-                {
-                    FragColour = f_colour;
-                }
-
-            '''
-
         '''New code for cross-platform shaders'''
         base_shader = gpu.types.GPUShaderCreateInfo()
         base_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
@@ -1604,7 +1379,7 @@ class draw_legend(Base_Display):
         base_shader.push_constant('VEC2', 'size')
         base_shader.push_constant('VEC4', 'colour')
         base_shader.vertex_in(0, 'VEC2', 'position')
-        # self.base_shader_iface = gpu.types.GPUStageInterfaceInfo('base_interface')
+
         base_shader.fragment_out(0, 'VEC4', 'FragColour')
         base_shader.vertex_source(
             '''
@@ -1660,10 +1435,6 @@ class draw_legend(Base_Display):
         self.basel_shader = gpu.shader.create_from_info(base_shader)
         self.line_shader = gpu.shader.create_from_info(base_shader)
         self.col_shader = gpu.shader.create_from_info(col_shader)
-        # self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        # self.basel_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        # self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        # self.col_shader = gpu.types.GPUShader(col_vertex_shader, col_fragment_shader)
         (vl_coords, fl_indices) = self.ret_coords()
         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
         self.basel_batch = batch_for_shader(self.basel_shader, 'LINE_STRIP', {"position": self.v_coords})
@@ -1687,76 +1458,6 @@ def draw_dhscatter(self, x, y, z, tit, xlab, ylab, zlab, valmin, valmax, col):
     self.plt.xticks(size=16)
     self.plt.yticks(size=16)
     self.fig.tight_layout()
-
-
-# def draw_table(self):
-#     draw_icon_new(self)
-#     font_id = 0
-#     blf.enable(0, 4)
-#     blf.enable(0, 8)
-#     blf.shadow(font_id, 5, 0.9, 0.9, 0.9, 1)
-#     blf.size(font_id, 44, self.fontdpi)
-#     rcshape = self.rcarray.shape
-#     [rowno, colno] = self.rcarray.shape
-
-#     self.xdiff = self.lepos[0] - self.lspos[0]
-#     self.ydiff = self.lepos[1] - self.lspos[1]
-#     colpos = [int(0.01 * self.xdiff)]
-
-#     if not self.resize:
-#         self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
-#         self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]
-#     else:
-#         self.lspos = [self.spos[0], self.lspos[1]]
-#         self.lepos = [self.lepos[0], self.spos[1]]
-
-#     coltextwidths = array([int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
-#     colscale = sum(coltextwidths)/(self.xdiff * 0.98)
-#     colwidths = (coltextwidths/colscale).astype(int)
-
-#     for cw in colwidths:
-#         colpos.append(cw + colpos[-1])
-
-#     maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry if e]) for entry in self.rcarray.T])
-#     rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
-#     rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
-#     rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
-#     rowtops = [int(self.lepos[1] - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
-#     rowbots = [int(self.lepos[1] - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
-#     rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
-
-#     if abs(max(colscale, rowscale) - 1) > 0.05:
-#         self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
-
-#     blf.size(font_id, 48, self.fontdpi)
-#     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
-#     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
-#     bgl.glEnable(bgl.GL_BLEND)
-#     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
-
-#     for r in range(rcshape[0]):
-#         for c in range(rcshape[1]):
-#             if self.rcarray[r][c]:
-#                 if c == 0:
-#                     blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
-#                     # .format(self.rcarray[r][c]))[1])), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
-#                 else:
-#                     blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5),
-#                                  int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
-#                 drawloop(int(self.lspos[0] + colpos[c]), rowtops[r], self.lspos[0] + colpos[c + 1], rowbots[r])
-#                 if self.rcarray[r][c] == 'Pass':
-#                     bgl.glColor3f(0.0, 0.6, 0.0)
-#                 elif self.rcarray[r][c] == 'Fail':
-#                     bgl.glColor3f(0.6, 0.0, 0.0)
-#                 else:
-#                     bgl.glColor3f(0.0, 0.0, 0.0)
-#                 blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
-
-#     bgl.glDisable(bgl.GL_BLEND)
-#     blf.disable(0, 8)
-#     blf.disable(0, 4)
-#     bgl.glEnd()
-#     bgl.glFlush()
 
 
 def save_plot(self, scene, filename):
@@ -1828,25 +1529,29 @@ class NODE_OT_SunPath(bpy.types.Operator):
         return (coords, line_lengths, breaks)
 
     def create_batch(self, scene, node):
-        sp_vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 sp_matrix;
-            uniform vec4 colour1;
-            uniform vec4 colour2;
-            uniform vec4 colour3;
-            in vec3 position;
-            //in vec3 nposition;
-            in float arcLength;
-            in uint line_break;
+        sp_shader = gpu.types.GPUShaderCreateInfo()
+        sp_shader.push_constant('MAT4', 'viewProjectionMatrix')
+        sp_shader.push_constant('MAT4', 'sp_matrix')
+        sp_shader.push_constant('VEC4', 'colour1')
+        sp_shader.push_constant('VEC4', 'colour2')
+        sp_shader.push_constant('VEC4', 'colour3')
+        sp_shader.push_constant('FLOAT', 'dash_density')
+        sp_shader.push_constant('FLOAT', 'dash_ratio')
+        sp_shader.vertex_in(0, 'VEC3', 'position')
+        sp_shader.vertex_in(1, 'FLOAT', 'arcLength')
+        sp_shader.vertex_in(2, 'UINT', 'line_break')
+        sp_shader_iface = gpu.types.GPUStageInterfaceInfo('sp_interface')
+        sp_shader_iface.smooth('VEC4', 'v_colour1')
+        sp_shader_iface.smooth('VEC4', 'v_colour2')
+        sp_shader_iface.smooth('VEC4', 'v_colour3')
+        sp_shader_iface.smooth('FLOAT', 'v_ArcLength')
+        sp_shader_iface.smooth('FLOAT', 'zpos')
+        sp_shader_iface.flat('UINT', 'lb')
+        sp_shader.vertex_out(sp_shader_iface)
+        sp_shader.fragment_out(0, 'VEC4', 'FragColour')
 
-            out vec4 v_colour1;
-            out vec4 v_colour2;
-            out vec4 v_colour3;
-            out float v_ArcLength;
-            out float zpos;
-            //out vec3 np;
-            flat out uint lb;
-
+        sp_shader.vertex_source(
+            '''
             void main()
             {
                 v_colour1 = colour1;
@@ -1856,117 +1561,110 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
                 zpos = vec3(position)[2];
                 lb = line_break;
-                //np = nposition;
             }
-        '''
-
-        sp_fragment_shader = '''
-            uniform float dash_density;
-            uniform float dash_ratio;
-            in float zpos;
-            in vec4 v_colour1;
-            in vec4 v_colour2;
-            in vec4 v_colour3;
-            in float v_ArcLength;
-            //in vec3 np;
-            flat in uint lb;
-            out vec4 FragColour;
-
+            '''
+        )
+        sp_shader.fragment_source(
+            '''
             void main()
-            {
-                if (zpos < 0) {discard;}
+                {
+                    if (zpos < 0) {discard;}
                 else if (lb == uint(1)) {discard;}
                 else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColour = v_colour1;} else {FragColour = v_colour2;}
-//                vec2 pos = gl_PointCoord - vec2(1.0);
- //               if (length(pos) < 0.8) {FragColour = v_colour2;}
-   //             if (length(pos) <= 1.0) {
-     //               FragColour = v_colour2;
-       //             FragColour[3] = (1.0 - length(pos)) * 10;
-         //           }
-           //     if (length(pos) > 1.0) {FragColour = v_colour2;}
-            //    if (length(pos) > 1.0) {discard;}
                 if (lb == uint(2)) {FragColour = v_colour3;}
-            }
-        '''
-
-        sun_vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 sp_matrix;
-            in vec3 position;
-
-            void main()
-                {
-                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
-                    gl_Position[2] -= 0.001;
                 }
             '''
-        sun_fragment_shader = '''
-            uniform vec4 sun_colour;
-            out vec4 FragColour;
+        )
 
+        sun_shader = gpu.types.GPUShaderCreateInfo()
+        sun_shader.push_constant('MAT4', 'viewProjectionMatrix')
+        sun_shader.push_constant('MAT4', 'sp_matrix')
+        sun_shader.push_constant('VEC4', 'sun_colour')
+        sun_shader.vertex_in(0, 'VEC3', 'position')
+        sun_shader.fragment_out(0, 'VEC4', 'FragColour')
+        sun_shader.vertex_source(
+            '''
+            void main()
+            {
+                gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+                    gl_Position[2] -= 0.001;
+            }
+            '''
+        )
+        sun_shader.fragment_source(
+            '''
             void main()
                 {
-                    vec2 pos = gl_PointCoord - vec2(0.5);
+                   vec2 pos = gl_PointCoord - vec2(0.5);
                     if (length(pos) < 0.4) {FragColour = sun_colour;}
                     if (length(pos) <= 0.5) {
                         FragColour = sun_colour;
                         FragColour[3] = (0.5 - length(pos)) * 10;
                         }
                     if (length(pos) > 0.5) {discard;}
-
                 }
             '''
+        )
 
-        globe_vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 sp_matrix;
-            in vec3 position;
-
+        globe_shader = gpu.types.GPUShaderCreateInfo()
+        globe_shader.push_constant('MAT4', 'viewProjectionMatrix')
+        globe_shader.push_constant('MAT4', 'sp_matrix')
+        globe_shader.push_constant('VEC4', 'colour')
+        globe_shader.vertex_in(0, 'VEC3', 'position')
+        globe_shader.fragment_out(0, 'VEC4', 'FragColour')
+        globe_shader.vertex_source(
+            '''
+            void main()
+            {
+                gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+            }
+            '''
+        )
+        globe_shader.fragment_source(
+            '''
             void main()
                 {
-                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+                   FragColour = colour;
                 }
             '''
-        globe_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
+        )
 
+        range_shader = gpu.types.GPUShaderCreateInfo()
+        range_shader.push_constant('MAT4', 'viewProjectionMatrix')
+        range_shader.push_constant('MAT4', 'sp_matrix')
+        range_shader.vertex_in(0, 'VEC3', 'position')
+        range_shader.vertex_in(1, 'VEC3', 'colour')
+        range_shader.fragment_out(0, 'VEC4', 'FragColour')
+        range_shader_iface = gpu.types.GPUStageInterfaceInfo('range_interface')
+        range_shader_iface.smooth('VEC3', 'tri_colour')
+        range_shader.vertex_out(range_shader_iface)
+        range_shader.vertex_source(
+            '''
+            void main()
+            {
+                gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+                tri_colour = colour;
+            }
+            '''
+        )
+        range_shader.fragment_source(
+            '''
             void main()
                 {
-                    FragColour = colour;
-                }
-
-            '''
-
-        range_vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 sp_matrix;
-            in vec3 position;
-            in vec3 colour;
-            out vec3 tri_colour;
-
-            void main()
-                {
-                    gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
-                    tri_colour = colour;
+                   FragColour = vec4(tri_colour, 1.0);
                 }
             '''
-        range_fragment_shader = '''
-            in vec3 tri_colour;
-            out vec4 FragColour;
+        )
 
-            void main()
-                {
-                        FragColour = vec4(tri_colour, 1.0);
-                }
-
-            '''
-
-        self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader)
+        self.sp_shader = gpu.shader.create_from_info(sp_shader)
+        self.sun_shader = gpu.shader.create_from_info(sun_shader)
+        self.globe_shader = gpu.shader.create_from_info(globe_shader)
+        self.range_shader = gpu.shader.create_from_info(range_shader)
+        # self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader)
 #        self.sp_shader = gpu.shader.from_builtin('3D_POLYLINE_UNIFORM_COLOR')
-        self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)
-        self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader)
-        self.range_shader = gpu.types.GPUShader(range_vertex_shader, range_fragment_shader)
+        # self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)
+        # self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader)
+        # self.range_shader = gpu.types.GPUShader(range_vertex_shader, range_fragment_shader)
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
         sun_pos = [so.location[:] for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
         sun_v_coords, sun_f_indices = self.ret_sun_geometry(scene.vi_params.sp_sun_size, self.suns)
@@ -2337,142 +2035,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
 
-class wr_scatter(Base_Display):
-    def __init__(self, context, pos, width, height, xdiff, ydiff):
-        Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
-        self.image = 'wind_scatter.png'
-        self.font_id = 0
-        self.dpi = int(0.15 * ydiff)
-        self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
-        self.vi_coords = [(0.02, 0.02), (0.02, 0.98), (0.98, 0.98), (0.98, 0.02)]
-        self.f_indices = ((0, 1, 2), (2, 3, 0))
-        self.tex_coords = ((0, 0), (0, 1), (1, 1), (1, 0))
-        self.update(context)
-        self.create_batch()
-        self.line_shader.bind()
-        self.line_shader.uniform_float("colour", (0, 0, 0, 1))
 
-    def update(self, context):
-        scene = context.scene
-        svp = scene.vi_params
-        self.cao = context.active_object
-        self.col = svp.vi_scatt_col
-
-        if self.cao and self.cao.vi_params.get('ws'):
-            zdata = array(self.cao.vi_params['ws']) if svp.wind_type == '0' else array(self.cao.vi_params['wd'])
-            zmax = nmax(zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
-            zmin = nmin(zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-            (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if svp.wind_type == '0' else ('Wind Direction', u'Direction (\u00B0)')
-            self.plt = plt
-            draw_dhscatter(self, scene, self.cao.vi_params['days'], self.cao.vi_params['hours'], zdata, title, 'Days', 'Hours', cbtitle, zmin, zmax)
-            mp2im(self.fig, self.image)
-
-    def create_batch(self):
-        base_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 position;
-
-            void main()
-                {
-                   float xpos = spos[0] + position[0] * size[0];
-                   float ypos = spos[1] + position[1] * size[1];
-                   gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-                }
-        '''
-
-        base_fragment_shader = '''
-            uniform vec4 colour;
-            out vec4 FragColour;
-
-            void main()
-                {
-                    FragColour = colour;
-                }
-
-            '''
-        image_vertex_shader = '''
-            uniform mat4 ModelViewProjectionMatrix;
-            uniform vec2 spos;
-            uniform vec2 size;
-            in vec2 texCoord;
-            in vec2 position;
-            out vec2 texCoord_interp;
-
-            void main()
-            {
-              float xpos = spos[0] + position[0] * size[0];
-              float ypos = spos[1] + position[1] * size[1];
-              gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-              texCoord_interp = texCoord;
-            }
-        '''
-
-        image_fragment_shader = '''
-            in vec2 texCoord_interp;
-            out vec4 fragColor;
-            uniform sampler2D image;
-
-            void main()
-            {
-              fragColor = texture(image, texCoord_interp);
-            }
-
-        '''
-        self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
-        self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
-        self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
-        self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": self.v_coords})
-        self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
-
-    def draw(self, ah, aw):
-        self.ah = ah
-        self.aw = aw
-
-        if self.expand:
-            if self.resize:
-                self.xdiff = self.lepos[0] - self.lspos[0]
-                self.ydiff = self.lepos[1] - self.lspos[1]
-            elif self.move:
-                self.lspos[1] = self.lepos[1] - self.ydiff
-                self.lepos[0] = self.lspos[0] + self.xdiff
-            if self.lepos[1] > ah:
-                self.lspos[1] = ah - self.ydiff
-                self.lepos[1] = ah
-            if self.lepos[0] > aw:
-                self.lspos[0] = aw - self.xdiff
-                self.lepos[0] = aw
-
-            self.base_shader.bind()
-            self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.base_shader.uniform_float("spos", self.lspos)
-            self.base_shader.uniform_float("colour", self.hl)
-            self.base_batch.draw(self.base_shader)
-            self.line_shader.bind()
-            self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.line_shader.uniform_float("spos", self.lspos)
-            self.line_shader.uniform_float("colour", (0, 0, 0, 1))
-            self.line_batch.draw(self.line_shader)
-            self.image_shader.bind()
-            self.image_shader.uniform_float("size", (self.xdiff, self.ydiff))
-            self.image_shader.uniform_float("spos", self.lspos)
-            im = bpy.data.images[self.image]
-            texture = gpu.texture.from_image(self.image)
-
-            if im.gl_load():
-                raise Exception()
-
-            # bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-            self.image_shader.uniform_sampler("image", texture)
-            self.image_batch.draw(self.image_shader)
-
-    def show_plot(self, context):
-        show_plot(self, context)
 
 
 class VIEW3D_OT_WRDisplay(bpy.types.Operator):
@@ -2490,7 +2053,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'wr'
         self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_scatt_col
-        self.images = ('legend.png', 'table.png', 'scatter.png')
+        self.images = ('legend.png', 'table.png')
         self.results_bar = results_bar(self.images)
         self.legend = wr_legend(context, 'Speed (m/s)', [305, r2h - 80], r2w, r2h, 125, 300)
         self.table = wr_table(context, [355, r2h - 80], r2w, r2h, 400, 60)
@@ -2514,7 +2077,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.zdata = array([])
         self.xtitle = 'Days'
         self.ytitle = 'Hours'
-        self.dhscatter = draw_scatter(context, scatter_icon_pos, r2w, r2h, 600, 200, self)
+        # self.dhscatter = draw_scatter(context, scatter_icon_pos, r2w, r2h, 600, 200, self)
         self.height = r2h
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["wr"] = self.draw_handle_wrnum
@@ -2540,28 +2103,10 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             if context.active_object and context.active_object.vi_params.get('VIType') == 'Wind_Plane':
                 self.cao = context.active_object
                 self.table.update(context)
-                updates[2] = 1
-
-        if (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) != \
-           (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min, svp.vi_scatt_max_val, svp.vi_scatt_min_val):
-            (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) = \
-             (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min, svp.vi_scatt_max_val, svp.vi_scatt_min_val)
-            updates[2] = 1
-
-        if updates[2]:
-            self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
-            self.scatt_legend = ('Speed (m/s)', 'Direction ($^o$ from north)')[int(svp.wind_type)]
-            self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
-            self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
-            self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-            self.xdata = self.cao.vi_params['days']
-            self.ydata = self.cao.vi_params['hours']
-            self.dhscatter.update(self)
-            redraw = 1
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
-            for w, window in enumerate((self.legend, self.table, self.dhscatter)):
+            for w, window in enumerate((self.legend, self.table)):
                 if self.results_bar.ipos[w][0][0] < mx < self.results_bar.ipos[w][1][0] and self.results_bar.ipos[w][0][1] < my < self.results_bar.ipos[w][2][1]:
                     window.hl = (0.8, 0.8, 0.8, 0.8)
                     redraw = 1
@@ -2628,7 +2173,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             self.results_bar.draw(r2w, r2h)
             self.legend.draw(context)
             self.table.draw(context)
-            self.dhscatter.draw(context)
+            # self.dhscatter.draw(context)
 
         except Exception as e:
             logentry("Something went wrong with wind rose display: {}".format(e))
@@ -2783,13 +2328,13 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.ytitle = 'Hours'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(context, self, self.simnode)
-        self.images = ('legend.png', 'scatter.png')
+        self.images = ('legend.png')
         self.results_bar = results_bar(self.images)
         legend_icon_pos = self.results_bar.ret_coords(r2w, r2h, 0)[0]
         self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, rw, r2h, 100, 400, 20)
         self.num_display = linumdisplay(self, context)
-        scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]
-        self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)
+        #scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]
+        #self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)
         svp.vi_disp_wire = 1
         self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["ss"] = self.draw_handle_ssnum
@@ -2823,14 +2368,14 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                 self.ydata = array(self.cao.vi_params['hours'])
                 updates[1] = 1
 
-        if updates[1]:
-            self.dhscatter.update(self)
-            redraw = 1
+        # if updates[1]:
+        #     self.dhscatter.update(self)
+        #     redraw = 1
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
 
-            for w, window in enumerate((self.legend, self.dhscatter)):
+            for w, window in enumerate((self.legend, )):
                 if self.results_bar.ipos[w][0][0] < mx < self.results_bar.ipos[w][1][0] and self.results_bar.ipos[w][0][1] < my < self.results_bar.ipos[w][2][1]:
                     window.hl = (0.8, 0.8, 0.8, 0.8)
                     redraw = 1
@@ -2901,7 +2446,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         try:
             self.results_bar.draw(r2w, r2h)
             self.legend.draw(context)
-            self.dhscatter.draw(context)
+            # self.dhscatter.draw(context)
             self.num_display.draw(context)
 
         except Exception:
@@ -3341,3 +2886,643 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
 #     bgl.glEnd()
 #     bgl.glDisable(bgl.GL_TEXTURE_2D)
 #     bgl.glFlush()
+
+# base_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1];
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                 }
+#             '''
+
+#         base_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+
+#             '''
+
+#         col_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+#             in vec4 colour;
+#             flat out vec4 f_colour;
+
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1];
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                    f_colour = colour;
+#                 }
+#             '''
+
+#         col_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+#             flat in vec4 f_colour;
+
+#             void main()
+#                 {
+#                     FragColour = f_colour;
+#                 }
+
+#             '''
+
+# def draw_table(self):
+#     draw_icon_new(self)
+#     font_id = 0
+#     blf.enable(0, 4)
+#     blf.enable(0, 8)
+#     blf.shadow(font_id, 5, 0.9, 0.9, 0.9, 1)
+#     blf.size(font_id, 44, self.fontdpi)
+#     rcshape = self.rcarray.shape
+#     [rowno, colno] = self.rcarray.shape
+
+#     self.xdiff = self.lepos[0] - self.lspos[0]
+#     self.ydiff = self.lepos[1] - self.lspos[1]
+#     colpos = [int(0.01 * self.xdiff)]
+
+#     if not self.resize:
+#         self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+#         self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]
+#     else:
+#         self.lspos = [self.spos[0], self.lspos[1]]
+#         self.lepos = [self.lepos[0], self.spos[1]]
+
+#     coltextwidths = array([int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
+#     colscale = sum(coltextwidths)/(self.xdiff * 0.98)
+#     colwidths = (coltextwidths/colscale).astype(int)
+
+#     for cw in colwidths:
+#         colpos.append(cw + colpos[-1])
+
+#     maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry if e]) for entry in self.rcarray.T])
+#     rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
+#     rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
+#     rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
+#     rowtops = [int(self.lepos[1] - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
+#     rowbots = [int(self.lepos[1] - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
+#     rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
+
+#     if abs(max(colscale, rowscale) - 1) > 0.05:
+#         self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
+
+#     blf.size(font_id, 48, self.fontdpi)
+#     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
+#     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
+#     bgl.glEnable(bgl.GL_BLEND)
+#     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+
+#     for r in range(rcshape[0]):
+#         for c in range(rcshape[1]):
+#             if self.rcarray[r][c]:
+#                 if c == 0:
+#                     blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
+#                     # .format(self.rcarray[r][c]))[1])), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
+#                 else:
+#                     blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5),
+#                                  int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
+#                 drawloop(int(self.lspos[0] + colpos[c]), rowtops[r], self.lspos[0] + colpos[c + 1], rowbots[r])
+#                 if self.rcarray[r][c] == 'Pass':
+#                     bgl.glColor3f(0.0, 0.6, 0.0)
+#                 elif self.rcarray[r][c] == 'Fail':
+#                     bgl.glColor3f(0.6, 0.0, 0.0)
+#                 else:
+#                     bgl.glColor3f(0.0, 0.0, 0.0)
+#                 blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+
+#     bgl.glDisable(bgl.GL_BLEND)
+#     blf.disable(0, 8)
+#     blf.disable(0, 4)
+#     bgl.glEnd()
+#     bgl.glFlush()
+
+        # range_vertex_shader = '''
+        #     uniform mat4 viewProjectionMatrix;
+        #     uniform mat4 sp_matrix;
+        #     in vec3 position;
+        #     in vec3 colour;
+        #     out vec3 tri_colour;
+
+        #     void main()
+        #         {
+        #             gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+        #             tri_colour = colour;
+        #         }
+        #     '''
+        # range_fragment_shader = '''
+        #     in vec3 tri_colour;
+        #     out vec4 FragColour;
+
+        #     void main()
+        #         {
+        #                 FragColour = vec4(tri_colour, 1.0);
+        #         }
+
+        #     '''
+
+
+        # globe_vertex_shader = '''
+        #     uniform mat4 viewProjectionMatrix;
+        #     uniform mat4 sp_matrix;
+        #     in vec3 position;
+
+        #     void main()
+        #         {
+        #             gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+        #         }
+        #     '''
+        # globe_fragment_shader = '''
+        #     uniform vec4 colour;
+        #     out vec4 FragColour;
+
+        #     void main()
+        #         {
+        #             FragColour = colour;
+        #         }
+
+        #     '''
+
+        # sun_vertex_shader = '''
+        #     uniform mat4 viewProjectionMatrix;
+        #     uniform mat4 sp_matrix;
+        #     in vec3 position;
+
+        #     void main()
+        #         {
+        #             gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+        #             gl_Position[2] -= 0.001;
+        #         }
+        #     '''
+        # sun_fragment_shader = '''
+        #     uniform vec4 sun_colour;
+        #     out vec4 FragColour;
+
+        #     void main()
+        #         {
+        #             vec2 pos = gl_PointCoord - vec2(0.5);
+        #             if (length(pos) < 0.4) {FragColour = sun_colour;}
+        #             if (length(pos) <= 0.5) {
+        #                 FragColour = sun_colour;
+        #                 FragColour[3] = (0.5 - length(pos)) * 10;
+        #                 }
+        #             if (length(pos) > 0.5) {discard;}
+
+        #         }
+#         #     '''
+# sp_vertex_shader = '''
+#             uniform mat4 viewProjectionMatrix;
+#             uniform mat4 sp_matrix;
+#             uniform vec4 colour1;
+#             uniform vec4 colour2;
+#             uniform vec4 colour3;
+#             in vec3 position;
+#             //in vec3 nposition;
+#             in float arcLength;
+#             in uint line_break;
+
+#             out vec4 v_colour1;
+#             out vec4 v_colour2;
+#             out vec4 v_colour3;
+#             out float v_ArcLength;
+#             out float zpos;
+#             //out vec3 np;
+#             flat out uint lb;
+
+#             void main()
+#             {
+#                 v_colour1 = colour1;
+#                 v_colour2 = colour2;
+#                 v_colour3 = colour3;
+#                 v_ArcLength = arcLength;
+#                 gl_Position = viewProjectionMatrix * sp_matrix * vec4(position, 1.0f);
+#                 zpos = vec3(position)[2];
+#                 lb = line_break;
+#                 //np = nposition;
+#             }
+#         '''
+
+#         sp_fragment_shader = '''
+#             uniform float dash_density;
+#             uniform float dash_ratio;
+#             in float zpos;
+#             in vec4 v_colour1;
+#             in vec4 v_colour2;
+#             in vec4 v_colour3;
+#             in float v_ArcLength;
+#             //in vec3 np;
+#             flat in uint lb;
+#             out vec4 FragColour;
+
+#             void main()
+#             {
+#                 if (zpos < 0) {discard;}
+#                 else if (lb == uint(1)) {discard;}
+#                 else if (sin(v_ArcLength * dash_density) > dash_ratio) {FragColour = v_colour1;} else {FragColour = v_colour2;}
+# //                vec2 pos = gl_PointCoord - vec2(1.0);
+#  //               if (length(pos) < 0.8) {FragColour = v_colour2;}
+#    //             if (length(pos) <= 1.0) {
+#      //               FragColour = v_colour2;
+#        //             FragColour[3] = (1.0 - length(pos)) * 10;
+#          //           }
+#            //     if (length(pos) > 1.0) {FragColour = v_colour2;}
+#             //    if (length(pos) > 1.0) {discard;}
+#                 if (lb == uint(2)) {FragColour = v_colour3;}
+#             }
+#         '''
+
+        # base_vertex_shader = '''
+        #     uniform mat4 ModelViewProjectionMatrix;
+        #     uniform vec2 spos;
+        #     uniform vec2 size;
+        #     in vec2 position;
+
+        #     void main()
+        #         {
+        #            float xpos = spos[0] + position[0] * size[0];
+        #            float ypos = spos[1] + position[1] * size[1];
+        #            gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+        #         }
+        #     '''
+
+        # base_fragment_shader = '''
+        #     uniform vec4 colour;
+        #     out vec4 FragColour;
+
+        #     void main()
+        #         {
+        #             FragColour = colour;
+        #         }
+
+        #     '''
+
+        # col_vertex_shader = '''
+        #     uniform mat4 ModelViewProjectionMatrix;
+        #     uniform vec2 spos;
+        #     uniform vec2 size;
+        #     in vec2 position;
+        #     in vec4 colour;
+        #     flat out vec4 f_colour;
+
+        #     void main()
+        #         {
+        #            float xpos = spos[0] + position[0] * size[0];
+        #            float ypos = spos[1] + position[1] * size[1];
+        #            gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+        #            f_colour = colour;
+        #         }
+        #     '''
+
+        # col_fragment_shader = '''
+        #     uniform vec4 colour;
+        #     out vec4 FragColour;
+        #     flat in vec4 f_colour;
+
+        #     void main()
+        #         {
+        #             FragColour = f_colour;
+        #         }
+
+        #     '''
+# class wr_scatter(Base_Display):
+#     def __init__(self, context, pos, width, height, xdiff, ydiff):
+#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
+#         self.image = 'wind_scatter.png'
+#         self.font_id = 0
+#         self.dpi = int(0.15 * ydiff)
+#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
+#         self.vi_coords = [(0.02, 0.02), (0.02, 0.98), (0.98, 0.98), (0.98, 0.02)]
+#         self.f_indices = ((0, 1, 2), (2, 3, 0))
+#         self.tex_coords = ((0, 0), (0, 1), (1, 1), (1, 0))
+#         self.update(context)
+#         self.create_batch()
+#         self.line_shader.bind()
+#         self.line_shader.uniform_float("colour", (0, 0, 0, 1))
+
+#     def update(self, context):
+#         scene = context.scene
+#         svp = scene.vi_params
+#         self.cao = context.active_object
+#         self.col = svp.vi_scatt_col
+
+#         if self.cao and self.cao.vi_params.get('ws'):
+#             zdata = array(self.cao.vi_params['ws']) if svp.wind_type == '0' else array(self.cao.vi_params['wd'])
+#             zmax = nmax(zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
+#             zmin = nmin(zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
+#             (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if svp.wind_type == '0' else ('Wind Direction', u'Direction (\u00B0)')
+#             self.plt = plt
+#             draw_dhscatter(self, scene, self.cao.vi_params['days'], self.cao.vi_params['hours'], zdata, title, 'Days', 'Hours', cbtitle, zmin, zmax)
+#             mp2im(self.fig, self.image)
+
+#     def create_batch(self):
+#         base_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1];
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+#                 }
+#         '''
+
+#         base_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+
+#             '''
+#         image_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 texCoord;
+#             in vec2 position;
+#             out vec2 texCoord_interp;
+
+#             void main()
+#             {
+#               float xpos = spos[0] + position[0] * size[0];
+#               float ypos = spos[1] + position[1] * size[1];
+#               gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+#               texCoord_interp = texCoord;
+#             }
+#         '''
+
+#         image_fragment_shader = '''
+#             in vec2 texCoord_interp;
+#             out vec4 fragColor;
+#             uniform sampler2D image;
+
+#             void main()
+#             {
+#               fragColor = texture(image, texCoord_interp);
+#             }
+
+#         '''
+#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+#         self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
+#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
+#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": self.v_coords})
+#         self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
+
+#     def draw(self, ah, aw):
+#         self.ah = ah
+#         self.aw = aw
+
+#         if self.expand:
+#             if self.resize:
+#                 self.xdiff = self.lepos[0] - self.lspos[0]
+#                 self.ydiff = self.lepos[1] - self.lspos[1]
+#             elif self.move:
+#                 self.lspos[1] = self.lepos[1] - self.ydiff
+#                 self.lepos[0] = self.lspos[0] + self.xdiff
+#             if self.lepos[1] > ah:
+#                 self.lspos[1] = ah - self.ydiff
+#                 self.lepos[1] = ah
+#             if self.lepos[0] > aw:
+#                 self.lspos[0] = aw - self.xdiff
+#                 self.lepos[0] = aw
+
+#             self.base_shader.bind()
+#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.base_shader.uniform_float("spos", self.lspos)
+#             self.base_shader.uniform_float("colour", self.hl)
+#             self.base_batch.draw(self.base_shader)
+#             self.line_shader.bind()
+#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.line_shader.uniform_float("spos", self.lspos)
+#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
+#             self.line_batch.draw(self.line_shader)
+#             self.image_shader.bind()
+#             self.image_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.image_shader.uniform_float("spos", self.lspos)
+#             im = bpy.data.images[self.image]
+#             texture = gpu.texture.from_image(self.image)
+
+#             if im.gl_load():
+#                 raise Exception()
+
+#             # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+#             # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+#             # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+#             # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+#             self.image_shader.uniform_sampler("image", texture)
+#             self.image_batch.draw(self.image_shader)
+
+#     def show_plot(self, context):
+#         show_plot(self, context)
+
+                # updates[2] = 1
+
+        # if (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) != \
+        #    (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min, svp.vi_scatt_max_val, svp.vi_scatt_min_val):
+        #     (self.wt, self.scattcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval) = \
+        #      (svp.wind_type, svp.vi_scatt_col, svp.vi_scatt_max, svp.vi_scatt_min, svp.vi_scatt_max_val, svp.vi_scatt_min_val)
+        #     updates[2] = 1
+
+        # if updates[2]:
+        #     self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
+        #     self.scatt_legend = ('Speed (m/s)', 'Direction ($^o$ from north)')[int(svp.wind_type)]
+        #     self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
+        #     self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
+        #     self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
+        #     self.xdata = self.cao.vi_params['days']
+        #     self.ydata = self.cao.vi_params['hours']
+        #     # self.dhscatter.update(self)
+        #     redraw = 1
+
+# class draw_scatter(Base_Display):
+#     def __init__(self, context, pos, width, height, xdiff, ydiff, op):
+#         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
+#         self.font_id = 0
+#         self.dpi = int(0.15 * ydiff)
+#         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
+#         self.vi_coords = [(0.02, 0.02), (0.02, 0.98), (0.98, 0.98), (0.98, 0.02)]
+#         self.f_indices = ((0, 1, 2), (2, 3, 0))
+#         self.tex_coords = ((0, 0), (0, 1), (1, 1), (1, 0))
+#         self.create_batch()
+#         self.line_shader.bind()
+#         self.line_shader.uniform_float("colour", (0, 0, 0, 1))
+#         self.image = op.image
+
+#     def update(self, op):
+#         self.plt = plt
+#         draw_dhscatter(self, op.xdata, op.ydata, op.zdata, op.title, op.xtitle, op.ytitle, op.scatt_legend, op.zmin, op.zmax, op.scattcol)
+#         mp2im(self.fig, op.image)
+
+#     def create_batch(self):
+#         base_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1];
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+#                 }
+#         '''
+
+#         base_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+
+#             '''
+#         image_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 texCoord;
+#             in vec2 position;
+#             out vec2 texCoord_interp;
+
+#             void main()
+#             {
+#               float xpos = spos[0] + position[0] * size[0];
+#               float ypos = spos[1] + position[1] * size[1];
+#               gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
+# //              gl_Position.z = 1.0;
+#               texCoord_interp = texCoord;
+#             }
+#         '''
+
+#         image_fragment_shader = '''
+#             in vec2 texCoord_interp;
+#             out vec4 fragColor;
+
+#             uniform sampler2D image;
+
+#             void main()
+#             {
+#               fragColor = texture(image, texCoord_interp);
+#             }
+
+#         '''
+#         self.base_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+#         self.line_shader = gpu.types.GPUShader(base_vertex_shader, base_fragment_shader)
+#         self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
+#         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": self.v_coords}, indices=self.f_indices)
+#         self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": self.v_coords})
+#         self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
+
+#     def draw(self, context):
+#         self.ah = context.area.regions[2].height
+#         self.aw = context.area.regions[2].width
+
+#         if self.expand:
+#             if self.resize:
+#                 self.xdiff = self.lepos[0] - self.lspos[0]
+#                 self.ydiff = self.lepos[1] - self.lspos[1]
+#             elif self.move:
+#                 self.lspos[1] = self.lepos[1] - self.ydiff
+#                 self.lepos[0] = self.lspos[0] + self.xdiff
+#             if self.lepos[1] > self.ah:
+#                 self.lspos[1] = self.ah - self.ydiff
+#                 self.lepos[1] = self.ah
+#             if self.lspos[0] < self.aw:
+#                 self.lspos[0] = self.aw
+
+#             self.base_shader.bind()
+#             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.base_shader.uniform_float("spos", self.lspos)
+#             self.base_shader.uniform_float("colour", self.hl)
+#             self.base_batch.draw(self.base_shader)
+#             self.line_shader.bind()
+#             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.line_shader.uniform_float("spos", self.lspos)
+#             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
+#             self.line_batch.draw(self.line_shader)
+#             self.image_shader.bind()
+#             self.image_shader.uniform_float("size", (self.xdiff, self.ydiff))
+#             self.image_shader.uniform_float("spos", self.lspos)
+
+#             if self.image in [i.name for i in bpy.data.images]:
+#                 im = bpy.data.images[self.image]
+#                 texture = gpu.texture.from_image(im)
+
+#                 if im.gl_load():
+#                     raise Exception()
+
+#                 # bgl.glActiveTexture(bgl.GL_TEXTURE0)
+#                 # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
+#                 # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+#                 # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+#                 self.image_shader.uniform_sampler("image", texture)
+#                 self.image_batch.draw(self.image_shader)
+
+#     def show_plot(self, context):
+#         show_plot(self, context)
+
+# def spnumdisplay(disp_op, context):
+#     scene = context.scene
+#     svp = scene.vi_params
+
+#     if bpy.data.objects.get('SPathMesh'):
+#         spob = bpy.data.objects['SPathMesh']
+#         ob_mat = spob.matrix_world
+#         mid_x, mid_y, width, height = viewdesc(context)
+#         vl = ret_vp_loc(context)
+#         blf_props(scene, width, height)
+
+#         if svp.sp_hd:
+#             pvecs = [ob_mat@mathutils.Vector(p[:]) for p in spob['numpos'].values()]
+#             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
+#             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
+#             vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(context.view_layer, vl,
+#                           pvecs[pi] - vl, distance = (pvecs[pi] - vl).length)[4] == spob]
+
+#             if vispoints:
+#                 hs = [pvals[pi] for pi in vispoints]
+#                 posis = [p2ds[pi] for pi in vispoints]
+#                 draw_index(posis, hs, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
+
+#         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects] and svp['spparams']['suns'] == '0':
+#             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
+
+#             if sobs and svp.sp_td:
+#                 sunloc = ob_mat@sobs[0].location
+#                 solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
+
+#                 try:
+#                     if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
+#                         soltime = datetime.datetime.fromordinal(scene.solday)
+#                         soltime += datetime.timedelta(hours = scene.sp_sh)
+#                         sre = sobs[0].rotation_euler
+#                         blf_props(scene, width, height)
+#                         draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi),
+#                                    svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
+
+#                 except Exception as e:
+#                     logentry("Something went wrong with sun path number display: {}".format(e))
+#         blf.disable(0, 4)
+#     else:
+#         return
