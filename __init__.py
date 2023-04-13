@@ -100,7 +100,7 @@ else:
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
                 upg = '' if sys.platform == 'linux' else '--upgrade'
-                
+
                 if sys.platform == 'win32':
                     kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                 else:
@@ -265,7 +265,7 @@ def unititems(self, context):
                     ('firradb', 'W (blue)', 'Blue irradiance')]
         else:
             return [('None', 'None', 'None')]
-    
+
     except Exception as e:
         logentry(f'Error: {e}. Check the LiVi Result Type menu')
         return [('None', 'None', 'None')]
@@ -433,6 +433,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_bsdfleg_max: FloatProperty(name="", description="Legend maximum", min=0, max=1000000, default=100)
     vi_bsdfleg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0)
     vi_bsdfleg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0')
+    vi_bsdf_font: iprop("", "Font size for BSDF numerical display", 0, 48, 0)
     en_disp_type: EnumProperty(items=enparametric, name="", description="Type of EnVi display")
     vi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)

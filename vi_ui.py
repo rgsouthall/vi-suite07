@@ -59,12 +59,14 @@ class VI_PT_3D(bpy.types.Panel):
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display")
 
-                if svp['viparams']['vidisp'] == 'bsdf_panel':
+                if svp['viparams'].get('vidisp') and svp['viparams']['vidisp'] == 'bsdf_panel':
                     newrow(layout, 'Direction:', svp, "vi_bsdf_direc")
                     newrow(layout, 'BSDF max:', svp, "vi_bsdfleg_max")
                     newrow(layout, 'BSDF min:', svp, "vi_bsdfleg_min")
                     newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
+                    newrow(layout, 'BSDF font:', svp, "vi_bsdf_font")
+
 
         if svp.get('viparams') and svp['viparams'].get('vidisp'):
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
