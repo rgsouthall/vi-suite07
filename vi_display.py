@@ -848,6 +848,9 @@ class draw_bsdf(Base_Display):
                 raise Exception()
 
             self.iimage_shader.uniform_sampler("image", texture)
+            self.vi2_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1])]
+            self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
+            self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"pos": self.vi3_coords, "texCoord": self.tex_coords})
             self.iimage_batch.draw(self.iimage_shader)
             self.arc_shader.bind()
             self.arc_shader.uniform_float("size", (1, 1))
@@ -862,6 +865,7 @@ class draw_bsdf(Base_Display):
                 raise Exception()
 
             self.image_shader.uniform_sampler("image", texture)
+            self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"pos": self.vi2_coords, "texCoord": self.tex_coords})
             self.image_batch.draw(self.image_shader)
 
 class wr_legend(Base_Display):
