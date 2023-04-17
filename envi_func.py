@@ -553,7 +553,7 @@ def checkenvierrors(file, sim_op):
 def processf(pro_op, node, con_node):
     scene = bpy.context.scene
     svp = scene.vi_params
-    reslists, areslists = con_node['reslists'], []
+    reslists, areslists = list(con_node['reslists']), []
     frames = range(svp['enparams']['fs'], svp['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current]
 
     for frame in frames:
@@ -833,32 +833,34 @@ def write_ec(scene, coll, frames, reslists):
                 chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)] if chil.vi_params['enparams']['floorarea'].get(str(frame)) else fa
 
                 for ob in chil.objects:
-                    if chil.name not in zone_dict:
-                        zone_dict[chil.name] = {}
-                        zone_dict[chil.name]['ec'] = 0
-                        zone_dict[chil.name]['ecy'] = 0
-                        zone_dict[chil.name]['area'] = 0
+                    if any([get_con_node(mat.vi_params).ret_ec()[0] != 'N/A' for mat in ob.data.materials]):
+                        if chil.name not in zone_dict:
+                            zone_dict[chil.name] = {}
+                            zone_dict[chil.name]['ec'] = 0
+                            zone_dict[chil.name]['ecy'] = 0
+                            zone_dict[chil.name]['area'] = 0
 
-                    for mat in ob.data.materials:
-                        con_node = get_con_node(mat.vi_params)
+                        for mat in ob.data.materials:
+                            con_node = get_con_node(mat.vi_params)
 
-                        if mat.name not in mat_dict:
-                            mat_dict[mat.name] = {}
-                            mat_dict[mat.name]['area'] = 0
-                            mat_dict[mat.name]['ec'] = 0
-                            mat_dict[mat.name]['ecy'] = 0
+                            if con_node.ret_ec():
+                                if mat.name not in mat_dict:
+                                    mat_dict[mat.name] = {}
+                                    mat_dict[mat.name]['area'] = 0
+                                    mat_dict[mat.name]['ec'] = 0
+                                    mat_dict[mat.name]['ecy'] = 0
 
-                        for poly in ob.data.polygons:
-                            if ob.material_slots[poly.material_index].material == mat:
-                                mat_dict[mat.name]['area'] += poly.area
-                                zone_dict[chil.name]['area'] += poly.area
-                                mat_ec = con_node.ret_ec()
+                                for poly in ob.data.polygons:
+                                    if ob.material_slots[poly.material_index].material == mat:
+                                        mat_dict[mat.name]['area'] += poly.area
+                                        zone_dict[chil.name]['area'] += poly.area
+                                        mat_ec = con_node.ret_ec()
 
-                                if mat_ec[0] != 'N/A':
-                                    mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
-                                    zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
-                                    mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
-                                    zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
+                                        if mat_ec[0] != 'N/A':
+                                            mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
+                                            zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
+                                            mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
+                                            zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
 
             except Exception:
                 pass
@@ -881,9 +883,10 @@ def write_ec(scene, coll, frames, reslists):
             ecym2 = '{:.2f}'.format(zone_dict[zone]['ecy']/chil_fa) if chil_fa else 'N/A'
             ec_text += '{}, Zone, {}, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, zone, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
                                                                                                zone_dict[zone]['ec'], zone_dict[zone]['ecy'], ecm2, ecym2)
-
-        reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
-        reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
+        if zone_dict:
+            reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
+        if mat_dict:
+            reslists.append([str(frame), 'Embodied carbon', 'All', 'Total surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
 
         if fa:
             reslists.append([str(frame), 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict])/fa)])
@@ -938,45 +941,47 @@ def write_ob_ec(scene, coll, frames, reslists):
             cecs = []
 
             for o in chil.objects:
-                if o.name not in foecs:
-                    foecs[o.name] = []
+                if o.vi_params.embodied:
+                    if o.name not in foecs:
+                        foecs[o.name] = []
 
-                ovp = o.vi_params
+                    ovp = o.vi_params
 
-                if o.type == 'MESH' and ovp.embodied and ovp.vi_type == '0':
-                    bm = bmesh.new()
-                    bm.from_object(o, dp)
-                    bm.transform(o.matrix_world)
-                    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
-                    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+                    if o.type == 'MESH' and ovp.embodied and ovp.vi_type == '0':
+                        bm = bmesh.new()
+                        bm.from_object(o, dp)
+                        bm.transform(o.matrix_world)
+                        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
+                        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-                    if all([e.is_manifold for e in bm.edges]):
-                        vol = bm.calc_volume()
-                        vols.append(vol)
-                        ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
-                        ec = float(ecdict['eckg']) * float(ecdict['density']) * vol
-                        cecs.append(ec)
-                        ecs.append(ec)
-                        foecs[o.name].append(ec)
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/ovp.ec_life)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/chil_fa)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(chil_fa * ovp.ec_life))])
-                        ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedtype, ovp.embodiedclass,
-                                                                                                             ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec/ovp.ec_life, ec/chil_fa,
-                                                                                                             ec/(chil_fa * ovp.ec_life))
-                        bm.free()
-                    else:
-                        logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
-                        bm.free()
+                        if all([e.is_manifold for e in bm.edges]):
+                            vol = bm.calc_volume()
+                            vols.append(vol)
+                            ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
+                            ec = float(ecdict['eckg']) * float(ecdict['density']) * vol
+                            cecs.append(ec)
+                            ecs.append(ec)
+                            foecs[o.name].append(ec)
+                            reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
+                            reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/ovp.ec_life)])
+                            reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
+                            reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/chil_fa)])
+                            reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(chil_fa * ovp.ec_life))])
+                            ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedtype, ovp.embodiedclass,
+                                                                                                                ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec/ovp.ec_life, ec/chil_fa,
+                                                                                                                ec/(chil_fa * ovp.ec_life))
+                            bm.free()
+                        else:
+                            logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
+                            bm.free()
+            if cecs:
+                reslists.append([f'{frame}', 'Embodied carbon', chil.name, 'Zone EC (kgCO2e)', '{:.3f}'.format(sum(cecs))])
+        if ecs:
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
+        if ecs and vols:
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object volume (m3)', '{:.3f}'.format(sum(vols))])
 
-            reslists.append([f'{frame}', 'Embodied carbon', chil.name, 'Zone EC (kgCO2e)', '{:.3f}'.format(sum(cecs))])
-
-        reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
-        reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object volume (m3)', '{:.3f}'.format(sum(vols))])
-
-    ec_text = svp['ecparams']['ec_text'] = ec_text
+    svp['ecparams']['ec_text'] = ec_text
 
     with open(os.path.join(svp['viparams']['newdir'], 'ec.csv'), 'w') as ec_file:
         ec_file.write(ec_text)

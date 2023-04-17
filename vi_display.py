@@ -641,12 +641,12 @@ class draw_bsdf(Base_Display):
         self.dir_select = self.dattype[0].split()[1]
         self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
         self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
-        
+
         if ',' in bsdf.getElementsByTagName('ScatteringData')[0].firstChild.data:
             self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip().split(',') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
         else:
             self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
-        
+
         self.plot(context)
 
     def plot(self, context):
@@ -867,6 +867,7 @@ class draw_bsdf(Base_Display):
             self.image_shader.uniform_sampler("image", texture)
             self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"pos": self.vi2_coords, "texCoord": self.tex_coords})
             self.image_batch.draw(self.image_shader)
+
 
 class wr_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):

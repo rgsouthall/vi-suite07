@@ -544,7 +544,7 @@ def pregeo(context, op):
                     if not k:
                         no.location += context.node.geo_offset
 
-                    no['auto_volume'] = bm.calc_volume()
+                    #no['auto_volume'] = bm.calc_volume()
                     ob.evaluated_get(depsgraph).to_mesh_clear()
                     bm.free()
                     no.name = 'en_{}'.format(c_name)
@@ -593,7 +593,7 @@ def pregeo(context, op):
                 bmesh.ops.dissolve_degenerate(bm, dist=0.005, edges=bm.edges)
                 bmesh.ops.dissolve_limit(bm, angle_limit=0.001, use_dissolve_boundaries=False, verts=bm.verts, delimit={'MATERIAL'})
                 bmesh.ops.delete(bm, geom=[e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces], context='VERTS')
-                bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 0.001], context='FACES')
+                bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 0.001 or get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context='FACES')
                 bmesh.ops.triangulate(bm, faces=[face for face in bm.faces if not all([loop.is_convex for loop in face.loops])])
 
                 for s, sm in enumerate(o.material_slots):
@@ -651,6 +651,12 @@ def pregeo(context, op):
                 bpy.ops.object.join()
                 new_ob = bpy.context.active_object
                 new_ob.name = '{}'.format(chil.name)
+                nbm = bmesh.new()
+                nbm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
+                bmesh.ops.remove_doubles(nbm, verts=nbm.verts, dist=0.001)
+                new_ob['auto_volume'] = nbm.calc_volume()
+                new_ob.to_mesh_clear()
+                nbm.free()
 
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name="EnVi Network")
