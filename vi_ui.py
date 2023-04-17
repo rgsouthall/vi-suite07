@@ -55,7 +55,7 @@ class VI_PT_3D(bpy.types.Panel):
             covp = cao.vi_params
 
         if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
-            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and covp.vi_type == '5':
+            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full':
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display")
 
@@ -453,7 +453,7 @@ class VI_PT_Ob(bpy.types.Panel):
                 newrow(layout, 'IES Temperature:', ovp, "ies_ct")
 
         elif ovp.vi_type == '5':
-            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
+            if any([obj.material_slots[i].material.vi_params.radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons if f.material_index <= len(obj.material_slots)]]):
                 newrow(layout, 'Direction:', ovp, 'li_bsdf_direc')
 #                newrow(layout, 'Proxy:', ovp, 'li_bsdf_proxy')
 
@@ -474,7 +474,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     row.operator("object.gen_bsdf", text="Generate BSDF")
             else:
                 row = layout.row()
-                row.label(tex='No BSDF material applied')
+                row.label(text='No BSDF material applied')
 
         if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
             newrow(layout, 'CFD probe:', ovp, 'flovi_probe')

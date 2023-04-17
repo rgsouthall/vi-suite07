@@ -936,14 +936,19 @@ class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
         row = layout.row()
 
     def execute(self, context):
-        context.material['bsdf'] = {}
+        mvp = context.material.vi_params
+        mvp['bsdf'] = {}
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
             return {'CANCELLED'}
         else:
             with open(self.filepath, 'r') as bsdffile:
-                context.material['bsdf']['xml'] = bsdffile.read()
-                context.material['bsdf']['filepath'] = self.filepath
+                mvp['bsdf']['xml'] = bsdffile.read()
+                mvp['bsdf']['filepath'] = self.filepath
+                bsdf = parseString(mvp['bsdf']['xml'])
+                mvp['bsdf']['direcs'] = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+                mvp['bsdf']['type'] = [path.firstChild.data for path in bsdf.getElementsByTagName('AngleBasisName')][0]
+                mvp['bsdf']['proxied'] = mvp.li_bsdf_proxy_depth
             return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -1571,9 +1576,9 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                                 break
 
                         d_list = normdata[start_data:]
-                        d_x = [float(dl[0]) for dl in d_list]
-                        d_y = [float(dl[1]) for dl in d_list]
-                        d_z = [float(dl[2]) for dl in d_list]
+                        d_x = [(float(dl[0]) * 0.5 + 0.5) for dl in d_list]
+                        d_y = [(float(dl[1]) * 0.5 + 0.5) for dl in d_list]
+                        d_z = [(float(dl[2]) * 0.5 + 0.5) for dl in d_list]
                         d_list = [(d_x[li], d_y[li], d_z[li], 1) for li in range(len(d_x))]
                         d_array = numpy.array(d_list, dtype=numpy.float32).reshape(res[1], res[0], 4)[::-1, :, :]
 
@@ -1581,7 +1586,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                             nmim = bpy.data.images[f'{simnode.camera}-norm-{frame}']
                             nmim.scale(res[0], res[1])
                         else:
-                            nmim = bpy.data.images.new(name=f'{simnode.camera}-norm-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=True, is_data=True)
+                            nmim = bpy.data.images.new(name=f'{simnode.camera}-norm-{frame}', width=res[0], height=res[1], float_buffer=True, alpha=False, is_data=True)
 
                         nmim.pixels.foreach_set(d_array.flatten())
                         nmim.pack()

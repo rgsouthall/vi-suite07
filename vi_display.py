@@ -641,7 +641,11 @@ class draw_bsdf(Base_Display):
         self.dir_select = self.dattype[0].split()[1]
         self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
         self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
-        self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+        print(bsdf.getElementsByTagName('ScatteringData'))
+        if ',' in bsdf.getElementsByTagName('ScatteringData')[0].firstChild.data:
+            self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip().split(',') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+        else:
+            self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
         self.plot(context)
 
     def plot(self, context):
