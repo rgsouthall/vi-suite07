@@ -641,11 +641,12 @@ class draw_bsdf(Base_Display):
         self.dir_select = self.dattype[0].split()[1]
         self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
         self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
-        print(bsdf.getElementsByTagName('ScatteringData'))
+        
         if ',' in bsdf.getElementsByTagName('ScatteringData')[0].firstChild.data:
             self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip().split(',') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
         else:
             self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+        
         self.plot(context)
 
     def plot(self, context):
@@ -752,6 +753,7 @@ class draw_bsdf(Base_Display):
         line_shader = gpu.types.GPUShaderCreateInfo()
         line_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
         line_shader.push_constant('VEC2', 'spos')
+        line_shader.push_constant('FLOAT', 'zpos')
         line_shader.push_constant('VEC2', 'size')
         line_shader.push_constant('VEC4', 'colour')
         line_shader.vertex_in(0, 'VEC2', 'position')
@@ -762,7 +764,7 @@ class draw_bsdf(Base_Display):
                 {
                     float xpos = spos[0] + position[0] * size[0];
                     float ypos = spos[1] + position[1] * size[1];
-                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), zpos, 1.0f);
                     vec4 pp = gl_Position;
                 }
             '''
@@ -775,74 +777,12 @@ class draw_bsdf(Base_Display):
                 }
             '''
         )
-#         line_vertex_shader = '''
-#             uniform mat4 ModelViewProjectionMatrix;
-#             uniform vec2 spos;
-#             uniform vec2 size;
-#             in vec2 position;
-# //            varying vec4 pp;
-#             void main()
-#                 {
-#                    float xpos = spos[0] + position[0] * size[0];
-#                    float ypos = spos[1] + position[1] * size[1];
-#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
-#                    vec4 pp = gl_Position;
-# //                   vLineCenter = 0.5*(pp.xy + spos)*(1, 1);
-#                 }
-#             '''
 
-#         line_fragment_shader = '''
-#             uniform vec4 colour;
-#             out vec4 FragColour;
-
-#             void main()
-#                 {
-#                     FragColour = colour;
-#                 }
-
-#             '''
-        # line_vertex_shader_aa = '''
-        #     uniform mat4 ModelViewProjectionMatrix;
-        #     uniform vec2 uViewPort; //Width and Height of the viewport
-        #     varying vec2 vLineCenter;
-        #     void main(void)
-        #         {
-        #           vec4 pp = ModelViewProjectionMatrix * gl_Vertex;
-        #           gl_Position = pp;
-        #           vec2 vp = uViewPort;
-        #           vLineCenter = 0.5*(pp.xy + vec2(1, 1))*vp;
-        #         }
-        #     '''
-
-#         line_fragment_shader_aa = '''
-# //            uniform float uLineWidth;
-#             uniform vec4 colour;
-# //            uniform float uBlendFactor; //1.5..2.5
-#             varying vec4 pp;
-#             out vec4 FragColour;
-
-#             float ret_alpha()
-#                 {
-
-#                 }
-#             void main()
-#                 {
-#                   vec4 col = colour;
-#                   float d = length(gl_PointCoord.xy - gl_FragCoord.xy);
-# //                  float w = uLineWidth;
-#                   if (d > 100.0) {col.w = 1.0;}
-#                   else
-#                     {float a = (2.0-d)/2.0;
-# //                    col.w *= (float pow(a,2.0));}
-#                   col.w = a;}
-#                   FragColour = col;
-#                 }
-
-            # '''
         arc_shader = gpu.types.GPUShaderCreateInfo()
         arc_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
         arc_shader.push_constant('VEC2', 'spos')
         arc_shader.push_constant('VEC2', 'size')
+        arc_shader.push_constant('FLOAT', 'zpos')
         arc_shader.vertex_in(0, 'VEC4', 'colour')
         arc_shader.vertex_in(1, 'VEC2', 'position')
         arc_shader_iface = gpu.types.GPUStageInterfaceInfo('arc_interface')
@@ -855,7 +795,7 @@ class draw_bsdf(Base_Display):
                     {
                     float xpos = spos[0] + position[0] * size[0];
                     float ypos = spos[1] + position[1] * size[1];
-                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), +0.2f, 1.0f);
+                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), zpos, 1.0f);
                     a_colour = colour;
                     }
             '''
@@ -869,95 +809,6 @@ class draw_bsdf(Base_Display):
             '''
         )
 
-        # arc_vertex_shader = '''
-        #     uniform mat4 ModelViewProjectionMatrix;
-        #     uniform vec2 spos;
-        #     uniform vec2 size;
-        #     in vec2 position;
-        #     in vec4 colour;
-        #     flat out vec4 a_colour;
-
-        #     void main()
-        #         {
-        #            float xpos = spos[0] + position[0] * size[0];
-        #            float ypos = spos[1] + position[1] * size[1];
-        #            gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), +0.2f, 1.0f);
-        #            a_colour = colour;
-        #         }
-        #     '''
-
-        # arc_fragment_shader = '''
-        #     flat in vec4 a_colour;
-        #     out vec4 FragColour;
-
-        #     void main()
-        #         {
-        #             FragColour = a_colour;
-        #         }
-
-        #     '''
-        image_shader = gpu.types.GPUShaderCreateInfo()
-        image_shader.push_constant('MAT4', 'ModelViewProjectionMatrix')
-        image_shader.push_constant('VEC2', 'spos')
-        image_shader.push_constant('VEC2', 'size')
-        # image_shader.push_constant('sampler2D', 'image')
-        image_shader.sampler(0, 'FLOAT_2D', "image")
-        image_shader.vertex_in(0, 'VEC2', 'texCoord')
-        image_shader.vertex_in(1, 'VEC2', 'position')
-        image_shader_iface = gpu.types.GPUStageInterfaceInfo('arc_interface')
-        image_shader_iface.smooth('VEC2', 'texCoord_interp')
-        image_shader.vertex_out(image_shader_iface)
-        image_shader.fragment_out(0, 'VEC4', 'FragColour')
-        image_shader.vertex_source(
-        '''
-            void main()
-                {
-                    float xpos = spos[0] + position[0] * size[0];
-                    float ypos = spos[1] + position[1] * size[1];
-                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-                    texCoord_interp = texCoord;
-                }
-        '''
-        )
-        image_shader.fragment_source(
-        '''
-            void main()
-                {
-                    FragColour = texture(image, texCoord_interp);
-                }
-        '''
-        )
-
-        # image_vertex_shader = '''
-        #     uniform mat4 ModelViewProjectionMatrix;
-        #     uniform vec2 spos;
-        #     uniform vec2 size;
-        #     in vec2 texCoord;
-        #     in vec2 position;
-        #     out vec2 texCoord_interp;
-
-        #     void main()
-        #     {
-        #       float xpos = spos[0] + position[0] * size[0];
-        #       float ypos = spos[1] + position[1] * size[1];
-        #       gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), 0.0f, 1.0f);
-        #       texCoord_interp = texCoord;
-        #     }
-        # '''
-
-        # image_fragment_shader = '''
-        #     in vec2 texCoord_interp;
-        #     out vec4 fragColor;
-
-        #     uniform sampler2D image;
-
-        #     void main()
-        #     {
-        #       fragColor = texture(image, texCoord_interp);
-        #     }
-
-        # '''
-
         (vl_coords, v_coords, f_indices, va_coords, fa_colours, fa_indices) = self.ret_coords()
 
         if sel == 'all':
@@ -965,18 +816,15 @@ class draw_bsdf(Base_Display):
             b_indices = [(0, 1, 3), (1, 2, 3)]
             b_colours = [(1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1)]
             self.back_shader = gpu.shader.create_from_info(arc_shader)
-            # self.back_shader = gpu.types.GPUShader(arc_vertex_shader, arc_fragment_shader)
-            # self.arcline_shader = gpu.types.GPUShader(line_vertex_shader, line_fragment_shader)
             self.arcline_shader = gpu.shader.create_from_info(line_shader)
-            self.image_shader = gpu.shader.create_from_info(image_shader)
-            # self.image_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
-            self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
-            #self.iimage_shader = gpu.types.GPUShader(image_vertex_shader, image_fragment_shader)
-            self.iimage_shader = gpu.shader.create_from_info(image_shader)
-            self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"position": self.vi_coords, "texCoord": self.tex_coords})
+            self.image_shader = gpu.shader.from_builtin('2D_IMAGE')
+            self.vi2_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1])]
+            self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"pos": self.vi2_coords, "texCoord": self.tex_coords})
+            self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
+            self.iimage_shader = gpu.shader.from_builtin('2D_IMAGE')
+            self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"pos": self.vi3_coords, "texCoord": self.tex_coords})
             self.back_batch = batch_for_shader(self.back_shader, 'TRIS', {"position": b_coords, "colour": b_colours}, indices=b_indices)
 
-        # self.arc_shader = gpu.types.GPUShader(arc_vertex_shader, arc_fragment_shader)
         self.arc_shader = gpu.shader.create_from_info(arc_shader)
         self.arc_batch = batch_for_shader(self.arc_shader, 'TRIS', {"position": va_coords, "colour": fa_colours}, indices=fa_indices)
 
@@ -987,49 +835,34 @@ class draw_bsdf(Base_Display):
             self.back_shader.bind()
             self.back_shader.uniform_float("size", (400, 650))
             self.back_shader.uniform_float("spos", (self.lspos))
+            self.back_shader.uniform_float("zpos", -0.5)
             self.back_batch.draw(self.back_shader)
             gpu.state.depth_test_set('LESS')
             gpu.state.depth_mask_set(False)
             gpu.state.line_width_set(1)
-            # bgl.glEnable(bgl.GL_DEPTH_TEST)
-            # bgl.glDepthFunc(bgl.GL_LESS)
-            # bgl.glLineWidth(1)
-            self.image_shader.bind()
-            self.image_shader.uniform_float("size", self.isize)
-            self.image_shader.uniform_float("spos", self.lspos)
-            im = bpy.data.images[self.image]
-            texture = gpu.texture.from_image(im)
-
-            if im.gl_load():
-                raise Exception()
-
-            # bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            # bgl.glBindTexture(bgl.GL_TEXTURE_2D, im.bindcode)
-            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-            self.image_shader.uniform_sampler("image", texture)
-            self.image_batch.draw(self.image_shader)
-
             self.iimage_shader.bind()
-            self.iimage_shader.uniform_float("size", self.iisize)
-            self.iimage_shader.uniform_float("spos", (self.lspos[0] + 50, self.lepos[1] - 280))
             iim = bpy.data.images[self.iimage]
             texture = gpu.texture.from_image(iim)
 
             if iim.gl_load():
                 raise Exception()
 
-            # bgl.glActiveTexture(bgl.GL_TEXTURE0)
-            # bgl.glBindTexture(bgl.GL_TEXTURE_2D, iim.bindcode)
-            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-            # bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
             self.iimage_shader.uniform_sampler("image", texture)
             self.iimage_batch.draw(self.iimage_shader)
             self.arc_shader.bind()
             self.arc_shader.uniform_float("size", (1, 1))
             self.arc_shader.uniform_float("spos", (self.lspos[0] + 50 + 125, self.lepos[1] - 155))
+            self.arc_shader.uniform_float("zpos", -0.25)
             self.arc_batch.draw(self.arc_shader)
+            self.image_shader.bind()
+            im = bpy.data.images[self.image]
+            texture = gpu.texture.from_image(im)
 
+            if im.gl_load():
+                raise Exception()
+
+            self.image_shader.uniform_sampler("image", texture)
+            self.image_batch.draw(self.image_shader)
 
 class wr_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff):
@@ -1770,11 +1603,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         self.sun_shader = gpu.shader.create_from_info(sun_shader)
         self.globe_shader = gpu.shader.create_from_info(globe_shader)
         self.range_shader = gpu.shader.create_from_info(range_shader)
-        # self.sp_shader = gpu.types.GPUShader(sp_vertex_shader, sp_fragment_shader)
-#        self.sp_shader = gpu.shader.from_builtin('3D_POLYLINE_UNIFORM_COLOR')
-        # self.sun_shader = gpu.types.GPUShader(sun_vertex_shader, sun_fragment_shader)
-        # self.globe_shader = gpu.types.GPUShader(globe_vertex_shader, globe_fragment_shader)
-        # self.range_shader = gpu.types.GPUShader(range_vertex_shader, range_fragment_shader)
         (coords, line_lengths, breaks) = self.ret_coords(scene, node)
         sun_pos = [so.location[:] for so in scene.objects if so.type == 'LIGHT' and so.data.type == 'SUN' and not so.hide_viewport]
         sun_v_coords, sun_f_indices = self.ret_sun_geometry(scene.vi_params.sp_sun_size, self.suns)
@@ -3663,3 +3491,68 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         #         }
 
         #     '''
+
+#         line_vertex_shader = '''
+#             uniform mat4 ModelViewProjectionMatrix;
+#             uniform vec2 spos;
+#             uniform vec2 size;
+#             in vec2 position;
+# //            varying vec4 pp;
+#             void main()
+#                 {
+#                    float xpos = spos[0] + position[0] * size[0];
+#                    float ypos = spos[1] + position[1] * size[1];
+#                    gl_Position = ModelViewProjectionMatrix * vec4(int(xpos), int(ypos), -0.1f, 1.0f);
+#                    vec4 pp = gl_Position;
+# //                   vLineCenter = 0.5*(pp.xy + spos)*(1, 1);
+#                 }
+#             '''
+
+#         line_fragment_shader = '''
+#             uniform vec4 colour;
+#             out vec4 FragColour;
+
+#             void main()
+#                 {
+#                     FragColour = colour;
+#                 }
+
+#             '''
+        # line_vertex_shader_aa = '''
+        #     uniform mat4 ModelViewProjectionMatrix;
+        #     uniform vec2 uViewPort; //Width and Height of the viewport
+        #     varying vec2 vLineCenter;
+        #     void main(void)
+        #         {
+        #           vec4 pp = ModelViewProjectionMatrix * gl_Vertex;
+        #           gl_Position = pp;
+        #           vec2 vp = uViewPort;
+        #           vLineCenter = 0.5*(pp.xy + vec2(1, 1))*vp;
+        #         }
+        #     '''
+
+#         line_fragment_shader_aa = '''
+# //            uniform float uLineWidth;
+#             uniform vec4 colour;
+# //            uniform float uBlendFactor; //1.5..2.5
+#             varying vec4 pp;
+#             out vec4 FragColour;
+
+#             float ret_alpha()
+#                 {
+
+#                 }
+#             void main()
+#                 {
+#                   vec4 col = colour;
+#                   float d = length(gl_PointCoord.xy - gl_FragCoord.xy);
+# //                  float w = uLineWidth;
+#                   if (d > 100.0) {col.w = 1.0;}
+#                   else
+#                     {float a = (2.0-d)/2.0;
+# //                    col.w *= (float pow(a,2.0));}
+#                   col.w = a;}
+#                   FragColour = col;
+#                 }
+
+            # '''
