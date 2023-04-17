@@ -73,8 +73,7 @@ def face_bsdf(o, m, mname, f):
         #     radentry = radentry.replace('m_{}_f'.format(m.name), mname)
         #     radentry = radentry.replace(' {}.xml '.format(m.name), ' {} '.format(os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(m.name))))
         # else:
-        radentry = 'void BSDF {0}\n6 {3} {1} {2} .\n0\n0\n\n'.format(mname,os.path.join(bpy.context.scene.vi_params['viparams']['newdir'], 'bsdfs',
-                                                                     '{}.xml'.format(m.name)), uv, m.vi_params.li_bsdf_proxy_depth)
+        radentry = 'void BSDF {0}\n6 {3} "{1}" {2} .\n0\n0\n\n'.format(mname, m.vi_params['bsdf']['filepath'], uv, m.vi_params.li_bsdf_proxy_depth)
         return radentry
     else:
         return ''
@@ -142,11 +141,12 @@ def validradparams(params):
 
 def ret_radentry(self, radname, mod):
     if self.radmatmenu == '8':
-        if self.get('bsdf'):
-            radentry = 'void BSDF {0}\n6 {1} "{2}" {3[0]} {3[1]} {3[2]} .\n0\n0\n'.format(radname, self.li_bsdf_proxy_depth, self['bsdf']['filepath'], self.li_bsdf_up)
-        else:
-            logentry(f'{self.id_data.name} has no BSDF data. A simple plastic material has been exported instead')
-            radentry = '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
+        radentry = ''
+        # if self.get('bsdf'):
+        #     radentry = 'void BSDF {0}\n6 {1} "{2}" {3[0]} {3[1]} {3[2]} .\n0\n0\n'.format(radname, self.li_bsdf_proxy_depth, self['bsdf']['filepath'], self.li_bsdf_up)
+        # else:
+        #     logentry(f'{self.id_data.name} has no BSDF data. A simple plastic material has been exported instead')
+        #     radentry = '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
     elif self.radmatmenu == '9':
         radentry = bpy.data.texts[self.radfile].as_string()+'\n\n' if self.radfile in [t.name for t in bpy.data.texts] else '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
     else:

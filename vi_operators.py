@@ -938,8 +938,8 @@ class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
     def execute(self, context):
         mvp = context.material.vi_params
         mvp['bsdf'] = {}
-        if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
+        if not os.path.isfile(self.filepath):
+            self.report({'ERROR'}, "No valid XMl file selected.")
             return {'CANCELLED'}
         else:
             with open(self.filepath, 'r') as bsdffile:
