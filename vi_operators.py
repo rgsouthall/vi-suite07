@@ -998,7 +998,7 @@ class MATERIAL_OT_Li_DBSDF(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        del context.material['bsdf']
+        del context.material.vi_params['bsdf']
         return {'FINISHED'}
 
 
