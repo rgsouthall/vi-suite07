@@ -57,14 +57,31 @@ def ec_update(self, context):
 
         if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
             self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
-        try:
-            self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
-            self['ecm3'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']))
-            self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
-
-        except Exception:
-            self['ecm3'] = 'N/A'
-
+        
+        self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+        
+        # if self['ecdict']['unit'] in ('kg', 'tonnes'):
+        #     self['ecm3'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']) * float(self['ecdict']['density']))
+        #     self['eckg'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']))
+        #     self['ecunit'] = 'N/A'
+        # elif self['ecdict']['unit'] == 'm3':
+        #     self['ecm3'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']))
+        #     self['eckg'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']) / float(self['ecdict']['density']))
+        #     self['ecunit'] = 'N/A'
+        # elif self['ecdict']['unit'] in ('each', 'qty'):
+        #     self['eckg'] = 'N/A'
+        #     self['ecm3'] = 'N/A'
+        #     self['ecunit'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']))
+        # elif self['ecdict']['unit'] == 'm':
+        #     self['ecm3'] = 'N/A'
+        #     self['eckg'] = 'N/A'
+        #     self['ecunit'] = 'N/A'
+        # else:
+        #     self['ecm3'] = 'N/A'
+        #     self['eckg'] = 'N/A'
+        #     self['ecunit'] = 'N/A'
+        # print([(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()])
+        self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
 def ret_datab(fname, r_w):
     addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))

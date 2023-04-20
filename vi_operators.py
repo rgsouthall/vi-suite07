@@ -619,7 +619,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
-#            o.vi_params.licalc = 1
             o.vi_params.vi_type_string = 'LiVi Calc'
 
         svp.vi_leg_max, svp.vi_leg_min = 100, 0
@@ -648,21 +647,25 @@ class OBJECT_OT_EcS(bpy.types.Operator):
         envi_ecs.update()
 
         if ovp.ec_unit == 'kg':
-            weight = ovp.ec_amount
-            eckg = ovp.ec_kgco2e/weight
-            ecdu = ovp.ec_kgco2e
+            weight = f'{ovp.ec_amount:.4f}'
+            eckg = ovp.ec_du/ovp.ec_amount
+            ecdu = ovp.ec_du
+        elif ovp.ec_unit == 'tonnes':
+            weight = f'{ovp.ec_amount*1000:.4f}'
+            eckg = ovp.ec_du/ovp.ec_amount*1000
+            ecdu = ovp.ec_du
         elif ovp.ec_unit == 'm2':
-            weight = ovp.ec_amount * ovp.ec_density * ovp.thi/1000
-            eckg = ovp.ec_kgco2e/weight
-            ecdu = ovp.ec_kgco2e
+            weight = f'{ovp.ec_weight:.4f}'
+            eckg = ovp.ec_du/ovp.ec_weight
+            ecdu = ovp.ec_du
         elif ovp.ec_unit == 'm3':
-            weight = ovp.ec_amount * ovp.ec_density
-            eckg = ovp.ec_kgco2e/weight
-            ecdu = ovp.ec_kgco2e
+            weight = f'{ovp.ec_amount * ovp.ec_density:.4f}'
+            eckg = ovp.ec_du/(ovp.ec_amount * ovp.ec_density)
+            ecdu = ovp.ec_du
         else:
-            weight = ''
-            ecdu = ovp.ec_kgco2e
-            eckg = ovp.ec_kgco2e
+            weight = f'{ovp.ec_weight:.4f}'
+            ecdu = ovp.ec_du
+            eckg = ovp.ec_du/ovp.ec_weight
 
         ec_dict = envi_ecs.get_dat()
 
@@ -670,35 +673,66 @@ class OBJECT_OT_EcS(bpy.types.Operator):
             ec_dict[ovp.ec_type] = {}
             ec_dict[ovp.ec_type][ovp.ec_class] = {}
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                  "quantity": ovp.ec_unit,
+                                                                "quantity": '{:.4f}'.format(ovp.ec_amount), 
+                                                                  "unit": ovp.ec_unit,
                                                                   "density": '{:.4f}'.format(ovp.ec_density),
-                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "weight": weight,
                                                                   "ecdu": '{:.4f}'.format(ecdu),
                                                                   "eckg": '{:.4f}'.format(eckg),
                                                                   "modules": ovp.ec_mod}
         elif ovp.ec_class not in ec_dict[ovp.ec_type]:
             ec_dict[ovp.ec_type][ovp.ec_class] = {}
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                  "quantity": ovp.ec_unit,
+                                                                "quantity": '{:.4f}'.format(ovp.ec_amount), 
+                                                                  "unit": ovp.ec_unit,
                                                                   "density": '{:.4f}'.format(ovp.ec_density),
-                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "weight": weight,
                                                                   "ecdu": '{:.4f}'.format(ecdu),
                                                                   "eckg": '{:.4f}'.format(eckg),
                                                                   "modules": ovp.ec_mod}
         else:
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                  "quantity": ovp.ec_unit,
-                                                                  "density": '{:.4f}'.format(ovp.ec_density),
-                                                                  "weight": '{:.4f}'.format(weight),
-                                                                  "ecdu": '{:.4f}'.format(ecdu),
-                                                                  "eckg": '{:.4f}'.format(eckg),
-                                                                  "modules": ovp.ec_mod}
+                                                               "quantity": '{:.4f}'.format(ovp.ec_amount), 
+                                                               "unit": ovp.ec_unit,
+                                                               "density": '{:.4f}'.format(ovp.ec_density),
+                                                                "weight": weight,
+                                                                "ecdu": '{:.4f}'.format(ecdu),
+                                                                "eckg": '{:.4f}'.format(eckg),
+                                                                "modules": ovp.ec_mod}
         envi_ecs.set_dat(ec_dict)
         envi_ecs.ec_save()
+        ovp.ee.update()
+        ovp.embodiedtype = ovp.ec_type
+        ovp.embodiedclass = ovp.ec_class
+        ovp.embodiedname = ovp.ec_name
         # ob.save_ecdict()
         return {'FINISHED'}
 
 
+class OBJECT_OT_EcE(bpy.types.Operator):
+    bl_idname = "object.ec_edit"
+    bl_label = "Embodied material edit"
+
+    def execute(self, context):
+        ob = context.object
+        ovp = ob.vi_params
+        envi_ecs = envi_embodied()
+        envi_ecs.update()
+        ec_dict = envi_ecs.get_dat()
+        ob_dict = ec_dict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
+        ovp.ec_type = ovp.embodiedtype
+        ovp.ec_class = ovp.embodiedclass
+        ovp.ec_id = ob_dict['id']
+        ovp.ec_amount = float(ob_dict['quantity'])
+        ovp.ec_density = float(ob_dict['density'])
+        ovp.ec_mod = ob_dict['modules']
+        ovp.ec_unit = ob_dict['unit']
+        ovp.ec_name = ovp.embodiedmat
+        ovp.ec_du = float(ob_dict['ecdu'])
+        ovp.embodiedtype = 'Custom'
+        return {'FINISHED'}
+
+        
 class NODE_OT_Li_Geo(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "LiVi geometry export"
@@ -2253,7 +2287,7 @@ class OBJECT_OT_GOct(bpy.types.Operator):
 
 
 class NODE_OT_EC(bpy.types.Operator):
-    '''Calculates embodied energy based on object volumes
+    '''Calculates embodied energy based on objects
         Writes to reslists volume, ec (kgco2e), ec/m2 floor area'''
     bl_idname = "node.ec_calc"
     bl_label = "Embodied carbon"
@@ -2272,17 +2306,23 @@ class NODE_OT_EC(bpy.types.Operator):
         node.presim(context)
         reslists = []
         frames = range(node.startframe, node.endframe + 1) if node.parametric else (context.scene.frame_current, )
-        obs = [o for o in context.scene.objects if o.type == 'MESH' and o.vi_params.embodied]
+        
+        if node.entities == '0':
+            obs = [o for o in context.scene.objects if o.type == 'MESH' and o.vi_params.embodied and o.visible_get()]
+            
+            for frame in frames:
+                scene.frame_set(frame)
+                ecs, vols = [], []
 
-        for frame in frames:
-            scene.frame_set(frame)
+                for o in obs:
+                    ovp = o.vi_params
 
-            ecs, vols = [], []
+                    if ovp.embodiedtype == 'Custom':
+                        logentry(f"Object {o.name} has unsaved EC data")
+                        self.report({'ERROR'}, f"Object {o.name} has unsaved EC data")
+                        return {'CANCELLED'}
 
-            for o in obs:
-                ovp = o.vi_params
-
-                if o.type == 'MESH' and o.vi_params.embodied:
+                    # if o.type == 'MESH':
                     bm = bmesh.new()
                     bm.from_object(o, dp)
                     bm.transform(o.matrix_world)
@@ -2297,16 +2337,60 @@ class NODE_OT_EC(bpy.types.Operator):
                         ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
                         ec = float(ecdict['eckg']) * float(ecdict['density']) * vol * node.tyears / float(ovp.ec_life)
                         ecs.append(ec)
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/node.tyears)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(ec)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(ec/node.tyears)])
                         reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/node.fa)])
-                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(node.fa * node.tyears))])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(ec/node.fa)])
+                        reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(ec/(node.fa * node.tyears))])
                         bm.free()
                     else:
                         logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                         # self.report({'ERROR'}, f"{o.name} is non-manifold")
                         bm.free()
+        else:
+            cobs = {coll.name: [o for o in coll.objects if o.type == 'MESH' and o.vi_params.embodied and o.visible_get()] for coll in bpy.data.collections if not coll.hide_viewport}
+            
+            for frame in frames:
+                scene.frame_set(frame)
+                
+                for c in cobs:
+                    ecs, vols = [], []
+
+                    for o in cobs[c]:
+                        ovp = o.vi_params
+
+                        if ovp.embodiedtype == 'Custom':
+                            logentry(f"Object {o.name} has unsaved EC data")
+                            self.report({'ERROR'}, f"Object {o.name} has unsaved EC data")
+                            return {'CANCELLED'}
+
+                        # if o.type == 'MESH':
+                        bm = bmesh.new()
+                        bm.from_object(o, dp)
+                        bm.transform(o.matrix_world)
+
+                        if node.heal:
+                            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
+                            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+                        if all([e.is_manifold for e in bm.edges]):
+                            vol = bm.calc_volume()
+                            vols.append(vol)
+                            ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
+                            ec = float(ecdict['eckg']) * float(ecdict['density']) * vol * node.tyears / float(ovp.ec_life)
+                            ecs.append(ec)
+                            bm.free()
+                        else:
+                            logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
+                            # self.report({'ERROR'}, f"{o.name} is non-manifold")
+                            bm.free()
+                    
+                    if cobs[c]:
+                        reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
+                        reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/y)', '{:.3f}'.format(sum(ecs)/node.tyears)])
+                        reslists.append([f'{frame}', 'Embodied carbon', c, 'Object volume (m3)', '{:.3f}'.format(sum(vols))])
+                        reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(sum(ecs)/node.fa)])
+                        reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(sum(ecs)/(node.fa * node.tyears))])
 
             tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e)'])
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e)', '{:.3f}'.format(tec)])
@@ -2316,8 +2400,8 @@ class NODE_OT_EC(bpy.types.Operator):
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2)', '{:.3f}'.format(tecm2)])
             tecm2y = tecm2/node.tyears
             reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2/y)', '{:.3f}'.format(tecm2y)])
-            tvol = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Volume (m3)'])
-            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(tvol)])
+            # tvols = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Volume (m3)'])
+            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(sum(vols))])
 
         if len(frames) > 1:
             reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])

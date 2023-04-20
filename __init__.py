@@ -110,9 +110,12 @@ else:
 
                 if sys.platform == 'win32':
                     dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'sdl2', 'bin', 'SDL2*'))
+                    
                     for dll in dlls:
                         shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'core', 'window'))
+                    
                     dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'glew', 'bin', 'glew32*'))
+                    
                     for dll in dlls:
                         shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
 
@@ -182,7 +185,7 @@ else:
     from .flovi_func import ret_fvb_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
-    from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, NODE_OT_ECPie
+    from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, OBJECT_OT_EcE, NODE_OT_ECPie
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify, OBJECT_OT_Embod, NODE_OT_En_UV, NODE_OT_En_EC, MAT_EnVi_Node_Remove
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
@@ -302,10 +305,7 @@ class VIPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
 
-        try:
-            requests.get('https://www.google.com/')
-        except Exception:
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
+        if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
                 row = layout.row()
                 row.label(text='You do not seem to have an internet connection. Cannot download Python libraries')
 
@@ -541,13 +541,14 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     ec_unit: EnumProperty(items=[("kg", "kg", "per kilogram"),
                                   ("m2", "m2", "per square metre"),
                                   ("m3", "m3", "per cubic metre"),
-                                  ("unit", "Unit", "per unit")],
+                                  ("each", "Each", "per item")],
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
-    ec_amount: FloatProperty(name="", description="", min=0.001, default=1, precision=3)
-    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
+    ec_amount: FloatProperty(name="", description="Amount of the declared unit", min=0.001, default=1, precision=3)
+    ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
+    ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
     ec_mod: StringProperty(name="", description="Embodied modules reported")
@@ -799,7 +800,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            EnViMatNetwork, No_En_Mat_Con, VI_PT_Gridify, OBJECT_OT_VIGridify, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl,
            NODE_OT_En_UV, NODE_OT_En_EC, No_En_Net_Occ, So_En_Net_Occ, So_En_Net_Sched, So_En_Mat_Sched, So_En_Net_Inf, So_En_Net_Hvac, So_En_Net_Eq,
            No_En_Mat_Op, No_En_Mat_Tr, So_En_Mat_Ou, So_En_Mat_Fr, So_En_Mat_Op, So_En_Mat_Tr, So_En_Mat_Gas, No_En_Con,
-           So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC, NODE_OT_EC, OBJECT_OT_EcS, NODE_OT_ECPie,
+           So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC, NODE_OT_EC, OBJECT_OT_EcS, OBJECT_OT_EcE, NODE_OT_ECPie,
            So_En_Con, So_En_Geo, NODE_OT_En_Con, No_En_Sim, NODE_OT_En_Sim, No_En_Mat_Gas,
            No_Vi_Chart, No_Vi_HMChart, So_En_Res, So_En_ResU, NODE_OT_Chart, NODE_OT_HMChart, No_En_Net_Hvac, So_En_Net_TSched, No_En_Net_Eq, No_En_Net_Sched, No_En_Net_Inf,
            No_En_Net_SFlow, No_En_Net_SSFlow, So_En_Net_SFlow, So_En_Net_SSFlow, So_En_Mat_PV, No_En_Mat_PV, No_En_Mat_Sched,

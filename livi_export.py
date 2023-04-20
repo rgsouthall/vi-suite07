@@ -143,6 +143,12 @@ def radgexport(export_op, node):
     frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     svp['liparams']['cp'] = node.cpoint
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
+    mats = []
+    
+    for o in geooblist + caloblist:
+        for m in o.data.materials:
+            if m not in mats:
+                mats.append(m)
 
     for o in caloblist:
         if any([s < 0 for s in o.scale]):

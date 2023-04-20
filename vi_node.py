@@ -1505,11 +1505,12 @@ class No_Vi_EC(Node, ViNodes):
     bl_label = 'VI Embodied Carbon'
 
     def ret_params(self):
-        return [str(x) for x in (self.parametric, self.startframe, self.endframe, self.tyears, self.heal)]
+        return [str(x) for x in (self.entities, self.parametric, self.startframe, self.endframe, self.tyears, self.heal)]
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
+    entities: EnumProperty(name="", description="Entity type", items=[('0', "Objects", "Calculate EC based on objects"), ('1', "Collections", "Calculate EC based on collections")], default='0', update=nodeupdate)
     parametric: BoolProperty(name='', default=0, description='Ignore sensor surfaces', update=nodeupdate)
     heal: BoolProperty(name='', default=0, description='Attempt to heal meshes', update=nodeupdate)
     fa: FloatProperty(name='m2', default=50, min=1, max=1024, description='Floor area', update=nodeupdate)
@@ -1524,7 +1525,8 @@ class No_Vi_EC(Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Parametric', self, 'parametric')
+        newrow(layout, 'Entities:', self, 'entities')
+        newrow(layout, 'Parametric:', self, 'parametric')
 
         if self.parametric:
             row = layout.row(align=True)
@@ -1533,9 +1535,9 @@ class No_Vi_EC(Node, ViNodes):
             row.prop(self, 'startframe')
             row.prop(self, 'endframe')
 
-        newrow(layout, 'Heal', self, 'heal')
-        newrow(layout, 'Floor area', self, 'fa')
-        newrow(layout, 'Timeframe', self, 'tyears')
+        newrow(layout, 'Heal:', self, 'heal')
+        newrow(layout, 'Floor area:', self, 'fa')
+        newrow(layout, 'Timeframe:', self, 'tyears')
         row = layout.row()
         row.operator("node.ec_calc", text='Calculate')
 
@@ -2713,6 +2715,22 @@ class No_Vi_Metrics(Node, ViNodes):
         else:
             return [('None', 'None', 'None')]
 
+    def ec_types(self, context):
+        if self.inputs[0].links:
+            ec_typemenu = []
+            try:
+                ec_types = set([z[3] for z in self['rl']])
+                if 'Object EC (kgCO2e)' in ec_types:
+                    ec_typemenu.append('Object')
+                if 'Surface EC (kgCO2e)' in ec_types:
+                    ec_typemenu.append('Surface')
+                if 'Zone EC (kgCO2e)' in ec_types:
+                    ec_typemenu.append('Zone')
+                return [(ect, ect, 'EC type') for ect in ec_typemenu]
+            except Exception:
+                return [('None', 'None', 'None')]
+        else:
+            return [('None', 'None', 'None')]
 
     metric: EnumProperty(items=[("0", "Energy", "Energy results"),
                                 ("1", "Lighting", "Lighting results"),
@@ -2730,10 +2748,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     ("1", "LEED", "LEED v4 results"),
                                     ("2", "RIBA 2030", "RIBA 2030 results")],
                                     name="", description="Results metric", default="0", update=zupdate)
-    em_menu: EnumProperty(items=[("0", "Object", "Calculate from objects"),
-                                 ("1", "Surface", "Calculate from EnVi surfaces"),
-                                 ("2", "Zone", "Calculate from EnVi zones")],
-                                 name="", description="Results metric", default="0", update=zupdate)
+    em_menu: EnumProperty(items=ec_types, name="", description="Results metric", update=zupdate)
     leed_menu: BoolProperty(name="", description="LEED space type", default=0)
     riba_menu: EnumProperty(items=[("0", "Domestic", "Domestic scenario"),
                                     ("1", "Office", "Office scenario"),
@@ -2808,15 +2823,15 @@ class No_Vi_Metrics(Node, ViNodes):
                     newrow(layout, 'Metric:', self, "energy_menu")
                 elif self.metric == '1':
                     newrow(layout, 'Metric:', self, "light_menu")
-                elif self.metric == '3':
-                    newrow(layout, 'Embodied standard:', self, "ec_menu")
+                # elif self.metric == '3':
+                #     newrow(layout, 'Embodied standard:', self, "ec_menu")
 
                 newrow(layout, 'Frame', self, "frame_menu")
 
                 if self.metric == '3':
                     newrow(layout, 'Embodied type:', self, "em_menu")
 
-                newrow(layout, 'Zone', self, "zone_menu")
+                newrow(layout, ('Zone:', f'{self.em_menu}:')[self.metric == '3'], self, "zone_menu")
 
                 if self.metric == '0':
                     if self['res'] and self['res'].get('hkwh'):
@@ -3083,7 +3098,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                 elif self.metric == '3':
-                    if self['res']['ec']:
+                    if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone'):
                         # newrow(layout, 'Type', self, 'riba_menu')
                         newrow(layout, 'Timespan:', self, "ec_years")
                         row = layout.row()
@@ -3104,22 +3119,21 @@ class No_Vi_Metrics(Node, ViNodes):
                                 row = layout.row()
                                 row.label(text='Total area: {:.2f} m2'.format(self['res']['area'][self.zone_menu]))
                         else:
-                            ent_type = ('Object', 'Surface', 'Zone')[int(self.em_menu)]
-                            row.label(text='{} EC: {:.2f} kgCO2e'.format(ent_type, self['res']['ec'][self.zone_menu]))
+                            row.label(text='{} EC: {:.2f} kgCO2e'.format(self.em_menu, self['res']['ec'][self.zone_menu]))
 
                             if self['res']['ecm2'] and self.zone_menu != 'None':
                                 row = layout.row()
-                                row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(ent_type, self['res']['ecm2'][self.zone_menu]))
+                                row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(self.em_menu, self['res']['ecm2'][self.zone_menu]))
                             if self['res']['ecm2y'] and self.zone_menu != 'None':
                                 row = layout.row()
-                                row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(ent_type, self['res']['ecm2y'][self.zone_menu]))
+                                row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(self.em_menu, self['res']['ecm2y'][self.zone_menu]))
                             if self['res']['vol'] and self.zone_menu != 'None':
                                 row = layout.row()
-                                row.label(text='{} volume: {:.2f} m3'.format(ent_type, self['res']['vol'][self.zone_menu]))
-                            if self.em_menu != '0':
+                                row.label(text='{} volume: {:.2f} m3'.format(self.em_menu, self['res']['vol'][self.zone_menu]))
+                            if self.em_menu != 'Object':
                                 if self['res']['area'] and self.zone_menu != 'None':
                                     row = layout.row()
-                                    row.label(text='{} area: {:.2f} m2'.format(ent_type, self['res']['area'][self.zone_menu]))
+                                    row.label(text='{} area: {:.2f} m2'.format(self.em_menu, self['res']['area'][self.zone_menu]))
 
 
                 elif self.metric == '4':
@@ -3218,11 +3232,11 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['frames'] =  [(f, f, 'Frame') for f in frames]
 
                 if self.metric == '3':
-                    if self.em_menu == '1':
+                    if self.em_menu == 'Surface':
                         znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Surface EC (kgCO2e/y)"])))
-                    elif self.em_menu == '2':
+                    elif self.em_menu == 'Zone':
                         znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
-                    elif self.em_menu == '0':
+                    elif self.em_menu == 'Object':
                         znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
 
                     if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
@@ -3535,7 +3549,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                         self['res']['asepass'] = 10
                                     elif r[3] == 'Spatial Daylight Autonomy (% area)':
                                         self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
-                                        print(self['res']['sda'])
                                     elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':
                                         self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
                                     elif r[3] == 'UDI-a Area (%)':
@@ -3576,10 +3589,9 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['vol'] = {}
             self['res']['area'] = {}
 
-            entity = ('Object', 'Surface', 'Zone')[int(self.em_menu)]
             for r in self['rl']:
                 if r[0] == self.frame_menu:
-                    if self.em_menu == '0':
+                    if self.em_menu == 'Object':
                         if r[3] == 'Object EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
                         elif r[3] == 'Object EC (kgCO2e/m2/y)':
@@ -3587,7 +3599,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ecm2y'][r[2]] = float(r[4])
                         elif r[3] == 'Object volume (m3)':
                             self['res']['vol'][r[2]] = float(r[4])
-                    elif self.em_menu == '1':
+                    elif self.em_menu == 'Surface':
                         if r[3] == 'Surface EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
                         elif r[3] == 'Surface EC (kgCO2e/m2/y)':
@@ -3597,7 +3609,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['vol'][r[2]] = float(r[4])
                         elif r[3] == 'Surface area (m2)':
                             self['res']['area'][r[2]] = float(r[4])
-                    elif self.em_menu == '2':
+                    elif self.em_menu == 'Zone':
                         if r[3] == 'Zone EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
                         elif r[3] == 'Zone EC (kgCO2e/m2/y)':
@@ -3614,7 +3626,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     elif r[2] == 'All' and r[3] == 'Total volume (m3)':
                         self['res']['vol']['All'] = float(r[4])
                     elif r[2] == 'All' and r[3] == 'Total surface area (m2)':
-                        if self.em_menu != '0':
+                        if self.em_menu != 'Object':
                             self['res']['area']['All'] = float(r[4])
 
         elif self.metric == '4':

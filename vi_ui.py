@@ -55,7 +55,7 @@ class VI_PT_3D(bpy.types.Panel):
             covp = cao.vi_params
 
         if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
-            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full':
+            if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and not svp.vi_display:
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display")
 
@@ -66,7 +66,6 @@ class VI_PT_3D(bpy.types.Panel):
                     newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
                     newrow(layout, 'BSDF font:', svp, "vi_bsdf_font")
-
 
         if svp.get('viparams') and svp['viparams'].get('vidisp'):
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
@@ -87,8 +86,6 @@ class VI_PT_3D(bpy.types.Panel):
 
                 if svp.vi_scatt_min == '1':
                     newrow(layout, 'Min value:', svp, 'vi_scatt_min_val')
-
-#                newrow(layout, 'Refresh:', svp, 'vi_disp_refresh')
 
             elif svp['viparams']['vidisp'] == 'sp' and svp.vi_display:
                 row = layout.row()
@@ -163,10 +160,6 @@ class VI_PT_3D(bpy.types.Panel):
 
                     if svp.vi_disp_mat:
                         newrow(layout, 'Emitter strength:', svp, "vi_disp_ems")
-
-                    # if svp['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Avg lux', 'Min lux', 'kWh', 'kWh/m2'):
-                    #     newrow(layout, 'Scatter max:', svp, "vi_scatt_max_val")
-                    #     newrow(layout, 'Scatter min:', svp, "vi_scatt_min_val")
 
                     if cao and cao.type == 'MESH':
                         newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')
@@ -264,7 +257,6 @@ class VI_PT_Mat(bpy.types.Panel):
                                 newrow(layout, "Speed:", mvp, "flovi_u_speed")
 
                     if svp.get('flparams') and svp['flparams'].get('params'):
-                        # if 'l' not in svp['flparams']['params']:
                         newrow(layout, "Nut type:", mvp, "flovi_bmbnut_subtype")
 
                         if mvp.flovi_bmbnut_subtype == 'fixedValue':
@@ -413,12 +405,18 @@ class VI_PT_Ob(bpy.types.Panel):
                             row = layout.row()
                             row.label(text='{}: {}'.format(ec[0], ec[1]))
 
-                        row = layout.row()
-                        row.label(text='ec/m3: {}'.format(ovp['ecm3']))
+                        # row = layout.row()
+                        # row.label(text='ec/m3: {}'.format(ovp['ecm3']))
+                        # row = layout.row()
+                        # row.label(text='ec/kg: {}'.format(ovp['eckg']))
+                        # row = layout.row()
+                        # row.label(text='ec/unit: {}'.format(ovp['ecunit']))
 
                     except Exception as e:
                         print(e)
-
+                    
+                    row = layout.row()
+                    row.operator("object.ec_edit", text="Edit")
                     # if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
                     #     row = layout.row()
                     #     row.operator("object.vi_embodied", text="Calc")
@@ -429,15 +427,16 @@ class VI_PT_Ob(bpy.types.Panel):
                     newrow(layout, "Embodied modules:", ovp, "ec_mod")
                     newrow(layout, "Embodied name:", ovp, "ec_name")
                     newrow(layout, "Embodied unit:", ovp, "ec_unit")
-
-                    if ovp.ec_unit in ('kg', 'm2', 'm3'):
-                        newrow(layout, "Embodied amount:", ovp, "ec_amount")
-
-                    newrow(layout, "Embodied value per amount:", ovp, "ec_kgco2e")
+                    newrow(layout, "Embodied amount:", ovp, "ec_amount")
+                    newrow(layout, "Embodied value per amount:", ovp, "ec_du")
+                    
+                    if ovp.ec_unit not in ('kg', 'm3', 'tonnes'):
+                        newrow(layout, "Embodied weight:", ovp, "ec_weight")
+                    
                     newrow(layout, "Embodied density:", ovp, "ec_density")
                     newrow(layout, "Lifespan:", ovp, "ec_life")
 
-                    if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_kgco2e, ovp.ec_density, ovp.ec_mod)):
+                    if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_du, ovp.ec_density, ovp.ec_mod)):
                         row = layout.row()
                         row.operator("object.ec_save", text="Save")
 
