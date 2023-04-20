@@ -290,7 +290,6 @@ def hmchart_disp(chart_op, plt, dnode, col):
     fig.tight_layout()
     plt.show()
 
-
 def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
@@ -319,5 +318,11 @@ def ec_pie(chart_op, plt, node):
                 xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center", size=14)
 
     plt.show()
+
+
+# def ec_line(chart_op, plt, node):
+#     plt.clf()
+#     plt.close()
+#     fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
 
 # def ec_wlc(chart_op, plt, node):

@@ -400,7 +400,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
                     newrow(layout, 'Service life:', ovp, 'ec_life')
 
-                    try:
+                    if ovp.get('ecentries'):
                         for ec in ovp['ecentries']:
                             row = layout.row()
                             row.label(text='{}: {}'.format(ec[0], ec[1]))
@@ -412,8 +412,8 @@ class VI_PT_Ob(bpy.types.Panel):
                         # row = layout.row()
                         # row.label(text='ec/unit: {}'.format(ovp['ecunit']))
 
-                    except Exception as e:
-                        print(e)
+                    # except Exception as e:
+                    #     print(e)
                     
                     row = layout.row()
                     row.operator("object.ec_edit", text="Edit")
@@ -537,19 +537,69 @@ class VI_PT_Col(bpy.types.Panel):
             return True
 
     def draw(self, context):
+        coll = context.collection
+        cvp = coll.vi_params
         layout = self.layout
         newrow(layout, 'EnVi zone:', context.collection.vi_params, "envi_zone")
 
         try:
             fa = '{:.2f}'.format(context.collection.vi_params['enparams']['floorarea'][str(context.scene.frame_current)])
-        except:
+        except Exception:
             fa = 'N/A'
 
         row = layout.row()
         row.label(text='EnergyPlus Metrics:')
         row = layout.row()
         row.label(text='Floor area (m2): {}'.format(fa))
+        newrow(layout, 'Embodied:', cvp, 'embodied')
+        
+        if cvp.embodied:
+            newrow(layout, 'Embodied class:', cvp, 'embodiedtype')
 
+            if cvp.embodiedtype != 'Custom':
+                newrow(layout, 'Embodied type:', cvp, 'embodiedclass')
+                newrow(layout, 'Embodied material:', cvp, 'embodiedmat')
+                newrow(layout, 'Service life:', cvp, 'ec_life')
+
+                if cvp.get('ecentries'):
+                    for ec in cvp['ecentries']:
+                        row = layout.row()
+                        row.label(text='{}: {}'.format(ec[0], ec[1]))
+
+                    # row = layout.row()
+                    # row.label(text='ec/m3: {}'.format(ovp['ecm3']))
+                    # row = layout.row()
+                    # row.label(text='ec/kg: {}'.format(ovp['eckg']))
+                    # row = layout.row()
+                    # row.label(text='ec/unit: {}'.format(ovp['ecunit']))
+
+                # except Exception as e:
+                #     print(e)
+                
+                row = layout.row()
+                row.operator("object.ec_edit", text="Edit")
+                # if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
+                #     row = layout.row()
+                #     row.operator("object.vi_embodied", text="Calc")
+            else:
+                newrow(layout, "Embodied id:", cvp, "ec_id")
+                newrow(layout, "Embodied type:", cvp, "ec_type")
+                newrow(layout, "Embodied class:", cvp, "ec_class")
+                newrow(layout, "Embodied modules:", cvp, "ec_mod")
+                newrow(layout, "Embodied name:", cvp, "ec_name")
+                newrow(layout, "Embodied unit:", cvp, "ec_unit")
+                newrow(layout, "Embodied amount:", cvp, "ec_amount")
+                newrow(layout, "Embodied value per amount:", cvp, "ec_du")
+                
+                if cvp.ec_unit not in ('kg', 'm3', 'tonnes'):
+                    newrow(layout, "Embodied weight:", cvp, "ec_weight")
+                
+                newrow(layout, "Embodied density:", cvp, "ec_density")
+                newrow(layout, "Lifespan:", cvp, "ec_life")
+
+                if all((cvp.ec_id, cvp.ec_type, cvp.ec_class, cvp.ec_name, cvp.ec_du, cvp.ec_density, cvp.ec_mod)):
+                    row = layout.row()
+                    row.operator("object.ec_save", text="Save")
 
 class VI_PT_Gridify(bpy.types.Panel):
     bl_label = "VI Gridify"

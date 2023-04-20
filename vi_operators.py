@@ -641,7 +641,7 @@ class OBJECT_OT_EcS(bpy.types.Operator):
 
     def execute(self, context):
         '''ID, Quantity, unit, density, weight, ec per unit, ec per kg'''
-        ob = context.object
+        ob = context.object if context.object else context.collection
         ovp = ob.vi_params
         envi_ecs = envi_embodied()
         envi_ecs.update()
@@ -714,7 +714,7 @@ class OBJECT_OT_EcE(bpy.types.Operator):
     bl_label = "Embodied material edit"
 
     def execute(self, context):
-        ob = context.object
+        ob = context.object if context.object else context.collection
         ovp = ob.vi_params
         envi_ecs = envi_embodied()
         envi_ecs.update()
@@ -2348,42 +2348,48 @@ class NODE_OT_EC(bpy.types.Operator):
                         # self.report({'ERROR'}, f"{o.name} is non-manifold")
                         bm.free()
         else:
-            cobs = {coll.name: [o for o in coll.objects if o.type == 'MESH' and o.vi_params.embodied and o.visible_get()] for coll in bpy.data.collections if not coll.hide_viewport}
+            cobs = {coll.name: [o for o in coll.objects if o.type == 'MESH' and (o.vi_params.embodied or coll.vi_params.embodied) and o.visible_get()] for coll in bpy.data.collections if not coll.hide_viewport}
             
             for frame in frames:
                 scene.frame_set(frame)
-                
+                tvols = []
+
                 for c in cobs:
                     ecs, vols = [], []
 
                     for o in cobs[c]:
-                        ovp = o.vi_params
+                        ovp = o.vi_params if o.vi_params.embodied else bpy.data.collections[c].vi_params
 
                         if ovp.embodiedtype == 'Custom':
                             logentry(f"Object {o.name} has unsaved EC data")
                             self.report({'ERROR'}, f"Object {o.name} has unsaved EC data")
                             return {'CANCELLED'}
 
-                        # if o.type == 'MESH':
-                        bm = bmesh.new()
-                        bm.from_object(o, dp)
-                        bm.transform(o.matrix_world)
+                        ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
 
-                        if node.heal:
-                            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
-                            bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+                        if ecdict['unit'] in ('kg', 'm3', 'm2', 'tonnes'):
+                            bm = bmesh.new()
+                            bm.from_object(o, dp)
+                            bm.transform(o.matrix_world)
 
-                        if all([e.is_manifold for e in bm.edges]):
-                            vol = bm.calc_volume()
-                            vols.append(vol)
-                            ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
-                            ec = float(ecdict['eckg']) * float(ecdict['density']) * vol * node.tyears / float(ovp.ec_life)
-                            ecs.append(ec)
-                            bm.free()
+                            if node.heal:
+                                bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
+                                bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+                            if all([e.is_manifold for e in bm.edges]):
+                                vol = bm.calc_volume()
+                                ec = float(ecdict['eckg']) * float(ecdict['density']) * vol * node.tyears / float(ovp.ec_life)
+                                bm.free()
+                            else:
+                                logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
+                                # self.report({'ERROR'}, f"{o.name} is non-manifold")
+                                bm.free()
                         else:
-                            logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
-                            # self.report({'ERROR'}, f"{o.name} is non-manifold")
-                            bm.free()
+                            ec = float(ecdict['ecdu'])
+                            vol = 0
+
+                        ecs.append(ec)
+                        vols.append(vol)
                     
                     if cobs[c]:
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
@@ -2391,31 +2397,35 @@ class NODE_OT_EC(bpy.types.Operator):
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object volume (m3)', '{:.3f}'.format(sum(vols))])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(sum(ecs)/node.fa)])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(sum(ecs)/(node.fa * node.tyears))])
-
-            tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e)'])
-            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e)', '{:.3f}'.format(tec)])
-            tecy = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/y)'])
-            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/y)', '{:.3f}'.format(tecy)])
-            tecm2 = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/m2)'])
-            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2)', '{:.3f}'.format(tecm2)])
-            tecm2y = tecm2/node.tyears
-            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total EC (kgCO2e/m2/y)', '{:.3f}'.format(tecm2y)])
-            # tvols = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Volume (m3)'])
-            reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Total volume (m3)', '{:.3f}'.format(sum(vols))])
+                    
+                    tvols.append(sum(vols))
+            
+                tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e)'])
+                reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', '{:.3f}'.format(tec)])
+                tecy = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/y)'])
+                reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e/y)', '{:.3f}'.format(tecy)])
+                tecm2 = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/m2)'])
+                reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e/m2)', '{:.3f}'.format(tecm2)])
+                tecm2y = tecm2/node.tyears
+                reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(tecm2y)])
+                # tvols = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Volume (m3)'])
+                reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object volume (m3)', '{:.3f}'.format(sum(tvols))])
 
         if len(frames) > 1:
-            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
+            obs = [o.name for o in obs] if node.entities == '0' else [c for c in cobs if cobs[c]]
+            if obs:
+                reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
+                
+                for o in obs:
+                    reslists.append(['All', 'Embodied carbon', o, 'Object volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object volume (m3)'])])
+                    reslists.append(['All', 'Embodied carbon', o, 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object EC (kgCO2e)'])])
+                    reslists.append(['All', 'Embodied carbon', o, 'Object EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object EC (kgCO2e/y)'])])
+                    reslists.append(['All', 'Embodied carbon', o, 'Object EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object EC (kgCO2e/m2)'])])
+                    reslists.append(['All', 'Embodied carbon', o, 'Object EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object EC (kgCO2e/m2/y)'])])
 
-            for o in obs:
-                reslists.append(['All', 'Embodied carbon', o.name, 'Object volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object volume (m3)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e/y)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e/m2)'])])
-                reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == o.name and ec[3] == 'Object EC (kgCO2e/m2/y)'])])
-
-            reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e/y)'])])
-            reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e)'])])
-            reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e/m2/y)'])])
+                reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e/y)'])])
+                reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e)'])])
+                reslists.append(['All', 'Embodied carbon', 'All', 'Object EC (kgCO2e/m2/y)', ' '.join([ec[4] for ec in reslists if ec[2] == 'All' and ec[3] == 'Object EC (kgCO2e/m2/y)'])])
 
         node['reslists'] = reslists
         node.postsim()
@@ -2557,6 +2567,23 @@ class NODE_OT_ECPie(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 
+# class NODE_OT_ECLine(bpy.types.Operator, ExportHelper):
+#     bl_idname = "node.ec_line"
+#     bl_label = "Line Chart"
+#     bl_description = "Create a line chart of embodied carbon"
+#     bl_register = True
+#     bl_undo = True
+
+#     def invoke(self, context, event):
+#         node = context.node
+
+#         if not mp:
+#             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
+#             return {'CANCELLED'}
+
+#         ec_line(self, plt, node)
+#         return {'FINISHED'}
+    
 class NODE_OT_MInfo(bpy.types.Operator):
     bl_idname = "node.metinfo"
     bl_label = "Graphic"

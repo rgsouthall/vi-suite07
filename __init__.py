@@ -690,7 +690,30 @@ class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_collection: bprop("", "Flag to tell EnVi to export this collection", False)
     envi_zone: bprop("", "Flag to tell EnVi this is a geometry collection", False)
     envi_shade: bprop("", "Flag to tell EnVi this is a shader collection", False)
-
+    embodied: BoolProperty(name="", description="Embodied carbon", default=0)
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class", update=ec_update)
+    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class", update=ec_update)
+    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material", update=ec_update)
+    ec_id: StringProperty(name="", description="Embodied id (unique indentifier")
+    ec_type: StringProperty(name="", description="Embodied type e.g. Insulation")
+    ec_class: StringProperty(name="", description="Embodied class (class of type e.g. phenolic foam)")
+    ec_name: StringProperty(name="", description="Embodied name")
+    ec_unit: EnumProperty(items=[("kg", "kg", "per kilogram"),
+                                  ("m2", "m2", "per square metre"),
+                                  ("m3", "m3", "per cubic metre"),
+                                  ("each", "Each", "per item")],
+                                  name="",
+                                  description="Embodied carbon unit",
+                                  default="kg")
+    ec_amount: FloatProperty(name="", description="Amount of the declared unit", min=0.001, default=1, precision=3)
+    ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
+    # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
+    ec_weight: FloatProperty(name="kg", description="Weight", default=1)
+    ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
+    ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
+    ec_mod: StringProperty(name="", description="Embodied modules reported")
+    ee = envi_embodied()
+    
 class VI_Params_Link(bpy.types.PropertyGroup):
     vi_uid: iprop("ID", "Unique ID", 0, 10000, 0)
 

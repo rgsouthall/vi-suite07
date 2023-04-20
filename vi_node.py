@@ -2234,7 +2234,7 @@ class No_Vi_Chart(Node, ViNodes):
 
     def update(self):
         if self.inputs.get('X-axis'):
-            if self.inputs['X-axis'].links and self.inputs['X-axis'].links[0].from_node.get('reslists'):
+            if self.inputs['X-axis'].links and self.inputs['X-axis'].links[0].from_node.get('reslists') and self.inputs['X-axis'].links[0].from_node['reslists']:
                 rsx = self.inputs['X-axis']
                 innode = rsx.links[0].from_node
                 rl = innode['reslists']
@@ -2716,7 +2716,7 @@ class No_Vi_Metrics(Node, ViNodes):
             return [('None', 'None', 'None')]
 
     def ec_types(self, context):
-        if self.inputs[0].links:
+        if self.inputs[0].links and self['rl']:
             ec_typemenu = []
             try:
                 ec_types = set([z[3] for z in self['rl']])
@@ -3098,7 +3098,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                 elif self.metric == '3':
-                    if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone'):
+                    if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone') and self.frame_menu != 'All':
                         # newrow(layout, 'Type', self, 'riba_menu')
                         newrow(layout, 'Timespan:', self, "ec_years")
                         row = layout.row()
@@ -3134,7 +3134,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                 if self['res']['area'] and self.zone_menu != 'None':
                                     row = layout.row()
                                     row.label(text='{} area: {:.2f} m2'.format(self.em_menu, self['res']['area'][self.zone_menu]))
-
 
                 elif self.metric == '4':
                     newrow(layout, 'Comfort type:', self, "com_menu")
@@ -3222,12 +3221,15 @@ class No_Vi_Metrics(Node, ViNodes):
             if self['res']['ec']:
                 row = layout.row()
                 row.operator('node.ec_pie', text='Pie chart')
+            # elif self.frame_menu == 'All':
+            #     row = layout.row()
+            #     row.operator('node.ec_line', text='Line chart')
 
     def update(self):
         if self.inputs[0].links:
             self['rl'] = self.inputs[0].links[0].from_node['reslists']
 
-            if len(self['rl'][0]):
+            if self['rl'] and len(self['rl'][0]):
                 frames = list(dict.fromkeys([z[0] for z in self['rl']]))
                 self['frames'] =  [(f, f, 'Frame') for f in frames]
 
@@ -3590,7 +3592,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['area'] = {}
 
             for r in self['rl']:
-                if r[0] == self.frame_menu:
+                if r[0] == self.frame_menu and self.frame_menu != 'All':
                     if self.em_menu == 'Object':
                         if r[3] == 'Object EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
@@ -3618,17 +3620,20 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Surface area (m2)':
                             self['res']['area'][r[2]] = float(r[4])
 
-                    if r[2] == 'All' and r[3] == 'Total EC (kgCO2e/y)':
+                    if r[2] == 'All' and r[3] == 'Object EC (kgCO2e/y)':
                         self['res']['ec']['All'] = float(r[4]) * self.ec_years
-                    elif r[2] == 'All' and r[3] == 'Total EC (kgCO2e/m2/y)':
+                    elif r[2] == 'All' and r[3] == 'Object EC (kgCO2e/m2/y)':
                         self['res']['ecm2']['All'] = float(r[4]) * self.ec_years
                         self['res']['ecm2y']['All'] = float(r[4])
-                    elif r[2] == 'All' and r[3] == 'Total volume (m3)':
+                    elif r[2] == 'All' and r[3] == 'Object volume (m3)':
                         self['res']['vol']['All'] = float(r[4])
-                    elif r[2] == 'All' and r[3] == 'Total surface area (m2)':
+                    elif r[2] == 'All' and r[3] == 'Object surface area (m2)':
                         if self.em_menu != 'Object':
                             self['res']['area']['All'] = float(r[4])
-
+                
+                # elif self.frame_menu == 'All':
+                #     if r[0] == 'All' and 
+                #     self['res'][ec]
         elif self.metric == '4':
             self['res']['oh'] = -1
             self['res']['oh2'] = -1
@@ -7060,7 +7065,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                   description="Embodied carbon unit",
                                   default="kg")
     ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
-    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
+    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", precision=3, default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_mod: StringProperty(name="", description="Embodied modules")
@@ -7373,7 +7378,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                                   description="Embodied carbon unit",
                                   default="kg")
     ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
-    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", default=100)
+    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", precision=3, default=100)
     # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: IntProperty(name="y", description="Service life in years", min=1, max=100, default=60, update=ec_update)

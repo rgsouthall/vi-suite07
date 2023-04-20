@@ -2685,6 +2685,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             imname, svg_bytes = vi_info(node, dim, svp, sda=node['res']['sda'], sdapass=node['res']['sdapass'],
                                         ase=node['res']['ase'], asepass=node['res']['asepass'], o1=node['res']['o1'],
                                         tc=node['res']['tc'], totarea=node['res']['totarea'], svarea=node['res']['svarea'])
+        
         elif node.metric == '6':
             dim = (1000, 1000)
             imname, svg_bytes = vi_info(node, dim, svp, wlc=node['res']['wl'], ec=node['res']['ec'], noc=node['res']['noc'])
