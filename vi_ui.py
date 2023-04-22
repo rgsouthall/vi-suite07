@@ -432,8 +432,10 @@ class VI_PT_Ob(bpy.types.Panel):
                     
                     if ovp.ec_unit not in ('kg', 'm3', 'tonnes'):
                         newrow(layout, "Embodied weight:", ovp, "ec_weight")
-                    
-                    newrow(layout, "Embodied density:", ovp, "ec_density")
+
+                    if ovp.ec_unit not in ('each'):
+                        newrow(layout, "Embodied density:", ovp, "ec_density")
+
                     newrow(layout, "Lifespan:", ovp, "ec_life")
 
                     if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_du, ovp.ec_density, ovp.ec_mod)):

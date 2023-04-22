@@ -2722,9 +2722,9 @@ class No_Vi_Metrics(Node, ViNodes):
                 ec_types = set([z[3] for z in self['rl']])
                 if 'Object EC (kgCO2e)' in ec_types:
                     ec_typemenu.append('Object')
-                if 'Surface EC (kgCO2e)' in ec_types:
+                if 'Surface EC (kgCO2e/y)' in ec_types:
                     ec_typemenu.append('Surface')
-                if 'Zone EC (kgCO2e)' in ec_types:
+                if 'Zone EC (kgCO2e/y)' in ec_types:
                     ec_typemenu.append('Zone')
                 return [(ect, ect, 'EC type') for ect in ec_typemenu]
             except Exception:
@@ -3234,12 +3234,12 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['frames'] =  [(f, f, 'Frame') for f in frames]
 
                 if self.metric == '3':
-                    if self.em_menu == 'Surface':
-                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Surface EC (kgCO2e/y)"])))
-                    elif self.em_menu == 'Zone':
-                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
-                    elif self.em_menu == 'Object':
-                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
+                    # if  == 'Surface':
+                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == f"{self.em_menu} EC (kgCO2e/y)"])))
+                    # elif self.em_menu == 'Zone':
+                    #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
+                    # elif self.em_menu == 'Object':
+                    #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
 
                     if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
@@ -3620,20 +3620,24 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Surface area (m2)':
                             self['res']['area'][r[2]] = float(r[4])
 
-                    if r[2] == 'All' and r[3] == 'Object EC (kgCO2e/y)':
-                        self['res']['ec']['All'] = float(r[4]) * self.ec_years
-                    elif r[2] == 'All' and r[3] == 'Object EC (kgCO2e/m2/y)':
-                        self['res']['ecm2']['All'] = float(r[4]) * self.ec_years
-                        self['res']['ecm2y']['All'] = float(r[4])
-                    elif r[2] == 'All' and r[3] == 'Object volume (m3)':
-                        self['res']['vol']['All'] = float(r[4])
-                    elif r[2] == 'All' and r[3] == 'Object surface area (m2)':
-                        if self.em_menu != 'Object':
-                            self['res']['area']['All'] = float(r[4])
+            self['res']['ec']['All'] = sum([self['res']['ec'][ec] for ec in self['res']['ec']])
+            self['res']['ecm2']['All'] = sum([self['res']['ecm2'][ec] for ec in self['res']['ecm2']])
+            self['res']['ecm2y']['All'] = sum([self['res']['ecm2y'][ec] for ec in self['res']['ecm2y']])
+                    # if r[2] == 'All' and r[3] == f'{self.em_menu} EC (kgCO2e/y)':
+                    #     self['res']['ec']['All'] = float(r[4]) * self.ec_years
+                    # elif r[2] == 'All' and r[3] == f'{self.em_menu} EC (kgCO2e/m2/y)':
+                    #     self['res']['ecm2']['All'] = float(r[4]) * self.ec_years
+                    #     self['res']['ecm2y']['All'] = float(r[4])
+                    # elif r[2] == 'All' and r[3] == f'{self.em_menu} volume (m3)':
+                    #     self['res']['vol']['All'] = float(r[4])
+                    # elif r[2] == 'All' and r[3] == 'Object surface area (m2)':
+                    #     if self.em_menu != 'Object':
+                    #         self['res']['area']['All'] = float(r[4])
                 
                 # elif self.frame_menu == 'All':
                 #     if r[0] == 'All' and 
                 #     self['res'][ec]
+            print(self['res'])
         elif self.metric == '4':
             self['res']['oh'] = -1
             self['res']['oh2'] = -1
