@@ -3637,7 +3637,7 @@ class No_Vi_Metrics(Node, ViNodes):
                 # elif self.frame_menu == 'All':
                 #     if r[0] == 'All' and 
                 #     self['res'][ec]
-            print(self['res'])
+
         elif self.metric == '4':
             self['res']['oh'] = -1
             self['res']['oh2'] = -1
@@ -7142,7 +7142,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                 if self.ec_unit in ('kg', 'm2', 'm3'):
                     newrow(layout, "Embodied amount:", self, "ec_amount")
 
-                newrow(layout, "Embodied value per amount:", self, "ec_kgco2e")
+                newrow(layout, "GWP per amount:", self, "ec_kgco2e")
                 newrow(layout, "Embodied density:", self, "ec_density")
                 newrow(layout, "Service life:", self, "ec_life")
 
@@ -7152,6 +7152,8 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
     def ret_resist(self):
         if self.layer == '0':
+            if not self.material:
+                self.update()
             matlist = list(self.em.matdat[self.material])
 
             if self.materialtype != '6':
@@ -7242,7 +7244,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
         for sock in self.outputs:
             socklink2(sock, self.id_data)
-
+        
         if self.outputs['Layer'].links:
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'So_En_Mat_Fr' else 'Frame'
 
@@ -7452,7 +7454,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                 if self.ec_unit in ('kg', 'm2', 'm3'):
                     newrow(layout, "Embodied amount:", self, "ec_amount")
 
-                newrow(layout, "Embodied value per amount:", self, "ec_kgco2e")
+                newrow(layout, "GWP per amount:", self, "ec_kgco2e")
                 newrow(layout, "Embodied density:", self, "ec_density")
                 newrow(layout, "Service life:", self, "ec_life")
 

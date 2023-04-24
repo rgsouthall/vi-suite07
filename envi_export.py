@@ -654,6 +654,7 @@ def pregeo(context, op):
                 nbm = bmesh.new()
                 nbm.from_mesh(new_ob.evaluated_get(depsgraph).to_mesh())
                 bmesh.ops.remove_doubles(nbm, verts=nbm.verts, dist=0.001)
+                nbm.transform(new_ob.matrix_world)
                 new_ob['auto_volume'] = nbm.calc_volume()
                 new_ob.to_mesh_clear()
                 nbm.free()

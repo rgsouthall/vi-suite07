@@ -850,20 +850,24 @@ def write_ec(scene, coll, frames, reslists):
                                     mat_dict[mat.name]['ec'] = 0
                                     mat_dict[mat.name]['ecy'] = 0
 
-                                for poly in ob.data.polygons:
+                                obm = bmesh.new()
+                                obm.from_object(ob, bpy.context.evaluated_depsgraph_get())
+                                obm.transform(ob.matrix_world)
+
+                                for poly in obm.faces:
                                     if ob.material_slots[poly.material_index].material == mat:
-                                        mat_dict[mat.name]['area'] += poly.area
-                                        zone_dict[chil.name]['area'] += poly.area
+                                        mat_dict[mat.name]['area'] += poly.calc_area()
+                                        zone_dict[chil.name]['area'] += poly.calc_area()
                                         mat_ec = con_node.ret_ec()
 
                                         if mat_ec[0] != 'N/A':
-                                            mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.area
-                                            zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.area
-                                            mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.area
-                                            zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.area
-
-            except Exception:
-                pass
+                                            mat_dict[mat.name]['ec'] += float(mat_ec[0]) * poly.calc_area()
+                                            zone_dict[chil.name]['ec'] += float(mat_ec[0]) * poly.calc_area()
+                                            mat_dict[mat.name]['ecy'] += float(mat_ec[1]) * poly.calc_area()
+                                            zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.calc_area()
+                                obm.free()
+            except Exception as e:
+                print(e)
 
             for line in ec_text.split('\n'):
                 entries = line.split(',')
@@ -996,7 +1000,8 @@ def write_ob_ec(scene, coll, frames, reslists):
         ec_file.write(ec_text)
 
     if len(frames) > 1:
-        reslists.append(['All', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', ' '.join(['{:.3f}'.format(foec) for foec in foecs[o.name]])])
+        for o_name in foecs:
+            reslists.append(['All', 'Embodied carbon', o_name, 'Object EC (kgCO2e)', ' '.join(['{:.3f}'.format(foec) for foec in foecs[o_name]])])
 
     scene.frame_set(frames[0])
     return (reslists)
