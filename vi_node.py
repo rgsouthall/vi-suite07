@@ -3633,9 +3633,9 @@ class No_Vi_Metrics(Node, ViNodes):
                     # elif r[2] == 'All' and r[3] == 'Object surface area (m2)':
                     #     if self.em_menu != 'Object':
                     #         self['res']['area']['All'] = float(r[4])
-                
+
                 # elif self.frame_menu == 'All':
-                #     if r[0] == 'All' and 
+                #     if r[0] == 'All' and
                 #     self['res'][ec]
 
         elif self.metric == '4':
@@ -7244,9 +7244,10 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
         for sock in self.outputs:
             socklink2(sock, self.id_data)
-        
+
         if self.outputs['Layer'].links:
-            self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'So_En_Mat_Fr' else 'Frame'
+            ect_node = self.outputs['Layer'].links[0].to_node if self.outputs['Layer'].links[0].to_node.envi_con_type else self.outputs['Layer'].links[0].to_node.outputs['Layer'].links[0].to_node
+            self.envi_con_type = ect_node.envi_con_type if self.outputs['Layer'].links[0].to_socket.bl_idname != 'So_En_Mat_Fr' else 'Frame'
 
         self.valid()
 
