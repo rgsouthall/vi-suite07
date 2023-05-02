@@ -41,7 +41,7 @@ from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogres
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, bm_to_stl
 from .livi_func import retpmap
-from .vi_chart import chart_disp, hmchart_disp, ec_pie
+from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
 from PyQt5.QtGui import QImage, QColor
 
@@ -673,7 +673,7 @@ class OBJECT_OT_EcS(bpy.types.Operator):
             ec_dict[ovp.ec_type] = {}
             ec_dict[ovp.ec_type][ovp.ec_class] = {}
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                "quantity": '{:.4f}'.format(ovp.ec_amount), 
+                                                                "quantity": '{:.4f}'.format(ovp.ec_amount),
                                                                   "unit": ovp.ec_unit,
                                                                   "density": '{:.4f}'.format(ovp.ec_density),
                                                                   "weight": weight,
@@ -683,7 +683,7 @@ class OBJECT_OT_EcS(bpy.types.Operator):
         elif ovp.ec_class not in ec_dict[ovp.ec_type]:
             ec_dict[ovp.ec_type][ovp.ec_class] = {}
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                "quantity": '{:.4f}'.format(ovp.ec_amount), 
+                                                                "quantity": '{:.4f}'.format(ovp.ec_amount),
                                                                   "unit": ovp.ec_unit,
                                                                   "density": '{:.4f}'.format(ovp.ec_density),
                                                                   "weight": weight,
@@ -692,7 +692,7 @@ class OBJECT_OT_EcS(bpy.types.Operator):
                                                                   "modules": ovp.ec_mod}
         else:
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                               "quantity": '{:.4f}'.format(ovp.ec_amount), 
+                                                               "quantity": '{:.4f}'.format(ovp.ec_amount),
                                                                "unit": ovp.ec_unit,
                                                                "density": '{:.4f}'.format(ovp.ec_density),
                                                                 "weight": weight,
@@ -732,7 +732,7 @@ class OBJECT_OT_EcE(bpy.types.Operator):
         ovp.embodiedtype = 'Custom'
         return {'FINISHED'}
 
-        
+
 class NODE_OT_Li_Geo(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "LiVi geometry export"
@@ -2306,10 +2306,10 @@ class NODE_OT_EC(bpy.types.Operator):
         node.presim(context)
         reslists = []
         frames = range(node.startframe, node.endframe + 1) if node.parametric else (context.scene.frame_current, )
-        
+
         if node.entities == '0':
             obs = [o for o in context.scene.objects if o.type == 'MESH' and o.vi_params.embodied and o.visible_get()]
-            
+
             for frame in frames:
                 scene.frame_set(frame)
                 ecs, vols = [], []
@@ -2322,7 +2322,7 @@ class NODE_OT_EC(bpy.types.Operator):
                         logentry(f"Object {o.name} has unsaved EC data")
                         self.report({'ERROR'}, f"Object {o.name} has unsaved EC data")
                         return {'CANCELLED'}
-                    
+
                     if ecdict['unit'] in ('kg', 'm3', 'm2', 'tonnes'):
                         # if o.type == 'MESH':
                         bm = bmesh.new()
@@ -2338,7 +2338,7 @@ class NODE_OT_EC(bpy.types.Operator):
                             # vols.append(vol)
                             ec = float(ecdict['eckg']) * float(ecdict['density']) * vol * node.tyears / float(ovp.ec_life)
                             # ecs.append(ec)
-                            
+
                             bm.free()
                         else:
                             logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
@@ -2347,7 +2347,7 @@ class NODE_OT_EC(bpy.types.Operator):
                     else:
                         ec = float(ecdict['ecdu'])
                         vol = 0
-                                   
+
                     ecs.append(ec)
                     vols.append(vol)
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(ec)])
@@ -2358,7 +2358,7 @@ class NODE_OT_EC(bpy.types.Operator):
 
         else:
             cobs = {coll.name: [o for o in coll.objects if o.type == 'MESH' and (o.vi_params.embodied or coll.vi_params.embodied) and o.visible_get()] for coll in bpy.data.collections if not coll.hide_viewport}
-            
+
             for frame in frames:
                 scene.frame_set(frame)
                 tvols = []
@@ -2399,16 +2399,16 @@ class NODE_OT_EC(bpy.types.Operator):
 
                         ecs.append(ec)
                         vols.append(vol)
-                    
+
                     if cobs[c]:
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/y)', '{:.3f}'.format(sum(ecs)/node.tyears)])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object volume (m3)', '{:.3f}'.format(sum(vols))])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(sum(ecs)/node.fa)])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(sum(ecs)/(node.fa * node.tyears))])
-                    
+
                     tvols.append(sum(vols))
-            
+
                 # tec = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e)'])
                 # reslists.append([f'{frame}', 'Embodied carbon', 'All', 'Object EC (kgCO2e)', '{:.3f}'.format(tec)])
                 # tecy = sum([float(rl[4]) for rl in reslists if rl[0] == f'{frame}' and rl[3] == 'Object EC (kgCO2e/y)'])
@@ -2422,10 +2422,10 @@ class NODE_OT_EC(bpy.types.Operator):
 
         if len(frames) > 1:
             obs = [o.name for o in obs] if node.entities == '0' else [c for c in cobs if cobs[c]]
-            
+
             if obs:
                 reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
-                
+
                 for o in obs:
                     reslists.append(['All', 'Embodied carbon', o, 'Object volume (m3)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object volume (m3)'])])
                     reslists.append(['All', 'Embodied carbon', o, 'Object EC (kgCO2e)', ' '.join([ec[4] for ec in reslists if ec[2] == o and ec[3] == 'Object EC (kgCO2e)'])])
@@ -2577,6 +2577,40 @@ class NODE_OT_ECPie(bpy.types.Operator, ExportHelper):
         return {'FINISHED'}
 
 
+class NODE_OT_WLCLine(bpy.types.Operator, ExportHelper):
+    bl_idname = "node.wlc_line"
+    bl_label = "Line Chart"
+    bl_description = "Create a line chart of whole-life carbon"
+    bl_register = True
+    bl_undo = True
+
+    def invoke(self, context, event):
+        node = context.node
+
+        if not mp:
+            self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
+            return {'CANCELLED'}
+
+        wlc_line(self, plt, node)
+        return {'FINISHED'}
+
+class NODE_OT_COMLine(bpy.types.Operator, ExportHelper):
+    bl_idname = "node.com_line"
+    bl_label = "Line Chart"
+    bl_description = "Create a line chart of over-heating risk"
+    bl_register = True
+    bl_undo = True
+
+    def invoke(self, context, event):
+        node = context.node
+
+        if not mp:
+            self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
+            return {'CANCELLED'}
+
+        com_line(self, plt, node)
+        return {'FINISHED'}
+
 # class NODE_OT_ECLine(bpy.types.Operator, ExportHelper):
 #     bl_idname = "node.ec_line"
 #     bl_label = "Line Chart"
@@ -2593,7 +2627,7 @@ class NODE_OT_ECPie(bpy.types.Operator, ExportHelper):
 
 #         ec_line(self, plt, node)
 #         return {'FINISHED'}
-    
+
 class NODE_OT_MInfo(bpy.types.Operator):
     bl_idname = "node.metinfo"
     bl_label = "Graphic"

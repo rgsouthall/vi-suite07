@@ -144,7 +144,7 @@ def radgexport(export_op, node):
     svp['liparams']['cp'] = node.cpoint
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
     mats = []
-    
+
     for o in geooblist + caloblist:
         for m in o.data.materials:
             if m not in mats:
@@ -363,6 +363,7 @@ def gen_octree(scene, o, op, mesh, tri):
         op.report({'ERROR'}, 'Ratio of largest to smallest geometry is too large. Clean up mesh geometry or decrease the radius of any HDR panorama')
         return 'CANCELLED'
 
+
 def livi_sun(scene, node, frame):
     svp = scene.vi_params
 
@@ -380,6 +381,7 @@ def livi_sun(scene, node, frame):
     logentry('Generating sky with the command: {}'.format(gscmd))
     gsrun = Popen(gscmd.split(), stdout=PIPE)
     return gsrun.stdout.read().decode()
+
 
 def hdrexport(scene, f, frame, node, skytext):
     svp = scene.vi_params

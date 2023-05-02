@@ -758,7 +758,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             rtframe = frame
         else:
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
-            rtframe  = max(kints) if frame > max(kints) else  min(kints)
+            rtframe = max(kints) if frame > max(kints) else min(kints)
 
         rt = geom.layers.string['rt{}'.format(rtframe)]
         gps = [g for g in geom if g[rt]]
@@ -766,7 +766,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
         for chunk in chunks(gps, int(svp['viparams']['nproc']) * 200):
             careas = array([c.calc_area() if svp['liparams']['cp'] == '0' else vertarea(bm, c) for c in chunk])
-            rtrun = Popen(shlex.split(rtcmds[f]), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
+            rtrun = Popen(shlex.split(rtcmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
             logentry('Running rtrace with command: {}'.format(rtcmds[f]))
 
             if rtrun[1]:
@@ -776,12 +776,12 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
 
             if simnode['coptions']['unit'] == 'klxh':
-                virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1) * 1e-3
-                illu = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis = 1) * 0.179
+                virradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis=1) * 1e-3
+                illu = nsum(xyzirrad * array([0.265, 0.67, 0.065]), axis=1) * 0.179
                 virrad = virradm2 * careas
 
             elif simnode['coptions']['unit'] == 'kWh (f)':
-                firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis = 1) * 1e-3
+                firradm2 = nsum(xyzirrad * array([0.333, 0.333, 0.333]), axis=1) * 1e-3
                 firrad = firradm2 * careas
 
             for gi, gp in enumerate(chunk):

@@ -290,6 +290,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
     fig.tight_layout()
     plt.show()
 
+
 def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
@@ -319,6 +320,64 @@ def ec_pie(chart_op, plt, node):
 
     plt.show()
 
+
+def wlc_line(chart_op, plt, node):
+    plt.clf()
+    plt.close()
+    plt.style.use('bmh')
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    plt.subplots_adjust(bottom=0.2)
+    data = [node['res']['wl'], node['res']['ec'], node['res']['noc']]
+    xdata = [int(f[0]) for f in node['frames'] if f[0] != 'All']
+    # cols = ('#440154', '#20A387', '#FDE725')
+    cols = ('gold', 'turquoise', 'lime')
+    lines = ('o-', '^-', 'd-')
+    symbols = ('o', '^', 'd')
+    labels = ('Whole-life', 'Embodied', 'Operational')
+
+    for di, d in enumerate(data):
+        ax.plot(xdata, list(d), lines[di], color=cols[di], alpha=0.5)
+        ax.plot(xdata, list(d), symbols[di], color='k', markerfacecolor=(0, 0, 0, 0), markeredgecolor='grey')
+        props = dict(boxstyle='round', facecolor=cols[di], alpha=0.5, edgecolor='k')
+        plt.gcf().text(0.0125 * (di + 1) * 17, 0.05, labels[di], fontsize=14, bbox=props)
+
+    ax.set_xticks(xdata)
+    ax.set_title('Whole-life Carbon Analysis')
+    plt.xlabel('Scenario')
+    plt.ylabel('Carbon kgCO$_2$e')
+    plt.grid(True)
+    plt.show()
+
+
+def com_line(chart_op, plt, node):
+    plt.clf()
+    plt.close()
+    plt.style.use('bmh')
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    plt.subplots_adjust(bottom=0.2)
+    data = [node['res']['alloh1s'], node['res']['alloh2s']] if not node.occ or not node['res'].get('allooh1s') else [node['res']['allooh1s'], node['res']['allooh2s']]
+    xdata = [int(f[0]) for f in node['frames'] if f[0] != 'All']
+    # cols = ('#440154', '#20A387', '#FDE725')
+    cols = ('orangered', 'gold')
+    lines = ('o-', '^-', 'd-')
+    symbols = ('o', '^', 'd')
+    labels = ('25 - 28$^o$C', '> 28$^o$C')
+
+    for di, d in enumerate(data):
+        ax.plot(xdata, list(d), lines[di], color=cols[di], alpha=0.5)
+        ax.plot(xdata, list(d), symbols[di], color='k', markerfacecolor=(0, 0, 0, 0), markeredgecolor='grey')
+        props = dict(boxstyle='round', facecolor=cols[di], alpha=0.5, edgecolor='k')
+        plt.gcf().text(0.0125 * (di + 1) * 17, 0.05, labels[di], fontsize=14, bbox=props)
+
+    ax.set_xticks(xdata)
+    ax.set_title('Over-heating Analysis')
+    plt.xlabel('Scenario')
+    occ = 'Occupied ' if node.occ and node['res'].get('allooh1s') else ''
+    plt.ylabel(f'% {occ}hours')
+    plt.grid(True)
+    plt.show()
 
 # def ec_line(chart_op, plt, node):
 #     plt.clf()

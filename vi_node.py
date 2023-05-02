@@ -437,8 +437,8 @@ class No_Li_Con(Node, ViNodes):
     hdrradius: FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update=nodeupdate)
     mtxname: StringProperty(name="", description="Name of the calculated vector sky file", default="", subtype="FILE_PATH", update=nodeupdate)
     weekdays: BoolProperty(name='', default=False, update=nodeupdate)
-    cbdm_start_hour:  IntProperty(name='', default=8, min=1, max=24, update=nodeupdate)
-    cbdm_end_hour:  IntProperty(name='', default=20, min=1, max=24, update=nodeupdate)
+    cbdm_start_hour:  IntProperty(name='', description="Hour of the day (1 being the first hour: midnight to 1am)", default=8, min=1, max=24, update=nodeupdate)
+    cbdm_end_hour:  IntProperty(name='', description="Hour of the day (24 being the last hour: 11pm to midnight)", default=20, min=1, max=24, update=nodeupdate)
     cbdm_res: IntProperty(name='', default=1, min=1, max=3, update=nodeupdate)
     dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
     damin: IntProperty(name='lux', default=100, min=1, max=2000, update=nodeupdate)
@@ -2699,18 +2699,27 @@ class No_Vi_Metrics(Node, ViNodes):
     def frames(self, context):
         if self.inputs[0].links:
             try:
+                # if self.frame_menu not in [f[0] for f in self['frames']]:
+                #     print('frame', self.frame_menu, [f[0] for f in self['frames']])
+                    #self.frame_menu = self['frames'][0][0]
                 return [tuple(f) for f in self['frames']]
+
             except Exception:
+                #if self.frame_menu != 'None':
+                    #self.frame_menu = 'None'
                 return [('None', 'None', 'None')]
         else:
+            #if self.frame_menu != 'None':
+                #self.frame_menu = 'None'
             return [('None', 'None', 'None')]
 
     def probes(self, context):
-        if self.inputs[0].links:
-            try:
-                probes = set([z[3] for z in self['rl']])
+        if self.inputs[0].links and self['rl']:
+            probes = set([z[3] for z in self['rl'] if z[3] in ('Temperature', 'Pressure', 'Velocity')])
+
+            if probes:
                 return [(m.lower(), m, 'Probe metric') for m in probes if m != 'Steps'] + [('wpc', 'WPC', 'Probe menu')]
-            except Exception:
+            else:
                 return [('None', 'None', 'None')]
         else:
             return [('None', 'None', 'None')]
@@ -2827,403 +2836,417 @@ class No_Vi_Metrics(Node, ViNodes):
                 #     newrow(layout, 'Embodied standard:', self, "ec_menu")
 
                 newrow(layout, 'Frame', self, "frame_menu")
+                if self.frame_menu and self.frame_menu != 'None':
 
-                if self.metric == '3':
-                    newrow(layout, 'Embodied type:', self, "em_menu")
+                    if self.metric == '3':
+                        newrow(layout, 'Embodied type:', self, "em_menu")
 
-                newrow(layout, ('Zone:', f'{self.em_menu}:')[self.metric == '3'], self, "zone_menu")
+                    newrow(layout, ('Zone:', f'{self.em_menu}:')[self.metric == '3'], self, "zone_menu")
 
-                if self.metric == '0':
-                    if self['res'] and self['res'].get('hkwh'):
-                        newrow(layout, 'Heating type:', self, 'heat_type')
+                    if self.metric == '0':
+                        if self['res'] and self['res'].get('hkwh'):
+                            newrow(layout, 'Heating type:', self, 'heat_type')
 
-                        if self.heat_type == '0':
-                            newrow(layout, 'Heating efficiency:', self, 'gas_eff')
-                        else:
-                            newrow(layout, 'Heating COP:', self, 'elec_cop')
-                            newrow(layout, 'Hot water COP:', self, 'hw_cop')
+                            if self.heat_type == '0':
+                                newrow(layout, 'Heating efficiency:', self, 'gas_eff')
+                            else:
+                                newrow(layout, 'Heating COP:', self, 'elec_cop')
+                                newrow(layout, 'Hot water COP:', self, 'hw_cop')
 
-                        if self['res'].get('ckwh'):
-                            newrow(layout, 'Air-con COP:', self, 'ac_cop')
+                            if self['res'].get('ckwh'):
+                                newrow(layout, 'Air-con COP:', self, 'ac_cop')
 
-                        # newrow(layout, 'Hot water:', self, 'hwmod')
-                        newrow(layout, 'Unregulated:', self, 'mod')
-                        newrow(layout, 'Carbon factor:', self, 'carb_fac')
+                            # newrow(layout, 'Hot water:', self, 'hwmod')
+                            newrow(layout, 'Unregulated:', self, 'mod')
+                            newrow(layout, 'Carbon factor:', self, 'carb_fac')
 
-                    if self.energy_menu == '0':
-                        if self['res'].get('fa'):
-                            row = layout.row()
-                            pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
-                            row.label(text="PV (kWh): {}".format(pvkwh))
-                            pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                            row = layout.row()
-                            row.label(text="PV (kWh/m2): {}".format(pva))
-                            row = layout.row()
-                            hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'])
-                            row.label(text="Heating (kWh): {}".format(hkwh))
-                            row = layout.row()
-                            ha = "{:.2f}".format(self['res']['hkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                            row.label(text="Heating (kWh/m2): {}".format(ha))
-                            row = layout.row()
-                            ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
-                            row.label(text="Cooling (kWh): {}".format(ckwh))
-                            row = layout.row()
-                            ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                            row.label(text="Cooling (kWh/m2): {}".format(ca))
-
-                            if self.zone_menu == 'All':
+                        if self.energy_menu == '0':
+                            if self['res'].get('fa'):
                                 row = layout.row()
-                                wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
-                                row.label(text="Hot water (kWh): {}".format(wkwh))
+                                pvkwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['pvkwh'])
+                                row.label(text="PV (kWh): {}".format(pvkwh))
+                                pva = "{:.2f}".format(self['res']['pvkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
                                 row = layout.row()
-                                wkwhm2 = "{:.2f}".format(self['res']['wkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
-                                row.label(text="Hot water (kWh/m2): {}".format(wkwhm2))
+                                row.label(text="PV (kWh/m2): {}".format(pva))
                                 row = layout.row()
-                                ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A'
-                                row.label(text="ECF: {}".format(ecf))
+                                hkwh = self['res']['hkwh'] if self['res']['hkwh'] == 'N/A' else "{:.2f}".format(self['res']['hkwh'])
+                                row.label(text="Heating (kWh): {}".format(hkwh))
                                 row = layout.row()
-                                epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A'
-                                row.label(text="EPC: {} ({})".format(epc, self['res']['EPCL']))
+                                ha = "{:.2f}".format(self['res']['hkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                                row.label(text="Heating (kWh/m2): {}".format(ha))
+                                row = layout.row()
+                                ckwh = self['res']['pvkwh'] if self['res']['pvkwh'] == 'N/A' else "{:.2f}".format(self['res']['ckwh'])
+                                row.label(text="Cooling (kWh): {}".format(ckwh))
+                                row = layout.row()
+                                ca = "{:.2f}".format(self['res']['ckwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                                row.label(text="Cooling (kWh/m2): {}".format(ca))
 
-                    elif self.energy_menu == '1':
-                        if self['res'].get('fa'):
-                            if self['res'].get('totkwh'):
-                                newrow(layout, 'Type', self, 'riba_menu')
-                                tar = self['riba_en'][self.riba_menu]
-                                epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > tar else '(PASS kWh/m2 <= {})'.format(tar)
-#                                shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
-                                # row = layout.row()
-                                # row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
-                                # row = layout.row()
-                                # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
-                                row = layout.row()
-                                row.label(text="Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
-
-                            elif self['res'].get('hkwh'):
-                                row = layout.row()
-                                row.label(text="Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
-                                row = layout.row()
-                                row.label(text="Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
-
-                                if self['res'].get('ckwh'):
+                                if self.zone_menu == 'All':
                                     row = layout.row()
-                                    row.label(text="Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
+                                    wkwh = self['res']['wkwh'] if self['res']['wkwh'] == 'N/A' else "{:.2f}".format(self['res']['wkwh'])
+                                    row.label(text="Hot water (kWh): {}".format(wkwh))
                                     row = layout.row()
-                                    row.label(text="Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
-                        else:
-                            row = layout.row()
-                            row.label(text="No floor area")
+                                    wkwhm2 = "{:.2f}".format(self['res']['wkwh']/self['res']['fa']) if self['res']['fa'] != 'N/A' and self['res']['fa'] > 0 else 'N/A'
+                                    row.label(text="Hot water (kWh/m2): {}".format(wkwhm2))
+                                    row = layout.row()
+                                    ecf = "{:.2f}".format(self['res']['ECF']) if self['res']['ECF'] != 'N/A' else 'N/A'
+                                    row.label(text="ECF: {}".format(ecf))
+                                    row = layout.row()
+                                    epc = "{:.0f}".format(self['res']['EPC']) if self['res']['EPC'] != 'N/A' else 'N/A'
+                                    row.label(text="EPC: {} ({})".format(epc, self['res']['EPCL']))
 
-                    elif self.energy_menu == '2':
-                        if self['res'].get('fa'):
-                            if self['res'].get('hkwh'):
-                                epass = '(FAIL kWh/m2 > {})'.format(15) if self['res']['totkwh']/self['res']['fa'] > 15 else '(PASS kWh/m2 <= {})'.format(15)
+                        elif self.energy_menu == '1':
+                            if self['res'].get('fa'):
+                                if self['res'].get('totkwh'):
+                                    newrow(layout, 'Type', self, 'riba_menu')
+                                    tar = self['riba_en'][self.riba_menu]
+                                    epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > tar else '(PASS kWh/m2 <= {})'.format(tar)
+    #                                shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
+                                    # row = layout.row()
+                                    # row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
+                                    # row = layout.row()
+                                    # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
+                                    row = layout.row()
+                                    row.label(text="Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
+
+                                elif self['res'].get('hkwh'):
+                                    row = layout.row()
+                                    row.label(text="Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
+                                    row = layout.row()
+                                    row.label(text="Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
+
+                                    if self['res'].get('ckwh'):
+                                        row = layout.row()
+                                        row.label(text="Space cooling (kWh): {:.1f}".format(self['res']['ckwh']))
+                                        row = layout.row()
+                                        row.label(text="Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
+                            else:
                                 row = layout.row()
-                                row.label(text="Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'], epass))
+                                row.label(text="No floor area")
 
-                elif self.metric == '1':
-                    if self.light_menu == '0':
-                        areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']
-                        avDF = 'N/A' if self['res']['avDF'] < 0 else self['res']['avDF']
-                        minDF = 'N/A' if self['res']['minDF'] < 0 else self['res']['minDF']
-                        ratioDF = 'N/A' if self['res']['ratioDF'] < 0 else self['res']['ratioDF']
-                        sda = 'N/A' if self['res']['sda'] < 0 else self['res']['sda']
-                        credits = 0
-                        newrow(layout, 'Space:', self, "breeam_menu")
+                        elif self.energy_menu == '2':
+                            if self['res'].get('fa'):
+                                if self['res'].get('hkwh'):
+                                    epass = '(FAIL kWh/m2 > {})'.format(15) if self['res']['totkwh']/self['res']['fa'] > 15 else '(PASS kWh/m2 <= {})'.format(15)
+                                    row = layout.row()
+                                    row.label(text="Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'], epass))
 
-                        if self.breeam_menu == '0':
-                            # if avDF >= 2 and ratioDF >= 0.3:
-                            newrow(layout, 'Education space:', self, "breeam_edumenu")
+                    elif self.metric == '1':
+                        if self.light_menu == '0':
+                            areaDF = 'N/A' if self['res']['areaDF'] < 0 else self['res']['areaDF']
+                            avDF = 'N/A' if self['res']['avDF'] < 0 else self['res']['avDF']
+                            minDF = 'N/A' if self['res']['minDF'] < 0 else self['res']['minDF']
+                            ratioDF = 'N/A' if self['res']['ratioDF'] < 0 else self['res']['ratioDF']
+                            sda = 'N/A' if self['res']['sda'] < 0 else self['res']['sda']
+                            credits = 0
+                            newrow(layout, 'Space:', self, "breeam_menu")
 
-                        elif self.breeam_menu == '1':
-                                # if ratioDF >= 0.3:
-                                newrow(layout, 'Health space:', self, "breeam_healthmenu")
-
-                        elif self.breeam_menu == '2':
-                            # if ratioDF >= 0.3:
-                            newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
-
-                        elif self.breeam_menu == '3':
-                            newrow(layout, 'Retail space:', self, "breeam_retailmenu")
-
-                        elif self.breeam_menu == '4':
-                            newrow(layout, 'Other space:', self, "breeam_othermenu")
-
-                        newrow(layout, 'Glazed roof:', self, "g_roof")
-
-                        if 'N/A' not in (areaDF, avDF):
                             if self.breeam_menu == '0':
                                 # if avDF >= 2 and ratioDF >= 0.3:
-                                # newrow(layout, 'Education space:', self, "breeam_edumenu")
-                                if self.breeam_edumenu == '0':
-                                    if areaDF >= 80:
-                                        credits = 2
-                                elif self.breeam_edumenu == '1':
-                                    if areaDF >= 60:
-                                        credits = 1
-                                    if areaDF >= 80:
-                                        credits = 2
+                                newrow(layout, 'Education space:', self, "breeam_edumenu")
 
                             elif self.breeam_menu == '1':
-                                # if ratioDF >= 0.3:
-                                # newrow(layout, 'Health space:', self, "breeam_healthmenu")
-                                if self.breeam_healthmenu == '0':
-                                    if areaDF >= 80:
-                                        credits = 2
-                                elif self.breeam_healthmenu == '1':
-                                    if areaDF >= 80:
-                                        credits = 2
+                                    # if ratioDF >= 0.3:
+                                    newrow(layout, 'Health space:', self, "breeam_healthmenu")
 
                             elif self.breeam_menu == '2':
                                 # if ratioDF >= 0.3:
-                                # newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
-                                if areaDF >= 80:
-                                    credits = 1
+                                newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
 
                             elif self.breeam_menu == '3':
-                                # newrow(layout, 'Retail space:', self, "breeam_retailmenu")
-                                if self.breeam_retailmenu == '0':
-                                    if areaDF >= 35:
-                                        credits = 1
-
-                                elif self.breeam_retailmenu == '1':
-                                    if areaDF >= 80:
-                                        credits = 1
+                                newrow(layout, 'Retail space:', self, "breeam_retailmenu")
 
                             elif self.breeam_menu == '4':
-                                # newrow(layout, 'Other space:', self, "breeam_othermenu")
-                                if self.breeam_othermenu == '0':
+                                newrow(layout, 'Other space:', self, "breeam_othermenu")
+
+                            newrow(layout, 'Glazed roof:', self, "g_roof")
+
+                            if 'N/A' not in (areaDF, avDF):
+                                if self.breeam_menu == '0':
+                                    # if avDF >= 2 and ratioDF >= 0.3:
+                                    # newrow(layout, 'Education space:', self, "breeam_edumenu")
+                                    if self.breeam_edumenu == '0':
+                                        if areaDF >= 80:
+                                            credits = 2
+                                    elif self.breeam_edumenu == '1':
+                                        if areaDF >= 60:
+                                            credits = 1
+                                        if areaDF >= 80:
+                                            credits = 2
+
+                                elif self.breeam_menu == '1':
+                                    # if ratioDF >= 0.3:
+                                    # newrow(layout, 'Health space:', self, "breeam_healthmenu")
+                                    if self.breeam_healthmenu == '0':
+                                        if areaDF >= 80:
+                                            credits = 2
+                                    elif self.breeam_healthmenu == '1':
+                                        if areaDF >= 80:
+                                            credits = 2
+
+                                elif self.breeam_menu == '2':
+                                    # if ratioDF >= 0.3:
+                                    # newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
                                     if areaDF >= 80:
                                         credits = 1
 
-                                elif self.breeam_othermenu == '1':
-                                    if areaDF >= 80:
-                                        credits = 1
+                                elif self.breeam_menu == '3':
+                                    # newrow(layout, 'Retail space:', self, "breeam_retailmenu")
+                                    if self.breeam_retailmenu == '0':
+                                        if areaDF >= 35:
+                                            credits = 1
 
-                                elif self.breeam_othermenu == '2':
-                                    if areaDF >= 80:
-                                        credits = 1
+                                    elif self.breeam_retailmenu == '1':
+                                        if areaDF >= 80:
+                                            credits = 1
 
-                                elif self.breeam_othermenu == '3':
-                                    if areaDF >= 80:
-                                        credits = 1
+                                elif self.breeam_menu == '4':
+                                    # newrow(layout, 'Other space:', self, "breeam_othermenu")
+                                    if self.breeam_othermenu == '0':
+                                        if areaDF >= 80:
+                                            credits = 1
 
-                                elif self.breeam_othermenu == '4':
-                                    if areaDF >= 80:
-                                        credits = 1
+                                    elif self.breeam_othermenu == '1':
+                                        if areaDF >= 80:
+                                            credits = 1
 
-                            row = layout.row()
-                            row.label(text="Average DF: {}%".format(avDF))
-                            row = layout.row()
-                            row.label(text="Minimum DF: {}%".format(minDF))
-                            row = layout.row()
-                            row.label(text="Uniformity: {}".format(ratioDF))
-                            row = layout.row()
-                            row.label(text="Compliant area: {}%".format(areaDF))
-                            row = layout.row()
-                            row.label(text="Credits: {}".format(credits))
+                                    elif self.breeam_othermenu == '2':
+                                        if areaDF >= 80:
+                                            credits = 1
 
-                        elif sda != 'N/A':
-                            row = layout.row()
-                            row.label(text=f"Hours above target: {sda}")
-                            # row = layout.row()
-                            # row.label(text=f"Area above target: {sdaarea}")
+                                    elif self.breeam_othermenu == '3':
+                                        if areaDF >= 80:
+                                            credits = 1
 
-                    elif self.light_menu == '1':
-                        newrow(layout, 'Healthcare', self, 'leed_menu')
-                        (self['res']['sdapass'], self['res']['tc']) = ((75, 90), 2) if self.leed_menu else ((55, 75), 3)
+                                    elif self.breeam_othermenu == '4':
+                                        if areaDF >= 80:
+                                            credits = 1
 
-                        if self['res'] and self['res'].get('ase') > -1:
-                            if self['res']['ase'] < 0:
-                                (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
-                            else:
-                                sdares = self['res']['sdapa'] if self.leed_menu else self['res']['sda']
+                                row = layout.row()
+                                row.label(text="Average DF: {}%".format(avDF))
+                                row = layout.row()
+                                row.label(text="Minimum DF: {}%".format(minDF))
+                                row = layout.row()
+                                row.label(text="Uniformity: {}".format(ratioDF))
+                                row = layout.row()
+                                row.label(text="Compliant area: {}%".format(areaDF))
+                                row = layout.row()
+                                row.label(text="Credits: {}".format(credits))
 
-                                if self['res']['ase'] <= 10:
-                                    if round(sdares, 3) >= (55, 75)[self.leed_menu]:
-                                        self['res']['o1'] = (2, 1)[self.leed_menu]
+                            elif sda != 'N/A':
+                                row = layout.row()
+                                row.label(text=f"Hours above target: {sda}")
+                                # row = layout.row()
+                                # row.label(text=f"Area above target: {sdaarea}")
+
+                        elif self.light_menu == '1':
+                            newrow(layout, 'Healthcare', self, 'leed_menu')
+                            (self['res']['sdapass'], self['res']['tc']) = ((75, 90), 2) if self.leed_menu else ((55, 75), 3)
+
+                            if self['res'] and self['res'].get('ase') > -1:
+                                if self['res']['ase'] < 0:
+                                    (sda, ase, o1) = ('sDA300 (%): N/A', 'ASE1000 (hours): N/A', 'Total credits: N/A')
+                                else:
+                                    sdares = self['res']['sdapa'] if self.leed_menu else self['res']['sda']
+
+                                    if self['res']['ase'] <= 10:
+                                        if round(sdares, 3) >= (55, 75)[self.leed_menu]:
+                                            self['res']['o1'] = (2, 1)[self.leed_menu]
+                                        else:
+                                            self['res']['o1'] = 0
+
+                                        if round(sdares, 3) >= (75, 90)[self.leed_menu]:
+                                            self['res']['o1'] = (3, 2)[self.leed_menu]
                                     else:
                                         self['res']['o1'] = 0
 
-                                    if round(sdares, 3) >= (75, 90)[self.leed_menu]:
-                                        self['res']['o1'] = (3, 2)[self.leed_menu]
-                                else:
-                                    self['res']['o1'] = 0
+                                    (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(sdares, self['res']['sdapass'], ('Pass', 'Fail')[round(sdares, 3) < self['res']['sdapass'][0]]),
+                                                    'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]),
+                                                    'Total credits: {}'.format(self['res']['o1']))
 
-                                (sda, ase, o1) = ('sDA300/50% (% area): {0:.1f} | > ({1[0]}, {1[1]}) | {2}'.format(sdares, self['res']['sdapass'], ('Pass', 'Fail')[round(sdares, 3) < self['res']['sdapass'][0]]),
-                                                  'ASE1000/250 (% area): {:.1f} | < 10 | {}'.format(self['res']['ase'], ('Pass', 'Fail')[self['res']['ase'] > 10]),
-                                                  'Total credits: {}'.format(self['res']['o1']))
-
-                            if self.leed_menu:
-                                row = layout.row()
-                                row.label(text='Perimeter area: {:.1f} | {}'.format(self['res']['sv'], ('Pass', 'Fail')[self['res']['sv'] < 90]))
-
-                            row = layout.row()
-                            row.label(text=sda)
-                            row = layout.row()
-                            row.label(text=ase)
-                            row = layout.row()
-                            row.label(text=o1)
-
-                    elif self.light_menu == '2':
-                        if self['res']['avDF'] < 0:
-                            (dfpass, udfpass, avDF, uDF) = ('', '', 'N/A', 'N/A')
-                        else:
-                            dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
-                            udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
-                            avDF = self['res']['avDF']
-                            uDF = self['res']['ratioDF']
-
-                        row = layout.row()
-                        row.label(text="Average DF: {} {}".format(avDF, dfpass))
-                        row = layout.row()
-                        row.label(text="Uniformity: {} {}".format(uDF, udfpass))
-
-                elif self.metric == '2':
-                    newrow(layout, 'Wind speed', self, "ws")
-
-                    if self['res']['pressure']:
-                        if self.zone_menu == 'All':
-                            newrow(layout, 'Metric', self, "probe_menu")
-
-                    if self.zone_menu == 'All':
-                        for z in self['res'][self.probe_menu]:
-                            row = layout.row()
-                            row.label(text="{}: {}".format(z, self['res'][self.probe_menu][z]))
-                    else:
-                        if self['res']:
-                            for m in self['res']:
-                                if self['res'][m].get(self.zone_menu):
+                                if self.leed_menu:
                                     row = layout.row()
-                                    row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+                                    row.label(text='Perimeter area: {:.1f} | {}'.format(self['res']['sv'], ('Pass', 'Fail')[self['res']['sv'] < 90]))
 
-                elif self.metric == '3':
-                    if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone') and self.frame_menu != 'All':
-                        # newrow(layout, 'Type', self, 'riba_menu')
-                        newrow(layout, 'Timespan:', self, "ec_years")
-                        row = layout.row()
+                                row = layout.row()
+                                row.label(text=sda)
+                                row = layout.row()
+                                row.label(text=ase)
+                                row = layout.row()
+                                row.label(text=o1)
+
+                        elif self.light_menu == '2':
+                            if self['res']['avDF'] < 0:
+                                (dfpass, udfpass, avDF, uDF) = ('', '', 'N/A', 'N/A')
+                            else:
+                                dfpass = '(FAIL DF < 2)' if self['res']['avDF'] < 2 else '(PASS DF >= 2)'
+                                udfpass = '(FAIL UDF < 0.4)' if self['res']['ratioDF'] < 0.4 else '(PASS UDF >= 0.4)'
+                                avDF = self['res']['avDF']
+                                uDF = self['res']['ratioDF']
+
+                            row = layout.row()
+                            row.label(text="Average DF: {} {}".format(avDF, dfpass))
+                            row = layout.row()
+                            row.label(text="Uniformity: {} {}".format(uDF, udfpass))
+
+                    elif self.metric == '2' and self.probe_menu != 'None':
+                        newrow(layout, 'Wind speed', self, "ws")
+
+                        if self['res']['pressure']:
+                            if self.zone_menu == 'All':
+                                newrow(layout, 'Metric', self, "probe_menu")
 
                         if self.zone_menu == 'All':
-                            row.label(text='Total EC: {:.2f} kgCO2e'.format(float(self['res']['ec']['All'])))
-
-                            if self['res']['ecm2']:
+                            for z in self['res'][self.probe_menu]:
                                 row = layout.row()
-                                row.label(text='Total EC/m2: {:.2f} kgCO2e/m2'.format(float(self['res']['ecm2']['All'])))
-                            if self['res']['ecm2y']:
-                                row = layout.row()
-                                row.label(text='Total EC/m2/y: {:.2f} kgCO2e/m2/y'.format(float(self['res']['ecm2y']['All'])))
-                            if self['res']['vol']:
-                                row = layout.row()
-                                row.label(text='Total volume: {:.2f} m3'.format(float(self['res']['vol']['All'])))
-                            if self['res']['area']:
-                                row = layout.row()
-                                row.label(text='Total area: {:.2f} m2'.format(self['res']['area'][self.zone_menu]))
+                                row.label(text="{}: {}".format(z, self['res'][self.probe_menu][z]))
                         else:
-                            row.label(text='{} EC: {:.2f} kgCO2e'.format(self.em_menu, self['res']['ec'][self.zone_menu]))
+                            if self['res']:
+                                for m in self['res']:
+                                    if self['res'][m].get(self.zone_menu):
+                                        row = layout.row()
+                                        row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
-                            if self['res']['ecm2'] and self.zone_menu != 'None':
-                                row = layout.row()
-                                row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(self.em_menu, self['res']['ecm2'][self.zone_menu]))
-                            if self['res']['ecm2y'] and self.zone_menu != 'None':
-                                row = layout.row()
-                                row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(self.em_menu, self['res']['ecm2y'][self.zone_menu]))
-                            if self['res']['vol'] and self.zone_menu != 'None':
-                                row = layout.row()
-                                row.label(text='{} volume: {:.2f} m3'.format(self.em_menu, self['res']['vol'][self.zone_menu]))
-                            if self.em_menu != 'Object':
-                                if self['res']['area'] and self.zone_menu != 'None':
+                    elif self.metric == '3':
+                        if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone') and self.frame_menu != 'All':
+                            # newrow(layout, 'Type', self, 'riba_menu')
+                            newrow(layout, 'Timespan:', self, "ec_years")
+                            row = layout.row()
+
+                            if self.zone_menu == 'All':
+                                row.label(text='Total EC: {:.2f} kgCO2e'.format(float(self['res']['ec']['All'])))
+
+                                if self['res']['ecm2']:
                                     row = layout.row()
-                                    row.label(text='{} area: {:.2f} m2'.format(self.em_menu, self['res']['area'][self.zone_menu]))
+                                    row.label(text='Total EC/m2: {:.2f} kgCO2e/m2'.format(float(self['res']['ecm2']['All'])))
+                                if self['res']['ecm2y']:
+                                    row = layout.row()
+                                    row.label(text='Total EC/m2/y: {:.2f} kgCO2e/m2/y'.format(float(self['res']['ecm2y']['All'])))
+                                if self['res']['vol']:
+                                    row = layout.row()
+                                    row.label(text='Total volume: {:.2f} m3'.format(float(self['res']['vol']['All'])))
+                                if self['res']['area']:
+                                    row = layout.row()
+                                    row.label(text='Total area: {:.2f} m2'.format(self['res']['area'][self.zone_menu]))
+                            else:
+                                row.label(text='{} EC: {:.2f} kgCO2e'.format(self.em_menu, self['res']['ec'][self.zone_menu]))
 
-                elif self.metric == '4':
-                    newrow(layout, 'Comfort type:', self, "com_menu")
+                                if self['res']['ecm2'] and self.zone_menu != 'None':
+                                    row = layout.row()
+                                    row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(self.em_menu, self['res']['ecm2'][self.zone_menu]))
+                                if self['res']['ecm2y'] and self.zone_menu != 'None':
+                                    row = layout.row()
+                                    row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(self.em_menu, self['res']['ecm2y'][self.zone_menu]))
+                                if self['res']['vol'] and self.zone_menu != 'None':
+                                    row = layout.row()
+                                    row.label(text='{} volume: {:.2f} m3'.format(self.em_menu, self['res']['vol'][self.zone_menu]))
+                                if self.em_menu != 'Object':
+                                    if self['res']['area'] and self.zone_menu != 'None':
+                                        row = layout.row()
+                                        row.label(text='{} area: {:.2f} m2'.format(self.em_menu, self['res']['area'][self.zone_menu]))
 
-                    if self.com_menu == '0':
-                        if self['res']['ooh'] >= 0:
-                            newrow(layout, 'Occupied', self, "occ")
+                    elif self.metric == '4':
+                        newrow(layout, 'Comfort type:', self, "com_menu")
 
-                        (r1, r2) = ('ooh', 'ooh2') if self.occ else ('oh', 'oh2')
+                        if self.com_menu == '0':
+                            if self['res']['ooh'] >= 0:
+                                newrow(layout, 'Occupied', self, "occ")
 
-                        if self['res'][r2] >= 0:
+                            (r1, r2) = ('ooh', 'ooh2') if self.occ else ('oh', 'oh2')
+
+                            if self['res'][r2] >= 0:
+                                row = layout.row()
+                                row.label(text="Time above 28degC: {:.1f}%".format(self['res'][r2]))
+
+                            if self['res'][r1] >= 0:
+                                row = layout.row()
+                                row.label(text="Time between 25-28degC: {:.1f}%".format(self['res'][r1]))
+
+                            elif self.frame_menu != 'All':
+                                row = layout.row()
+                                row.label(text="Overheating data not available")
+
+                    elif self.metric == '5':
+                        newrow(layout, 'IAQ type:', self, "iaq_menu")
+
+                        if self.iaq_menu == '0':
                             row = layout.row()
-                            row.label(text="Time above 28degC: {:.1f}%".format(self['res'][r2]))
+                            if self['res']['co2'] >= 0:
+                                row.label(text="Time CO2 below 900ppm: {:.1f}%".format(self['res']['co2']))
+                            else:
+                                row.label(text="CO2 data not available")
 
-                        if self['res'][r1] >= 0:
+                    elif self.metric == '6':
+                        if self['res'].get('wlc'):
+                            newrow(layout, 'Timespan:', self, "ec_years")
+                            newrow(layout, 'Heating type:', self, 'heat_type')
+
+                            if self.heat_type == '0':
+                                newrow(layout, 'Heating efficiency:', self, 'gas_eff')
+
+                                if self['res']['ckwh']:
+                                    newrow(layout, 'Cooling COP:', self, 'ac_cop')
+                                    newrow(layout, 'Carbon factor:', self, 'carb_fac')
+                                    newrow(layout, 'Annual change:', self, 'carb_annc')
+                            else:
+                                newrow(layout, 'Heating COP:', self, 'elec_cop')
+                                newrow(layout, 'Hot water COP:', self, 'hw_cop')
+
+                                if self['res']['ckwh']:
+                                    newrow(layout, 'Cooling EER:', self, 'ac_cop')
+
+                                newrow(layout, 'Carbon factor:', self, 'carb_fac')
+                                newrow(layout, 'Annual change:', self, 'carb_annc')
+
+                            newrow(layout, 'Unregulated', self, 'mod')
+                            newrow(layout, 'Hot water:', self, 'hwmod')
+
+                            if self['res']['owlc']:
+                                row = layout.row()
+                                row.label(text="Gross operational carbon: {:.1f} kgCO2e".format(self['res']['owlc']))
+                            if self['res']['ofwlc']:
+                                row = layout.row()
+                                row.label(text="Carbon offset: {:.1f} kgCO2e".format(self['res']['ofwlc']))
+                            if self['res']['owlc']:
+                                row = layout.row()
+                                row.label(text="Net operational carbon: {:.1f} kgCO2e".format(self['res']['owlc'] - self['res']['ofwlc']))
+                            if self['res']['ecwlc']:
+                                row = layout.row()
+                                row.label(text="Total embodied carbon: {:.1f} kgCO2e".format(self['res']['ecwlc']))
+                            if self['res']['wlc']:
+                                row = layout.row()
+                                row.label(text="Whole-life carbon: {:.1f} kgCO2e".format(self['res']['wlc']))
+
+                            if self.frame_menu != 'All':
+                                row = layout.row()
+                                row.operator('node.vi_info', text='Infographic')
+
+                    if self.metric == '1':
+                        if self.light_menu == '2':
+                            if self['res']['ratioDF'] >= 0:
+                                row = layout.row()
+                                row.operator('node.vi_info', text='Infographic')
+                        elif self.light_menu == '1':
+                            if self['res']['sda'] >= 0:
+                                row = layout.row()
+                                row.operator('node.vi_info', text='Infographic')
+                    elif self.metric == '3':
+                        if self['res']['ec']:
                             row = layout.row()
-                            row.label(text="Time between 25-28degC: {:.1f}%".format(self['res'][r1]))
-                        else:
+                            row.operator('node.ec_pie', text='Pie chart')
+                        # elif self.frame_menu == 'All':
+                        #     row = layout.row()
+                        #     row.operator('node.ec_line', text='Line chart')
+                    elif self.metric == '4' and self.frame_menu == 'All':
+                        if self['res'].get('alloh1s'):
                             row = layout.row()
-                            row.label(text="Overheating data not available")
+                            row.operator('node.com_line', text='Line chart')
 
-                elif self.metric == '5':
-                    newrow(layout, 'IAQ type:', self, "iaq_menu")
+                    elif self.metric == '6' and self.frame_menu == 'All':
+                        if self['res']['wl']:
+                            row = layout.row()
+                            row.operator('node.wlc_line', text='Line chart')
 
-                    if self.iaq_menu == '0':
-                        row = layout.row()
-                        if self['res']['co2'] >= 0:
-                            row.label(text="Time CO2 below 900ppm: {:.1f}%".format(self['res']['co2']))
-                        else:
-                            row.label(text="CO2 data not available")
-
-                elif self.metric == '6':
-                    newrow(layout, 'Timespan:', self, "ec_years")
-                    newrow(layout, 'Heating type:', self, 'heat_type')
-
-                    if self.heat_type == '0':
-                        newrow(layout, 'Heating efficiency:', self, 'gas_eff')
-
-                        if self['res']['ckwh']:
-                            newrow(layout, 'Cooling COP:', self, 'ac_cop')
-                            newrow(layout, 'Carbon factor:', self, 'carb_fac')
-                            newrow(layout, 'Annual change:', self, 'carb_annc')
-                    else:
-                        newrow(layout, 'Heating COP:', self, 'elec_cop')
-                        newrow(layout, 'Hot water COP:', self, 'hw_cop')
-
-                        if self['res']['ckwh']:
-                            newrow(layout, 'Cooling EER:', self, 'ac_cop')
-
-                        newrow(layout, 'Carbon factor:', self, 'carb_fac')
-                        newrow(layout, 'Annual change:', self, 'carb_annc')
-
-                    newrow(layout, 'Unregulated', self, 'mod')
-                    newrow(layout, 'Hot water:', self, 'hwmod')
-
-                    if self['res']['owlc']:
-                        row = layout.row()
-                        row.label(text="Gross operational carbon: {:.1f} kgCO2e".format(self['res']['owlc']))
-                    if self['res']['ofwlc']:
-                        row = layout.row()
-                        row.label(text="Carbon offset: {:.1f} kgCO2e".format(self['res']['ofwlc']))
-                    if self['res']['owlc']:
-                        row = layout.row()
-                        row.label(text="Net operational carbon: {:.1f} kgCO2e".format(self['res']['owlc'] - self['res']['ofwlc']))
-                    if self['res']['ecwlc']:
-                        row = layout.row()
-                        row.label(text="Total embodied carbon: {:.1f} kgCO2e".format(self['res']['ecwlc']))
-                    if self['res']['wlc']:
-                        row = layout.row()
-                        row.label(text="Whole-life carbon: {:.1f} kgCO2e".format(self['res']['wlc']))
-
-                    row = layout.row()
-                    row.operator('node.vi_info', text='Infographic')
-
-        if self.metric == '1':
-            if self.light_menu == '2':
-                if self['res']['ratioDF'] >= 0:
-                    row = layout.row()
-                    row.operator('node.vi_info', text='Infographic')
-            elif self.light_menu == '1':
-                if self['res']['sda'] >= 0:
-                    row = layout.row()
-                    row.operator('node.vi_info', text='Infographic')
-        if self.metric == '3':
-            if self['res']['ec']:
-                row = layout.row()
-                row.operator('node.ec_pie', text='Pie chart')
-            # elif self.frame_menu == 'All':
-            #     row = layout.row()
-            #     row.operator('node.ec_line', text='Line chart')
 
     def update(self):
         if self.inputs[0].links:
@@ -3252,13 +3275,6 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 self.inputs[0].links[0].from_node.new_res = 0
 
-                if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
-                    self.frame_menu = self['frames'][0][0]
-
-                if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
-                    self.zone_menu = self['znames'][0][0]
-
-                self.res_update()
             else:
                 self['rl'] = []
                 self['frames'] = [('None', 'None', 'None')]
@@ -3268,14 +3284,25 @@ class No_Vi_Metrics(Node, ViNodes):
             self['frames'] = [('None', 'None', 'None')]
             self['znames'] = [('None', 'None', 'None')]
 
-    def res_update(self):
-        self['res']['pvkwh'] = 0
-        self['res']['hkwh'] = 0
-        self['res']['ahkwh'] = 0
-        self['res']['ckwh'] = 0
-        self['res']['ackwh'] = 0
+        if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
+            self.frame_menu = self['frames'][0][0]
 
+        if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
+            self.zone_menu = self['znames'][0][0]
+
+        # if self.probe_menu == '' or self.probe_menu not in [spr[0] for spr in self['probes']]:
+        #     self.probe_menu = self['probes'][0][0]
+
+        self.res_update()
+
+    def res_update(self):
+        self['res'] = {}
         if self.metric == '0' and bpy.data.collections.get('EnVi Geometry') and 'Heating (W)' in [metric[0][3] for metric in zip(self['rl'])]:
+            self['res']['pvkwh'] = 0
+            self['res']['hkwh'] = 0
+            self['res']['ahkwh'] = 0
+            self['res']['ckwh'] = 0
+            self['res']['ackwh'] = 0
             geo_coll = bpy.data.collections['EnVi Geometry']
             heat_mod = self.gas_eff/100 if self.heat_type == '0' else self.elec_cop
             hw_mod = self.gas_eff/100 if self.heat_type == '0' else self.hw_cop
@@ -3300,6 +3327,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['wkwh'] = 1.15 * sum([4.18/3600 * Vda * z[0] * z[1] * z[2] / hw_mod for z in zip(md, ff, dtm)])
 
             if self.energy_menu == '0':
+
                 for r in self['rl']:
                     if r[0] == self.frame_menu and self.zone_menu == 'All':
                         if r[3] == 'PV power (W)' and r[2] == 'All':
@@ -3507,8 +3535,8 @@ class No_Vi_Metrics(Node, ViNodes):
                     self['res']['ratioDF'] = round(ir, 2)
                     self['res']['minDF'] = round(min(df), 2)
 
-                except Exception as e:
-                    print(e)
+                except Exception:
+                    pass
 
                 try:
                     vsareas = sareas[where(sareas > mA * 100)]
@@ -3517,8 +3545,8 @@ class No_Vi_Metrics(Node, ViNodes):
                     if self['res']['sda'] > sdah:
                         credits = cred
 
-                except Exception as e:
-                    print(e)
+                except Exception:
+                    pass
 
             elif self.light_menu == '2':
                 for r in self['rl']:
@@ -3536,31 +3564,32 @@ class No_Vi_Metrics(Node, ViNodes):
                     pass
 
             elif self.light_menu == '1':
-                for r in self['rl']:
-                    if r[0] == self.frame_menu:
-                        if r[2] == self.zone_menu:
-                            if self.zone_menu in bpy.context.scene.objects:
-                                res_ob = bpy.context.scene.objects[self.zone_menu]
+                if 'Annual Sunlight Exposure (% area)' in [r[3] for r in self['rl']]:
+                    for r in self['rl']:
+                        if r[0] == self.frame_menu:
+                            if r[2] == self.zone_menu:
+                                if self.zone_menu in bpy.context.scene.objects:
+                                    res_ob = bpy.context.scene.objects[self.zone_menu]
 
-                                if res_ob.vi_params['livires'].get('totarea{}'.format(self.frame_menu)):
-                                    self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
-                                    self['res']['svarea'] = res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]
+                                    if res_ob.vi_params['livires'].get('totarea{}'.format(self.frame_menu)):
+                                        self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+                                        self['res']['svarea'] = res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]
 
-                                    if r[3] == 'Annual Sunlight Exposure (% area)':
-                                        self['res']['ase'] = 100 * res_ob.vi_params['livires']['ase{}'.format(self.frame_menu)]
-                                        self['res']['asepass'] = 10
-                                    elif r[3] == 'Spatial Daylight Autonomy (% area)':
-                                        self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
-                                    elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':
-                                        self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
-                                    elif r[3] == 'UDI-a Area (%)':
-                                        udiaareas = array([float(p) for p in r[4].split()])
-                                        im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
-                                        ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
-                                        self['res']['udiam'] = udiaareas[im]
-                                        self['res']['udiae'] = udiaareas[ie]
+                                        if r[3] == 'Annual Sunlight Exposure (% area)':
+                                            self['res']['ase'] = 100 * res_ob.vi_params['livires']['ase{}'.format(self.frame_menu)]
+                                            self['res']['asepass'] = 10
+                                        elif r[3] == 'Spatial Daylight Autonomy (% area)':
+                                            self['res']['sda'] = 100 * res_ob.vi_params['livires']['sda{}'.format(self.frame_menu)]
+                                        elif r[3] == 'Spatial Daylight Autonomy (% perimeter area)':
+                                            self['res']['sdapa'] = 100 * res_ob.vi_params['livires']['sdapa{}'.format(self.frame_menu)]
+                                        elif r[3] == 'UDI-a Area (%)':
+                                            udiaareas = array([float(p) for p in r[4].split()])
+                                            im = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 09:00:00')
+                                            ie = self.inputs[0].links[0].from_node['coptions']['times'].index('20/03/15 15:00:00')
+                                            self['res']['udiam'] = udiaareas[im]
+                                            self['res']['udiae'] = udiaareas[ie]
 
-                                    self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+                                        self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
 
         elif self.metric == '2':
             self['res']['pressure'] = {}
@@ -3569,7 +3598,6 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['xvelocity'] = {}
             self['res']['zvelocity'] = {}
             self['res']['yvelocity'] = {}
-            self['res']['wpc'] = {}
             self['res']['wpc'] = {}
             znames = set([z[2] for z in self['rl'] if z[1] == 'Zone spatial'])
 
@@ -3645,22 +3673,41 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['ooh2'] = -1
             temps = array([])
             occs = array([])
+            alltemps = []
+            alloccs = []
 
-            for r in self['rl']:
-                if r[0] == self.frame_menu:
+            if self.frame_menu != 'All':
+                for r in self['rl']:
+                    if r[0] == self.frame_menu:
+                        if r[2] == self.zone_menu:
+                            if r[3] == 'Temperature (degC)':
+                                temps = array([float(p) for p in r[4].split()])
+                            elif r[3] == 'Occupancy':
+                                occs = array([float(p) for p in r[4].split()])
+
+                if len(temps):
+                    self['res']['oh'] = 100 * len(where(temps > 25)[0])/len(temps)
+                    self['res']['oh2'] = 100 * len(where(temps > 28)[0])/len(temps)
+
+                    if len(occs):
+                        self['res']['ooh'] = 100 * len(where(where(occs > 0, temps, 0) > 25)[0])/len(where(occs > 0)[0])
+                        self['res']['ooh2'] = 100 * len(where(where(occs > 0, temps, 0) > 28)[0])/len(where(occs > 0)[0])
+            else:
+                for r in self['rl']:
                     if r[2] == self.zone_menu:
                         if r[3] == 'Temperature (degC)':
-                            temps = array([float(p) for p in r[4].split()])
+                            alltemps.append(array([float(p) for p in r[4].split()]))
                         elif r[3] == 'Occupancy':
-                            occs = array([float(p) for p in r[4].split()])
+                            alloccs.append(array([float(p) for p in r[4].split()]))
 
-            if len(temps):
-                self['res']['oh'] = 100 * len(where(temps > 25)[0])/len(temps)
-                self['res']['oh2'] = 100 * len(where(temps > 28)[0])/len(temps)
+                if alltemps:
+                    self['res']['alloh1s'] = [100 * len(where(temps > 25)[0])/len(temps) for temps in alltemps]
+                    self['res']['alloh2s'] = [100 * len(where(temps > 28)[0])/len(temps) for temps in alltemps]
 
-                if len(occs):
-                    self['res']['ooh'] = 100 * len(where(where(occs > 0, temps, 0) > 25)[0])/len(where(occs > 0)[0])
-                    self['res']['ooh2'] = 100 * len(where(where(occs > 0, temps, 0) > 28)[0])/len(where(occs > 0)[0])
+                    if alloccs:
+                        self['res']['allooh1s'] = [100 * len(where(where(alloccs[ti] > 0, temps, 0) > 25)[0])/len(where(alloccs[ti] > 0)[0]) for ti, temps in enumerate(alltemps)]
+                        self['res']['allooh2s'] = [100 * len(where(where(alloccs[ti] > 0, temps, 0) > 28)[0])/len(where(alloccs[ti] > 0)[0]) for ti, temps in enumerate(alltemps)]
+                # print(alloh1s, alloh2s)
 
         elif self.metric == '5':
             self['res']['co2'] = -1
@@ -3681,7 +3728,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['ofwlc'] = 0
             self['res']['ckwh'] = 0
 
-            if bpy.data.collections.get('EnVi Geometry'):
+            if bpy.data.collections.get('EnVi Geometry') and self.zone_menu != 'None':
                 hours = 8760
                 ofcs = {}
                 owlcs, ecwlcs, ofwlcs, wlcs, reslists = [], [], [], [], []
@@ -3708,6 +3755,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     aairheat_kwh = 0
                     aircool_kwh = 0
                     aaircool_kwh = 0
+                    ec_kgco2e = 0
 
                     if self.frame_menu and self.zone_menu:
                         for r in self['rl']:
@@ -7468,6 +7516,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
             socklink2(sock, self.id_data)
 
         if self.outputs['Layer'].links:
+            # ect_node = self.outputs['Layer'].links[0].to_node if self.outputs['Layer'].links[0].to_node.envi_con_type else self.outputs['Layer'].links[0].to_node.outputs['Layer'].links[0].to_node
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type
 
         self.valid()
@@ -7589,7 +7638,9 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
             socklink(sock, self.id_data.name)
 
         if self.outputs['Layer'].links:
+            # ect_node = self.outputs['Layer'].links[0].to_node if self.outputs['Layer'].links[0].to_node.envi_con_type else self.outputs['Layer'].links[0].to_node.outputs['Layer'].links[0].to_node
             self.envi_con_type = self.outputs['Layer'].links[0].to_node.envi_con_type
+
         self.valid()
 
     def valid(self):
@@ -7637,21 +7688,21 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
     bl_idname = 'No_En_Mat_Sh'
     bl_label = 'EnVi shade'
 
-    st: FloatProperty(name = "", description = "Solar transmittance", min = 0.0, max = 1, default = 0.05)
-    sr: FloatProperty(name = "", description = "Solar reflectance", min = 0.0, max = 1, default = 0.3)
-    vt: FloatProperty(name = "", description = "Visible transmittance", min = 0.0, max = 1, default = 0.05)
-    vr: FloatProperty(name = "", description = "Visible reflectance", min = 0.0, max = 1, default = 0.3)
-    ihe: FloatProperty(name = "", description = "Infrared Hemispherical Emissivity", min = 0.0, max = 1, default = 0.9)
-    it: FloatProperty(name = "", description = "Infrared Transmittance", min = 0.0, max = 1, default = 0.0)
-    thi: FloatProperty(name = "mm", description = "Thickness", min = 0.1, max = 1000, default = 5)
-    tc: FloatProperty(name = "W/m.K", description = "Conductivity", min = 0.0001, max = 10, precision=3, default = 0.1)
-    sgd: FloatProperty(name = "mm", description = "Shade to glass distance", min = 0.1, max = 1000, default = 50)
-    tom: FloatProperty(name = "", description = "Top opening multiplier", min = 0.0, max = 1, default = 0.5)
-    bom: FloatProperty(name = "", description = "Bottom opening multiplier", min = 0.0, max = 1, default = 0.5)
-    lom: FloatProperty(name = "", description = "Left-side opening multiplier", min = 0.0, max = 1, default = 0.5)
-    rom: FloatProperty(name = "", description = "Right-side opening multiplier", min = 0.0, max = 1, default = 0.5)
-    afp: FloatProperty(name = "", description = "Air flow permeability", min = 0.0, max = 1, default = 0.)
-    envi_con_type: StringProperty(name = "", description = "Name")
+    st: FloatProperty(name="", description="Solar transmittance", min=0.0, max=1, default=0.05)
+    sr: FloatProperty(name="", description="Solar reflectance", min=0.0, max=1, default=0.3)
+    vt: FloatProperty(name="", description="Visible transmittance", min=0.0, max=1, default=0.05)
+    vr: FloatProperty(name="", description="Visible reflectance", min=0.0, max=1, default=0.3)
+    ihe: FloatProperty(name="", description="Infrared Hemispherical Emissivity", min=0.0, max=1, default=0.9)
+    it: FloatProperty(name="", description="Infrared Transmittance", min=0.0, max=1, default=0.0)
+    thi: FloatProperty(name="mm", description="Thickness", min=0.1, max=1000, default=5)
+    tc: FloatProperty(name="W/m.K", description="Conductivity", min=0.0001, max=10, precision=3, default=0.1)
+    sgd: FloatProperty(name="mm", description="Shade to glass distance", min=0.1, max=1000, default=50)
+    tom: FloatProperty(name="", description="Top opening multiplier", min=0.0, max=1, default=0.5)
+    bom: FloatProperty(name="", description="Bottom opening multiplier", min=0.0, max=1, default=0.5)
+    lom: FloatProperty(name="", description="Left-side opening multiplier", min=0.0, max=1, default=0.5)
+    rom: FloatProperty(name="", description="Right-side opening multiplier", min=0.0, max=1, default=0.5)
+    afp: FloatProperty(name="", description="Air flow permeability", min=0.0, max=1, default=0.)
+    envi_con_type: StringProperty(name="", description="Name")
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Sh', 'Layer')
@@ -7704,28 +7755,28 @@ class No_En_Mat_Sc(Node, EnViMatNodes):
     bl_idname = 'No_En_Mat_Sc'
     bl_label = 'EnVi screen'
 
-    rb: EnumProperty(items = [("DoNotModel", "DoNotModel", "Do not model reflected beam component"),
+    rb: EnumProperty(items=[("DoNotModel", "DoNotModel", "Do not model reflected beam component"),
                                ("ModelAsDirectBeam", "ModelAsDirectBeam", "Model reflectred beam as beam"),
                                ("ModelAsDiffuse", "ModelAsDiffuse", "Model reflected beam as diffuse")],
-                                name = "", description = "Composition of the layer", default = "ModelAsDiffuse")
-    ta: EnumProperty(items = [("0", "0", "Angle of Resolution for Screen Transmittance Output Map"),
+                                name="", description="Composition of the layer", default="ModelAsDiffuse")
+    ta: EnumProperty(items=[("0", "0", "Angle of Resolution for Screen Transmittance Output Map"),
                                ("1", "1", "Angle of Resolution for Screen Transmittance Output Map"),
                                ("2", "2", "Angle of Resolution for Screen Transmittance Output Map"),
                                ("3", "3", "Angle of Resolution for Screen Transmittance Output Map"),
                                ("5", "5", "Angle of Resolution for Screen Transmittance Output Map")],
-                                name = "", description = "Angle of Resolution for Screen Transmittance Output Map", default = "0")
+                                name="", description="Angle of Resolution for Screen Transmittance Output Map", default="0")
 
-    dsr: FloatProperty(name = "", description = "Diffuse solar reflectance", min = 0.0, max = 0.99, default = 0.5)
-    vr: FloatProperty(name = "", description = "Visible reflectance", min = 0.0, max = 1, default = 0.6)
-    the: FloatProperty(name = "", description = "Thermal Hemispherical Emissivity", min = 0.0, max = 1, default = 0.9)
-    tc: FloatProperty(name = "W/m.K", description = "Conductivity", min=0.0001, max=10, precision=3, default=0.1)
-    sme: FloatProperty(name = "mm", description = "Screen Material Spacing", min = 1, max = 1000, default = 50)
-    smd: FloatProperty(name = "mm", description = "Screen Material Diameter", min = 1, max = 1000, default = 25)
-    sgd: FloatProperty(name = "mm", description = "Screen to glass distance", min = 1, max = 1000, default = 25)
-    tom: FloatProperty(name = "", description = "Top opening multiplier", min = 0.0, max = 1, default = 0.5)
-    bom: FloatProperty(name = "", description = "Bottom opening multiplier", min = 0.0, max = 1, default = 0.5)
-    lom: FloatProperty(name = "", description = "Left-side opening multiplier", min = 0.0, max = 1, default = 0.5)
-    rom: FloatProperty(name = "", description = "Right-side opening multiplier", min = 0.0, max = 1, default = 0.5)
+    dsr: FloatProperty(name="", description="Diffuse solar reflectance", min=0.0, max=0.99, default=0.5)
+    vr: FloatProperty(name="", description="Visible reflectance", min=0.0, max=1, default=0.6)
+    the: FloatProperty(name="", description="Thermal Hemispherical Emissivity", min=0.0, max=1, default=0.9)
+    tc: FloatProperty(name="W/m.K", description="Conductivity", min=0.0001, max=10, precision=3, default=0.1)
+    sme: FloatProperty(name="mm", description="Screen Material Spacing", min=1, max=1000, default=50)
+    smd: FloatProperty(name="mm", description="Screen Material Diameter", min=1, max=1000, default=25)
+    sgd: FloatProperty(name="mm", description="Screen to glass distance", min=1, max=1000, default=25)
+    tom: FloatProperty(name="", description="Top opening multiplier", min=0.0, max=1, default=0.5)
+    bom: FloatProperty(name="", description="Bottom opening multiplier", min=0.0, max=1, default=0.5)
+    lom: FloatProperty(name="", description="Left-side opening multiplier", min=0.0, max=1, default=0.5)
+    rom: FloatProperty(name="", description="Right-side opening multiplier", min=0.0, max=1, default=0.5)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Sc', 'Outer Layer')
