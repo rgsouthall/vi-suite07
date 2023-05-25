@@ -175,10 +175,13 @@ class VI_PT_3D(bpy.types.Panel):
                         newrow(layout, 'Enable:', svp, 'vi_display_rp')
 
                         if svp.vi_display_rp:
-                            propdict = OrderedDict([("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
+                            propdict = OrderedDict([("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"),
+                                                    ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"),
+                                                    ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
 
                             for prop in propdict.items():
-                                newrow(layout, prop[0], svp, prop[1])
+                                if svp.vi_display_rp_sh or prop[0] != "Shadow colour:":
+                                    newrow(layout, prop[0], svp, prop[1])
 
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
@@ -414,7 +417,7 @@ class VI_PT_Ob(bpy.types.Panel):
 
                     # except Exception as e:
                     #     print(e)
-                    
+
                     row = layout.row()
                     row.operator("object.ec_edit", text="Edit")
                     # if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
@@ -429,7 +432,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     newrow(layout, "Embodied unit:", ovp, "ec_unit")
                     newrow(layout, "Embodied amount:", ovp, "ec_amount")
                     newrow(layout, "Embodied value per amount:", ovp, "ec_du")
-                    
+
                     if ovp.ec_unit not in ('kg', 'm3', 'tonnes'):
                         newrow(layout, "Embodied weight:", ovp, "ec_weight")
 
@@ -554,7 +557,7 @@ class VI_PT_Col(bpy.types.Panel):
         row = layout.row()
         row.label(text='Floor area (m2): {}'.format(fa))
         newrow(layout, 'Embodied:', cvp, 'embodied')
-        
+
         if cvp.embodied:
             newrow(layout, 'Embodied class:', cvp, 'embodiedtype')
 
@@ -577,7 +580,7 @@ class VI_PT_Col(bpy.types.Panel):
 
                 # except Exception as e:
                 #     print(e)
-                
+
                 row = layout.row()
                 row.operator("object.ec_edit", text="Edit")
                 # if all((ovp.embodiedtype, ovp.embodiedclass, ovp.embodiedmat)):
@@ -592,10 +595,10 @@ class VI_PT_Col(bpy.types.Panel):
                 newrow(layout, "Embodied unit:", cvp, "ec_unit")
                 newrow(layout, "Embodied amount:", cvp, "ec_amount")
                 newrow(layout, "Embodied value per amount:", cvp, "ec_du")
-                
+
                 if cvp.ec_unit not in ('kg', 'm3', 'tonnes'):
                     newrow(layout, "Embodied weight:", cvp, "ec_weight")
-                
+
                 newrow(layout, "Embodied density:", cvp, "ec_density")
                 newrow(layout, "Lifespan:", cvp, "ec_life")
 

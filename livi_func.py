@@ -408,7 +408,8 @@ def retpmap(node, frame, scene):
 
 
 def retsv(self, scene, frame, rtframe, chunk, rt):
-    svcmd = "rcontrib -w -I -n {} {} -m sky_glow {}-{}.oct ".format(scene.vi_params['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002 ', scene.vi_params['viparams']['filebase'], frame)
+    svcmd = "rcontrib -w -I -n {} {} -m sky_glow {}-{}.oct ".format(scene.vi_params['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002 ',
+                                                                    scene.vi_params['viparams']['filebase'], frame)
     rtrun = Popen(svcmd.split(), stdin=PIPE, stdout=PIPE, stderr=STDOUT, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
     reslines = nsum(array([[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].splitlines()[10:]]), axis=1)
     reslines[reslines > 0] = 1
@@ -721,7 +722,6 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum blue irradiance (W)', ' '.join(['{:.3f}'.format(self['omax']['firradb{}'.format(frame)]) for frame in frames])])
             reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum blue irradiance (W)', ' '.join(['{:.3f}'.format(self['omin']['firradb{}'.format(frame)]) for frame in frames])])
 
-
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)
     bm.free()
@@ -951,32 +951,35 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     gp[firradm2] = kwhm2[gi]
 
             elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
-                # illuarray = nsum(resarray*illumod, axis = 2).astype(float32)
-                # finalillu = inner(illuarray, vecvals).astype(float32)
-                # print('ns', rccmds[f][:36]+ '1' + rccmds[f][37:])
                 rclist = rccmds[f].split()
-                rclist[rclist.index('-ab') + 1] = '1'
+                # rclist[rclist.index('-ab') + 1] = '1'
 
-                if '-ap' in rclist:
-                    rclist[rclist.index('-ap') + 1] = ''
-                    rclist[rclist.index('-ap')] = ''
+                # if '-ap' in rclist:
+                #     rclist[rclist.index('-ap') + 1] = ''
+                #     rclist[rclist.index('-ap')] = ''
+                # if '-ad' in rclist:
+                #     rclist[rclist.index('-ad') + 1] = '8192'
+                # if '-lw' in rclist:
+                #     rclist[rclist.index('-lw') + 1] = '0.0001'
+                # if '-ar' in rclist:
+                #     rclist[rclist.index('-ar') + 1] = '0'
 
-                rccmd = ' '.join(rclist)
+                rccmd = ' '.join(rclist[:4] + ['-ab 1 -ad 8192 -lw 0.0001 -lr 0'] + rclist[-11:])
                 sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
-                resarrayns = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
-                illuarrayns = nsum(resarrayns*illumod, axis=2).astype(float32)
-                finalilluns = inner(illuarrayns, vecvalsns).astype(float32)
-                sensrunpa = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
-                resarraypa = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunpa[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
+                resarrayd = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
+                sensarrayns = nsum(resarrayd*illumod, axis=2).astype(float32)
+                finalilluns = inner(sensarrayns, vecvalsns).astype(float32)
                 dabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
                 asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)
                 udilbool = choose(finalillu < simnode['coptions']['damin'], [0, 1]).astype(int8)
                 udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
                 udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
                 udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)
-                svbool = choose(nsum(nsum(resarraypa, axis=1), axis=1) > 0, [0, 1]).astype(int8)
+
+                svbool = choose(nsum(nsum(resarrayd, axis=1), axis=1) > 0.0, [0, 1]).astype(int8)
                 sdafinalillu = finalillu[:, logical_and(8 <= hour_array, hour_array < 18)] if simnode['coptions']['ay'] else finalillu
                 sdabool = choose(sdafinalillu >= 300, [0, 1]).astype(int8)
+
                 daareares = (dabool.T*chareas).T
                 udilareares = (udilbool.T*chareas).T
                 udisareares = (udisbool.T*chareas).T
@@ -995,25 +998,25 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
                 if not ch:
                     totfinalillu = finalillu
-                    totdaarea = nsum(100 * daareares/totarea, axis = 0)
-                    totudiaarea = nsum(100 * udiaareares/totarea, axis = 0)
-                    totudisarea = nsum(100 * udisareares/totarea, axis = 0)
-                    totudilarea = nsum(100 * udilareares/totarea, axis = 0)
-                    totudiharea = nsum(100 * udihareares/totarea, axis = 0)
-                    totsdaarea = nsum(sdaareares, axis = 0)
-                    totsdaareapa = nsum(sdaarearespa, axis = 0)
-                    totasearea = nsum(aseareares, axis = 0)
+                    totdaarea = nsum(100 * daareares/totarea, axis=0)
+                    totudiaarea = nsum(100 * udiaareares/totarea, axis=0)
+                    totudisarea = nsum(100 * udisareares/totarea, axis=0)
+                    totudilarea = nsum(100 * udilareares/totarea, axis=0)
+                    totudiharea = nsum(100 * udihareares/totarea, axis=0)
+                    totsdaarea = nsum(sdaareares, axis=0)
+                    totsdaareapa = nsum(sdaarearespa, axis=0)
+                    totasearea = nsum(aseareares, axis=0)
                     svarea = nsum(chareas * svbool)
                 else:
                     nappend(totfinalillu, finalillu)
-                    totdaarea += nsum(100 * daareares/totarea, axis = 0)
-                    totudiaarea += nsum(100 * udiaareares/totarea, axis = 0)
-                    totudilarea += nsum(100 * udilareares/totarea, axis = 0)
-                    totudisarea += nsum(100 * udisareares/totarea, axis = 0)
-                    totudiharea += nsum(100 * udihareares/totarea, axis = 0)
-                    totsdaarea += nsum(sdaareares, axis = 0)
-                    totsdaareapa += nsum(sdaarearespa, axis = 0)
-                    totasearea += nsum(aseareares, axis = 0)
+                    totdaarea += nsum(100 * daareares/totarea, axis=0)
+                    totudiaarea += nsum(100 * udiaareares/totarea, axis=0)
+                    totudilarea += nsum(100 * udilareares/totarea, axis=0)
+                    totudisarea += nsum(100 * udisareares/totarea, axis=0)
+                    totudiharea += nsum(100 * udihareares/totarea, axis=0)
+                    totsdaarea += nsum(sdaareares, axis=0)
+                    totsdaareapa += nsum(sdaarearespa, axis=0)
+                    totasearea += nsum(aseareares, axis=0)
                     svarea += nsum(chareas * svbool)
 
                 for gi, gp in enumerate(chunk):
@@ -1043,8 +1046,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['firradhm2{}'.format(frame)] = nmax(finalkwhm2).astype(float64)
             self['omin']['firradhm2{}'.format(frame)] = nmin(finalkwhm2).astype(float64)
             self['oave']['firradhm2{}'.format(frame)] = nmean(finalkwhm2).astype(float64)
-            self['livires']['firradh{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
-            self['livires']['firradhm2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()
+            self['livires']['firradh{}'.format(frame)] = (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
+            self['livires']['firradhm2{}'.format(frame)] = (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'sum kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'ave kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
 
@@ -1115,7 +1118,12 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['livires']['sda{}'.format(frame)] = sumsdaareas/totarea
             self['livires']['sdapa{}'.format(frame)] = sumsdaareas/svarea
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaarea/totarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaareapa/svarea])])
+
+            if svarea:
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaareapa/svarea])])
+            else:
+                logentry(f'Sensor object {self.id_data.name} cannot see any sky.')
+
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join([f'{p:.2f}' for p in 100 * totasearea/totarea])])
 
     bm.transform(self.id_data.matrix_world.inverted())

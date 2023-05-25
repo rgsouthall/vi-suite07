@@ -553,10 +553,10 @@ class results_bar():
                 (xpos + 5 + no * self.size, rh - self.iyoffset))
 
     def draw(self, xpos, rh):
-        if self.rh != rh or xpos != self.xpos:
+        if self.rh != rh or xpos != self.xpos - 10:
             self.ipos = []
             self.rh = rh
-            self.xpos = xpos
+            self.xpos = xpos + 10
 
             v_coords = ((self.xpos, rh - self.yoffset - self.size), (self.xpos + self.no * self.size, rh - self.yoffset - self.size),
                         (self.xpos + self.no * self.size, rh - self.yoffset), (self.xpos, rh - self.yoffset), (self.xpos, rh - self.yoffset - self.size))
@@ -874,7 +874,7 @@ class wr_legend(Base_Display):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
         self.unit = unit
         self.font_id = 0
-        self.dpi = 300
+        self.dpi = 72
         self.update(context)
         self.create_batch()
         self.line_shader.bind()
@@ -909,7 +909,7 @@ class wr_legend(Base_Display):
         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
 
     def draw(self, context):
-        ah = context.area.regions[2].height
+        ah = context.area.regions[3].height
         aw = context.area.regions[2].width
 
         if self.expand:
@@ -940,16 +940,16 @@ class wr_legend(Base_Display):
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
             self.line_batch.draw(self.line_shader)
             fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
-            blf.enable(0, 4)
-            blf.enable(0, 8)
-            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
+            blf.enable(self.font_id, 4)
+            blf.enable(self.font_id, 8)
+            # blf.shadow(self.font_id, 3, 0.7, 0.7, 0.7, 1)
             blf.size(self.font_id, 12, int(self.dpi/fontscale))
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
                          self.lepos[1] - 0.5 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
-            blf.shadow(self.font_id, 5, 0.8, 0.8, 0.8, 1)
-            blf.size(self.font_id, 14, int((self.dpi - 50)/fontscale))
+            # blf.shadow(self.font_id, 3, 0.8, 0.8, 0.8, 1)
+            blf.size(self.font_id, 14, int(self.dpi/fontscale))
 
             for i in range(self.levels):
                 num = self.resvals[i]
@@ -958,8 +958,8 @@ class wr_legend(Base_Display):
                              int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
 
-            blf.disable(0, 8)
-            blf.disable(0, 4)
+            blf.disable(self.font_id, 8)
+            blf.disable(self.font_id, 4)
 
     def create_batch(self):
         base_shader = gpu.types.GPUShaderCreateInfo()
@@ -1106,17 +1106,17 @@ class wr_table(Base_Display):
                 vl_coords += [(ctws[ci], ri * rh), (ctws[ci + 1], ri * rh), (ctws[ci + 1], (ri + 1) * rh)]  # , (ci * rw, (ri + 1) * rh), (ci * rw, ri * rh)]
 
         vl_coords += [(0, 1)]
-        vln_coords= [(100, 100), (200, 100), (200, 150), (100, 175)]
-        vertex_colors = [(0, 0, 0, 1) for vlc in vln_coords]
+        # vln_coords= [(100, 100), (200, 100), (200, 150), (100, 175)]
+        vertex_colors = [(0, 0, 0, 1) for x in range(4)]
         vertex_colors[-2] = (0, 0, 1, 0)
         vertex_colors[-1] = (0, 0, 1, 1)
         self.base_batch = batch_for_shader(self.base_shader, 'TRIS', {"position": v_coords}, indices=f_indices)
-        self.line2_batch = batch_for_shader(self.line2_shader, 'LINE_STRIP', {"pos": vln_coords, "color": vertex_colors})
+        # self.line2_batch = batch_for_shader(self.line2_shader, 'LINE_STRIP', {"pos": vln_coords, "color": vertex_colors})
         self.line_batch = batch_for_shader(self.line_shader, 'LINE_STRIP', {"position": vl_coords})
         # self.line_batch.draw(self.line_shader)
 
     def draw(self, context):
-        ah = context.area.regions[2].height
+        ah = context.area.regions[3].height
         aw = context.area.regions[2].width
 
         if self.expand:
@@ -1146,9 +1146,9 @@ class wr_table(Base_Display):
             # self.line2_shader.bind()
 
             fid = self.font_id
-            blf.enable(0, 4)
-            blf.enable(0, 8)
-            blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
+            blf.enable(fid, 4)
+            blf.enable(fid, 8)
+            # blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
             blf.size(fid, 24, 300)
             rcshape = self.rcarray.shape
             [rowno, colno] = self.rcarray.shape
@@ -1182,15 +1182,15 @@ class wr_table(Base_Display):
                             blf.position(fid, self.lspos[0] + ctws[c] - int(blf.dimensions(fid, '{}'.format(self.rcarray[r][c]))[0] * 0.5), int(rowmids[r] - 0.5 * blf.dimensions(fid, 'H')[1]), 0)
                         blf.draw(fid, '{}'.format(self.rcarray[r][c]))
 
-            blf.disable(0, 8)
-            blf.disable(0, 4)
+            blf.disable(fid, 8)
+            blf.disable(fid, 4)
 
 
 class draw_legend(Base_Display):
     def __init__(self, context, unit, pos, width, height, xdiff, ydiff, levels):
         Base_Display.__init__(self, pos, width, height, xdiff, ydiff)
         self.base_unit = unit
-        self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Regular.ttf'))
+        self.font_id = blf.load(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'Fonts/NotoSans-Light.ttf'))
         self.dpi = 72
         self.levels = levels
         self.v_coords = [(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)]
@@ -1230,7 +1230,7 @@ class draw_legend(Base_Display):
             blf.size(self.font_id, 12, self.dpi)
             self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
             self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
-            self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
+            self.mydimen = blf.dimensions(self.font_id, 'M')[1]
 
     def ret_coords(self):
         lh = 1/(self.levels + 1.5)
@@ -1242,14 +1242,14 @@ class draw_legend(Base_Display):
 
         for i in range(0, self.levels):
             if i < self.levels - 1:
-                vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.5, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
+                vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.45, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
             else:
                 vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
 
         return (vl_coords, fl_indices)
 
     def draw(self, context):
-        self.ah = context.area.regions[2].height
+        self.ah = context.area.regions[3].height
         self.aw = context.area.regions[2].width
         svp = context.scene.vi_params
 
@@ -1294,30 +1294,30 @@ class draw_legend(Base_Display):
             self.line_shader.uniform_float("size", (self.xdiff, self.ydiff))
             self.line_shader.uniform_float("spos", self.lspos)
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
-            # self.line_batch.draw(self.line_shader)
-
-            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.5), self.mydimen * 1.15/(self.lh * self.ydiff))
-            blf.enable(0, 8)
-            #blf.enable(self.font_id, blf.SHADOW)
-            #blf.shadow(self.font_id, 0, 0.2, 0.2, 0.2, 1)
-            #blf.shadow_offset(self.font_id, 1, 1)
-            blf.size(self.font_id, int(12/fontscale), self.dpi)
+            self.line_batch.draw(self.line_shader)
+            tfontscale = max(self.titxdimen/(self.xdiff * 0.95), self.mydimen * 1.15/(self.lh * self.ydiff))
+            blf.enable(self.font_id, 4)
+            blf.enable(self.font_id, 8)
+            blf.enable(self.font_id, blf.SHADOW)
+            blf.shadow(self.font_id, 3, 0.7, 0.7, 0.7, 1)
+            blf.size(self.font_id, int(12/tfontscale), self.dpi)
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
-                         self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.5, 0)
+                         self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, 'M')[1] * 0.5, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
-#            blf.shadow(self.font_id, 5, 0.2, 0.2, 0.2, 1)
-            blf.size(self.font_id, int(11/fontscale), self.dpi)
+            # blf.disable(self.font_id, blf.SHADOW)
+            lfontscale = max(self.resxdimen/(self.xdiff * 0.45), self.mydimen * 1.15/(self.lh * self.ydiff))
+            blf.size(self.font_id, int(11/lfontscale), self.dpi)
 
             for i in range(1, self.levels):
                 num = self.resvals[i]
                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
-#                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.5), 0)
                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + (i + 0.25) * self.lh * self.ydiff - ndimen[1]*0.5), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
 
-            #blf.disable(self.font_id, blf.SHADOW)
-            blf.disable(0, 8)
+            blf.disable(self.font_id, blf.SHADOW)
+            blf.disable(self.font_id, 8)
+            blf.disable(self.font_id, 4)
 
     def create_batch(self):
         '''New code for cross-platform shaders'''
@@ -1986,7 +1986,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        r2h = context.area.regions[2].height
+        r3h = context.area.regions[3].height
         r2w = context.area.regions[2].width
         scene = context.scene
         svp = scene.vi_params
@@ -1995,9 +1995,9 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_scatt_col
         self.images = ('legend.png', 'table.png')
         self.results_bar = results_bar(self.images)
-        self.legend = wr_legend(context, 'Speed (m/s)', [305, r2h - 80], r2w, r2h, 125, 300)
-        self.table = wr_table(context, [355, r2h - 80], r2w, r2h, 400, 60)
-        scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 2)[0]
+        self.legend = wr_legend(context, 'Speed (m/s)', [305, r3h - 80], r2w, r3h, 125, 300)
+        self.table = wr_table(context, [355, r3h - 80], r2w, r3h, 400, 60)
+        # scatter_icon_pos = self.results_bar.ret_coords(r2w, r3h, 2)[0]
         self.cao = [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"][0] if [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"] else 0
 
         if not self.cao:
@@ -2018,7 +2018,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.xtitle = 'Days'
         self.ytitle = 'Hours'
         # self.dhscatter = draw_scatter(context, scatter_icon_pos, r2w, r2h, 600, 200, self)
-        self.height = r2h
+        self.height = r3h
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["wr"] = self.draw_handle_wrnum
         context.area.tag_redraw()
@@ -2029,7 +2029,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0
-        updates = [0 for i in self.images]
+        # updates = [0 for i in self.images]
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or not context.area:
             svp.vi_display = 0
@@ -2106,11 +2106,11 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
 
     def draw_wrnum(self, context):
         svp = context.scene.vi_params
-        r2h = context.area.regions[2].height
+        r3h = context.area.regions[3].height
         r2w = context.area.regions[2].width
 
         try:
-            self.results_bar.draw(r2w, r2h)
+            self.results_bar.draw(r2w, r3h)
             self.legend.draw(context)
             self.table.draw(context)
             # self.dhscatter.draw(context)
@@ -2130,9 +2130,9 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
 
     def invoke(self, context, event):
         rw = context.region.width
-        r2 = context.area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
+        # r2 = context.area.regions[2]
+        r3h = context.area.regions[3].height
+        r2w = context.area.regions[2].width
         svp = context.scene.vi_params
         self.livi_coll = create_empty_coll(context, 'LiVi Results')
         context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 0
@@ -2142,10 +2142,10 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(context, self, self.simnode)
         self.results_bar = results_bar(('legend.png',))
-        legend_icon_pos = self.results_bar.ret_coords(r2w, r2h, 0)[0]
-        self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, rw, r2h, 100, 400, 20)
+        legend_icon_pos = self.results_bar.ret_coords(r2w, r3h, 0)[0]
+        self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, rw, r3h, 100, 400, 20)
         self.legend_num = linumdisplay(self, context)
-        self.height = r2h
+        self.height = r3h
         self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["svf"] = self.draw_handle_svfnum
         self.cao = context.active_object
@@ -2154,12 +2154,11 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def draw_svfnum(self, context):
-        r2 = context.area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
+        r3h = context.area.regions[3].height
+        r2w = context.area.regions[2].width
 
         try:
-            self.results_bar.draw(r2w, r2h)
+            self.results_bar.draw(r2w, r3h)
             self.legend.draw(context)
             self.legend_num.draw(context)
         except Exception:
@@ -2245,9 +2244,9 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
     def invoke(self, context, event):
         rw = context.region.width
-        r2 = context.area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
+        # r2 = context.area.regions[2]
+        r3h = context.area.regions[3].height
+        r2w = context.area.regions[2].width
         self.scene = context.scene
         region = context.region
         self.height = region.height
@@ -2268,13 +2267,13 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.ytitle = 'Hours'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(context, self, self.simnode)
-        self.images = ('legend.png')
+        self.images = ('legend.png', )
         self.results_bar = results_bar(self.images)
-        legend_icon_pos = self.results_bar.ret_coords(r2w, r2h, 0)[0]
-        self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, rw, r2h, 100, 400, 20)
+        legend_icon_pos = self.results_bar.ret_coords(r2w, r3h, 0)[0]
+        self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, rw, r3h, 100, 400, 20)
         self.num_display = linumdisplay(self, context)
-        #scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]
-        #self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)
+        # scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]
+        # self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)
         svp.vi_disp_wire = 1
         self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["ss"] = self.draw_handle_ssnum
@@ -2306,11 +2305,6 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                 self.zdata = array(context.active_object.vi_params['ss{}'.format(self.frame)])
                 self.xdata = array(self.cao.vi_params['days'])
                 self.ydata = array(self.cao.vi_params['hours'])
-                updates[1] = 1
-
-        # if updates[1]:
-        #     self.dhscatter.update(self)
-        #     redraw = 1
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
@@ -2379,14 +2373,12 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
     def draw_ssnum(self, context):
         area = context.area
-        r2 = area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
+        r3h = area.regions[3].height
+        r2w = area.regions[2].width
 
         try:
-            self.results_bar.draw(r2w, r2h)
+            self.results_bar.draw(r2w, r3h)
             self.legend.draw(context)
-            # self.dhscatter.draw(context)
             self.num_display.draw(context)
 
         except Exception:
@@ -2403,9 +2395,9 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene
         svp = scene.vi_params
-        r2 = context.area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
+        # r2 = context.area.regions[2]
+        r3h = context.area.regions[3].height
+        r2w = context.area.regions[2].width
         redraw = 0
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or not context.area:
@@ -2436,7 +2428,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
-            rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
+            rbxl = self.results_bar.ret_coords(r2w, r3h, 0)
 
             if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.bsdf.hl = (0.8, 0.8, 0.8, 0.8)
@@ -2450,7 +2442,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                 return {'RUNNING_MODAL'}
 
             elif self.bsdf.expand:
-                self.bsdf.lspos = [self.results_bar.ret_coords(r2w, r2h, 0)[0][0] - 5, self.results_bar.ret_coords(r2w, r2h, 0)[0][1] - self.bsdf.ydiff - 25]
+                self.bsdf.lspos = [self.results_bar.ret_coords(r2w, r3h, 0)[0][0] - 5, self.results_bar.ret_coords(r2w, r3h, 0)[0][1] - self.bsdf.ydiff - 25]
                 self.bsdf.lepos = [self.bsdf.lspos[0] + self.bsdf.xdiff, self.bsdf.lspos[1] + self.bsdf.ydiff]
 
                 if ((mx - (self.bsdf.lspos[0] + 50 + 125))**2 + (my - self.bsdf.lepos[1] + 155)**2)**0.5 <= 124:
@@ -2497,9 +2489,9 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
         caomvp = cao.active_material.vi_params
         region = context.region
         area = context.area
-        r2 = area.regions[2]
-        r2h = r2.height
-        r2w = r2.width
+        # r2 = area.regions[2]
+        r3h = area.regions[3].height
+        r2w = area.regions[2].width
         scene = context.scene
         svp = scene.vi_params
 
@@ -2508,7 +2500,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
             self.images = ['bsdf.png']
             self.results_bar = results_bar(self.images)
-            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r2h, 0)[0], region.width, r2h, 400, 650)
+            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r3h, 0)[0], region.width, r3h, 400, 650)
             svp.vi_display = 1
             self.draw_handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
             bpy.app.driver_namespace["bsdf"] = self.draw_handle_bsdfnum
@@ -2523,8 +2515,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
 
     def draw_bsdfnum(self, context):
         try:
-            r2 = context.area.regions[2]
-            self.results_bar.draw(r2.width, r2.height)
+            self.results_bar.draw(context.area.regions[2].width, context.area.regions[3].height)
             self.bsdf.draw(context)
         except Exception:
             context.scene.vi_params.vi_display = 0
@@ -2557,13 +2548,12 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             return {'CANCELLED'}
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
-            r2 = context.area.regions[2]
-            r2h = r2.height
-            r2w = r2.width
+            r3h = context.area.regions[3].height
+            r2w = context.area.regions[2].width
             mx, my = event.mouse_region_x, event.mouse_region_y
 
             # Legend routine
-            rbxl = self.results_bar.ret_coords(r2w, r2h, 0)
+            rbxl = self.results_bar.ret_coords(r2w, r3h, 0)
 
             if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8)
@@ -2624,7 +2614,8 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
     def invoke(self, context, event):
         area = context.area
         r2 = area.regions[2]
-        r2h = r2.height
+        r3 = area.regions[3]
+        r3h = r3.height
         r2w = r2.width
         self.scene = context.scene
         svp = context.scene.vi_params
@@ -2640,7 +2631,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         if li_display(context, self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
 
-        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r2h, 0)[0], r2w, r2h, 75, 400, 20)
+        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r3h, 0)[0], r2w, r3h, 75, 400, 20)
         self.legend_num = linumdisplay(self, context)
         self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["li"] = self.draw_handle_linum
@@ -2649,9 +2640,10 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
     def draw_linum(self, context):
         r2 = context.area.regions[2]
+        r3 = context.area.regions[3]
 
         try:
-            self.results_bar.draw(r2.width, r2.height)
+            self.results_bar.draw(r2.width, r3.height)
             self.legend.draw(context)
             self.legend_num.draw(context)
 

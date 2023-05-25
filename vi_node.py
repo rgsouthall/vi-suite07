@@ -1189,7 +1189,7 @@ class No_Li_Sim(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
-        if self.simacc == '3':
+        if self.simacc == '3' or self.csimacc == "0":
             self.validparams = validradparams(self.cusacc)
 
     simacc: EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"), ("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),
@@ -1211,7 +1211,7 @@ class No_Li_Sim(Node, ViNodes):
     new_res: BoolProperty(name='', default=False)
 
     def init(self, context):
-        self['simdict'] = {'Basic': 'simacc', 'Compliance': 'csimacc', 'CBDM': 'csimacc'}
+        self['simdict'] = {'Basic': 'simacc', 'CBDM': 'csimacc'}
         self.inputs.new('So_Li_Geo', 'Geometry in')
         self.inputs.new('So_Li_Con', 'Context in')
         self.outputs.new('So_Vi_Res', 'Results out')
@@ -1272,8 +1272,8 @@ class No_Li_Sim(Node, ViNodes):
             self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rtraceparams[k][int(self.simacc)]) for k in rtraceparams])
             self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc)]) for k in rvuparams])
         else:
-            self['radparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rtracecbdmparams[k][int(self.simacc) - 1]) for k in rtracecbdmparams])
-            self['rvuparams'] = ' {} '.format(self.cusacc) if self.simacc == '3' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])
+            self['radparams'] = ' {} '.format(self.cusacc) if self.csimacc == '0' else ''.join([' {} {} '.format(k, rtracecbdmparams[k][int(self.simacc) - 1]) for k in rtracecbdmparams])
+            self['rvuparams'] = ' {} '.format(self.cusacc) if self.csimacc == '0' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])
 
     def sim(self, scene):
         svp = scene.vi_params
@@ -2735,7 +2735,8 @@ class No_Vi_Metrics(Node, ViNodes):
                     ec_typemenu.append('Surface')
                 if 'Zone EC (kgCO2e/y)' in ec_types:
                     ec_typemenu.append('Zone')
-                return [(ect, ect, 'EC type') for ect in ec_typemenu]
+
+                return [(ect, ect, 'EC type') for ect in ec_typemenu] if ec_typemenu else [('None', 'None', 'None')]
             except Exception:
                 return [('None', 'None', 'None')]
         else:
@@ -2767,7 +2768,10 @@ class No_Vi_Metrics(Node, ViNodes):
                                     ("1", "Healthcare", "Healthcare scenario"),
                                     ("2", "Multi-residential", "Multi-residential scenario"),
                                     ("3", "Retail", "Retail scenario"),
-                                    ("4", "Other", "Other scenario")],
+                                    ("4", "Prison", "Prison scenario"),
+                                    ("5", "Office", "Office scenario"),
+                                    ("6", "Creche", "Creche scenario"),
+                                    ("7", "Other", "Other scenario")],
                                     name="", description="BREEAM space type", default="0", update=zupdate)
     breeam_edumenu: EnumProperty(items=[("0", "School", "School context"),
                                         ("1", "Higher education", "Higher education scenario")],
@@ -2782,10 +2786,10 @@ class No_Vi_Metrics(Node, ViNodes):
     breeam_retailmenu: EnumProperty(items=[("0", "Sales", "Staff/public context"),
                                         ("1", "Other", "Patient scenario")],
                                     name="", description="BREEAM retail space type", default="0", update=zupdate)
-    breeam_othermenu: EnumProperty(items=[("0", "Cells", "Custody cells context"),
-                                          ("2", "Care", "Patient care scenario"),
-                                          ("3", "Lecture", "Lecture scenario"),
-                                          ("4", "Other", "All other scenario")],
+    breeam_prisonmenu: EnumProperty(items=[("0", "Cells", "Custody cells context"),
+                                          ("2", "Atrium", "Atrium scenario"),
+                                          ("3", "Patient", "Patient context"),
+                                          ("4", "Lecture", "Lecture context")],
                                    name="", description="BREEAM other space type", default="0", update=zupdate)
     g_roof: BoolProperty(name="", description="Glazed roof", default=0, update=zupdate)
     com_menu: EnumProperty(items=[("0", "Overheating", "Overheating analysis")],
@@ -2957,7 +2961,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 newrow(layout, 'Retail space:', self, "breeam_retailmenu")
 
                             elif self.breeam_menu == '4':
-                                newrow(layout, 'Other space:', self, "breeam_othermenu")
+                                newrow(layout, 'Prison space:', self, "breeam_prisonmenu")
 
                             newrow(layout, 'Glazed roof:', self, "g_roof")
 
@@ -2980,15 +2984,16 @@ class No_Vi_Metrics(Node, ViNodes):
                                     if self.breeam_healthmenu == '0':
                                         if areaDF >= 80:
                                             credits = 2
+
                                     elif self.breeam_healthmenu == '1':
                                         if areaDF >= 80:
-                                            credits = 2
+                                            credits = 1 if avDF < 3 else 2
 
                                 elif self.breeam_menu == '2':
                                     # if ratioDF >= 0.3:
                                     # newrow(layout, 'Multi-res space:', self, "breeam_multimenu")
                                     if areaDF >= 80:
-                                        credits = 1
+                                        credits = 2
 
                                 elif self.breeam_menu == '3':
                                     # newrow(layout, 'Retail space:', self, "breeam_retailmenu")
@@ -3002,25 +3007,37 @@ class No_Vi_Metrics(Node, ViNodes):
 
                                 elif self.breeam_menu == '4':
                                     # newrow(layout, 'Other space:', self, "breeam_othermenu")
-                                    if self.breeam_othermenu == '0':
+                                    if self.breeam_prisonmenu == '0':
                                         if areaDF >= 80:
-                                            credits = 1
+                                            credits = 2
 
-                                    elif self.breeam_othermenu == '1':
+                                    elif self.breeam_prisonmenu == '1':
                                         if areaDF >= 80:
-                                            credits = 1
+                                            credits = 2
 
-                                    elif self.breeam_othermenu == '2':
+                                    elif self.breeam_prisonmenu == '2':
                                         if areaDF >= 80:
-                                            credits = 1
+                                            credits = 2
 
-                                    elif self.breeam_othermenu == '3':
+                                    elif self.breeam_prisonmenu == '3':
                                         if areaDF >= 80:
-                                            credits = 1
+                                            credits = 2
 
-                                    elif self.breeam_othermenu == '4':
+                                    elif self.breeam_prisonmenu == '4':
                                         if areaDF >= 80:
-                                            credits = 1
+                                            credits = 2
+
+                                elif self.breeam_menu == '5':
+                                    if areaDF >= 80:
+                                        credits = 2
+
+                                elif self.breeam_menu == '6':
+                                    if areaDF >= 80:
+                                        credits = 2
+
+                                elif self.breeam_menu == '7':
+                                    if areaDF >= 80:
+                                        credits = 1
 
                                 row = layout.row()
                                 row.label(text="Average DF: {}%".format(avDF))
@@ -3231,7 +3248,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 row = layout.row()
                                 row.operator('node.vi_info', text='Infographic')
                     elif self.metric == '3':
-                        if self['res']['ec']:
+                        if self['res']['ec'] and self.frame_menu != 'All':
                             row = layout.row()
                             row.operator('node.ec_pie', text='Pie chart')
                         # elif self.frame_menu == 'All':
@@ -3271,7 +3288,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 else:
                     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
-                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All zones')]
+                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
 
                 self.inputs[0].links[0].from_node.new_res = 0
 
@@ -3290,6 +3307,8 @@ class No_Vi_Metrics(Node, ViNodes):
         if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
             self.zone_menu = self['znames'][0][0]
 
+        # if self.em_menu == '' or self.em_menu not in ('Object', 'Surface', 'Zone'):
+            # self.em_menu = 'None'
         # if self.probe_menu == '' or self.probe_menu not in [spr[0] for spr in self['probes']]:
         #     self.probe_menu = self['probes'][0][0]
 
@@ -3446,32 +3465,32 @@ class No_Vi_Metrics(Node, ViNodes):
 
             if self.light_menu == '0':
                 if self.breeam_menu == '0':
-                    mDF = 2
-                    mA = 0.8
+                    mDFs = (2, )
+                    mAs = (0.8, )
                     sdah = 2000
                     sdal = 300
                     sdaml = 90
                     cred = 2
 
-                    # if self.breeam_edumenu == '1':
-                    #     mA = 0.6
+                    if self.breeam_edumenu == '1':
+                        mAs = (0.6, 0.8)
                     #     cred = 1
 
                 elif self.breeam_menu == '1':
                     cred = 2
-                    mA = 0.8
-                    mDF = 2
+                    mAs = (0.8, )
+                    mDFs = (2, )
                     sdah = 2650
                     sdal = 300
                     sdaml = 90
 
                     if self.breeam_healthmenu == '1':
-                        mDF = 3
+                        mDF = (3, 2)
 
                 elif self.breeam_menu == '2':
                     cred = 1
-                    mDF = 2
-                    mA = 0.8
+                    mDFs = (2, )
+                    mAs = (0.8, )
                     msdaA = 1
                     sdah = 3450
                     sdal = 100
@@ -3485,26 +3504,42 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 elif self.breeam_menu == '3':
                     cred = 1
-                    mDF = 2
-                    mA = 0.8
+                    mDFs = (2, )
+                    mAs = (0.8, )
 
                     if self.breeam_retailmenu == '0':
-                        mA = 0.35
+                        mAs = (0.35, )
 
                 elif self.breeam_menu == '4':
+                    cred = 2
+
+                    if self.breeam_prisonmenu == '0':
+                        mAs = (0.8, )
+                        mDFs = (1.5, )
+                    elif self.breeam_prisonmenu == '1':
+                        mAs = (0.8, )
+                        mDFs = (3, )
+                    elif self.breeam_prisonmenu == '2':
+                        mAs = (0.8, )
+                        mDFs = (3, )
+                    elif self.breeam_prisonmenu == '3':
+                        mDFs = (2, )
+                        mAs = (0.8, )
+
+                elif self.breeam_menu == '5':
+                    cred = 2
+                    mDFs = (2, )
+                    mAs = (0.8, )
+
+                elif self.breeam_menu == '6':
+                    cred = 2
+                    mDFs = (2, )
+                    mAs = (0.8, )
+
+                elif self.breeam_menu == '7':
                     cred = 1
-
-                    if self.breeam_retailmenu == '0':
-                        mA = 0.35
-                    elif self.breeam_retailmenu == '1':
-                        mA = 0.8
-
-                    if self.breeam_othermenu == '0':
-                        mDF = 1.5
-                    elif self.breeam_othermenu in ('1', '2'):
-                        mDF = 3
-                    else:
-                        mDF = 2
+                    mDFs = (2, )
+                    mAs = (0.8, )
 
                 for r in self['rl']:
                     if r[0] == self.frame_menu:
@@ -3524,16 +3559,21 @@ class No_Vi_Metrics(Node, ViNodes):
                     ir = stdf[0][0]/(nsum(df)/len(df))
                     i = 1
 
-                    while (aDF >= mDF and i < len(df) and ir >= mir):
-                        aDF = nsum(stdf[0: i + 1, 0] * dfareas[0: i + 1])/nsum(dfareas[0: i + 1])
-                        ir = stdf[i][0]/aDF
-                        rarea += stdf[i][1]
-                        i += 1
+                    for mDF in mDFs:
+                        for mA in mAs:
+                            while (aDF >= mDF and i < len(df) and ir >= mir):
+                                aDF = nsum(stdf[0: i + 1, 0] * dfareas[0: i + 1])/nsum(dfareas[0: i + 1])
+                                minDF = stdf[i][0]
+                                ir = minDF/aDF
+                                rarea += stdf[i][1]
+                                if rarea/nsum(dfareas) > mA:
+                                    break
+                                i += 1
 
                     self['res']['avDF'] = round(aDF, 2)
                     self['res']['areaDF'] = round(100 * rarea/nsum(dfareas), 2)
                     self['res']['ratioDF'] = round(ir, 2)
-                    self['res']['minDF'] = round(min(df), 2)
+                    self['res']['minDF'] = round(minDF, 2)
 
                 except Exception:
                     pass

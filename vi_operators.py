@@ -498,7 +498,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if not svp.get('liparams'):
             svp['liparams'] = {}
 
-        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, 'Sunlit time (%)', 'VI Shadow'
+        svp['liparams']['cp'], svp['liparams']['unit'], svp['liparams']['type'] = simnode.cpoint, 'Sunlit (% hrs)', 'VI Shadow'
         simnode.preexport()
         (svp['liparams']['fs'], svp['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
         cmap(svp)
@@ -2225,47 +2225,52 @@ class OBJECT_OT_VIGridify(bpy.types.Operator):
         mesh.faces.ensure_lookup_table()
         mesh.verts.ensure_lookup_table()
         fs = [f for f in mesh.faces[:] if f.select]
-        self.upv = fs[0].calc_tangent_edge().copy().normalized()
-        self.norm = fs[0].normal.copy()
-        self.acv = self.upv.copy()
-        eul = Euler(radians(-90) * self.norm, 'XYZ')
-        self.acv.rotate(eul)
-        self.acv = self.upv.cross(self.norm)
-        rotation = Euler(radians(self.rotate) * self.norm, 'XYZ')
-        self.upv.rotate(rotation)
-        self.acv.rotate(rotation)
-        allverts = list(set([entry for sublist in [f.verts[:] for f in fs] for entry in sublist]))
-        alledges = list(set([entry for sublist in [f.edges[:] for f in fs] for entry in sublist]))
-        vertdots = [Vector.dot(self.upv, vert.co) for vert in allverts]
-        vertdots2 = [Vector.dot(self.acv, vert.co) for vert in allverts]
-        svpos = allverts[vertdots.index(min(vertdots))].co
-        svpos2 = allverts[vertdots2.index(min(vertdots2))].co
-        res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
-        gs = allverts + alledges + fs
 
-        while res1:
-            res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos + ngs1 * self.upv, plane_no=self.upv, use_snap_center=0, clear_outer=0, clear_inner=0)
-            res1 = res['geom_cut']
-            dissvs = [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
-            bmesh.ops.dissolve_verts(mesh, verts=dissvs)
+        if fs:
+            self.upv = fs[0].calc_tangent_edge().copy().normalized()
+            self.norm = fs[0].normal.copy()
+            self.acv = self.upv.copy()
+            eul = Euler(radians(-90) * self.norm, 'XYZ')
+            self.acv.rotate(eul)
+            self.acv = self.upv.cross(self.norm)
+            rotation = Euler(radians(self.rotate) * self.norm, 'XYZ')
+            self.upv.rotate(rotation)
+            self.acv.rotate(rotation)
+            allverts = list(set([entry for sublist in [f.verts[:] for f in fs] for entry in sublist]))
+            alledges = list(set([entry for sublist in [f.edges[:] for f in fs] for entry in sublist]))
+            vertdots = [Vector.dot(self.upv, vert.co) for vert in allverts]
+            vertdots2 = [Vector.dot(self.acv, vert.co) for vert in allverts]
+            svpos = allverts[vertdots.index(min(vertdots))].co
+            svpos2 = allverts[vertdots2.index(min(vertdots2))].co
+            res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, self.us, self.acs, self.us, self.acs
+            gs = allverts + alledges + fs
 
-            gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
-            ngs1 += gs1
+            while res1:
+                res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos + ngs1 * self.upv, plane_no=self.upv, use_snap_center=0, clear_outer=0, clear_inner=0)
+                res1 = res['geom_cut']
+                dissvs = [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
+                bmesh.ops.dissolve_verts(mesh, verts=dissvs)
 
-        while res2:
-            res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos2 + ngs2 * self.acv, plane_no=self.acv, use_snap_center=0, clear_outer=0, clear_inner=0)
-            res2 = res['geom_cut']
-            dissvs = [v for v in res2 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
-            bmesh.ops.dissolve_verts(mesh, verts=dissvs)
-            gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
-            ngs2 += gs2
+                gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
+                ngs1 += gs1
 
-        mesh.transform(o.matrix_world.inverted())
-        bmesh.update_edit_mesh(o.data)
-        mesh.free()
-        bpy.ops.object.editmode_toggle()
-        bpy.ops.object.editmode_toggle()
-        return {'FINISHED'}
+            while res2:
+                res = bmesh.ops.bisect_plane(mesh, geom=gs, dist=0.001, plane_co=svpos2 + ngs2 * self.acv, plane_no=self.acv, use_snap_center=0, clear_outer=0, clear_inner=0)
+                res2 = res['geom_cut']
+                dissvs = [v for v in res2 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
+                bmesh.ops.dissolve_verts(mesh, verts=dissvs)
+                gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
+                ngs2 += gs2
+
+            mesh.transform(o.matrix_world.inverted())
+            bmesh.update_edit_mesh(o.data)
+            mesh.free()
+            bpy.ops.object.editmode_toggle()
+            bpy.ops.object.editmode_toggle()
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'}, "No faces selected")
+            return {'CANCELLED'}
 
 
 class OBJECT_OT_GOct(bpy.types.Operator):
@@ -2342,8 +2347,9 @@ class NODE_OT_EC(bpy.types.Operator):
                             bm.free()
                         else:
                             logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
-                            # self.report({'ERROR'}, f"{o.name} is non-manifold")
+                            self.report({'WARNING'}, f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                             bm.free()
+                            break
                     else:
                         ec = float(ecdict['ecdu'])
                         vol = 0
@@ -2364,7 +2370,7 @@ class NODE_OT_EC(bpy.types.Operator):
                 tvols = []
 
                 for c in cobs:
-                    ecs, vols = [], []
+                    ecs, vols, nmobs = [], [], []
 
                     for o in cobs[c]:
                         ovp = o.vi_params if o.vi_params.embodied else bpy.data.collections[c].vi_params
@@ -2391,8 +2397,10 @@ class NODE_OT_EC(bpy.types.Operator):
                                 bm.free()
                             else:
                                 logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
-                                # self.report({'ERROR'}, f"{o.name} is non-manifold")
+                                self.report({'WARNING'}, f"{o.name} is not manifold. Embodied energy metrics have not been exported")
+                                nmobs.append(o)
                                 bm.free()
+                                break
                         else:
                             ec = float(ecdict['ecdu'])
                             vol = 0
@@ -2400,12 +2408,17 @@ class NODE_OT_EC(bpy.types.Operator):
                         ecs.append(ec)
                         vols.append(vol)
 
-                    if cobs[c]:
+                    if cobs[c] and len(nmobs) != len(cobs[c]):
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e)', '{:.3f}'.format(sum(ecs))])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/y)', '{:.3f}'.format(sum(ecs)/node.tyears)])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object volume (m3)', '{:.3f}'.format(sum(vols))])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(sum(ecs)/node.fa)])
                         reslists.append([f'{frame}', 'Embodied carbon', c, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(sum(ecs)/(node.fa * node.tyears))])
+
+                    elif len(nmobs) == len(cobs[c]):
+                        logentry(f"All objects in collection {c} are non-manifold. Embodied energy metrics have not been exported")
+                        self.report({'WARNING'}, f"All objects in collection {c} are non-manifold. Embodied energy metrics have not been exported")
+                        # break
 
                     tvols.append(sum(vols))
 
@@ -2594,6 +2607,7 @@ class NODE_OT_WLCLine(bpy.types.Operator, ExportHelper):
         wlc_line(self, plt, node)
         return {'FINISHED'}
 
+
 class NODE_OT_COMLine(bpy.types.Operator, ExportHelper):
     bl_idname = "node.com_line"
     bl_label = "Line Chart"
@@ -2627,6 +2641,7 @@ class NODE_OT_COMLine(bpy.types.Operator, ExportHelper):
 
 #         ec_line(self, plt, node)
 #         return {'FINISHED'}
+
 
 class NODE_OT_MInfo(bpy.types.Operator):
     bl_idname = "node.metinfo"

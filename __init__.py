@@ -253,7 +253,7 @@ def unititems(self, context):
                     ("avelux", "Lux level (ave)", "Average lux level"),
                     ("minlux", "Lux level (min)", "Minimum lux level"),
                     ("sv", "Perimeter area", "Perimeter")]
-        elif svp['liparams']['unit'] == 'Sunlit time (%)':
+        elif svp['liparams']['unit'] == 'Sunlit (% hrs)':
             return [('sm', '% Sunlit', '% of time sunlit')]
         elif svp['liparams']['unit'] == 'SVF (%)':
             return [('svf', 'SVF (%)', '% of sky visible')]
