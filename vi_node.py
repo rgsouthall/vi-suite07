@@ -7858,10 +7858,10 @@ class No_En_Mat_Sc(Node, EnViMatNodes):
     sme: FloatProperty(name="mm", description="Screen Material Spacing", min=1, max=1000, default=50)
     smd: FloatProperty(name="mm", description="Screen Material Diameter", min=1, max=1000, default=25)
     sgd: FloatProperty(name="mm", description="Screen to glass distance", min=1, max=1000, default=25)
-    tom: FloatProperty(name="", description="Top opening multiplier", min=0.0, max=1, default=0.5)
-    bom: FloatProperty(name="", description="Bottom opening multiplier", min=0.0, max=1, default=0.5)
-    lom: FloatProperty(name="", description="Left-side opening multiplier", min=0.0, max=1, default=0.5)
-    rom: FloatProperty(name="", description="Right-side opening multiplier", min=0.0, max=1, default=0.5)
+    tom: FloatProperty(name="", description="Top opening multiplier", min=0.0, max=1, default=0.0)
+    bom: FloatProperty(name="", description="Bottom opening multiplier", min=0.0, max=1, default=0.0)
+    lom: FloatProperty(name="", description="Left-side opening multiplier", min=0.0, max=1, default=0.0)
+    rom: FloatProperty(name="", description="Right-side opening multiplier", min=0.0, max=1, default=0.0)
     resist: FloatProperty(name = "", description = "", min = 0, default = 0)
 
     def init(self, context):
@@ -8254,12 +8254,12 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         else:
             st = 'SwitchableGlazing'
 
-        (scs, scn) = ('Yes', '{}-shading-schedule-{}'.format(mn, ln)) if self.inputs['Schedule'].links else ('No', '')
+        (scs, scn) = ('Yes', '{}-shading-schedule'.format(sn)) if self.inputs['Schedule'].links else ('No', '')
 
         params = ('Name', 'Zone Name', 'Shading Control Sequence Number', 'Shading Type', 'Construction with Shading Name', 'Shading Control Type', 'Schedule Name', 'Setpoint (W/m2, W or deg C)', 'Shading Control Is Scheduled',
                   'Glare Control Is Active', 'Shading Device Material Name', 'Type of Slat Angle Control for Blinds', 'Slat Angle Schedule Name', 'Setpoint 2 (W/m2, deg C or cd/m2)', 'Daylighting Control Object Name',
                   'Multiple Surface Control Type', 'Fenestration Surface 1 Name')
-        paramvs = ('{}-shading-control'.format(mn), zn, 1, st, '{}-shading'.format(mn), self.ctype, scn, self.sp, scs, 'No', '', self.sac, '', '', '', 'Sequential', sn)
+        paramvs = ('{}-shading-control'.format(sn), zn, 1, st, '{}-shading'.format(mn), self.ctype, scn, self.sp, scs, 'No', '', self.sac, '', '', '', 'Sequential', sn)
         return epentry('WindowShadingControl', params, paramvs)
 
 class No_En_Mat_PV(Node, EnViMatNodes):
@@ -8500,33 +8500,39 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
 
     def tupdate(self, context):
         try:
-            err = 0
-            if self.t2 <= self.t1 and self.t1 < 365:
-                self.t2 = self.t1 + 1
-                if self.t3 <= self.t2 and self.t2 < 365:
-                    self.t3 = self.t2 + 1
-                    if self.t4 != 365:
-                        self.t4 = 365
+            if self.source == '1':
+                if os.path.isfile(bpy.path.abspath(self.select_file)):
+                    nodecolour(self, 0)
+                else:
+                    nodecolour(self, 1)
+            else:
+                err = 0
+                if self.t2 <= self.t1 and self.t1 < 365:
+                    self.t2 = self.t1 + 1
+                    if self.t3 <= self.t2 and self.t2 < 365:
+                        self.t3 = self.t2 + 1
+                        if self.t4 != 365:
+                            self.t4 = 365
 
-            tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
-            if max((self.t1, self.t2, self.t3, self.t4)[:tn]) != 365:
-                err = 1
-            if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
-                err = 1
-            if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
-                err = 1
+                tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
+                if max((self.t1, self.t2, self.t3, self.t4)[:tn]) != 365:
+                    err = 1
+                if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
+                    err = 1
+                if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
+                    err = 1
 
-            for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
-                for fd in f.split(' '):
-                    if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKENDS", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
-                        err = 1
-
-            for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
-                for uf in u.split(';'):
-                    for ud in uf.split(','):
-                        if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
+                for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
+                    for fd in f.split(' '):
+                        if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKENDS", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
                             err = 1
-            nodecolour(self, err)
+
+                for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
+                    for uf in u.split(';'):
+                        for ud in uf.split(','):
+                            if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
+                                err = 1
+                nodecolour(self, err)
 
         except Exception:
             nodecolour(self, 1)
@@ -8538,9 +8544,18 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
     hours: IntProperty(name = "", default = 8760, min = 1, max = 8760)
     delim: EnumProperty(name = '', items = [("Comma", "Comma", "Comma delimiter"), ("Space", "Space", "space delimiter")], default = 'Comma')
     generate_file: StringProperty(default = "", name = "")
-    (u1, u2, u3, u4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)] * 4
-    (f1, f2, f3, f4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)] * 4
-    (t1, t2, t3, t4) = [IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
+    u1: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    u2: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    u3: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    u4: StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)
+    f1: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)
+    f2: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)
+    f3: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)
+    f4: StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)
+    t1: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
+    t2: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
+    t3: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
+    t4: IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)
 
     def init(self, context):
         self.outputs.new('So_En_Net_Sched', 'Schedule')
@@ -8572,21 +8587,28 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
 
         self.id_data.interface_update(bpy.context)
 
-    def epwrite(self, name, stype):
-        schedtext, ths = '', []
-        for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
-            if not schedtext:
-                for t in (self.t1, self.t2, self.t3, self.t4):
-                    ths.append(t)
-                    if t == 365:
-                        break
-#                ths = [self.t1, self.t2, self.t3, self.t4]
-                fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
-                uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
-                ts, fs, us = rettimes(ths, fos, uns)
+    def ep_write(self, name, stype):
+        if self.source == '0':
+            schedtext, ths = '', []
 
-#                if self.file == '0':
-                schedtext = epschedwrite(name, stype, ts, fs, us)
+            for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
+                if not schedtext:
+                    for t in (self.t1, self.t2, self.t3, self.t4):
+                        ths.append(t)
+                        if t == 365:
+                            break
+
+                    fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
+                    uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
+                    ts, fs, us = rettimes(ths, fos, uns)
+                    schedtext = epschedwrite(name, stype, ts, fs, us)
+            # return schedtext
+        else:
+            params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
+            paramvs = (name, 'Any number', bpy.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim)
+            schedtext = epentry('Schedule:File', params, paramvs)
+            # return schedtext
+        
         return schedtext
 
     def epwrite_sel_file(self, name):
@@ -8611,7 +8633,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
                     ths.append(t)
                     if t == 365:
                         break
-#                ths = [self.t1, self.t2, self.t3, self.t4]
+
                 fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
                 uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
                 ts, fs, us = rettimes(ths, fos, uns)
@@ -8620,10 +8642,11 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
                 for u in us:
                     for hi, h in enumerate((datetime.datetime(2015, 1, 1, 0, 00) - datetime.datetime(2014, 1, 1, 0, 00)).hours):
                         if h.day <= self.ts:
-#                            if f == 'Weekday'
                             data[hi] = 1
+
         with open(os.path.join(newdir, name), 'w') as sched_file:
             sched_file.write(',\n'.join([d for d in data]))
+
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim)
         schedtext = epentry('Schedule:File', params, paramvs)

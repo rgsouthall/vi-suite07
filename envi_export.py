@@ -216,6 +216,10 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                                 if emnode.inputs['Control'].links:
                                     scnode = emnode.inputs['Control'].links[0].from_node
                                     en_idf.write(scnode.ep_write(face.index, mat.name, coll.name, f'win-{coll.name}_{face.index}'))
+                                    
+                                    if scnode.inputs['Schedule'].links:
+                                        scsnode = scnode.inputs['Schedule'].links[0].from_node
+                                        en_idf.write(scsnode.ep_write(f'win-{coll.name}_{face.index}-shading-schedule', 'Fraction'))
 
                 elif coll in shade_colls:
                     for face in bm.faces:
