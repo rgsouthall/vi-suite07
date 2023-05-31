@@ -952,18 +952,6 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
             elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
                 rclist = rccmds[f].split()
-                # rclist[rclist.index('-ab') + 1] = '1'
-
-                # if '-ap' in rclist:
-                #     rclist[rclist.index('-ap') + 1] = ''
-                #     rclist[rclist.index('-ap')] = ''
-                # if '-ad' in rclist:
-                #     rclist[rclist.index('-ad') + 1] = '8192'
-                # if '-lw' in rclist:
-                #     rclist[rclist.index('-lw') + 1] = '0.0001'
-                # if '-ar' in rclist:
-                #     rclist[rclist.index('-ar') + 1] = '0'
-
                 rccmd = ' '.join(rclist[:4] + ['-ab 1 -ad 8192 -lw 0.0001 -lr 0'] + rclist[-11:])
                 sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarrayd = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
@@ -975,11 +963,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
                 udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
                 udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)
-
                 svbool = choose(nsum(nsum(resarrayd, axis=1), axis=1) > 0.0, [0, 1]).astype(int8)
                 sdafinalillu = finalillu[:, logical_and(8 <= hour_array, hour_array < 18)] if simnode['coptions']['ay'] else finalillu
                 sdabool = choose(sdafinalillu >= 300, [0, 1]).astype(int8)
-
                 daareares = (dabool.T*chareas).T
                 udilareares = (udilbool.T*chareas).T
                 udisareares = (udisbool.T*chareas).T

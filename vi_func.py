@@ -57,9 +57,9 @@ def ec_update(self, context):
 
         if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
             self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
-        
+
         self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
-        
+
         # if self['ecdict']['unit'] in ('kg', 'tonnes'):
         #     self['ecm3'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']) * float(self['ecdict']['density']))
         #     self['eckg'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']))
@@ -2073,8 +2073,9 @@ def socklink2(sock, ng):
             valid2 = link.to_socket.ret_valid(link.to_socket.node)
             valset = set(valid1) & set(valid2)
 
-            if not valset or len(valset) < min((len(valid1), len(valid2))):
+            if not valset:  # or len(valset) < min((len(valid1), len(valid2))):
                 ng.links.remove(link)
+
     except Exception:
         if sock.links:
             ng.links.remove(sock.links[-1])

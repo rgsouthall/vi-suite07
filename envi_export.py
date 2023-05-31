@@ -99,6 +99,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                         else:
                             if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
                                 en_idf.write(emnode.ep_write(mat.name, mvp.id_data.name))
+
                         if emnode.inputs['PV'].links:
                             gen = 1
                             pvs.append(emnode)
@@ -210,6 +211,11 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                                             pv_areas[mat.name] += face.calc_area()
                                             gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
+
+                            elif emnode.bl_idname in ('No_En_Mat_Sh', 'No_En_Mat_Bl', 'No_En_Mat_Sc', 'No_En_Mat_SG'):
+                                if emnode.inputs['Control'].links:
+                                    scnode = emnode.inputs['Control'].links[0].from_node
+                                    en_idf.write(scnode.ep_write(face.index, mat.name, coll.name, f'win-{coll.name}_{face.index}'))
 
                 elif coll in shade_colls:
                     for face in bm.faces:
