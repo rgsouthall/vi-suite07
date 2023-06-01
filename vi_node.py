@@ -6311,7 +6311,7 @@ class So_En_Mat_Sh(NodeSocket):
     bl_idname = 'So_En_Mat_Sh'
     bl_label = 'Shade layer socket'
 
-    valid = ['ShadeLayer', 'TLayer', 'GLayer']
+    valid = ['Shade']
 
     def draw(self, context, layout, node, text):
         layout.label(text = text)
@@ -6320,7 +6320,7 @@ class So_En_Mat_Sh(NodeSocket):
         return (0, 0, 0, 1.0)
 
     def ret_valid(self, node):
-        return ['ShadeLayer', 'TLayer', 'GLayer']
+        return ['Shade']
 
 class So_En_Mat_Sc(NodeSocket):
     '''EnVi screen layer socket'''
@@ -8181,9 +8181,9 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
 
     def type_menu(self, context):
         try:
-            if self.outputs['Control'].links[0].to_node.bl_idname == 'envi_screen_node':
+            if self.outputs['Control'].links[0].to_node.bl_idname == 'No_En_Mat_Sc':
                 return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2)]
-            elif self.outputs['Control'].links[0].to_node.bl_idname in ('envi_bl_node', 'No_En_Mat_Sh'):
+            elif self.outputs['Control'].links[0].to_node.bl_idname in ('No_En_Mat_Bl', 'No_En_Mat_Sh'):
                 return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18)]
             else:
                 return [(t, t, t) for t in self.ttuple]
@@ -8191,7 +8191,15 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             logentry('Shade control error {}'.format(e))
             return [('None', 'None', 'None')]
 
-    ctype: EnumProperty(items = type_menu, name = "", description = "Shading device")
+    def schupdate(self, context):
+        if self.ctype == "OnIfScheduleAllows":
+            self.inputs['Schedule'].hide = False
+        else:
+            if self.inputs['Schedule'].links:
+                self.id_data.links.remove(self.inputs['Schedule'].links[0])
+            self.inputs['Schedule'].hide = True
+
+    ctype: EnumProperty(items=type_menu, name="", description="Shading device", update=schupdate)
     sp: FloatProperty(name = "", description = "Setpoint (W/m2, W or deg C)", min = 0.0, max = 1000, default = 20)
     sac: EnumProperty(items = [("FixedSlatAngle", "Always on", "Shading component"),
                                 ("ScheduledSlatAngle", "OnIfHighOutdoorAirTempAndHighSolarOnWindow", "Switchable glazing component"),
@@ -8608,7 +8616,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
             paramvs = (name, 'Any number', bpy.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim)
             schedtext = epentry('Schedule:File', params, paramvs)
             # return schedtext
-        
+
         return schedtext
 
     def epwrite_sel_file(self, name):
