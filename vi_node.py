@@ -6788,8 +6788,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                 lsock = lsock.links[0].from_node.inputs['Layer']
 
-            self.cec = '{:.3f}'.format(sum(ecss))
-            self.cecy = '{:.3f}'.format(sum(ecys))
+            self.cec = '{:.3f}'.format(sum(ecss)) if ecss else 'N/A'
+            self.cecy = '{:.3f}'.format(sum(ecys)) if ecys else 'N/A'
 
         return (self.cec, self.cecy)
 
@@ -6969,8 +6969,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
             while in_sock.links:
                 node = in_sock.links[0].from_node
-
-                # if node.bl_idname not in ('No_En_Mat_Sh', 'No_En_Mat_BL', 'No_En_Mat_Sc', 'No_En_Mat_Sgl'):
                 paramvs.append('{}-layer-{}'.format(ln, n))
                 params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
                 ep_text += node.ep_write(n, mn)
@@ -6986,8 +6984,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         g_t = node.inputs['Layer'].links[0].from_node.thi
                         s_t = node.inputs['Shade'].links[0].from_node.thi
                         ep_text += node.inputs['Layer'].links[0].from_node.ep_write(n + 1, mn + '_split', tmod = (g_t - s_t)/(2 * g_t))
-                        #print(gas_split)
-
 
                 get_mat(self, 1).vi_params['enparams']['ecm2'] = ecm2
                 in_sock = node.inputs['Layer']
@@ -7009,9 +7005,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                     if node.outputs.get('Shade') and node.outputs['Shade'].links:
                         paramvs.append('{}-shading-{}'.format(mn, n))
-                        params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                        params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
                         ep_text += node.outputs['Shade'].links[0].to_node.ep_write(n, mn)
-                        #n += 1
                     if not node.inputs.get('Shade') or (not node.inputs['Shade'].links or node.inputs['Shade'].links[0].from_node.bl_idname != 'No_En_Mat_SG'):
                         paramvs.append('{}-layer-{}'.format((mn, mn + '_split')[node.outputs['Layer'].links[0].to_node.bl_idname == 'No_En_Mat_Tr' and len(node.outputs['Layer'].links[0].to_node.inputs['Shade'].links)], n))
                         params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
@@ -7023,22 +7018,11 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                             params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
 
                         paramvs.append('{}-shading-{}'.format(mn, n))
-                        params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                        params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
                         ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
 
-
-
-
-                        #n += 1
-
                     in_sock = node.inputs['Layer']
-
-                    # if node.bl_idname in ('No_En_Mat_Sh', 'No_En_Mat_BL', 'No_En_Mat_Sc', 'No_En_Mat_Sgl'):
-                    #     # pass
-                    #     ep_text += node.ep_write(n, mn)
-
-                    # n += 1
-
+                
                 ep_text += epentry('Construction', params, paramvs)
 
         if self.envi_con_type in ('Window', 'Door'):
@@ -7078,20 +7062,20 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
         return ep_text
 
-    def layer_write(self, in_sock, matname):
-        ep_text = ''
-        n = 0
+    # def layer_write(self, in_sock, matname):
+    #     ep_text = ''
+    #     n = 0
 
-        while in_sock.links:
-            node = in_sock.links[0].from_node
-            paramvs.append('{}-frame-layer-{}'.format(matname, n))
-            params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-            ep_text += node.ep_write(n, mn)
-            in_sock = node.inputs['Layer']
-            n += 1
+    #     while in_sock.links:
+    #         node = in_sock.links[0].from_node
+    #         paramvs.append('{}-frame-layer-{}'.format(matname, n))
+    #         params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+    #         ep_text += node.ep_write(n, mn)
+    #         in_sock = node.inputs['Layer']
+    #         n += 1
 
-        ep_text += epentry('Construction', params, paramvs)
-        return ep_text
+    #     ep_text += epentry('Construction', params, paramvs)
+    #     return ep_text
 
 class No_En_Mat_Op(Node, EnViMatNodes):
     '''Node defining the EnVi opaque material layer'''
@@ -7504,7 +7488,6 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                                   default="kg")
     ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
     ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", precision=3, default=100)
-
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: IntProperty(name="y", description="Service life in years", min=1, max=100, default=60, update=ec_update)
     ec_mod: StringProperty(name="", description="Embodied modules")
@@ -7519,6 +7502,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, "Specification:", self, "layer")
+
         if self.layer == '0':
             newrow(layout, "Material:", self, "material")
             newrow(layout, "Thickness:", self, "thi")
@@ -7894,6 +7878,13 @@ class No_En_Mat_Sc(Node, EnViMatNodes):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
+        if self.outputs["Shade"].links:
+            self.inputs["Shade"].hide = True
+        elif self.inputs["Shade"].links:
+            self.outputs["Shade"].hide = True
+        else:
+            (self.inputs["Shade"].hide, self.outputs["Shade"].hide) = (False, False)
+
         self.valid()
 
     def ret_resist(self):
@@ -7928,9 +7919,9 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     sa: FloatProperty(name="deg", description="Slat angle", min=0.0, max=90, default=45)
     stc: FloatProperty(name="W/m.K", description="Slat conductivity", min=0.01, max=100, default=10)
     sbst: FloatProperty(name="", description="Slat beam solar transmittance", min=0.0, max=1, default=0.0)
-    fbst: FloatProperty(name="", description="Front Side Slat beam solar reflectance", min=0.0, max=1, default=0.8)
-    bbst: FloatProperty(name="", description="Back Side Slat beam solar reflectance", min=0.0001, max=10, default=0.8)
-    sdst: FloatProperty(name="m", description="Slat diffuse solar transmittance", min=0.0, max=1, default=0.0)
+    fbsr: FloatProperty(name="", description="Front Side Slat beam solar reflectance", min=0.0, max=1, default=0.8)
+    bbsr: FloatProperty(name="", description="Back Side Slat beam solar reflectance", min=0.0001, max=10, default=0.8)
+    sdst: FloatProperty(name="", description="Slat diffuse solar transmittance", min=0.0, max=1, default=0.0)
     fdsr: FloatProperty(name="", description="Front Side Slat diffuse solar reflectance", min=0.0, max=1, default=0.8)
     bdsr: FloatProperty(name="", description="Back Side Slat diffuse solar reflectance", min=0.0, max=1, default=0.8)
     sbvt: FloatProperty(name="", description="Slat beam visible transmittance", min=0.0, max=1, default=0.0)
@@ -7966,12 +7957,12 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
             newrow(layout, "Slat angle:", self, "sa")
             newrow(layout, "Slat cond.:", self, "stc")
             newrow(layout, "Slat beam trans.:", self, "sbst")
-            newrow(layout, "Front beam trans.:", self, "fbst")
-            newrow(layout, "Back beam trans.:", self, "bbst")
-            newrow(layout, "Slat diff. trans.:", self, "sdst")
+            newrow(layout, "Front beam reflec.:", self, "fbsr")
+            newrow(layout, "Back beam reflec.:", self, "bbsr")
+            newrow(layout, "Slat diff. reflec.:", self, "sdst")
             newrow(layout, "Front diff. reflec.:", self, "fdsr")
             newrow(layout, "Back diff. reflec.:", self, "bdsr")
-            newrow(layout, "Slat beam trans.:", self, "sbvt")
+            newrow(layout, "Slat beam vis. trans.:", self, "sbvt")
             newrow(layout, "Front beam vis. reflec.:", self, "fbvr")
             newrow(layout, "Back beam vis. reflec.:", self, "bbvr")
             newrow(layout, "Slat diff. vis. trans.:", self, "sdvt")
@@ -7997,7 +7988,14 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
-
+        
+        if self.outputs["Shade"].links:
+            self.inputs["Shade"].hide = True
+        elif self.inputs["Shade"].links:
+            self.outputs["Shade"].hide = True
+        else:
+            (self.inputs["Shade"].hide, self.outputs["Shade"].hide) = (False, False)
+        
         self.valid()
 
     def ret_resist(self):
@@ -8008,17 +8006,16 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
         return (0, 0)
 
     def ep_write(self, ln, mn):
-        # for material in bpy.data.materials:
-        #     if self.id_data == material.envi_nodes:
-        #         break
         params = ('Name', 'Slat orientation', 'Slat width (m)', 'Slat separation (m)', 'Slat thickness (m)', 'Slat angle (deg)', 'Slat conductivity (W/m.K)',
                   'Slat beam solar transmittance', 'Front Side Slat beam solar reflectance', 'Back Side Slat beam solar reflectance', 'Slat diffuse solar transmittance',
                   'Front Side Slat diffuse solar reflectance', 'Back Side Slat diffuse solar reflectance', 'Slat beam visible transmittance', 'Front Side Slat beam visible reflectance',
                   'Back Side Slat beam visible reflectance', 'Slat diffuse visible transmittance', "Front Side Slat diffuse visible reflectance", "Back Side Slat diffuse visible reflectance",
                   "Slat Infrared hemispherical transmittance", "Front Side Slat Infrared hemispherical emissivity", "Back Side Slat Infrared hemispherical emissivity", "Blind-to-glass distance",
                   "Blind top opening multiplier", "Blind bottom opening multiplier", "Blind left-side opening multiplier", "Blind right-side opening multiplier", "Minimum slat angle", "Maximum slat angle")
-        paramvs = ['{}-shading-{}'.format(mn, ln), ('Horizontal', 'Vertical')[int(self.so)]] + ['{:.3f}'.format(p) for p in (0.001 * self.sw, 0.001 * self.ss, 0.001 * self.st, self.sa, self.stc, self.sbst, self.fbst, self.bbst, self.sdst, self.fdsr, self.bdsr, self.sbvt,
-                   self.fbvr, self.bbvr, self.sdvt, self.fdvr, self.bdvr, self.sit, self.sfie, self.sbie, 0.001 * self.bgd, self.tom, self.bom, self.lom, self.rom, self.minsa, self.maxsa)]
+        paramvs = ['{}-shading-{}'.format(mn, ln), ('Horizontal', 'Vertical')[int(self.so)]] + ['{:.3f}'.format(p) for p in (0.001 * self.sw, 0.001 * self.ss, 0.001 * self.st, self.sa, self.stc, self.sbst, 
+                                                                                                                             self.fbsr, self.bbsr, self.sdst, self.fdsr, self.bdsr, self.sbvt,
+                                                                                                                             self.fbvr, self.bbvr, self.sdvt, self.fdvr, self.bdvr, self.sit, self.sfie, 
+                                                                                                                             self.sbie, 0.001 * self.bgd, self.tom, self.bom, self.lom, self.rom, self.minsa, self.maxsa)]
 
         return epentry('WindowMaterial:Blind', params, paramvs)
 
@@ -8065,7 +8062,6 @@ class No_En_Mat_SG(Node, EnViMatNodes):
                                         ("1", "Custom", "Define custom material properties")],
                                         name="", description="Composition of the layer", default="0")
     materialtype: EnumProperty(items=envi_layertype, name="", description="Layer material type")
-    # mats=[((mat, mat, 'Layer material')) for mat in envi_mats.glass_dat.keys()]
     material: EnumProperty(items=envi_layer, name="", description="Glass material")
     thi: FloatProperty(name="mm", description="Thickness (mm)", min=0.1, max=10000, default=100)
     tc: FloatProperty(name="W/m.K", description="Thermal Conductivity (W/m.K)", min=0.1, max=10000, precision=3, default=0.9)
@@ -8133,6 +8129,14 @@ class No_En_Mat_SG(Node, EnViMatNodes):
 
     def update(self):
         self.envi_con_type = self.outputs['Shade'].links[0].to_node.envi_con_type
+
+        if self.outputs["Shade"].links:
+            self.inputs["Shade"].hide = True
+        elif self.inputs["Shade"].links:
+            self.outputs["Shade"].hide = True
+        else:
+            (self.inputs["Shade"].hide, self.outputs["Shade"].hide) = (False, False)
+
         self.valid()
 
     def valid(self):
@@ -8177,14 +8181,15 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
               "OnNightIfLowOutdoorTempAndOffDay", "OnNightIfLowInsideTempAndOffDay", "OnNightIfHeatingAndOffDay",
               "OnNightIfLowOutdoorTempAndOnDayIfCooling", "OnNightIfHeatingAndOnDayIfCooling",
               "OffNightAndOnDayIfCoolingAndHighSolarOnWindow", "OnNightAndOnDayIfCoolingAndHighSolarOnWindow",
-              "OnIfHighOutdoorAirTempAndHighSolarOnWindow", "OnIfHighOutdoorAirTempAndHighHorizontalSolar")
+              "OnIfHighOutdoorAirTempAndHighSolarOnWindow", "OnIfHighOutdoorAirTempAndHighHorizontalSolar",
+              "OnIfHighZoneAirTempAndHighSolarOnWindow", "OnIfHighZoneAirTempAndHighHorizontalSolar")
 
     def type_menu(self, context):
         try:
             if self.outputs['Control'].links[0].to_node.bl_idname == 'No_En_Mat_Sc':
                 return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2)]
-            elif self.outputs['Control'].links[0].to_node.bl_idname in ('No_En_Mat_Bl', 'No_En_Mat_Sh'):
-                return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18)]
+            elif self.outputs['Control'].links[0].to_node.bl_idname in ('No_En_Mat_Bl', 'No_En_Mat_Sh', 'No_En_Mat_SG'):
+                return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)]
             else:
                 return [(t, t, t) for t in self.ttuple]
         except Exception as e:
@@ -8192,34 +8197,48 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             return [('None', 'None', 'None')]
 
     def schupdate(self, context):
-        if self.ctype == "OnIfScheduleAllows":
+        if self.ctype != "OnIfHighGlare":
             self.inputs['Schedule'].hide = False
         else:
             if self.inputs['Schedule'].links:
                 self.id_data.links.remove(self.inputs['Schedule'].links[0])
             self.inputs['Schedule'].hide = True
+    
+    def slatupdate(self, context):
+        if self.sac != 'ScheduledSlatAngle':
+            if self.inputs['Slat schedule'].links:
+                self.id_data.links.remove(self.inputs['Slat schedule'].links[0])
+            self.inputs['Slat schedule'].hide = True
+        else:
+            self.inputs['Slat schedule'].hide = False
 
     ctype: EnumProperty(items=type_menu, name="", description="Shading device", update=schupdate)
-    sp: FloatProperty(name = "", description = "Setpoint (W/m2, W or deg C)", min = 0.0, max = 1000, default = 20)
-    sac: EnumProperty(items = [("FixedSlatAngle", "Always on", "Shading component"),
-                                ("ScheduledSlatAngle", "OnIfHighOutdoorAirTempAndHighSolarOnWindow", "Switchable glazing component"),
-                                ("BlockBeamSolar", "OnIfHighOutdoorAirTempAndHighHorizontalSolar", "Switchable glazing component")
+    sp: FloatProperty(name="", description="Setpoint (W/m2, W or deg C)", min=0.0, max=1000, default=20)
+    sac: EnumProperty(items=[("FixedSlatAngle", "FixedSlatAngle", "Constant slat angle"),
+                                ("ScheduledSlatAngle", "ScheduledSlatAngle", "Scheduled slat angle"),
+                                ("BlockBeamSolar", "BlockBeamSolar", "Block beam solar")
                                 ],
-                                name = "", description = "Shading device", default = 'FixedSlatAngle')
-    sp2: FloatProperty(name = "", description = "Setpoint 2 (W/m2, W or deg C)", min = 0.0, max = 1000, default = 20)
-    resist: FloatProperty(name = "", description = "", min = 0, default = 0)
+                                name="", description="Blind slat angle control", default='FixedSlatAngle', update=slatupdate)
+    sp2: FloatProperty(name="", description="Setpoint 2 (W/m2, W or deg C)", min=0.0, max=1000, default=20)
+    resist: FloatProperty(name="", description="", min=0, default=0)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_ShC', 'Control')
         self.inputs.new('So_En_Mat_Sched', 'Schedule')
+        self.inputs.new('So_En_Mat_Sched', 'Slat schedule')
+        self.inputs['Schedule'].hide = True
+        self.inputs['Slat schedule'].hide = True
 
     def draw_buttons(self, context, layout):
-        newrow(layout, "Shading device:", self, 'ctype')
+        if self.outputs.get('Control'):
+            newrow(layout, "Shading device:", self, 'ctype')
 
-        if self.ctype not in ('Always on', 'Always off', 'OnIfScheduleAllows', 'OnIfHighGlare', 'DaylightIlluminance'):
-            newrow(layout, "Set-point", self, 'sp')
-        if self.outputs['Control'].links and self.outputs['Control'].links[0].to_node.bl_idname == 'No_En_Mat_Bl':
-            newrow(layout, 'Slat angle:', self, 'sac')
+            if self.ctype not in ('AlwaysOn', 'AlwaysOff', 'OnIfScheduleAllows', 'OnIfHighGlare', 'DaylightIlluminance'):
+                newrow(layout, "Set-point", self, 'sp')
+            if self.outputs['Control'].links and self.outputs['Control'].links[0].to_node.bl_idname == 'No_En_Mat_Bl':
+                newrow(layout, 'Slat angle:', self, 'sac')
+            if self.ctype in ("OnIfHighOutdoorAirTempAndHighSolarOnWindow", "OnIfHighOutdoorAirTempAndHighHorizontalSolar", "OnIfHighZoneAirTempAndHighSolarOnWindow", "OnIfHighZoneAirTempAndHighHorizontalSolar"):
+                newrow(layout, "Set-point 2", self, 'sp2')
 
     def valid(self):
         if not self.outputs["Control"].links:
@@ -8255,7 +8274,7 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         elif shade_node.bl_idname == 'No_En_Mat_Sh':
             if shade_node.inputs['Shade'].links and shade_node.inputs['Shade'].links[0].from_node.outputs['Layer'].links[0].to_node.bl_idname == 'No_En_Mat_Con':
                 st = 'ExteriorShade'
-            elif shade_node.outputs['Shade'].links and shade_node.outputs['Shade'].links[0].to_node.inputs['Layer'].links:
+            elif (shade_node.outputs['Shade'].links and shade_node.outputs['Shade'].links[0].to_node.inputs['Layer'].links) or (shade_node.inputs['Shade'].links and shade_node.inputs['Shade'].links[0].from_node.outputs['Layer'].links):
                 st = 'BetweenGlassShade'
             else:
                 st = 'InteriorShade'
@@ -8263,12 +8282,16 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             st = 'SwitchableGlazing'
 
         (scs, scn) = ('Yes', '{}-shading-schedule'.format(sn)) if self.inputs['Schedule'].links else ('No', '')
+        slcn = '{}-slat-schedule'.format(sn) if self.inputs['Slat schedule'].links else ''
 
         params = ('Name', 'Zone Name', 'Shading Control Sequence Number', 'Shading Type', 'Construction with Shading Name', 'Shading Control Type', 'Schedule Name', 'Setpoint (W/m2, W or deg C)', 'Shading Control Is Scheduled',
                   'Glare Control Is Active', 'Shading Device Material Name', 'Type of Slat Angle Control for Blinds', 'Slat Angle Schedule Name', 'Setpoint 2 (W/m2, deg C or cd/m2)', 'Daylighting Control Object Name',
                   'Multiple Surface Control Type', 'Fenestration Surface 1 Name')
-        paramvs = ('{}-shading-control'.format(sn), zn, 1, st, '{}-shading'.format(mn), self.ctype, scn, self.sp, scs, 'No', '', self.sac, '', '', '', 'Sequential', sn)
-        return epentry('WindowShadingControl', params, paramvs)
+        paramvs = ('{}-shading-control'.format(sn), zn, 1, st, '{}-shading'.format(mn), self.ctype, scn, self.sp, scs, 'No', '', self.sac, slcn, '', '', 'Sequential', sn)
+
+        ss_text = self.inputs['Slat schedule'].links[0].from_node.ep_write(slcn, 'Any number') if self.inputs['Slat schedule'].links else ''
+            
+        return epentry('WindowShadingControl', params, paramvs) + ss_text
 
 class No_En_Mat_PV(Node, EnViMatNodes):
     '''Node defining an EnVi photovoltaic module'''
