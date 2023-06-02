@@ -6902,11 +6902,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 mats = self.ec.propdict[con_type][self.envi_con_list]
                 params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(mats) - 1)]
                 paramvs = [mn] + ['{}-layer-{}'.format(ln, mi) for mi, m in enumerate(mats)]
-
-                # if mn == self.id_data.name:
                 ep_text = epentry('Construction', params, paramvs)
-                # else:
-                #     ep_text += epentry('Construction', params, [paramvs[0]] + paramvs[1:][::-1])
 
                 for pm, presetmat in enumerate(mats):
                     matlist = list(self.em.matdat[presetmat])
@@ -6977,13 +6973,18 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 if node.get('embodied') and node['ecm2']:
                     ecm2 += float(node['ecm2'])
 
-                if node.inputs.get('Shade') and (node.inputs['Shade'].links or node.outputs['Shade'].links):
+                if (node.inputs.get('Shade') and (node.inputs['Shade'].links or node.outputs['Shade'].links)) or (node.outputs.get('Shade') and (node.outputs['Shade'].links or node.inputs['Shade'].links)):
                     get_mat(self, 1).vi_params.envi_shading = 1
 
                     if node.inputs['Layer'].links and node.inputs['Layer'].links[0].from_node.bl_idname == 'No_En_Mat_Gas' and node.inputs['Shade'].links:
                         g_t = node.inputs['Layer'].links[0].from_node.thi
                         s_t = node.inputs['Shade'].links[0].from_node.thi
                         ep_text += node.inputs['Layer'].links[0].from_node.ep_write(n + 1, mn + '_split', tmod = (g_t - s_t)/(2 * g_t))
+                    
+                    elif node.outputs['Layer'].links and node.outputs['Layer'].links[0].to_node.bl_idname == 'No_En_Mat_Gas' and node.outputs['Shade'].links:
+                        g_t = node.outputs['Layer'].links[0].to_node.thi
+                        s_t = node.outputs['Shade'].links[0].to_node.thi
+                        ep_text += node.outputs['Layer'].links[0].to_node.ep_write(n - 1, mn + '_split', tmod = (g_t - s_t)/(2 * g_t))
 
                 get_mat(self, 1).vi_params['enparams']['ecm2'] = ecm2
                 in_sock = node.inputs['Layer']
@@ -7003,23 +7004,93 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 while in_sock.links:
                     node = in_sock.links[0].from_node
 
-                    if node.outputs.get('Shade') and node.outputs['Shade'].links:
-                        paramvs.append('{}-shading-{}'.format(mn, n))
-                        params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
-                        ep_text += node.outputs['Shade'].links[0].to_node.ep_write(n, mn)
-                    if not node.inputs.get('Shade') or (not node.inputs['Shade'].links or node.inputs['Shade'].links[0].from_node.bl_idname != 'No_En_Mat_SG'):
-                        paramvs.append('{}-layer-{}'.format((mn, mn + '_split')[node.outputs['Layer'].links[0].to_node.bl_idname == 'No_En_Mat_Tr' and len(node.outputs['Layer'].links[0].to_node.inputs['Shade'].links)], n))
+                    if node.bl_idname == 'No_En_Mat_Tr' and node.outputs['Layer'].links[0].to_node.bl_idname != 'No_En_Mat_Gas':
+                        if node.outputs['Shade'].links:
+                            print(node.name)
+                            paramvs.append('{}-shading-{}'.format(mn, n))
+                            params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
+                            ep_text += node.outputs['Shade'].links[0].to_node.ep_write(n, mn)
+                        
+                        paramvs.append('{}-layer-{}'.format(mn, n))
                         params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-                    n += 1
-
-                    if node.inputs.get('Shade') and node.inputs['Shade'].links:
-                        if node.inputs['Layer'].links:
+                    
+                    elif node.bl_idname == 'No_En_Mat_Gas':
+                        shade_bool = len(node.outputs['Layer'].links[0].to_node.inputs['Shade'].links) or (node.inputs['Layer'].links and len(node.inputs['Layer'].links[0].from_node.outputs['Shade'].links))
+                        
+                        if not shade_bool:
+                            paramvs.append('{}-layer-{}'.format(mn, n))
+                            params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                        else:
+                            print(node.name)
                             paramvs.append('{}-layer-{}'.format(mn + '_split', n))
                             params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                            paramvs.append('{}-shading-{}'.format(mn, n))
+                            params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
 
-                        paramvs.append('{}-shading-{}'.format(mn, n))
-                        params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
-                        ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
+                            if node.outputs['Layer'].links and node.outputs['Layer'].links[0].to_node.inputs['Shade'].links:
+                                shade_node = node.outputs['Layer'].links[0].to_node.inputs['Shade'].links[0].from_node
+                            else:
+                                shade_node = node.inputs['Layer'].links[0].from_node.outputs['Shade'].links[0].to_node
+
+                            ep_text += shade_node.ep_write(n, mn)
+                            paramvs.append('{}-layer-{}'.format(mn + '_split', n))
+                            params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                    
+                    elif not node.inputs['Layer'].links:
+                        paramvs.append('{}-layer-{}'.format(mn, n))
+                        params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+
+                        if node.inputs['Shade'].links:
+                            print(node.name)
+                            paramvs.append('{}-shading-{}'.format(mn, n))
+                            params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
+                            ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
+                        
+                    else:
+                        paramvs.append('{}-layer-{}'.format(mn, n))
+                        params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+
+                    n += 1
+                    
+                    # outer = 1 if n == 0 else 0
+                    # inb = 1 if node.outputs['Layer'].links and node.inputs['Layer'].links else 0
+                    # inner = 1 if not node.inputs['Layer'].links else 0
+
+
+                    # if node.outputs.get('Shade') and node.outputs['Shade'].links and :
+                    #     paramvs.append('{}-shading-{}'.format(mn, n))
+                    #     params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
+                    #     ep_text += node.outputs['Shade'].links[0].to_node.ep_write(n, mn)
+                    # elif not node.inputs.get('Shade'):
+                    #     shade_bool = (len(node.outputs['Layer'].links) and len(node.outputs['Layer'].links[0].to_node.inputs['Shade'].links)) or (node.inputs['Layer'].links and len(node.inputs['Layer'].links[0].from_node.outputs['Shade'].links))
+                    #     print(shade_bool)
+                    #     #if node.outputs['Layer'].links and node.outputs['Layer'].links[0].to_node.inputs['Shade'].links: # .bl_idname != 'No_En_Mat_SG'):
+                    #     paramvs.append('{}-layer-{}'.format((mn, mn + '_split')[shade_bool], n))
+                    #     params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+
+                    #     if shade_bool:
+                    #         paramvs.append('{}-shading-{}'.format(mn, n+1))
+                    #         params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
+                    #         paramvs.append('{}-layer-{}'.format((mn, mn + '_split')[shade_bool], n))
+                    #         params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                    #     #elif node.inputs['Layer'].links and node.inputs['Layer'].links[0].from_node.inputs['Shade'].links:
+                    #         #paramvs.append('{}-layer-{}'.format((mn, mn + '_split')[node.inputs['Layer'].links and node.inputs['Layer'].links[0].from_node.inputs['Shade'].links], n))
+                    #         #params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                    #         #print('shading')
+                    # else:
+                    #     paramvs.append('{}-layer-{}'.format(mn, n))
+                    #     params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                    
+                    # n += 1
+
+                    # if node.inputs.get('Shade') and node.inputs['Shade'].links:
+                    #     if node.inputs['Layer'].links:
+                    #         paramvs.append('{}-layer-{}'.format(mn + '_split', n))
+                    #         params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+
+                    #     paramvs.append('{}-shading-{}'.format(mn, n))
+                    #     params.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
+                    #     ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
 
                     in_sock = node.inputs['Layer']
                 
@@ -7811,8 +7882,8 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
         self.valid()
 
     def ep_write(self, ln, mn):
-        params = ('Name', 'Solar transmittance', 'Solar Reflectance', 'Visible reflectance', 'Infrared Hemispherical Emissivity', 'Infrared Transmittance', 'Thickness {m}',
-                  'Conductivity {W/m-K}', 'Shade to glass distance {m}', 'Top opening multiplier', 'Top opening multiplier', 'Bottom opening multiplier', 'Left-side opening multiplier',
+        params = ('Name', 'Solar transmittance', 'Solar Reflectance', 'Visible transmittance', 'Visible reflectance', 'Infrared Hemispherical Emissivity', 'Infrared Transmittance', 'Thickness {m}',
+                  'Conductivity {W/m-K}', 'Shade to glass distance {m}', 'Top opening multiplier', 'Bottom opening multiplier', 'Left-side opening multiplier',
                   'Right-side opening multiplier', 'Air flow permeability')
         paramvs = ['{}-shading-{}'.format(mn, ln)] + ['{:.3f}'.format(p) for p in (self.st, self.sr, self.vt, self.vr, self.ihe, self.it, 0.001 * self.thi, self.tc, 0.001 * self.sgd,
                    self.tom, self.bom, self.lom, self.rom, self.afp)]
@@ -8267,7 +8338,7 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         elif shade_node.bl_idname == 'No_En_Mat_Bl':
             if shade_node.inputs['Shade'].links and shade_node.inputs['Shade'].links[0].from_node.outputs['Layer'].links[0].to_node.bl_idname == 'No_En_Mat_Con':
                 st = 'ExteriorBlind'
-            elif shade_node.outputs['Shade'].links and shade_node.outputs['Shade'].links[0].to_node.inputs['Layer'].links:
+            elif (shade_node.outputs['Shade'].links and shade_node.outputs['Shade'].links[0].to_node.inputs['Layer'].links) or (shade_node.inputs['Shade'].links and shade_node.inputs['Shade'].links[0].from_node.outputs['Layer'].links):
                 st = 'BetweenGlassBlind'
             else:
                 st = 'InteriorBlind'
@@ -8290,7 +8361,6 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         paramvs = ('{}-shading-control'.format(sn), zn, 1, st, '{}-shading'.format(mn), self.ctype, scn, self.sp, scs, 'No', '', self.sac, slcn, '', '', 'Sequential', sn)
 
         ss_text = self.inputs['Slat schedule'].links[0].from_node.ep_write(slcn, 'Any number') if self.inputs['Slat schedule'].links else ''
-            
         return epentry('WindowShadingControl', params, paramvs) + ss_text
 
 class No_En_Mat_PV(Node, EnViMatNodes):
