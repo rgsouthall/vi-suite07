@@ -263,16 +263,19 @@ def hmchart_disp(chart_op, plt, dnode, col):
     plt.ylabel('Hours', size=16)
 
     if dnode.cf:
-        plt.contourf(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), cmap=col, extend='both')
+        plt.contourf(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=dnode.clevels + 1, cmap=col, extend='both')
     else:
         plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
 
     cbar = plt.colorbar(use_gridspec=True, pad=0.01)
 
     if dnode.cl:
-        ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]
-        cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=ls, colors='Black', linewidths=dnode.lw)
-        plt.clabel(cp, inline=True, fontsize=10)
+        try:
+            ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]
+            cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=ls, colors='Black', linewidths=dnode.lw)
+            plt.clabel(cp, inline=True, fontsize=10)
+        except Exception:
+            cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=dnode.clevels + 1, colors='Black', linewidths=dnode.lw)
 
     if dnode.grid and dnode.cf:
         ax.grid(True, which='both', zorder=10)
