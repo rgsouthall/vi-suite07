@@ -59,23 +59,7 @@ if sys.platform in ('darwin', 'win32'):
         if 'dce34e9a03e1' in line.decode():
             ofoam = 1
 
-# elif sys.platform == 'linux':
-#     addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
-#     vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
-#     print('prefs', addonfolder, bpy.context.preferences.addons['{}'.format(addonfolder)], vi_prefs)
-
-#     if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
-#         ofoam = 1
-
-#     import netgen
-#     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
-#     from netgen.stl import STLGeometry
-#     from pyngcore import SetNumThreads, TaskManager
-#     ng = 1
-# except Exception as e:
-#     print('Problem with Netgen installation: {}'.format(e))
-#     ng = 0
-
+flo_libs = [ng, ofoam]
 os.chdir(cur_dir)
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -2931,7 +2915,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif self.energy_menu == '2':
                             if self['res'].get('fa'):
                                 if self['res'].get('hkwh'):
-                                    epass = '(FAIL kWh/m2 > {})'.format(15) if self['res']['totkwh']/self['res']['fa'] > 15 else '(PASS kWh/m2 <= {})'.format(15)
+                                    epass = '(FAIL kWh/m2 > {})'.format(15) if self['res']['hkwh']/self['res']['fa'] > 15 else '(PASS kWh/m2 <= {})'.format(15)
                                     row = layout.row()
                                     row.label(text="Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'], epass))
 
@@ -4347,10 +4331,10 @@ class No_Flo_NG(Node, ViNodes):
             vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
 
             if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
-                ofoam = 1
+                flo_libs[1] = 1
 
         if self.inputs and self.inputs['Case in'].links:
-            if ng and ofoam:
+            if all(flo_libs):
                 # newrow(layout, 'Join geometries:', self, 'geo_join')
                 # if self.geo_join:
                 #     newrow(layout, 'Domain extraction:', self, 'd_diff')
@@ -4367,11 +4351,11 @@ class No_Flo_NG(Node, ViNodes):
                     row = layout.row()
                     row.operator("node.flovi_ng", text="Generate")
 
-            elif not ng:
+            elif not flo_libs[0]:
                 row = layout.row()
                 row.label(text = 'Netgen not found')
 
-            elif not ofoam:
+            elif not flo_libs[1]:
                 if sys.platform == 'linux':
                     row = layout.row()
                     row.label(text='No OpenFOAM directory set')
@@ -5003,7 +4987,12 @@ class No_En_Net_Hvac(Node, EnViNodes):
         self.h = 1 if self.envi_hvachlt != '4' else 0
         self.c = 1 if self.envi_hvacclt != '4' else 0
         self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
-
+    
+    def hupdate_nc(self):
+        self.h = 1 if self.envi_hvachlt != '4' else 0
+        self.c = 1 if self.envi_hvacclt != '4' else 0
+        self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
+        
     envi_hvact: bprop("", "", False)
     envi_hvacht: fprop(u'\u00b0C', "Heating temperature:", 1, 99, 50)
     envi_hvacct: fprop(u'\u00b0C', "Cooling temperature:", -10, 20, 13)
@@ -5030,7 +5019,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
     envi_heat: BoolProperty(name = "Heating", description = 'Turn on zone heating', default = 0)
     envi_htsp: FloatProperty(name = u'\u00b0C', description = "Temperature", min = 0, max = 50, default = 20)
     envi_cool: BoolProperty(name = "Cooling", description = "Turn on zone cooling", default = 0)
-    envi_ctsp: FloatProperty(name = u'\u00b0'+"C", description = "Temperature", min = 0, max = 50, default = 20)
+    envi_ctsp: FloatProperty(name = u'\u00b0'+"C", description = "Temperature", min = 0, max = 50, default = 24)
 
     def init(self, context):
         self['hc'] = ''
@@ -5042,9 +5031,9 @@ class No_En_Net_Hvac(Node, EnViNodes):
         self.inputs.new('So_En_Net_TSched', 'CSchedule')
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label(text = 'HVAC Template:')
-        row.prop(self, 'envi_hvact')
+        # row = layout.row()
+        # row.label(text = 'HVAC Template:')
+        # row.prop(self, 'envi_hvact')
         row = layout.row()
         row.label(text = 'Heating -----------')
         newrow(layout, 'Heating limit:', self, 'envi_hvachlt')
@@ -5138,7 +5127,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
         return entry
 
     def hvactwrite(self, zn):
-        self.hupdate()
+        self.hupdate_nc()
         oam = {'0':'None', '1':'Flow/Zone', '2':'Flow/Person', '3':'Flow/Area', '4':'Sum', '5':'Maximum', '6':'DetailedSpecification'}
         params = ('Zone Name' , 'Thermostat Name', 'System Availability Schedule Name', 'Maximum Heating Supply Air Temperature', 'Minimum Cooling Supply Air Temperature',
                 'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)',
@@ -5151,7 +5140,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
                    self.envi_hvacshc if self.envi_hvachlt in ('1', '2') else '', self['limittype'][self.envi_hvacclt], self.envi_hvaccaf if self.envi_hvacclt in ('0', '2') else '',
                     self.envi_hvacscc if self.envi_hvacclt in ('1', '2') else '', '', '', 'None', '', '', 'None', '', oam[self.envi_hvacoam], '{:.4f}'.format(self.envi_hvacfrp) if self.envi_hvacoam in ('2', '4', '5') else '',
                     '{:.4f}'.format(self.envi_hvacfrzfa) if self.envi_hvacoam in ('3', '4', '5') else '', '{:.4f}'.format(self.envi_hvacfrz) if self.envi_hvacoam in ('1', '4', '5') else '', '', 'None', 'NoEconomizer', ('None', 'Sensible')[int(self.envi_hvachr)], self.envi_hvachre, 0.65)
-        bpy.context.scene['enparams']['hvactemplate'] = 1
+        bpy.context.scene.vi_params['enparams']['hvactemplate'] = 1
         return epentry('HVACTemplate:Zone:IdealLoadsAirSystem', params, paramvs)
 
     def epewrite(self, zn):
@@ -5383,10 +5372,10 @@ class No_En_Net_SSFlow(Node, EnViNodes):
         self.inputs.new('So_En_Net_Sched', 'VASchedule')
         self.inputs.new('So_En_Net_Sched', 'TSPSchedule')
         self.inputs['TSPSchedule'].hide = True
-        self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 1
-        self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
-        self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier = 'Node1_s').link_limit = 1
-        self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier = 'Node2_s').link_limit = 1
+        self.inputs.new('So_En_Net_SSFlow', 'Node 1', identifier='Node1_s').link_limit = 1
+        self.inputs.new('So_En_Net_SSFlow', 'Node 2', identifier='Node2_s').link_limit = 1
+        self.outputs.new('So_En_Net_SSFlow', 'Node 1', identifier='Node1_s').link_limit = 1
+        self.outputs.new('So_En_Net_SSFlow', 'Node 2', identifier='Node2_s').link_limit = 1
         self.outputs.new('So_Anim', 'Parameter')
         self.color = (1.0, 0.3, 0.3)
         self['layoutdict'] = {'SO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'), ('Density diff', 'ddtw'), ('DC', 'dcof')), 'DO':(('Closed FC', 'amfcc'), ('Closed FE', 'amfec'),
@@ -6312,7 +6301,7 @@ class So_En_Mat_Sh(NodeSocket):
     bl_label = 'Shade layer socket'
 
     valid = ['Shade']
-
+    
     def draw(self, context, layout, node, text):
         layout.label(text = text)
 
@@ -7542,6 +7531,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         self.outputs.new('So_En_Mat_Tr', 'Layer')
         self.inputs.new('So_En_Mat_Gas', 'Layer')
         self.outputs.new('So_En_Mat_Sh', 'Shade')
+        self.outputs['Shade'].link_limit = 1
         self.inputs.new('So_En_Mat_Sh', 'Shade')
 
     def draw_buttons(self, context, layout):
@@ -7621,10 +7611,10 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         if self.outputs['Shade'].links and self.outputs['Shade'].links[0].to_node.bl_idname == 'No_En_Mat_Sc' and self.outputs['Layer'].links and self.outputs['Layer'].links[0].to_node.bl_idname != 'No_En_Mat_Con':
             self.id_data.links.remove(self.outputs['Shade'].links[0])
 
-        if self.outputs['Shade'].links and self.outputs['Shade'].links[0].to_node.bl_idname in ('No_En_Mat_BL', 'No_En_Mat_Sh') and self.inputs['Layer'].links:
+        if self.outputs['Shade'].links and self.outputs['Shade'].links[0].to_node.bl_idname in ('No_En_Mat_Bl', 'No_En_Mat_Sh') and self.inputs['Layer'].links and self.outputs['Layer'].links[0].to_node.bl_idname != 'No_En_Mat_Con':
             self.id_data.links.remove(self.outputs['Shade'].links[0])
 
-        if self.inputs['Shade'].links and self.inputs['Shade'].links[0].from_node.bl_idname in ('No_En_Mat_BL', 'No_En_Mat_Sh') and self.inputs['Layer'].links and self.inputs['Layer'].links[0].from_node.inputs['Layer'].links:
+        if self.inputs['Shade'].links and self.inputs['Shade'].links[0].from_node.bl_idname in ('No_En_Mat_Bl', 'No_En_Mat_Sh') and self.inputs['Layer'].links and self.inputs['Layer'].links[0].from_node.inputs['Layer'].links:
             if self.inputs['Layer'].links[0].from_node.inputs['Layer'].links[0].from_node.inputs['Layer'].links:
                 self.id_data.links.remove(self.inputs['Shade'].links[0])
 
@@ -7818,6 +7808,7 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Sh', 'Shade')
+        self.outputs['Shade'].link_limit = 1
         self.inputs.new('So_En_Mat_Sh', 'Shade')
         self.inputs.new('So_En_Mat_ShC', 'Control')
 
@@ -7854,6 +7845,10 @@ class No_En_Mat_Sh(Node, EnViMatNodes):
     def update(self):
         for sock in self.outputs:
             socklink2(sock, self.id_data)
+
+        if self.outputs['Shade'].links:
+            if self.outputs['Shade'].links[0].to_node.bl_idname != 'No_En_Mat_Tr':
+                self.id_data.links.remove(self.outputs['Shade'].links[0])
 
         if self.outputs["Shade"].links:
             self.inputs["Shade"].hide = True
@@ -7967,9 +7962,9 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     so: EnumProperty(items=[("0", "Horizontal", "Select from database"),
                                 ("1", "Vertical", "Define custom material properties")],
                                 name="", description="Slat orientation", default='0')
-    sw: FloatProperty(name="mm", description="Slat width", min=0.1, max=1000, default=25)
+    sw: FloatProperty(name="mm", description="Slat width", min=0.1, max=1000, default=12)
     ss: FloatProperty(name="mm", description="Slat separation", min=0.1, max=1000, default=20)
-    st: FloatProperty(name="mm", description="Slat thickness", min=0.1, max=1000, default=50)
+    st: FloatProperty(name="mm", description="Slat thickness", min=0.1, max=1000, default=2)
     sa: FloatProperty(name="deg", description="Slat angle", min=0.0, max=90, default=45)
     stc: FloatProperty(name="W/m.K", description="Slat conductivity", min=0.01, max=100, default=10)
     sbst: FloatProperty(name="", description="Slat beam solar transmittance", min=0.0, max=1, default=0.0)
@@ -7993,12 +7988,13 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     lom: FloatProperty(name="", description="Blind left-side opening multiplier", min=0.0, max=1, default=0.5)
     rom: FloatProperty(name="", description="Blind right-side opening multiplier", min=0.0, max=1, default=0.5)
     minsa: FloatProperty(name="deg", description="Minimum slat angle", min=0.0, max=90, default=0.0)
-    maxsa: FloatProperty(name="deg", description="Maximum slat angle", min=0.0, max=90, default=0.0)
+    maxsa: FloatProperty(name="deg", description="Maximum slat angle", min=0.0, max=90, default=90.0)
     resist: FloatProperty(name = "", description = "", min = 0, default = 0)
     thi: FloatProperty(name = "", description = "", min = 0, default = 0)
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Sh', 'Shade')
+        self.outputs['Shade'].link_limit = 1
         self.inputs.new('So_En_Mat_Sh', 'Shade')
         self.inputs.new('So_En_Mat_ShC', 'Control')
 
@@ -8158,6 +8154,7 @@ class No_En_Mat_SG(Node, EnViMatNodes):
 
     def init(self, context):
         self.outputs.new('So_En_Mat_Sh', 'Shade')
+        self.outputs['Shade'].link_limit = 1
         self.inputs.new('So_En_Mat_Sh', 'Shade')
         self.inputs['Shade'].hide = True
         self.inputs.new('So_En_Mat_ShC', 'Control')
@@ -8254,16 +8251,19 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             else:
                 return [(t, t, t) for t in self.ttuple]
         except Exception:
-            # logentry('Shade control error {}'.format(e))
             return [('None', 'None', 'None')]
 
     def schupdate(self, context):
-        if self.ctype != "OnIfHighGlare":
+        if self.ctype not in ("AlwaysOn", "AlwaysOff", "OnIfHighGlare"):
             self.inputs['Schedule'].hide = False
         else:
             if self.inputs['Schedule'].links:
                 self.id_data.links.remove(self.inputs['Schedule'].links[0])
             self.inputs['Schedule'].hide = True
+        
+        if self.ctype == 'OnIfScheduleAllows':
+            if not self.inputs['Schedule'].links:
+                nodecolour(self, 1)
 
     def slatupdate(self, context):
         if self.sac != 'ScheduledSlatAngle':
@@ -8272,6 +8272,10 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             self.inputs['Slat schedule'].hide = True
         else:
             self.inputs['Slat schedule'].hide = False
+
+            if not self.inputs['Slat schedule'].links:
+                nodecolour(self, 1)
+
 
     ctype: EnumProperty(items=type_menu, name="", description="Shading device", update=schupdate)
     sp: FloatProperty(name="", description="Setpoint (W/m2, W or deg C)", min=0.0, max=1000, default=20)
@@ -8285,6 +8289,7 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
 
     def init(self, context):
         self.outputs.new('So_En_Mat_ShC', 'Control')
+        self.outputs['Control'].link_limit = 1
         self.inputs.new('So_En_Mat_Sched', 'Schedule')
         self.inputs.new('So_En_Mat_Sched', 'Slat schedule')
         self.inputs['Schedule'].hide = True
@@ -8302,7 +8307,7 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
                 newrow(layout, "Set-point 2", self, 'sp2')
 
     def valid(self):
-        if not self.outputs["Control"].links:
+        if not self.outputs["Control"].links or (self.ctype == "OnIfScheduleAllows" and not self.inputs['Schedule'].links):
             nodecolour(self, 1)
         else:
             nodecolour(self, 0)
@@ -8313,8 +8318,16 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
 
         if not self.outputs['Control'].links:
             self.ctype = 'None'
-
+        else:
+            if self.outputs['Control'].links[0].to_node.bl_idname != 'No_En_Mat_Bl':
+                if self.inputs['Slat schedule'].links:
+                    self.id_data.links.remove(self.inputs['Slat schedule'].links[0])
+                self.inputs['Slat schedule'].hide = True
+            else:
+                self.inputs['Slat schedule'].hide = False    
+            
         self.valid()
+        self.ctype = self.ctype
 
     def ret_resist(self):
         self.resist = 0
@@ -8455,13 +8468,18 @@ class No_En_Mat_PV(Node, EnViMatNodes):
 
     def draw_buttons(self, context, layout):
         mat = bpy.data.materials[self.id_data.name]
-        row = layout.row()
-        row.operator('node.pv_area', text = "Area Calc")
+        
+        if mat.vi_params['enparams'].get('pvarea'):
+            row = layout.row()
+            # row.operator('node.pv_area', text = "Area Calc")
+            
+            # try:
+            row = layout.row()
+            row.label(text = 'Area = {:.2f}m2'.format(mat.vi_params['enparams'].get('pvarea')))
 
-        try:
-            row.label(text = '{:.2f} m2'.format(self['area']))
-        except Exception:
-            row.label(text = 'Area  = N/A')
+        else:
+            row = layout.row()
+            row.label(text = 'Area = N/A')
 
         newrow(layout, "Heat transfer:", self, "hti")
         newrow(layout, 'Type:', self, 'pp')
@@ -8504,6 +8522,9 @@ class No_En_Mat_PV(Node, EnViMatNodes):
             newrow(layout, 'Model:', self, 'smenu')
 
     def update(self):
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
         if len(self.outputs) + len(self.inputs) == 3:
             if self.outputs['PV'].links and not self.inputs['PV Generator'].links:
                 nodecolour(self, 1)
@@ -8537,7 +8558,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
             ep_text += epentry('PhotovoltaicPerformance:Simple', params, paramvs)
 
             if self.inputs['PV Schedule'].links:
-                ep_text += self.inputs['PV Schedule'].links[0].from_node.epwrite('{}-pv-performance-schedule'.format(sn), 'Fraction')
+                ep_text += self.inputs['PV Schedule'].links[0].from_node.ep_write('{}-pv-performance-schedule'.format(sn), 'Fraction')
 
         elif self.pp == '1':
             params = ('Name', 'Cell type', 'Number of Cells in Series', 'Active Area (m2)', 'Transmittance Absorptance Product',

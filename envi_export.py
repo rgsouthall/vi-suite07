@@ -165,7 +165,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                                         if emnode.inputs['PV'].links:
                                             pv_node = emnode.inputs['PV'].links[0].from_node
                                             pvgen_node = pv_node.inputs['PV Generator'].links[0].from_node
-                                            en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index)))
+                                            en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
                                             gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
 
                                     elif emecc in ('Door', 'Window') and emnode.envi_con_makeup != "2":
