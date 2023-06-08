@@ -760,9 +760,6 @@ class No_Li_Con(Node, ViNodes):
                 if self.hdr:
                     cbdmhdr(self, scene, export_op)
 
-    # def check_mtx(self):
-    #     if self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
-
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
         (sdoy, edoy) = (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
@@ -4146,6 +4143,7 @@ class No_Flo_Case(Node, ViNodes):
             self.buoyancy = 0
 
         context.scene.vi_params['flparams']['scenario'] = self.scenario
+        
 
     scenario: EnumProperty(items=[('0', 'External flow', 'Wind induced flow'), ('1', 'Internal flow', 'Internal forced flow'), ('2', 'Forced convection', 'Forced convection'),
                                   ('3', 'Free convection', 'Free convection'), ('4', 'Custom', 'Custom scenario')], name='', description='Scenario type', default=0, update=nodeupdate)
@@ -4294,6 +4292,7 @@ class No_Flo_Case(Node, ViNodes):
             socklink(sock, self.id_data.name)
 
     def pre_case(self, context):
+        context.scene.vi_params['flparams']['frames'] = [context.scene.frame_current] if not self.parametric else range(self.frame_start, self.frame_end + 1)
         self.nodeupdate(context)
 
     def post_case(self):

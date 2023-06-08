@@ -3407,12 +3407,13 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
                     Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "reconstructPar -case data"'.format(frame_coffb), shell=True)
-
+            
+            resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate'}
+            
             for oname in svp['flparams']['probes']:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname, '0')
-                    resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate'}
-
+                    
                     for f in os.listdir(probed):
                         if f in ('p', 'T'):
                             res = []
@@ -3471,12 +3472,13 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
+                print(oname, frame_coffb, frame_c)
                 vfs = []
                 times = []
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case data/{}"'.format(frame_coffb, oname), shell=True)
+                    vf_run = Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func triSurfaceVolumetricFlowRate\(name="{}.stl"\) -case data"'.format(frame_coffb, oname), stdout=PIPE, shell=True)
 
                 # with open('{}'.format(os.path.join(frame_coffb, 'postProcessing', 'triSurfaceVolumetricFlowRate(name={}.stl)'.format(oname))) as vf_file:
                 #     for line in vf_file.readlines():
@@ -3494,7 +3496,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     if "U =" in line.decode():
                         vf = line.decode().split()[-1]
                         vfs.append(vf)
-                        self.o_dict[str(frame_c)][oname]['Q'] = float(vf)
 
                     elif 'Time =' in line.decode():
                         ti = line.decode().split()[-1].strip('s')
@@ -3502,8 +3503,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, ti, vf))
 
                 if vfs and times:
-                    self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs])])
-                    self.reslists.append([str(frame_c), 'Timestep', 'Surface', 'Seconds', ' '.join(['{}'.format(ti) for ti in times])])
+                    self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[-1])
+                    print(self.o_dict)
+                    self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[:-1]])])
+                    self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[:-1]])])
 
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals), frame_n)
@@ -3523,15 +3526,15 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                                                                                                                                                                                         self.processes,
                                                                                                                                                                                         svp['flparams']['solver']), stdout=fvprogress))
                         else:
-                            self.runs.append(Popen('docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_noffb, svp['flparams']['solver']), stdout=fvprogress))
+                            self.runs.append(Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_noffb, svp['flparams']['solver']), shell=True, stdout=fvprogress))
                 return {'PASS_THROUGH'}
 
             if len(self.frames) > 1:
                 self.reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in self.frames])])
-
-                for oname in self.o_dict[str(self.frames[0])]:
-                    for param in self.o_dict[str(self.frames[0])][oname]:
-                        self.reslists.append(['All', 'Zone spatial', oname, resdict[param], ' '.join(['{:.3f}'.format(self.o_dict[str(f)][oname][param]) for f in self.frames])])
+                if self.o_dict:
+                    for oname in self.o_dict[str(self.frames[0])]:
+                        for param in self.o_dict[str(self.frames[0])][oname]:
+                            self.reslists.append(['All', 'Zone spatial', oname, resdict[param], ' '.join(['{:.3f}'.format(self.o_dict[str(f)][oname][param]) for f in self.frames])])
 
             self.simnode['reslists'] = self.reslists
             self.simnode.post_sim()
@@ -3563,6 +3566,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         self.reslists = []
         self.o_dict = {}
         self.frames = range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1)
+        self.simnode['frames'] = [f for f in self.frames]
         fframe_offb = os.path.join(svp['flparams']['offilebase'], str(svp['flparams']['start_frame']))
         os.chdir(svp['flparams']['offilebase'])
 
@@ -3614,7 +3618,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.runs.append(Popen(shlex.split(sol_cmd), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
                     # solver = 'buoyantBoussinesqSimpleFoam' if svp['flparams']['solver'] == 'bsf' else svp['flparams']['solver']
-                    sol_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(fframe_offb, svp['flparams']['solver'])
+                    sol_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_offb, svp['flparams']['solver'])
                     logentry('Running solver with command: {}'.format(sol_cmd))
                     self.runs.append(Popen(sol_cmd, shell=True, stdout=fvprogress))
 
