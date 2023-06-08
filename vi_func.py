@@ -2057,9 +2057,10 @@ def socklink(sock, ng):
             for link in sock.links:
                 valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid']
                 valset = set(valid1) & set(valid2)
-
+                print(valid1, valid2, valset)
                 if not valset or len(valset) < min((len(valid1), len(valid2))):
                     bpy.data.node_groups[ng].links.remove(link)
+
         except Exception:
             if sock.links:
                 bpy.data.node_groups[ng].links.remove(sock.links[-1])

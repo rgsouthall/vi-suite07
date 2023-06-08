@@ -2890,12 +2890,16 @@ class No_Vi_Metrics(Node, ViNodes):
                                     tar = self['riba_en'][self.riba_menu]
                                     epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > tar else '(PASS kWh/m2 <= {})'.format(tar)
     #                                shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
-                                    # row = layout.row()
-                                    # row.label(text = "Space heating (kWh): {:.1f}".format(self['res']['hkwh']))
-                                    # row = layout.row()
-                                    # row.label(text = "Space heating (kWh/m2): {:.1f} {}".format(self['res']['hkwh']/self['res']['fa'][str(self.frame_menu)], shpass))
                                     row = layout.row()
-                                    row.label(text="Operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
+                                    row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
+                                    row = layout.row()
+                                    row.label(text = "Space cooling (kWh/m2): {:.1f}".format(self['res']['ckwh']/self['res']['fa']))
+                                    row = layout.row()
+                                    row.label(text = "Power production (kWh/m2): {:.1f}".format(self['res']['pvkwh']/self['res']['fa']))
+                                    row = layout.row()
+                                    row.label(text="Gross operational (kWh/m2): {:.1f} {}".format(self['res']['totkwh']/self['res']['fa'], epass))
+                                    row = layout.row()
+                                    row.label(text="Net operational (kWh/m2): {:.1f}".format(self['res']['netkwh']/self['res']['fa']))
 
                                 elif self['res'].get('hkwh'):
                                     row = layout.row()
@@ -3270,6 +3274,9 @@ class No_Vi_Metrics(Node, ViNodes):
                     else:
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
 
+                elif self.metric == '0':
+                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone temporal'])))
+                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
                 else:
                     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
                     self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
@@ -3330,7 +3337,6 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['wkwh'] = 1.15 * sum([4.18/3600 * Vda * z[0] * z[1] * z[2] / hw_mod for z in zip(md, ff, dtm)])
 
             if self.energy_menu == '0':
-
                 for r in self['rl']:
                     if r[0] == self.frame_menu and self.zone_menu == 'All':
                         if r[3] == 'PV power (W)' and r[2] == 'All':
@@ -3401,7 +3407,8 @@ class No_Vi_Metrics(Node, ViNodes):
 
                 self['res']['hkwh'] = self['res']['hkwh'] / heat_mod + self['res']['ahkwh'] - self['res']['hkwh'] if self['res']['ahkwh'] > self['res']['hkwh'] else self['res']['hkwh'] / heat_mod
                 self['res']['ckwh'] = self['res']['ckwh'] / self.ac_cop + self['res']['ackwh'] - self['res']['ckwh'] if self['res']['ackwh'] > self['res']['ckwh'] else self['res']['ckwh'] / self.ac_cop
-                self['res']['totkwh'] = (self['res']['hkwh'] + self['res']['ckwh'] - self['res']['pvkwh'] + self.mod * self['res']['fa'])
+                self['res']['totkwh'] = (self['res']['hkwh'] + self['res']['ckwh'] + self.mod * self['res']['fa'])
+                self['res']['netkwh'] = (self['res']['hkwh'] + self['res']['ckwh'] - self['res']['pvkwh'] + self.mod * self['res']['fa'])
 
             elif self.energy_menu == '2':
                 for r in self['rl']:
@@ -4987,12 +4994,12 @@ class No_En_Net_Hvac(Node, EnViNodes):
         self.h = 1 if self.envi_hvachlt != '4' else 0
         self.c = 1 if self.envi_hvacclt != '4' else 0
         self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
-    
+
     def hupdate_nc(self):
         self.h = 1 if self.envi_hvachlt != '4' else 0
         self.c = 1 if self.envi_hvacclt != '4' else 0
         self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
-        
+
     envi_hvact: bprop("", "", False)
     envi_hvacht: fprop(u'\u00b0C', "Heating temperature:", 1, 99, 50)
     envi_hvacct: fprop(u'\u00b0C', "Cooling temperature:", -10, 20, 13)
@@ -5545,6 +5552,7 @@ class No_En_Net_Ext(Node, EnViNodes):
         row= layout.row()
         row.label(text = 'WPC Values')
         direcs = ('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW')
+
         for w in range(1, 13):
             row = layout.row()
             row.prop(self, 'wpc{}'.format(w))
@@ -5552,6 +5560,7 @@ class No_En_Net_Ext(Node, EnViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+
         sockhide(self, ('Sub surface', 'Surface'))
 
     def epwrite(self, enng):
@@ -6301,7 +6310,7 @@ class So_En_Mat_Sh(NodeSocket):
     bl_label = 'Shade layer socket'
 
     valid = ['Shade']
-    
+
     def draw(self, context, layout, node, text):
         layout.label(text = text)
 
@@ -8260,7 +8269,7 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             if self.inputs['Schedule'].links:
                 self.id_data.links.remove(self.inputs['Schedule'].links[0])
             self.inputs['Schedule'].hide = True
-        
+
         if self.ctype == 'OnIfScheduleAllows':
             if not self.inputs['Schedule'].links:
                 nodecolour(self, 1)
@@ -8324,8 +8333,8 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
                     self.id_data.links.remove(self.inputs['Slat schedule'].links[0])
                 self.inputs['Slat schedule'].hide = True
             else:
-                self.inputs['Slat schedule'].hide = False    
-            
+                self.inputs['Slat schedule'].hide = False
+
         self.valid()
         self.ctype = self.ctype
 
@@ -8416,11 +8425,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
                                 name="", description="Photovoltaic Type", default="0")
 
     hti: EnumProperty(items=[("Decoupled", "Decoupled", "Decoupled"),
-                               ("DecoupledUllebergDynamic", "Ulleberg", "DecoupledUllebergDynamic"),
-                               ("IntegratedSurfaceOutsideFace", "SurfaceOutside", "IntegratedSurfaceOutsideFace"),
-                               ("IntegratedTranspiredCollector", "Transpired", "IntegratedTranspiredCollector"),
-                               ("IntegratedExteriorVentedCavity", "ExteriorVented", "IntegratedExteriorVentedCavity"),
-                               ("PhotovoltaicThermalSolarCollector", "PVThermal", "PhotovoltaicThermalSolarCollector")],
+                               ("DecoupledUllebergDynamic", "Ulleberg", "DecoupledUllebergDynamic")],
                                 name="", description="Conversion Efficiency Input Mode'", default="Decoupled")
 
     pp: EnumProperty(items=[("0", "Simple", "Do not model reflected beam component"),
@@ -8468,11 +8473,11 @@ class No_En_Mat_PV(Node, EnViMatNodes):
 
     def draw_buttons(self, context, layout):
         mat = bpy.data.materials[self.id_data.name]
-        
+
         if mat.vi_params['enparams'].get('pvarea'):
             row = layout.row()
             # row.operator('node.pv_area', text = "Area Calc")
-            
+
             # try:
             row = layout.row()
             row.label(text = 'Area = {:.2f}m2'.format(mat.vi_params['enparams'].get('pvarea')))

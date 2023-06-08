@@ -168,6 +168,12 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                                             en_idf.write(pv_node.ep_write('{}_{}'.format(obj.name, face.index), face.calc_area()))
                                             gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
 
+                                        if emecc in ('Wall', "Roof"):
+                                            if mat.name not in pv_areas:
+                                                pv_areas[mat.name] = 0
+
+                                            pv_areas[mat.name] += face.calc_area()
+
                                     elif emecc in ('Door', 'Window') and emnode.envi_con_makeup != "2":
                                         if len(face.verts) > 4:
                                             exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
@@ -629,7 +635,7 @@ def pregeo(context, op):
                             if emnode.envi_con_type in dcdict:
                                 mat.diffuse_color = dcdict[mct]
                             if emnode.inputs['PV'].links:
-                                mat.diffuse_color = (1, 1, 0, 1)
+                                mat.diffuse_color = (0, 0, 0.6, 1)
 
                 bmesh.ops.delete(bm, geom=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.envi_export], context='FACES')
 
