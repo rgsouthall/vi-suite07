@@ -522,6 +522,7 @@ def fvcdwrite(svp, node, dp):
 
     for o in bpy.data.objects:
         ovp = o.vi_params
+        
         if o.type == 'MESH' and ovp.vi_type == '2':
             dom = o
         elif o.type == 'EMPTY' and ovp.flovi_probe:
@@ -539,11 +540,11 @@ def fvcdwrite(svp, node, dp):
                     bs.append('{}_{}'.format(o.name, mat.name))
 
     if ps:
-        svp['flparams']['probes'] = [p.name for p in ps]
+        svp['flparams']['probes'] = [p.name.replace(" ", "_") for p in ps]
         probe_vars = 'p U T'
 
         for p in ps:
-            cdict['functions'][p.name] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name), 'writeControl': 'timeStep',
+            cdict['functions'][p.name.replace(" ", "_")] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name.replace(" ", "_")), 'writeControl': 'timeStep',
                                           'writeInterval': '10', 'fields': '({0})'.format(probe_vars),
                                           'probeLocations\n(\n{}\n)'.format('   ({0[0]} {0[1]} {0[2]})'.format(p.location)): ''}
 
@@ -562,7 +563,7 @@ def fvcdwrite(svp, node, dp):
             {1}
         );
     }}
-}}'''.format(probe_vars, ''.join([' ({0[0]} {0[1]} {0[2]})\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name) for p in ps]))
+}}'''.format(probe_vars, ''.join([' ({0[0]} {0[1]} {0[2]})\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name.replace(" ", "_")) for p in ps]))
 
     else:
         probe_text = ''
@@ -699,7 +700,7 @@ def fvmtwrite(node, features):
 
 def fvtpwrite():
     htext = ofheader + write_ffile('dictionary', 'constant', 'physicalProperties')
-    tpdict = {'transportModel': 'Newtonian', 'nu': '[0 2 -1 0 0 0 0] 1e-05'}
+    tpdict = {'transportModel': 'Newtonian', 'nu': '[0 2 -1 0 0 0 0] 1.5e-05'}
     return write_fvdict(htext, tpdict)
 
 

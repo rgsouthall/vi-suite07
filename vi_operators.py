@@ -3414,14 +3414,15 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname, '0')
                     
+                    if 'p' in os.listdir(probed):
+                        if str(frame_c) not in self.o_dict:
+                            self.o_dict[str(frame_c)] = {}
+
+                        self.o_dict[str(frame_c)][oname] = {}
+
                     for f in os.listdir(probed):
                         if f in ('p', 'T'):
                             res = []
-
-                            if str(frame_c) not in self.o_dict:
-                                self.o_dict[str(frame_c)] = {}
-
-                            self.o_dict[str(frame_c)][oname] = {}
 
                             with open(os.path.join(probed, f), 'r') as resfile:
                                 for line in resfile.readlines():
@@ -3436,6 +3437,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                             for ri, r in enumerate(resarray[1:]):
                                 self.reslists.append([str(frame_c), 'Zone spatial', oname, resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+
+                            if f == 'p':
+                                wpcs = [float(r[1])/(0.5*(1.23*10**2)) for r in res]
+                                self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Pressure coeff', ' '.join(['{:5f}'.format(float(res)) for res in wpcs])])
+                                if bpy.data.objects.get(oname):
+                                    pass
 
                         elif f in ('U'):
                             ts = []
@@ -3472,20 +3479,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
-                print(oname, frame_coffb, frame_c)
                 vfs = []
                 times = []
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
                     vf_run = Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func triSurfaceVolumetricFlowRate\(name="{}.stl"\) -case data"'.format(frame_coffb, oname), stdout=PIPE, shell=True)
-
-                # with open('{}'.format(os.path.join(frame_coffb, 'postProcessing', 'triSurfaceVolumetricFlowRate(name={}.stl)'.format(oname))) as vf_file:
-                #     for line in vf_file.readlines():
-                #         if line[0] != '#':
-                #             ls = line.split()
-                #             times.append(ls[0])
-                #             vfs.append(ls[1])
 
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
@@ -3503,10 +3502,9 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, ti, vf))
 
                 if vfs and times:
-                    self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[-1])
-                    print(self.o_dict)
-                    self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[:-1]])])
-                    self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[:-1]])])
+                    self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
+                    self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
+                    self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
 
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals), frame_n)
@@ -3538,10 +3536,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
             self.simnode['reslists'] = self.reslists
             self.simnode.post_sim()
-
-            # if svp['flparams']['solver'] == 'buoyantFoam':
-            #     if sys.platform == 'linux':
-            #         Popen(shlex.split("foamExec postProcess -func comfort -case {}".format(frame_coffb)))
 
             if self.pv and sys.platform == 'linux':
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))
@@ -3601,7 +3595,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 elif sys.platform in ('darwin', 'win32'):
                     dcp_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "decomposePar -force -case data"'.format(frame_offb)
                     Popen(dcp_cmd, shell=True).wait()
-                # print('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes, svp['flparams']['solver'], frame_offb))
 
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:
@@ -3617,9 +3610,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     sol_cmd = '{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", fframe_offb)
                     self.runs.append(Popen(shlex.split(sol_cmd), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
-                    # solver = 'buoyantBoussinesqSimpleFoam' if svp['flparams']['solver'] == 'bsf' else svp['flparams']['solver']
-                    sol_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_offb, svp['flparams']['solver'])
-                    logentry('Running solver with command: {}'.format(sol_cmd))
+                    sol_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(fframe_offb, svp['flparams']['solver'])
                     self.runs.append(Popen(sol_cmd, shell=True, stdout=fvprogress))
 
                 logentry('Running solver with command: {}'.format(sol_cmd))
@@ -3634,488 +3625,3 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
         return {'CANCELLED'}
 
-# class NODE_OT_Flo_BM(bpy.types.Operator):
-#     bl_idname = "node.flovi_bm"
-#     bl_label = "Blockmesh export"
-#     bl_description = "Export an Openfoam blockmesh"
-#     bl_register = True
-#     bl_undo = False
-
-#     def execute(self, context):
-#         scene = context.scene
-#         svp = scene.vi_params
-#         expnode = context.node if context.node.bl_label == "FloVi BlockMesh" else context.node.inputs[0].links[0].from_node
-#         bmos = [o for o in scene.objects if o.vi_params.vi_type == '2']
-
-#         if viparams(self, scene):
-#             return {'CANCELLED'}
-
-#         if len(bmos) != 1:
-#             self.report({'ERROR'},"One and only one object with the CFD Domain property is allowed")
-#             return {'CANCELLED'}
-#         elif [f.material_index for f in bmos[0].data.polygons if f.material_index + 1 > len(bmos[0].data.materials)]:
-#             self.report({'ERROR'},"Not every domain face has a material attached")
-#             logentry("Not every face has a material attached")
-#             return {'CANCELLED'}
-#         with open(os.path.join(svp['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
-#             cdfile.write(fvcdwrite("simpleFoam", 0.005, 5))
-#         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
-#             fvsolfile.write(fvsolwrite(expnode))
-#         with open(os.path.join(svp['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
-#             fvschfile.write(fvschwrite(expnode))
-#         # with open(os.path.join(svp['flparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
-#         #     bmfile.write(fvbmwrite(bmos[0], expnode))
-
-#         call(("blockMesh", "-case", "{}".format(scene['flparams']['offilebase'])))
-# #        fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['flparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['flparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
-#         expnode.export()
-#         return {'FINISHED'}
-
-# class VIEW3D_OT_EnDisplay(bpy.types.Operator):
-#     bl_idname = "view3d.endisplay"
-#     bl_label = "EnVi display"
-#     bl_description = "Display the EnVi results"
-#     bl_options = {'REGISTER'}
-#     _handle = None
-#     disp = bpy.props.IntProperty(default=1)
-
-#     @classmethod
-#     def poll(cls, context):
-#         return context.area.type == 'VIEW_3D' and \
-#                context.region.type == 'WINDOW'
-
-#     def modal(self, context, event):
-#         scene = context.scene
-#         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
-#             if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'enpanel':
-#                 context.scene['viparams']['vidisp'] = 'en'
-#                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
-
-#                 try:
-#                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
-#                 except:
-#                     pass
-
-#                 for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool',
-#                                                                                           'envi_co2', 'envi_shg', 'envi_ppd', 'envi_pmv',
-#                                                                                           'envi_aheat', 'envi_acool', 'envi_hrheat')]:
-#                     for oc in o.children:
-#                         [scene.objects.unlink(oc) for oc in o.children]
-#                         bpy.data.objects.remove(oc)
-#                     scene.objects.unlink(o)
-#                     bpy.data.objects.remove(o)
-
-#                 context.area.tag_redraw()
-#                 return {'CANCELLED'}
-
-#             mx, my, redraw = event.mouse_region_x, event.mouse_region_y, 0
-
-#             if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
-#                 if self.dhscatter.hl != (0, 1, 1, 1):
-#                     self.dhscatter.hl = (0, 1, 1, 1)
-#                     redraw = 1
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.dhscatter.press = 1
-#                         self.dhscatter.move = 0
-#                         return {'RUNNING_MODAL'}
-#                     elif event.value == 'RELEASE':
-#                         if not self.dhscatter.move:
-#                             self.dhscatter.expand = 0 if self.dhscatter.expand else 1
-#                         self.dhscatter.press = 0
-#                         self.dhscatter.move = 0
-#                         context.area.tag_redraw()
-#                         return {'RUNNING_MODAL'}
-
-#                 elif event.type == 'ESC':
-#                     bpy.data.images.remove(bpy.data.images[self.dhscatter.gimage])
-#                     self.dhscatter.plt.close()
-#                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
-#                     context.area.tag_redraw()
-#                     return {'CANCELLED'}
-
-#                 elif self.dhscatter.press and event.type == 'MOUSEMOVE':
-#                     self.dhscatter.move = 1
-#                     self.dhscatter.press = 0
-
-#             elif self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
-#                 self.dhscatter.hl = (1, 1, 1, 1)
-#                 if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
-#                     self.dhscatter.show_plot()
-#                     context.area.tag_redraw()
-#                     return {'RUNNING_MODAL'}
-
-#             elif self.dhscatter.hl != (1, 1, 1, 1):
-#                 self.dhscatter.hl = (1, 1, 1, 1)
-#                 redraw = 1
-
-#             if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
-#                 if self.table.hl != (0, 1, 1, 1):
-#                     self.table.hl = (0, 1, 1, 1)
-#                     redraw = 1
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.table.press = 1
-#                         self.table.move = 0
-#                         return {'RUNNING_MODAL'}
-#                     elif event.value == 'RELEASE':
-#                         if not self.table.move:
-#                             self.table.expand = 0 if self.table.expand else 1
-#                         self.table.press = 0
-#                         self.table.move = 0
-#                         context.area.tag_redraw()
-#                         return {'RUNNING_MODAL'}
-
-#                 elif event.type == 'ESC':
-#                     bpy.data.images.remove(self.table.gimage)
-#                     self.table.plt.close()
-#                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
-#                     context.area.tag_redraw()
-#                     return {'CANCELLED'}
-
-#                 elif self.table.press and event.type == 'MOUSEMOVE':
-#                      self.table.move = 1
-#                      self.table.press = 0
-
-#             elif self.table.hl != (1, 1, 1, 1):
-#                 self.table.hl = (1, 1, 1, 1)
-#                 redraw = 1
-
-#             if abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20 and self.dhscatter.expand:
-#                 self.dhscatter.hl = (0, 1, 1, 1)
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.dhscatter.resize = 1
-#                     if self.dhscatter.resize and event.value == 'RELEASE':
-#                         self.dhscatter.resize = 0
-#                     return {'RUNNING_MODAL'}
-
-#             if abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
-#                 self.table.hl = (0, 1, 1, 1)
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.table.resize = 1
-#                     if self.table.resize and event.value == 'RELEASE':
-#                         self.table.resize = 0
-#                     return {'RUNNING_MODAL'}
-
-#             if event.type == 'MOUSEMOVE':
-#                 if self.dhscatter.move:
-#                     self.dhscatter.pos = [mx, my]
-#                     redraw = 1
-#                 if self.dhscatter.resize:
-#                     self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
-#                     redraw = 1
-#                 if self.table.move:
-#                     self.table.pos = [mx, my]
-#                     redraw = 1
-#                 if self.table.resize:
-#                     self.table.lepos[0], self.table.lspos[1] = mx, my
-#                     redraw = 1
-
-#             if self.dhscatter.unit != scene.en_disp_unit or self.dhscatter.cao != context.active_object or \
-#                 self.dhscatter.col != scene.vi_leg_col or self.dhscatter.resstring != retenvires(scene) or \
-#                 self.dhscatter.minmax != envals(scene.en_disp_unit, scene, [0, 100]):
-#                 self.dhscatter.update(context)
-#                 self.table.update(context)
-
-#             if redraw:
-#                 context.area.tag_redraw()
-
-#             return {'PASS_THROUGH'}
-#         else:
-#             return {'PASS_THROUGH'}
-
-#     def execute(self, context):
-#         self.i = 0
-#         scene = context.scene
-#         scene.en_frame = scene.frame_current
-#         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-#         zrl = list(zip(*resnode['reslists']))
-#         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
-#         resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
-#         scene.frame_start, scene.frame_end = 0, len(zrl[4][0].split()) - 1
-
-#         if scene.resas_disp:
-#             suns = [o for o in bpy.data.objects if o.type == 'LAMP' and o.data.type == 'SUN']
-#             if not suns:
-#                 bpy.ops.object.lamp_add(type='SUN')
-#                 sun = bpy.context.object
-#             else:
-#                 sun = suns[0]
-
-#             for mi, metric in enumerate(zrl[3]):
-#                 if metric == 'Direct Solar (W/m^2)':
-#                     dirsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
-#                 elif metric == 'Diffuse Solar (W/m^2)':
-#                     difsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
-#                 elif metric == 'Month':
-#                     mdata = [int(m) for m in zrl[4][mi].split()[resstart:resend]]
-#                 elif metric == 'Day':
-#                     ddata = [int(d) for d in zrl[4][mi].split()[resstart:resend]]
-#                 elif metric == 'Hour':
-#                     hdata = [int(h) for h in zrl[4][mi].split()[resstart:resend]]
-
-#             sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata)
-
-#         if scene.resaa_disp:
-#             for mi, metric in enumerate(zrl[3]):
-#                 if metric == 'Temperature (degC)' and zrl[1][mi] == 'Climate':
-#                     temp = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-#                 elif metric == 'Wind Speed (m/s)' and zrl[1][mi] == 'Climate':
-#                     ws = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-#                 elif metric == 'Wind Direction (deg)' and zrl[1][mi] == 'Climate':
-#                     wd = [float(m) for m in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-#                 elif metric == 'Humidity (%)' and zrl[1][mi] == 'Climate':
-#                     hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-
-#             self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')
-#         zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone temporal'  and zrl[0][zri] != 'All'])
-
-#         if scene.reszt_disp and 'Temperature (degC)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'Temp')
-#         if scene.reszsg_disp and  'Solar gain (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'SHG')
-#         if scene.reszh_disp and 'Humidity (%)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'Hum')
-#         if scene.reszco_disp and 'CO2 (ppm)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'CO2')
-#         if scene.reszhw_disp and 'Heating (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'Heat')
-#         if scene.reszhw_disp and 'Cooling (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'Cool')
-#         if scene.reszpmv_disp and 'PMV' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'PMV')
-#         if scene.reszppd_disp and 'PPD (%)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'PPD')
-#         if scene.reshrhw_disp and 'HR heating (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'HRheat')
-#         if scene.reszof_disp:
-#             envilres(scene, resnode)
-#         if scene.reszlf_disp:
-#             envilres(scene, resnode)
-
-#         scene.frame_set(scene.frame_start)
-#         bpy.app.handlers.frame_change_pre.clear()
-#         bpy.app.handlers.frame_change_pre.append(recalculate_text)
-#         self.dhscatter = en_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
-#         self.dhscatter.update(context)
-#         self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
-#         self.table.update(context)
-#         self._handle_en_disp = bpy.types.SpaceView3D.draw_handler_add(en_disp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
-#         scene['viparams']['vidisp'] = 'enpanel'
-#         scene.vi_display = True
-#         context.window_manager.modal_handler_add(self)
-# #        scene.update()
-#         return {'RUNNING_MODAL'}
-
-
-# class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
-#     bl_idname = "view3d.enpdisplay"
-#     bl_label = "EnVi parametric display"
-#     bl_description = "Display the parametric EnVi results"
-#     bl_options = {'REGISTER'}
-# #    bl_undo = False
-#     _handle = None
-#     disp = bpy.props.IntProperty(default=1)
-
-#     @classmethod
-#     def poll(cls, context):
-#         return context.area.type == 'VIEW_3D' and \
-#                context.region.type == 'WINDOW'
-
-#     def modal(self, context, event):
-#         redraw = 0
-#         scene = context.scene
-
-#         if event.type != 'INBETWEEN_MOUSEMOVE':
-#             if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'enpanel':
-#                 scene['viparams']['vidisp'] = 'en'
-#                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_pdisp, 'WINDOW')
-
-#                 for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_maxtemp', 'envi_maxhum', 'envi_maxheat', 'envi_maxcool', 'envi_maxco2', 'envi_maxshg', 'envi_maxppd', 'envi_maxpmv')]:
-#                     for oc in o.children:
-#                         [scene.objects.unlink(oc) for oc in o.children]
-#                         bpy.data.objects.remove(oc)
-
-#                     scene.objects.unlink(o)
-#                     bpy.data.objects.remove(o)
-
-#                 context.area.tag_redraw()
-#                 return {'CANCELLED'}
-
-#             mx, my = event.mouse_region_x, event.mouse_region_y
-
-#             if self.barchart.spos[0] < mx < self.barchart.epos[0] and self.barchart.spos[1] < my < self.barchart.epos[1]:
-#                 if self.barchart.hl != (0, 1, 1, 1):
-#                     self.barchart.hl = (0, 1, 1, 1)
-#                     redraw = 1
-
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.barchart.press = 1
-#                         self.barchart.move = 0
-#                         return {'RUNNING_MODAL'}
-
-#                     elif event.value == 'RELEASE':
-#                         if not self.barchart.move:
-#                             self.barchart.expand = 0 if self.barchart.expand else 1
-
-#                         self.barchart.press = 0
-#                         self.barchart.move = 0
-#                         context.area.tag_redraw()
-#                         return {'RUNNING_MODAL'}
-
-#                 elif event.type == 'ESC':
-#                     bpy.data.images.remove(self.barchart.gimage)
-#                     self.barchart.plt.close()
-#                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
-#                     context.area.tag_redraw()
-#                     return {'CANCELLED'}
-
-#                 elif self.barchart.press and event.type == 'MOUSEMOVE':
-#                     self.barchart.move = 1
-#                     self.barchart.press = 0
-
-#             elif self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lepos[1] and abs(self.barchart.lepos[0] - mx) > 20 and abs(self.barchart.lspos[1] - my) > 20:
-#                 if self.barchart.expand:
-#                     if self.barchart.hl != (0, 1, 1, 1):
-#                         self.barchart.hl = (0, 1, 1, 1)
-#                         redraw = 1
-
-#                     if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.barchart.expand and self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lspos[1] + 0.9 * self.barchart.ydiff:
-#                         self.barchart.show_plot()
-#                         context.area.tag_redraw()
-#                         return {'RUNNING_MODAL'}
-
-#             elif abs(self.barchart.lepos[0] - mx) < 20 and abs(self.barchart.lspos[1] - my) < 20 and self.barchart.expand:
-#                 if self.barchart.hl != (0, 1, 1, 1):
-#                     self.barchart.hl = (0, 1, 1, 1)
-#                     redraw = 1
-
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.barchart.resize = 1
-#                     if self.barchart.resize and event.value == 'RELEASE':
-#                         self.barchart.resize = 0
-#                     return {'RUNNING_MODAL'}
-
-#             else:
-#                 if self.barchart.hl != (1, 1, 1, 1):
-#                     self.barchart.hl = (1, 1, 1, 1)
-#                     redraw = 1
-
-#             if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
-#                 if self.table.hl != (0, 1, 1, 1):
-#                     self.table.hl = (0, 1, 1, 1)
-#                     redraw = 1
-
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.table.press = 1
-#                         self.table.move = 0
-#                         return {'RUNNING_MODAL'}
-#                     elif event.value == 'RELEASE':
-#                         if not self.table.move:
-#                             self.table.expand = 0 if self.table.expand else 1
-#                         self.table.press = 0
-#                         self.table.move = 0
-#                         context.area.tag_redraw()
-#                         return {'RUNNING_MODAL'}
-
-#                 elif event.type == 'ESC':
-#                     bpy.data.images.remove(self.table.gimage)
-#                     self.table.plt.close()
-#                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
-#                     context.area.tag_redraw()
-#                     return {'CANCELLED'}
-
-#                 elif self.table.press and event.type == 'MOUSEMOVE':
-#                     self.table.move = 1
-#                     self.table.press = 0
-
-#             elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
-#                 if self.table.hl != (0, 1, 1, 1):
-#                     self.table.hl = (0, 1, 1, 1)
-#                     redraw = 1
-#                 if event.type == 'LEFTMOUSE':
-#                     if event.value == 'PRESS':
-#                         self.table.resize = 1
-#                         return {'RUNNING_MODAL'}
-#                     if self.table.resize and event.value == 'RELEASE':
-#                         self.table.resize = 0
-#                         return {'RUNNING_MODAL'}
-
-#             else:
-#                 if self.table.hl != (1, 1, 1, 1):
-#                     self.table.hl = (1, 1, 1, 1)
-#                     redraw = 1
-
-#             if event.type == 'MOUSEMOVE':
-#                 if self.barchart.move:
-#                     self.barchart.pos = [mx, my]
-#                     redraw = 1
-
-#                 if self.barchart.resize:
-#                     self.barchart.lepos[0], self.barchart.lspos[1] = mx, my
-#                     redraw = 1
-
-#                 if self.table.move:
-#                     self.table.pos = [mx, my]
-#                     redraw = 1
-
-#                 if self.table.resize:
-#                     self.table.lepos[0], self.table.lspos[1] = mx, my
-#                     redraw = 1
-
-#             if self.barchart.unit != scene.en_disp_punit or self.barchart.cao != context.active_object or \
-#                 self.barchart.resstring != retenvires(scene) or self.barchart.col != scene.vi_leg_col or self.barchart.minmax != (scene.bar_min, scene.bar_max):
-#                 self.barchart.update(context)
-#                 self.table.update(context)
-#                 redraw = 1
-
-#             if redraw:
-#                 context.area.tag_redraw()
-
-#             return {'PASS_THROUGH'}
-#         else:
-#             return {'PASS_THROUGH'}
-
-#     def execute(self, context):
-#         scene = context.scene
-#         scene.en_frame = scene.frame_current
-#         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-#         zrl = list(zip(*resnode['reslists']))
-#         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
-#         scene.frame_start, scene.frame_end = scene['enparams']['fs'], scene['enparams']['fe']
-#         zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone temporal' and zrl[0][zri] == 'All'])
-
-#         if scene.resazmaxt_disp and 'Max temp (C)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'MaxTemp')
-#         if scene.resazavet_disp and 'Avg temp (C)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'AveTemp')
-#         if scene.resazmint_disp and 'Min temp (C)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'MinTemp')
-#         if scene.resazmaxhw_disp and 'Max heating (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'MaxHeat')
-#         if scene.resazavehw_disp and 'Avg heating (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'AveHeat')
-#         if scene.resazminhw_disp and 'Min heating (W)' in zmetrics:
-#             envizres(scene, eresobs, resnode, 'MinHeat')
-#         if scene.reszof_disp:
-#             envilres(scene, resnode)
-#         if scene.reszlf_disp:
-#             envilres(scene, resnode)
-
-#         scene.frame_set(scene.frame_start)
-#         bpy.app.handlers.frame_change_pre.clear()
-#         bpy.app.handlers.frame_change_pre.append(recalculate_text)
-#         scene['viparams']['vidisp'] = 'enpanel'
-#         scene.vi_display = True
-#         context.window_manager.modal_handler_add(self)
-#         self.barchart = en_barchart([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-#         self.barchart.update(context)
-#         self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
-#         self.table.update(context)
-#         self._handle_en_pdisp = bpy.types.SpaceView3D.draw_handler_add(en_pdisp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
-#         return {'RUNNING_MODAL'}
