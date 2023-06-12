@@ -2794,7 +2794,7 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         rl = resnode['reslists']
         zrl = list(zip(*rl))
 
-        if len(set(zrl[0])) > 1 and node.animated:
+        if (len(set(zrl[0])) > 1 and node.animated) or set(zrl[0]) == {'All'}:
             resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
             metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
         else:

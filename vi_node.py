@@ -966,7 +966,7 @@ class No_Li_Im(Node, ViNodes):
             self['pmapgnos'][sf] = self.pmapgno
             self['pmapcnos'][sf] = self.pmapcno
             self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['gpentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['gpfileentry'], self['pmparams'][sf]['cpfileentry'] = retpmap(self, frame, scene)
-            # amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry
+
             if self.fisheye and self.fov == 180:
                 self['viewparams'][sf]['-vth'] = ''
 
@@ -2795,6 +2795,7 @@ class No_Vi_Metrics(Node, ViNodes):
     ec_years: IntProperty(name="Years", description="Timespan for embodied carbon calculations", default=60, min=1, max=100, update=zupdate)
     probe_menu: EnumProperty(items=probes, name="", description="Probe results", update=zupdate)
     ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
+    ref_point: EnumProperty(items=ret_empty_menu, name='', description='Reference pressure point', update=zupdate)
     occ: BoolProperty(name="", description="Only occupied hours", update=zupdate)
 
     def init(self, context):
@@ -3092,7 +3093,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             row.label(text="Uniformity: {} {}".format(uDF, udfpass))
 
                     elif self.metric == '2' and self.probe_menu != 'None':
-                        newrow(layout, 'Wind speed', self, "ws")
+                        newrow(layout, 'Reference point:', self, "ref_point")
 
                         if self['res']['pressure']:
                             if self.zone_menu == 'All':
@@ -3627,6 +3628,9 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['zvelocity'] = {}
             self['res']['yvelocity'] = {}
             self['res']['wpc'] = {}
+            frames = []
+            wpcs = {}
+            reslists = []
             znames = set([z[2] for z in self['rl'] if z[1] == 'Zone spatial'])
 
             for zn in znames:
@@ -3634,11 +3638,32 @@ class No_Vi_Metrics(Node, ViNodes):
                     if r[2] == zn:
                         if r[3] == 'Pressure':
                             self['res']['pressure'][zn] = float(r[4].split()[-1])
+                            # reslists.append([r[0], 'Time', 'Frames', 'Frames', ])
+                            # frames.append(r[0])
+                            # if zn not in wpcs:
+                            #     wpcs[zn] = []
+                            # wpcs[zn].append(round((float(r[4].split()[-1]) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2)), 3))
                             self['res']['wpc'][zn] = round((float(r[4].split()[-1]) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2)), 3)
+                            #reslists.append([r[0], 'Zone spatial'])
                         elif r[3] == 'Speed':
                             self['res']['speed'][zn] = float(r[4].split()[-1])
                         elif r[3] == 'Temperature':
                             self['res']['temperature'][zn] = float(r[4].split()[-1])
+            for r in self['rl']:
+                if r[0] == 'All':
+                    if r[2] == self.ref_point:
+                        if r[3] == 'X velocity':
+                            uxs = [float(ux) for ux in r[4].split()]
+                        elif r[3] == 'Y velocity':
+                            uys = [float(uy) for uy in r[4].split()]
+                    elif r[3] == 'Pressure':
+                        ps = ['{:.3f}'.format((float(r) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2))) for r in r[4].split()]
+                        reslists.append(['All', 'Zone spatial', r[2], 'WPCs', ' '.join(ps)])
+
+            azis = [round(mathutils.Vector((0, 1)).angle_signed(mathutils.Vector((uxs[i], uys[i]))), 2) for i in range(len(uxs))]
+            azis = ['{:.1f}'.format(abs(180/math.pi * (a, a + 2*math.pi)[a<0])) for a in azis]
+            reslists.append(['All', 'Zone spatial', self.ref_point, 'Azimuths', ' '.join(azis)])
+            self['reslists'] = reslists
 
         elif self.metric == '3':
             self['res']['ec'] = {}
@@ -4133,6 +4158,7 @@ class No_Flo_Case(Node, ViNodes):
                                  self.Gval, self.radmodel, self.solar, self.sun, self.comfort, self.clo, self.met, self.rh, self.age)]
 
     def nodeupdate(self, context):
+        context.scene.vi_params.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != self.ret_params())
 
         if self.scenario in ('2', '3') and self.buoyancy == 0:
@@ -4175,7 +4201,7 @@ class No_Flo_Case(Node, ViNodes):
     pabsval: IntProperty(name="", description="Field pressure (absolute)", min=0, max=10000000, default=100000, update=nodeupdate)
     p_ref: EnumProperty(items=[('0', 'None', 'No reference pressure'), ('1', 'Relative', 'Relative reference pressure'), ('2', 'Absolute', 'Absolute reference pressure')],
                         name='', description='Reference pressure', default=0, update=nodeupdate)
-    p_ref_point: EnumProperty(items=ret_empty_menu, name='', description='Camera', update=nodeupdate)
+    p_ref_point: EnumProperty(items=ret_empty_menu, name='', description='Reference pressure point', update=nodeupdate)
     p_ref_val: FloatProperty(name="", description="Reference pressure value", min=-5000000, max=5000000, default=0.0, update=nodeupdate)
     uval: FloatVectorProperty(size=3, name='', attr='Velocity', default=[0, 0, 0], unit='VELOCITY', subtype='VELOCITY', min=-100, max=100, update=nodeupdate)
     uval_type: EnumProperty(name='', items=[('0', 'Vector', 'Air dirction and speed by vector'),
@@ -5525,19 +5551,35 @@ class No_En_Net_Ext(Node, EnViNodes):
     bl_label = 'Envi External'
     bl_icon = 'FORCE_WIND'
 
-    height: FloatProperty(default = 1.0)
-    wpc1: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc2: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc3: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc4: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc5: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc6: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc7: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc8: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc9: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc10: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc11: FloatProperty(name = '', default = 0, min = -1, max = 1)
-    wpc12: FloatProperty(name = '', default = 0, min = -1, max = 1)
+    height: FloatProperty(default=1.0)
+    val_type: EnumProperty(items=[('0', 'Manual', 'Manual WPC entry'), ('1', 'Object', 'Get WPCs from object'), ('2', 'CSV', 'Get WPCs from CSV file')], name='', default='0', description='Source of WPC values')
+    press_ob: EnumProperty(items=ret_empty_menu, name='', description='Object conatining WPC values')
+    csv_file: StringProperty(name="", description="Name of CSV file", default="", subtype="FILE_PATH")
+    val_no: IntProperty(min=1, max=12, default=12)
+    ang1: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang2: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang3: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang4: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang5: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang6: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang7: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang8: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang9: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang10: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang11: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang12: IntProperty(name = '', default = 0, min = 0, max = 360)
+    wpc1: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc2: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc3: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc4: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc5: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc6: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc7: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc8: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc9: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc10: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc11: FloatProperty(name='', default=0, min=-1, max=1)
+    wpc12: FloatProperty(name='', default=0, min=-1, max=1)
     enname: StringProperty()
 
     def init(self, context):
@@ -5547,14 +5589,29 @@ class No_En_Net_Ext(Node, EnViNodes):
         self.outputs.new('So_En_Net_SFlow', 'Surface')
 
     def draw_buttons(self, context, layout):
-        layout.prop(self, 'height')
-        row= layout.row()
-        row.label(text = 'WPC Values')
-        direcs = ('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW')
+        newrow(layout, 'WPC source:', self, 'val_type')
+        if self.val_type != '1':
+            layout.prop(self, 'height')
+        
+            if self.val_type == '0':
+                row= layout.row()
+                row.label(text='WPC Values')
+                direcs = ('N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW')
 
-        for w in range(1, 13):
-            row = layout.row()
-            row.prop(self, 'wpc{}'.format(w))
+                for w in range(1, 13):
+                    row = layout.row()
+                    row.label(text="Azimuth:")
+                    row.prop(self, 'ang{}'.format(w))
+                    row.label(text="WPC:")
+                    row.prop(self, 'wpc{}'.format(w))
+            
+            elif self.val_type == '2':
+                newrow(layout, 'Select', self, 'csv_file')
+                
+        else:
+            newrow(layout, 'WPC object:', self, 'press_ob')
+
+        
 
     def update(self):
         for sock in self.outputs:
@@ -5804,7 +5861,42 @@ class No_En_Net_WPC(Node, EnViNodes):
     bl_label = 'EnVi WPC'
     bl_icon = 'FORCE_WIND'
 
-    (ang1, ang2, ang3, ang4, ang5, ang6, ang7, ang8, ang9, ang10, ang11, ang12) = [IntProperty(name = '', default = 0, min = 0, max = 360) for x in range(12)]
+    ang1: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang2: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang3: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang4: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang5: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang6: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang7: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang8: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang9: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang10: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang11: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang12: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang13: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang14: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang15: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang16: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang17: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang18: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang19: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang20: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang21: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang22: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang23: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang24: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang25: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang26: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang27: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang28: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang29: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang30: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang31: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang32: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang33: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang34: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang35: IntProperty(name = '', default = 0, min = 0, max = 360)
+    ang36: IntProperty(name = '', default = 0, min = 0, max = 360)
 
     def init(self, context):
         self.outputs.new('So_En_Net_WPC', 'WPC values')
