@@ -3300,6 +3300,9 @@ class No_Vi_Metrics(Node, ViNodes):
                     self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
 
                 self.inputs[0].links[0].from_node.new_res = 0
+                
+                if not self.get('znames'):
+                   self['znames'] = [('None', 'None', 'None')]
 
             else:
                 self['rl'] = []
@@ -3312,7 +3315,6 @@ class No_Vi_Metrics(Node, ViNodes):
 
 
         if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
-            print(self.frame_menu, [sf[0] for sf in self['frames']], self['frames'][0][0])
             self.frame_menu = self['frames'][0][0]
 
         if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
@@ -4209,8 +4211,10 @@ class No_Flo_Case(Node, ViNodes):
 
         if self.scenario in ('2', '3') and self.buoyancy == 0:
             self.buoyancy = 1
+
             if self.scenario == '3' and self.age == 1:
                 self.age = 0
+
         elif self.scenario in ('0', '1') and self.buoyancy == 1:
             self.buoyancy = 0
 
@@ -4356,8 +4360,9 @@ class No_Flo_Case(Node, ViNodes):
         if self.buoyancy:
             newrow(layout, 'e residual:', self, 'enresid')
 
-        row = layout.row()
-        row.operator("node.flovi_case", text = "Export")
+        if self.p_ref == '0' or self.p_ref_point:
+            row = layout.row()
+            row.operator("node.flovi_case", text = "Export")
 
     def update(self):
         for sock in self.outputs:

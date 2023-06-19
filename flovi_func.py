@@ -227,7 +227,7 @@ def fvboundwrite(o):
 def write_bound(o, m, ns, nf):
     b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Inlet/outlet': 'patch', 'Sky': 'symmetry',
               'Solid': 'wall', '0': 'patch', '1': 'wall', 'Velocity in': 'patch', 'Pressure in': 'patch',
-              'Pressure out': 'patch', 'Velocity out': 'patch'}
+              'Pressure out': 'patch', 'Velocity out': 'patch', '2': 'symmetry'}
     t = b_dict[m.vi_params.flovi_bmb_type]
 
     return '''   {0}_{1}
@@ -253,8 +253,7 @@ def fvmat(self, svp, mn, bound, frame):
                   'fixedMean': 'fixedMean;\n    meanValue   {0};\n    value {0}'.format(val),
                   'totalPressure': 'totalPressure;\n    p0      uniform {};\n    gamma    {};\n    value    {}'.format(self.flovi_bmbp_p0val, self.flovi_bmbp_gamma, val),
                   'symmetry': 'symmetry', 'empty': 'empty'}
-        # entry = ptdict[pdict[self.flovi_bmb_type]]
-        print(self.flovi_bmbp_subtype)
+
         entry = ptdict[self.flovi_bmbp_subtype]
 
     elif bound == 'U':
