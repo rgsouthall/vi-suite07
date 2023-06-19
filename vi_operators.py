@@ -2978,6 +2978,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             return {'CANCELLED'}
 
         for ob in self.obs:
+
             bm = bmesh.new()
             bm.from_object(ob, dp)
             bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -3087,6 +3088,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
 
                 for v in bm.verts:
+                    for face in v.link_faces:
+                        if face.material_index not in [i for i in range(len(o.material_slots)) if o.material_slots[i].material]:
+                            logentry('Incorrect material specification. Apply modifiers or transfer materials on modifiers and check all material slots have materials')
+                            self.report({'ERROR'}, 'Material error. Check the vi-suite-log file'.format(ob.name))
+                            return {'CANCELLED'}
                     # ngpyfile.write("mp.RestrictH(x={0[0]},y={0[1]},z={0[2]},h={1})\n".format(v.co, max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces])))
                     mp.RestrictH(x=v.co[0], y=v.co[1], z=v.co[2], h=max([o.material_slots[f.material_index].material.vi_params.flovi_ng_max for f in v.link_faces]))
 
@@ -3407,13 +3413,13 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
                     Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "reconstructPar -case data"'.format(frame_coffb), shell=True)
-            
+
             resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate'}
-            
+
             for oname in svp['flparams']['probes']:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname, '0')
-                    
+
                     if 'p' in os.listdir(probed):
                         if str(frame_c) not in self.o_dict:
                             self.o_dict[str(frame_c)] = {}
@@ -3436,13 +3442,13 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.o_dict[str(frame_c)][oname][f] = float(resarray[1:][-1][-1])
 
                             for ri, r in enumerate(resarray[1:]):
-                                self.reslists.append([str(frame_c), 'Zone spatial', oname, resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                                self.reslists.append([str(frame_c), 'Probe', oname, resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
-                            if f == 'p':
-                                wpcs = [float(r[1])/(0.5*(1.23*10**2)) for r in res]
-                                self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Pressure coeff', ' '.join(['{:5f}'.format(float(res)) for res in wpcs])])
-                                if bpy.data.objects.get(oname):
-                                    pass
+                            # if f == 'p':
+                            #     wpcs = [float(r[1])/(0.5*(1.23*10**2)) for r in res]
+                            #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure coeff', ' '.join(['{:5f}'.format(float(res)) for res in wpcs])])
+                            #     if bpy.data.objects.get(oname):
+                            #         pass
 
                         elif f in ('U'):
                             ts = []
@@ -3470,10 +3476,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.o_dict[str(frame_c)][oname]['Ux'] = ux_vals[-1]
                             self.o_dict[str(frame_c)][oname]['Uy'] = uy_vals[-1]
                             self.o_dict[str(frame_c)][oname]['Uz'] = uz_vals[-1]
-                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Speed', ' '.join(['{:5f}'.format(u) for u in u_vals])])
-                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'X velocity', ' '.join(['{:5f}'.format(u) for u in ux_vals])])
-                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Y velocity', ' '.join(['{:5f}'.format(u) for u in uy_vals])])
-                            self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Z velocity', ' '.join(['{:5f}'.format(u) for u in uz_vals])])
+                            self.reslists.append([str(frame_c), 'Probe', oname, 'Speed', ' '.join(['{:5f}'.format(u) for u in u_vals])])
+                            self.reslists.append([str(frame_c), 'Probe', oname, 'X velocity', ' '.join(['{:5f}'.format(u) for u in ux_vals])])
+                            self.reslists.append([str(frame_c), 'Probe', oname, 'Y velocity', ' '.join(['{:5f}'.format(u) for u in uy_vals])])
+                            self.reslists.append([str(frame_c), 'Probe', oname, 'Z velocity', ' '.join(['{:5f}'.format(u) for u in uz_vals])])
 
                     self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
                     self.simnode['frames'] = [f for f in self.frames]
@@ -3503,8 +3509,38 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 if vfs and times:
                     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
-                    self.reslists.append([str(frame_c), 'Zone spatial', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
+                    self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
                     self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
+
+            for oname in svp['flparams']['b_probes']:
+                if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
+                    probed = os.path.join(frame_coffb, 'postProcessing', oname, '0')
+
+                    if 'surfaceFieldValue.dat' in os.listdir(os.path.join(probed)):
+                        if str(frame_c) not in self.o_dict:
+                            self.o_dict[str(frame_c)] = {}
+
+                        self.o_dict[str(frame_c)][oname] = {}
+                        metric = 'p'
+                        res = []
+
+                        with open(os.path.join(probed, 'surfaceFieldValue.dat'), 'r') as resfile:
+                            for line in resfile.readlines():
+                                if line and line[0] != '#':
+                                    res.append(line.split())
+
+                            resarray = array(res)
+                            resarray = transpose(resarray)
+
+                        logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict[metric], frame_c, resarray[0][-1], float(resarray[1:][-1][-1])))
+                        self.o_dict[str(frame_c)][oname]['p'] = float(resarray[1:][-1][-1])
+
+                        for ri, r in enumerate(resarray[1:]):
+                            self.reslists.append([str(frame_c), 'Probe', oname, 'p', ' '.join(['{:5f}'.format(float(res)) for res in r])])
+
+                    if 'Seconds' not in [r[3] for r in self.reslists]:
+                        self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
+
 
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals), frame_n)
@@ -3525,17 +3561,20 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                                                                                                                                                                                         svp['flparams']['solver']), stdout=fvprogress))
                         else:
                             self.runs.append(Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_noffb, svp['flparams']['solver']), shell=True, stdout=fvprogress))
+
                 return {'PASS_THROUGH'}
 
             if len(self.frames) > 1:
-                self.reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in self.frames])])
                 if self.o_dict:
+                    self.reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in self.frames])])
+
                     for oname in self.o_dict[str(self.frames[0])]:
                         for param in self.o_dict[str(self.frames[0])][oname]:
-                            self.reslists.append(['All', 'Zone spatial', oname, resdict[param], ' '.join(['{:.3f}'.format(self.o_dict[str(f)][oname][param]) for f in self.frames])])
+                            self.reslists.append(['All', 'Probe', oname, resdict[param], ' '.join(['{:.3f}'.format(self.o_dict[str(f)][oname][param]) for f in self.frames])])
 
             self.simnode['reslists'] = self.reslists
-            self.simnode.post_sim()
+            self.simnode['frames'] = [f for f in self.frames]
+            self.simnode.postsim()
 
             if self.pv and sys.platform == 'linux':
                 Popen(shlex.split("foamExec paraFoam -builtin -case {}".format(frame_coffb)))

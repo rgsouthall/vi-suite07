@@ -2278,7 +2278,16 @@ class No_Vi_Chart(Node, ViNodes):
                         self['Start'], self['End'] = startday, endday
 
                     elif rsx.resultmenu == 'Frames':
-                        frames = [int(k) for k in set(zrl[0]) if k != 'All']
+                        if set(zrl[0]) != {'All'}:
+                            frames = [int(k) for k in set(zrl[0]) if k != 'All']
+                        else:
+                            for r in rl:
+                                if r[0] == 'All' and r[1] == 'Frames':
+                                    frames = [int(f) for f in r[4].split()]
+                                    break
+
+
+
                         startframe, endframe = min(frames), max(frames)
                         frame = 'All'
                         self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
@@ -2794,8 +2803,11 @@ class No_Vi_Metrics(Node, ViNodes):
     carb_annc: FloatProperty(name="%", description="Annual change in carbon factor", default=-0.5, min=-100, max=100, update=zupdate)
     ec_years: IntProperty(name="Years", description="Timespan for embodied carbon calculations", default=60, min=1, max=100, update=zupdate)
     probe_menu: EnumProperty(items=probes, name="", description="Probe results", update=zupdate)
-    ws: FloatProperty(name="m/s", description="Freesteam wind speed", update=zupdate)
-    ref_point: EnumProperty(items=ret_empty_menu, name='', description='Reference pressure point', update=zupdate)
+    ws: FloatProperty(name="m/s", description="Freesteam wind speed", min=0.1, default=5, update=zupdate)
+    pref: FloatProperty(name="", description="Freesteam wind speed", default=0.0, update=zupdate)
+    ref_point: EnumProperty(items=zitems, name='', description='Reference pressure point', update=zupdate)
+    ref_type: EnumProperty(items=[("0", "Probe", "Take reference conditions from probe"),
+                                  ("1", "Manual", "Manually supply reference conditions")], name='', description='Reference pressure type', update=zupdate)
     occ: BoolProperty(name="", description="Only occupied hours", update=zupdate)
 
     def init(self, context):
@@ -3092,23 +3104,28 @@ class No_Vi_Metrics(Node, ViNodes):
                             row = layout.row()
                             row.label(text="Uniformity: {} {}".format(uDF, udfpass))
 
-                    elif self.metric == '2' and self.probe_menu != 'None':
-                        newrow(layout, 'Reference point:', self, "ref_point")
+                    elif self.metric == '2' and self.probe_menu != 'None' and self.frame_menu != 'All':
+                        newrow(layout, 'Reference type:', self, "ref_type")
+                        if self.ref_type == '0':
+                            newrow(layout, 'Reference point:', self, "ref_point")
+                        else:
+                            newrow(layout, 'Reference speed:', self, "ws")
+                            newrow(layout, 'Reference pressure:', self, "pref")
 
                         if self['res']['pressure']:
-                            if self.zone_menu == 'All':
-                                newrow(layout, 'Metric', self, "probe_menu")
+                            # if self.zone_menu == 'All':
+                            #     newrow(layout, 'Metric', self, "probe_menu")
 
-                        if self.zone_menu == 'All':
-                            for z in self['res'][self.probe_menu]:
-                                row = layout.row()
-                                row.label(text="{}: {}".format(z, self['res'][self.probe_menu][z]))
-                        else:
+                        # if self.zone_menu == 'All':
+                        #     for z in self['res'][self.probe_menu]:
+                        #         row = layout.row()
+                        #         row.label(text="{}: {}".format(z, self['res'][self.probe_menu][z]))
+                        # else:
                             if self['res']:
                                 for m in self['res']:
                                     if self['res'][m].get(self.zone_menu):
                                         row = layout.row()
-                                        row.label(text="{} {}: {}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+                                        row.label(text="{} {}: {:.2f}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                     elif self.metric == '3':
                         if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone') and self.frame_menu != 'All':
@@ -3272,6 +3289,9 @@ class No_Vi_Metrics(Node, ViNodes):
                     else:
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
 
+                if self.metric == '2':
+                    pnames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Probe'])))
+                    self['znames'] = [(pn, pn, 'Probe name') for pn in pnames]
                 elif self.metric == '0':
                     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone temporal'])))
                     self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
@@ -3290,11 +3310,17 @@ class No_Vi_Metrics(Node, ViNodes):
             self['frames'] = [('None', 'None', 'None')]
             self['znames'] = [('None', 'None', 'None')]
 
+
         if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
+            print(self.frame_menu, [sf[0] for sf in self['frames']], self['frames'][0][0])
             self.frame_menu = self['frames'][0][0]
 
         if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
             self.zone_menu = self['znames'][0][0]
+
+        if self.metric == '2':
+            if self.ref_point == '' or self.ref_point not in [spn[0] for spn in self['znames']]:
+                self.ref_point = self['znames'][0][0]
 
         # if self.em_menu == '' or self.em_menu not in ('Object', 'Surface', 'Zone'):
             # self.em_menu = 'None'
@@ -3305,6 +3331,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
     def res_update(self):
         self['res'] = {}
+
         if self.metric == '0' and bpy.data.collections.get('EnVi Geometry') and 'Heating (W)' in [metric[0][3] for metric in zip(self['rl'])]:
             self['res']['pvkwh'] = 0
             self['res']['hkwh'] = 0
@@ -3627,28 +3654,44 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['xvelocity'] = {}
             self['res']['zvelocity'] = {}
             self['res']['yvelocity'] = {}
-            self['res']['wpc'] = {}
+            self['res']['WPC'] = {}
             frames = []
             wpcs = {}
             reslists = []
-            znames = set([z[2] for z in self['rl'] if z[1] == 'Zone spatial'])
+            pref_flag = 0
+            ws_flag = 0
+            pnames = set([z[2] for z in self['rl'] if z[1] == 'Probe'])
 
-            for zn in znames:
+            for r in self['rl']:
+                if r[0] == self.frame_menu and r[2] == self.ref_point:
+                    if r[3] == 'Speed':
+                        ws = float(r[4].split()[-1])
+                        ws_flag = 1
+                    if r[3] == 'Pressure':
+                        pref = float(r[4].split()[-1])
+                        pref_flag = 1
+                    if pref_flag and ws_flag:
+                        break
+
+            (ws, pref) = (ws, pref) if ws_flag and pref_flag and self.ref_type == '0' else (self.ws, self.pref)
+
+            for pn in pnames:
                 for r in self['rl']:
-                    if r[2] == zn:
+                    if r[2] == pn and r[0] == self.frame_menu:
                         if r[3] == 'Pressure':
-                            self['res']['pressure'][zn] = float(r[4].split()[-1])
+                            self['res']['pressure'][pn] = float(r[4].split()[-1])
                             # reslists.append([r[0], 'Time', 'Frames', 'Frames', ])
                             # frames.append(r[0])
                             # if zn not in wpcs:
                             #     wpcs[zn] = []
                             # wpcs[zn].append(round((float(r[4].split()[-1]) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2)), 3))
-                            self['res']['wpc'][zn] = round((float(r[4].split()[-1]) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2)), 3)
+                            self['res']['WPC'][pn] = round((float(r[4].split()[-1]) - pref)/(0.5*1.225*(ws**2)), 3) if self.ws else 0
                             #reslists.append([r[0], 'Zone spatial'])
                         elif r[3] == 'Speed':
-                            self['res']['speed'][zn] = float(r[4].split()[-1])
+                            self['res']['speed'][pn] = float(r[4].split()[-1])
                         elif r[3] == 'Temperature':
-                            self['res']['temperature'][zn] = float(r[4].split()[-1])
+                            self['res']['temperature'][pn] = float(r[4].split()[-1])
+
             for r in self['rl']:
                 if r[0] == 'All':
                     if r[2] == self.ref_point:
@@ -3657,12 +3700,15 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Y velocity':
                             uys = [float(uy) for uy in r[4].split()]
                     elif r[3] == 'Pressure':
-                        ps = ['{:.3f}'.format((float(r) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2))) for r in r[4].split()]
-                        reslists.append(['All', 'Zone spatial', r[2], 'WPCs', ' '.join(ps)])
+                        ps = ['{:.3f}'.format((float(r) - pref)/(0.5*1.225*(ws**2))) for r in r[4].split()]
+                        reslists.append(['All', 'Probe', r[2], 'WPCs', ' '.join(ps)])
+            try:
+                azis = [round(mathutils.Vector((0, 1)).angle_signed(mathutils.Vector((uxs[i], uys[i]))), 2) for i in range(len(uxs))]
+                azis = ['{:.0f}'.format(abs(180/math.pi * (a, a + 2*math.pi)[a<0])) for a in azis]
+                reslists.append(['All', 'Probe', self.ref_point, 'Azimuths', ' '.join(azis)])
+            except Exception:
+                pass
 
-            azis = [round(mathutils.Vector((0, 1)).angle_signed(mathutils.Vector((uxs[i], uys[i]))), 2) for i in range(len(uxs))]
-            azis = ['{:.1f}'.format(abs(180/math.pi * (a, a + 2*math.pi)[a<0])) for a in azis]
-            reslists.append(['All', 'Zone spatial', self.ref_point, 'Azimuths', ' '.join(azis)])
             self['reslists'] = reslists
 
         elif self.metric == '3':
@@ -4169,7 +4215,7 @@ class No_Flo_Case(Node, ViNodes):
             self.buoyancy = 0
 
         context.scene.vi_params['flparams']['scenario'] = self.scenario
-        
+
 
     scenario: EnumProperty(items=[('0', 'External flow', 'Wind induced flow'), ('1', 'Internal flow', 'Internal forced flow'), ('2', 'Forced convection', 'Forced convection'),
                                   ('3', 'Free convection', 'Free convection'), ('4', 'Custom', 'Custom scenario')], name='', description='Scenario type', default=0, update=nodeupdate)
@@ -4559,8 +4605,14 @@ class No_Flo_Sim(Node, ViNodes):
         expnode = self.inputs['Context in'].links[0].from_node
         return (expnode.convergence, expnode.econvergence, expnode['residuals'], expnode.processes, expnode.solver)
 
-    def post_sim(self):
+    def postsim(self):
         self['exportstate'] = [str(x) for x in (self.processes, self.pv)]
+        if self.outputs[0].links:
+            for dnode in set([li.to_node for li in self.outputs[0].links]):
+                if dnode.bl_idname == 'No_Vi_Metrics':
+                    dnode.update()
+                elif dnode.bl_idname == 'No_Vi_HMChart':
+                    dnode.update()
         nodecolour(self, 0)
 
 ####################### Vi Nodes Categories ##############################
@@ -5344,53 +5396,53 @@ class No_En_Net_SSFlow(Node, EnViNodes):
 
     linkmenu: EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = supdate)
 
-    wdof1: FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
+    wdof1: FloatProperty(default=0.1, min=0.001, max=1, name="", description='Opening Factor 1 (dimensionless)')
     controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
                    ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
-    controls: EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel', update = supdate)
-    mvof: FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
-    lvof: FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
-    uvof: FloatProperty(default = 100, min = 1, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
-    amfcc: FloatProperty(default = 0.001, min = 0.00001, max = 1, precision = 5, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
-    amfec: FloatProperty(default = 0.65, min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
-    lvo: EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], name = '', default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
-    ecl: FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
-    noof: IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
-    spa: IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
-    dcof: FloatProperty(default = 0.7, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
-    ddtw: FloatProperty(default = 0.001, min = 0.001, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
-    amfc: FloatProperty(min = 0.001, max = 1, default = 0.01, precision = 5, name = "")
-    amfe: FloatProperty(min = 0.5, max = 1, default = 0.65, precision = 3, name = "")
-    dlen: FloatProperty(default = 2, name = "")
-    dhyd: FloatProperty(default = 0.1, name = "")
-    dcs: FloatProperty(default = 0.1, name = "")
-    dsr: FloatProperty(default = 0.0009, name = "")
-    dlc: FloatProperty(default = 1.0, name = "")
-    dhtc: FloatProperty(default = 0.772, name = "")
-    dmtc: FloatProperty(default = 0.0001, name = "")
-    fe: FloatProperty(default = 0.6, min = 0, max = 1, name = "")
-    rpd: FloatProperty(default = 4, min = 0.1, max = 50, name = "")
-    of1: FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor 1 (dimensionless)')
-    of2: FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor 2 (dimensionless)')
-    of3: FloatProperty(default = 0.0, min = 0.0, max = 0, name = '', description = 'Opening Factor 3 (dimensionless)')
-    of4: FloatProperty(default = 1.0, min = 0.01, max = 1, name = '', description = 'Opening Factor 4 (dimensionless)')
-    dcof1: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
-    dcof2: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 2 (dimensionless)')
-    dcof3: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 3 (dimensionless)')
-    dcof4: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 4 (dimensionless)')
-    wfof1: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
-    wfof2: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 2 (dimensionless)')
-    wfof3: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 3 (dimensionless)')
-    wfof4: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
-    hfof1: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)')
-    hfof2: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 2 (dimensionless)')
-    hfof3: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 3 (dimensionless)')
-    hfof4: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
-    sfof1: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 1 (dimensionless)')
-    sfof2: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 2 (dimensionless)')
-    sfof3: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 3 (dimensionless)')
-    sfof4: FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
-    dcof: FloatProperty(default = 0.65, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
+    controls: EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel', update=supdate)
+    mvof: FloatProperty(default=0, min=0, max=1, name="", description='Minimium venting open factor')
+    lvof: FloatProperty(default=0, min=0, max=100, name="", description='Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
+    uvof: FloatProperty(default=100, min=1, max=100, name="", description='Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
+    amfcc: FloatProperty(default=0.001, min=0.00001, max=1, precision=5, name="", description='Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
+    amfec: FloatProperty(default=0.65, min=0.5, max=1, name='', description= 'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
+    lvo: EnumProperty(items=[('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], name='', default='NonPivoted', description='Type of Rectanguler Large Vertical Opening (LVO)')
+    ecl: FloatProperty(default=0.0, min=0, name='', description='Extra Crack Length or Height of Pivoting Axis (m)')
+    noof: IntProperty(default=2, min=2, max=4, name='', description='Number of Sets of Opening Factor Data')
+    spa: IntProperty(default=90, min=0, max=90, name='', description='Sloping Plane Angle')
+    dcof: FloatProperty(default=0.7, min=0.01, max=1, name='', description='Discharge Coefficient')
+    ddtw: FloatProperty(default=0.001, min=0.001, max=10, name='', description='Minimum Density Difference for Two-way Flow')
+    amfc: FloatProperty(min=0.001, max=1, default=0.01, precision=5, name="")
+    amfe: FloatProperty(min=0.5, max=1, default=0.65, precision=3, name="")
+    dlen: FloatProperty(default=2, name="")
+    dhyd: FloatProperty(default=0.1, name="")
+    dcs: FloatProperty(default=0.1, name="")
+    dsr: FloatProperty(default=0.0009, name="")
+    dlc: FloatProperty(default=1.0, name="")
+    dhtc: FloatProperty(default=0.772, name="")
+    dmtc: FloatProperty(default=0.0001, name="")
+    fe: FloatProperty(default=0.6, min=0, max=1, name="")
+    rpd: FloatProperty(default=4, min=0.1, max=50, name="")
+    of1: FloatProperty(default=0.0, min=0.0, max=0, name='', description='Opening Factor 1 (dimensionless)')
+    of2: FloatProperty(default=0.0, min=0.0, max=0, name='', description='Opening Factor 2 (dimensionless)')
+    of3: FloatProperty(default=0.0, min=0.0, max=0, name='', description='Opening Factor 3 (dimensionless)')
+    of4: FloatProperty(default=1.0, min=0.01, max=1, name='', description='Opening Factor 4 (dimensionless)')
+    dcof1: FloatProperty(default=0.65, min=0.01, max=1, name='', description='Discharge Coefficient for Opening Factor 1 (dimensionless)')
+    dcof2: FloatProperty(default=0.65, min=0.01, max=1, name='', description='Discharge Coefficient for Opening Factor 2 (dimensionless)')
+    dcof3: FloatProperty(default=0.65, min=0.01, max=1, name='', description='Discharge Coefficient for Opening Factor 3 (dimensionless)')
+    dcof4: FloatProperty(default=0.65, min=0.01, max=1, name='', description='Discharge Coefficient for Opening Factor 4 (dimensionless)')
+    wfof1: FloatProperty(default=0.0, min=0, max=1, name='', description='Width Factor for Opening Factor 1 (dimensionless)')
+    wfof2: FloatProperty(default=0.0, min=0, max=1, name='', description='Width Factor for Opening Factor 2 (dimensionless)')
+    wfof3: FloatProperty(default=0.0, min=0, max=1, name='', description='Width Factor for Opening Factor 3 (dimensionless)')
+    wfof4: FloatProperty(default=0.0, min=0, max=1, name='', description='Width Factor for Opening Factor 4 (dimensionless)')
+    hfof1: FloatProperty(default=0.0, min=0, max=1, name='', description='Height Factor for Opening Factor 1 (dimensionless)')
+    hfof2: FloatProperty(default=0.0, min=0, max=1, name='', description='Height Factor for Opening Factor 2 (dimensionless)')
+    hfof3: FloatProperty(default=0.0, min=0, max=1, name='', description='Height Factor for Opening Factor 3 (dimensionless)')
+    hfof4: FloatProperty(default=0.0, min=0, max=1, name='', description='Height Factor for Opening Factor 4 (dimensionless)')
+    sfof1: FloatProperty(default=0.0, min=0, max=1, name='', description='Start Height Factor for Opening Factor 1 (dimensionless)')
+    sfof2: FloatProperty(default=0.0, min=0, max=1, name='', description='Start Height Factor for Opening Factor 2 (dimensionless)')
+    sfof3: FloatProperty(default=0.0, min=0, max=1, name='', description='Start Height Factor for Opening Factor 3 (dimensionless)')
+    sfof4: FloatProperty(default=0.0, min=0, max=1, name='', description='Start Height Factor for Opening Factor 4 (dimensionless)')
+    dcof: FloatProperty(default=0.65, min=0.01, max=1, name='', description='Discharge Coefficient')
     extnode: BoolProperty(default = 0)
     actlist = [("0", "Opening factor", "Actuate the opening factor")]
     acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
@@ -5541,8 +5593,10 @@ class No_En_Net_SSFlow(Node, EnViNodes):
 
     def legal(self):
         nodecolour(self, 1) if (self.controls == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or (self.id_data['enviparams']['wpca'] and not self.extnode) else nodecolour(self, 0)
+
         for sock in self.inputs[:] + self.outputs[:]:
             sock.hide = sock.hide
+
         self.id_data.interface_update(bpy.context)
 
 class No_En_Net_Ext(Node, EnViNodes):
@@ -5551,10 +5605,34 @@ class No_En_Net_Ext(Node, EnViNodes):
     bl_label = 'Envi External'
     bl_icon = 'FORCE_WIND'
 
+    def ret_probes(self, context):
+        with open(bpy.path.abspath(self.csv_file), 'r') as csv_file:
+            csv_lines = csv_file.readlines()
+            try:
+                probes = [p[:-5] for p in csv_lines[0].split(',') if 'WPCs' in p]
+                return [(p, p, 'Probe name') for p in probes]
+            except:
+                return [('None', 'None', 'No probe selected')]
+
+    def wpc_vals(self, context):
+        with open(bpy.path.abspath(self.csv_file), 'r') as csv_file:
+            csv_lines = csv_file.readlines()
+            probes = [p[:-5] for p in csv_lines[0].split(',') if 'WPCs' in p]
+            azi_col = [pi for pi, p in enumerate(csv_lines[0].split(',')) if 'Azimuths' in p]
+            azis = [al.split(',')[azi_col[0]] for al in csv_lines[1:] if al and al != '\n']
+            p_text = self.csv_probe
+
+            if p_text in probes:
+                wpc_col = probes.index(p_text)
+                wpcs = [wl.split(',')[wpc_col] for wl in csv_lines[1:] if wl and wl != '\n']
+
+                self['WPCs'] = [[x for _, x in sorted(list(zip(azis, wpcs)))][a[1]] for a in angs]
+
     height: FloatProperty(default=1.0)
     val_type: EnumProperty(items=[('0', 'Manual', 'Manual WPC entry'), ('1', 'Object', 'Get WPCs from object'), ('2', 'CSV', 'Get WPCs from CSV file')], name='', default='0', description='Source of WPC values')
     press_ob: EnumProperty(items=ret_empty_menu, name='', description='Object conatining WPC values')
     csv_file: StringProperty(name="", description="Name of CSV file", default="", subtype="FILE_PATH")
+    csv_probe: EnumProperty(items=ret_probes, name='', description='Object conatining WPC values', update=wpc_vals)
     val_no: IntProperty(min=1, max=12, default=12)
     ang1: IntProperty(name = '', default = 0, min = 0, max = 360)
     ang2: IntProperty(name = '', default = 0, min = 0, max = 360)
@@ -5590,9 +5668,10 @@ class No_En_Net_Ext(Node, EnViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'WPC source:', self, 'val_type')
+
         if self.val_type != '1':
             layout.prop(self, 'height')
-        
+
             if self.val_type == '0':
                 row= layout.row()
                 row.label(text='WPC Values')
@@ -5600,18 +5679,24 @@ class No_En_Net_Ext(Node, EnViNodes):
 
                 for w in range(1, 13):
                     row = layout.row()
-                    row.label(text="Azimuth:")
-                    row.prop(self, 'ang{}'.format(w))
-                    row.label(text="WPC:")
+                    # row.label(text="Azimuth{}:".format(w))
+                    # row.prop(self, 'ang{}'.format(w))
+                    row.label(text="WPC{}:".format(w))
                     row.prop(self, 'wpc{}'.format(w))
-            
+
             elif self.val_type == '2':
                 newrow(layout, 'Select', self, 'csv_file')
-                
+
+                if self.csv_file and os.path.isfile(bpy.path.abspath(self.csv_file)):
+                    newrow(layout, 'Probe', self, 'csv_probe')
+
+                    if self.get('WPCs'):
+                        for azi_wpc in self['WPCs']:
+                            row = layout.row()
+                            row.label(text="Azimuth: {0[0]}      WPC: {0[1]}".format(azi_wpc))
+
         else:
             newrow(layout, 'WPC object:', self, 'press_ob')
-
-        
 
     def update(self):
         for sock in self.outputs:
@@ -5621,16 +5706,33 @@ class No_En_Net_Ext(Node, EnViNodes):
 
     def epwrite(self, enng):
         enentry, wpcname, wpcentry = '', '', ''
+
+        if self.val_type == '0':
+            azis = [self.ang1, self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12]
+            wpcs = [self.wpc1, self.wpc2, self.wpc3, self.wpc4, self.wpc5, self.wpc6, self.wpc7, self.wpc8, self.wpc9, self.wpc10, self.wpc11, self.wpc12]
+            i_angs = sorted([self.ang1, self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12])
+            angs = [(a, ai) for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai-1] < i_angs[ai]]
+            wpcs = [[x for _, x in sorted(zip(azis, wpcs))][a[1]] for a in angs]
+        else:
+            wpcs = [w[1] for w in self['WPCs']]
+
+        wpcparams = ['Name', 'AirflowNetwork:MultiZone:WindPressureCoefficientArray Name'] + ['Wind Pressure Coefficient Value {} (dimensionless)'.format(w + 1) for w in range(len(wpcs))]
+        wpcparamvs = [f'{self.name} WPC array', 'Azimuth array'] + wpcs
+        wpcentry = epentry('AirflowNetwork:MultiZone:WindPressureCoefficientValues', wpcparams, wpcparamvs)
+        params = ['Name', 'External Node Height (m)', 'Wind Pressure Coefficient Values Object Name']
+        wpcname = f'{self.name} WPC array' if self.id_data['enviparams']['wpca'] else ''
+        paramvs = [self.name, self.height, wpcname]
+        enentry = epentry('AirflowNetwork:MultiZone:ExternalNode', params, paramvs)
+
         for sock in self.inputs[:] + self.outputs[:]:
             for link in sock.links:
                 wpcname = self.name+'_wpcvals'
                 wpcs = (self.wpc1, self.wpc2, self.wpc3, self.wpc4, self.wpc5, self.wpc6, self.wpc7, self.wpc8, self.wpc9, self.wpc10, self.wpc11, self.wpc12)
                 wparams = ['Name', 'AirflowNetwork:MultiZone:WindPressureCoefficientArray Name'] + ['Wind Pressure Coefficient Value {} (dimensionless)'.format(w + 1) for w in range(enng['enviparams']['wpcn'])]
                 wparamvs =  ['{}_wpcvals'.format(self.name), 'WPC Array'] + [wpcs[wp] for wp in range(len(wparams))]
-                wpcentry = epentry('AirflowNetwork:MultiZone:WindPressureCoefficientValues', wparams, wparamvs)
-                params = ['Name', 'External Node Height (m)', 'Wind Pressure Coefficient Values Object Name']
-                paramvs = [self.name, self.height, wpcname]
-                enentry = epentry('AirflowNetwork:MultiZone:ExternalNode', params, paramvs)
+                #wpcentry = epentry('AirflowNetwork:MultiZone:WindPressureCoefficientValues', wparams, wparamvs)
+
+
         return enentry + wpcentry
 
 class No_En_Net_SFlow(Node, EnViNodes):
@@ -5662,6 +5764,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
     pr: IntProperty(default = 500, min = 1, max = 10000, name = "", description = 'Fan Pressure Rise')
     mf: FloatProperty(default = 0.1, min = 0.001, max = 5, name = "", description = 'Maximum Fan Flow Rate (m3/s)')
     extnode: BoolProperty(default = 0)
+    partnode: IntProperty(default = 0)
 
     def init(self, context):
         self['ela'] = 1.0
@@ -5684,12 +5787,15 @@ class No_En_Net_SFlow(Node, EnViNodes):
             retelaarea(self)
 
         self.extnode = 0
+        self.partnode = 0
 
         for sock in self.inputs[:] + self.outputs[:]:
             for l in sock.links:
                 if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'No_En_Net_Ext':
                     self.extnode = 1
-
+                elif (l.from_node, l.to_node)[sock.is_output].bl_idname == 'No_En_Net_Zone':
+                    self.partnode += 1
+        print(self.partnode)
         if self.outputs.get('Parameter'):
             sockhide(self, ('Node 1', 'Node 2'))
 
@@ -5704,7 +5810,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])
 
     def epwrite(self, exp_op, enng):
-        fentry, crentry, zn, en, surfentry, crname, snames = '', '', '', '', '', '', []
+        fentry, crentry, zn, en, enentry, surfentry, crname, snames = '', '', '', '', '', '', '', []
         paradict = {}
 
         for p in self.bl_rna.properties:
@@ -5748,6 +5854,14 @@ class No_En_Net_SFlow(Node, EnViNodes):
             for link in sock.links:
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
                 othernode = (link.from_node, link.to_node)[sock.is_output]
+
+                if othernode.bl_idname == 'No_En_Net_Ext':
+                    en = othernode.name
+                    enentry = othernode.ep_write()
+
+            for link in sock.links:
+                othersock = (link.from_socket, link.to_socket)[sock.is_output]
+                othernode = (link.from_node, link.to_node)[sock.is_output]
                 if sock.bl_idname == 'So_En_Net_SFlow' and othernode.bl_idname == 'No_En_Net_Zone':
                     # The conditional below checks if the airflow surface is also on a boundary. If so only the surface belonging to the outputting zone node is written.
                     if (othersock.name[0:-1]+'b' in [s.name for s in othernode.outputs[:]] and othernode.outputs[othersock.name[0:-1]+'b'].links) or othersock.name[0:-1]+'b' not in [s.name for s in othernode.outputs]:
@@ -5764,7 +5878,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
 
     def legal(self):
         try:
-            nodecolour(self, 1) if not self.extnode and self.id_data['enviparams']['wpca'] else nodecolour(self, 0)
+            nodecolour(self, 1) if not self.extnode and self.id_data['enviparams']['wpca'] and self.partnode != 2 else nodecolour(self, 0)
             self.id_data.interface_update(bpy.context)
         except Exception:
             nodecolour(self, 1)
@@ -5777,11 +5891,13 @@ class No_En_Net_ACon(Node, EnViNodes):
 
     def wpcupdate(self, context):
         if self.wpctype == 'SurfaceAverageCalculation':
-            if self.inputs['WPC Array'].is_linked:
+            if self.inputs['Azimuth array'].is_linked:
                 remlink(self, self.inputs['WPC Array'].links)
-            self.inputs['WPC Array'].hide = True
+            self.inputs['Azimuth array'].hide = True
+            self.id_data['enviparams']['wpca'] = 0
         elif self.wpctype == 'Input':
-            self.inputs['WPC Array'].hide = False
+            self.id_data['enviparams']['wpca'] = 1
+            self.inputs['Azimuth array'].hide = False
         self.legal()
 
     afnname: StringProperty(name = '')
@@ -5809,7 +5925,7 @@ class No_En_Net_ACon(Node, EnViNodes):
     rsala: FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis', name = "")
 
     def init(self, context):
-        self.inputs.new('So_En_Net_WPC', 'WPC Array')
+        self.inputs.new('So_En_Net_WPC', 'Azimuth array')
 
     def draw_buttons(self, context, layout):
         yesno = (1, 1, 1, self.wpctype == 'Input', self.wpctype != 'Input' and self.wpctype == 'SurfaceAverageCalculation', 1, 1, 1, 1, 1, self.wpctype == 'SurfaceAverageCalculation', self.wpctype == 'SurfaceAverageCalculation')
@@ -5819,11 +5935,10 @@ class No_En_Net_ACon(Node, EnViNodes):
 
     def epwrite(self, exp_op, enng):
         wpcaentry = ''
-        if self.wpctype == 'Input' and not self.inputs['WPC Array'].is_linked:
-            exp_op.report({'ERROR'},"WPC array input has been selected in the control node, but no WPC array node is attached")
+        if self.wpctype == 'Input' and not self.inputs['Azimuth array'].is_linked:
+            exp_op.report({'ERROR'},"Azimuth array input has been selected in the control node, but no Azimuth array node is attached")
             return 'ERROR'
 
-#        wpcaname = 'WPC Array' if not self.wpcaname else self.wpcaname
         self.afnname = 'default' if not self.afnname else self.afnname
         wpctype = 1 if self.wpctype == 'Input' else 0
         paramvs = (self.afnname, self.afntype,
@@ -5837,9 +5952,10 @@ class No_En_Net_ACon(Node, EnViNodes):
 
         simentry = epentry('AirflowNetwork:SimulationControl', params, paramvs)
 
-        if self.inputs['WPC Array'].is_linked:
-            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['WPC Array'].links[0].from_node.epwrite() if wpctype == 1 else ('', 0)
+        if self.inputs['Azimuth array'].is_linked:
+            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['Azimuth array'].links[0].from_node.epwrite() if wpctype == 1 else ('', 0)
             enng['enviparams']['wpca'] = 1
+
         self.legal()
         return simentry + wpcaentry
 
@@ -5848,19 +5964,30 @@ class No_En_Net_ACon(Node, EnViNodes):
 
     def legal(self):
         try:
-            bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] = 1 if self.wpctype == 'Input' and self.inputs['WPC Array'].is_linked else 0
+            # self.id_data['enviparams']['wpca'] = 1 if self.wpctype == 'Input' and self.inputs['WPC Array'].is_linked else 0
             nodecolour(self, self.wpctype == 'Input' and not self.inputs['WPC Array'].is_linked)
-            for node in [node for node in bpy.data.node_groups[self['nodeid'].split('@')[1]].nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
+            for node in [node for node in self.id_data.nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
                 node.legal()
         except Exception:
             pass
 
-class No_En_Net_WPC(Node, EnViNodes):
-    '''Node describing Wind Pressure Coefficient array'''
-    bl_idname = 'No_En_Net_WPC'
-    bl_label = 'EnVi WPC'
+class No_En_Net_Azi(Node, EnViNodes):
+    '''Node describing an azimuth array'''
+    bl_idname = 'No_En_Net_Azi'
+    bl_label = 'EnVi Azi'
     bl_icon = 'FORCE_WIND'
 
+    def azi_vals(self, context):
+        if self.azi_type == '2':
+            if self.csv_file and os.path.isfile(bpy.path.abspath(self.csv_file)):
+                with open(bpy.path.abspath(self.csv_file), 'r') as csv_file:
+                    csv_lines = csv_file.readlines()
+                    azi_col = [pi for pi, p in enumerate(csv_lines[0].split(',')) if 'Azimuths' in p]
+                    i_angs = sorted([float(al.split(',')[azi_col[0]]) for al in csv_lines[1:] if al and al != '\n'])
+                    self['azis'] = [a for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai-1] < i_angs[ai]]
+
+    azi_type: EnumProperty(items=[('0', 'Manual', 'Manual azimuth entry'), ('1', 'Object', 'Get azimuths from object'), ('2', 'CSV', 'Get azimuths from CSV file')], name='', default='0', description='Source of azimuth values')
+    csv_file: StringProperty(name="", description="Name of CSV file", default="", subtype="FILE_PATH", update=azi_vals)
     ang1: IntProperty(name = '', default = 0, min = 0, max = 360)
     ang2: IntProperty(name = '', default = 0, min = 0, max = 360)
     ang3: IntProperty(name = '', default = 0, min = 0, max = 360)
@@ -5873,41 +6000,53 @@ class No_En_Net_WPC(Node, EnViNodes):
     ang10: IntProperty(name = '', default = 0, min = 0, max = 360)
     ang11: IntProperty(name = '', default = 0, min = 0, max = 360)
     ang12: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang13: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang14: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang15: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang16: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang17: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang18: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang19: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang20: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang21: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang22: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang23: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang24: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang25: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang26: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang27: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang28: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang29: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang30: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang31: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang32: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang33: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang34: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang35: IntProperty(name = '', default = 0, min = 0, max = 360)
-    ang36: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang13: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang14: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang15: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang16: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang17: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang18: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang19: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang20: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang21: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang22: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang23: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang24: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang25: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang26: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang27: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang28: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang29: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang30: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang31: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang32: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang33: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang34: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang35: IntProperty(name = '', default = 0, min = 0, max = 360)
+    # ang36: IntProperty(name = '', default = 0, min = 0, max = 360)
 
     def init(self, context):
-        self.outputs.new('So_En_Net_WPC', 'WPC values')
+        self.outputs.new('So_En_Net_WPC', 'Azimuth array')
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label(text = 'WPC Angles')
+        newrow(layout, 'Azimuth source', self, 'azi_type')
 
-        for w in range(1, 13):
+        if self.azi_type == '0':
             row = layout.row()
-            row.prop(self, 'ang{}'.format(w))
+            row.label(text='Azimuth angles')
+
+            for w in range(1, 13):
+                row = layout.row()
+                row.prop(self, 'ang{}'.format(w))
+
+        elif self.azi_type == '2':
+            newrow(layout, 'CSV file', self, 'csv_file')
+
+            if self.csv_file and os.path.isfile(bpy.path.abspath(self.csv_file)):
+                for ai, azi in enumerate(self['azis']):
+                    row = layout.row()
+                    row.label(text="Azimiuth{}: {}".format(ai + 1, azi))
+
 
     def update(self):
         for sock in self.outputs:
@@ -5916,9 +6055,20 @@ class No_En_Net_WPC(Node, EnViNodes):
         self.id_data.interface_update(bpy.context)
 
     def epwrite(self):
-        angs = (self.ang1,self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12)
-        aparamvs = ['WPC Array'] + [wd for w, wd in enumerate(angs) if wd not in angs[:w]]
-        aparams = ['Name'] + ['Wind Direction {} (deg)'.format(w + 1) for w in range(len(aparamvs) - 1)]
+        if self.azi_type == '0':
+            i_angs = sorted([self.ang1, self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12])
+            azis = [a for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai-1] < i_angs[ai]]
+
+        elif self.azi_type == '2':
+            azis = list(self['azis'])
+            # with open(bpy.path.abspath(self.csv_file), 'r') as csv_file:
+            #     csv_lines = csv_file.readlines()
+            #     azi_col = [pi for pi, p in enumerate(csv_lines[0].split(',')) if 'Azimuths' in p]
+            #     azis = sorted([float(al.split(',')[azi_col[0]]) for al in csv_lines[1:] if al and al != '\n'])
+            #     azis = [a for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai-1] < i_angs[ai]]
+
+        aparamvs = ['Azimuth array'] + azis
+        aparams = ['Name'] + ['Wind Direction {} (deg)'.format(w + 1) for w in range(len(azis))]
         return (epentry('AirflowNetwork:MultiZone:WindPressureCoefficientArray', aparams, aparamvs), len(aparamvs) - 1)
 
 class No_En_Net_Sched(Node, EnViNodes):
@@ -6265,7 +6415,7 @@ envi_zone = [NodeItem("No_En_Net_Zone", label="Zone"), NodeItem("No_En_Net_Occ",
 envi_sched = [NodeItem("No_En_Net_Sched", label="Schedule Net")]
 
 envi_airflow = [NodeItem("No_En_Net_SFlow", label="Surface Flow"), NodeItem("No_En_Net_SSFlow", label="Sub-surface Flow"),
-                NodeItem("No_En_Net_Ext", label="External Air"), NodeItem("No_En_Net_WPC", label="WPC")]
+                NodeItem("No_En_Net_Ext", label="External Air"), NodeItem("No_En_Net_Azi", label="Azimuth array")]
 
 envi_ems = [NodeItem("No_En_Net_EMSZone", label="EMS Zone"), NodeItem("No_En_Net_Prog", label="EMS Program"),
             NodeItem("No_En_Net_EMSPy", label="EMS Python")]
