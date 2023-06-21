@@ -547,7 +547,7 @@ def fvcdwrite(svp, node, dp):
 
     if ps:
         svp['flparams']['probes'] = [p.name.replace(" ", "_") for p in ps]
-        probe_vars = 'p U T'
+        probe_vars = 'p U T k epsilon'
 
         for p in ps:
             cdict['functions'][p.name.replace(" ", "_")] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name.replace(" ", "_")), 'writeControl': 'timeStep',

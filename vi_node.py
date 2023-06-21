@@ -2206,7 +2206,7 @@ class No_Vi_Chart(Node, ViNodes):
 
                 if len(r_lens) > 1 and all([r == r_lens[0] for r in r_lens]):
                     row = layout.row()
-                    row.operator("node.chart", text = 'Create plot')
+                    row.operator("node.chart", text='Create plot')
                     row = layout.row()
                     row.label(text = "------------------")
             else:
@@ -2274,7 +2274,11 @@ class No_Vi_Chart(Node, ViNodes):
                     if rsx.resultmenu == 'Time':
                         startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
                         endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
-                        self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                        start_ui_data = self.id_properties_ui("Start")
+                        start_ui_data.update(min=startday, max=endday)
+                        end_ui_data = self.id_properties_ui("End")
+                        end_ui_data.update(min=startday, max=endday)
+                        # self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                         self['Start'], self['End'] = startday, endday
 
                     elif rsx.resultmenu == 'Frames':
@@ -2290,13 +2294,21 @@ class No_Vi_Chart(Node, ViNodes):
 
                         startframe, endframe = min(frames), max(frames)
                         frame = 'All'
-                        self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                        start_ui_data = self.id_properties_ui("Start")
+                        start_ui_data.update(min=startframe, max=endframe)
+                        end_ui_data = self.id_properties_ui("End")
+                        end_ui_data.update(min=startframe, max=endframe)
+                        # self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
                         self['Start'], self['End'] = startframe, endframe
 
                     else:
                         xs = range(1, 1 + [len(res[4].split()) for res in rl if res[0] == rsx.framemenu and res[1] == rsx.resultmenu and res[2] == rsx.zonemenu and res[3] == rsx.metricmenu][0])
                         (startx, endx) = (min(xs), max(xs)) if len(xs) > 1 else (xs[0], xs[0])
-                        self["_RNA_UI"] = {"Start": {"min":startx, "max":endx}, "End": {"min":startx, "max":endx}}
+                        start_ui_data = self.id_properties_ui("Start")
+                        start_ui_data.update(min=startx, max=endx)
+                        end_ui_data = self.id_properties_ui("End")
+                        end_ui_data.update(min=startx, max=endx)
+                        # self["_RNA_UI"] = {"Start": {"min":startx, "max":endx}, "End": {"min":startx, "max":endx}}
                         self['Start'], self['End'] = startx, endx
 
                     if self.inputs.get('Y-axis 1'):
@@ -3300,7 +3312,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
 
                 self.inputs[0].links[0].from_node.new_res = 0
-                
+
                 if not self.get('znames'):
                    self['znames'] = [('None', 'None', 'None')]
 
@@ -4218,6 +4230,17 @@ class No_Flo_Case(Node, ViNodes):
         elif self.scenario in ('0', '1') and self.buoyancy == 1:
             self.buoyancy = 0
 
+        if self.uval_type == '0':
+            speed = (self.uval[0]**2 + self.uval[1]**2 + self.uval[2]**2)**0.5
+        else:
+            speed = self.umag
+
+        if speed:
+            # logentry('For this suggested speed k')
+            self['k'] = 1.5*(0.1*speed)**2
+            print(self['k'])
+            self['epsilon'] = 0.09**0.75*self['k']**1.5/10
+
         context.scene.vi_params['flparams']['scenario'] = self.scenario
 
 
@@ -4253,7 +4276,7 @@ class No_Flo_Case(Node, ViNodes):
                         name='', description='Reference pressure', default=0, update=nodeupdate)
     p_ref_point: EnumProperty(items=ret_empty_menu, name='', description='Reference pressure point', update=nodeupdate)
     p_ref_val: FloatProperty(name="", description="Reference pressure value", min=-5000000, max=5000000, default=0.0, update=nodeupdate)
-    uval: FloatVectorProperty(size=3, name='', attr='Velocity', default=[0, 0, 0], unit='VELOCITY', subtype='VELOCITY', min=-100, max=100, update=nodeupdate)
+    uval: FloatVectorProperty(size=3, name='', attr='Velocity', default=[5, 0, 0], unit='VELOCITY', subtype='VELOCITY', min=-100, max=100, update=nodeupdate)
     uval_type: EnumProperty(name='', items=[('0', 'Vector', 'Air dirction and speed by vector'),
                                                  ('1', 'Azimuth', 'Transient simulation')], description='Velocity type', default='0', update=nodeupdate)
     uval_azi: FloatProperty(name="", description="Air direction azimuth (degrees from north)", min=0, max=360, default=0.0, update=nodeupdate)
@@ -4261,8 +4284,8 @@ class No_Flo_Case(Node, ViNodes):
     tval: FloatProperty(name="K", description="Field Temperature (K)", min=0.0, max=500, default=293.14, update=nodeupdate)
     nutval: FloatProperty(name="", description="Nut domain value", min=0.0, max=500, default=0.0, update=nodeupdate)
     nutildaval: FloatProperty(name="", description="NuTilda domain value", min=0.0, max=500, default=0.0, update=nodeupdate)
-    kval: FloatProperty(name="", description="k domain value", min=0.001, max=500, default=0.8, update=nodeupdate)
-    epval: FloatProperty(name="", description="Epsilon domain value", min=0.001, max=500, default=0.1, update=nodeupdate)
+    kval: FloatProperty(name="", description="k domain value", min=0.001, max=500, default=0.8, precision=3, update=nodeupdate)
+    epval: FloatProperty(name="", description="Epsilon domain value", min=0.001, max=500, precision=3, default=0.1, update=nodeupdate)
     oval: FloatProperty(name="", description="Omega domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
 #    hval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
    #  enval: FloatProperty(name="", description="Enthalpy domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
@@ -4282,6 +4305,8 @@ class No_Flo_Case(Node, ViNodes):
 
     def init(self, context):
         self['exportstate'] = ''
+        self['k'] = 0.375
+        self['epsilon'] = 0.004
         self.outputs.new('So_Flo_Case', 'Case out')
         nodecolour(self, 1)
 
@@ -4328,8 +4353,10 @@ class No_Flo_Case(Node, ViNodes):
             newrow(layout, 'Reference pressure:', self, 'p_ref_val')
             newrow(layout, 'Reference point:', self, 'p_ref_point')
 
-        newrow(layout, 'Field k:', self, 'kval')
-        newrow(layout, 'Field epsilon:', self, 'epval')
+        ktext = 'Field k:' if not self.get('k') else 'Field k ({:.3f}):'.format(self['k'])
+        newrow(layout, ktext, self, 'kval')
+        etext = 'Field epsilon:' if not self.get('epsilon') else 'Field epsilon ({:.3f}):'.format(self['epsilon'])
+        newrow(layout, etext, self, 'epval')
 
         if self.buoyancy:
             newrow(layout, 'Field T:', self, 'tval')
@@ -4617,6 +4644,8 @@ class No_Flo_Sim(Node, ViNodes):
                 if dnode.bl_idname == 'No_Vi_Metrics':
                     dnode.update()
                 elif dnode.bl_idname == 'No_Vi_HMChart':
+                    dnode.update()
+                elif dnode.bl_idname == 'No_Vi_Chart':
                     dnode.update()
         nodecolour(self, 0)
 

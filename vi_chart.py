@@ -119,7 +119,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     # if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
     if rsx.resultmenu != 'Time':
-        si, ei = 0, dnode["End"] - dnode["Start"]
+        si, ei = dnode["Start"], dnode["End"]
 
     # elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation', 'VI Shadow Map'):
     else:

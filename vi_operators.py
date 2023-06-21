@@ -107,7 +107,7 @@ class ADDON_OT_PyInstall(bpy.types.Operator):
                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
             Popen(shlex.split(ng_cmd))
 
-        return{'FINISHED'}
+        return {'FINISHED'}
 
 
 class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
@@ -673,32 +673,32 @@ class OBJECT_OT_EcS(bpy.types.Operator):
             ec_dict[ovp.ec_type] = {}
             ec_dict[ovp.ec_type][ovp.ec_class] = {}
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                "quantity": '{:.4f}'.format(ovp.ec_amount),
-                                                                  "unit": ovp.ec_unit,
-                                                                  "density": '{:.4f}'.format(ovp.ec_density),
-                                                                  "weight": weight,
-                                                                  "ecdu": '{:.4f}'.format(ecdu),
-                                                                  "eckg": '{:.4f}'.format(eckg),
-                                                                  "modules": ovp.ec_mod}
+                                                               "quantity": '{:.4f}'.format(ovp.ec_amount),
+                                                               "unit": ovp.ec_unit,
+                                                               "density": '{:.4f}'.format(ovp.ec_density),
+                                                               "weight": weight,
+                                                               "ecdu": '{:.4f}'.format(ecdu),
+                                                               "eckg": '{:.4f}'.format(eckg),
+                                                               "modules": ovp.ec_mod}
         elif ovp.ec_class not in ec_dict[ovp.ec_type]:
             ec_dict[ovp.ec_type][ovp.ec_class] = {}
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
-                                                                "quantity": '{:.4f}'.format(ovp.ec_amount),
-                                                                  "unit": ovp.ec_unit,
-                                                                  "density": '{:.4f}'.format(ovp.ec_density),
-                                                                  "weight": weight,
-                                                                  "ecdu": '{:.4f}'.format(ecdu),
-                                                                  "eckg": '{:.4f}'.format(eckg),
-                                                                  "modules": ovp.ec_mod}
+                                                               "quantity": '{:.4f}'.format(ovp.ec_amount),
+                                                               "unit": ovp.ec_unit,
+                                                               "density": '{:.4f}'.format(ovp.ec_density),
+                                                               "weight": weight,
+                                                               "ecdu": '{:.4f}'.format(ecdu),
+                                                               "eckg": '{:.4f}'.format(eckg),
+                                                               "modules": ovp.ec_mod}
         else:
             ec_dict[ovp.ec_type][ovp.ec_class][ovp.ec_name] = {"id": ovp.ec_id,
                                                                "quantity": '{:.4f}'.format(ovp.ec_amount),
                                                                "unit": ovp.ec_unit,
                                                                "density": '{:.4f}'.format(ovp.ec_density),
-                                                                "weight": weight,
-                                                                "ecdu": '{:.4f}'.format(ecdu),
-                                                                "eckg": '{:.4f}'.format(eckg),
-                                                                "modules": ovp.ec_mod}
+                                                               "weight": weight,
+                                                               "ecdu": '{:.4f}'.format(ecdu),
+                                                               "eckg": '{:.4f}'.format(eckg),
+                                                               "modules": ovp.ec_mod}
         envi_ecs.set_dat(ec_dict)
         envi_ecs.ec_save()
         ovp.ee.update()
@@ -856,7 +856,7 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
                 self.o.vi_params.bsdf_running = 0
                 return {'CANCELLED'}
             else:
-                return{'PASS_THROUGH'}
+                return {'PASS_THROUGH'}
         else:
             self.o.vi_params.bsdf_running = 0
             filepath = os.path.join(context.scene.vi_params['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name))
@@ -2950,6 +2950,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_undo = False
 
     def invoke(self, context, event):
+        try:
+            bpy.ops.object.mode_set(mode='OBJECT')
+        except Exception:
+            pass
+
         self.vi_prefs = bpy.context.preferences.addons[__name__.split('.')[0]].preferences
         addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         scene = context.scene
@@ -3401,6 +3406,15 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
         elif self.kivyrun.poll() is not None or self.runs[-1].poll is not None:
             self.kivyrun.kill()
+
+            if self.runs[-1].stderr:
+                for line in self.runs[-1].stderr:
+                    if 'Please supply either pRefCell or pRefPoint' in line.decode():
+                        self.runs[-1].kill()
+                        self.report({'ERROR'}, "Pressure reference point needs to be supplied")
+                        logentry('ERROR: Pressure reference point needs to be supplied')
+                        return {'CANCELLED'}
+
             self.runs[-1].kill()
             frame_n = svp['flparams']['start_frame'] + len(self.runs)
             frame_c = svp['flparams']['start_frame'] + len(self.runs) - 1
@@ -3414,7 +3428,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 elif sys.platform in ('darwin', 'win32'):
                     Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "reconstructPar -case data"'.format(frame_coffb), shell=True)
 
-            resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate'}
+            resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate', 'k': 'Turbulent KE', 'epsilon': 'Turbulent dissipation'}
 
             for oname in svp['flparams']['probes']:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
@@ -3427,7 +3441,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         self.o_dict[str(frame_c)][oname] = {}
 
                     for f in os.listdir(probed):
-                        if f in ('p', 'T'):
+                        if f in ('p', 'T', 'k', 'epsilon'):
                             res = []
 
                             with open(os.path.join(probed, f), 'r') as resfile:
@@ -3541,7 +3555,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
 
-
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals), frame_n)
 
@@ -3550,17 +3563,17 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         if self.processes > 1:
                             self.runs.append(Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes,
                                                                                                                                     svp['flparams']['solver'],
-                                                                                                                                    frame_noffb)), stdout=fvprogress))
+                                                                                                                                    frame_noffb)), stderr=PIPE, stdout=fvprogress))
                         else:
-                            self.runs.append(Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", frame_noffb)), stdout=fvprogress))
+                            self.runs.append(Popen(shlex.split('{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", frame_noffb)), stderr=PIPE, stdout=fvprogress))
 
                     elif sys.platform in ('darwin', 'win32'):
                         if self.processes > 1:
                             self.runs.append(Popen('docker run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:10 "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(frame_noffb,
-                                                                                                                                                                                        self.processes,
-                                                                                                                                                                                        svp['flparams']['solver']), stdout=fvprogress))
+                                                                                                                                                                                      self.processes,
+                                                                                                                                                                                      svp['flparams']['solver']), stderr=PIPE, stdout=fvprogress))
                         else:
-                            self.runs.append(Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_noffb, svp['flparams']['solver']), shell=True, stdout=fvprogress))
+                            self.runs.append(Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(frame_noffb, svp['flparams']['solver']), shell=True, stderr=PIPE, stdout=fvprogress))
 
                 return {'PASS_THROUGH'}
 
@@ -3613,10 +3626,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     try:
                         if float(d) != svp['flparams']['st']:
                             shutil.rmtree(os.path.join(root, d))
-                    except:
+                    except Exception:
                         pass
 
-            if sys.platform =='linux':
+            if sys.platform == 'linux':
                 pp_cmd = "foamExec postProcess -func writeCellCentres -case {}".format(frame_offb)
                 Popen(shlex.split(pp_cmd)).wait()
             elif sys.platform in ('darwin', 'win32'):
@@ -3637,20 +3650,20 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:
-                if sys.platform =='linux':
+                if sys.platform == 'linux':
                     self.runs.append(Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes,
-                                                                                                                         svp['flparams']['solver'],
-                                                                                                                         fframe_offb)), stdout=fvprogress))
+                                                                                                                             svp['flparams']['solver'],
+                                                                                                                             fframe_offb)), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
                     self.runs.append(Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(fframe_offb, self.processes,
                                                                                                                          svp['flparams']['solver']), shell=True, stdout=fvprogress))
             else:
                 if sys.platform == 'linux':
                     sol_cmd = '{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", fframe_offb)
-                    self.runs.append(Popen(shlex.split(sol_cmd), stdout=fvprogress))
+                    self.runs.append(Popen(shlex.split(sol_cmd), stderr=PIPE, stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
                     sol_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "{} -case data"'.format(fframe_offb, svp['flparams']['solver'])
-                    self.runs.append(Popen(sol_cmd, shell=True, stdout=fvprogress))
+                    self.runs.append(Popen(sol_cmd, shell=True, stderr=PIPE, stdout=fvprogress))
 
                 logentry('Running solver with command: {}'.format(sol_cmd))
 
@@ -3663,4 +3676,3 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             run.kill()
 
         return {'CANCELLED'}
-
