@@ -263,7 +263,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
     plt.ylabel('Hours', size=16)
 
     if dnode.cf:
-        plt.contourf(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=dnode.clevels + 1, cmap=col, extend='both')
+        plt.contourf(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend='both')
     else:
         plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
 

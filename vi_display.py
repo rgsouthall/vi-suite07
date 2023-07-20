@@ -66,9 +66,11 @@ kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0
 def script_update(self, context):
     svp = context.scene.vi_params
 
-    if svp.vi_res_process == '2':
-        script = bpy.data.texts[svp.script_file.lstrip()]
+    if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts:
+        script = bpy.data.texts[svp.script_file]
         exec(script.as_string())
+
+    leg_update(self, context)
 
 
 def col_update(self, context):
@@ -113,11 +115,14 @@ def leg_update(self, context):
                 livires = bm.verts.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                 ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
 
-            if svp.vi_leg_max > svp.vi_leg_min:
-                vals = ovals - svp.vi_leg_min
-                vals = vals/(svp.vi_leg_max - svp.vi_leg_min)
+            ovals = array(ret_res_vals(svp, ovals))
+            legmm = leg_min_max(svp)
+
+            if legmm[1] > legmm[0]:
+                vals = ovals - legmm[0]
+                vals = vals/(legmm[1] - legmm[0])
             else:
-                vals = array([svp.vi_leg_max for f in bm.faces])
+                vals = array([legmm[1] for f in bm.faces])
 
             nmatis = digitize(vals, bins)
 
@@ -198,8 +203,9 @@ def e_update(self, context):
 def t_update(self, context):
     for o in [o for o in context.scene.objects if o.type == 'MESH' and 'lightarray' not in o.name and not o.hide_viewport and o.vi_params.vi_type_string == 'LiVi Res']:
         o.show_transparent = 1
-    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(1, context.scene.vi_params.vi_leg_levels + 1)]:
+    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(context.scene.vi_params.vi_leg_levels)]:
         mat.blend_method = 'BLEND'
+        mat.diffuse_color[3] = self.id_data.vi_params.vi_disp_trans
     cmap(self)
 
 
@@ -234,11 +240,6 @@ def li_display(context, disp_op, simnode):
     svp = scene.vi_params
     svp.li_disp_menu = unit2res[svp['liparams']['unit']]
     setscenelivivals(scene)
-
-    # try:
-    #     scene.display_settings.display_device = 'None'
-    # except Exception:
-    #     pass
 
     (rcol, mtype) = ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 
@@ -435,7 +436,7 @@ class linumdisplay():
         dp = context.evaluated_depsgraph_get()
 
         for ob in self.obd:
-            res = []
+            res = array([])
             bm = bmesh.new()
             bm.from_object(ob, dp)
             bm.transform(ob.matrix_world)
@@ -472,7 +473,7 @@ class linumdisplay():
                     except Exception:
                         (faces, pcs, depths) = ([], [], [])
 
-                    res = [f[livires] for f in faces]
+                    res = array([f[livires] for f in faces])
                     res = ret_res_vals(svp, res)
 
             elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):
@@ -497,14 +498,15 @@ class linumdisplay():
                                                              vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
                     except Exception:
                         (verts, pcs, depths) = ([], [], [])
-                    res = [v[livires] for v in verts] if not svp.vi_res_mod else [eval('{}{}'.format(v[livires], svp.vi_res_mod)) for v in verts]
 
+                    res = array([v[livires] for v in verts])#  if not svp.vi_res_mod else [eval('{}{}'.format(v[livires], svp.vi_res_mod)) for v in verts]
+                    res = ret_res_vals(svp, res)
             bm.free()
 
-            if res:
+            if len(res):
                 self.allpcs = nappend(self.allpcs, array(pcs))
                 self.alldepths = nappend(self.alldepths, array(depths))
-                self.allres = nappend(self.allres, array(res))
+                self.allres = nappend(self.allres, res)
 
         if len(self.alldepths):
             self.alldepths = self.alldepths/nmin(self.alldepths)
@@ -1222,7 +1224,7 @@ class draw_legend(Base_Display):
                       [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
 
             if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
-                self.resvals = bpy.app.driver_namespace.get('restext')()
+                self.resvals = [''] + bpy.app.driver_namespace.get('restext')()
             else:
                 self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
 
@@ -2534,6 +2536,10 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         svp = scene.vi_params
         redraw = 0
 
+        # if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts and 'resmod' not in bpy.app.driver_namespace.keys():
+        #     script = bpy.data.texts[svp.script_file]
+        #     exec(script.as_string())
+
         if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.vi_params.vi_type_string == 'LiVi Res']:
             svp.vi_display = 0
             move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
@@ -2561,6 +2567,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'RELEASE':
                         self.legend.expand = 0 if self.legend.expand else 1
+                        return {'RUNNING_MODAL'}
 
             elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8)
@@ -2630,6 +2637,11 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
         if li_display(context, self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
+
+        # if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts and 'resmod' not in bpy.app.driver_namespace.keys():
+        #     script = bpy.data.texts[svp.script_file]
+        #     exec(script.as_string())
+        #     print('namespace loading')
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r3h, 0)[0], r2w, r3h, 75, 400, 20)
         self.legend_num = linumdisplay(self, context)

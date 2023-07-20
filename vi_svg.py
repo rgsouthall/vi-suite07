@@ -290,7 +290,7 @@ def vi_info(node, dim, svp, **kwargs):
                 min_res -= 100
 
             l_interval = int(round((max_res - min_res)/7, -2))
-            l_range = range(int(min_res), int(max_res) + 1, l_interval)
+            l_range = range(int(min_res), int(max_res) + l_interval, l_interval)
             l_diff = 400/len(l_range)
             svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
             <svg
@@ -304,30 +304,31 @@ def vi_info(node, dim, svp, **kwargs):
             svg_str += '''<defs>
             <radialGradient id="WLC_grad" gradientUnits="userSpaceOnUse"
             cx="500" cy="500" r="300" fx="500" fy="500">
-            <stop offset="0%" stop-color="green" />
-            <stop offset="50%" stop-color="blue" />
-            <stop offset="100%" stop-color="red" />
+            <stop offset="0%" stop-color="rgb(64, 255, 64)" stop-opacity="0.75" />
+            <stop offset="50%" stop-color="rgb(64, 64, 255)"  stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="rgb(255, 64, 64)"  stop-opacity="0.75"/>
             </radialGradient>
             </defs>'''
             svg_str += '<rect x="0" y="0" width="{0[0]}" height="1000" style="fill:white;stroke:black;stroke-width:5"/>\n'.format(dim)
 
             for ii, i in enumerate(l_range):
-                svg_str += '<rect x="{0}" y="{1}" width="{2}" height="{3}" style="fill:none;stroke:rgb({4}, {4}, {4});stroke-width:4"/>\n'.format(100 + l_diff*(ii), 100 + l_diff*(ii),
-                                                                                                                                              800 - 2 * l_diff*(ii), 800 - 2 * l_diff*(ii),
-                                                                                                                                              255 - (200 - 20 * ii))
-                svg_str += '<rect x="460" y="{}" width="80" height="25" style="fill:white;stroke:none"/>\n'.format(90 + l_diff*(ii) + 800 - 2 * l_diff*(ii))
-                svg_str += '<text x="500" y="{}" text-anchor="middle" style="font-size:32px;font-family:arial">{}</text>\n'.format(110 + l_diff*(ii) + 800 - 2 * l_diff*(ii), i)
+                svg_str += '<rect x="{0}" y="{1}" width="{2}" height="{3}" style="fill:none;stroke:rgb({4}, {4}, {4});stroke-width:2"/>\n'.format(450 - l_diff*(ii), 450 - l_diff*(ii),
+                                                                                                                                              100 + 2 * l_diff*(ii), 100 + 2 * l_diff*(ii),
+                                                                                                                                              (200 - 20 * ii))
+                svg_str += '<rect x="460" y="{}" width="80" height="20" style="fill:white;stroke:none"/>\n'.format(540 + l_diff*(ii))
+                svg_str += '<text x="500" y="{}" text-anchor="middle" style="font-size:28px;font-family:arial">{}</text>\n'.format(560 + l_diff*(ii), i)
+
             svg_str += '<text x="500" y="75" text-anchor="middle" style="font-size:48px;font-family:arial">Whole-life Carbon</text>\n'
             svg_str += '<text x="75" y="500" transform="rotate(-90,75,500)" text-anchor="middle" style="font-size:48px;font-family:arial">Net operational carbon</text>\n'
             svg_str += '<text x="925" y="500" transform="rotate(90,925,500)" text-anchor="middle" style="font-size:48px;font-family:arial">Embodied carbon</text>\n'
             svg_str += '<text x="500" y="975" text-anchor="middle" style="font-size:48px;font-family:arial">kgCO2e</text>\n'
-            wlc_pos = 500 - ((wlc[0] - min_res)/(max_res - min_res)) * (900-500)
-            noc_pos = 500 - ((noc[0] - min_res)/(max_res - min_res)) * (900-500)
-            ec_pos = 500 + ((ec[0] - min_res)/(max_res - min_res)) * (900-500)
-            svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:url(#WLC_grad);stroke:black;stroke-width:4"/>\n'.format(noc_pos, 500, 500, wlc_pos, ec_pos, 500)
-            svg_str += '<circle cx="500" cy="{0}" r="25" style="fill:green;stroke:black;stroke-width:4"/>\n'.format(wlc_pos)
-            svg_str += '<circle cx="{}" cy="500" r="25" style="fill:green;stroke:black;stroke-width:4"/>\n'.format(noc_pos)
-            svg_str += '<circle cx="{}" cy="500" r="25" style="fill:green;stroke:black;stroke-width:4"/>\n'.format(ec_pos)
+            wlc_pos = 450 - ((wlc[0] - min_res)/(max_res - min_res)) * (900-550)
+            noc_pos = 450 - ((noc[0] - min_res)/(max_res - min_res)) * (900-550)
+            ec_pos = 550 + ((ec[0] - min_res)/(max_res - min_res)) * (900-550)
+            svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:url(#WLC_grad);stroke:black;stroke-width:2"/>\n'.format(noc_pos, 500, 500, wlc_pos, ec_pos, 500)
+            svg_str += '<circle cx="500" cy="{0}" r="15" style="fill:yellow;stroke:black;stroke-width:2"/>\n'.format(wlc_pos)
+            svg_str += '<circle cx="{}" cy="500" r="15" style="fill:yellow;stroke:black;stroke-width:2"/>\n'.format(noc_pos)
+            svg_str += '<circle cx="{}" cy="500" r="15" style="fill:yellow;stroke:black;stroke-width:2"/>\n'.format(ec_pos)
             svg_str += "</svg>"
 
             return imname, bytearray(svg_str, encoding='utf-8')

@@ -88,7 +88,7 @@ def rtpoints(self, bm, offset, frame):
         gp[cindex] = 0
 
     geom.ensure_lookup_table()
-    resfaces = [face for face in bm.faces if self.id_data.data.materials[face.material_index].vi_params.mattype == '1']
+    resfaces = [face for face in bm.faces if face.material_index <= len(self.id_data.data.materials) and self.id_data.data.materials[face.material_index] and self.id_data.data.materials[face.material_index].vi_params.mattype == '1']
     self['cfaces'] = [face.index for face in resfaces]
 
     if self['cpoint'] == '0':
@@ -177,54 +177,64 @@ def radmat(self, scene):
     dirt_entry = f'void brightfunc {radname}_dirt\n4 dirt dirt.cal -s {3.3 * self.li_dirt_spacing:.2f}\n0\n1 {self.li_dirt_level:.2f}\n\n' if self.li_dirt else ''
     mod = f'{radname}_dirt' if self.li_dirt else 'void'
 
-    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and self.li_tex:
+    if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and any((self.li_tex, self.li_am, self.li_norm)):
+
         try:
-            fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
-            nd = os.path.join(fd, fn)
-            svp['liparams']['texfilebase'] = os.path.join(nd, 'textures')
-            teximage = self.li_tex
-            teximageloc = os.path.join(svp['liparams']['texfilebase'], '{}.hdr'.format(radname))
-            off = scene.render.image_settings.file_format
-            scene.render.image_settings.file_format = 'HDR'
-            teximage.save_render(teximageloc)
-            scene.render.image_settings.file_format = off
-            (w, h) = teximage.size
-            ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-            dirt_entry = f'void brightfunc {radname}_dirt\n4 dirt dirt.cal -s {3.3 * self.li_dirt_spacing:.2f}\n0\n1 {self.li_dirt_level:.2f}\n\n' if self.li_dirt else ''
-            dirt_mod = f'{radname}_dirt' if self.li_dirt else 'void'
-            radentries = ["{}{} colorpict {}_tex\n7 red green blue '{}' . frac(Lu){} frac(Lv){}\n0\n0\n\n".format(dirt_entry, dirt_mod, radname, teximageloc, ar[0], ar[1])]
-            mod = '{}_tex'.format(radname)
-            radentries.append(ret_radentry(self, radname, mod))
+            if self.li_tex:
+                fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+                nd = os.path.join(fd, fn)
+                svp['liparams']['texfilebase'] = os.path.join(nd, 'textures')
+                teximage = self.li_tex
+                teximageloc = os.path.join(svp['liparams']['texfilebase'], '{}.hdr'.format(radname))
+                off = scene.render.image_settings.file_format
+                scene.render.image_settings.file_format = 'HDR'
+                teximage.save_render(teximageloc)
+                scene.render.image_settings.file_format = off
+                (w, h) = teximage.size
+                ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
+                dirt_entry = f'void brightfunc {radname}_dirt\n4 dirt dirt.cal -s {3.3 * self.li_dirt_spacing:.2f}\n0\n1 {self.li_dirt_level:.2f}\n\n' if self.li_dirt else ''
+                dirt_mod = f'{radname}_dirt' if self.li_dirt else 'void'
+                radentries = ["{}{} colorpict {}_tex\n7 red green blue '{}' . frac(Lu){} frac(Lv){}\n0\n0\n\n".format(dirt_entry, dirt_mod, radname, teximageloc, ar[0], ar[1])]
+                mod = '{}_tex'.format(radname)
+                radentries.append(ret_radentry(self, radname, mod))
+
+            else:
+                mod = 'void'
+                radentries = [dirt_entry, ret_radentry(self, radname, mod)]
 
             if self.li_am:
+                t_mod = mod
+                mod = f'{radname}_im'
+                b_mod = 'void' if not self.li_tex_black else self.li_tex_black.name
                 amim = self.li_am
                 amloc = os.path.join(svp['liparams']['texfilebase'], '{}_am.hdr'.format(radname))
                 off = scene.render.image_settings.file_format
                 scene.render.image_settings.file_format = 'HDR'
                 amim.save_render(amloc)
                 scene.render.image_settings.file_format = off
-                radentries[1] = ret_radentry(self, f'{radname}_im', f'{radname}_tex')  # image material\n{0}_tex plastic {0}_im\n0\n0\n5 1 1 1 0 0\n\n'.format(radname)
-                radentries.append("# alpha mapped material\nvoid mixpict {0}\n7 {0}_im void grey '{1}' . frac(Lu){2} frac(Lv){3}\n0\n0\n\n".format(radname, amloc, ar[0], ar[1]))
+                (w, h) = amim.size
+                ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
+                radentries[1] = ret_radentry(self, mod, t_mod)
+                radentries.append("# alpha mapped material\nvoid mixpict {0}\n7 {5} '{4}' grey '{1}' . frac(Lu){2} frac(Lv){3}\n0\n0\n\n".format(f'{radname}', amloc, ar[0], ar[1], b_mod, mod))
                 mod = '{}'.format(radname)
 
-            try:
-                if self.li_norm:
-                    norm = self.li_norm
-                    normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
-                    norm.pixels.foreach_get(normpixels)
-                    header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
-                    xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
-                    ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
-                    savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
-                    savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
-                    radentries.append("{0}_tex texdata {0}_norm\n9 ddx ddy ddz '{1}.ddx' '{1}.ddy' '{1}.ddy' nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname,
-                                      os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside))
-                    mod = '{}_norm'.format(radname)
-                    radentries[1] = ''
-                    radentries.append(ret_radentry(self, radname, mod))
+            elif self.li_norm:
+                t_mod = mod
+                mod = '{}_norm'.format(radname)
+                norm = self.li_norm
+                (w, h) = norm.size
+                ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
+                normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
+                norm.pixels.foreach_get(normpixels)
+                header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
+                xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
+                ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
+                savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
+                savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
+                radentries.append("{7} texdata {0}\n9 ddx ddy ddz '{1}.ddx' '{1}.ddy' '{1}.ddy' nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(mod,
+                                    os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside, t_mod))
+                radentries.append(ret_radentry(self, radname, mod))
 
-            except Exception as e:
-                logentry('Problem with normal export {}'.format(e))
 
         except Exception as e:
             logentry('Problem with texture export {}'.format(e))

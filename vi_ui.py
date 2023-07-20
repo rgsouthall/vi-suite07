@@ -59,33 +59,33 @@ class VI_PT_3D(bpy.types.Panel):
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display")
 
-                if svp['viparams'].get('vidisp') and svp['viparams']['vidisp'] == 'bsdf_panel':
-                    newrow(layout, 'Direction:', svp, "vi_bsdf_direc")
-                    newrow(layout, 'BSDF max:', svp, "vi_bsdfleg_max")
-                    newrow(layout, 'BSDF min:', svp, "vi_bsdfleg_min")
-                    newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
-                    newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
-                    newrow(layout, 'BSDF font:', svp, "vi_bsdf_font")
+            if svp['viparams'].get('vidisp') and svp['viparams']['vidisp'] == 'bsdf_panel':
+                newrow(layout, 'Direction:', svp, "vi_bsdf_direc")
+                newrow(layout, 'BSDF max:', svp, "vi_bsdfleg_max")
+                newrow(layout, 'BSDF min:', svp, "vi_bsdfleg_min")
+                newrow(layout, 'BSDF scale:', svp, "vi_bsdfleg_scale")
+                newrow(layout, 'BSDF colour:', svp, "vi_leg_col")
+                newrow(layout, 'BSDF font:', svp, "vi_bsdf_font")
 
         if svp.get('viparams') and svp['viparams'].get('vidisp'):
             if not svp.vi_display and svp['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o.vi_params['VIType'] for o in bpy.data.objects if o.vi_params.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text='Wind Metrics')
 
-            elif svp['viparams']['vidisp'] == 'wr' and svp.vi_display:
-                row = layout.row()
-                row.label(text='Scatter properties:')
-                newrow(layout, 'Wind metric:', svp, 'wind_type')
-                newrow(layout, 'Colour:', svp, 'vi_scatt_col')
-                newrow(layout, 'Max:', svp, 'vi_scatt_max')
+            # elif svp['viparams']['vidisp'] == 'wr' and svp.vi_display:
+            #     row = layout.row()
+            #     row.label(text='Scatter properties:')
+            #     newrow(layout, 'Wind metric:', svp, 'wind_type')
+            #     newrow(layout, 'Colour:', svp, 'vi_scatt_col')
+            #     newrow(layout, 'Max:', svp, 'vi_scatt_max')
 
-                if svp.vi_scatt_max == '1':
-                    newrow(layout, 'Max value:', svp, 'vi_scatt_max_val')
+            #     if svp.vi_scatt_max == '1':
+            #         newrow(layout, 'Max value:', svp, 'vi_scatt_max_val')
 
-                newrow(layout, 'Min:', svp, 'vi_scatt_min')
+            #     newrow(layout, 'Min:', svp, 'vi_scatt_min')
 
-                if svp.vi_scatt_min == '1':
-                    newrow(layout, 'Min value:', svp, 'vi_scatt_min_val')
+            #     if svp.vi_scatt_min == '1':
+            #         newrow(layout, 'Min value:', svp, 'vi_scatt_min_val')
 
             elif svp['viparams']['vidisp'] == 'sp' and svp.vi_display:
                 row = layout.row()
@@ -208,14 +208,15 @@ class VI_PT_Mat(bpy.types.Panel):
             if mvp.mattype in ('0', '1'):
                 rmmenu(layout, cm)
 
-                if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):  # in bpy.data.node_groups:
-                    newrow(layout, "Reversed EnVi material:", mvp, "envi_reversed")
+                if mvp.mattype == '0':
+                    if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):  # in bpy.data.node_groups:
+                        newrow(layout, "Reversed EnVi material:", mvp, "envi_reversed")
 
-                    if mvp.envi_reversed:
-                        newrow(layout, "EnVi material:", mvp, "envi_rev_enum")
-                    else:
-                        row = layout.row()
-                        row.operator("material.envi_node", text="Create EnVi Nodes")
+                        if mvp.envi_reversed:
+                            newrow(layout, "EnVi material:", mvp, "envi_rev_enum")
+                        else:
+                            row = layout.row()
+                            row.operator("material.envi_node", text="Create EnVi Nodes")
 
             elif mvp.mattype == '2':
                 newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")
@@ -236,7 +237,7 @@ class VI_PT_Mat(bpy.types.Panel):
 
                     newrow(layout, "U type:", mvp, "flovi_bmbu_subtype")
 
-                    if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet', 'atmBoundaryLayerInletVelocity'):
+                    if mvp.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity', 'inletOutlet', 'atmBoundaryLayerInletVelocity', 'outletInlet', 'freestream'):
                         newrow(layout, "U field value:", mvp, "flovi_u_field")
 
                         if mvp.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
@@ -272,17 +273,17 @@ class VI_PT_Mat(bpy.types.Panel):
                             newrow(layout, "k type:", mvp, "flovi_k_subtype")
 
                             if mvp.flovi_k_subtype == 'fixedValue':
-                                newrow(layout, "K field:", mvp, "flovi_k_field")
+                                newrow(layout, "k field:", mvp, "flovi_k_field")
 
                                 if not mvp.flovi_k_field:
-                                    newrow(layout, "K value:", mvp, "flovi_k_val")
+                                    newrow(layout, "k value:", mvp, "flovi_k_val")
 
                             elif mvp.flovi_k_subtype == 'turbulentIntensityKineticEnergyInlet':
-                                newrow(layout, "K intensity:", mvp, "flovi_k_intensity")
-                                newrow(layout, "K field:", mvp, "flovi_k_field")
+                                newrow(layout, "k intensity:", mvp, "flovi_k_intensity")
+                                newrow(layout, "k field:", mvp, "flovi_k_field")
 
                                 if not mvp.flovi_k_field:
-                                    newrow(layout, "K value:", mvp, "flovi_k_val")
+                                    newrow(layout, "k value:", mvp, "flovi_k_val")
                             newrow(layout, "Epsilon type:", mvp, "flovi_bmbe_subtype")
 
                             if mvp.flovi_bmbe_subtype == 'fixedValue':
@@ -518,10 +519,17 @@ def rmmenu(layout, cm):
             newrow(layout, 'Dirt level:', mvp, 'li_dirt_level')
 
         newrow(layout, 'Texture image:', mvp, 'li_tex')
-        newrow(layout, 'Alpha mask:', mvp, 'li_am')
-        newrow(layout, 'Normal map:', mvp, 'li_norm')
 
-        if mvp.li_norm != 'None':
+        if not mvp.li_am:
+            newrow(layout, 'Normal map:', mvp, 'li_norm')
+
+        if not mvp.li_norm:
+            newrow(layout, 'Blend mask:', mvp, 'li_am')
+
+            if mvp.li_am:
+                newrow(layout, 'Background image:', mvp, 'li_tex_black')
+
+        else:
             newrow(layout, 'Strength:', mvp, 'li_norm_strength')
             newrow(layout, 'Image green vector:', mvp, 'nu')
             newrow(layout, 'Image red vector:', mvp, 'nside')

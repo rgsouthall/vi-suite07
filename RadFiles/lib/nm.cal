@@ -12,9 +12,17 @@ A6 is Blender red direction y
 A7 is Blender red direction z
 }
 
+{ddx(dx, dy) = if(Rdot, A5 * dx + A2 * dy, (A5 * dx + A2 * dy));
+ddy(dx, dy) = if(Rdot, A6 * dx + A3 * dy, (A6 * dx + A3 * dy));
+ddz(dx, dy) = if(Rdot, A7 * dx + A4 * dy, (A7 * dx + A4 * dy));}
+
 ddx(dx, dy) = if(Rdot, A5 * dx + A2 * dy, -1 * (A5 * dx + A2 * dy));
 ddy(dx, dy) = if(Rdot, A6 * dx + A3 * dy, -1 * (A6 * dx + A3 * dy));
 ddz(dx, dy) = if(Rdot, A7 * dx + A4 * dy, -1 * (A7 * dx + A4 * dy));
+
+{ddx(dx, dy) = if(Rdot, Ix * dx + Iy * dy, -1 * (A5 * Ix + A2 * Iy));
+ddy(dx, dy) = if(Rdot, A6 * dx + A3 * dy, -1 * (A6 * dx + A3 * dy));
+ddz(dx, dy) = if(Rdot, Kx * dx + Ky * dy, -1 * (Kx * dx + Ky * dy));}
 
 {ddx(dx, dy) = if(Ny, A5 * dx, -A5 * dx) + if(Nx, A2 * dy, -A2 * dy);
 ddy(dx, dy) = if(Ny, A6 * dx, -A6 * dx) + if(Nx, A3 * dy, -A3 * dy);

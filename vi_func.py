@@ -40,7 +40,7 @@ def li_calcob(ob, li):
     if not ob.data.materials:
         ovp.vi_type_string = ''
     else:
-        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if ob.material_slots[face.material_index].material and ob.material_slots[face.material_index].material.vi_params.mattype == '1'] else ''
+        ovp.vi_type_string = 'LiVi Calc' if [face.index for face in ob.data.polygons if face.material_index < len(ob.material_slots) and ob.material_slots[face.material_index].material and ob.material_slots[face.material_index].material and ob.material_slots[face.material_index].material.vi_params.mattype == '1'] else ''
 
     return ovp.vi_type_string == 'LiVi Calc'
 
@@ -618,10 +618,10 @@ def chunks(li, n):
 def ret_res_vals(svp, reslist):
     if svp.vi_res_process == '2' and svp.script_file:
         try:
-            if svp.vi_leg_levels == len(bpy.app.driver_namespace['restext']()):
+            if svp.vi_leg_levels == len(bpy.app.driver_namespace['restext']()) + 1:
                 return bpy.app.driver_namespace['resmod'](reslist)
             else:
-                logentry('Set legend levels to the same number as result bands')
+                logentry('Set legend levels to one more than the length of the restext return list')
                 return reslist
         except Exception as e:
             logentry('User script error {}. Check console'.format(e))
@@ -664,12 +664,16 @@ def lividisplay(self, scene):
                 livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                 res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                 oreslist = [g[livires] for g in geom]
+                #oreslist = ret_res_vals(svp, oreslist)
                 self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-                smaxres, sminres = max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())
+                smaxres, sminres = max(oreslist), min(oreslist)
 
                 if smaxres > sminres:
                     vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
                         (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
+                    #vals = array(ret_res_vals(svp, vals))
+                    #print('vals', vals)
+            #print(legmm)
                 else:
                     vals = array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])
 
@@ -681,7 +685,7 @@ def lividisplay(self, scene):
                     nmatis = [(0, ll - 1)[v == 1] for v in vals]
                 else:
                     bins = array([increment * i for i in range(ll)])
-                    nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
+                    nmatis = ret_res_vals(svp, clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None))
 
                 bm.to_mesh(self.id_data.data)
                 bm.free()
@@ -2302,10 +2306,10 @@ def bm_to_stl(bm, stl_path):
         stlfile.write('solid\n')
 
         for face in bm.faces:
-            stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(face.normal.normalized()))
+            stlfile.write('facet normal {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\nouter loop\n'.format(face.normal.normalized()))
 
             for vert in face.verts:
-                stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(vert.co))
+                stlfile.write('vertex {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(vert.co))
 
             stlfile.write('endloop\nendfacet\n')
 
@@ -2324,10 +2328,10 @@ def ob_to_stl(self, dp, stl_path):
         stlfile.write('solid\n')
 
         for face in bm.faces:
-            stlfile.write('facet normal {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\nouter loop\n'.format(face.normal.normalized()))
+            stlfile.write('facet normal {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\nouter loop\n'.format(face.normal.normalized()))
 
             for vert in face.verts:
-                stlfile.write('vertex {0[0]:.5f} {0[1]:.5f} {0[2]:.5f}\n'.format(vert.co))
+                stlfile.write('vertex {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(vert.co))
 
             stlfile.write('endloop\nendfacet\n')
 

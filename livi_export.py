@@ -119,14 +119,14 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
 
             with open(mfile, 'w') as mesh:
                 logentry('Running obj2mesh: {}'.format('obj2mesh -w -a {} '.format(tmf)))
-                o2mrun = Popen(shlex.split("obj2mesh -w -a '{}' ".format(tmf)), stdout=mesh, stdin=PIPE, stderr=PIPE, universal_newlines=True).communicate(input=(otext + vtext + ftext))
+                o2mrun = Popen(shlex.split('obj2mesh -w -a "{}"'.format(tmf)), stdout=mesh, stdin=PIPE, stderr=PIPE, universal_newlines=True).communicate(input=(otext + vtext + ftext))
 
             if os.path.getsize(mfile) and not o2mrun[1]:
                 gradfile += "void mesh id \n1 '{}'\n0\n0\n\n".format(mfile)
 
             else:
                 if o2mrun[1]:
-                    logentry('Obj2mesh error: {}. Using mesh geometry export on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
+                    logentry('Obj2mesh error: {}. Using fallback geometry export on {}. Try triangulating the Radiance mesh export'.format(o2mrun[1], o.name))
 
                 gradfile += radpoints(o, mfaces, 0)
 
@@ -157,7 +157,7 @@ def radgexport(export_op, node):
 
     if not node.mesh:
         for m in mats:
-            if m.vi_params.radtex:
+            if m and m.vi_params.radtex:
                 logentry('Mesh option not selected so the texture on material {} will not be applied'.format(m.name))
                 export_op.report({'WARNING'}, 'Mesh export has not been selected so the texture on material {} will not be applied'.format(m.name))
 
@@ -218,10 +218,10 @@ def radgexport(export_op, node):
 
             bm.free()
 
-            if o.particle_systems:
+            if o.particle_systems and o.particle_systems[0].settings.instance_object:
                 ps = o.particle_systems[0]
                 hl = ps.settings.hair_length
-                ps.settings.hair_length = 0
+                #ps.settings.hair_length = 1
 #                dp = bpy.context.evaluated_depsgraph_get()
                 ps = o.evaluated_get(dp).particle_systems[0]
                 particles = ps.particles
@@ -249,14 +249,19 @@ def radgexport(export_op, node):
                         # bm.free()
 
                         for p, part in enumerate(particles):
-                            nv = Vector((1, 0, 0))
-                            nv.rotate(part.rotation)
-                            rdiff = dob_axis_glo.rotation_difference(nv).to_euler()
-                            gradfile += 'void instance {7}\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
-                                        p, [-p for p in dob.location], part.location, part.size, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
-                                        os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
+                            if part.is_visible:
+                                if ps.settings.use_rotations:
+                                    nv = Vector((1, 0, 0))
+                                    nv.rotate(part.rotation)
+                                    rdiff = dob_axis_glo.rotation_difference(nv).to_euler()
+                                    rdiff = part.rotation.to_euler()
+                                else:
+                                    rdiff = Vector((0, 0, 0))
+                                gradfile += 'void instance {7}\n17 "{6}" -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
+                                            p, [-p for p in dob.location], part.location + dob.location - (part.velocity.normalized() * hl), part.size * hl, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
+                                            os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
 
-                o.particle_systems[0].settings.hair_length = hl
+                #o.particle_systems[0].settings.hair_length = hl
 
     # Lights export routine
         for o in [ob for ob in lightlist if ob.visible_get()]:

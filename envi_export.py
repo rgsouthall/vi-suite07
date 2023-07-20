@@ -59,7 +59,9 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
         for node in badnodes:
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
-            return
+
+        if badnodes:
+            return 'ERROR'
 
         if any([node.bl_idname in ('No_En_Net_SSFlow', 'No_En_Net_SFlow') for node in enng.nodes]):
             enng['enviparams']['afn'] = 1
@@ -112,7 +114,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
         for coll in zone_colls:
             znode = get_zone_node(coll, enng)
-
+            print('hello', coll.name, znode)
             if znode:
                 znode.update()
                 cvp = coll.vi_params
@@ -145,6 +147,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                 if mats and coll in zone_colls:
                     for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_export]:
+                        sh_count = 0
                         mat = mats[face.material_index]
                         mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
 
@@ -221,11 +224,12 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                             elif emnode.bl_idname in ('No_En_Mat_Sh', 'No_En_Mat_Bl', 'No_En_Mat_Sc', 'No_En_Mat_SG'):
                                 if emnode.inputs['Control'].links and (emnode.inputs['Shade'].links or emnode.outputs['Shade'].links):
                                     scnode = emnode.inputs['Control'].links[0].from_node
-                                    en_idf.write(scnode.ep_write(face.index, mat.name, coll.name, f'win-{coll.name}_{face.index}'))
+                                    en_idf.write(scnode.ep_write(face.index, mat.name, coll.name, f'win-{coll.name}_{face.index}', sh_count))
 
                                     if scnode.inputs['Schedule'].links:
                                         scsnode = scnode.inputs['Schedule'].links[0].from_node
-                                        en_idf.write(scsnode.ep_write(f'win-{coll.name}_{face.index}-shading-schedule', 'Fraction'))
+                                        en_idf.write(scsnode.ep_write(f'win-{coll.name}_{face.index}_{sh_count}-shading-schedule', 'Fraction'))
+                                        sh_count += 1
 
                 elif coll in shade_colls:
                     for face in bm.faces:
@@ -693,6 +697,7 @@ def pregeo(context, op):
 
     for coll in eg.children:
         cvp = coll.vi_params
+
         if cvp.envi_zone:
             cvp['enparams'] = {}
             cvp['enparams']['floorarea'] = {}

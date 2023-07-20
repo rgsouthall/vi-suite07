@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32
+from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32, concatenate, ones
 from numpy import sum as nsum
 from numpy import max as nmax
 from bpy_extras.io_utils import ExportHelper, ImportHelper
@@ -44,6 +44,9 @@ from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
 from PyQt5.QtGui import QImage, QColor
+import OpenImageIO
+OpenImageIO.attribute("missingcolor", "0,0,0")
+from OpenImageIO import ImageInput, ImageBuf
 
 try:
     import netgen
@@ -748,7 +751,7 @@ class NODE_OT_Li_Geo(bpy.types.Operator):
         svp['viparams']['vidisp'] = ''
         svp['viparams']['viexpcontext'] = 'LiVi Geometry'
         objmode()
-        clearfiles(svp['liparams']['objfilebase'])
+        # clearfiles(svp['liparams']['objfilebase'])
         clearfiles(svp['liparams']['lightfilebase'])
         node = context.node
         node.preexport(scene)
@@ -1433,15 +1436,18 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
                     with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f), 'w') as imfile:
                         self.rpruns.append(Popen(shlex.split(self.rpictcmds[len(self.rpruns)]), stdout=imfile, stderr=PIPE))
-
+                    #gicmd = f'getinfo "{im}"'
+                    #girun = Popen(shlex.split(gicmd), stdout=PIPE, stderr=PIPE)
                     logentry('rpict command: {}'.format(self.rpictcmds[self.frame - self.fs]))
 
                 try:
                     if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
                         if os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)) not in self.images:
                             self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
+
                             if self.frame < self.fe:
                                 self.frame += 1
+
                 except Exception as e:
                     print('Frame passing: {}'.format(e))
 
@@ -1507,16 +1513,43 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             return {'PASS_THROUGH'}
 
     def imupdate(self, f):
-        if 'liviimage' not in bpy.data.images:
-            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
-            im.name = 'liviimage'
+        inp = ImageInput.open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
+        spec = inp.spec()
+        rgb = zeros((spec.height, spec.width, 3), float32)
 
-        bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
-        bpy.data.images['liviimage'].reload()
+        for y in range(spec.height):
+            sl = inp.read_scanline(y, 0, "float32")
+            if not isinstance(sl, ndarray):
+                pass
+            else:
+                if sl.shape[0] == spec.width:
+                    rgb[y] = sl
 
-        for area in bpy.context.screen.areas:
-            if area.type == 'IMAGE_EDITOR':
-                area.tag_redraw()
+
+
+        rgba = concatenate((rgb[::-1, :, :], ones((spec.height, spec.width, 1), float32)), axis=2)
+
+        if 'livi_preview' not in bpy.data.images:
+            im = bpy.data.images.new('livi_preview', spec.width, spec.height, alpha=False, float_buffer=True)
+            im.file_format = 'HDR'
+        else:
+            im = bpy.data.images['livi_preview']
+            if im.size[:] != (spec.width, spec.height):
+                im.scale(spec.width, spec.height)
+
+        im.pixels.foreach_set(rgba.flatten())
+        inp.close()
+
+        # if 'liviimage' not in bpy.data.images:
+        #     im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
+        #     im.name = 'liviimage'
+
+        # bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
+        # bpy.data.images['liviimage'].reload()
+
+        # for area in bpy.context.screen.areas:
+        #     if area.type == 'IMAGE_EDITOR':
+        #         area.tag_redraw()
 
     def terminate(self):
         self.kivyrun.kill()
@@ -1590,8 +1623,8 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                            '{}-{}'.format(self.pmfile, frame),  ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32']) for frame in range(self.fs, self.fe + 1)]
 
             self.rppmcmds = [('', ' -ap "{}" {}'.format('{}-{}.gpm'.format(self.fb, frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
-            self.rpictcmds = ['rpict -pa 0 -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ['rpiece -pa 0 -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ['rpict -u -pa 0 -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ['rpiece -u -pa 0 -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
 
             if simnode.normal or simnode.albedo:
                 for frame in range(self.fs, self.fe + 1):
@@ -1609,7 +1642,13 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                                 start_data = ni + 1
                                 break
 
-                        d_list = normdata[start_data:]
+                        try:
+                            d_list = normdata[start_data:]
+                        except:
+                            self.report({'ERROR'}, "Missing octree. Re-export the geometry and context")
+                            logentry('ERROR: Missing octree. Re-export the geometry and context')
+                            return {'CANCELLED'}
+
                         d_x = [(float(dl[0]) * 0.5 + 0.5) for dl in d_list]
                         d_y = [(float(dl[1]) * 0.5 + 0.5) for dl in d_list]
                         d_z = [(float(dl[2]) * 0.5 + 0.5) for dl in d_list]
@@ -1971,20 +2010,20 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
         for fi, frame in enumerate(frames):
             scene.frame_set(frame)
 
-            if locnode.outputs['Parameter'].links:
-                af = bpy.data.texts[locnode.outputs['Parameter'].links[0].to_node.anim_file].as_string()
-                param = locnode.outputs['Parameter'].links[0].to_node.parameter
+            # if locnode.outputs['Parameter'].links:
+            #     af = bpy.data.texts[locnode.outputs['Parameter'].links[0].to_node.anim_file].as_string()
+            #     param = locnode.outputs['Parameter'].links[0].to_node.parameter
 
-                for p in locnode.bl_rna.properties:
-                    if p.is_skip_save:
-                        if p.identifier == param:
-                            for v in locnode['entries']:
-                                if v[1] == af.split('\n')[fi]:
-                                    try:
-                                        setattr(locnode, param, v[0])
-                                    except Exception as e:
-                                        self.report({'ERROR'}, 'Error in parametric text file: {}'.format(e))
-                                        return {'CANCELLED'}
+            #     for p in locnode.bl_rna.properties:
+            #         if p.is_skip_save:
+            #             if p.identifier == param:
+            #                 for v in locnode['entries']:
+            #                     if v[1] == af.split('\n')[fi]:
+            #                         try:
+            #                             setattr(locnode, param, v[0])
+            #                         except Exception as e:
+            #                             self.report({'ERROR'}, 'Error in parametric text file: {}'.format(e))
+            #                             return {'CANCELLED'}
 
             shutil.copyfile(locnode.weather, os.path.join(svp['viparams']['newdir'], "in{}.epw".format(frame)))
 
@@ -1992,7 +2031,9 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
             if context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode='OBJECT')
 
-        enpolymatexport(self, eg_coll, node, locnode, envi_materials(), envi_constructions())
+        error = enpolymatexport(self, eg_coll, node, locnode, envi_materials(), envi_constructions())
+        if error:
+            return {'CANCELLED'}
         svp['ecparams'] = {'ec_text': 'Scenario, Entity, Entity name, ID, Class, Type, Sub-type, Modules, Volume (m3)/Surface (m2), EC (kgCO2e), EC (kgCO2e/y), EC (kgCO2e/m2), EC (kgCO2e/m2/y)\n'}
         reslists = write_ob_ec(scene, eg_coll, frames, reslists)
         reslists = write_ec(scene, eg_coll, frames, reslists)
@@ -2076,7 +2117,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
             for esim in self.esimruns:
                 if esim.poll() is None:
                     errtext = esim.stderr.read().decode()
-
+                    print(errtext)
                     if 'Fatal' in errtext:
                         logentry('There is something wrong with the Energyplus installation. Check the message below')
                         logentry('If using EMS a local installation of EnergyPlus is required')
@@ -2095,7 +2136,6 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                     logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
 
             if all([esim.poll() is not None for esim in self.esimruns]) and self.e == self.lenframes:
-
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(self.nd, fname))
 
@@ -2167,6 +2207,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
         self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
         os.chdir(svp['viparams']['newdir'])
         self.esimcmds = ["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames]
+        logentry(f"Running EnergyPlus with command: {self.esimcmds[0]}")
         self.esimruns = []
         self.simnode.run = 1
         self.processors = self.simnode.processors if self.simnode.mp else 1
@@ -2794,17 +2835,54 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
         rl = resnode['reslists']
         zrl = list(zip(*rl))
 
-        if (len(set(zrl[0])) > 1 and node.animated) or set(zrl[0]) == {'All'}:
-            resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
-            metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
+        if resnode.bl_idname == 'No_Vi_EC':
+            if (len(set(zrl[0])) > 1 and node.animated) or set(zrl[0]) == {'All'}:
+                htext, rtext = ',', ''
+                obs = set([r[2] for r in rl if rl[0] == 'All'])
+                res = set([r[3] for r in rl if rl[0] == 'All'])
+                resstring  = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
+                metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
+
+                for ml in metriclist:
+                    resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
+
+                resstring += '\n'
+
+            else:
+                htext, rtext = ',', ''
+                frames =  set([r[0] for r in rl if r[0] != 'All'])
+                obs = set([r[2] for r in rl if r[0] != 'All'])
+                res = set([r[3] for r in rl if r[0] != 'All'])
+
+                for f in frames:
+                    for o in obs:
+                        htext += f'{f} {o},'
+
+                htext += '\n'
+
+                for mi, m in enumerate(res):
+                    for r in rl:
+                        if r[3] == m and r[0] != 'All':
+                            if m not in rtext:
+                                rtext += '{}, {},'.format(m, r[4])
+                            else:
+                                rtext += '{},'.format(r[4])
+                    rtext += '\n'
+
+                resstring = htext + rtext
+
         else:
-            resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
-            metriclist = list(itertools.zip_longest(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All'], fillvalue=''))
+            if (len(set(zrl[0])) > 1 and node.animated) or set(zrl[0]) == {'All'}:
+                resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
+                metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
+            else:
+                resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
+                metriclist = list(itertools.zip_longest(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All'], fillvalue=''))
 
-        for ml in metriclist:
-            resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
+            for ml in metriclist:
+                resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
 
-        resstring += '\n'
+            resstring += '\n'
 
         with open(self.filepath, 'w') as csvfile:
             csvfile.write(resstring)
@@ -2834,22 +2912,23 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
     def execute(self, context):
         dp = bpy.context.evaluated_depsgraph_get()
         scene = context.scene
+        svp = scene.vi_params
+        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
 
         if viparams(self, scene):
             return {'CANCELLED'}
 
-        svp = scene.vi_params
-        casenode = context.node
-        casenode.pre_case(context)
-        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
-
         if len(dobs) != 1:
             self.report({'ERROR'}, "One, and only one object with the CFD Domain property is allowed")
             return {'CANCELLED'}
+
         elif [f.material_index for f in dobs[0].data.polygons if f.material_index + 1 > len(dobs[0].data.materials)]:
             self.report({'ERROR'}, "Not every domain face has a material attached")
             logentry("Not every face has a material attached")
             return {'CANCELLED'}
+
+        casenode = context.node
+        casenode.pre_case(context)
 
         if casenode.parametric:
             frames = range(casenode.frame_start, casenode.frame_end + 1)
@@ -2983,7 +3062,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             return {'CANCELLED'}
 
         for ob in self.obs:
-
             bm = bmesh.new()
             bm.from_object(ob, dp)
             bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -3320,11 +3398,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         for file in os.listdir(os.path.join(frame_ofcfb, 'polyMesh')):
                             shutil.copy(os.path.join(os.path.join(frame_ofcfb, 'polyMesh'), file), os.path.join(frame_offb, st, 'polyMesh'))
 
-            try:
-                oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
+                open("{}".format(os.path.join(frame_offb, '{}.foam'.format(frame))), "w")
 
-            except Exception as e:
-                logentry('Netgen volume meshing failed: {}'.format(e))
+            if os.path.isfile(os.path.join(frame_offb, st, 'polyMesh', 'points')):
+                # if self.expnode.ofbm:
+                oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
+            else:
+                logentry('Netgen volume meshing failed:')
                 self.report({'ERROR'}, 'Volume meshing failed')
                 return {'CANCELLED'}
 
@@ -3406,14 +3486,33 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
         elif self.kivyrun.poll() is not None or self.runs[-1].poll is not None:
             self.kivyrun.kill()
+            dline = ['', '']
 
             if self.runs[-1].stderr:
-                for line in self.runs[-1].stderr:
-                    if 'Please supply either pRefCell or pRefPoint' in line.decode():
+                for li, line in enumerate(self.runs[-1].stderr):
+                    dline[0] = dline[1]
+                    dline[1] = line.decode()
+
+                    if 'Please supply either pRefCell or pRefPoint' in dline[1]:
                         self.runs[-1].kill()
                         self.report({'ERROR'}, "Pressure reference point needs to be supplied")
                         logentry('ERROR: Pressure reference point needs to be supplied')
                         return {'CANCELLED'}
+                    elif 'You are probably trying to solve for a field with a default boundary condition' in dline[1]:
+                        dlist = dline[0].split()
+                        pi = dlist.index('patch')
+                        fi = dlist.index('field')
+                        self.runs[-1].kill()
+                        self.report({'ERROR'}, "Change the calculated boundary on {} for field {}".format(dlist[pi + 1], dlist[fi + 1]))
+                        logentry('ERROR: Change the calculated boundary on {} for field {}'.format(dlist[pi + 1], dlist[fi + 1]))
+                        return {'CANCELLED'}
+                    elif 'Continuity error cannot be removed by adjusting the outflow' in dline[1]:
+                        self.report({'ERROR'}, "Mass flow discrepencies cannot be resolved.")
+                        logentry('ERROR: Mass flow discrepencies cannot be resolved. This can happen if using fixed velocity on all boundaries and the areas of inflow and outflow boundaries are different.')
+                        return {'CANCELLED'}
+                    else:
+                        logentry(f'ERROR: {dline[1]}')
+
 
             self.runs[-1].kill()
             frame_n = svp['flparams']['start_frame'] + len(self.runs)
@@ -3499,10 +3598,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
-                vfs = []
-                times = []
+                vfs, times = [], []
+
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, frame_coffb)), stdout=PIPE)
+                    # samp_run = Popen(shlex.split('foamExec postProcess -func sampleDict -case {}'.format(frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
                     vf_run = Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func triSurfaceVolumetricFlowRate\(name="{}.stl"\) -case data"'.format(frame_coffb, oname), stdout=PIPE, shell=True)
 
@@ -3513,18 +3613,23 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 for line in vf_run.stdout.readlines()[::-1]:
                     if "U =" in line.decode():
-                        vf = line.decode().split()[-1]
-                        vfs.append(vf)
+                        #vf = line.decode().split()[-1]
+                        vfs.append(line.decode().split()[-1])
 
                     elif 'Time =' in line.decode():
                         ti = line.decode().split()[-1].strip('s')
                         times.append(ti)
-                        logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, ti, vf))
 
                 if vfs and times:
+                    logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[-1], vfs[-1]))
+
+                    if 'Timestep' not in [r[1] for r in self.reslists]:
+                    # if not self.reslists[str(frame_c)]:
+                        self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
+
                     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
                     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
-                    self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
+
 
             for oname in svp['flparams']['b_probes']:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname, '0')):
@@ -3550,7 +3655,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         self.o_dict[str(frame_c)][oname]['p'] = float(resarray[1:][-1][-1])
 
                         for ri, r in enumerate(resarray[1:]):
-                            self.reslists.append([str(frame_c), 'Probe', oname, 'p', ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                            self.reslists.append([str(frame_c), 'Probe', oname, resdict[metric], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
@@ -3628,6 +3733,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             shutil.rmtree(os.path.join(root, d))
                     except Exception:
                         pass
+                    if 'postProcessing' in d:
+                        shutil.rmtree(os.path.join(root, d))
 
             if sys.platform == 'linux':
                 pp_cmd = "foamExec postProcess -func writeCellCentres -case {}".format(frame_offb)

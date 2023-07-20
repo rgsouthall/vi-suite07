@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 7, 0),
-    "blender": (3, 3),
+    "blender": (3, 6),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
@@ -41,7 +41,7 @@ else:
     import nodeitems_utils
     from bpy.app.handlers import persistent
     from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
-    from bpy.types import AddonPreferences, Image
+    from bpy.types import AddonPreferences, Image, Material
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
     try:
@@ -181,7 +181,7 @@ else:
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype, envi_embodied
-    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu
+    from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu
     from .flovi_func import ret_fvb_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
@@ -404,7 +404,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_leg_unit: sprop("", "Legend unit", 1024, "")
     vi_leg_max: FloatProperty(name="", description="Legend maximum", min=0, max=1000000, default=1000, update=leg_update)
     vi_leg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0, update=leg_update)
-    vi_leg_col: EnumProperty(items=colours, name="", description="Legend scale", default='rainbow', update=col_update)
+    vi_leg_col: EnumProperty(items=colours, name="", description="Legend colours", default='rainbow', update=col_update)
     vi_leg_levels: IntProperty(name="", description="Day of year", min=2, max=100, default=20, update=leg_update)
     vi_leg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0', update=leg_update)
     wind_type: eprop([("0", "Speed", "Wind Speed (m/s)"), ("1", "Direction", "Wind Direction (deg. from North)")], "", "Wind metric", "0")
@@ -609,6 +609,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     li_bsdf_proxy_depth: fprop("", "Depth of proxy geometry", -10, 10, 0)
     li_bsdf_up: fvprop(3, '', 'BSDF up vector', [0, 0, 1], 'XYZ', -1, 1)
     li_tex: bpy.props.PointerProperty(name="", type=Image, description='Texture map')
+    li_tex_black: bpy.props.PointerProperty(name="", type=Material, description='Texture map (black)')
     li_am: bpy.props.PointerProperty(name="", type=Image, description='Alpha mask')
     li_norm: bpy.props.PointerProperty(name="", type=Image, description='Normal map')
     li_norm_strength: fprop("", "Normal strength", 0, 1000, 1.0)
@@ -658,9 +659,9 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_bmbo_val: fprop("", "Omega value", -1000, 1000, 0.0)
     flovi_o_field: bprop("", "Take boundary omega from the field omega", False)
 
-    flovi_bmbnutilda_subtype: EnumProperty(items = ret_fvbnutilda_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbnutilda_val: fprop("", "NuTilda value", -1000, 1000, 0.0)
-    flovi_nutilda_field: bprop("", "Take boundary nutilda from the field nutilda", False)
+    # flovi_bmbnutilda_subtype: EnumProperty(items = ret_fvbnutilda_menu, name = "", description = "FloVi sub-type boundary")
+    # flovi_bmbnutilda_val: fprop("", "NuTilda value", -1000, 1000, 0.0)
+    # flovi_nutilda_field: bprop("", "Take boundary nutilda from the field nutilda", False)
 
     flovi_bmbt_subtype: EnumProperty(items = ret_fvbt_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbt_val: fprop("", "T value", 0, 1000, 300)
