@@ -8071,7 +8071,7 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
 
     def draw_buttons(self, context, layout):
         if self.outputs['Layer'].links:
-            newrow(layout, "Class:", self, "layer")
+            newrow(layout, "Specification:", self, "layer")
             if self.layer == '0':
                 newrow(layout, "Material:", self, "material")
                 newrow(layout, "Thickness:", self, "thi")
