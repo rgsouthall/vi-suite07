@@ -1138,7 +1138,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 if self.simnode.pmappreview:
                     create_empty_coll(context, 'LiVi Results')
                     gpmbm = bmesh.new()
-                    bmesh.ops.create_icosphere(gpmbm, subdivisions=2, radius=0.025, calc_uvs=False)
+                    bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
                     lvo = len(gpmbm.verts)
 
                     if self.simnode.pmapgno:
@@ -1147,14 +1147,15 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                         for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
+                            print(dl, [float(x) for x in dl[:3]])
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
                             nbm = gpmbm.copy()
                             bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
                             verts_out += [v.co.to_tuple() for v in nbm.verts]
-                            faces_out += [[lvo + j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                            faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
                             nbm.free()
 
-                            if li > self.simnode.pmapgno or li > 10000:
+                            if li > self.simnode.pmapgno or li > 100000:
                                 break
 
                         gpm_mesh = bpy.data.meshes.new('gpm_mesh')
@@ -1174,10 +1175,10 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             nbm = gpmbm.copy()
                             bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
                             verts_out += [v.co.to_tuple() for v in nbm.verts]
-                            faces_out += [[lvo + j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                            faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
                             nbm.free()
 
-                            if li > self.simnode.pmapcno or li > 10000:
+                            if li > self.simnode.pmapcno or li > 100000:
                                 break
 
                         cpm_mesh = bpy.data.meshes.new('cpm_mesh')

@@ -1752,7 +1752,7 @@ class No_En_Sim(Node, ViNodes):
     '''Node describing an EnergyPlus simulation'''
     bl_idname = 'No_En_Sim'
     bl_label = 'EnVi Simulation'
-    bl_icon = 'GRAPH'
+    bl_icon = 'PREFERENCES'
 
     def init(self, context):
         self.inputs.new('So_En_Con', 'Context in')
@@ -2173,6 +2173,7 @@ class No_Vi_Chart(Node, ViNodes):
     '''Node for 2D results plotting'''
     bl_idname = 'No_Vi_Chart'
     bl_label = 'VI Chart'
+    bl_icon = 'FCURVE'
 
     def nodeupdate(self, context):
         self.update()
@@ -2481,6 +2482,7 @@ class No_Vi_HMChart(Node, ViNodes):
     '''Node for 2D results plotting'''
     bl_idname = 'No_Vi_HMChart'
     bl_label = 'VI Heatmap'
+    bl_icon = 'TEXTURE'
 
     def update(self):
         resdict = {}
@@ -5151,12 +5153,11 @@ class No_En_Net_Zone(Node, EnViNodes):
         return epentry('AirflowNetwork:MultiZone:Zone', params, paramvs)
 
 
-
-
 class No_En_Net_Hvac(Node, EnViNodes):
     '''Zone HVAC node'''
     bl_idname = 'No_En_Net_Hvac'
     bl_label = 'HVAC'
+    bl_icon = 'FREEZE'
 
     def hupdate(self, context):
         self.h = 1 if self.envi_hvachlt != '4' else 0
@@ -5394,7 +5395,7 @@ class No_En_Net_Eq(Node, EnViNodes):
     '''EnVi equipment node'''
     bl_idname = 'No_En_Net_Eq'
     bl_label = 'Equipment'
-    bl_icon = 'SOUND'
+    bl_icon = 'PLUGIN'
 
     envi_equiptype: EnumProperty(items = [("0", "None", "No equipment"),("1", "EquipmentLevel", "Overall equpiment gains"), ("2", "Watts/Area", "Equipment gains per square metre floor area"),
                                               ("3", "Watts/Person", "Equipment gains per occupant")], name = "", description = "The type of zone equipment gain specification", default = "0")
@@ -5426,7 +5427,7 @@ class No_En_Net_Inf(Node, EnViNodes):
     '''EnVi infiltration node'''
     bl_idname = 'No_En_Net_Inf'
     bl_label = 'Infiltration'
-    bl_icon = 'SOUND'
+    bl_icon = 'ORIENTATION_NORMAL'
 
     envi_inftype: EnumProperty(items = [("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')),
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')),
@@ -6073,7 +6074,7 @@ class No_En_Net_Azi(Node, EnViNodes):
     '''Node describing an azimuth array'''
     bl_idname = 'No_En_Net_Azi'
     bl_label = 'EnVi Azi'
-    bl_icon = 'FORCE_WIND'
+    bl_icon = 'CURVE_PATH'
 
     def azi_vals(self, context):
         if self.azi_type == '1':
@@ -6392,22 +6393,24 @@ class No_En_Net_EMSZone(Node, EnViNodes):
         self.supdate(context)
         sssocklist = []
 
-        try:
-            obj = bpy.data.collections[self.emszone].objects[0]
-            odm = [ms.material for ms in obj.material_slots]
+        # try:
+        obj = bpy.data.collections[self.emszone].objects[0]
+        odm = [ms.material for ms in obj.material_slots]
 
-            for face in obj.data.polygons:
-                mat = odm[face.material_index]
+        for face in obj.data.polygons:
+            mat = odm[face.material_index]
 
-                for emnode in mat.vi_params.envi_nodes.nodes:
-                    if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active and emnode.envi_afsurface and emnode.envi_con_type in ('Window', 'Door'):
-                        sssocklist.append('{}_{}_{}_{}'.format(adict[emnode.envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]))
+            for emnode in mat.vi_params.envi_nodes.nodes:
+                if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active and emnode.envi_afsurface and emnode.envi_con_type in ('Window', 'Door'):
+                    sssocklist.append('{}_{}_{}_{}'.format(adict[emnode.envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]))
 
-            self.inputs[0].hide = False
-            nodecolour(self, 0)
-        except Exception:
-            self.inputs[0].hide = True
-            nodecolour(self, 1)
+        self.inputs[0].hide = False
+        nodecolour(self, 0)
+
+        # except Exception as e:
+        #     print(e)
+        #     self.inputs[0].hide = True
+        #     nodecolour(self, 1)
 
         for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'So_En_Net_Act']:
             try: self.inputs.remove(iname)
@@ -6420,7 +6423,7 @@ class No_En_Net_EMSZone(Node, EnViNodes):
                 except Exception as e: print('3190', e)
 
 #    emszone: StringProperty(name = '', update = zupdate)
-    emszone: EnumProperty(name="", description="Zone name", items=zonelist, update = zupdate)
+    emszone: EnumProperty(name="", description="Zone name", items=zonelist, update=zupdate)
     sensorlist = [("0", "Zone Temperature", "Sense the zone temperature"), ("1", "Zone Humidity", "Sense the zone humidity"), ("2", "Zone CO2", "Sense the zone CO2"),
                   ("3", "Zone Occupancy", "Sense the zone occupancy"), ("4", "Zone Equipment", "Sense the equipment level")]
     sensortype: EnumProperty(name="", description="Linkage type", items=sensorlist, default='0', update = supdate)
@@ -6428,9 +6431,9 @@ class No_En_Net_EMSZone(Node, EnViNodes):
                   '2': ('CO2', 'AFN Node CO2 Concentration'), '3': ('Occ', 'Zone Occupancy'), '4': ('Equip', 'Zone Equipment')}
     actlist = [("0", "Opening factor", "Actuate the opening factor"), ("1", "Air supply temp", "Actuate an ideal air load system supply temperature"),
                ("2", "Air supply flow", "Actuate an ideal air load system flow rate"), ("3", "Outdoor Air supply flow", "Actuate an ideal air load system outdoor air flow rate")]
-    acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
+    acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0', update=zupdate)
     compdict = {'0': 'AirFlow Network Window/Door Opening'}
-    actdict =  {'0': ('Venting Opening Factor', 'of')}
+    actdict =  {'0': ('Venting Opening Factor', 'of'), '1': ('Air supply temperature', 'ast'), '2': ('Air supply flow', 'asff'), '3': ('Outdoor air supply flow', 'oaf')}
 
     def init(self, context):
         self.inputs.new('So_En_Net_Sense', 'Sensor')
@@ -7462,6 +7465,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     '''Node defining the EnVi opaque material layer'''
     bl_idname = 'No_En_Mat_Op'
     bl_label = 'EnVi opaque layer'
+    bl_icon = 'SNAP_FACE'
 
     def lay_update(self, context):
         if not self.em.updated:
@@ -7796,6 +7800,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     '''Node defining the EnVi transparent material layer'''
     bl_idname = 'No_En_Mat_Tr'
     bl_label = 'EnVi transparent layer'
+    bl_icon = 'IMAGE_ALPHA'
 
     def lay_update(self, context):
         if not self.em.updated:
@@ -8035,6 +8040,7 @@ class No_En_Mat_Gas(Node, EnViMatNodes):
     '''Node defining the EnVi transparent gas layer'''
     bl_idname = 'No_En_Mat_Gas'
     bl_label = 'EnVi gas layer'
+    bl_icon = 'SNAP_EDGE'
 
     layer: EnumProperty(items = [("0", "Database", "Select from database"),
                                         ("1", "Custom", "Define custom material properties")],
@@ -8299,6 +8305,7 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     '''Node defining an EnVi window blind'''
     bl_idname = 'No_En_Mat_Bl'
     bl_label = 'EnVi Blind'
+    bl_icon = 'ALIGN_JUSTIFY'
 
     so: EnumProperty(items=[("0", "Horizontal", "Select from database"),
                                 ("1", "Vertical", "Define custom material properties")],
@@ -8414,6 +8421,7 @@ class No_En_Mat_SG(Node, EnViMatNodes):
     '''Node defining the EnVi switchable glazing layer'''
     bl_idname = 'No_En_Mat_SG'
     bl_label = 'EnVi switchable glazing layer'
+    bl_icon = 'IMAGE_ALPHA'
 
     def lay_update(self, context):
         if not self.em.updated:
@@ -8717,6 +8725,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
     '''Node defining an EnVi photovoltaic module'''
     bl_idname = 'No_En_Mat_PV'
     bl_label = 'EnVi PV'
+    bl_icon = 'VIEW_PERSPECTIVE'
 
     def pv_update(self, context):
         pass
@@ -8932,6 +8941,7 @@ class No_En_Mat_PVG(Node, EnViMatNodes):
     '''Node defining an EnVi photovoltaic generator'''
     bl_idname = 'No_En_Mat_PVG'
     bl_label = 'EnVi PV Generator'
+    bl_icon = 'EXTERNAL_DRIVE'
 
     it: EnumProperty(items = [('0', 'Simple', 'Simple Inverter')], name = "", description = "Inverter type")
     ie: FloatProperty(name = "%", description = "Inverter efficiency (%)", min = 0.0, max = 100, default = 90)
