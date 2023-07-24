@@ -628,7 +628,7 @@ def ret_res_vals(svp, reslist):
             return reslist
     elif svp.vi_res_process == '1' and svp.vi_res_mod:
         try:
-            return [eval('{}{}'.format(r, svp.vi_res_mod)) for r in reslist]
+            return array([eval('{}{}'.format(r, svp.vi_res_mod)) for r in reslist])
         except:
             return reslist
     else:
@@ -666,26 +666,26 @@ def lividisplay(self, scene):
                 oreslist = [g[livires] for g in geom]
                 #oreslist = ret_res_vals(svp, oreslist)
                 self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-                smaxres, sminres = max(oreslist), min(oreslist)
+                smaxres, sminres = ret_res_vals(svp, [max(oreslist), min(oreslist)])[:2]
 
                 if smaxres > sminres:
-                    vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
-                        (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
-                    #vals = array(ret_res_vals(svp, vals))
-                    #print('vals', vals)
-            #print(legmm)
+                    vals = (ret_res_vals(svp, array([f[livires] for f in bm.faces])) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
+                        (ret_res_vals(svp, array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces])) - sminres)/(smaxres - sminres)
                 else:
-                    vals = array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])
+                    vals = ret_res_vals(svp, array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))]))
 
                 if livires != res:
                     for g in geom:
                         g[res] = g[livires]
-
+                print(vals.dtype)
                 if svp['liparams']['unit'] == 'SVF (%)X':
                     nmatis = [(0, ll - 1)[v == 1] for v in vals]
+                elif svp.vi_res_process == '2' and svp.script_file:
+                    
+                    nmatis = vals
                 else:
                     bins = array([increment * i for i in range(ll)])
-                    nmatis = ret_res_vals(svp, clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None))
+                    nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
 
                 bm.to_mesh(self.id_data.data)
                 bm.free()
@@ -698,8 +698,9 @@ def lividisplay(self, scene):
 
 
 def ret_vp_loc(context):
-    return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d,
-                                                          (context.region.width/2.0, context.region.height/2.0))
+    cspr = context.space_data.region_3d
+    cr = context.region
+    return bpy_extras.view3d_utils.region_2d_to_origin_3d(cr, cspr, (cr.width/2.0, cr.height/2.0))
 
 
 def viparams(op, scene):

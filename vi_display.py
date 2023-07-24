@@ -558,7 +558,7 @@ class results_bar():
         if self.rh != rh or xpos != self.xpos - 10:
             self.ipos = []
             self.rh = rh
-            self.xpos = xpos + 10
+            self.xpos = xpos
 
             v_coords = ((self.xpos, rh - self.yoffset - self.size), (self.xpos + self.no * self.size, rh - self.yoffset - self.size),
                         (self.xpos + self.no * self.size, rh - self.yoffset), (self.xpos, rh - self.yoffset), (self.xpos, rh - self.yoffset - self.size))
@@ -1999,7 +1999,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.results_bar = results_bar(self.images)
         self.legend = wr_legend(context, 'Speed (m/s)', [305, r3h - 80], r2w, r3h, 125, 300)
         self.table = wr_table(context, [355, r3h - 80], r2w, r3h, 400, 60)
-        # scatter_icon_pos = self.results_bar.ret_coords(r2w, r3h, 2)[0]
         self.cao = [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"][0] if [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"] else 0
 
         if not self.cao:
@@ -2019,7 +2018,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.zdata = array([])
         self.xtitle = 'Days'
         self.ytitle = 'Hours'
-        # self.dhscatter = draw_scatter(context, scatter_icon_pos, r2w, r2h, 600, 200, self)
         self.height = r3h
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["wr"] = self.draw_handle_wrnum
@@ -2031,7 +2029,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
         redraw = 0
-        # updates = [0 for i in self.images]
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'wr' or not context.area:
             svp.vi_display = 0
@@ -2637,11 +2634,6 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
         if li_display(context, self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
-
-        # if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts and 'resmod' not in bpy.app.driver_namespace.keys():
-        #     script = bpy.data.texts[svp.script_file]
-        #     exec(script.as_string())
-        #     print('namespace loading')
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r3h, 0)[0], r2w, r3h, 75, 400, 20)
         self.legend_num = linumdisplay(self, context)
