@@ -932,6 +932,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         totarea = sum(areas)
 
         for ch, chunk in enumerate(chunks([g for g in rgeom], int(svp['viparams']['nproc']) * 40)):
+            if not ch:
+                logentry(f"Running rcontrib with the command: {rccmds[f]}")
+
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
@@ -961,8 +964,12 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     gp[firradm2] = kwhm2[gi]
 
             elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
-                rclist = rccmds[f].split()
-                rccmd = ' '.join(rclist[:4] + ['-ab 1 -ad 8192 -lw 0.0001 -lr 0'] + rclist[-11:])
+                rclist = shlex.split(rccmds[f], posix=False)
+                rccmd = ' '.join(rclist[:4] + ['-ab 1 -ad 8192 -lw 0.0001 -lr 0'] + rclist[-13:])
+
+                if not ch:
+                    logentry(f"Running rcontrib (no sky) with the command: {rccmd}")
+
                 sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarrayd = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
                 sensarrayns = nsum(resarrayd*illumod, axis=2).astype(float32)

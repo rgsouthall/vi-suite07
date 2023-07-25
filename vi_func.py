@@ -626,6 +626,7 @@ def ret_res_vals(svp, reslist):
         except Exception as e:
             logentry('User script error {}. Check console'.format(e))
             return reslist
+
     elif svp.vi_res_process == '1' and svp.vi_res_mod:
         try:
             return array([eval('{}{}'.format(r, svp.vi_res_mod)) for r in reslist])
@@ -664,28 +665,34 @@ def lividisplay(self, scene):
                 livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                 res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
                 oreslist = [g[livires] for g in geom]
-                #oreslist = ret_res_vals(svp, oreslist)
                 self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-                smaxres, sminres = ret_res_vals(svp, [max(oreslist), min(oreslist)])[:2]
 
-                if smaxres > sminres:
-                    vals = (ret_res_vals(svp, array([f[livires] for f in bm.faces])) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
-                        (ret_res_vals(svp, array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces])) - sminres)/(smaxres - sminres)
-                else:
-                    vals = ret_res_vals(svp, array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))]))
+                if svp.vi_res_process == '2' and svp.script_file:
+                    try:
+                        vals = ret_res_vals(svp, array([f[livires] for f in bm.faces])) if svp['liparams']['cp'] == '0' else \
+                        ret_res_vals(svp, array([(sum([vert[livires] for vert in f.verts]))/len(f.verts) for f in bm.faces]))
+                        nmatis = array(vals).astype(int8)
+                    except:
+                        nmatis = zeros(len(bm.faces))
 
-                if livires != res:
-                    for g in geom:
-                        g[res] = g[livires]
-                print(vals.dtype)
-                if svp['liparams']['unit'] == 'SVF (%)X':
-                    nmatis = [(0, ll - 1)[v == 1] for v in vals]
-                elif svp.vi_res_process == '2' and svp.script_file:
-                    
-                    nmatis = vals
                 else:
-                    bins = array([increment * i for i in range(ll)])
-                    nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
+                    smaxres, sminres = ret_res_vals(svp, [max(svp['liparams']['maxres'].values()), min(svp['liparams']['minres'].values())])[:2]
+
+                    if smaxres > sminres:
+                        vals = (array(ret_res_vals(svp, array([f[livires] for f in bm.faces]))) - sminres)/(smaxres - sminres) if svp['liparams']['cp'] == '0' else \
+                            (array(ret_res_vals(svp, array([(sum([vert[livires] for vert in f.verts]))/len(f.verts) for f in bm.faces]))) - sminres)/(smaxres - sminres)
+                    else:
+                        vals = array(ret_res_vals(svp, array([max(svp['liparams']['maxres'].values()) for x in range(len(bm.faces))])))
+
+                    if livires != res:
+                        for g in geom:
+                            g[res] = g[livires]
+
+                    if svp['liparams']['unit'] == 'SVF (%)X':
+                        nmatis = [(0, ll - 1)[v == 1] for v in vals]
+                    else:
+                        bins = array([increment * i for i in range(ll)])
+                        nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
 
                 bm.to_mesh(self.id_data.data)
                 bm.free()

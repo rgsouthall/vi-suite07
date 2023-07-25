@@ -540,7 +540,7 @@ class No_Li_Con(Node, ViNodes):
                 if self.cbanalysismenu == '2':
                     row = layout.row()
                     row.label(text="--")
-                    newrow(layout, '(s)DA (Min):', self, 'dalux')
+                    newrow(layout, 'DA (Min):', self, 'dalux')
                     newrow(layout, 'UDI Low (Max):', self, 'damin')
                     newrow(layout, 'UDI Supp. (Max):', self, 'dasupp')
                     newrow(layout, 'UDI Auto. (Max):', self, 'daauto')

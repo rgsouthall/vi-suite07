@@ -31,7 +31,7 @@ from .vi_dicts import res2unit, unit2res
 from . import livi_export
 from .vi_svg import vi_info
 from math import pi, log10, atan2, sin, cos
-from numpy import array, repeat, logspace, multiply, digitize, frombuffer, ubyte, float32
+from numpy import array, repeat, logspace, multiply, digitize, frombuffer, ubyte, float32, int8
 from numpy import min as nmin
 from numpy import max as nmax
 from numpy import sum as nsum
@@ -124,7 +124,10 @@ def leg_update(self, context):
             else:
                 vals = array([legmm[1] for f in bm.faces])
 
-            nmatis = digitize(vals, bins)
+            if svp.vi_res_process == '2' and svp.script_file:
+                nmatis = array(ovals).astype(int8)
+            else:
+                nmatis = digitize(vals, bins)
 
             if len(frames) == 1:
                 o.data.polygons.foreach_set('material_index', nmatis)
@@ -1225,6 +1228,8 @@ class draw_legend(Base_Display):
 
             if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
                 self.resvals = [''] + bpy.app.driver_namespace.get('restext')()
+                if len(self.resvals) != self.levels:
+                    self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
             else:
                 self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
 
@@ -2533,10 +2538,6 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         svp = scene.vi_params
         redraw = 0
 
-        # if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts and 'resmod' not in bpy.app.driver_namespace.keys():
-        #     script = bpy.data.texts[svp.script_file]
-        #     exec(script.as_string())
-
         if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.vi_params.vi_type_string == 'LiVi Res']:
             svp.vi_display = 0
             move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
@@ -2631,6 +2632,10 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         self.images = ['legend.png']
         self.results_bar = results_bar(self.images)
         self.frame = self.scene.frame_current
+
+        if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts and 'resmod' not in bpy.app.driver_namespace.keys():
+            script = bpy.data.texts[svp.script_file]
+            exec(script.as_string())
 
         if li_display(context, self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
@@ -2729,15 +2734,18 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         t = area.type
         area.type = 'IMAGE_EDITOR'
         area.spaces.active.image = im
+        bpy.ops.image.view_all()
         bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
         win = bpy.context.window_manager.windows[-1]
         win.screen.areas[0].spaces[0].show_region_header = 0
         win.screen.areas[0].spaces[0].show_region_toolbar = 0
         win.screen.areas[0].spaces[0].show_region_ui = 0
         win.screen.areas[0].spaces[0].show_gizmo = 0
-        ov = bpy.context.copy()
-        ov['area'] = win.screen.areas[0]
-        bpy.ops.image.view_zoom_ratio(ov, ratio=1)
+        win.screen.areas[0].spaces[0].use_realtime_update = 0
+
+        with context.temp_override(window=win, area=win.screen.areas[0]):
+            bpy.ops.image.view_zoom_ratio(ratio=1)
+
         area.type = t
         return {'FINISHED'}
 
