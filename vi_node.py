@@ -8420,7 +8420,7 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
 class No_En_Mat_SG(Node, EnViMatNodes):
     '''Node defining the EnVi switchable glazing layer'''
     bl_idname = 'No_En_Mat_SG'
-    bl_label = 'EnVi switchable glazing layer'
+    bl_label = 'EnVi Switchable'
     bl_icon = 'IMAGE_ALPHA'
 
     def lay_update(self, context):
