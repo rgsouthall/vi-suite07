@@ -2923,9 +2923,14 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             self.report({'ERROR'}, "One, and only one object with the CFD Domain property is allowed")
             return {'CANCELLED'}
 
-        elif [f.material_index for f in dobs[0].data.polygons if f.material_index + 1 > len(dobs[0].data.materials)]:
+        if [f.material_index for f in dobs[0].data.polygons if f.material_index + 1 > len(dobs[0].data.materials)]:
             self.report({'ERROR'}, "Not every domain face has a material attached")
             logentry("Not every face has a material attached")
+            return {'CANCELLED'}
+        
+        if [dobs[0].material_slots[f.material_index].material for f in dobs[0].data.polygons if ' ' in dobs[0].material_slots[f.material_index].material.name]:
+            self.report({'ERROR'}, "There is a space in one of the boundary material names")
+            logentry("There is a space in one of the boundary material names")
             return {'CANCELLED'}
 
         casenode = context.node

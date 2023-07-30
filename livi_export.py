@@ -235,19 +235,7 @@ def radgexport(export_op, node):
                 for dob in dobs:
                     if not os.path.isfile(os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_')))):
                         logentry('Octree for object {} not found in {}'.format(dob.name, os.path.join(svp['viparams']['newdir'], 'octrees')))
-#                        gen_octree(scene, dob, export_op, node.fallback)
-#                        if node.fallback or dob.hide_get(): # Should check visibility with dob.hide_get() but it's not working
                     else:
-                        # dovp = dob.vi_params
-                        # bm = bmesh.new()
-                        # tempmesh = dob.evaluated_get(depsgraph).to_mesh()
-                        # bm.from_mesh(tempmesh)
-                        # bm.transform(dob.matrix_world)
-                        # bm.normal_update()
-                        # dob.to_mesh_clear()
-                        # bmesh2mesh(scene, bm, dob, frame, tempmatfilename, 0, node.triangulate)
-                        # bm.free()
-
                         for p, part in enumerate(particles):
                             if part.is_visible:
                                 if ps.settings.use_rotations:
@@ -257,35 +245,30 @@ def radgexport(export_op, node):
                                     rdiff = part.rotation.to_euler()
                                 else:
                                     rdiff = Vector((0, 0, 0))
+
                                 gradfile += 'void instance {7}\n17 "{6}" -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
                                             p, [-p for p in dob.location], part.location + dob.location - (part.velocity.normalized() * hl), part.size * hl, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
                                             os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
 
-                #o.particle_systems[0].settings.hair_length = hl
-
     # Lights export routine
         for o in [ob for ob in lightlist if ob.visible_get()]:
             ovp = o.vi_params
-
-            # if ' ' in bpy.data.filepath:
-            #     logentry('There is a space in the Blender file name or directory path - re-save with no spaces in the filename/directory path')
-            #     export_op.report({'ERROR'}, 'There is a space in the Blender file name or directory path - re-save with no spaces in the filename/directory path')
-            # elif ' ' in ovp.ies_name:
-            #     logentry('There is a space in the {} IES file name or directory path - move/rename it'.format(o.name))
-            #     export_op.report({'ERROR'}, 'There is a space in the {} IES file name or directory path - move/rename it'.format(o.name))
-            # else:
             ab_ies_path = bpy.path.abspath(ovp.ies_name)
             iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
 
             if os.path.isfile(ab_ies_path):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p '{2}' -d{3} -o '{4}-{5}' '{6}'".format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
+                iescmd = 'ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p "{2}" -d{3} -o "{4}-{5}" "{6}"'.format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
                 logentry('Running ies2rad with command: {}'.format(iescmd))
                 subprocess.call(shlex.split(iescmd))
 
                 with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'r') as dat_file:
                     dat_str = dat_file.read()
-                    dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
 
+                    if sys.platform == 'win32':
+                        dat_str = dat_str.replace("lights/", "lights\\")
+                    
+                    dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
+                    
                     for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u', f'-{frame}.s'):
                         dat_str = dat_str.replace(iesname+suf, f'"{iesname}{suf}"')
 
