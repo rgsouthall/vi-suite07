@@ -381,6 +381,7 @@ def fvmat(self, svp, mn, bound, frame):
         #tdict = {'0': self.flovi_a_subtype, '1': self.flovi_a_subtype, '2': 'symmetry', '3': 'empty'}
         ttdict = {'compressible::alphatWallFunction': 'compressible::alphatWallFunction;\n    value     $internalField',
                   'compressible::alphatJayatillekeWallFunction': 'compressible::alphatJayatillekeWallFunction;\n    Prt    0.85;\n    value     $internalField',
+                  'alphatWallFunction': 'alphatWallFunction;\n    value     $internalField',
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
