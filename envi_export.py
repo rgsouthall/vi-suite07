@@ -91,16 +91,19 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
 
         for mat in bpy.data.materials:
-            mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
+            mvp = mat.vi_params
 
             if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export:
                 for emnode in mvp.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
+                        ln = mvp.id_data.name if emnode.envi_con_proxy == '0' else emnode.envi_con_base
+
                         if emnode.envi_con_type == 'Window':
-                            en_idf.write(emnode.ep_write(mat.name, mvp.id_data.name))
+                            print(mat.name)
+                            en_idf.write(emnode.ep_write(mat.name, ln))
                         else:
                             if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
-                                en_idf.write(emnode.ep_write(mat.name, mvp.id_data.name))
+                                en_idf.write(emnode.ep_write(mat.name, ln))
 
                         if emnode.inputs['PV'].links:
                             gen = 1
@@ -114,14 +117,14 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
         for coll in zone_colls:
             znode = get_zone_node(coll, enng)
-            print('hello', coll.name, znode)
+
             if znode:
                 znode.update()
                 cvp = coll.vi_params
                 cvp['enparams']['floorarea'][str(frame)] = sum([ret_areas(o) for o in coll.objects])
                 params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                           'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
-                paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(znode['volume']), 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
+                paramvs = (coll.name, 0, 0, 0, 0, 1, 1, 'autocalculate', ('autocalculate', '{:.1f}'.format(znode['volume']))[znode.volcalc == '1'], 'autocalculate', caidict[znode.envi_ica], caodict[znode.envi_oca], 'Yes')
                 en_idf.write(epentry('Zone', params, paramvs))
 
         gcvp['enparams']['floorarea'][str(frame)] = sum([float(coll.vi_params['enparams']['floorarea'][str(frame)]) for coll in zone_colls])
@@ -149,11 +152,11 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                     for face in [f for f in bm.faces if mats[f.material_index].vi_params.envi_export]:
                         sh_count = 0
                         mat = mats[face.material_index]
-                        mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
+                        mvp = mat.vi_params
 
                         for emnode in mvp.envi_nodes.nodes:
                             if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
-                                emecc = emnode.envi_con_type if not mat.vi_params.envi_reversed or emnode.envi_con_type not in ('Floor', 'Roof') else ('Floor', 'Roof')[emnode.envi_con_type == 'Floor']
+                                emecc = emnode.envi_con_type# if emnode.envi_con_type not in ('Floor', 'Roof') else ('Floor', 'Roof')[emnode.envi_con_type == 'Floor']
                                 vcos = [v.co for v in face.verts]
                                 (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
 
@@ -177,7 +180,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                                             pv_areas[mat.name] += face.calc_area()
 
-                                    elif emecc in ('Door', 'Window') and emnode.envi_con_makeup != "2":
+                                    elif emecc in ('Door', 'Window'):
                                         if len(face.verts) > 4:
                                             exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
 
@@ -276,6 +279,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
             for schedtype in ('VASchedule', 'TSPSchedule', 'HVAC', 'Occupancy', 'Equipment', 'Infiltration'):
                 if schedtype == 'HVAC' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
+
                     try:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_hvacsched', 'Fraction'))
                     except Exception:
@@ -283,6 +287,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                     hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
                     tvaldict = {'HSchedule': zn.inputs[schedtype].links[0].from_node.envi_htsp, 'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_ctsp}
+
                     for sschedtype in hsdict:
                         if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
                             en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))
@@ -294,8 +299,10 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                     ovaldict = {'OSchedule': 1, 'ASchedule': zn.inputs[schedtype].links[0].from_node.envi_occwatts,
                                 'WSchedule': zn.inputs[schedtype].links[0].from_node.envi_weff, 'VSchedule': zn.inputs[schedtype].links[0].from_node.envi_airv,
                                 'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_cloth}
+
                     for sschedtype in osdict:
                         svariant = 'Fraction' if sschedtype == 'OSchedule' else 'Any Number'
+
                         if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
                             en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
                         else:
@@ -306,11 +313,13 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                         en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
                     else:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_eqsched', 'Fraction'))
+
                 elif schedtype == 'Infiltration' and zn.inputs[schedtype].links:
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
                         en_idf.write(epschedwrite(zn.zone + '_infsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
                     else:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
+
                 elif schedtype == 'VASchedule' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_vasched', 'Fraction'))
 
@@ -443,7 +452,9 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                        "Output:Variable,*,Generator Produced DC Electricity Energy,hourly;\n": node.respve,
                        "Output:Variable,*,Generator Produced DC Electricity Rate,hourly;\n": node.respvw,
                        "Output:Variable,*,Generator PV Array Efficiency,hourly;\n": node.respveff,
-                       "Output:Variable,*,Generator PV Cell Temperature,hourly;\n": node.respvt}
+                       "Output:Variable,*,Generator PV Cell Temperature,hourly;\n": node.respvt,
+                       "Output:Variable,*,Surface Outside Face Temperature,hourly;\n": node.resest,
+                       "Output:Variable,*,Surface Inside Face Temperature,hourly;\n": node.resist}
 
         for amb in ("Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n",
                     "Output:Variable,*,Site Wind Speed,Hourly;\n",
@@ -620,10 +631,10 @@ def pregeo(context, op):
                     if sm.material and sm.material not in done_mats:
                         done_mats.append(sm.material)
                         mat = sm.material
-                        mvp = mat.vi_params if not mat.vi_params.envi_reversed else bpy.data.materials[mat.vi_params.envi_rev_enum].vi_params
+                        mvp = mat.vi_params
                         emnode = get_con_node(mvp)
 
-                        if not emnode and not mvp.envi_reversed:
+                        if not emnode:
                             op.report({'WARNING'}, 'The {} material has no node tree. This material has not been exported.'.format(mat.name))
 
                         elif emnode and any([n.use_custom_color for n in emnode.ret_nodes()]):
@@ -647,7 +658,7 @@ def pregeo(context, op):
                     bm.faces.layers.int.new('viuid')
 
                 uid = bm.faces.layers.int['viuid']
-                exp_faces = [f for f in bm.faces if oms[f.material_index].material.vi_params.envi_nodes or oms[f.material_index].material.vi_params.envi_reversed]
+                exp_faces = [f for f in bm.faces if oms[f.material_index].material.vi_params.envi_nodes]
 
                 for face in bm.faces:
                     uids = [f[uid] for f in exp_faces]
@@ -753,7 +764,6 @@ def pregeo(context, op):
             print('Link', e)
 
     scene.frame_set(scene.frame_current)
-
 
 def writeafn(exp_op, en_idf, enng):
     if [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_ACon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Zone']:

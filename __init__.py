@@ -154,10 +154,18 @@ else:
             except Exception:
                 print('{} not found'.format(fn))
 
-        if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
+        if not os.path.islink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
+            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
+        elif not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
+            os.remove(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
             os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
 
-        if not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
+        if not os.path.islink(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
+            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform,
+                                    'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
+                                    os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
+        elif not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
+            os.remove(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
             os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform,
                                     'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
                                     os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
@@ -182,7 +190,7 @@ else:
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype, envi_embodied
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu
-    from .flovi_func import ret_fvb_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu
+    from .flovi_func import ret_fvb_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu, ret_fvi_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, OBJECT_OT_EcE, NODE_OT_ECPie, NODE_OT_WLCLine, NODE_OT_COMLine
@@ -592,7 +600,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     BSDF: bprop("", "Flag to signify a BSDF material", False)
     mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
-    envi_reversed: bprop("", "Create the reverse of an exsiting EnVi material", False)
+    #envi_reversed: bprop("", "Create the reverse of an exsiting EnVi material", False)
     envi_rev_enum: EnumProperty(items=ret_envi_mats, name='', description='EnVi material')
     envi_type: sprop("", "EnVi Material type", 64, "None")
     envi_shading: bprop("", "Flag to signify whether the material contains shading elements", False)
@@ -642,22 +650,24 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_u_zground: fprop("m", "Ground height in global Z", 0, 500, 0)
     flovi_u_d: fprop("", "Displacement value", 0, 500, 0)
 
-    flovi_bmbnut_subtype: EnumProperty(items = ret_fvbnut_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_bmbnut_subtype: EnumProperty(items=ret_fvbnut_menu, name="", description="FloVi sub-type boundary")
     flovi_bmbnut_val: fprop("", "Nut value", -1000, 1000, 0.0)
     flovi_nut_field: bprop("", "Take boundary nut from the field nut", False)
 
-    flovi_k_subtype: EnumProperty(items = ret_fvbk_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_k_val: fprop("", "k value", -1000, 1000, 0.0)
-    flovi_k_intensity: fprop("", "k value", -1000, 1000, 0.14)
+    flovi_k_subtype: EnumProperty(items=ret_fvbk_menu, name="", description="FloVi k sub-type boundary")
+    flovi_k_val: FloatProperty(name="", description="k value", min=0.0001, max=1, default=0.001, precision=4)
+    flovi_k_intensity: fprop("", "k value", 0.001, 1000, 0.14)
     flovi_k_field: bprop("", "Take boundary k from the field k", False)
 
-    flovi_bmbe_subtype: EnumProperty(items = ret_fvbepsilon_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbe_val: fprop("", "Epsilon value", -1000, 1000, 0.0)
+    flovi_bmbe_subtype: EnumProperty(items=ret_fvbepsilon_menu, name="", description="FloVi epsilon sub-type boundary")
+    flovi_bmbe_val: FloatProperty(name="", description="Epsilon value", min=0.0001, max=1, default=0.001, precision=4)
+    # flovi_eml_val: fprop("", "Mixing length", 0.001, 1000, 0.001)
+    flovi_eml_val: FloatProperty(name="", description="Mixing length", min=0.001, max=1, default=0.005, precision=4)
     flovi_e_field: bprop("", "Take boundary epsilon from the field epsilon", False)
 
-    flovi_bmbo_subtype: EnumProperty(items = ret_fvbomega_menu, name = "", description = "FloVi sub-type boundary")
-    flovi_bmbo_val: fprop("", "Omega value", -1000, 1000, 0.0)
-    flovi_o_field: bprop("", "Take boundary omega from the field omega", False)
+    # flovi_bmbo_subtype: EnumProperty(items = ret_fvbomega_menu, name = "", description = "FloVi sub-type boundary")
+    # flovi_bmbo_val: fprop("", "Omega value", -1000, 1000, 0.0)
+    # flovi_o_field: bprop("", "Take boundary omega from the field omega", False)
 
     # flovi_bmbnutilda_subtype: EnumProperty(items = ret_fvbnutilda_menu, name = "", description = "FloVi sub-type boundary")
     # flovi_bmbnutilda_val: fprop("", "NuTilda value", -1000, 1000, 0.0)
@@ -681,11 +691,17 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 
     flovi_ng_max: fprop("", "Netgen max cell size", 0.001, 100, 0.5)
 
-    flovi_rad_subtype: EnumProperty(items = ret_fvrad_menu, name = "", description = "FloVi sub-type boundary")
+    flovi_rad_subtype: EnumProperty(items=ret_fvrad_menu, name="", description="FloVi sub-type boundary")
     flovi_rad_em: eprop([('lookup', 'Lookup', 'Lookup emissivity')], "", "Emissivity mode", 'lookup')
     flovi_rad_e: fprop("", "Emissivity value", 0, 1, 0.5)
     flovi_rad_val: fprop("", "Radiation value", 0, 10000, 0)
+
+    flovi_i_subtype: EnumProperty(items=ret_fvi_menu, name="", description="FloVi sub-type boundary")
+    flovi_i_em: eprop([('lookup', 'Lookup', 'Lookup emissivity')], "", "Emissivity mode", 'lookup')
+    flovi_i_e: fprop("", "Emissivity value", 0, 1, 0.5)
+    flovi_i_val: fprop("", "Radiation value", 0, 10000, 0)
     flovi_probe: bprop("", "Turn on pressure monitoring", False)
+    flovi_htc: bprop("", "Turn on heat transfer coefficient calculation", False)
 
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_collection: bprop("", "Flag to tell EnVi to export this collection", False)

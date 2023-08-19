@@ -21,7 +21,7 @@ from collections import OrderedDict
 from numpy import arange, array
 from numpy import sum as nsum
 from .vi_func import logentry, facearea, epentry
-from .vi_dicts import rnu, arnu, zresdict, envdict, enresdict, presdict, lresdict
+from .vi_dicts import rnu, arnu, zresdict, envdict, enresdict, presdict, lresdict, sresdict
 from .envi_mat import envi_embodied
 
 
@@ -68,22 +68,12 @@ def get_mat(node, ee):
             break
     return material
 
+def get_base():
+    return [mat.vi_params.envi_nodes.name for mat in bpy.data.materials if mat.vi_params.get('envi_nodes') and get_con_node(mat.vi_params).envi_con_proxy == '0']
 
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
-
         ecnodes = [n for n in mvp.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
-        ecanodes = [n for n in ecnodes if n.active]
-
-        if not ecanodes:
-            if not ecnodes[0].active:
-                ecnodes[0].active = True
-            return ecnodes[0]
-        else:
-            return ecanodes[0]
-
-    elif mvp.envi_reversed:
-        ecnodes = [n for n in bpy.data.materials[mvp.envi_rev_enum].vi_params.envi_nodes.nodes if n.bl_idname == 'No_En_Mat_Con']
         ecanodes = [n for n in ecnodes if n.active]
 
         if not ecanodes:
@@ -193,7 +183,8 @@ def enresprops(disp):
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)),
             '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)),
             '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp), 0, "resldp{}".format(disp)),
-            '4': (0, "respve{}".format(disp), "respvw{}".format(disp), 0, "respveff{}".format(disp), "respvt{}".format(disp))}
+            '4': (0, "respve{}".format(disp), "respvw{}".format(disp), 0, "respveff{}".format(disp), "respvt{}".format(disp)),
+            '5': (0, "resest{}".format(disp), "resist{}".format(disp))}
 
 
 def recalculate_text(scene):
@@ -528,6 +519,8 @@ def processh(lines, znlist):
                 hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
             elif linesplit[3] in presdict:
                 hdict[linesplit[0]] = ['Power',  linesplit[2],  presdict[linesplit[3]]]
+            elif linesplit[3] in sresdict:
+                hdict[linesplit[0]] = ['Surface',  linesplit[2],  sresdict[linesplit[3]]]
 
         if line == 'End of Data Dictionary\n':
             break
@@ -953,7 +946,7 @@ def write_ob_ec(scene, coll, frames, reslists):
                         foecs[o.name] = []
 
                     ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
-                    
+
                     if ecdict['unit'] in ('kg', 'm3', 'm2', 'tonnes'):
                         if o.type == 'MESH' and ovp.embodied and ovp.vi_type == '0':
                             bm = bmesh.new()
@@ -976,17 +969,17 @@ def write_ob_ec(scene, coll, frames, reslists):
                     else:
                         ec = float(ecdict['ecdu'])
                         vol = 0
-                    
+
                     cecs.append(ec)
                     ecs.append(ec)
                     foecs[o.name].append(ec)
-                
+
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/ovp.ec_life)])
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/chil_fa)])
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(chil_fa * ovp.ec_life))])
-                    
+
             if cecs:
                 reslists.append([f'{frame}', 'Embodied carbon', chil.name, 'Zone EC (kgCO2e)', '{:.3f}'.format(sum(cecs))])
         # if ecs:

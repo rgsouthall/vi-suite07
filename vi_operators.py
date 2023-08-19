@@ -36,7 +36,7 @@ from .envi_mat import envi_materials, envi_constructions, envi_embodied
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
 from .flovi_func import ofheader, fvcdwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
-from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh
+from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, bm_to_stl
@@ -2927,7 +2927,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             self.report({'ERROR'}, "Not every domain face has a material attached")
             logentry("Not every face has a material attached")
             return {'CANCELLED'}
-        
+
         if [dobs[0].material_slots[f.material_index].material for f in dobs[0].data.polygons if ' ' in dobs[0].material_slots[f.material_index].material.name]:
             self.report({'ERROR'}, "There is a space in one of the boundary material names")
             logentry("There is a space in one of the boundary material names")
@@ -2949,6 +2949,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
             frame_ofcfb = os.path.join(frame_offb, 'constant')
             frame_ofsfb = os.path.join(frame_offb, 'system')
+            # frame_of0fb = os.path.join(frame_offb, '0')
 
             for ofdir in (frame_offb, frame_ofcfb, frame_ofsfb):
                 if not os.path.isdir(ofdir):
@@ -2976,6 +2977,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             svp['flparams']['et'] = casenode.etime
             svp['flparams']['features'] = {'turb': {'kEpsilon': 'kE'}}
             svp['flparams']['features']['rad'] = casenode.buoyancy and casenode.radiation
+            svp['flparams']['radmodel'] = casenode.radmodel
             svp['flparams']['features']['buoy'] = casenode.buoyancy
             base_residuals = ['Ux', 'Uy', 'Uz']
             turb_residuals = ['k', 'epsilon']
@@ -3019,6 +3021,11 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                 if casenode.radiation:
                     with open(os.path.join(frame_ofcfb, 'radiationProperties'), 'w') as rpfile:
                         rpfile.write(fvrpwrite(casenode))
+                    with open(os.path.join(frame_ofcfb, 'fvModels'), 'w') as fvmfile:
+                        fvmfile.write(fvmodwrite(casenode))
+                    # if casenode.radmodel == '1':
+                    #     with open(os.path.join(frame_of0fb, 'IDefault'), 'w') as fvmfile:
+                    #         fvmfile.write(fvidwrite(casenode))
             else:
                 with open(os.path.join(frame_ofcfb, 'physicalProperties'), 'w') as ppfile:
                     ppfile.write(fvtpwrite())
@@ -3646,25 +3653,35 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             self.o_dict[str(frame_c)] = {}
 
                         self.o_dict[str(frame_c)][oname] = {}
-                        metric = 'p'
-                        res = []
+                        metrics = ('p', 'Ux', 'Uy', 'Uz', 'U')
+                        t_res = []
+                        p_res = []
+                        ux_res = []
+                        uy_res = []
+                        uz_res = []
+                        u_res = []
 
                         with open(os.path.join(probed, 'surfaceFieldValue.dat'), 'r') as resfile:
                             for line in resfile.readlines():
+                                if '# Time' in line:
+                                    p_index = line.split().index('areaAverage(p)') - 1
+                                    u_index = line.split().index('areaAverage(U)') - 1
                                 if line and line[0] != '#':
-                                    res.append(line.split())
+                                    t_res.append(line.split()[0])
+                                    p_res.append(line.split()[p_index])
+                                    ux_res.append(line.split()[u_index].strip('('))
+                                    uy_res.append(line.split()[u_index + 1])
+                                    uz_res.append(line.split()[u_index + 2].strip(')'))
+                                    u_res.append((float(ux_res[-1])**2 + float(uy_res[-1])**2 +  float(uz_res[-1])**2)**0.5)
 
-                            resarray = array(res)
-                            resarray = transpose(resarray)
-
-                        logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict[metric], frame_c, resarray[0][-1], float(resarray[1:][-1][-1])))
-                        self.o_dict[str(frame_c)][oname]['p'] = float(resarray[1:][-1][-1])
-
-                        for ri, r in enumerate(resarray[1:]):
-                            self.reslists.append([str(frame_c), 'Probe', oname, resdict[metric], ' '.join(['{:5f}'.format(float(res)) for res in r])])
+                        for ri, res in enumerate((p_res, ux_res, uy_res, uz_res, u_res)):
+                            res_array = array(res)
+                            logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict[metrics[ri]], frame_c, t_res[-1], float(res_array[-1])))
+                            self.o_dict[str(frame_c)][oname][metrics[ri]] = float(res_array[-1])
+                            self.reslists.append([str(frame_c), 'Probe', oname, resdict[metrics[ri]], ' '.join(['{:5f}'.format(float(res)) for res in res_array])])
 
                     if 'Seconds' not in [r[3] for r in self.reslists]:
-                        self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
+                        self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in res_array[0]])])
 
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.kivyrun = fvprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), svp['flparams']['et'], str(self.residuals), frame_n)

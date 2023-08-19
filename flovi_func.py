@@ -20,7 +20,7 @@ import bpy, bmesh, os, mathutils
 from math import cos, sin, pi
 from mathutils import Vector
 from .vi_func import selobj
-from .vi_dicts import flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict, flovi_t_dict, flovi_a_dict, flovi_prgh_dict, flovi_rad_dict
+from .vi_dicts import flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict, flovi_t_dict, flovi_a_dict, flovi_prgh_dict, flovi_rad_dict, flovi_id_dict
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
@@ -44,7 +44,7 @@ def fileheader(o):
 '''.format(o)
 
 
-flovi_p_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue', 'freestreamPressure', 'totalPressure', 'inletOutlet', 'outletInlet'),
+flovi_p_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue', 'freestreamPressure', 'totalPressure', 'calculated', 'uniformFixedValue'),
                          '1': ('calculated', 'zeroGradient', 'fixedFluxPressure'),
                          '2': ('symmetry', ),
                          '3': ('empty', )},
@@ -68,10 +68,10 @@ flovi_nut_bounds = {'sf': {'0': ['calculated'], '1': ['nutkWallFunction'], '2': 
 flovi_nutilda_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue'), '2': ('symmetry', ), '3': ('empty',)},
                         'bf': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue'), '2': ('symmetry', ), '3': ('empty',)}}
 
-flovi_k_bounds = {'sf': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction'], '2': ('symmetry', ), '3': ('empty',)},
+flovi_k_bounds = {'sf': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction', 'zeroGradient'], '2': ('symmetry', ), '3': ('empty',)},
                   'bf': {'0': ('fixedValue', 'inletOutlet', 'turbulentIntensityKineticEnergyInlet'), '1': ['kqRWallFunction'], '2': ('symmetry', ), '3': ('empty',)}}
 
-flovi_epsilon_bounds = {'sf': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction'], '2': ('symmetry', ), '3': ('empty',)},
+flovi_epsilon_bounds = {'sf': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction', 'zeroGradient'], '2': ('symmetry', ), '3': ('empty',)},
                         'bf': {'0': ('fixedValue', 'inletOutlet', 'turbulentMixingLengthDissipationRateInlet'), '1': ['epsilonWallFunction'], '2': ('symmetry', ),'3': ('empty',)}}
 
 flovi_omega_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ('symmetry', ), '3': ('empty',)},
@@ -91,6 +91,8 @@ flovi_a_bounds = {'sf': {'0': ('None', ), '1': ['None'], '2': ('None', ), '3': (
 flovi_rad_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '3': ('None',)},
                     'bf': {'0': ('MarshakRadiation', 'zeroGradient'), '1': ('MarshakRadiation',), '2': ('symmetry', ), '3': ('empty',)}}
 
+flovi_id_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '3': ('None',)},
+                    'bf': {'0': ('greyDiffusiveRadiation'), '1': ('greyDiffusiveRadiation',), '2': ('symmetry', ), '3': ('empty',)}}
 
 def ret_fvb_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
@@ -138,7 +140,6 @@ def ret_fvbnut_menu(mat, context):
 
 def ret_fvbk_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        # print(mat.name, flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
@@ -146,7 +147,6 @@ def ret_fvbk_menu(mat, context):
 
 def ret_fvbepsilon_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
@@ -158,7 +158,6 @@ def ret_fvbomega_menu(mat, context):
 
 def ret_fvbt_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
     elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
@@ -168,7 +167,6 @@ def ret_fvbt_menu(mat, context):
 
 def ret_fvba_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
     elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
@@ -178,7 +176,6 @@ def ret_fvba_menu(mat, context):
 
 def ret_fvbprgh_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
     elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
@@ -188,13 +185,21 @@ def ret_fvbprgh_menu(mat, context):
 
 def ret_fvrad_menu(mat, context):
     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        # print(mat.name, flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+
     elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
         return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+
     else:
         return [('None', 'None', 'None')]
 
+def ret_fvi_menu(mat, context):
+    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_id_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_id_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    else:
+        return [('None', 'None', 'None')]
 
 def write_header(func):
     def wrapper(o, expnode):
@@ -270,15 +275,16 @@ def fvmat(self, svp, mn, bound, frame):
     end = ';\n  }\n'
 
     if bound == 'p':
-        val = 'uniform {}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
+        val = 'uniform {:.4f}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
         #pdict = {'0': self.flovi_bmbp_subtype, '1': self.flovi_bmbp_subtype, '2': 'symmetry', '3': 'empty'}
         ptdict = {'zeroGradient': 'zeroGradient',
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'calculated': 'calculated;\n    value    $internalField',
+                  'uniformFixedValue': 'uniformFixedValue;\n    uniformValue    constant {}'.format(self.flovi_bmbp_val),
                   'freestreamPressure': 'freestreamPressure;\n  freestreamValue {}'.format(val),
                   'fixedMeanOutletInlet': 'fixedMeanOutletInlet;\n    meanValue   {0};\n    value {0}'.format(val),
                   'fixedMean': 'fixedMean;\n    meanValue   {0};\n    value {0}'.format(val),
-                  'totalPressure': 'totalPressure;\n    p0      uniform {};\n    gamma    {};\n    value    {}'.format(self.flovi_bmbp_p0val, self.flovi_bmbp_gamma, val),
+                  'totalPressure': 'totalPressure;\n    p0      uniform {};\n    value    {}'.format(self.flovi_bmbp_p0val, val),
                   'symmetry': 'symmetry', 'empty': 'empty'}
 
         entry = ptdict[self.flovi_bmbp_subtype]
@@ -335,10 +341,10 @@ def fvmat(self, svp, mn, bound, frame):
         ival = '{:.4f}'.format(self.flovi_k_intensity)
         #kdict = {'0': self.flovi_k_subtype, '1': self.flovi_k_subtype, '2': 'symmetry', '3': 'empty'}
         ktdict = {'zeroGradient': 'zeroGradient',
-                  'fixedValue': 'fixedValue;\n    value    $internalField',
-                  'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField',
-                  'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
-                  'calculated': 'calculated;\n    value    $internalField',
+                  'fixedValue': 'fixedValue;\n    value    {}'.format(val),
+                  'kqRWallFunction': 'kqRWallFunction;\n    value    {}'.format(val),
+                  'inletOutlet': 'inletOutlet;\n    inletValue    {}'.format(val),
+                  'calculated': 'calculated;\n    value    {}'.format(val),
                   'symmetry': 'symmetry',
                   'empty': 'empty',
                   'turbulentIntensityKineticEnergyInlet': 'turbulentIntensityKineticEnergyInlet;\n    intensity       {};\n    value      {}'.format(ival, val)}
@@ -389,15 +395,16 @@ def fvmat(self, svp, mn, bound, frame):
         entry = ttdict[self.flovi_a_subtype]
 
     elif bound == 'e':
+        val = 'uniform {:.4f}'.format(self.flovi_bmbe_val) if not self.flovi_e_field else '$internalField'
         #edict = {'0': self.flovi_bmbe_subtype, '1': self.flovi_bmbe_subtype, '2': 'symmetry', '3': 'empty'}
         etdict = {'zeroGradient': 'zeroGradient',
                   'symmetry': 'symmetry',
                   'empty': 'empty',
-                  'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
-                  'fixedValue': 'fixedValue;\n    value    $internalField',
-                  'epsilonWallFunction': 'epsilonWallFunction;\n    value    $internalField',
-                  'calculated': 'calculated;\n    value    $internalField',
-                  'turbulentMixingLengthDissipationRateInlet': 'turbulentMixingLengthDissipationRateInlet;\n    mixingLength  0.0168;\n    value    $internalField'}
+                  'inletOutlet': 'inletOutlet;\n    inletValue    {}'.format(val),
+                  'fixedValue': 'fixedValue;\n    value    {}'.format(val),
+                  'epsilonWallFunction': 'epsilonWallFunction;\n    value    {}'.format(val),
+                  'calculated': 'calculated;\n    value    {}'.format(val),
+                  'turbulentMixingLengthDissipationRateInlet': 'turbulentMixingLengthDissipationRateInlet;\n    mixingLength  {:.5f};\n    value    {}'.format(self.flovi_eml_val, val)}
         # entry = etdict[edict[self.flovi_bmb_type]]
         entry = etdict[self.flovi_bmbe_subtype]
 
@@ -423,6 +430,10 @@ def fvmat(self, svp, mn, bound, frame):
                     'zeroGradient': 'zeroGradient',
                     'symmetry': 'symmetry'}
         entry = radtdict[self.flovi_rad_subtype]
+
+    elif bound == 'IDefault':
+        idict = {'greyDiffusiveRadiation': 'greyDiffusiveRadiation;\n   emissivityMode  lookup;\n   emissivity      uniform 1.0;\n  value           uniform 0'}
+        entry = idict[self.flovi_i_subtype]
 
     return begin + entry + end
 
@@ -457,7 +468,7 @@ def fvvarwrite(scene, obs, node):
             pentry = "dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format('1', '-1', '-2', '0',
                                                                                                                 '{}'.format(node.pabsval))
 
-        (Uentry, nutildaentry, nutentry, kentry, eentry, oentry, tentry, p_rghentry, aentry, Gentry) = ["dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in (
+        (Uentry, nutildaentry, nutentry, kentry, eentry, oentry, tentry, p_rghentry, aentry, Gentry, Ientry) = ["dimensions [{} {} {} {} 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in (
                                                                                     ('0', '1', '-1', '0', '({:.4f} {:.4f} {:.4f})'.format(*uval)),
                                                                                     ('0', '2', '-1', '0', '{:.4f}'.format(node.nutildaval)),
                                                                                     ('0', '2', '-1', '0', '{:.4f}'.format(node.nutval)),
@@ -467,6 +478,7 @@ def fvvarwrite(scene, obs, node):
                                                                                     ('0', '0', '0', '1', '{:.4f}'.format(node.tval)),
                                                                                     ('1', '-1', '-2', '0', '{:.4f}'.format(node.p_rghval)),
                                                                                     ('1', '-1', '-1', '0', '{:.4f}'.format(node.aval)),
+                                                                                    ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)),
                                                                                     ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)))]
         for o in obs:
             for mat in o.data.materials:
@@ -487,6 +499,8 @@ def fvvarwrite(scene, obs, node):
 
                         if node.radiation:
                             Gentry += mvp.flovi_mat(svp, matname, 'G', frame)
+                            if node.radmodel == '1':
+                                Ientry += mvp.flovi_mat(svp, matname, 'IDefault', frame)
 
         pentry += '}'
         Uentry += '}'
@@ -527,6 +541,9 @@ def fvvarwrite(scene, obs, node):
             if node.radiation:
                 with open(os.path.join(frame_of0fb, 'G'), 'w') as Gfile:
                     Gfile.write(ofheader + write_ffile('volScalarField', '', 'G') + Gentry)
+                if node.radmodel == '1':
+                    with open(os.path.join(frame_of0fb, 'IDefault'), 'w') as IDfile:
+                        IDfile.write(ofheader + write_ffile('volScalarField', '', 'IDefault') + Ientry)
 
 
 def fvmattype(mat, var):
@@ -542,7 +559,7 @@ def fvmattype(mat, var):
 
 
 def fvcdwrite(svp, node, dp):
-    ps, ss, bs = [], [], []
+    ps, ss, bs, htcs = [], [], [], []
     solver = svp['flparams']['solver']
     htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
     cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '0', 'stopAt': 'endTime',
@@ -577,6 +594,11 @@ def fvcdwrite(svp, node, dp):
             for mat in o.data.materials:
                 if mat.vi_params.flovi_probe:
                     bs.append('{}_{}'.format(o.name, mat.name))
+
+        if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_htc for m in o.data.materials]):
+            for mat in o.data.materials:
+                if mat.vi_params.flovi_htc and mat.vi_params.flovi_bmb_type in ('Solid', 'Wall'):
+                    htcs.append('{}_{}'.format(o.name, mat.name))
 
     if ps:
         svp['flparams']['probes'] = [p.name.replace(" ", "_") for p in ps]
@@ -620,7 +642,11 @@ def fvcdwrite(svp, node, dp):
         for b in bs:
             cdict['functions'][b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
                                      'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
-                                     'operation': 'areaAverage', 'fields    (      p    )': ''}
+                                     'operation': 'areaAverage', 'fields    (p U)': ''}
+    if htcs:
+        cdict['functions']['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches' : '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
+                                     'writeInterval': f'{node.w_int}', 'rho': '1.225', 'Cp': '1005', 'Pr': '0.707', 'Prt': '0.9'}
+
     return write_fvdict(htext, cdict)
     # return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
     #        'application     {};\nstartFrom       startTime;\nstartTime       {};\nstopAt          endTime;\nendTime         {:.5f};\n'.format(solver, st, et) +\
@@ -695,9 +721,14 @@ def fvsolwrite(svp, node):
             sol_dict['solvers']['age'] = {'$U': '', 'relTol': '0.001'}
 
         if svp['flparams']['features']['rad']:
-            sol_dict['solvers']['G'] = {'$p_rgh': '', 'tolerance': '1e-05', 'relTol': '0.1'}
-            sol_sol_dict['residualControl']['G'] = '1e-3'
-            sol_dict['relaxationFactors']['equations']['G'] = '0.7'
+            if svp['flparams']['radmodel'] == '0':
+                sol_dict['solvers']['G'] = {'$p_rgh': '', 'tolerance': '1e-05', 'relTol': '0.1'}
+                sol_sol_dict['residualControl']['G'] = '1e-3'
+                sol_dict['relaxationFactors']['equations']['G'] = '0.7'
+            else:
+                sol_dict['solvers']['"Ii.*"'] = {'solver': 'GAMG', 'tolerance': '1e-4', 'relTol': '0', 'smoother': 'symGaussSeidel', 'maxIter': '5', 'nPostSweeps': '1'}
+                sol_sol_dict['residualControl']['ILambda.*'] = '1e-3'
+                sol_dict['relaxationFactors']['equations']['ILambda.*'] = '0.7'
 
     htext = ofheader + write_ffile('dictionary', 'system', 'fvSolution')
     return write_fvdict(htext, sol_dict)
@@ -750,10 +781,10 @@ def fvrpwrite(node):
                 'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'},
                 'scatterModel': 'none', 'sootModel': 'none'},
                 '1': {'radiation': 'on', 'radiationModel': 'fvDOM',
-                'fvDOMCoeffs': {'nPhi': '0.5', 'nTheta': '0.5', 'tolerance': '1e-3', 'maxIter': '10'},
+                'fvDOMCoeffs': {'nPhi': '3', 'nTheta': '5', 'tolerance': '1e-3', 'maxIter': '10'},
                 'solverFreq':'10', 'absorptionEmissionModel':'constant',
                 'constantCoeffs': {'absorptivity': '0.5', 'emissivity': '0.5', 'E': '0'},
-                'scatterModel': 'none', 'sootModel': 'none'}}
+                'scatterModel': 'none', 'sootModel': 'none', 'useSolarLoad': ('false', 'true')[node.radiation and node.radmodel == '1' and node.solar]}}
 
     if node.solar:
         raddict[node.radmodel]['SolarLoadCoeffs'] = {'sunDirectionModel': 'sunDirConstant', 'sunDirection': '({0[0]} {0[1]} {0[2]})'.format(-bpy.data.objects[node.sun].location),
@@ -763,6 +794,15 @@ def fvrpwrite(node):
 
     return (write_fvdict(htext, raddict[node.radmodel]))
 
+def fvmodwrite(node):
+    htext = ofheader + write_ffile('dictionary', 'constant', 'fvModels')
+    moddict = {'0': {'radiation': {'type': 'radiation', 'libs': '("libradiationModels.so")'}}}
+    return write_fvdict(htext, moddict['0'])
+
+# def fvidwrite(node):
+#     htext = ofheader + write_ffile('ascii', 'volScalerField', 'IDefault')
+#     iddict = {'0': 'dimensions': '[1 0 -3 0 0 0 0]', 'internalField': 'uniform 0', 'boundaryField': {'".*"': {'type': 'greyDiffusiveRadiation', 'emissivityMode': 'lookup', 'emissivity', 'uniform 1.0', 'value': 'uniform 0'}}}
+#     return write_fvdict(htext, iddict['0'])
 
 def fvschwrite(svp, node):
     scdict = {}
@@ -800,6 +840,9 @@ def fvschwrite(svp, node):
         scdict['divSchemes']['div(phi,k)'] = 'bounded Gauss upwind'
         scdict['divSchemes']['div(phi,epsilon)'] = 'bounded Gauss upwind'
         scdict['divSchemes']['div(((rho*nuEff)*dev2(T(grad(U)))))'] = 'Gauss linear'
+
+        if svp['flparams']['features']['rad'] and svp['flparams']['radmodel'] == '1':
+            scdict['divSchemes']['div(Ji,Ii_h)'] = 'bounded Gauss linearUpwind grad(Ii_h)'
 
         if node.age:
             scdict['divSchemes']['div(phi,age)'] = 'bounded Gauss upwind'

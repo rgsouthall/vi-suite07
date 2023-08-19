@@ -64,7 +64,6 @@ class envi_materials(object):
         self.plastic_dat = OrderedDict(sorted(self.plastic_datd.items()))
         self.pv_datd = {'Default PV': ('Rough', '0.035', '29', '1213', '0.90', '0.5', '0.5', '50')}
         self.pv_dat = OrderedDict(sorted(self.pv_datd.items()))
-
         self.namedict = OrderedDict()
         self.thickdict = OrderedDict()
         self.i = 0
