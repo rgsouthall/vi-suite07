@@ -61,7 +61,8 @@ try:
     matplotlib.use('qt5agg', force=True)
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
-    matplotlib.pyplot.set_loglevel("error")
+    from matplotlib import pyplot as plt
+    plt.set_loglevel("error")
     mp = 1
 except Exception as e:
     print("No matplotlib: {}".format(e))
