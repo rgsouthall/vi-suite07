@@ -7959,9 +7959,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         if not self.em.updated:
             self.em.update()
 
-        if self.layer == '1' and self.lay_name == '':
-            nodecolour(self, 1)
-        elif self.layer == '0' and not self.material:
+        if self.layer == '0' and not self.material:
             nodecolour(self, 1)
         else:
             nodecolour(self, 0)

@@ -61,6 +61,7 @@ try:
     matplotlib.use('qt5agg', force=True)
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
+    matplotlib.pyplot.set_loglevel("error")
     mp = 1
 except Exception as e:
     print("No matplotlib: {}".format(e))
@@ -2590,7 +2591,7 @@ class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
 
         plt.clf()
         Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
-        Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
+        Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1) + datetime.timedelta(hours=23)
         chart_disp(self, plt, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 

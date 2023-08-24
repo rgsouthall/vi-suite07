@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, math, subprocess, datetime, bmesh, shlex
+import bpy, os, math, subprocess, datetime, bmesh, shlex, sys
 from mathutils import Vector
 from math import pi
 from subprocess import PIPE, Popen, TimeoutExpired

@@ -99,7 +99,6 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                         ln = mvp.id_data.name if emnode.envi_con_proxy == '0' else emnode.envi_con_base
 
                         if emnode.envi_con_type == 'Window':
-                            print(mat.name)
                             en_idf.write(emnode.ep_write(mat.name, ln))
                         else:
                             if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):

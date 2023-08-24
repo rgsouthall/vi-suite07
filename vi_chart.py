@@ -111,18 +111,14 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     rnx = rsx.links[0].from_node
     rlx = rnx['reslists']
     rzlx = list(zip(*rlx))
-    # framex = retframe('X-axis', dnode, rzlx[0])
     mdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Month']
     ddata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Day']
     sdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'DOS']
     hdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Hour']
     tdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Steps']
 
-    # if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
     if rsx.resultmenu != 'Time':
         si, ei = dnode["Start"], dnode["End"]
-
-    # elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File', 'LiVi Simulation', 'VI Shadow Map'):
     else:
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day
 
@@ -133,10 +129,12 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
                 if sm == dm[i] and sd == dd[i]:  # and sh == dh[i] - 1:
                     si = i
                     break
+                    
             for i in range(len(hdata[0])):
                 ei = i
 
-                if em == dm[i] and ed == dd[i] - 1:
+                if em == dm[i] and ed == dd[i]:
+                    ei += 23
                     break
 
             mdata = [int(m) for m in mdata[0]][si:ei + 1]
@@ -144,12 +142,6 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
             sdata = [int(s) for s in sdata[0]][si:ei + 1]
         else:
             si, ei = 0, -2
-
-    # elif rnx.bl_label == 'Flovi Simulation':
-        # si, ei = 0, len(tdata)
-
-    # else:
-    #     si, ei = 0, -2
 
     linestyles = ('solid', '--', ':')
     colors = ('k', 'k', 'k')
