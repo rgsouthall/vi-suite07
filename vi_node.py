@@ -2646,11 +2646,11 @@ class No_Vi_HMChart(Node, ViNodes):
                 if r[0] == self.framemenu:
                     if r[1] == 'Time':
                         if r[3] == 'DOS':
-                            self.x = (array([float(r) for r in r[4].split()]) + 0.5)
+                            self.x = (array([float(r) for r in r[4].split()]))
                             dno = len(unique(self.x))
 
                         elif r[3] == 'Hour':
-                            self.y = (array([float(r) for r in r[4].split()]) + 0.5)
+                            self.y = (array([float(r) for r in r[4].split()]))
                             hno = len(unique(self.y))
 
                     elif r[1] == self.resmenu:
@@ -2678,11 +2678,11 @@ class No_Vi_HMChart(Node, ViNodes):
     cl: BoolProperty(name="", description="Contour fill", default=0)
     lvals: StringProperty(name="", description="Space separated contour values", default="")
     lw: FloatProperty(name="", description="Line width", min=0.0, max=10, default=0.1)
-    clevels: IntProperty(name='', description="Number of contour levels", default=10, min=1)
+    clevels: IntProperty(name='', description="Number of contour levels", default=10, min=2)
     daystart: IntProperty(name='', description="Start day", default=1, min=1, max=365)
     dayend: IntProperty(name='', description="End day", default=365, min=1, max=365)
-    hourstart: IntProperty(name='', description="Start hour", default=1, min=1, max=365)
-    hourend: IntProperty(name='', description="End hour", default=24, min=1, max=365)
+    hourstart: IntProperty(name='', description="Start hour", default=0, min=1, max=24)
+    hourend: IntProperty(name='', description="End hour", default=24, min=1, max=24)
     varmin: IntProperty(name='', description="Variable minimum", default=0)
     varmax: IntProperty(name='', description="Varaible maximum", default=20)
     grid: BoolProperty(name="", description="Grid", default=0)
@@ -3439,10 +3439,16 @@ class No_Vi_Metrics(Node, ViNodes):
             if self.zone_menu == 'All':
                 if geo_coll.vi_params['enparams'].get('floorarea'):
                     self['res']['fa'] = geo_coll.vi_params['enparams']['floorarea'][str(self.frame_menu)]
+                else:
+                    self['res']['fa'] = 0
 
             elif self.zone_menu != 'None':
                 if geo_coll.children[self.zone_menu].vi_params['enparams'].get('floorarea'):
                     self['res']['fa'] = geo_coll.children[self.zone_menu].vi_params['enparams']['floorarea'][str(self.frame_menu)]
+                else:
+                    self['res']['fa'] = 0
+            else:
+                self['res']['fa'] = 0
 
             if self['res']['fa'] > 13.9:
                 occ = 1 + 1.76*(1 - math.exp(-0.000349 * (self['res']['fa'] -13.9)**2)) + 0.0013 * (self['res']['fa'] - 13.9)

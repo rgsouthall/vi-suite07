@@ -301,13 +301,13 @@ class NODE_OT_WindRose(bpy.types.Operator):
         ovp['d'] = ad.reshape(len(doys), 24).T.tolist()
         ovp['wd'] = awd.reshape(len(doys), 24).T.tolist()
         ovp['days'] = array(doys, dtype=float)
-        ovp['hours'] = arange(1, 25, dtype=float)
+        ovp['hours'] = arange(0, 24, dtype=float)
         ovp['maxfreq'] = 100*nmax(dfreq)/len(awd)
         simnode['nbins'] = len(sbinvals)
         simnode['d'] = array(cd).reshape(365, 24).T.tolist()
         simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()
         simnode['days'] = arange(1, 366, dtype=float)
-        simnode['hours'] = arange(1, 25, dtype=float)
+        simnode['hours'] = arange(0, 24, dtype=float)
         return {'FINISHED'}
 
 
@@ -516,11 +516,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
         (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 100, 0)]
 #        nt = datetime.datetime.now()
         frange = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
-        time = datetime.datetime(2018, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
+        time = datetime.datetime(2018, simnode.sdate.month, simnode.sdate.day, simnode.starthour)
         y = 2018 if simnode.edoy >= simnode.sdoy else 2019
-        endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
+        endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour)
         interval = datetime.timedelta(hours=1/simnode.interval)
-        times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour - 1 <= (time + interval*t).hour <= simnode.endhour - 1]
+        times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]
         sps = array([solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, svp.latitude, svp.longitude)[2:] for t in times])
         valmask = array([sp[0] > 0 for sp in sps], dtype=int8)
         direcs = array([(-sin(sp[1]), -cos(sp[1]), tan(sp[0])) for sp in sps])
@@ -1927,7 +1927,7 @@ class MAT_EnVi_Node_Remove(bpy.types.Operator):
 class NODE_OT_En_Geo(bpy.types.Operator):
     bl_idname = "node.engexport"
     bl_label = "EnVi geometry export"
-    bl_context = "scene"
+    # bl_context = "scene"
 
     def invoke(self, context, event):
         objmode()
@@ -2533,38 +2533,6 @@ class OBJECT_OT_Embod(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
-# class NODE_OT_Chart_new(bpy.types.Operator, ExportHelper):
-#     bl_idname = "node.chart_new"
-#     bl_label = "Chart"
-#     bl_description = "Create a 2D graph from the results file"
-#     bl_register = True
-#     bl_undo = True
-
-#     def invoke(self, context, event):
-#         node = context.node
-#         innode = node.inputs['Results in'].links[0].from_node
-#         rl = innode['reslists']
-#         zrl = list(zip(*rl))
-#         year = context.scene.vi_params.year
-
-#         # try:
-#         #     node.inputs['X-axis'].framemenu
-#         # except Exception as e:
-#         #     if node.inputs['X-axis'].framemenu not in zrl[0]:
-#         #         self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
-#         #         return {'CANCELLED'}
-
-#         if not mp:
-#             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
-#             return {'CANCELLED'}
-
-#         plt.clf()
-#         Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
-#         Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
-#         chart_disp(self, plt, node, innodes, Sdate, Edate)
-#         return {'FINISHED'}
-
 class NODE_OT_Chart(bpy.types.Operator, ExportHelper):
     bl_idname = "node.chart"
     bl_label = "Chart"
@@ -2951,7 +2919,6 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
             frame_ofcfb = os.path.join(frame_offb, 'constant')
             frame_ofsfb = os.path.join(frame_offb, 'system')
-            # frame_of0fb = os.path.join(frame_offb, '0')
 
             for ofdir in (frame_offb, frame_ofcfb, frame_ofsfb):
                 if not os.path.isdir(ofdir):
@@ -3025,9 +2992,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
                         rpfile.write(fvrpwrite(casenode))
                     with open(os.path.join(frame_ofcfb, 'fvModels'), 'w') as fvmfile:
                         fvmfile.write(fvmodwrite(casenode))
-                    # if casenode.radmodel == '1':
-                    #     with open(os.path.join(frame_of0fb, 'IDefault'), 'w') as fvmfile:
-                    #         fvmfile.write(fvidwrite(casenode))
+
             else:
                 with open(os.path.join(frame_ofcfb, 'physicalProperties'), 'w') as ppfile:
                     ppfile.write(fvtpwrite())
@@ -3160,7 +3125,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     # ngpyfile.write("fd = totmesh.Add(fd)\n")
                     fd = totmesh.Add(fd)
                     fds.append(fd)
-#                    totmesh.SetBCName(i, '{}'.format(mat.name))
+                    # totmesh.SetBCName(i, '{}'.format(mat.name))
                     # ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
 
                     try:
@@ -3168,7 +3133,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         # totmesh.SetBCName(0, mat.name)
                     except:
                         pass
-#                        totmesh.SetBCName(1, mat.name)
+                        # totmesh.SetBCName(1, mat.name)
                     i += 1
 
             for oi, o in enumerate(self.obs):
@@ -3416,7 +3381,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 open("{}".format(os.path.join(frame_offb, '{}.foam'.format(frame))), "w")
 
             if os.path.isfile(os.path.join(frame_offb, st, 'polyMesh', 'points')):
-                # if self.expnode.ofbm:
                 oftomesh(frame_offb, self.vl, self.fomats, st, ns, nf)
             else:
                 logentry('Netgen volume meshing failed:')
@@ -3572,12 +3536,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             for ri, r in enumerate(resarray[1:]):
                                 self.reslists.append([str(frame_c), 'Probe', oname, resdict[f], ' '.join(['{:5f}'.format(float(res)) for res in r])])
 
-                            # if f == 'p':
-                            #     wpcs = [float(r[1])/(0.5*(1.23*10**2)) for r in res]
-                            #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure coeff', ' '.join(['{:5f}'.format(float(res)) for res in wpcs])])
-                            #     if bpy.data.objects.get(oname):
-                            #         pass
-
                         elif f in ('U'):
                             ts = []
                             u_vals = []
@@ -3617,7 +3575,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec postProcess -func "triSurfaceVolumetricFlowRate(name={}.stl)" -case {}'.format(oname, frame_coffb)), stdout=PIPE)
-                    # samp_run = Popen(shlex.split('foamExec postProcess -func sampleDict -case {}'.format(frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
                     vf_run = Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:10 "postProcess -func triSurfaceVolumetricFlowRate\(name="{}.stl"\) -case data"'.format(frame_coffb, oname), stdout=PIPE, shell=True)
 
@@ -3628,7 +3585,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 for line in vf_run.stdout.readlines()[::-1]:
                     if "U =" in line.decode():
-                        #vf = line.decode().split()[-1]
                         vfs.append(line.decode().split()[-1])
 
                     elif 'Time =' in line.decode():
@@ -3639,7 +3595,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[-1], vfs[-1]))
 
                     if 'Timestep' not in [r[1] for r in self.reslists]:
-                    # if not self.reslists[str(frame_c)]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
 
                     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
@@ -3808,3 +3763,35 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             run.kill()
 
         return {'CANCELLED'}
+
+
+# class NODE_OT_Chart_new(bpy.types.Operator, ExportHelper):
+#     bl_idname = "node.chart_new"
+#     bl_label = "Chart"
+#     bl_description = "Create a 2D graph from the results file"
+#     bl_register = True
+#     bl_undo = True
+
+#     def invoke(self, context, event):
+#         node = context.node
+#         innode = node.inputs['Results in'].links[0].from_node
+#         rl = innode['reslists']
+#         zrl = list(zip(*rl))
+#         year = context.scene.vi_params.year
+
+#         # try:
+#         #     node.inputs['X-axis'].framemenu
+#         # except Exception as e:
+#         #     if node.inputs['X-axis'].framemenu not in zrl[0]:
+#         #         self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
+#         #         return {'CANCELLED'}
+
+#         if not mp:
+#             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
+#             return {'CANCELLED'}
+
+#         plt.clf()
+#         Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
+#         Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
+#         chart_disp(self, plt, node, innodes, Sdate, Edate)
+#         return {'FINISHED'}

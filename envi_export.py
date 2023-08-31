@@ -661,7 +661,7 @@ def pregeo(context, op):
 
                 for face in bm.faces:
                     uids = [f[uid] for f in exp_faces]
-                    face[uid] = face[uid] if face[uid] else max(uids) + 1
+                    face[uid] = face[uid] if face[uid] and uids.count(face[uid]) == 1 else max(uids) + 1
 
                 if not len(bm.faces):
                     bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True)
