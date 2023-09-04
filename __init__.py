@@ -78,7 +78,7 @@ else:
             sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                          'site-packages'))
-
+            print(sys.path)
             if os.environ.get('PATH'):
                 if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
                     os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
