@@ -78,7 +78,6 @@ else:
             sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                          'site-packages'))
-            print(sys.path)
             if os.environ.get('PATH'):
                 if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
                     os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
@@ -94,6 +93,7 @@ else:
 
         try:
             requests.get('https://www.google.com/')
+            
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
                 gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(gp_cmd)).wait()
