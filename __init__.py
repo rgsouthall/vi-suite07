@@ -127,14 +127,26 @@ else:
                 mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(mp_cmd)).wait()
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                                              ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                              'site-packages', 'netgen')):
-                ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(ng_cmd)).wait()
-
         except Exception as e:
             print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
+
+
+    #     if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+    #                                           ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+    #                                           'site-packages', 'netgen')):
+
+    #         ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+    #         Popen(shlex.split(ng_cmd)).wait()
+    
+    try:
+        import netgen
+    except:
+        if sys.platform == 'linux':
+            print('Cannot find a local install of netgen. Install Netegn and Blender via your package manager')
+        
+        else:
+            ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            Popen(shlex.split(ng_cmd)).wait()
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',

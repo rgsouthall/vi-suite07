@@ -2074,6 +2074,7 @@ class NODE_OT_En_PVS(bpy.types.Operator):
 class NODE_OT_En_LayS(bpy.types.Operator):
     bl_idname = "node.lay_save"
     bl_label = "EnVi material save"
+    bl_description = "Save layer to the material database"
 
     def execute(self, context):
         node = context.node
@@ -2084,6 +2085,7 @@ class NODE_OT_En_LayS(bpy.types.Operator):
 class NODE_OT_En_ConS(bpy.types.Operator):
     bl_idname = "node.con_save"
     bl_label = "EnVi construction save"
+    bl_description = "Save material to the construction database"
 
     def execute(self, context):
         node = context.node

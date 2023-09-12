@@ -408,7 +408,12 @@ def rettree(scene, obs, ignore):
 
 
 def ret_empty_menu(self, context):
-    return [(o.name, o.name, 'Name of empty') for o in bpy.data.objects if o.type == 'EMPTY']
+    e_names = [(o.name, o.name, 'Name of empty') for o in bpy.data.objects if o.type == 'EMPTY']
+    
+    if not e_names:
+        e_names = [('None', 'None', 'None')]
+    
+    return e_names
 
 
 class progressfile():

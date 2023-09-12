@@ -137,9 +137,9 @@ def vi_info(node, dim, svp, **kwargs):
         <rect style="fill:rgb(255, 255, 255)" width="{0[0]}" height="{0[1]}"/>
         <text text-anchor="middle" x="200" y="32" style="font-size:18px;font-family:arial">RIBA 2030 Climate Challenge - Daylighting</text>
         <text text-anchor="middle" x="125" y="60" style="font-size:26px;font-family:arial">DF</text>
-        <text text-anchor="middle" x="275" y="60" style="font-size:26px;font-family:arial">IR</text>
+        <text text-anchor="middle" x="275" y="60" style="font-size:26px;font-family:arial">UR</text>
         <text text-anchor="middle" x="125" y="75" style="font-size:13px;font-family:arial">Average Daylight Factor</text>
-        <text text-anchor="middle" x="275" y="75" style="font-size:13px;font-family:arial">Illuminance Ratio</text>
+        <text text-anchor="middle" x="275" y="75" style="font-size:13px;font-family:arial">Uniformity Ratio</text>
         <rect ry="4" x="60" y="{2:.3f}" width="130" height="{3:.3f}" style="fill:rgb({1});fill-rule:evenodd;fill:url(#lGadf);stroke-width:0.5;stroke:#000000"/>
         <rect ry="4" x="210" y="{5:.3f}" width="130" height="{6:.3f}" style="fill:rgb({4});fill-rule:evenodd;fill:url(#lGir);stroke-width:0.5;stroke:#000000"/>
         <text text-anchor="middle" x="30" y="209" style="font-size:24px;font-family:arial">2.0</text>

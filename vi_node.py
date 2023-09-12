@@ -6933,7 +6933,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             self.inputs['Outer frame layer'].hide = True
 
 
-    con_name: StringProperty(name="", description="", default='')
+    con_name: StringProperty(name="", description="Name for the custom construction", default='')
     envi_con_type: EnumProperty(items=[("Wall", "Wall", "Wall construction"),
                                        ("Floor", "Floor", "Ground floor construction"),
                                        ("Roof", "Roof", "Roof construction"),

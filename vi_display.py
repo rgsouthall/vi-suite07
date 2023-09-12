@@ -2547,7 +2547,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             else:
                 logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". \
                           Do not maximise a window while the display operator is running.')
-
+                
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
             return {'CANCELLED'}
 
