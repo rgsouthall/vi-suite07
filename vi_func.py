@@ -395,7 +395,7 @@ def rettree(scene, obs, ignore):
         bmtemp = bmesh.new()
         bmtemp.from_object(so, dp)
         bmtemp.transform(so.matrix_world)
-        delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].vi_params.mattype == ignore]
+        delfaces = [face for face in bmtemp.faces if face.material_index >= len(so.data.materials) or so.data.materials[face.material_index].vi_params.mattype == ignore]
         bmesh.ops.delete(bmtemp, geom=delfaces, context='FACES')
         bmtemp.to_mesh(btemp)
         bmob.from_mesh(btemp)
@@ -1071,8 +1071,12 @@ def vertarea(mesh, vert):
     elif len(faces) == 1:
         eps = [(ev.verts[0].co + ev.verts[1].co)/2 for ev in vert.link_edges]
         eangle = (vert.link_edges[0].verts[0].co - vert.link_edges[0].verts[1].co).angle(vert.link_edges[1].verts[0].co - vert.link_edges[1].verts[1].co)
-        area = mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(faces[0].calc_center_median(), *eps) * 2*pi/eangle
-
+        
+        if eangle:
+            area = mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(faces[0].calc_center_median(), *eps) * 2*pi/eangle
+        else:
+            return 0
+    
     return area
 
 
@@ -1622,29 +1626,30 @@ def retobjs(otypes):
     for o in scene.objects:
         if '/' in o.name:
             logentry('Object {} has a "/" in the name and will not be exported'.format(o.name))
+        if o not in validobs and o.vi_params.vi_type_string != "LiVi Res":
+            o.vi_params.vi_type_string = ''
 
     if otypes == 'livig':
-        return ([o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
+        return [o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
                 and o.vi_params.vi_type not in ('4', '5')
                 and o.vi_params.vi_type_string != 'LiVi Res'
-                and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
+                and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')]
     elif otypes == 'livigeno':
-        return ([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])])
+        return [o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])]
     elif otypes == 'livigengeosel':
-        return ([o for o in validobs if o.type == 'MESH' and o.select is True and o.data.materials
-                and not any([m.vi_params.livi_sense for m in o.data.materials])])
+        return [o for o in validobs if o.type == 'MESH' and o.select is True and o.data.materials
+                and not any([m.vi_params.livi_sense for m in o.data.materials])]
     elif otypes == 'livil':
-        return ([o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4'])
+        return [o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4']
     elif otypes == 'livic':
-        return ([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res'])
+        return [o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
     elif otypes == 'livir':
-        return ([o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]
-                and o.vi_params.vi_type_string != 'LiVi Calc'])
+        return [o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]
+                and o.vi_params.vi_type_string != 'LiVi Calc']
     elif otypes == 'envig':
-        return ([o for o in scene.objects if o.type == 'MESH' and o.hide is False])
+        return [o for o in scene.objects if o.type == 'MESH' and o.hide is False]
     elif otypes == 'ssc':
-        return [o for o in validobs if o.type == 'MESH' and o.vi_params.vi_type_string != 'LiVi Res' and o.data.materials
-                and any([o.data.materials[poly.material_index].vi_params.mattype == '1' for poly in o.data.polygons])]
+        return [o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
     elif otypes == 'selected':
         return [o for o in [bpy.context.active_object] if o.type == 'MESH']
 
@@ -1823,16 +1828,12 @@ def sunpath(context):
                     for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
 
-            if context.screen:
-                for a in context.screen.areas:
-                    if a.type == 'VIEW_3D':
-                        a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.2
-
             suns[0]['solhour'], suns[0]['solday'] = svp.sp_sh, svp.sp_sd
             suns[0].hide_viewport = True if alt <= 0 else False
 
             if suns[0].children:
                 suns[0].children[0].hide_viewport = True if alt <= 0 else False
+            
             return
 
     elif svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '1':

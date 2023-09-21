@@ -118,7 +118,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     tdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Steps']
 
     if rsx.resultmenu != 'Time':
-        si, ei = dnode["Start"], dnode["End"]
+        si, ei = dnode["Start"] - dnode.id_properties_ui("Start").as_dict()['min'], dnode["End"] - dnode.id_properties_ui("Start").as_dict()['min']
     else:
         sm, sd, em, ed = Sdate.month, Sdate.day, Edate.month, Edate.day
 
@@ -249,6 +249,11 @@ def hmchart_disp(chart_op, plt, dnode, col):
     ymax = dnode.hourend if dnode.hourend < amax(y) else amax(y)
     zmin = dnode.varmin if dnode.metricrange == '1' else amin(z)
     zmax = dnode.varmax if dnode.metricrange == '1' else amax(z)
+
+    if zmax <= zmin and dnode.cf:
+        chart_op.report({'ERROR'}, 'Maximum metric value is not greater than minimum')
+        return
+
     plt.clf()
     plt.close()
     fig, ax = plt.subplots(figsize=(12, 6), dpi=dnode.dpi)
@@ -300,7 +305,9 @@ def hmchart_disp(chart_op, plt, dnode, col):
         plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
 
     cbar = plt.colorbar(use_gridspec=True, pad=0.01, extend=bar_extend)
-
+    cbar.set_label(label=var, size=16)
+    cbar.ax.tick_params(labelsize=14)
+    
     if dnode.cl:
         try:
             ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]

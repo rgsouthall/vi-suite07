@@ -63,6 +63,10 @@ kfsa = array([0.02391, 0.02377, 0.02341, 0.02738, 0.02933, 0.03496, 0.04787, 0.0
 kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0.1294])
 
 
+def ret_dcoords(context):
+    return (context.area.regions[0].height, context.area.regions[2].width, context.area.regions[5].height)
+
+
 def script_update(self, context):
     svp = context.scene.vi_params
 
@@ -258,14 +262,14 @@ def li_display(context, disp_op, simnode):
         bpy.app.handlers.frame_change_post.append(livi_export.cyfc1)
 
     for o in context.view_layer.objects:
-        if o.type == "MESH" and o.vi_params.vi_type_string == 'LiVi Calc' and not o.hide_viewport:
+        if o.type == "MESH" and o.vi_params.vi_type_string == 'LiVi Calc' and o.visible_get():
             bpy.ops.object.select_all(action='DESELECT')
             obcalclist.append(o)
 
     scene.frame_set(svp['liparams']['fs'])
     context.view_layer.objects.active = None
 
-    for i, o in enumerate([o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']):
+    for i, o in enumerate(obcalclist):
         bm = bmesh.new()
         bm.from_object(o, dp)
         ovp = o.vi_params
@@ -300,7 +304,7 @@ def li_display(context, disp_op, simnode):
             return 'CANCELLED'
 
         ores = context.active_object
-        ores.name, ores.show_wire, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 'SOLID', ores.vi_params, 'LiVi Res'
+        ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
         move_to_coll(context, 'LiVi Results', ores)
         context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
         context.view_layer.objects.active = ores
@@ -436,6 +440,7 @@ class linumdisplay():
         for ob in self.obd:
             if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
                 ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(self.fn))
+        
         dp = context.evaluated_depsgraph_get()
 
         for ob in self.obd:
@@ -445,6 +450,15 @@ class linumdisplay():
             bm.transform(ob.matrix_world)
             bm.normal_update()
             var = svp.li_disp_menu
+
+            if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
+                geom = bm.faces
+            elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):
+                geom = bm.verts
+            else:
+                self.disp_op.report({'ERROR'}, f"No result data on {ob.name}. Re-export LiVi Context and Geometry")
+                return 'CANCELLED'
+            
             geom = bm.faces if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) else bm.verts
             geom.ensure_lookup_table()
             livires = geom.layers.float['{}{}'.format(var, scene.frame_current)]
@@ -526,8 +540,8 @@ class Base_Display():
         self.resize, self.move, self.expand = 0, 0, 0
         self.hl = [1, 1, 1, 1]
         self.cao = None
-        self.ah = height
-        self.aw = width
+        # self.ah = height
+        # self.aw = width
 
 
 class results_bar():
@@ -835,8 +849,7 @@ class draw_bsdf(Base_Display):
 
     def draw(self, context):
         if self.expand:
-            self.ah = context.region.height
-            self.aw = context.region.width
+            (r0h, r2w, r5h) = ret_dcoords(context)
             self.back_shader.bind()
             self.back_shader.uniform_float("size", (400, 650))
             self.back_shader.uniform_float("spos", (self.lspos))
@@ -1256,8 +1269,9 @@ class draw_legend(Base_Display):
         return (vl_coords, fl_indices)
 
     def draw(self, context):
-        self.ah = context.area.regions[3].height
-        self.aw = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
+        # self.ah = context.area.regions[3].height
+        # self.aw = context.area.regions[2].width
         svp = context.scene.vi_params
 
         if self.expand:
@@ -1268,12 +1282,12 @@ class draw_legend(Base_Display):
                 self.lspos[1] = self.lepos[1] - self.ydiff
                 self.lepos[0] = self.lspos[0] + self.xdiff
 
-            if self.lepos[1] > self.ah:
-                self.lspos[1] = self.ah - self.ydiff
-                self.lepos[1] = self.ah
+            if self.lepos[1] > r5h - r0h:
+                self.lspos[1] = r5h - r0h - self.ydiff
+                self.lepos[1] = r5h - r0h
 
-            if self.lepos[0] < self.aw:
-                self.lepos[0] = self.aw
+            if self.lepos[0] < r2w:
+                self.lepos[0] = r2w
 
             self.base_shader.bind()
             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
@@ -1941,6 +1955,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'sp'
         svp['viparams']['visimcontext'] = 'SunPath'
         sunpath(context)
+        
+        if context.screen:
+                for a in context.screen.areas:
+                    if a.type == 'VIEW_3D':
+                        a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.5
+        
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
         self.latitude = svp.latitude
@@ -1993,8 +2013,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        r3h = context.area.regions[3].height
-        r2w = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
         scene = context.scene
         svp = scene.vi_params
         svp.vi_display = 1
@@ -2002,8 +2021,8 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_scatt_col
         self.images = ('legend.png', 'table.png')
         self.results_bar = results_bar(self.images)
-        self.legend = wr_legend(context, 'Speed (m/s)', [305, r3h - 80], r2w, r3h, 125, 300)
-        self.table = wr_table(context, [355, r3h - 80], r2w, r3h, 400, 60)
+        self.legend = wr_legend(context, 'Speed (m/s)', [305, r5h - r0h - 80], r2w, r5h - r0h, 125, 300)
+        self.table = wr_table(context, [355, r5h - r0h - 80], r2w, r5h - r0h, 400, 60)
         self.cao = [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"][0] if [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"] else 0
 
         if not self.cao:
@@ -2023,7 +2042,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.zdata = array([])
         self.xtitle = 'Days'
         self.ytitle = 'Hours'
-        self.height = r3h
+        self.height = r5h - r0h
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["wr"] = self.draw_handle_wrnum
         context.area.tag_redraw()
@@ -2110,14 +2129,12 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
 
     def draw_wrnum(self, context):
         svp = context.scene.vi_params
-        r3h = context.area.regions[3].height
-        r2w = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
 
         try:
-            self.results_bar.draw(r2w, r3h)
+            self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
             self.table.draw(context)
-            # self.dhscatter.draw(context)
 
         except Exception as e:
             logentry("Something went wrong with wind rose display: {}".format(e))
@@ -2133,10 +2150,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     bl_undo = False
 
     def invoke(self, context, event):
-        rw = context.region.width
-        # r2 = context.area.regions[2]
-        r3h = context.area.regions[3].height
-        r2w = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
         svp = context.scene.vi_params
         self.livi_coll = create_empty_coll(context, 'LiVi Results')
         context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 0
@@ -2146,10 +2160,10 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
         li_display(context, self, self.simnode)
         self.results_bar = results_bar(('legend.png',))
-        legend_icon_pos = self.results_bar.ret_coords(r2w, r3h, 0)[0]
-        self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, rw, r3h, 100, 400, 20)
+        legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
+        self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
         self.legend_num = linumdisplay(self, context)
-        self.height = r3h
+        self.height = r5h - r0h
         self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["svf"] = self.draw_handle_svfnum
         self.cao = context.active_object
@@ -2158,11 +2172,10 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def draw_svfnum(self, context):
-        r3h = context.area.regions[3].height
-        r2w = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
 
         try:
-            self.results_bar.draw(r2w, r3h)
+            self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
             self.legend_num.draw(context)
         except Exception:
@@ -2175,6 +2188,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or not context.area:
             svp.vi_display = 0
+            move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
             context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 1
 
             if context.area:
@@ -2235,6 +2249,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
 
         if redraw:
             context.area.tag_redraw()
+
         return {'PASS_THROUGH'}
 
 
@@ -2247,10 +2262,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
     bl_undo = False
 
     def invoke(self, context, event):
-        rw = context.region.width
-        # r2 = context.area.regions[2]
-        r3h = context.area.regions[3].height
-        r2w = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
         self.scene = context.scene
         region = context.region
         self.height = region.height
@@ -2258,7 +2270,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         svp = context.scene.vi_params
         svp['viparams']['vidisp'] = 'ss'
         svp['viparams']['drivers'] = ['ss']
-        create_empty_coll(context, 'LiVi Results')
+        self.livi_coll = create_empty_coll(context, 'LiVi Results')
         self.cao = context.active_object
         self.image = 'ss_scatter.png'
         self.frame = self.scene.frame_current
@@ -2273,11 +2285,9 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         li_display(context, self, self.simnode)
         self.images = ('legend.png', )
         self.results_bar = results_bar(self.images)
-        legend_icon_pos = self.results_bar.ret_coords(r2w, r3h, 0)[0]
-        self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, rw, r3h, 100, 400, 20)
+        legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
+        self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
         self.num_display = linumdisplay(self, context)
-        # scatter_icon_pos = self.results_bar.ret_coords(r2w, r2h, 1)[0]
-        # self.dhscatter = draw_scatter(context, scatter_icon_pos, rw, r2h, 600, 200, self)
         svp.vi_disp_wire = 1
         self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["ss"] = self.draw_handle_ssnum
@@ -2294,6 +2304,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'ss' or not [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc'] or not context.area:
             svp.vi_display = 0
             move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
+            context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 1
 
             if context.area:
                 context.area.tag_redraw()
@@ -2376,12 +2387,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def draw_ssnum(self, context):
-        area = context.area
-        r3h = area.regions[3].height
-        r2w = area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
 
         try:
-            self.results_bar.draw(r2w, r3h)
+            self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
             self.num_display.draw(context)
 
@@ -2399,9 +2408,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene
         svp = scene.vi_params
-        # r2 = context.area.regions[2]
-        r3h = context.area.regions[3].height
-        r2w = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
         redraw = 0
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'bsdf_panel' or not context.area:
@@ -2432,7 +2439,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
-            rbxl = self.results_bar.ret_coords(r2w, r3h, 0)
+            rbxl = self.results_bar.ret_coords(r2w, r5h - r0h, 0)
 
             if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.bsdf.hl = (0.8, 0.8, 0.8, 0.8)
@@ -2446,7 +2453,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                 return {'RUNNING_MODAL'}
 
             elif self.bsdf.expand:
-                self.bsdf.lspos = [self.results_bar.ret_coords(r2w, r3h, 0)[0][0] - 5, self.results_bar.ret_coords(r2w, r3h, 0)[0][1] - self.bsdf.ydiff - 25]
+                self.bsdf.lspos = [self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0][0] - 5, self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0][1] - self.bsdf.ydiff - 25]
                 self.bsdf.lepos = [self.bsdf.lspos[0] + self.bsdf.xdiff, self.bsdf.lspos[1] + self.bsdf.ydiff]
 
                 if ((mx - (self.bsdf.lspos[0] + 50 + 125))**2 + (my - self.bsdf.lepos[1] + 155)**2)**0.5 <= 124:
@@ -2491,11 +2498,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
     def invoke(self, context, event):
         cao = context.active_object
         caomvp = cao.active_material.vi_params
-        region = context.region
-        area = context.area
-        # r2 = area.regions[2]
-        r3h = area.regions[3].height
-        r2w = area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
         scene = context.scene
         svp = scene.vi_params
 
@@ -2504,7 +2507,7 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             svp['liparams']['bsdf_direcs'] = [(path.firstChild.data, path.firstChild.data, 'BSDF Direction') for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
             self.images = ['bsdf.png']
             self.results_bar = results_bar(self.images)
-            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r3h, 0)[0], region.width, r3h, 400, 650)
+            self.bsdf = draw_bsdf(context, '', self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0], r2w, r5h - r0h, 400, 650)
             svp.vi_display = 1
             self.draw_handle_bsdfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_bsdfnum, (context, ), 'WINDOW', 'POST_PIXEL')
             bpy.app.driver_namespace["bsdf"] = self.draw_handle_bsdfnum
@@ -2518,8 +2521,10 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
             return {'CANCELLED'}
 
     def draw_bsdfnum(self, context):
+        (r0h, r2w, r5h) = ret_dcoords(context)
+
         try:
-            self.results_bar.draw(context.area.regions[2].width, context.area.regions[3].height)
+            self.results_bar.draw(r2w, r5h - r0h)
             self.bsdf.draw(context)
         except Exception:
             context.scene.vi_params.vi_display = 0
@@ -2552,46 +2557,57 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             return {'CANCELLED'}
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
-            r3h = context.area.regions[3].height
-            r2w = context.area.regions[2].width
+            (r0h, r2w, r5h) = ret_dcoords(context)
             mx, my = event.mouse_region_x, event.mouse_region_y
 
             # Legend routine
-            rbxl = self.results_bar.ret_coords(r2w, r3h, 0)
+            rbxl = self.results_bar.ret_coords(r2w, r5h - r0h, 0)
 
             if rbxl[0][0] < mx < rbxl[1][0] and rbxl[0][1] < my < rbxl[2][1]:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8)
                 redraw = 1
+
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'RELEASE':
                         self.legend.expand = 0 if self.legend.expand else 1
+                        if context.area:
+                            context.area.tag_redraw()
                         return {'RUNNING_MODAL'}
 
             elif self.legend.expand and abs(self.legend.lspos[0] - mx) < 10 and abs(self.legend.lepos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8)
                 redraw = 1
+
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.legend.move = 1
                         self.legend.draw(context)
+
                         if context.area:
                             context.area.tag_redraw()
+
                     elif self.legend.move and event.value == 'RELEASE':
                         self.legend.move = 0
+
                     return {'RUNNING_MODAL'}
 
             elif self.legend.expand and abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
                 self.legend.hl = (0.8, 0.8, 0.8, 0.8)
+
                 if context.area:
                     context.area.tag_redraw()
+
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.legend.resize = 1
                         self.legend.draw(context)
+
                         if context.area:
                             context.area.tag_redraw()
+
                     elif self.legend.resize and event.value == 'RELEASE':
                         self.legend.resize = 0
+
                     return {'RUNNING_MODAL'}
 
             elif self.legend.hl == (0.8, 0.8, 0.8, 0.8):
@@ -2602,13 +2618,11 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
                 if self.legend.move:
                     self.legend.lspos[0], self.legend.lepos[1] = mx, my
                     self.legend.draw(context)
-                    if context.area:
-                        context.area.tag_redraw()
+                    redraw = 1
                 elif self.legend.resize:
                     self.legend.lepos[0], self.legend.lspos[1] = mx, my
                     self.legend.draw(context)
-                    if context.area:
-                        context.area.tag_redraw()
+                    redraw = 1
 
             if redraw:
                 if context.area:
@@ -2617,11 +2631,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        area = context.area
-        r2 = area.regions[2]
-        r3 = area.regions[3]
-        r3h = r3.height
-        r2w = r2.width
+        (r0h, r2w, r5h) = ret_dcoords(context)
         self.scene = context.scene
         svp = context.scene.vi_params
         svp.vi_display, svp.vi_disp_wire = 1, 1
@@ -2640,7 +2650,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         if li_display(context, self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
 
-        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r3h, 0)[0], r2w, r3h, 75, 400, 20)
+        self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0], r2w, r5h - r0h, 75, 400, 20)
         self.legend_num = linumdisplay(self, context)
         self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["li"] = self.draw_handle_linum
@@ -2648,11 +2658,10 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def draw_linum(self, context):
-        r2 = context.area.regions[2]
-        r3 = context.area.regions[3]
+        (r0h, r2w, r5h) = ret_dcoords(context)
 
         try:
-            self.results_bar.draw(r2.width, r3.height)
+            self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
             self.legend_num.draw(context)
 
@@ -2675,7 +2684,10 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         dim = 800
         node = context.node
 
-        if node.metric == '1' and node.light_menu == '2':
+        if node.metric == '1' and node.light_menu == '0':
+            dim = (800, 800)
+            imname, svg_bytes = vi_info(node, dim, svp, ir=node['res']['ratioDF'], aDF=node['res']['avDF'], rDF=node['res']['rDF'], bc=node['res']['b_creds'], area=node['res']['b_area'])
+        elif node.metric == '1' and node.light_menu == '2':
             dim = (800, 800)
             imname, svg_bytes = vi_info(node, dim, svp, ir=node['res']['ratioDF'], aDF=node['res']['avDF'])
         elif node.metric == '1' and node.light_menu == '1':

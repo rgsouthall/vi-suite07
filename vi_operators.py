@@ -461,7 +461,6 @@ class NODE_OT_SVF(bpy.types.Operator):
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         svp['viparams']['vidisp'] = 'svf'
         simnode['reslists'] = reslists
-#        simnode['year'] = 2018
         simnode['frames'] = [f for f in frange]
         simnode.postexport(scene)
         return {'FINISHED'}
@@ -514,7 +513,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         svp['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
         (scmaxres, scminres, scavres) = [[x] * (svp['liparams']['fe'] - svp['liparams']['fs'] + 1) for x in (0, 100, 0)]
-#        nt = datetime.datetime.now()
         frange = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
         time = datetime.datetime(2018, simnode.sdate.month, simnode.sdate.day, simnode.starthour)
         y = 2018 if simnode.edoy >= simnode.sdoy else 2019
@@ -634,7 +632,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         simnode['reslists'] = reslists
         simnode['frames'] = [f for f in frange]
-#        simnode['year'] = 2015
         simnode.postexport(scene)
         svp['viparams']['vidisp'] = 'ss'
         return {'FINISHED'}
@@ -1149,7 +1146,6 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                         for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
-                            print(dl, [float(x) for x in dl[:3]])
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
                             nbm = gpmbm.copy()
                             bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
@@ -2122,7 +2118,7 @@ class NODE_OT_En_Sim(bpy.types.Operator):
             for esim in self.esimruns:
                 if esim.poll() is None:
                     errtext = esim.stderr.read().decode()
-                    print(errtext)
+
                     if 'Fatal' in errtext:
                         logentry('There is something wrong with the Energyplus installation. Check the message below')
                         logentry('If using EMS a local installation of EnergyPlus is required')
@@ -3411,7 +3407,15 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
         boundnode = context.node
         meshnode = boundnode.inputs['Mesh in'].links[0].from_node
         casenode = meshnode.inputs['Case in'].links[0].from_node
-        fvvarwrite(scene, obs, casenode)
+        b_dict = fvvarwrite(scene, obs, casenode)
+
+        with open(os.path.join(scene.vi_params['viparams']['newdir'], 'boundary_summary.txt'), 'w') as b_file:
+            for mat in b_dict:
+                b_file.write(f'{mat}\n')
+                for b in b_dict[mat]:
+                    b_file.write(f'{b}\n')
+                    b_file.write(f'{b_dict[mat][b]}\n')
+                    
         boundnode.post_export()
         return {'FINISHED'}
 
@@ -3490,6 +3494,14 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     elif 'Continuity error cannot be removed by adjusting the outflow' in dline[1]:
                         self.report({'ERROR'}, "Mass flow discrepencies cannot be resolved.")
                         logentry('ERROR: Mass flow discrepencies cannot be resolved. This can happen if using fixed velocity on all boundaries and the areas of inflow and outflow boundaries are different.')
+                        return {'CANCELLED'}
+                    elif 'not constraint type' in dline[1]:
+                        logentry('ERROR: Mesh and material boundaries are out-of-sync. Recreate the mesh')
+                        self.report({'ERROR'}, 'Mesh and material boundaries are out-of-sync. Recreate the mesh')
+                        return {'CANCELLED'}
+                    elif 'Invalid wall function specification' in dline[1]:
+                        logentry('ERROR: Mesh and material boundaries are out-of-sync. Recreate the mesh')
+                        self.report({'ERROR'}, 'Mesh and material boundaries are out-of-sync. Recreate the mesh')
                         return {'CANCELLED'}
                     else:
                         logentry(f'ERROR: {dline[1]}')

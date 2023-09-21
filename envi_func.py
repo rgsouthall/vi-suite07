@@ -567,7 +567,7 @@ def processf(pro_op, node, con_node):
                 if hdict[k] == ['Time']:
                     reslists.append([str(frame), 'Time', 'Time', 'Month', ' '.join([sl[2] for sl in splitlines if sl[0] == k])])
                     reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([sl[3] for sl in splitlines if sl[0] == k])])
-                    reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([sl[5] for sl in splitlines if sl[0] == k])])
+                    reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(int(sl[5]) - 1) for sl in splitlines if sl[0] == k])])
                     reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([sl[1] for sl in splitlines if sl[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
@@ -607,9 +607,6 @@ def processf(pro_op, node, con_node):
 
     zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone temporal']
     zzonerls = list(zip(*zonerls))
-
-    # if ecs:
-    #     pass
 
     if len(frames) > 1:
         areslists = []

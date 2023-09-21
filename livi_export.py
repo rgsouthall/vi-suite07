@@ -179,7 +179,9 @@ def radgexport(export_op, node):
             ovp['rtpoints'] = {}
             ovp['lisenseareas'] = {}
             ovp.vi_type_string = 'LiVi Calc'
-
+        else:
+            ovp.vi_type_string = ''
+        
         o.vi_params.vi_type = ovt
 
     for frame in frames:
@@ -199,7 +201,6 @@ def radgexport(export_op, node):
             bm.from_object(o, dp)
             bm.transform(o.matrix_world)
             bm.normal_update()
-
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.mesh, node.triangulate)
 
             if o in caloblist:
@@ -208,10 +209,10 @@ def radgexport(export_op, node):
                 if frame == frames[0]:
                     clearlayers(bm, 'a')
                     geom.layers.int.new('cindex')
-                    o.vi_params['cpoint'] = node.cpoint
+                    #o.vi_params['cpoint'] = node.cpoint
 
                 geom.layers.string.new('rt{}'.format(frame))
-                ovp.rtpoints(bm, node.offset, str(frame))
+                ovp.rtpoints(bm, node.offset, node.cpoint, str(frame))
                 bm.transform(o.matrix_world.inverted())
                 bm.to_mesh(o.data)
                 o.vi_params.vi_type_string = 'LiVi Calc'
@@ -221,8 +222,6 @@ def radgexport(export_op, node):
             if o.particle_systems and o.particle_systems[0].settings.instance_object:
                 ps = o.particle_systems[0]
                 hl = ps.settings.hair_length
-                #ps.settings.hair_length = 1
-#                dp = bpy.context.evaluated_depsgraph_get()
                 ps = o.evaluated_get(dp).particle_systems[0]
                 particles = ps.particles
                 dob = ps.settings.instance_object

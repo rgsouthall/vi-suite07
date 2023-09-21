@@ -389,7 +389,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     sp_season_main: fvprop(4, "", 'Main colour of the season lines', [1.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     sp_season_dash: fvprop(4, "", 'Dash colour of the season lines', [1.0, 1.0, 1.0, 0.0], 'COLOR', 0, 1)
     sp_sun_colour: fvprop(4, "", 'Sun colour', [1.0, 1.0, 0.0, 1.0], 'COLOR', 0, 1)
-    sp_globe_colour: fvprop(4, "", 'Sun colour', [0.0, 0.0, 1.0, 0.1], 'COLOR', 0, 1)
+    sp_globe_colour: fvprop(4, "", 'Sun colour', [0.0, 0.0, 1.0, 0.25], 'COLOR', 0, 1)
     sp_sun_angle: FloatProperty(name="", description="Sun size", min=0, max=1, default=0.01, update=sunpath1)
     sp_sun_size: iprop("", 'Sun size', 1, 50, 10)
     sp_sun_strength: FloatProperty(name="", description="Sun strength", min=0, max=100, default=1.0, update=sunpath1)

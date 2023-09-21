@@ -104,6 +104,62 @@ def vi_info(node, dim, svp, **kwargs):
 
 #         return imname, bytearray(svg_str, encoding='utf-8')
 
+    elif node.metric == '1' and node.light_menu == '0':
+        if kwargs.get('aDF'):
+            ir = kwargs['ir']
+            aDF = kwargs['aDF']
+            adfpos = 335 - aDF * 67.5 if aDF < 2 else 100 + 200/aDF
+            adfheight = 335 - adfpos
+            irpos = 335 - ir * 337.5 if ir < 0.3 else 100 + 25/ir
+            irheight = 335 - irpos
+            adffill = "255, 0, 0" if aDF < 2.0 else "0, 255, 0"
+            irfill = "255, 0, 0" if ir < 0.3 else "0, 255, 0"
+            imname = "BREEAM_lighting_{}".format(node.zone_menu)
+            svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <svg
+            id="svg5"
+            version="1.1"
+            viewBox="0 0 400 400"
+            width="{0[0]}"
+            height="{0[1]}"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:svg="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="lGadf" x1="60" x2="190" y1="335" y2="{7:.3f}" gradientUnits="userSpaceOnUse">
+                    <stop style="stop-color:rgb({1})" offset=".26316"/>
+                    <stop style="stop-color:rgb({1});stop-opacity:.6392" offset="1"/>
+                </linearGradient>
+                <linearGradient id="lGir" x1="210" x2="340" y1="335" y2="{9:.3f}" gradientUnits="userSpaceOnUse">
+                    <stop style="stop-color:rgb({4})" offset=".26316"/>
+                    <stop style="stop-color:rgb({4});stop-opacity:.6392" offset="1"/>
+                </linearGradient>
+            </defs>
+
+            <rect style="fill:rgb(255, 255, 255)" width="{0[0]}" height="{0[1]}"/>
+            <text text-anchor="middle" x="200" y="32" style="font-size:18px;font-family:arial">BREEAM HEA 01 - Daylighting</text>
+            <text text-anchor="middle" x="125" y="60" style="font-size:26px;font-family:arial">DF</text>
+            <text text-anchor="middle" x="275" y="60" style="font-size:26px;font-family:arial">UR</text>
+            <text text-anchor="middle" x="125" y="75" style="font-size:13px;font-family:arial">Average Daylight Factor</text>
+            <text text-anchor="middle" x="275" y="75" style="font-size:13px;font-family:arial">Uniformity Ratio</text>
+            <rect ry="4" x="60" y="{2:.3f}" width="130" height="{3:.3f}" style="fill:rgb({1});fill-rule:evenodd;fill:url(#lGadf);stroke-width:0.5;stroke:#000000"/>
+            <rect ry="4" x="210" y="{5:.3f}" width="130" height="{6:.3f}" style="fill:rgb({4});fill-rule:evenodd;fill:url(#lGir);stroke-width:0.5;stroke:#000000"/>
+            <text text-anchor="middle" x="30" y="209" style="font-size:24px;font-family:arial">2</text>
+            <text text-anchor="middle" x="370" y="209" style="font-size:24px;font-family:arial">0.3</text>
+            <path d="m50 200h300" style="fill:none;stroke-dasharray:5, 5;stroke-width:1;stroke:#4d4d4d"/>
+            <path d="m50 340h300" style="fill:none;stroke-width:1;stroke:#000000"/>
+            <path d="m200 80v270" style="fill:none;stroke-width:1;stroke:#000000"/>
+            <text text-anchor="middle" x="125" y="365" style="font-size:24px;font-family:arial">{8}</text>
+            <text text-anchor="middle" x="275" y="365" style="font-size:24px;font-family:arial">{10}</text>
+            <text x="10" y="380" style="font-size:14px;font-family:arial">Sensor location: {11}</text>
+            <text x="10" y="395" style="font-size:14px;font-family:arial">Compliant area: {12}%</text>
+            </svg>
+            """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, 335 - adfheight, aDF, 335 - irheight, ir, node.zone_menu, int(node['res']['b_area'][0] * 100))
+
+            with open(os.path.join(svp['viparams']['newdir'], 'images', 'BREEAM_{}_light.svg'.format(node.zone_menu)), 'w') as svg_file:
+                svg_file.write(svg_str)
+
+        return imname, bytearray(svg_str, encoding='utf-8')
+
     elif node.metric == '1' and node.light_menu == '2':
         ir = kwargs['ir']
         aDF = kwargs['aDF']

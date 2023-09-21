@@ -79,8 +79,8 @@ def face_bsdf(o, m, mname, f):
         return ''
 
 
-def rtpoints(self, bm, offset, frame):
-    geom = bm.verts if self['cpoint'] == '1' else bm.faces
+def rtpoints(self, bm, offset, cp, frame):
+    geom = bm.verts if cp == '1' else bm.faces
     cindex = geom.layers.int['cindex']
     rt = geom.layers.string['rt{}'.format(frame)]
 
@@ -91,12 +91,12 @@ def rtpoints(self, bm, offset, frame):
     resfaces = [face for face in bm.faces if face.material_index <= len(self.id_data.data.materials) and self.id_data.data.materials[face.material_index] and self.id_data.data.materials[face.material_index].vi_params.mattype == '1']
     self['cfaces'] = [face.index for face in resfaces]
 
-    if self['cpoint'] == '0':
+    if cp == '0':
         gpoints = resfaces
         gpcos = [gp.calc_center_median() for gp in gpoints]
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]
 
-    elif self['cpoint'] == '1':
+    elif cp == '1':
         gis = sorted(set([item.index for sublist in [face.verts[:] for face in resfaces] for item in sublist]))
         gpoints = [geom[gi] for gi in gis]
         gpcos = [gp.co for gp in gpoints]
@@ -250,7 +250,7 @@ def cbdmmtx(self, scene, locnode, export_op):
     svp = scene.vi_params
     res = (1, 2, 4)[self.cbdm_res - 1]
     os.chdir(svp['viparams']['newdir'])
-    (csh, ceh) = (self.cbdm_start_hour - 1, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (0, 24)
+    (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour + 1) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (0, 24)
     (sdoy, edoy) = (self.sdoy, self.edoy) if not self.ay else (1, 365)
 
     if self['epwbase'][1] in (".epw", ".EPW"):
@@ -388,7 +388,7 @@ def mtx2vals(mtxlines, fwd, node, times):
             break
 
     tothours = len(times)
-    hours = [t.hour + 1 for t in times]
+    hours = [t.hour for t in times]
     mtxlarray = array([0.333 * sum([float(lv) for lv in fval.split(" ")]) for fval in mtxlines[startline:] if fval != '\n'], dtype=float)
     mtxshapearray = mtxlarray.reshape(patches, int(len(mtxlarray)/patches))
     vals = nsum(mtxshapearray, axis=1)
@@ -436,7 +436,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     bm.transform(self.id_data.matrix_world)
     self['omax'], self['omin'], self['oave'], self['livires'] = {}, {}, {}, {}
     clearlayers(bm, 'f')
-    geom = bm.verts if self['cpoint'] == '1' else bm.faces
+    geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
 
     for f, frame in enumerate(frames):
@@ -632,7 +632,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 0]
         rgeom = [g for g in geom if g[cindex] > 0]
-        rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
+        rareas = [gp.calc_area() for gp in geom] if svp['liparams']['cp'] == '0' else [vertarea(bm, gp) for gp in geom]
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
@@ -745,7 +745,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     bm.from_mesh(self.id_data.data)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     clearlayers(bm, 'f')
-    geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces
+    geom = bm.faces if svp['liparams']['cp'] == '0' else bm.verts
     cindex = geom.layers.int['cindex']
 
     for f, frame in enumerate(frames):
@@ -848,7 +848,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             self['omin']['firradhm2{}'.format(frame)] = minofirradm2
             self['oave']['firradhm2{}'.format(frame)] = aveofirradm2
 
-        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
+        posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join([str(p[0]) for p in posis])])
@@ -877,7 +877,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     bm.transform(self.id_data.matrix_world)
     bm.normal_update()
     clearlayers(bm, 'f')
-    geom = bm.verts if self['cpoint'] == '1' else bm.faces
+    geom = bm.faces if svp['liparams']['cp'] == '0' else bm.verts
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     mtxlines = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines()
     mtxlinesns = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines()
@@ -903,6 +903,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     vecvalsns = array([vv[2:] for vv in vecvalsns if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     hours = vecvals.shape[0]
+    logentry(f'Running CBDM calculation over {hours} hours')
     hour_array = array([t.hour for t in times])
     restypes = ('da', 'sda', 'sv', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firradh', 'firradhm2', 'maxlux', 'minlux', 'avelux')
     self['livires']['cbdm_days'] = cbdm_days
@@ -926,7 +927,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             rtframe = max(kints) if frame > max(kints) else min(kints)
 
         rt = geom.layers.string['rt{}'.format(rtframe)]
-        rgeom = [v for v in bm.verts if v[rt]] if self['cpoint'] == '1' else [f for f in bm.faces if f[rt]]
+        rgeom = [f for f in bm.faces if f[rt]] if svp['liparams']['cp'] == '0' else [v for v in bm.verts if v[rt]]
         reslen = len(rgeom)
         areas = array([g.calc_area() for g in rgeom] if svp['liparams']['cp'] == '0' else [vertarea(bm, g) for g in rgeom])
         totarea = sum(areas)
@@ -937,7 +938,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
-            chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
+            chareas = array([c.calc_area() for c in chunk]) if svp['liparams']['cp'] == '0' else array([vertarea(bm, c) for c in chunk])
             sensarray = nsum(resarray*illumod, axis=2).astype(float32)
             finalillu = inner(sensarray, vecvals).astype(float64)
 
@@ -1103,8 +1104,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([f'{p:.2f}' for p in totudisarea])])
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([f'{p:.2f}' for p in totudilarea])])
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([f'{p:.2f}' for p in totudiharea])])
-            overallsdaareapa = sum([g.calc_area() for g in rgeom if g[ressv] == 1.0]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in rgeom if g[ressv]])
+            overallsdaareapa = sum([g.calc_area() for g in rgeom if g[ressv] == 1.0]) if svp['liparams']['cp'] == '0' else sum([vertarea(bm, g) for g in rgeom if g[ressv] == 1.0])
             overallsdaarea = totarea
+            
             self['omax']['sda{}'.format(frame)] = max(sdas)
             self['omin']['sda{}'.format(frame)] = min(sdas)
             self['oave']['sda{}'.format(frame)] = sum(sdas)/reslen

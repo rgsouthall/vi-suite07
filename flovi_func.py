@@ -86,7 +86,7 @@ flovi_prgh_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '
                             '2': ('symmetry', ), '3': ('empty',)}}
 
 flovi_a_bounds = {'sf': {'0': ('None', ), '1': ['None'], '2': ('None', ), '3': ('None',)},
-                  'bf': {'0': ('calculated','inletOutlet'), '1': ('alphatWallFunction', 'compressible::alphatJayatillekeWallFunction'), '2': ('symmetry', ), '3': ('empty',)}}
+                  'bf': {'0': ('calculated','inletOutlet'), '1': ('compressible::alphatWallFunction', 'compressible::alphatJayatillekeWallFunction'), '2': ('symmetry', ), '3': ('empty',)}}
 
 flovi_rad_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '3': ('None',)},
                     'bf': {'0': ('MarshakRadiation', 'zeroGradient'), '1': ('MarshakRadiation',), '2': ('symmetry', ), '3': ('empty',)}}
@@ -387,7 +387,6 @@ def fvmat(self, svp, mn, bound, frame):
         #tdict = {'0': self.flovi_a_subtype, '1': self.flovi_a_subtype, '2': 'symmetry', '3': 'empty'}
         ttdict = {'compressible::alphatWallFunction': 'compressible::alphatWallFunction;\n    value     $internalField',
                   'compressible::alphatJayatillekeWallFunction': 'compressible::alphatJayatillekeWallFunction;\n    Prt    0.85;\n    value     $internalField',
-                  'alphatWallFunction': 'alphatWallFunction;\n    value     $internalField',
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
@@ -442,6 +441,7 @@ def fvvarwrite(scene, obs, node):
     '''Turbulence modelling: k and epsilon required for kEpsilon, k and omega required for kOmega, nutilda required for SpalartAllmaras, nut required for all
         Buoyancy modelling: T'''
     svp = scene.vi_params
+    b_dict = {}
 
     for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
         scene.frame_set(frame)
@@ -484,23 +484,34 @@ def fvvarwrite(scene, obs, node):
             for mat in o.data.materials:
                 mvp = mat.vi_params
                 matname = '{}_{}'.format(o.name, mat.name)
+                b_dict[matname] = {}
 
                 if mvp.mattype == '2':
                     pentry += mvp.flovi_mat(svp, matname, 'p', frame)
+                    b_dict[matname]['p'] = mvp.flovi_mat(svp, matname, 'p', frame)
                     Uentry += mvp.flovi_mat(svp, matname, 'U', frame)
+                    b_dict[matname]['U'] = mvp.flovi_mat(svp, matname, 'U', frame)
                     nutentry += mvp.flovi_mat(svp, matname, 'nut', frame)
+                    b_dict[matname]['nut'] = mvp.flovi_mat(svp, matname, 'nut', frame)
                     kentry += mvp.flovi_mat(svp, matname, 'k', frame)
+                    b_dict[matname]['k'] = mvp.flovi_mat(svp, matname, 'k', frame)
                     eentry += mvp.flovi_mat(svp, matname, 'e', frame)
+                    b_dict[matname]['e'] = mvp.flovi_mat(svp, matname, 'e', frame)
 
                     if node.buoyancy:
                         tentry += mvp.flovi_mat(svp, matname, 't', frame)
+                        b_dict[matname]['t'] = mvp.flovi_mat(svp, matname, 't', frame)
                         p_rghentry += mvp.flovi_mat(svp, matname, 'p_rgh', frame)
+                        b_dict[matname]['p_rgh'] = mvp.flovi_mat(svp, matname, 'p_rgh', frame)
                         aentry += mvp.flovi_mat(svp, matname, 'a', frame)
+                        b_dict[matname]['a'] = mvp.flovi_mat(svp, matname, 'a', frame)
 
                         if node.radiation:
                             Gentry += mvp.flovi_mat(svp, matname, 'G', frame)
+                            b_dict[matname]['G'] = mvp.flovi_mat(svp, matname, 'G', frame)
                             if node.radmodel == '1':
                                 Ientry += mvp.flovi_mat(svp, matname, 'IDefault', frame)
+                                b_dict[matname]['IDefault'] = mvp.flovi_mat(svp, matname, 'IDefault', frame)
 
         pentry += '}'
         Uentry += '}'
@@ -544,7 +555,7 @@ def fvvarwrite(scene, obs, node):
                 if node.radmodel == '1':
                     with open(os.path.join(frame_of0fb, 'IDefault'), 'w') as IDfile:
                         IDfile.write(ofheader + write_ffile('volScalarField', '', 'IDefault') + Ientry)
-
+    return b_dict
 
 def fvmattype(mat, var):
     if mat.flovi_bmb_type == '0':
@@ -568,8 +579,8 @@ def fvcdwrite(svp, node, dp):
              'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
 
     if node.comfort:
-        cdict['functions']['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo:.1f}',
-                                         'metabolicRate': f'{node.met:.1f}', 'relHumidity': f'{node.rh * 0.01:.1f}', 'meanVelocity': '1',
+        cdict['functions']['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo*0.155:.2f}',
+                                         'metabolicRate': f'{node.met:.2f}', 'relHumidity': f'{node.rh * 0.01:.2f}', 
                                          'writeControl': 'writeTime', 'executeControl': 'writeTime'}
     if node.age:
         cdict['functions']['age'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'age', 'diffusion': 'on', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
