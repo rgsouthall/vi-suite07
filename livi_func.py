@@ -251,7 +251,7 @@ def cbdmmtx(self, scene, locnode, export_op):
     res = (1, 2, 4)[self.cbdm_res - 1]
     os.chdir(svp['viparams']['newdir'])
     (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour + 1) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (0, 24)
-    (sdoy, edoy) = (self.sdoy, self.edoy) if not self.ay else (1, 365)
+    (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if not self.ay else (1, 365)
 
     if self['epwbase'][1] in (".epw", ".EPW"):
         with open(locnode.weather, "r") as epwfile:

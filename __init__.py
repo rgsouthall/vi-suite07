@@ -43,9 +43,14 @@ else:
     from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
     from bpy.types import AddonPreferences, Image, Material
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    os.environ["KIVY_NO_CONSOLELOG"] = "1"
 
     try:
+        import PyQt6
         import matplotlib.pyplot as plt
+        from kivy.config import Config
+        Config.set('kivy', 'log_level', 'error')
+        Config.write()
         from kivy.app import App
         print('VI-Suite: Using system libraries')
 
@@ -93,14 +98,17 @@ else:
 
         try:
             requests.get('https://www.google.com/')
-            
+            upg = '' if sys.platform == 'linux' else '--upgrade'
+
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
                 gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(gp_cmd)).wait()
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                upg = '' if sys.platform == 'linux' else '--upgrade'
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
+                pil_cmd = '"{}" -m pip install Pillow==9.5 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                Popen(shlex.split(pil_cmd)).wait()
 
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
                 if sys.platform == 'win32':
                     kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                 else:
@@ -119,8 +127,8 @@ else:
                     for dll in dlls:
                         shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt5')):
-                pyqt_cmd = '"{}" -m pip install PyQt5 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
+                pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                 Popen(shlex.split(pyqt_cmd)).wait()
 
             if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
@@ -142,8 +150,7 @@ else:
         import netgen
     except:
         if sys.platform == 'linux':
-            print('Cannot find a local install of netgen. Install Netegn and Blender via your package manager')
-        
+            print('Cannot find a local install of netgen. Install Netegn and Blender via your package manager')   
         else:
             ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()

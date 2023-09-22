@@ -20,17 +20,17 @@ import bpy
 from collections import OrderedDict
 from .vi_func import newrow, retdates, logentry, get_materials
 
-try:
-    import matplotlib
-    matplotlib.use('qt5agg', force=True)
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as mcm
-    import matplotlib.colors as mcolors
-    from matplotlib.patches import Rectangle
-    from matplotlib.collections import PatchCollection
-    mp = 1
-except:
-    mp = 0
+# try:
+#     import matplotlib
+#     matplotlib.use('qtagg', force=True)
+#     import matplotlib.pyplot as plt
+#     import matplotlib.cm as mcm
+#     import matplotlib.colors as mcolors
+#     from matplotlib.patches import Rectangle
+#     from matplotlib.collections import PatchCollection
+#     mp = 1
+# except:
+#     mp = 0
 
 
 class VI_PT_3D(bpy.types.Panel):
@@ -46,10 +46,10 @@ class VI_PT_3D(bpy.types.Panel):
         cao = context.active_object
         layout = self.layout
 
-        if not mp:
-            row = layout.row()
-            row.label(text="No matplotlib installation")
-            return
+        # if not mp:
+        #     row = layout.row()
+        #     row.label(text="No matplotlib installation")
+        #     return
 
         if cao:
             covp = cao.vi_params

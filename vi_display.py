@@ -39,15 +39,15 @@ from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
 # from bpy.app.handlers import persistent
-from PyQt5.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter
-from PyQt5.QtPrintSupport import QPrinter
-from PyQt5.QtSvg import QSvgRenderer
-from PyQt5.QtCore import QSizeF, QMarginsF
+from PyQt6.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter
+from PyQt6.QtPrintSupport import QPrinter
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtCore import QSizeF, QMarginsF
 
 
 try:
     import matplotlib
-    matplotlib.use('qt5agg', force=True)
+    matplotlib.use('qtagg', force=True)
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
@@ -2714,51 +2714,56 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             metric_file.write(svg_bytes.decode())
 
         image = QImage.fromData(svg_bytes)
-        image = image.convertToFormat(17)
+        image = image.convertToFormat(QImage.Format.Format_RGBA8888)
         image = image.mirrored(0, 1)
         bs = image.bits()
-        bs.setsize(image.byteCount())
-        buf = memoryview(bs)
-        arr = frombuffer(buf, dtype=ubyte).astype(float32)
-        ipwidth, ipheight = dim[0], dim[1]
 
-        if imname not in [im.name for im in bpy.data.images]:
-            bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
-                              generated_type='BLANK', float=False, use_stereo_3d=False)
-            im = bpy.data.images[imname]
-            im.colorspace_settings.name = 'sRGB'
+        if bs:
+            bs.setsize(image.sizeInBytes())
+            buf = memoryview(bs)
+            arr = frombuffer(buf, dtype=ubyte).astype(float32)
+            ipwidth, ipheight = dim[0], dim[1]
 
+            if imname not in [im.name for im in bpy.data.images]:
+                bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
+                                generated_type='BLANK', float=False, use_stereo_3d=False)
+                im = bpy.data.images[imname]
+                im.colorspace_settings.name = 'sRGB'
+
+            else:
+                im = bpy.data.images[imname]
+                im.gl_free()
+                im.buffers_free()
+
+                if (im.generated_width, im.generated_height) != (ipwidth, ipheight):
+                    im.generated_width = ipwidth
+                    im.generated_height = ipheight
+
+                if im.size[:] != (ipwidth, ipheight):
+                    im.scale(ipwidth, ipheight)
+
+            im.pixels.foreach_set((arr/255))
+            im.scale(int(dim[0]), int(dim[1]))
+            area = context.area
+            t = area.type
+            area.type = 'IMAGE_EDITOR'
+            area.spaces.active.image = im
+            bpy.ops.image.view_all()
+            bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
+            win = bpy.context.window_manager.windows[-1]
+            win.screen.areas[0].spaces[0].show_region_header = 0
+            win.screen.areas[0].spaces[0].show_region_toolbar = 0
+            win.screen.areas[0].spaces[0].show_region_ui = 0
+            win.screen.areas[0].spaces[0].show_gizmo = 0
+            win.screen.areas[0].spaces[0].use_realtime_update = 0
+
+            with context.temp_override(window=win, area=win.screen.areas[0]):
+                bpy.ops.image.view_zoom_ratio(ratio=1)
+
+            area.type = t
         else:
-            im = bpy.data.images[imname]
-            im.gl_free()
-            im.buffers_free()
-
-            if (im.generated_width, im.generated_height) != (ipwidth, ipheight):
-                im.generated_width = ipwidth
-                im.generated_height = ipheight
-
-            if im.size[:] != (ipwidth, ipheight):
-                im.scale(ipwidth, ipheight)
-
-        im.pixels.foreach_set((arr/255))
-        im.scale(int(dim[0]), int(dim[1]))
-        area = context.area
-        t = area.type
-        area.type = 'IMAGE_EDITOR'
-        area.spaces.active.image = im
-        bpy.ops.image.view_all()
-        bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
-        win = bpy.context.window_manager.windows[-1]
-        win.screen.areas[0].spaces[0].show_region_header = 0
-        win.screen.areas[0].spaces[0].show_region_toolbar = 0
-        win.screen.areas[0].spaces[0].show_region_ui = 0
-        win.screen.areas[0].spaces[0].show_gizmo = 0
-        win.screen.areas[0].spaces[0].use_realtime_update = 0
-
-        with context.temp_override(window=win, area=win.screen.areas[0]):
-            bpy.ops.image.view_zoom_ratio(ratio=1)
-
-        area.type = t
+            self.report({'ERROR'}, "No image data")
+            return{'CANCELLED'}
         return {'FINISHED'}
 
 # def draw_icon_new(self):

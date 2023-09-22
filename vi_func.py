@@ -101,7 +101,7 @@ def ret_datab(fname, r_w):
 def ret_plt():
     try:
         import matplotlib
-        matplotlib.use('qt5agg', force=True)
+        matplotlib.use('qtagg', force=True)
         from matplotlib import pyplot as plt
         plt.figure()
         return plt
@@ -484,6 +484,7 @@ from kivy.uix.label import Label\n\
 from kivy.config import Config\n\
 Config.set('graphics', 'width', '500')\n\
 Config.set('graphics', 'height', '200')\n\
+Config.set('kivy', 'log_level', 'warning')\n\
 \n\
 class CancelButton(Button):\n\
     def on_touch_down(self, touch):\n\

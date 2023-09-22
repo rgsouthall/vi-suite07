@@ -43,7 +43,7 @@ from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
-from PyQt5.QtGui import QImage, QColor
+from PyQt6.QtGui import QImage, QColor
 import OpenImageIO
 OpenImageIO.attribute("missingcolor", "0,0,0")
 from OpenImageIO import ImageInput, ImageBuf
@@ -58,7 +58,7 @@ except Exception as e:
 
 try:
     import matplotlib
-    matplotlib.use('qt5agg', force=True)
+    matplotlib.use('qtagg', force=True)
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     from matplotlib import pyplot as plt
@@ -84,7 +84,7 @@ except Exception as e:
 class ADDON_OT_PyInstall(bpy.types.Operator):
     bl_idname = "addon.pyimport"
     bl_label = "Install Python dependencies"
-    bl_description = "Installs matplotlib, PyQt5, kivy and netgen"
+    bl_description = "Installs matplotlib, PyQt6, kivy and netgen"
 
     def execute(self, context):
         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
@@ -97,8 +97,8 @@ class ADDON_OT_PyInstall(bpy.types.Operator):
                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
             Popen(shlex.split(kivy_cmd))
 
-        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt5')):
-            pyqt_cmd = '{} -m pip install PyQt5 --target {}'.format(sys.executable,
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt6')):
+            pyqt_cmd = '{} -m pip install PyQt6 --target {}'.format(sys.executable,
                                                                     os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
             Popen(shlex.split(pyqt_cmd))
 
@@ -224,6 +224,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         svp = scene.vi_params
         simnode = context.node
         wrcoll = create_coll(context, 'WindRoses')
+        context.view_layer.layer_collection.children[wrcoll.name].exclude = 0
         plt = ret_plt()
 
         if viparams(self, scene):
@@ -278,7 +279,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
         plt.savefig(svp['viparams']['newdir']+'/disp_wind.svg')
         wrme = bpy.data.meshes.new("Wind_rose")
-        wro = bpy.data.objects.new('Wind_rose', wrme)
+        wro = bpy.data.objects.new('Wind Rose', wrme)
 
         if wro.name not in wrcoll.objects:
             wrcoll.objects.link(wro)
@@ -488,15 +489,19 @@ class NODE_OT_Shadow(bpy.types.Operator):
             self.report({'ERROR'}, "No shading objects or none with a material attached.")
             return {'CANCELLED'}
 
+        simnode = context.node
+        svp['viparams']['restree'] = simnode.id_data.name
+        clearscene(context, self)
+        
+        for o in scene.objects:
+            o.vi_params.vi_type_string = ''
+                
         calcobs = retobjs('ssc')
 
         if not calcobs:
             self.report({'ERROR'}, "No objects have a light sensor material attached.")
             return {'CANCELLED'}
-
-        simnode = context.node
-        svp['viparams']['restree'] = simnode.id_data.name
-        clearscene(context, self)
+            
         svp['viparams']['visimcontext'] = 'Shadow'
 
         if not svp.get('liparams'):

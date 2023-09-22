@@ -36,7 +36,7 @@ from numpy import array, stack, where, unique
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
 import matplotlib
-matplotlib.use('qt5agg', force=True)
+matplotlib.use('qtagg', force=True)
 cur_dir = os.getcwd()
 
 try:
@@ -620,7 +620,7 @@ class No_Li_Con(Node, ViNodes):
             self.sdamin = 300
             self.daauto = 3000
             self.sdoy = 1
-            self.edoy = 365
+            self.cbdm_edoy = 365
 
             if self.cbdm_start_hour > 9:
                 self.cbdm_start_hour = 9
@@ -638,7 +638,7 @@ class No_Li_Con(Node, ViNodes):
                 (shour, ehour) = (0, 23)
             else:
                 (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour)
-            (sdoy, edoy) = (self.sdoy, self.edoy) if not self.ay else (1, 365)
+            (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if not self.ay else (1, 365)
 
         interval = 1
         starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=sdoy - 1) + datetime.timedelta(hours=shour)
@@ -769,7 +769,8 @@ class No_Li_Con(Node, ViNodes):
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
-        (sdoy, edoy) = (self.sdoy, self.edoy) if self.contextmenu == '0' or not self.ay else (1, 365)
+        (sdoy, edoy) = (self.sdoy, (self.cbdm_edoy, self.edoy)[self.contextmenu == '0']) if self.contextmenu == '0' or not self.ay else (1, 365)
+        print(sdoy, edoy)
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
         basic_unit = 'W/m2' if self.sp else (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1']
         unitdict = {'Basic': basic_unit,

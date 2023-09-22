@@ -237,7 +237,7 @@ def vi_info(node, dim, svp, **kwargs):
         comps[1] = '>=' if sda >= sdapass[0] else '&lt;'
         sda2points = 1 if sda >= sdapass[1] else 0
         comps[2] = '>=' if sda >= sdapass[1] else '&lt;'
-        '''<text x="350" y="115" style="font-size: 20px;font-family:arial">Perimeter: {:.2f}m<tspan dy = "-10">2</tspan></text>'''
+        '''<text x="350" y="115" style="font-size: 20px;font-family:arial">Perimeter: {:.2f}m\u00b2</text>'''
         hc_svg = '''
         <text x="350" y="130" style="font-size: 26px;font-family:arial">Perimeter: {:.2f}%</text>
         <text x="350" y="165" style="font-size: 26px;font-family:arial">Perimeter {} 90%: {}</text>
@@ -279,17 +279,17 @@ def vi_info(node, dim, svp, **kwargs):
         <rect style="fill:url(#linearGradient2);stroke:rgb(0,0,0);stroke-width:0" width="{0[0]}" height="{0[1]}"/>
         <text text-anchor="middle" x="300" y="50" style="font-size: 32px;font-family:arial">LEED v4 (Option 1) Daylighting Analysis</text>
         <text x="25" y="100" style="font-size: 26px;font-family:arial">Sensor location: {1}</text>
-        <text x="25" y="130" style="font-size: 26px;font-family:arial">Floor area: {2:.2f}m<tspan dy = "-10">2</tspan></text>{3}
-        <text x="350" y="270" style="font-size: 30px;font-family:arial">ASE {12[0]} {4}%: {5}</text>
-        <text x="355" y="300" style="font-size: 24px;font-family:arial">({13} Points achievable)</text>
-        <text x="350" y="555" style="font-size: 30px;font-family:arial">sDA {12[1]} {6}%: {7}</text>
-        <text x="400" y="585" style="font-size: 24px;font-family:arial">({8} Points)</text>
-        <text x="350" y="645" style="font-size: 30px;font-family:arial">sDA {12[2]} {9}%: {10}</text>
-        <text x="400" y="675" style="font-size: 24px;font-family:arial">({11} Points)</text>
+        <text x="25" y="130" style="font-size: 26px;font-family:arial">Sensor area: {2:.2f}m\u00b2</text>{3}
+        <text x="350" y="270" style="font-size: 28px;font-family:arial">ASE {12[0]} {4}%: {5}</text>
+        <text x="350" y="300" style="font-size: 24px;font-family:arial">({13} Points achievable)</text>
+        <text x="350" y="555" style="font-size: 28px;font-family:arial">sDA {12[1]} {6}%: {7}</text>
+        <text x="410" y="585" style="font-size: 24px;font-family:arial">({8} Points)</text>
+        <text x="350" y="645" style="font-size: 28px;font-family:arial">sDA {12[2]} {9}%: {10}</text>
+        <text x="410" y="675" style="font-size: 24px;font-family:arial">({11} Points)</text>
         <text text-anchor="middle" x="175" y="750" style="font-size: 20px;font-family:arial">Spatial Daylight Autonomy (300/50%)</text>
         <text text-anchor="middle" x="175" y="425" style="font-size: 20px;font-family:arial">Annual Sunlight Exposure (1000/250)</text>
         """.format(dim, node.zone_menu, totarea, hc_svg, asepass, ('Pass', 'Fail')[ase >= asepass], sdapass[0], ('Fail', 'Pass')[sda >= sdapass[0]],
-                   sda1points, sdapass[1], ('Fail', 'Pass')[sda >= sdapass[1]], sda2points, comps, asepoints, os.path.join(svp['viparams']['addonpath'], 'Fonts', 'NotoSans-Regular.ttf'))
+                   sda1points, sdapass[1], ('Fail', 'Pass')[sda >= sdapass[1]], sda2points, comps, asepoints)
 
         for b in range(20):
             bfill = "0, 0, 255" if (b + 1) * 5 <= sdapass[1] else "0, 255, 0"
@@ -315,7 +315,7 @@ def vi_info(node, dim, svp, **kwargs):
             if alpha == 1.0:
                 svg_str += '        <text text-anchor="middle" x="{}" y="{}" style="font-size:24px;font-family:arial">{:.1f}</text>'.format(65 + int(b % 4) * 75, 383 - int(b/4) * 50, ase)
 
-        svg_str += '        <text x="350" y="780" style="font-size:26px;font-family:arial">Total points: {} of {}</text>'.format(credits, tcredits)
+        svg_str += '        <text x="360" y="780" style="font-size:26px;font-family:arial">Total points: {} of {}</text>'.format(credits, tcredits)
 
         svg_str += "</svg>"
 
@@ -414,7 +414,7 @@ def vi_info(node, dim, svp, **kwargs):
                 svg_str += '<line x1="120" y1="{0:.3f}" x2="900" y2="{0:.3f}" style="stroke:green;stroke-width:4"/>\n'.format(650 + min_val * res_new)
 
             svg_str += '<rect x="120" y="100" width="780" height="550" style="fill:none;stroke:grey;stroke-width:4"/>\n'.format(650 + min_val * res_new)
-            svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:arial">kgCO<tspan font-size="30">2</tspan>e</text>\n'.format(650 + min_val * res_new)
+            svg_str += '<text x="30" y="375" text-anchor="middle" transform="rotate(-90,30,375)" style="font-size:36px;font-family:arial">kgCO\u2082e</text>\n'.format(650 + min_val * res_new)
             svg_str += '<text x="{}" y="725" text-anchor="middle" style="font-size:36px;font-family:arial">Scenario</text>\n'.format(dim[0] * 0.5)
             svg_str += '<text x="{}" y="40" text-anchor="middle" style="font-size:38px;font-family:arial">Whole-life Carbon</text>\n'.format(dim[0] * 0.5)
             svg_str += '<text x="{}" y="80" text-anchor="middle" style="font-size:36px;font-family:arial">Zone: {}</text>\n'.format(dim[0] * 0.5, node.zone_menu)
