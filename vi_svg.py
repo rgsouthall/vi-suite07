@@ -239,8 +239,8 @@ def vi_info(node, dim, svp, **kwargs):
         comps[2] = '>=' if sda >= sdapass[1] else '&lt;'
         '''<text x="350" y="115" style="font-size: 20px;font-family:arial">Perimeter: {:.2f}m\u00b2</text>'''
         hc_svg = '''
-        <text x="350" y="130" style="font-size: 26px;font-family:arial">Perimeter: {:.2f}%</text>
-        <text x="350" y="165" style="font-size: 26px;font-family:arial">Perimeter {} 90%: {}</text>
+        <text x="350" y="130" style="font-size: 22px;font-family:arial">Perimeter: {:.2f}%</text>
+        <text x="350" y="165" style="font-size: 22px;font-family:arial">Perimeter {} 90%: {}</text>
         '''.format(100 * svarea/totarea, comps[3], ('Fail', 'Pass')[svarea/totarea >= 0.9]) if node.leed_menu else ""
 
         svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>

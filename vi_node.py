@@ -538,10 +538,10 @@ class No_Li_Con(Node, ViNodes):
                 if not self.ay:
                     newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
 
-                    if self.cbanalysismenu in ('0', '1'):
-                        newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
-                    else:
-                        newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "cbdm_edoy")
+                    # if self.cbanalysismenu in ('0', '1'):
+                    #     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
+                    # else:
+                    newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "cbdm_edoy")
 
                     newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
                     newrow(layout, 'End hour:', self, 'cbdm_end_hour')
@@ -770,7 +770,6 @@ class No_Li_Con(Node, ViNodes):
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
         (sdoy, edoy) = (self.sdoy, (self.cbdm_edoy, self.edoy)[self.contextmenu == '0']) if self.contextmenu == '0' or not self.ay else (1, 365)
-        print(sdoy, edoy)
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
         basic_unit = 'W/m2' if self.sp else (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1']
         unitdict = {'Basic': basic_unit,
@@ -1279,6 +1278,8 @@ class No_Li_Sim(Node, ViNodes):
                     dnode.update()
                 elif dnode.bl_idname == 'No_Vi_HMChart':
                     dnode.update()
+                elif dnode.bl_idname == 'No_Vi_Chart':
+                    dnode.update()
 
         nodecolour(self, 0)
 
@@ -1784,7 +1785,7 @@ class No_En_Sim(Node, ViNodes):
     dsdoy: IntProperty()
     dedoy: IntProperty()
     run: IntProperty(min=-1, default=-1)
-    processors: IntProperty(name='', min=1, default=4) 
+    processors: IntProperty(name='', min=1, default=4)
     mp: BoolProperty(name="", default=False)
 
     def draw_buttons(self, context, layout):

@@ -129,7 +129,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
                 if sm == dm[i] and sd == dd[i]:  # and sh == dh[i] - 1:
                     si = i
                     break
-                    
+
             for i in range(len(hdata[0])):
                 ei = i
 
@@ -261,7 +261,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
     plt.ylabel('Hours', size=16)
     low_extend = 'lower' if zmin > amin(z) else 0
     up_extend = 'upper' if zmax < amax(z) else 0
-     
+
     if all((low_extend, up_extend)):
         bar_extend = 'both'
     elif not any((low_extend, up_extend)):
@@ -297,7 +297,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
     #     plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
 
     if dnode.cf:
-        plt.contourf(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1), 
+        plt.contourf(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1),
                      levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend=bar_extend)
         plt.axis([xmin + 0.5, xmax + 0.5, ymin + 0.5, ymax + 0.5])
     else:
@@ -307,14 +307,14 @@ def hmchart_disp(chart_op, plt, dnode, col):
     cbar = plt.colorbar(use_gridspec=True, pad=0.01, extend=bar_extend)
     cbar.set_label(label=var, size=16)
     cbar.ax.tick_params(labelsize=14)
-    
+
     if dnode.cl:
         try:
             ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]
-            cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=ls, colors='Black', linewidths=dnode.lw)
+            cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
             plt.clabel(cp, inline=True, fontsize=10)
         except Exception as e:
-            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:], colors='Black', linewidths=dnode.lw)
+            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:], colors='Black', linewidths=dnode.lw)
 
     if dnode.grid and dnode.cf:
         ax.grid(True, which='both', zorder=10)
