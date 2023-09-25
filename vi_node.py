@@ -3041,16 +3041,17 @@ class No_Vi_Metrics(Node, ViNodes):
                             newrow(layout, 'Glazed roof:', self, "g_roof")
 
                             if 'N/A' not in (areaDF, avDF):
+                                self['res']['b_area'] = areaDF
                                 if self.breeam_menu == '0':
                                     # if avDF >= 2 and ratioDF >= 0.3:
                                     # newrow(layout, 'Education space:', self, "breeam_edumenu")
                                     if self.breeam_edumenu == '0':
-                                        self['res']['b_area'] = [0.8]
+                                        self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [2]
                                         if areaDF >= 80:
                                             credits = 2
                                     elif self.breeam_edumenu == '1':
-                                        self['res']['b_area'] = [0.6, 0.8]
+                                        self['res']['b_areas'] = [0.6, 0.8]
                                         self['res']['b_creds'] = [1, 2]
                                         if areaDF >= 60:
                                             credits = 1
@@ -3059,38 +3060,38 @@ class No_Vi_Metrics(Node, ViNodes):
 
                                 elif self.breeam_menu == '1':
                                     if self.breeam_healthmenu == '0':
-                                        self['res']['b_area'] = [0.8]
+                                        self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [2]
                                         if areaDF >= 80:
                                             credits = 2
 
                                     elif self.breeam_healthmenu == '1':
-                                        self['res']['b_area'] = [0.8]
+                                        self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [1, 2]
                                         if areaDF >= 80:
                                             credits = 1 if avDF < 3 else 2
 
                                 elif self.breeam_menu == '2':
-                                    self['res']['b_area'] = [0.8]
+                                    self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
                                     if areaDF >= 80:
                                         credits = 2
 
                                 elif self.breeam_menu == '3':
-                                    self['res']['b_area'] = [0.35]
+                                    self['res']['b_areas'] = [0.35]
                                     self['res']['b_creds'] = [1]
                                     if self.breeam_retailmenu == '0':
                                         if areaDF >= 35:
                                             credits = 1
 
                                     elif self.breeam_retailmenu == '1':
-                                        self['res']['b_area'] = [0.8]
+                                        self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [1]
                                         if areaDF >= 80:
                                             credits = 1
 
                                 elif self.breeam_menu == '4':
-                                    self['res']['b_area'] = [0.8]
+                                    self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
                                     if self.breeam_prisonmenu == '0':
                                         if areaDF >= 80:
@@ -3113,24 +3114,24 @@ class No_Vi_Metrics(Node, ViNodes):
                                             credits = 2
 
                                 elif self.breeam_menu == '5':
-                                    self['res']['b_area'] = [0.8]
+                                    self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
                                     if areaDF >= 80:
                                         credits = 2
 
                                 elif self.breeam_menu == '6':
-                                    self['res']['b_area'] = [0.8]
+                                    self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
                                     if areaDF >= 80:
                                         credits = 2
 
                                 elif self.breeam_menu == '7':
-                                    self['res']['b_area'] = [0.8]
+                                    self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [1]
                                     if areaDF >= 80:
                                         credits = 1
 
-                                self['res']['b_creds'] = credits
+                                #self['res']['b_creds'] = credits
                                 row = layout.row()
                                 row.label(text="Average DF: {}%".format(avDF))
                                 row = layout.row()

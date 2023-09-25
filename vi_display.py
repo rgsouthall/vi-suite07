@@ -39,7 +39,7 @@ from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
 # from bpy.app.handlers import persistent
-from PyQt6.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter
+from PyQt6.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter, QPageSize
 from PyQt6.QtPrintSupport import QPrinter
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtCore import QSizeF, QMarginsF
@@ -440,7 +440,7 @@ class linumdisplay():
         for ob in self.obd:
             if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
                 ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(self.fn))
-        
+
         dp = context.evaluated_depsgraph_get()
 
         for ob in self.obd:
@@ -458,7 +458,7 @@ class linumdisplay():
             else:
                 self.disp_op.report({'ERROR'}, f"No result data on {ob.name}. Re-export LiVi Context and Geometry")
                 return 'CANCELLED'
-            
+
             geom = bm.faces if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) else bm.verts
             geom.ensure_lookup_table()
             livires = geom.layers.float['{}{}'.format(var, scene.frame_current)]
@@ -1955,12 +1955,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'sp'
         svp['viparams']['visimcontext'] = 'SunPath'
         sunpath(context)
-        
+
         if context.screen:
                 for a in context.screen.areas:
                     if a.type == 'VIEW_3D':
                         a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.5
-        
+
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
         self.latitude = svp.latitude
@@ -2552,7 +2552,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             else:
                 logentry('You have encountered a Blender bug: "internal error: modal gizmo-map handler has invalid area". \
                           Do not maximise a window while the display operator is running.')
-                
+
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
             return {'CANCELLED'}
 
@@ -2686,7 +2686,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
 
         if node.metric == '1' and node.light_menu == '0':
             dim = (800, 800)
-            imname, svg_bytes = vi_info(node, dim, svp, ir=node['res']['ratioDF'], aDF=node['res']['avDF'], rDF=node['res']['rDF'], bc=node['res']['b_creds'], area=node['res']['b_area'])
+            imname, svg_bytes = vi_info(node, dim, svp, ir=node['res']['ratioDF'], aDF=node['res']['avDF'], rDF=node['res']['rDF'], creds=node['res']['b_creds'], area=node['res']['b_area'], areas=node['res']['b_areas'])
         elif node.metric == '1' and node.light_menu == '2':
             dim = (800, 800)
             imname, svg_bytes = vi_info(node, dim, svp, ir=node['res']['ratioDF'], aDF=node['res']['avDF'])
@@ -2699,16 +2699,15 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         elif node.metric == '6':
             dim = (1000, 1000)
             imname, svg_bytes = vi_info(node, dim, svp, wlc=node['res']['wl'], ec=node['res']['ec'], noc=node['res']['noc'])
-            qtsvg = QSvgRenderer()
-            qtsvg.load(svg_bytes)
-            printer = QPdfWriter(os.path.join(svp['viparams']['newdir'], "WLC.pdf"))
-            printer.setPageSize(QPagedPaintDevice.A4)
-            printer.setPageSizeMM(QSizeF(dim[0]*0.2, dim[1]*0.2))
-            printer.setPageMargins(QMarginsF(0, 0, 0, 0))
-            printer.setResolution(300)
-            painter = QPainter(printer)
-            qtsvg.render(painter)
-            painter.end()
+            # qtsvg = QSvgRenderer()
+            # qtsvg.load(svg_bytes)
+            # printer = QPdfWriter(os.path.join(svp['viparams']['newdir'], "WLC.pdf"))
+            # #printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+            # # printer.setPageMargins(QMarginsF(0, 0, 0, 0))
+            # printer.setResolution(300)
+            # painter = QPainter(printer)
+            # qtsvg.render(painter)
+            # painter.end()
 
         with open(os.path.join(svp['viparams']['newdir'], "metric.svg"), 'w') as metric_file:
             metric_file.write(svg_bytes.decode())

@@ -108,6 +108,10 @@ def vi_info(node, dim, svp, **kwargs):
         if kwargs.get('aDF'):
             ir = kwargs['ir']
             aDF = kwargs['aDF']
+            creds = kwargs['creds']
+            areas = kwargs['areas']
+            area = kwargs['area']
+            acred = 0 if area < areas[0] else creds[[ia for ia, a in enumerate(areas) if area >= a * 100][-1]]
             adfpos = 335 - aDF * 67.5 if aDF < 2 else 100 + 200/aDF
             adfheight = 335 - adfpos
             irpos = 335 - ir * 337.5 if ir < 0.3 else 100 + 25/ir
@@ -136,7 +140,7 @@ def vi_info(node, dim, svp, **kwargs):
             </defs>
 
             <rect style="fill:rgb(255, 255, 255)" width="{0[0]}" height="{0[1]}"/>
-            <text text-anchor="middle" x="200" y="32" style="font-size:18px;font-family:arial">BREEAM HEA 01 - Daylighting</text>
+            <text text-anchor="middle" x="200" y="32" style="font-size:18px;font-family:arial">BREEAM HEA 01 (4a) - Daylighting</text>
             <text text-anchor="middle" x="125" y="60" style="font-size:26px;font-family:arial">DF</text>
             <text text-anchor="middle" x="275" y="60" style="font-size:26px;font-family:arial">UR</text>
             <text text-anchor="middle" x="125" y="75" style="font-size:13px;font-family:arial">Average Daylight Factor</text>
@@ -152,8 +156,9 @@ def vi_info(node, dim, svp, **kwargs):
             <text text-anchor="middle" x="275" y="365" style="font-size:24px;font-family:arial">{10}</text>
             <text x="10" y="380" style="font-size:14px;font-family:arial">Sensor location: {11}</text>
             <text x="10" y="395" style="font-size:14px;font-family:arial">Compliant area: {12}%</text>
+            <text x="300" y="395" style="font-size:14px;font-family:arial">Credits: {13} of {14}</text>
             </svg>
-            """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, 335 - adfheight, aDF, 335 - irheight, ir, node.zone_menu, int(node['res']['b_area'][0] * 100))
+            """.format(dim, adffill, adfpos, adfheight, irfill, irpos, irheight, 335 - adfheight, aDF, 335 - irheight, ir, node.zone_menu, int(node['res']['b_area']), acred, creds[-1])
 
             with open(os.path.join(svp['viparams']['newdir'], 'images', 'BREEAM_{}_light.svg'.format(node.zone_menu)), 'w') as svg_file:
                 svg_file.write(svg_str)
@@ -377,7 +382,7 @@ def vi_info(node, dim, svp, **kwargs):
             svg_str += '<text x="500" y="75" text-anchor="middle" style="font-size:48px;font-family:arial">Whole-life Carbon</text>\n'
             svg_str += '<text x="75" y="500" transform="rotate(-90,75,500)" text-anchor="middle" style="font-size:48px;font-family:arial">Net operational carbon</text>\n'
             svg_str += '<text x="925" y="500" transform="rotate(90,925,500)" text-anchor="middle" style="font-size:48px;font-family:arial">Embodied carbon</text>\n'
-            svg_str += '<text x="500" y="975" text-anchor="middle" style="font-size:48px;font-family:arial">kgCO2e</text>\n'
+            svg_str += '<text x="500" y="975" text-anchor="middle" style="font-size:48px;font-family:arial">kgCO\u2082e</text>\n'
             wlc_pos = 450 - ((wlc[0] - min_res)/(max_res - min_res)) * (900-550)
             noc_pos = 450 - ((noc[0] - min_res)/(max_res - min_res)) * (900-550)
             ec_pos = 550 + ((ec[0] - min_res)/(max_res - min_res)) * (900-550)
