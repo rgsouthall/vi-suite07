@@ -103,7 +103,7 @@ def ret_plt():
         import matplotlib
         matplotlib.use('qtagg', force=True)
         from matplotlib import pyplot as plt
-        plt.ion()
+        #plt.ion()
         plt.figure()
         return plt
 
