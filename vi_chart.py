@@ -324,7 +324,8 @@ def hmchart_disp(chart_op, plt, dnode, col):
     plt.xticks(size=14)
     plt.yticks(size=14)
     fig.tight_layout()
-    #plt.ion()
+    if sys.platfrom == 'darwin':
+        plt.ion()
     plt.show()
 
 
