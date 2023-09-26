@@ -63,15 +63,17 @@ try:
     import matplotlib.colors as mcolors
     from matplotlib import pyplot as plt
     plt.set_loglevel("error")
+    #plt.ion()
+    from .windrose import WindroseAxes
     mp = 1
 except Exception as e:
     print("No matplotlib: {}".format(e))
     mp = 0
 
-if mp:
-    plt = ret_plt()
-    if plt:
-        from .windrose import WindroseAxes
+# if mp:
+#     plt = ret_plt()
+#     if plt:
+#         from .windrose import WindroseAxes
 
 try:
     import psutil
