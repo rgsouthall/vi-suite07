@@ -224,7 +224,10 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         plt.legend()
         plt.grid(True)
         # plt.show(block=str(sys.platform) != 'win32')
-        #plt.ion()
+
+        if sys.platform == 'darwin':
+            plt.ion()
+
         plt.show()
     except Exception as e:
         chart_op.report({'ERROR'}, '{} Invalid data for this component'.format(e))
@@ -324,6 +327,10 @@ def hmchart_disp(chart_op, plt, dnode, col):
     plt.xticks(size=14)
     plt.yticks(size=14)
     fig.tight_layout()
+    
+    if sys.platform == 'darwin':
+        plt.ion()
+
     plt.show()
 
 
@@ -353,7 +360,10 @@ def ec_pie(chart_op, plt, node):
 
     ax.annotate('Total kgCO$_2$e\n{:.1f}\nTotal kgCO$_2$e/m$^2$\n{:.1f}\nTotal kgCO$_2$e/m$^2$/y\n{:.1f}'.format(float(node['res']['ec']['All']), float(node['res']['ecm2']['All']), float(node['res']['ecm2y']['All'])),
                 xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center", size=14)
-    #plt.ion()
+    
+    if sys.platform == 'darwin':
+        plt.ion()
+    
     plt.show()
 
 
@@ -383,7 +393,10 @@ def wlc_line(chart_op, plt, node):
     plt.xlabel('Scenario')
     plt.ylabel('Carbon kgCO$_2$e')
     plt.grid(True)
-    #plt.ion()
+
+    if sys.platform == 'darwin':
+        plt.ion()
+
     plt.show()
 
 
@@ -414,7 +427,10 @@ def com_line(chart_op, plt, node):
     occ = 'Occupied ' if node.occ and node['res'].get('allooh1s') else ''
     plt.ylabel(f'% {occ}hours')
     plt.grid(True)
-    #plt.ion()
+
+    if sys.platform == 'darwin':
+        plt.ion()
+
     plt.show()
 
 # def ec_line(chart_op, plt, node):
