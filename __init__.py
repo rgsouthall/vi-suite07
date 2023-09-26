@@ -48,7 +48,10 @@ else:
     try:
         import PyQt6
         import matplotlib.pyplot as plt
-        #plt.ion()
+        
+        if sys.platform == 'darwin':
+            plt.ion()
+            
         from kivy.config import Config
         Config.set('kivy', 'log_level', 'error')
         Config.write()
