@@ -410,10 +410,10 @@ def rettree(scene, obs, ignore):
 
 def ret_empty_menu(self, context):
     e_names = [(o.name, o.name, 'Name of empty') for o in bpy.data.objects if o.type == 'EMPTY']
-    
+
     if not e_names:
         e_names = [('None', 'None', 'None')]
-    
+
     return e_names
 
 
@@ -1073,12 +1073,12 @@ def vertarea(mesh, vert):
     elif len(faces) == 1:
         eps = [(ev.verts[0].co + ev.verts[1].co)/2 for ev in vert.link_edges]
         eangle = (vert.link_edges[0].verts[0].co - vert.link_edges[0].verts[1].co).angle(vert.link_edges[1].verts[0].co - vert.link_edges[1].verts[1].co)
-        
+
         if eangle:
             area = mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(faces[0].calc_center_median(), *eps) * 2*pi/eangle
         else:
             return 0
-    
+
     return area
 
 
@@ -1835,7 +1835,7 @@ def sunpath(context):
 
             if suns[0].children:
                 suns[0].children[0].hide_viewport = True if alt <= 0 else False
-            
+
             return
 
     elif svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '1':

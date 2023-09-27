@@ -43,7 +43,7 @@ from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
-from PyQt6.QtGui import QImage, QColor
+#from PyQt6.QtGui import QImage, QColor
 import OpenImageIO
 OpenImageIO.attribute("missingcolor", "0,0,0")
 from OpenImageIO import ImageInput, ImageBuf
@@ -83,38 +83,38 @@ except Exception as e:
     psu = 0
 
 
-class ADDON_OT_PyInstall(bpy.types.Operator):
-    bl_idname = "addon.pyimport"
-    bl_label = "Install Python dependencies"
-    bl_description = "Installs matplotlib, PyQt6, kivy and netgen"
+# class ADDON_OT_PyInstall(bpy.types.Operator):
+#     bl_idname = "addon.pyimport"
+#     bl_label = "Install Python dependencies"
+#     bl_description = "Installs matplotlib, PyQt6, kivy and netgen"
 
-    def execute(self, context):
-        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
-            gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'get-pip.py'),
-                                                os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(gp_cmd))
+#     def execute(self, context):
+#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
+#             gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'get-pip.py'),
+#                                                 os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+#             Popen(shlex.split(gp_cmd))
 
-        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'kivy')):
-            kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
-                                                                   os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(kivy_cmd))
+#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'kivy')):
+#             kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
+#                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+#             Popen(shlex.split(kivy_cmd))
 
-        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt6')):
-            pyqt_cmd = '{} -m pip install PyQt6 --target {}'.format(sys.executable,
-                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(pyqt_cmd))
+#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt6')):
+#             pyqt_cmd = '{} -m pip install PyQt6 --target {}'.format(sys.executable,
+#                                                                     os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+#             Popen(shlex.split(pyqt_cmd))
 
-        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
-            mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
-                                                                       os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(mp_cmd))
+#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
+#             mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
+#                                                                        os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+#             Popen(shlex.split(mp_cmd))
 
-        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
-            ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
-                                                                   os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-            Popen(shlex.split(ng_cmd))
+#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
+#             ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
+#                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+#             Popen(shlex.split(ng_cmd))
 
-        return {'FINISHED'}
+#         return {'FINISHED'}
 
 
 class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
@@ -494,16 +494,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
         clearscene(context, self)
-        
+
         for o in scene.objects:
             o.vi_params.vi_type_string = ''
-                
+
         calcobs = retobjs('ssc')
 
         if not calcobs:
             self.report({'ERROR'}, "No objects have a light sensor material attached.")
             return {'CANCELLED'}
-            
+
         svp['viparams']['visimcontext'] = 'Shadow'
 
         if not svp.get('liparams'):
@@ -2660,68 +2660,68 @@ class NODE_OT_COMLine(bpy.types.Operator, ExportHelper):
 #         return {'FINISHED'}
 
 
-class NODE_OT_MInfo(bpy.types.Operator):
-    bl_idname = "node.metinfo"
-    bl_label = "Graphic"
-    bl_description = "Creates an Infographic of the chosen metric"
-    bl_register = True
-    bl_undo = False
+# class NODE_OT_MInfo(bpy.types.Operator):
+#     bl_idname = "node.metinfo"
+#     bl_label = "Graphic"
+#     bl_description = "Creates an Infographic of the chosen metric"
+#     bl_register = True
+#     bl_undo = False
 
-    def execute(self, context):
-        svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-    <svg width="300" height="300" viewBox="0 0 300 300" id="smile" version="1.1">
-        <path
-            style="fill:#aaaaff"
-            d="M 150,0 A 150,150 0 0 0 0,150 150,150 0 0 0 150,300 150,150 0 0 0
-                300,150 150,150 0 0 0 150,0 Z M 72,65 A 21,29.5 0 0 1 93,94.33
-                21,29.5 0 0 1 72,124 21,29.5 0 0 1 51,94.33 21,29.5 0 0 1 72,65 Z
-                m 156,0 a 21,29.5 0 0 1 21,29.5 21,29.5 0 0 1 -21,29.5 21,29.5 0 0 1
-                -21,-29.5 21,29.5 0 0 1 21,-29.5 z m -158.75,89.5 161.5,0 c 0,44.67
-                -36.125,80.75 -80.75,80.75 -44.67,0 -80.75,-36.125 -80.75,-80.75 z"
-        />
-    </svg>
-    """
+#     def execute(self, context):
+#         svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+#     <svg width="300" height="300" viewBox="0 0 300 300" id="smile" version="1.1">
+#         <path
+#             style="fill:#aaaaff"
+#             d="M 150,0 A 150,150 0 0 0 0,150 150,150 0 0 0 150,300 150,150 0 0 0
+#                 300,150 150,150 0 0 0 150,0 Z M 72,65 A 21,29.5 0 0 1 93,94.33
+#                 21,29.5 0 0 1 72,124 21,29.5 0 0 1 51,94.33 21,29.5 0 0 1 72,65 Z
+#                 m 156,0 a 21,29.5 0 0 1 21,29.5 21,29.5 0 0 1 -21,29.5 21,29.5 0 0 1
+#                 -21,-29.5 21,29.5 0 0 1 21,-29.5 z m -158.75,89.5 161.5,0 c 0,44.67
+#                 -36.125,80.75 -80.75,80.75 -44.67,0 -80.75,-36.125 -80.75,-80.75 z"
+#         />
+#     </svg>
+#     """
 
-        svg_bytes = bytearray(svg_str, encoding='utf-8')
-        qimage = QImage.fromData(svg_bytes)
+#         svg_bytes = bytearray(svg_str, encoding='utf-8')
+#         qimage = QImage.fromData(svg_bytes)
 
-        rgba = ndarray(shape=(300, 300, 4), dtype=uint8)
+#         rgba = ndarray(shape=(300, 300, 4), dtype=uint8)
 
-        for x in range(300):
-            for y in range(300):
-                rgba[299 - y][x] = QColor(qimage.pixel(x, y)).getRgbF()
+#         for x in range(300):
+#             for y in range(300):
+#                 rgba[299 - y][x] = QColor(qimage.pixel(x, y)).getRgbF()
 
-        imname = "test.png"
-        ipheight, ipwidth = 300, 300
+#         imname = "test.png"
+#         ipheight, ipwidth = 300, 300
 
-        if imname not in [im.name for im in bpy.data.images]:
-            bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
-                              generated_type='BLANK', float=False, use_stereo_3d=False)
-            im = bpy.data.images[imname]
+#         if imname not in [im.name for im in bpy.data.images]:
+#             bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
+#                               generated_type='BLANK', float=False, use_stereo_3d=False)
+#             im = bpy.data.images[imname]
 
-        else:
-            im = bpy.data.images[imname]
-            im.gl_free()
-            im.buffers_free()
+#         else:
+#             im = bpy.data.images[imname]
+#             im.gl_free()
+#             im.buffers_free()
 
-            if (im.generated_width, im.generated_height) != (ipwidth, ipheight):
-                im.generated_width = ipwidth
-                im.generated_height = ipheight
+#             if (im.generated_width, im.generated_height) != (ipwidth, ipheight):
+#                 im.generated_width = ipwidth
+#                 im.generated_height = ipheight
 
-            if im.size[:] != (ipwidth, ipheight):
-                im.scale(ipwidth, ipheight)
+#             if im.size[:] != (ipwidth, ipheight):
+#                 im.scale(ipwidth, ipheight)
 
-        # im.pixels.foreach_set(rgba.ravel().astype(float32))
+#         # im.pixels.foreach_set(rgba.ravel().astype(float32))
 
-        # Opens new image window
-        # area = bpy.context.area
-        # t = area.type
-        # area.type = 'IMAGE_EDITOR'
-        # bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
-        # win = bpy.context.window_manager.windows[-1]
-        # win.screen.areas[0].spaces[0].show_region_header = 0
-        # win.screen.areas[0].spaces[0].show_region_ui = 0
-        # area.type = t
+#         # Opens new image window
+#         # area = bpy.context.area
+#         # t = area.type
+#         # area.type = 'IMAGE_EDITOR'
+#         # bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
+#         # win = bpy.context.window_manager.windows[-1]
+#         # win.screen.areas[0].spaces[0].show_region_header = 0
+#         # win.screen.areas[0].spaces[0].show_region_ui = 0
+#         # area.type = t
 
 
 # Node utilities from Matalogue
@@ -3422,7 +3422,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                 for b in b_dict[mat]:
                     b_file.write(f'{b}\n')
                     b_file.write(f'{b_dict[mat][b]}\n')
-                    
+
         boundnode.post_export()
         return {'FINISHED'}
 

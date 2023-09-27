@@ -44,116 +44,174 @@ else:
     from bpy.types import AddonPreferences, Image, Material
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     os.environ["KIVY_NO_CONSOLELOG"] = "1"
+    install_fails = []
 
     try:
         import PyQt6
-        import matplotlib.pyplot as plt            
+        install_fails.append(0)
+    except:
+        print('System PyQt6 not found')
+        install_fails.append(1)
+
+    try:
+        import matplotlib.pyplot as plt
+        plt.text(0, 0, 'dummy')
+        plt.clf()
+        install_fails.append(0)
+    except:
+        print('System Matplotlib not found')
+        install_fails.append(1)
+
+    try:
         from kivy.config import Config
         Config.set('kivy', 'log_level', 'error')
         Config.write()
         from kivy.app import App
+        install_fails.append(0)
+    except:
+        print('System Kivy not found')
+        install_fails.append(1)
+
+    if not any(install_fails):
         print('VI-Suite: Using system libraries')
 
-    except Exception:
-        print('VI-Suite: Using builtin libraries')
-        if sys.version_info[0] > 3 or sys.version_info[1] >= 9:
-            if os.environ.get('PYTHONPATH'):
-                if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
-                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
-                    os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                                                                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                                                          'site-packages')
-            else:
-                os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
+    elif not all(install_fails):
+        print('System Python has some required packages but not all. Install {} on your system'.format(', '.join([['PyQt6', 'Matlotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
+        bpy.context.window_manager.popup_menu(lambda wm, context: wm.popup_menu(text='System Python has some required packages but not all. Install {} on your system'.format(', '.join([['PyQt6', 'Matlotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])), title="Error", icon='ERROR'))
+
+    elif all(install_fails) and (sys.version_info[0] > 3 or sys.version_info[1] >= 9):
+        print("Setting library paths")
+        if os.environ.get('PYTHONPATH'):
+            if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
+                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
                 os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                                                                      ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                                                      'site-packages')
-            if sys.platform == 'linux':
-                if not os.environ.get('LD_LIBRARY_PATH'):
-                    os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+                                                                        ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+                                                                        'site-packages')
+        else:
+            os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
+            os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                                                    ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+                                                                    'site-packages')
+        if sys.platform == 'linux':
+            if not os.environ.get('LD_LIBRARY_PATH'):
+                os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
 
-                elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
-                    os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
+            elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
+                os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
 
-            elif sys.platform == 'darwin':
-                if not os.environ.get('DYLD_LIBRARY_PATH'):
-                    os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+        elif sys.platform == 'darwin':
+            if not os.environ.get('DYLD_LIBRARY_PATH'):
+                os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
 
-            sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
-            sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                                         ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                         'site-packages'))
-            if os.environ.get('PATH'):
-                if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
-                    os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
-            else:
-                os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
+        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
+        sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                        ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+                                        'site-packages'))
+        if os.environ.get('PATH'):
+            if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
+                os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
+        else:
+            os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
 
-            # if sys.platform == 'win32':
-                # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+        # if sys.platform == 'win32':
+            # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
 
-                # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                #                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                #                          'site-packages'))
+            # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+            #                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+            #                          'site-packages'))
 
         try:
-            requests.get('https://www.google.com/')
-            upg = '' if sys.platform == 'linux' else '--upgrade'
+            import PyQt6
+            import matplotlib.pyplot as plt
+            # Next line is required to initiate a QApplication and QFont for QImage
+            plt.text(0, 0, 'dummy')
+            plt.clf()
+            from kivy.config import Config
+            Config.set('kivy', 'log_level', 'error')
+            Config.write()
+            from kivy.app import App
+            print('VI-Suite: Using built-in libraries')
+        except:
+            try:
+                requests.get('https://www.google.com/')
+                upg = '' if sys.platform == 'linux' else '--upgrade'
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
-                gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(gp_cmd)).wait()
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
+                    gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(gp_cmd)).wait()
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
-                pil_cmd = '"{}" -m pip install Pillow==9.5 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(pil_cmd)).wait()
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
+                    pil_cmd = '"{}" -m pip install Pillow==9.5 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(pil_cmd)).wait()
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                if sys.platform == 'win32':
-                    kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
-                else:
-                    kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
+                    if sys.platform == 'win32':
+                        kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                    else:
+                        kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
 
-                Popen(shlex.split(kivy_cmd)).wait()
+                    Popen(shlex.split(kivy_cmd)).wait()
 
-                if sys.platform == 'win32':
-                    dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'sdl2', 'bin', 'SDL2*'))
+                    if sys.platform == 'win32':
+                        dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'sdl2', 'bin', 'SDL2*'))
 
-                    for dll in dlls:
-                        shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'core', 'window'))
+                        for dll in dlls:
+                            shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'core', 'window'))
 
-                    dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'glew', 'bin', 'glew32*'))
+                        dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'glew', 'bin', 'glew32*'))
 
-                    for dll in dlls:
-                        shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
+                        for dll in dlls:
+                            shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
-                pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(pyqt_cmd)).wait()
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
+                    pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(pyqt_cmd)).wait()
 
-            if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                Popen(shlex.split(mp_cmd)).wait()
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
+                    mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(mp_cmd)).wait()
 
-        except Exception as e:
-            print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
+                import PyQt6
+                import matplotlib.pyplot as plt
+                # Next line is required to initiate a QApplication and QFont for QImage
+                plt.text(0, 0, 'dummy')
+                plt.clf()
+                from kivy.config import Config
+                Config.set('kivy', 'log_level', 'error')
+                Config.write()
+                from kivy.app import App
+                print('VI-Suite: Using built-in libraries')
 
+            except Exception as e:
+                print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
 
-    #     if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-    #                                           ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-    #                                           'site-packages', 'netgen')):
+    # try:
+    #     import PyQt6
+    #     import matplotlib.pyplot as plt
+    #     # Next line is required to initiate a QApplication for QImage
+    #     plt.text(0, 0, 'dummy')
+    #     plt.clf()
+    #     from kivy.config import Config
+    #     Config.set('kivy', 'log_level', 'error')
+    #     Config.write()
+    #     from kivy.app import App
+    #     print('VI-Suite: Using built-in libraries')
+    # except Exception as e:
+    #     print(f'Cannot find required system, or install local, packages. Error {e}')
 
-    #         ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-    #         Popen(shlex.split(ng_cmd)).wait()
-    
     try:
         import netgen
     except:
-        if sys.platform == 'linux':
-            print('Cannot find a local install of netgen. Install Netegn and Blender via your package manager')   
+        if sys.platform == 'linux2':
+            print('For Netgen functionality, system install of Blender, PyQt6, Kivy, Matplotlib and Netgen is required')
         else:
             ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()
+
+            try:
+                import netgen
+            except Exception as e:
+                print('Netgen installation failed and is disabled')
 
     if sys.platform in ('linux', 'darwin'):
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
@@ -216,7 +274,7 @@ else:
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify, OBJECT_OT_Embod, NODE_OT_En_UV, NODE_OT_En_EC, MAT_EnVi_Node_Remove
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
-    from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim, ADDON_OT_PyInstall
+    from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
     from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Col, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
@@ -869,7 +927,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
-           No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, ADDON_OT_PyInstall)
+           No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn)
 
 def register():
     for cl in classes:

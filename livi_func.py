@@ -897,7 +897,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params
     self['livires'] = {}
     reslists = []
-    self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material.vi_params.mattype == '1'][0]
+    # self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material and slot.material.vi_params.mattype == '1'][0]
     selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
     bm.from_mesh(self.id_data.data)

@@ -43,12 +43,18 @@ from PyQt6.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter, QPageSi
 from PyQt6.QtPrintSupport import QPrinter
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtCore import QSizeF, QMarginsF
+from PyQt6.QtCore import QSize
+#from PyQt6.QtGui import QImage, QPainter
+#from PyQt6.QtSvg  import QSvgRenderer
+from PyQt6.QtWidgets import QApplication
 
 
 try:
     import matplotlib
     matplotlib.use('qtagg', force=True)
     import matplotlib.pyplot as plt
+    plt.ion()
+    plt.ioff()
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     from matplotlib.patches import Rectangle

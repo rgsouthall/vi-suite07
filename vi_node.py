@@ -35,12 +35,12 @@ from .flovi_func import ret_fvb_menu, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_m
 from numpy import array, stack, where, unique
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
-import matplotlib
-matplotlib.use('qtagg', force=True)
+# import matplotlib
+# matplotlib.use('qtagg', force=True)
 cur_dir = os.getcwd()
 
 try:
-    import netgen
+    #import netgen
     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
     from netgen.stl import STLGeometry
     from pyngcore import SetNumThreads, TaskManager
@@ -2344,10 +2344,9 @@ class No_Vi_Chart(Node, ViNodes):
                         startday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
                         endday = datetime.datetime(bpy.context.scene.vi_params.year, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
                         start_ui_data = self.id_properties_ui("Start")
-                        start_ui_data.update(min=startday, max=endday)
+                        start_ui_data.update(min=startday, max=endday, soft_min=startday, soft_max=endday)
                         end_ui_data = self.id_properties_ui("End")
-                        end_ui_data.update(min=startday, max=endday)
-                        # self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                        end_ui_data.update(min=startday, max=endday, soft_min=startday, soft_max=endday)
                         self['Start'], self['End'] = startday, endday
 
                     elif rsx.resultmenu == 'Frames':
@@ -2359,15 +2358,12 @@ class No_Vi_Chart(Node, ViNodes):
                                     frames = [int(f) for f in r[4].split()]
                                     break
 
-
-
                         startframe, endframe = min(frames), max(frames)
                         frame = 'All'
                         start_ui_data = self.id_properties_ui("Start")
-                        start_ui_data.update(min=startframe, max=endframe)
+                        start_ui_data.update(min=startframe, max=endframe, soft_min=startframe, soft_max=endframe)
                         end_ui_data = self.id_properties_ui("End")
-                        end_ui_data.update(min=startframe, max=endframe)
-                        # self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                        end_ui_data.update(min=startframe, max=endframe, soft_min=startframe, soft_max=endframe)
                         self['Start'], self['End'] = startframe, endframe
 
                     else:
@@ -2377,7 +2373,6 @@ class No_Vi_Chart(Node, ViNodes):
                         start_ui_data.update(min=startx, max=endx)
                         end_ui_data = self.id_properties_ui("End")
                         end_ui_data.update(min=startx, max=endx)
-                        # self["_RNA_UI"] = {"Start": {"min":startx, "max":endx}, "End": {"min":startx, "max":endx}}
                         self['Start'], self['End'] = startx, endx
 
                     if self.inputs.get('Y-axis 1'):
