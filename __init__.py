@@ -122,7 +122,10 @@ else:
 
         try:
             import PyQt6
+            import matplotlib
+            matplotlib.use('qtagg', force=True)
             import matplotlib.pyplot as plt
+
             # Next line is required to initiate a QApplication and QFont for QImage
             plt.text(0, 0, 'dummy')
             plt.clf()
@@ -133,6 +136,7 @@ else:
             print('VI-Suite: Using built-in libraries')
         except:
             try:
+                print('VI-Suite: Installing built-in libraries')
                 requests.get('https://www.google.com/')
                 upg = '' if sys.platform == 'linux' else '--upgrade'
 
@@ -172,6 +176,8 @@ else:
                     Popen(shlex.split(mp_cmd)).wait()
 
                 import PyQt6
+                import matplotlib
+                matplotlib.use('qtagg', force=True)
                 import matplotlib.pyplot as plt
                 # Next line is required to initiate a QApplication and QFont for QImage
                 plt.text(0, 0, 'dummy')

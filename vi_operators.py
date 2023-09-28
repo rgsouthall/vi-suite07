@@ -43,7 +43,7 @@ from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
-#from PyQt6.QtGui import QImage, QColor
+# from PyQt6.QtGui import QImage, QColor
 import OpenImageIO
 OpenImageIO.attribute("missingcolor", "0,0,0")
 from OpenImageIO import ImageInput, ImageBuf
@@ -83,38 +83,38 @@ except Exception as e:
     psu = 0
 
 
-# class ADDON_OT_PyInstall(bpy.types.Operator):
-#     bl_idname = "addon.pyimport"
-#     bl_label = "Install Python dependencies"
-#     bl_description = "Installs matplotlib, PyQt6, kivy and netgen"
+class ADDON_OT_PyInstall(bpy.types.Operator):
+    bl_idname = "addon.pyimport"
+    bl_label = "Install Python dependencies"
+    bl_description = "Installs matplotlib, PyQt6, kivy and netgen"
 
-#     def execute(self, context):
-#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
-#             gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'get-pip.py'),
-#                                                 os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-#             Popen(shlex.split(gp_cmd))
+    def execute(self, context):
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'pip')):
+            gp_cmd = '{} {} --target {}'.format(sys.executable, os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'get-pip.py'),
+                                                os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            Popen(shlex.split(gp_cmd))
 
-#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'kivy')):
-#             kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
-#                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-#             Popen(shlex.split(kivy_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'kivy')):
+            kivy_cmd = '{} -m pip install kivy --target {}'.format(sys.executable,
+                                                                   os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            Popen(shlex.split(kivy_cmd))
 
-#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt6')):
-#             pyqt_cmd = '{} -m pip install PyQt6 --target {}'.format(sys.executable,
-#                                                                     os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-#             Popen(shlex.split(pyqt_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'PyQt6')):
+            pyqt_cmd = '{} -m pip install PyQt6 --target {}'.format(sys.executable,
+                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            Popen(shlex.split(pyqt_cmd))
 
-#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
-#             mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
-#                                                                        os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-#             Popen(shlex.split(mp_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'matplotlib')):
+            mp_cmd = '{} -m pip install matplotlib --target {}'.format(sys.executable,
+                                                                       os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            Popen(shlex.split(mp_cmd))
 
-#         if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
-#             ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
-#                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
-#             Popen(shlex.split(ng_cmd))
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
+            ng_cmd = '{} -m pip install netgen --target {}'.format(sys.executable,
+                                                                   os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            Popen(shlex.split(ng_cmd))
 
-#         return {'FINISHED'}
+        return {'FINISHED'}
 
 
 class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
@@ -494,16 +494,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
         clearscene(context, self)
-
+        
         for o in scene.objects:
             o.vi_params.vi_type_string = ''
-
+                
         calcobs = retobjs('ssc')
 
         if not calcobs:
             self.report({'ERROR'}, "No objects have a light sensor material attached.")
             return {'CANCELLED'}
-
+            
         svp['viparams']['visimcontext'] = 'Shadow'
 
         if not svp.get('liparams'):
@@ -2711,17 +2711,17 @@ class NODE_OT_COMLine(bpy.types.Operator, ExportHelper):
 #             if im.size[:] != (ipwidth, ipheight):
 #                 im.scale(ipwidth, ipheight)
 
-#         # im.pixels.foreach_set(rgba.ravel().astype(float32))
+        # im.pixels.foreach_set(rgba.ravel().astype(float32))
 
-#         # Opens new image window
-#         # area = bpy.context.area
-#         # t = area.type
-#         # area.type = 'IMAGE_EDITOR'
-#         # bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
-#         # win = bpy.context.window_manager.windows[-1]
-#         # win.screen.areas[0].spaces[0].show_region_header = 0
-#         # win.screen.areas[0].spaces[0].show_region_ui = 0
-#         # area.type = t
+        # Opens new image window
+        # area = bpy.context.area
+        # t = area.type
+        # area.type = 'IMAGE_EDITOR'
+        # bpy.ops.screen.area_dupli('INVOKE_DEFAULT')
+        # win = bpy.context.window_manager.windows[-1]
+        # win.screen.areas[0].spaces[0].show_region_header = 0
+        # win.screen.areas[0].spaces[0].show_region_ui = 0
+        # area.type = t
 
 
 # Node utilities from Matalogue
@@ -3422,7 +3422,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                 for b in b_dict[mat]:
                     b_file.write(f'{b}\n')
                     b_file.write(f'{b_dict[mat][b]}\n')
-
+                    
         boundnode.post_export()
         return {'FINISHED'}
 
@@ -3613,7 +3613,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         times.append(ti)
 
                 if vfs and times:
-                    logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[-1], vfs[-1]))
+                    logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[0], vfs[0]))
 
                     if 'Timestep' not in [r[1] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
