@@ -4343,6 +4343,9 @@ class No_Flo_Case(Node, ViNodes):
         if speed:
             self['k'] = 1.5*(0.1*speed)**2
             self['epsilon'] = 0.09**0.75*self['k']**1.5/10
+        else:
+            self['k'] = 0.001
+            self['epsilon'] = 0.001
 
     scenario: EnumProperty(items=[('0', 'External flow', 'Wind induced flow'), ('1', 'Internal flow', 'Internal forced flow'), ('2', 'Forced convection', 'Forced convection'),
                                   ('3', 'Free convection', 'Free convection'), ('4', 'Custom', 'Custom scenario')], name='', description='Scenario type', default=0, update=nodeupdate)
@@ -4365,7 +4368,7 @@ class No_Flo_Case(Node, ViNodes):
                         name='', description='Reference pressure', default=0, update=nodeupdate)
     p_ref_point: EnumProperty(items=ret_empty_menu, name='', description='Reference pressure point', update=nodeupdate)
     p_ref_val: FloatProperty(name="", description="Reference pressure value", min=-5000000, max=5000000, default=0.0, update=nodeupdate)
-    uval: FloatVectorProperty(size=3, name='', attr='Velocity', default=[5, 0, 0], unit='VELOCITY', subtype='VELOCITY', min=-100, max=100, update=nodeupdate)
+    uval: FloatVectorProperty(size=3, name='', attr='Velocity', default=[0, 0, 0], unit='VELOCITY', subtype='VELOCITY', min=-100, max=100, update=nodeupdate)
     uval_type: EnumProperty(name='', items=[('0', 'Vector', 'Air dirction and speed by vector'),
                                                  ('1', 'Azimuth', 'Transient simulation')], description='Velocity type', default='0', update=nodeupdate)
     uval_azi: FloatProperty(name="", description="Air direction azimuth (degrees from north)", min=0, max=360, default=0.0, update=nodeupdate)
@@ -4393,8 +4396,8 @@ class No_Flo_Case(Node, ViNodes):
 
     def init(self, context):
         self['exportstate'] = ''
-        self['k'] = 0.375
-        self['epsilon'] = 0.004
+        self['k'] = 0.001
+        self['epsilon'] = 0.001
         self.outputs.new('So_Flo_Case', 'Case out')
         nodecolour(self, 1)
 
