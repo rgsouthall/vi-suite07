@@ -96,17 +96,22 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
             if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export:
                 for emnode in mvp.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
-                        ln = mvp.id_data.name if emnode.envi_con_proxy == '0' else emnode.envi_con_base
+                        if emnode.envi_con_list:
+                            ln = mvp.id_data.name if emnode.envi_con_proxy == '0' else emnode.envi_con_base
 
-                        if emnode.envi_con_type == 'Window':
-                            en_idf.write(emnode.ep_write(mat.name, ln))
-                        else:
-                            if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
+                            if emnode.envi_con_type == 'Window':
                                 en_idf.write(emnode.ep_write(mat.name, ln))
+                            else:
+                                if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
+                                    en_idf.write(emnode.ep_write(mat.name, ln))
 
-                        if emnode.inputs['PV'].links:
-                            gen = 1
-                            pvs.append(emnode)
+                            if emnode.inputs['PV'].links:
+                                gen = 1
+                                pvs.append(emnode)
+                        else:
+                            exp_op.report({'ERROR'}, 'Construction {} has no selected construction'.format(mat.name))
+                            logentry('Construction {} has no selected construction. A previously selected database may not currently be selected'.format(mat.name))
+                            return 'ERROR'
 
         em.namedict = {}
         em.thickdict = {}
@@ -543,8 +548,11 @@ def pregeo(context, op):
 
                 if [f for f in ob.data.polygons if oms and oms[f.material_index].material and oms[f.material_index].material.vi_params.envi_nodes and
                         get_con_node(oms[f.material_index].material.vi_params).envi_con_type != 'None']:
+                    
                     selobj(context.view_layer, ob)
 
+                    if context.active_object and context.active_object.mode == 'EDIT':
+                        bpy.ops.object.editmode_toggle()
                     if ob.animation_data and ob.animation_data.action:
                         scene.frame_set(int(ob.animation_data.action.frame_range[0]))
 
