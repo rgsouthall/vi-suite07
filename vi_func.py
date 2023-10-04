@@ -938,7 +938,7 @@ def clearscene(context, op):
 
         context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
 
-    for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide_viewport]:
+    for ob in [ob for ob in scene.objects if ob.type == 'MESH' and ob.visible_get()]:
         if ob.vi_params.vi_type_string not in ('LiVi Calc', 'LiVi Res'):
             v, f, svv, svf = [0] * 4
 

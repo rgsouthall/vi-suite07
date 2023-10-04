@@ -111,7 +111,7 @@ def vi_info(node, dim, svp, **kwargs):
             creds = kwargs['creds']
             areas = kwargs['areas']
             area = kwargs['area']
-            acred = 0 if area < areas[0] else creds[[ia for ia, a in enumerate(areas) if area >= a * 100][-1]]
+            acred = 0 if area < areas[0] * 100 else creds[[ia for ia, a in enumerate(areas) if area >= a * 100][-1]]
             adfpos = 335 - aDF * 67.5 if aDF < 2 else 100 + 200/aDF
             adfheight = 335 - adfpos
             irpos = 335 - ir * 337.5 if ir < 0.3 else 100 + 25/ir
