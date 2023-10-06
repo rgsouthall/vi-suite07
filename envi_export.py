@@ -546,7 +546,7 @@ def pregeo(context, op):
                 ret_areas(ob)
                 oms = ob.material_slots
 
-                if [f for f in ob.data.polygons if oms and oms[f.material_index].material and oms[f.material_index].material.vi_params.envi_nodes and
+                if [f for f in ob.data.polygons if oms and f.material_index < len(oms) and oms[f.material_index].material and oms[f.material_index].material.vi_params.envi_nodes and
                         get_con_node(oms[f.material_index].material.vi_params).envi_con_type != 'None']:
                     
                     selobj(context.view_layer, ob)
@@ -631,7 +631,7 @@ def pregeo(context, op):
                 bmesh.ops.dissolve_degenerate(bm, dist=0.005, edges=bm.edges)
                 bmesh.ops.dissolve_limit(bm, angle_limit=0.001, use_dissolve_boundaries=False, verts=bm.verts, delimit={'MATERIAL'})
                 bmesh.ops.delete(bm, geom=[e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces], context='VERTS')
-                bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 0.001 or get_con_node(o.material_slots[f.material_index].material.vi_params).envi_con_type == 'None'], context='FACES')
+                bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.calc_area() < 0.001 or f.material_index > len(oms) or not get_con_node(oms[f.material_index].material.vi_params) or get_con_node(oms[f.material_index].material.vi_params).envi_con_type == 'None'], context='FACES')
                 bmesh.ops.triangulate(bm, faces=[face for face in bm.faces if not all([loop.is_convex for loop in face.loops])])
 
                 for s, sm in enumerate(o.material_slots):

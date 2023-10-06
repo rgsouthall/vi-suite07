@@ -50,7 +50,7 @@ def ret_areas(o):
     ofa = 0
 
     for face in o.data.polygons:
-        if omats and omats[face.material_index]:
+        if omats and face.material_index < len(omats) and omats[face.material_index]:
             if omats[face.material_index].vi_params.envi_nodes:
                 for node in omats[face.material_index].vi_params.envi_nodes.nodes:
                     if node.bl_idname == 'No_En_Mat_Con' and node.active:
