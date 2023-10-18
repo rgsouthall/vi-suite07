@@ -977,7 +977,7 @@ class No_Li_Im(Node, ViNodes):
             if self.fisheye and self.fov == 180:
                 self['viewparams'][sf]['-vta'] = ''
 
-            (self['viewparams'][sf]['-vh'], self['viewparams'][sf]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.2f}'.format(vh), '{:.2f}'.format(vv))
+            # (self['viewparams'][sf]['-vh'], self['viewparams'][sf]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.4f}'.format(vh), '{:.4f}'.format(vv))
             self['viewparams'][sf]['-vd'] = ' '.join(['{:.2f}'.format(v) for v in vd])
             self['viewparams'][sf]['-x'], self['viewparams'][sf]['-y'] = self.x, self.y
 

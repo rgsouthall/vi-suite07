@@ -494,16 +494,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
         simnode = context.node
         svp['viparams']['restree'] = simnode.id_data.name
         clearscene(context, self)
-        
+
         for o in scene.objects:
             o.vi_params.vi_type_string = ''
-                
+
         calcobs = retobjs('ssc')
 
         if not calcobs:
             self.report({'ERROR'}, "No objects have a light sensor material attached.")
             return {'CANCELLED'}
-            
+
         svp['viparams']['visimcontext'] = 'Shadow'
 
         if not svp.get('liparams'):
@@ -1520,42 +1520,31 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
     def imupdate(self, f):
         inp = ImageInput.open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
-        spec = inp.spec()
-        rgb = zeros((spec.height, spec.width, 3), float32)
 
-        for y in range(spec.height):
-            sl = inp.read_scanline(y, 0, "float32")
-            if not isinstance(sl, ndarray):
-                pass
+        if inp:
+            spec = inp.spec()
+            rgb = zeros((spec.height, spec.width, 3), float32)
+
+            for y in range(spec.height):
+                sl = inp.read_scanline(y, 0, "float32")
+                if not isinstance(sl, ndarray):
+                    pass
+                else:
+                    if sl.shape[0] == spec.width:
+                        rgb[y] = sl
+
+            rgba = concatenate((rgb[::-1, :, :], ones((spec.height, spec.width, 1), float32)), axis=2)
+
+            if 'livi_preview' not in bpy.data.images:
+                im = bpy.data.images.new('livi_preview', spec.width, spec.height, alpha=False, float_buffer=True)
+                im.file_format = 'HDR'
             else:
-                if sl.shape[0] == spec.width:
-                    rgb[y] = sl
+                im = bpy.data.images['livi_preview']
+                if im.size[:] != (spec.width, spec.height):
+                    im.scale(spec.width, spec.height)
 
-
-
-        rgba = concatenate((rgb[::-1, :, :], ones((spec.height, spec.width, 1), float32)), axis=2)
-
-        if 'livi_preview' not in bpy.data.images:
-            im = bpy.data.images.new('livi_preview', spec.width, spec.height, alpha=False, float_buffer=True)
-            im.file_format = 'HDR'
-        else:
-            im = bpy.data.images['livi_preview']
-            if im.size[:] != (spec.width, spec.height):
-                im.scale(spec.width, spec.height)
-
-        im.pixels.foreach_set(rgba.flatten())
-        inp.close()
-
-        # if 'liviimage' not in bpy.data.images:
-        #     im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
-        #     im.name = 'liviimage'
-
-        # bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
-        # bpy.data.images['liviimage'].reload()
-
-        # for area in bpy.context.screen.areas:
-        #     if area.type == 'IMAGE_EDITOR':
-        #         area.tag_redraw()
+            im.pixels.foreach_set(rgba.flatten())
+            inp.close()
 
     def terminate(self):
         self.kivyrun.kill()
@@ -1568,11 +1557,13 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                 rp.kill()
 
         self.simnode.postsim(self.images)
+
         if os.path.isfile(self.rpictfile):
             try:
                 os.remove(self.rpictfile)
             except:
                 pass
+
         return 'FINISHED'
 
     def execute(self, context):
@@ -1629,8 +1620,8 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                            '{}-{}'.format(self.pmfile, frame),  ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32']) for frame in range(self.fs, self.fe + 1)]
 
             self.rppmcmds = [('', ' -ap "{}" {}'.format('{}-{}.gpm'.format(self.fb, frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
-            self.rpictcmds = ['rpict -u -pa 0 -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ['rpiece -u -pa 0 -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ['rpict -u+ -pa 0 -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ['rpiece -u+ -pa 0 -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
 
             if simnode.normal or simnode.albedo:
                 for frame in range(self.fs, self.fe + 1):
@@ -3422,7 +3413,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                 for b in b_dict[mat]:
                     b_file.write(f'{b}\n')
                     b_file.write(f'{b_dict[mat][b]}\n')
-                    
+
         boundnode.post_export()
         return {'FINISHED'}
 

@@ -70,10 +70,7 @@ kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0
 
 
 def ret_dcoords(context):
-    if len(context.area.regions) == 6:
-        return (context.area.regions[0].height, context.area.regions[2].width, context.area.regions[5].height)
-    else:
-        return (context.area.regions[0].height, context.area.regions[2].width, context.area.regions[4].height)
+    return (context.area.regions[0].height, context.area.regions[2].width, context.area.regions[-1].height)
 
 
 def script_update(self, context):

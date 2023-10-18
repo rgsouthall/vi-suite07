@@ -63,22 +63,23 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
     svp = scene.vi_params
     ftext, gradfile, vtext = '', '', ''
     bm = obmesh.copy()
+    oms = o.material_slots
 
     if tri:
-        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if not o.material_slots[f.material_index].material.vi_params.pport])
+        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
     if not m_export:
         gradfile += radpoints(o, bm.faces, 0)
     else:
-        valid_fmis = [msi for msi, ms in enumerate(o.material_slots) if o.material_slots[msi].material]
-        o_mats = [o.material_slots[fmi].material for fmi in valid_fmis]
+        valid_fmis = [msi for msi, ms in enumerate(oms) if oms[msi].material]
+        o_mats = [oms[fmi].material for fmi in valid_fmis]
         mesh_faces = [f for f in bm.faces if f.material_index in valid_fmis]
         mrms = array([m.vi_params.radmatmenu for m in o_mats if m])
         mpps = array([not m.vi_params.pport for m in o_mats if m])
         mnpps = where(mpps, 0, 1)
         mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))
         fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert=True)
-        mfaces = [f for f in mesh_faces if o.material_slots[f.material_index].material and (mmrms * mpps)[valid_fmis.index(f.material_index)]]
-        ffaces = [f for f in mesh_faces if o.material_slots[f.material_index].material and (fmrms + mnpps)[valid_fmis.index(f.material_index)]]
+        mfaces = [f for f in mesh_faces if oms[f.material_index].material and (mmrms * mpps)[valid_fmis.index(f.material_index)]]
+        ffaces = [f for f in mesh_faces if oms[f.material_index].material and (fmrms + mnpps)[valid_fmis.index(f.material_index)]]
         mmats = [mat for mat in o_mats if mat and mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
@@ -181,7 +182,7 @@ def radgexport(export_op, node):
             ovp.vi_type_string = 'LiVi Calc'
         else:
             ovp.vi_type_string = ''
-        
+
         o.vi_params.vi_type = ovt
 
     for frame in frames:
@@ -265,9 +266,9 @@ def radgexport(export_op, node):
 
                     if sys.platform == 'win32':
                         dat_str = dat_str.replace("lights/", "lights\\")
-                    
+
                     dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
-                    
+
                     for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u', f'-{frame}.s'):
                         dat_str = dat_str.replace(iesname+suf, f'"{iesname}{suf}"')
 
