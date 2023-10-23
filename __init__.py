@@ -76,7 +76,7 @@ else:
         print('VI-Suite: Using system libraries')
     
     elif not all(install_fails):
-        print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PyQt6', 'Matlotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
+        print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PyQt6', 'Matplotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
         for ifi, ifs in enumerate(install_fails):
             if ifs:
                 install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6', 'Matplotlib', 'Kivy'][ifi])
@@ -213,7 +213,7 @@ else:
         import netgen
     except:
         if sys.platform == 'linux':
-            print('For Netgen functionality, a system install of Blender, PyQt6, Kivy, Matplotlib and Netgen is required')
+            print('For Netgen functionality on linux, a system install of Blender, PyQt6, Kivy, Matplotlib and Netgen is required')
         else:
             ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()
