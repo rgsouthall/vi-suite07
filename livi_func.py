@@ -853,8 +853,8 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if svp['liparams']['cp'] == '1' else [f.calc_center_median() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join([str(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join([str(p[1]) for p in posis])])
+        reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join([str(p[2]) for p in posis])])
         reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Area', ' '.join([str(a) for a in areas])])
 
         if simnode['coptions']['unit'] == 'klxh':

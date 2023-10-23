@@ -71,13 +71,17 @@ else:
     except:
         print('System Kivy not found')
         install_fails.append(1)
-
+    
     if not any(install_fails):
         print('VI-Suite: Using system libraries')
-
+    
     elif not all(install_fails):
-        print('System Python has some required packages but not all. Install {} on your system'.format(', '.join([['PyQt6', 'Matlotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
-        bpy.context.window_manager.popup_menu(lambda wm, context: wm.popup_menu(text='System Python has some required packages but not all. Install {} on your system'.format(', '.join([['PyQt6', 'Matlotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])), title="Error", icon='ERROR'))
+        print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PyQt6', 'Matlotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
+        for ifi, ifs in enumerate(install_fails):
+            if ifs:
+                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6', 'Matplotlib', 'Kivy'][ifi])
+                print('Attempting system installation of {}'.format(['PyQt6', 'Matplotlib', 'Kivy'][ifi]))
+                Popen(shlex.split(install_cmd)).wait()
 
     elif all(install_fails) and (sys.version_info[0] > 3 or sys.version_info[1] >= 9):
         print("Setting library paths")
@@ -208,8 +212,8 @@ else:
     try:
         import netgen
     except:
-        if sys.platform == 'linux2':
-            print('For Netgen functionality, system install of Blender, PyQt6, Kivy, Matplotlib and Netgen is required')
+        if sys.platform == 'linux':
+            print('For Netgen functionality, a system install of Blender, PyQt6, Kivy, Matplotlib and Netgen is required')
         else:
             ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()
