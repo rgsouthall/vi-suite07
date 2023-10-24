@@ -54,6 +54,8 @@ else:
         install_fails.append(1)
 
     try:
+        import matplotlib
+        matplotlib.use('qtagg', force=True)
         import matplotlib.pyplot as plt
         plt.text(0, 0, 'dummy')
         plt.clf()

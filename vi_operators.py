@@ -58,6 +58,7 @@ except Exception as e:
 
 try:
     import matplotlib
+    #if sys.platform != 'darwin':
     matplotlib.use('qtagg', force=True)
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
