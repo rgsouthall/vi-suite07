@@ -137,7 +137,7 @@ def leg_update(self, context):
             if svp.vi_res_process == '2' and svp.script_file:
                 nmatis = array(ovals).astype(int8)
             else:
-                nmatis = digitize(vals, bins)
+                nmatis = digitize(vals, bins, right=False).clip(0, svp.vi_leg_levels - 1)
 
             if len(frames) == 1:
                 o.data.polygons.foreach_set('material_index', nmatis)
@@ -565,11 +565,15 @@ class results_bar():
         self.iyoffset = self.yoffset + (self.size - self.isize)/2
         self.ixoffset = self.isize + 5
         self.iyoffsetb = self.iyoffset + self.isize
+        self.ipos = []
 
-        for im in images:
+        for ii, im in enumerate(images):
             if im not in bpy.data.images:
                 bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Images', im))
+            
             self.shaders.append(gpu.shader.from_builtin('2D_IMAGE'))
+            pos = self.ret_coords(self.xpos, self.rh, ii)
+            self.ipos.append(pos)
 
     def ret_coords(self, xpos, rh, no):
         return ((xpos + 5 + no * self.size, rh - self.iyoffsetb),
