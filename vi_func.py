@@ -667,10 +667,11 @@ def lividisplay(self, scene):
             bm.from_mesh(self.id_data.data)
             geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces
             sf = str(frame)
+            res_name = f'{svp.li_disp_menu}{frame}' if svp.li_disp_menu != 'aga1v' else f'aga{svp.vi_views}v{frame}'
 
-            if geom.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
-                livires = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
-                res = geom.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+            if geom.layers.float.get(res_name):
+                livires = geom.layers.float[res_name]
+                res = geom.layers.float[res_name]
                 oreslist = [g[livires] for g in geom]
                 self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
 
@@ -1741,7 +1742,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             ysize = int(0.5 * blf.dimensions(0, nres[0])[1])
 
             for ad in alldata:
-                blf.size(0, ad[1], dpi)
+                blf.size(0, ad[1] * dpi/72)
                 blf.position(0, ad[2] - int(0.5*blf.dimensions(0, ad[0])[0]), ad[3] - ysize, 0)
                 blf.draw(0, ad[0])
 
@@ -1753,7 +1754,7 @@ def draw_index(posis, res, dists, fontsize, fontcol, shadcol):
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]
 
     for ri, nr in enumerate(nres):
-        blf.size(0, int(0.25 * fontsize + 0.25 * fontsize * (max(dists) - dists[ri])/(max(dists) - min(dists))), 150)
+        blf.size(0, int(0.25 * fontsize + 0.25 * fontsize * (max(dists) - dists[ri])/(max(dists) - min(dists)))* 150/72)
         blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.0)
         blf.draw(0, nr)
     blf.disable(0, 4)
@@ -1773,16 +1774,15 @@ def blf_props(scene, width, height):
     if svp.vi_display_rp_sh:
         blf.enable(0, 4)
         blf.shadow(0, 3, *svp.vi_display_rp_fsh)
-#    bgl.glColor4f(*scene.vi_display_rp_fc)
+
     blf.color(0, *svp.vi_display_rp_fc)
-    blf.size(0, svp.vi_display_rp_fs, int(width/20))
+    blf.size(0, svp.vi_display_rp_fs * int(width/20)/72)
 
 
 def blf_unprops():
     blf.disable(0, 2)
     blf.disable(0, 4)
     blf.color(0, 0, 0, 1)
-#    bgl.glColor4f(0, 0, 0, 1)
 
 
 def edgelen(ob, edge):

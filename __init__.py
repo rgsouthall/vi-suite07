@@ -275,7 +275,7 @@ else:
     from .vi_node import So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay, logentry, ob_to_stl, ec_update
-    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, radmat, retsv
+    from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, adgpcalcapply, radmat, retsv
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype, envi_embodied
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu
@@ -363,6 +363,8 @@ def unititems(self, context):
                     ('firradg', 'W (green)', 'Green irradiance'),
                     ('firradbm2', 'W/m2 (blue)', 'Blue irradiance per metre square'),
                     ('firradb', 'W (blue)', 'Blue irradiance')]
+        elif svp['liparams']['unit'] == 'GA (%)':
+            return [('aga1v', 'GA (%)', 'Glare autonomy')]
         else:
             return [('None', 'None', 'None')]
 
@@ -382,6 +384,13 @@ def ret_envi_mats(self, context):
 def bsdf_direcs(self, context):
     try:
         return [tuple(i) for i in context.scene.vi_params['liparams']['bsdf_direcs']]
+    except Exception:
+        return [('None', 'None', 'None')]
+
+
+def ga_views(self, context):
+    try:
+        return [(str(i + 1), f'View {i + 1}', f'View {i + 1}') for i in range(context.scene.vi_params['liparams']['views'])]
     except Exception:
         return [('None', 'None', 'None')]
 
@@ -454,6 +463,18 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         else:
             self.id_data.frame_set(value)
             self['vi_frames'] = value
+
+    def get_view(self):
+        return self.get('vi_views', self['liparams']['views'])
+
+    def set_view(self, value):
+        if value > self['liparams']['views']:
+            self['vi_views'] = self['liparams']['views']
+        elif value < 1:
+            self['vi_views'] = 1
+        else:
+            #self.id_data.frame_set(value)
+            self['vi_views'] = value
 
     vi_name = sprop("", "VI-Suite addon directory name", 1024, "")
     year: iprop("", 'Year', 2019, 2020, 2019)
@@ -531,6 +552,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_bsdfleg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0)
     vi_bsdfleg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0')
     vi_bsdf_font: iprop("", "Font size for BSDF numerical display", 0, 48, 0)
+    #vi_views: EnumProperty(items=ga_views, name="", description="GA views", update=livires_update)
+    vi_views: IntProperty(name="", description="GA views", get=get_view, set=set_view, update=livires_update)
     en_disp_type: EnumProperty(items=enparametric, name="", description="Type of EnVi display")
     vi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
@@ -583,6 +606,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     udidacalcapply = udidacalcapply
     lividisplay = lividisplay
     lhcalcapply = lhcalcapply
+    adgpcalcapply = adgpcalcapply
     li_bsdf_direc: EnumProperty(items=[('+b -f', 'Backwards', 'Backwards BSDF'),
                                        ('+f -b', 'Forwards', 'Forwards BSDF'),
                                        ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name='', description='BSDF direction', default='+b -f')
@@ -644,7 +668,6 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                                   default="kg")
     ec_amount: FloatProperty(name="", description="Amount of the declared unit", min=0.001, default=1, precision=3)
     ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
-    # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
@@ -657,7 +680,6 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
     amask: StringProperty(name="", description="Name of the alpha mask file", default="", subtype="FILE_PATH")
     radnorm: bprop("", "Flag to signify whether the material has a normal map associated with it", False)
-    # ns: fprop("", "Strength of normal effect", 0, 5, 1)
     nu: fvprop(3, '', 'Image up vector', [0, 0, 1], 'XYZ', -1, 1)
     nside: fvprop(3, '', 'Image side vector', [-1, 0, 0], 'XYZ', -1, 1)
     radcolour: fvprop(3, "Material Reflectance", 'Material Reflectance', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
@@ -689,7 +711,6 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     BSDF: bprop("", "Flag to signify a BSDF material", False)
     mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
-    #envi_reversed: bprop("", "Create the reverse of an exsiting EnVi material", False)
     envi_rev_enum: EnumProperty(items=ret_envi_mats, name='', description='EnVi material')
     envi_type: sprop("", "EnVi Material type", 64, "None")
     envi_shading: bprop("", "Flag to signify whether the material contains shading elements", False)
@@ -715,7 +736,6 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     li_dirt_level: fprop("", "Level of reflectivity reduction", 0, 1, 0.5)
 
     # FloVi Materials
-    #flovi_bmb_type: eprop([("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
     flovi_bmb_type: EnumProperty(items=ret_fvb_menu, name="", description="FloVi boundary")
     flovi_mat = fvmat
     flovi_bmbp_subtype: EnumProperty(items=ret_fvbp_menu, name="", description="FloVi boundary sub-type")
@@ -750,17 +770,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
 
     flovi_bmbe_subtype: EnumProperty(items=ret_fvbepsilon_menu, name="", description="FloVi epsilon sub-type boundary")
     flovi_bmbe_val: FloatProperty(name="", description="Epsilon value", min=0.0001, max=1, default=0.001, precision=4)
-    # flovi_eml_val: fprop("", "Mixing length", 0.001, 1000, 0.001)
     flovi_eml_val: FloatProperty(name="", description="Mixing length", min=0.001, max=1, default=0.005, precision=4)
     flovi_e_field: bprop("", "Take boundary epsilon from the field epsilon", False)
-
-    # flovi_bmbo_subtype: EnumProperty(items = ret_fvbomega_menu, name = "", description = "FloVi sub-type boundary")
-    # flovi_bmbo_val: fprop("", "Omega value", -1000, 1000, 0.0)
-    # flovi_o_field: bprop("", "Take boundary omega from the field omega", False)
-
-    # flovi_bmbnutilda_subtype: EnumProperty(items = ret_fvbnutilda_menu, name = "", description = "FloVi sub-type boundary")
-    # flovi_bmbnutilda_val: fprop("", "NuTilda value", -1000, 1000, 0.0)
-    # flovi_nutilda_field: bprop("", "Take boundary nutilda from the field nutilda", False)
 
     flovi_bmbt_subtype: EnumProperty(items = ret_fvbt_menu, name = "", description = "FloVi sub-type boundary")
     flovi_bmbt_val: fprop("", "T value", 0, 1000, 300)
@@ -813,7 +824,6 @@ class VI_Params_Collection(bpy.types.PropertyGroup):
                                   default="kg")
     ec_amount: FloatProperty(name="", description="Amount of the declared unit", min=0.001, default=1, precision=3)
     ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
-    # ec_m2: FloatProperty(name="", description="Embodied carbon per area amount", default=100)
     ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)

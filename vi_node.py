@@ -410,7 +410,7 @@ class No_Li_Con(Node, ViNodes):
     buildstorey: EnumProperty(items=[("0", "Single", "Single storey building"), ("1", "Multi", "Multi-storey building")],
                               name="", description="Building storeys", default="0", update=nodeupdate)
     cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"),
-                      ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics")]
+                      ('2', "DA/UDI/SDA/ASE", "Climate based daylighting metrics"), ('3', "Glare", "Annual DGP")]
     cbanalysismenu: EnumProperty(name="", description="Type of lighting analysis", items=cbanalysistype, default='0', update=nodeupdate)
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "HDR", "HDR sky file")]
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
@@ -440,6 +440,10 @@ class No_Li_Con(Node, ViNodes):
     ay: BoolProperty(name='', description='All year simulation',  default=False, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
     sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
+    dgp_views: IntProperty(name='', default=1, min=1, description='DGP views', update=nodeupdate)
+    dgp_azi: IntProperty(name='', default=0, min=0, description='First view azimuth', update=nodeupdate)
+    dgp_hourly: BoolProperty(name='', default=0, description='Produce hourly results', update=nodeupdate)
+    dgp_thresh: IntProperty(name='', default=40, min=0, max=100, description='Glare probability threshold', update=nodeupdate)
 
     def init(self, context):
         self['exportstate'], self['skynum'] = '', 0
@@ -448,7 +452,6 @@ class No_Li_Con(Node, ViNodes):
         self.outputs.new('So_Li_Con', 'Context out')
         self.inputs.new('So_Vi_Loc', 'Location in')
         self.outputs['Context out'].hide = True
-        # self.outputs.new('So_Anim', 'Parameter')
         nodecolour(self, 1)
         self.hdrname = ''
         self.skyname = ''
@@ -534,15 +537,12 @@ class No_Li_Con(Node, ViNodes):
             if self.cbanalysismenu == '2':
                 newrow(layout, 'LEED v4:', self, 'leed4')
 
-            if self.cbanalysismenu in ('0', '1') or (self.cbanalysismenu == '2' and not self.leed4):
+            if self.cbanalysismenu in ('0', '1', '3') or (self.cbanalysismenu == '2' and not self.leed4):
                 if not self.ay:
-                    newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
-
-                    # if self.cbanalysismenu in ('0', '1'):
-                    #     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
-                    # else:
-                    newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "cbdm_edoy")
-
+                    if self.cbanalysismenu != '3':
+                        newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+                        newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "cbdm_edoy")
+                    
                     newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
                     newrow(layout, 'End hour:', self, 'cbdm_end_hour')
 
@@ -556,6 +556,15 @@ class No_Li_Con(Node, ViNodes):
                     newrow(layout, 'ASE level:', self, 'asemax')
                     row = layout.row()
                     row.label(text="--")
+
+                elif self.cbanalysismenu == '3':
+                    newrow(layout, 'Hourly DGP:', self, 'dgp_hourly')
+                    
+                    if not self.dgp_hourly:
+                        newrow(layout, 'DGP threshold:', self, 'dgp_thresh')
+
+                    newrow(layout, 'Views:', self, 'dgp_views')
+                    newrow(layout, 'Azimuth:', self, 'dgp_azi')
 
             elif self.cbanalysismenu == '2' and self.leed4:
                 newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
@@ -773,7 +782,7 @@ class No_Li_Con(Node, ViNodes):
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
         basic_unit = 'W/m2' if self.sp else (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1']
         unitdict = {'Basic': basic_unit,
-                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)')[int(self.cbanalysismenu)]}
+                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)', 'GA (%)')[int(self.cbanalysismenu)]}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu],
                            'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour,
                            'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval,
@@ -784,7 +793,8 @@ class No_Li_Con(Node, ViNodes):
                            'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
                            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
                            'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
-                           'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay}
+                           'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay, 'ga_views': self.dgp_views, 'dgp_azi': self.dgp_azi,
+                           'dgp_thresh': self.dgp_thresh, 'dgp_hourly': self.dgp_hourly}
 
         # if self._valid:
         nodecolour(self, 0)

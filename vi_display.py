@@ -70,7 +70,7 @@ kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0
 
 
 def ret_dcoords(context):
-    return (context.area.regions[0].height, context.area.regions[2].width, context.area.regions[-1].height)
+    return (context.area.regions[0].height + context.area.regions[1].height, context.area.regions[4].width, context.area.regions[-1].height)
 
 
 def script_update(self, context):
@@ -108,6 +108,7 @@ def leg_update(self, context):
         bm = bmesh.new()
         bm.from_mesh(o.data)
         cmap(self)
+        
 
         if len(o.material_slots) != svp.vi_leg_levels:
             for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels)]:
@@ -118,11 +119,13 @@ def leg_update(self, context):
                 bpy.ops.object.material_slot_remove()
 
         for f, frame in enumerate(frames):
-            if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
-                livires = bm.faces.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+            res_name = '{}{}'.format(svp.li_disp_menu, frame) if svp.li_disp_menu != 'aga1v' else 'aga{}v{}'.format(svp.vi_views, frame)
+
+            if bm.faces.layers.float.get(res_name):
+                livires = bm.faces.layers.float[res_name]
                 ovals = array([f[livires] for f in bm.faces])
-            elif bm.verts.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
-                livires = bm.verts.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+            elif bm.verts.layers.float.get(res_name):
+                livires = bm.verts.layers.float[res_name]
                 ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
 
             ovals = array(ret_res_vals(svp, ovals))
@@ -169,12 +172,14 @@ def e_update(self, context):
     svp = scene.vi_params
     maxo, mino = svp.vi_leg_max, svp.vi_leg_min
     odiff = svp.vi_leg_max - svp.vi_leg_min
-
+    
     if context.active_object and context.active_object.mode == 'EDIT':
         return
 
     if odiff:
         for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+            res_name = '{}{}'.format(svp.li_disp_menu, frame) if svp.li_disp_menu != 'aga1v' else 'aga{}v{}'.format(svp.vi_views, frame)
+
             for o in [obj for obj in bpy.data.objects if obj.vi_params.vi_type_string == 'LiVi Res' and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:
                 ovp = o.vi_params
                 bm = bmesh.new()
@@ -184,10 +189,10 @@ def e_update(self, context):
                 skf = bm.verts.layers.shape[str(frame)]
 
                 if str(frame) in ovp['omax']:
-                    if bm.faces.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
+                    if bm.faces.layers.float.get(res_name):
                         extrude = bm.faces.layers.int['extrude']
 
-                        res = bm.faces.layers.float['{}{}'.format(svp.li_disp_menu, frame)]  # if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]
+                        res = bm.faces.layers.float[res_name]  # if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]
                         faces = [f for f in bm.faces if f[extrude]]
                         fnorms = array([f.normal.normalized() for f in faces]).T
                         fres = array([f[res] for f in faces])
@@ -198,8 +203,8 @@ def e_update(self, context):
                             for v in face.verts:
                                 v[skf] = v[skb] + mathutils.Vector(extrudes[f])
 
-                    elif bm.verts.layers.float.get('{}{}'.format(svp.li_disp_menu, frame)):
-                        res = bm.verts.layers.float['{}{}'.format(svp.li_disp_menu, frame)]
+                    elif bm.verts.layers.float.get(res_name):
+                        res = bm.verts.layers.float[res_name]
                         vnorms = array([v.normal.normalized() for v in bm.verts]).T
                         vres = array([v[res] for v in bm.verts])
                         extrudes = multiply(vnorms, svp.vi_disp_3dlevel * ((vres-mino)/odiff)).T if svp.vi_leg_scale == '0' else \
@@ -455,7 +460,7 @@ class linumdisplay():
             bm.from_object(ob, dp)
             bm.transform(ob.matrix_world)
             bm.normal_update()
-            var = svp.li_disp_menu
+            var = svp.li_disp_menu if svp.li_disp_menu != 'aga1v' else 'aga{}v'.format(svp.vi_views)
 
             if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
                 geom = bm.faces
@@ -522,7 +527,7 @@ class linumdisplay():
                     except Exception:
                         (verts, pcs, depths) = ([], [], [])
 
-                    res = array([v[livires] for v in verts])#  if not svp.vi_res_mod else [eval('{}{}'.format(v[livires], svp.vi_res_mod)) for v in verts]
+                    res = array([v[livires] for v in verts])
                     res = ret_res_vals(svp, res)
             bm.free()
 
@@ -555,7 +560,7 @@ class results_bar():
         self.images = images
         self.rh = 0
         self.xpos = 0
-        self.shaders = [gpu.shader.from_builtin('2D_UNIFORM_COLOR'), gpu.shader.from_builtin('2D_UNIFORM_COLOR')]
+        self.shaders = [gpu.shader.from_builtin('UNIFORM_COLOR'), gpu.shader.from_builtin('UNIFORM_COLOR')]
         self.f_indices = ((0, 1, 2), (2, 3, 0))
         self.tex_coords = ((0, 0), (1, 0), (1, 1), (0, 1))
         self.no = len(images)
@@ -571,7 +576,7 @@ class results_bar():
             if im not in bpy.data.images:
                 bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Images', im))
             
-            self.shaders.append(gpu.shader.from_builtin('2D_IMAGE'))
+            self.shaders.append(gpu.shader.from_builtin('IMAGE'))
             pos = self.ret_coords(self.xpos, self.rh, ii)
             self.ipos.append(pos)
 
@@ -846,11 +851,11 @@ class draw_bsdf(Base_Display):
             b_colours = [(1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1), (1, 1, 1, 1)]
             self.back_shader = gpu.shader.create_from_info(arc_shader)
             self.arcline_shader = gpu.shader.create_from_info(line_shader)
-            self.image_shader = gpu.shader.from_builtin('2D_IMAGE')
+            self.image_shader = gpu.shader.from_builtin('IMAGE')
             self.vi2_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1])]
             self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"pos": self.vi2_coords, "texCoord": self.tex_coords})
             self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
-            self.iimage_shader = gpu.shader.from_builtin('2D_IMAGE')
+            self.iimage_shader = gpu.shader.from_builtin('IMAGE')
             self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"pos": self.vi3_coords, "texCoord": self.tex_coords})
             self.back_batch = batch_for_shader(self.back_shader, 'TRIS', {"position": b_coords, "colour": b_colours}, indices=b_indices)
 
@@ -931,7 +936,7 @@ class wr_legend(Base_Display):
 
         self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
         self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"
-        blf.size(self.font_id, 12, self.dpi)
+        blf.size(self.font_id, 12 * self.dpi/72)
         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
@@ -971,13 +976,13 @@ class wr_legend(Base_Display):
             blf.enable(self.font_id, 4)
             blf.enable(self.font_id, 8)
             # blf.shadow(self.font_id, 3, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, 12, int(self.dpi/fontscale))
+            blf.size(self.font_id, 12 * int(self.dpi/fontscale*72))
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
                          self.lepos[1] - 0.5 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
             # blf.shadow(self.font_id, 3, 0.8, 0.8, 0.8, 1)
-            blf.size(self.font_id, 14, int(self.dpi/fontscale))
+            blf.size(self.font_id, 14* int(self.dpi/fontscale*72))
 
             for i in range(self.levels):
                 num = self.resvals[i]
@@ -1124,7 +1129,7 @@ class wr_table(Base_Display):
         rno = len(self.rcarray)
         cno = len(self.rcarray[0])
         rh = 1/rno
-        blf.size(0, 24, 300)
+        blf.size(0, 24*300/72)
         ctws = array([int(max([blf.dimensions(0, 'u{}'.format(e))[0] for e in entry])) for entry in self.rcarray.T])
         ctws = ctws/sum(ctws)
         ctws = [sum(ctws[:i]) for i in range(4)] + [1]
@@ -1177,7 +1182,7 @@ class wr_table(Base_Display):
             blf.enable(fid, 4)
             blf.enable(fid, 8)
             # blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-            blf.size(fid, 24, 300)
+            blf.size(fid, 24*300/72)
             rcshape = self.rcarray.shape
             [rowno, colno] = self.rcarray.shape
             ctws = array([int(max([blf.dimensions(fid, '{}'.format(e))[0] for e in entry])) for entry in self.rcarray.T])
@@ -1197,7 +1202,7 @@ class wr_table(Base_Display):
             if abs(max(colscale, rowscale) - 1) > 0.05:
                 self.fontdpi = int(280/max(colscale, rowscale))
 
-            blf.size(fid, 24, self.fontdpi)
+            blf.size(fid, 24 * self.fontdpi/72)
             blf.color(fid, 0, 0, 0, 1)
 
             for r in range(rcshape[0]):
@@ -1257,7 +1262,7 @@ class draw_legend(Base_Display):
                 self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
 
             self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(5)][:-1]
-            blf.size(self.font_id, 12, self.dpi)
+            blf.size(self.font_id, 12 * self.dpi/72)
             self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
             self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
             self.mydimen = blf.dimensions(self.font_id, 'M')[1]
@@ -1331,14 +1336,14 @@ class draw_legend(Base_Display):
             blf.enable(self.font_id, 8)
             blf.enable(self.font_id, blf.SHADOW)
             blf.shadow(self.font_id, 3, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, int(12/tfontscale), self.dpi)
+            blf.size(self.font_id, int(12/tfontscale) * self.dpi/72)
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
                          self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, 'M')[1] * 0.5, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
             # blf.disable(self.font_id, blf.SHADOW)
             lfontscale = max(self.resxdimen/(self.xdiff * 0.45), self.mydimen * 1.15/(self.lh * self.ydiff))
-            blf.size(self.font_id, int(11/lfontscale), self.dpi)
+            blf.size(self.font_id, int(11/lfontscale) * self.dpi/72)
 
             for i in range(1, self.levels):
                 num = self.resvals[i]

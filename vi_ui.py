@@ -142,6 +142,10 @@ class VI_PT_3D(bpy.types.Panel):
                 elif [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
                     if not svp.ss_disp_panel:
                         newrow(layout, 'Result type:', svp, "li_disp_menu")
+
+                        if svp.li_disp_menu == 'aga1v':
+                            newrow(layout, 'GA view:', svp, "vi_views")
+
                         newrow(layout, 'Legend unit:', svp, "vi_leg_unit")
                         newrow(layout, 'Processing:', svp, "vi_res_process")
 

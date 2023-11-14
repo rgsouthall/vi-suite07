@@ -1381,6 +1381,16 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 else:
                     self.reslists += cbdmout
 
+            elif scontext == 'CBDM' and subcontext == '3':
+                cbdmout = ovp.adgpcalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
+
+                if cbdmout == 'CANCELLED':
+                    if self.kivyrun.poll() is None:
+                        self.kivyrun.kill()
+                    return {'CANCELLED'}
+                else:
+                    self.reslists += cbdmout
+
         if self.kivyrun.poll() is None:
             self.kivyrun.kill()
 

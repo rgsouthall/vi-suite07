@@ -17,9 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil
+from math import sin, cos, pi
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and
+from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
@@ -777,7 +778,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         gps = [g for g in geom if g[rt]]
         areas = array([g.calc_area() for g in gps] if svp['liparams']['cp'] == '0' else [vertarea(bm, g) for g in gps])
 
-        for chunk in chunks(gps, int(svp['viparams']['nproc']) * 200):
+        for chunk in chunks(gps, int(svp['viparams']['nproc']) * 20):
             careas = array([c.calc_area() if svp['liparams']['cp'] == '0' else vertarea(bm, c) for c in chunk])
             rtrun = Popen(shlex.split(rtcmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
             logentry('Running rtrace with command: {}'.format(rtcmds[f]))
@@ -959,7 +960,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         areas = array([g.calc_area() for g in rgeom] if svp['liparams']['cp'] == '0' else [vertarea(bm, g) for g in rgeom])
         totarea = sum(areas)
 
-        for ch, chunk in enumerate(chunks([g for g in rgeom], int(svp['viparams']['nproc']) * 40)):
+        for ch, chunk in enumerate(chunks([g for g in rgeom], int(svp['viparams']['nproc']) * 20)):
             if not ch:
                 logentry(f"Running rcontrib with the command: {rccmds[f]}")
 
@@ -1194,5 +1195,152 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     bm.to_mesh(self.id_data.data)
     bm.free()
     return reslists
+
+def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
+    svp = scene.vi_params
+    self['livires'] = {}
+    reslists = []
+    selobj(bpy.context.view_layer, self.id_data)
+    bm = bmesh.new()
+    bm.from_mesh(self.id_data.data)
+    bm.transform(self.id_data.matrix_world)
+    bm.normal_update()
+    clearlayers(bm, 'f')
+    geom = bm.faces if svp['liparams']['cp'] == '0' else bm.verts
+    self['omax'], self['omin'], self['oave'] = {}, {}, {}
+    mtxlines = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines()
+    mtxlinesns = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines()
+    cbdm_res = (1, 2, 4)[(146, 578, 2306).index(simnode['coptions']['cbdm_res'])]
+
+    for line in mtxlines:
+        if line.split("=")[0] == 'NROWS':
+            patches = int(line.split("=")[1])
+            break
+
+    if self.get('wattres'):
+        del self['wattres']
+
+    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]
+    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(2015, 1, 1).weekday(), simnode, times)
+    vecvalsns, valsns = mtx2vals(mtxlinesns, datetime.datetime(2015, 1, 1).weekday(), simnode, times)
+    cbdm_days = list(set([t.timetuple().tm_yday for t in times]))
+    cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'] + 1)]
+    dno, hno = len(cbdm_days), len(cbdm_hours)
+    vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
+    vecvalsns = array([vv[2:] for vv in vecvalsns if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
+    hours = vecvals.shape[0]
+    logentry(f'Running annual glare calculation over {hours} hours')
+    hour_array = array([t.hour for t in times])
+    self['livires']['cbdm_days'] = cbdm_days
+    self['livires']['cbdm_hours'] = cbdm_hours
+
+    for f, frame in enumerate(frames):
+        if simnode['coptions']['dgp_hourly']:
+            reslists.append([str(frame), 'Time', 'Time', 'Month', ' '.join([str(t.month) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
+            reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+        agas = []
+        
+        for agv in range(simnode['coptions']['ga_views']):
+            geom.layers.float.new('{}{}'.format(f'aga{agv + 1}v', frame))
+            agas.append(geom.layers.float['{}{}'.format(f'aga{agv + 1}v', frame)])
+
+        if geom.layers.string.get('rt{}'.format(frame)):
+            rtframe = frame
+        else:
+            kints = [int(k[2:]) for k in geom.layers.string.keys()]
+            rtframe = max(kints) if frame > max(kints) else min(kints)
+
+        rt = geom.layers.string['rt{}'.format(rtframe)]
+        
+        if not geom.layers.string.get('rv{}'.format(frame)):
+            geom.layers.string.new('rv{}'.format(rtframe))
+        
+        rv = geom.layers.string['rv{}'.format(rtframe)]
+
+        rgeom = [f for f in bm.faces if f[rt]] if svp['liparams']['cp'] == '0' else [v for v in bm.verts if v[rt]]
+        reslen = len(rgeom)
+        views_text = ''
+        view_texts = []
+
+        for r in geom:
+            for view in range(simnode['coptions']['ga_views']):
+                if not view:
+                    r[rv] = '{} {:.3f} {:.3f} 0'.format(' '.join(r[rt].decode('utf-8').split()[:3]), sin(simnode['coptions']['dgp_azi']*pi/180), cos(simnode['coptions']['dgp_azi'] * pi/180)).encode('utf-8')
+                    views_text += '{} {:.3f} {:.3f} 0\n'.format(' '.join(r[rt].decode('utf-8').split()[:3]), 
+                                                                        sin(simnode['coptions']['dgp_azi']*pi/180), 
+                                                                        cos(simnode['coptions']['dgp_azi'] * pi/180))                   
+                else:
+                    r[rv] = '{} {:.3f} {:.3f} 0'.format(' '.join(r[rt].decode('utf-8').split()[:3]), 
+                                                                sin((simnode['coptions']['dgp_azi'] + view * 360/simnode['coptions']['ga_views'])*pi/180),
+                                                                cos((simnode['coptions']['dgp_azi'] + view * 360/simnode['coptions']['ga_views'])*pi/180)).encode('utf-8')
+                    views_text += '{} {:.3f} {:.3f} 0\n'.format(' '.join(r[rt].decode('utf-8').split()[:3]), 
+                                                                        sin((simnode['coptions']['dgp_azi'] + view * 360/simnode['coptions']['ga_views'])*pi/180),
+                                                                        cos((simnode['coptions']['dgp_azi'] + view * 360/simnode['coptions']['ga_views'])*pi/180))
+        
+        with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 'w') as vf_file:
+            vf_file.write(views_text)
+        
+        rareas = array([g.calc_area() for g in rgeom] if svp['liparams']['cp'] == '0' else [vertarea(bm, g) for g in rgeom])
+        rpos = array([g.calc_center_median() for g in rgeom] if svp['liparams']['cp'] == '0' else [g.co for g in rgeom])
+        totarea = sum(rareas)
+        dc1_cmd = 'rcontrib -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -n {} -m sky_glow -I+ -ab 1 -ad 50000 -lw .00002 -lr -10 -faf "{}-{}.oct"'.format(cbdm_res, svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
+        dc8_cmd = 'rcontrib -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -n {} -m sky_glow -I+ -ab 8 -ad 50000 -lw .00002 -lr -10 -faf "{}-{}.oct"'.format(cbdm_res, svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
+        
+        with open("{}-{}.dc1".format(svp['viparams']['filebase'], frame), 'w') as dc1_file:
+            with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 'r') as vf_file:
+                logentry(f'Running rcontrib with command: {dc1_cmd}')
+                dc1_run = Popen(shlex.split(dc1_cmd), stdin=vf_file, stdout=dc1_file, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([r[rv].decode('utf-8') for r in rgeom]))
+        
+        with open("{}-{}.dc8".format(svp['viparams']['filebase'], frame), 'w') as dc8_file:
+            with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 'r') as vf_file:
+                logentry(f'Running rcontrib with command: {dc8_cmd}')
+                dc8_run = Popen(shlex.split(dc8_cmd), stdin=vf_file, stdout=dc8_file, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([r[rv].decode('utf-8') for r in rgeom]))
+        
+        dgp_level = '-l {:.2f}'.format(0.01 * simnode['coptions']['dgp_thresh']) if not simnode['coptions']['dgp_hourly'] else ''
+        dcg_cmd = 'dcglare -h {4} -vf "{0}" "{1}-{3}.dc1" "{1}-{3}.dc8" "{2}"'.format(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 
+                                                                    svp['viparams']['filebase'],
+                                                                    simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 
+                                                                    frame, dgp_level)
+        logentry(f'Running dcglare with command {dcg_cmd}')
+        dcg_run = Popen(shlex.split(dcg_cmd), stdout=PIPE)
+
+        if not simnode['coptions']['dgp_hourly']:
+            resarray = 100 * array([float(line.decode()) for line in dcg_run.stdout])
+            ri = 0
+
+            for rg in rgeom:
+                for vi in range(simnode['coptions']['ga_views']):
+                    rg[agas[vi]] = resarray[ri]
+                    ri += 1
+
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in rpos])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in rpos])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in rpos])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
+            
+            for vi in range(simnode['coptions']['ga_views']):
+                reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GA view {vi + 1}', ' '.join([str(rg[agas[vi]]) for rg in rgeom])])
+            
+            for vi in range(simnode['coptions']['ga_views']):
+                self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
+                self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
+                self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
+            
+            self['omax']['aga1v{}'.format(frame)] = max(self['omax'][f'aga{vi + 1}v{frame}'] for vi in range(simnode['coptions']['ga_views']))
+            self['oave']['aga1v{}'.format(frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
+            self['omin']['aga1v{}'.format(frame)] = min(self['omin'][f'aga{vi + 1}v{frame}'] for vi in range(simnode['coptions']['ga_views']))
+            svp['liparams']['views'] = simnode['coptions']['ga_views']
+        else:
+            resarray = genfromtxt(dcg_run.stdout, dtype=float)
+            dgp_res = nsum(((resarray <= 0.01 * simnode['coptions']['dgp_thresh']).T * rareas).T, axis=0)/nsum(rareas)
+            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'GA view (% area)', ' '.join([f'{p:.2f}' for p in 100 * dgp_res])])
+
+    bm.transform(self.id_data.matrix_world.inverted())
+    bm.to_mesh(self.id_data.data)
+    bm.free()
+    return reslists
+
 
 
