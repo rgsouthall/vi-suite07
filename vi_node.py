@@ -647,7 +647,7 @@ class No_Li_Con(Node, ViNodes):
             endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         elif self.contextmenu == 'CBDM':
             starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours=shour)
-            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=cbdm_edoy - 1) + datetime.timedelta(hours=ehour)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         else:
             endtime = starttime
 
