@@ -656,7 +656,7 @@ class No_Li_Con(Node, ViNodes):
             endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         elif self.contextmenu == 'CBDM':
             starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours=shour)
-            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=cbdm_edoy - 1) + datetime.timedelta(hours=ehour)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         else:
             endtime = starttime
 
@@ -3727,19 +3727,31 @@ class No_Vi_Metrics(Node, ViNodes):
                     pass
 
             elif self.light_menu == '2':
-                for r in self['rl']:
-                    if r[0] == self.frame_menu:
-                        if r[2] == self.zone_menu:
-                            if r[3] == 'Areas (m2)':
-                                dfareas = array([float(p) for p in r[4].split()])
-                            elif r[3] == 'DF (%)':
-                                df = array([float(p) for p in r[4].split()])
+                o_areas, o_dfs, reslists = {}, {}, []
 
+                for r in self['rl']:
+                    if r[0] not in o_areas:
+                        o_areas[r[0]], o_dfs[r[0]] = {}, {}
+                    if r[3] == 'Areas (m2)':
+                        o_areas[r[0]][r[2]] = array([float(p) for p in r[4].split()])
+                    elif r[3] == 'DF (%)':
+                        o_dfs[r[0]][r[2]] = array([float(p) for p in r[4].split()])
+                
                 try:
-                    self['res']['avDF'] = round(sum(df * dfareas)/sum(dfareas), 2)
-                    self['res']['ratioDF'] = round(min(df)/self['res']['avDF'], 2)
-                except Exception:
-                    pass
+                    self['res']['avDF'] = round(sum(o_dfs[self.frame_menu][self.zone_menu] * o_areas[self.frame_menu][self.zone_menu])/sum(o_areas[self.frame_menu][self.zone_menu]), 2)
+                    self['res']['ratioDF'] = round(min(o_dfs[self.frame_menu][self.zone_menu])/self['res']['avDF'], 2)
+                    
+                    for f in o_dfs:
+                        for z in o_dfs[f]:
+                            av_df = round(sum(o_dfs[f][z] * o_areas[f][z])/sum(o_areas[f][z]), 2)
+                            rat_df = round(min(o_dfs[f][z])/self['res']['avDF'], 2)
+                            reslists.append([f, 'Zone', z, 'Average DF', str(av_df)])
+                            reslists.append([f, 'Zone', z, 'Uniformity ratio', str(rat_df)])
+                    
+                    self['reslists'] = reslists
+
+                except Exception as e:
+                    print(e)
 
             elif self.light_menu == '1':
                 if 'Annual Sunlight Exposure (% area)' in [r[3] for r in self['rl']]:
