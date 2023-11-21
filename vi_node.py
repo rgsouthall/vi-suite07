@@ -52,10 +52,11 @@ except Exception as e:
 ofoam = 0
 
 if sys.platform in ('darwin', 'win32'):
-    dck_run = Popen('docker images --quiet', shell=True, stdout=PIPE)
+    dck_run = Popen('docker images', shell=True, stdout=PIPE)
 
     for line in dck_run.stdout.readlines():
-        if 'dce34e9a03e1' in line.decode():
+        lds = line.decode().split()
+        if lds[0] == 'dicehub/openfoam' and lds[1] == '10':
             ofoam = 1
 
 flo_libs = [ng, ofoam]
