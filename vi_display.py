@@ -224,6 +224,7 @@ def t_update(self, context):
     for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(context.scene.vi_params.vi_leg_levels)]:
         mat.blend_method = 'BLEND'
         mat.diffuse_color[3] = self.id_data.vi_params.vi_disp_trans
+    
     cmap(self)
 
 
@@ -253,6 +254,8 @@ def rendview(i):
 
 
 def li_display(context, disp_op, simnode):
+    if not [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
+        return 'CANCELLED'
     scene, obreslist, obcalclist = context.scene, [], []
     dp = context.evaluated_depsgraph_get()
     svp = scene.vi_params
@@ -443,6 +446,7 @@ class linumdisplay():
             self.fs = svp.vi_display_rp_fs
 
     def update(self, context):
+        dp = context.evaluated_depsgraph_get()
         scene = context.scene
         vl = context.view_layer
         svp = scene.vi_params
@@ -451,8 +455,6 @@ class linumdisplay():
         for ob in self.obd:
             if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
                 ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(self.fn))
-
-        dp = context.evaluated_depsgraph_get()
 
         for ob in self.obd:
             res = array([])
@@ -2173,7 +2175,13 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'svf'
         svp['viparams']['drivers'] = ['svf']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        li_display(context, self, self.simnode)
+        
+        if li_display(context, self, self.simnode) == 'CANCELLED':
+            logentry('No result geometry present or visible')
+            self.report({'ERROR'}, "No result geometry present or visible")
+            svp.vi_display = 0
+            return {'CANCELLED'}
+
         self.results_bar = results_bar(('legend.png',))
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
         self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
@@ -2297,7 +2305,13 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.xtitle = 'Days'
         self.ytitle = 'Hours'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        li_display(context, self, self.simnode)
+        
+        if li_display(context, self, self.simnode) == 'CANCELLED':
+            logentry('No result geometry present or visible')
+            self.report({'ERROR'}, "No result geometry present or visible")
+            svp.vi_display = 0
+            return {'CANCELLED'}
+        
         self.images = ('legend.png', )
         self.results_bar = results_bar(self.images)
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
@@ -2663,6 +2677,9 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             exec(script.as_string())
 
         if li_display(context, self, self.simnode) == 'CANCELLED':
+            logentry('No result geometry present or visible')
+            self.report({'ERROR'}, "No result geometry present or visible")
+            svp.vi_display = 0
             return {'CANCELLED'}
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0], r2w, r5h - r0h, 75, 400, 20)
@@ -2777,7 +2794,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             area.type = t
         else:
             self.report({'ERROR'}, "No image data")
-            return{'CANCELLED'}
+            return {'CANCELLED'}
         return {'FINISHED'}
 
 # def draw_icon_new(self):

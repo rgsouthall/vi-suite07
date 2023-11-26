@@ -96,7 +96,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
             if mvp.envi_nodes and mvp.envi_nodes.nodes and mvp.envi_export:
                 for emnode in mvp.envi_nodes.nodes:
                     if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
-                        if emnode.envi_con_list:
+                        if emnode.envi_con_list or emnode.envi_con_makeup == '1' or emnode.envi_con_type == 'Shading':
                             ln = mvp.id_data.name if emnode.envi_con_proxy == '0' else emnode.envi_con_base
 
                             if emnode.envi_con_type == 'Window':
@@ -229,7 +229,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                                             gens.append(['{}_{}-pv'.format(obj.name, face.index), pvgen_node.ie, pvgen_node.rf])
 
                             elif emnode.bl_idname in ('No_En_Mat_Sh', 'No_En_Mat_Bl', 'No_En_Mat_Sc', 'No_En_Mat_SG'):
-                                if emnode.inputs['Control'].links and (emnode.inputs['Shade'].links or emnode.outputs['Shade'].links):
+                                if emnode.inputs['Control'].links and ((emnode.inputs.get('Shade') and emnode.inputs['Shade'].links) or (emnode.outputs.get('Shade') and emnode.outputs['Shade'].links)):
                                     scnode = emnode.inputs['Control'].links[0].from_node
                                     en_idf.write(scnode.ep_write(face.index, mat.name, coll.name, f'win-{coll.name}_{face.index}', sh_count))
 

@@ -940,25 +940,11 @@ def clearscene(context, op):
         context.view_layer.layer_collection.children['LiVi Results'].exclude = 1
 
     for ob in [ob for ob in scene.objects if ob.type == 'MESH' and ob.visible_get()]:
-        if ob.vi_params.vi_type_string not in ('LiVi Calc', 'LiVi Res'):
-            v, f, svv, svf = [0] * 4
-
+        if ob.vi_params.vi_type_string not in ('LiVi Calc', 'LiVi Res') and 'cindex' in [a.name for a in ob.data.attributes]:
             if 'export' in op.name or 'simulation' in op.name:
-                bm = bmesh.new()
-                bm.from_mesh(ob.data)
-
-                if "simulation" in op.name:
-                    while bm.verts.layers.float.get('res{}'.format(v)):
-                        livires = bm.verts.layers.float['res{}'.format(v)]
-                        bm.verts.layers.float.remove(livires)
-                        v += 1
-                    while bm.faces.layers.float.get('res{}'.format(f)):
-                        livires = bm.faces.layers.float['res{}'.format(f)]
-                        bm.faces.layers.float.remove(livires)
-                        f += 1
-
-                bm.to_mesh(ob.data)
-                bm.free()
+                for r in ob.data.attributes:
+                    if not r.is_required and r not in ('UVMap', 'sharp_face'):
+                        ob.data.attributes.remove(r)
 
     for mesh in bpy.data.meshes:
         if mesh.users == 0:

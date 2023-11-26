@@ -3752,7 +3752,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     self['reslists'] = reslists
 
                 except Exception as e:
-                    print(e)
+                    print(f'Error in average DF calculation {e}')
 
             elif self.light_menu == '1':
                 if 'Annual Sunlight Exposure (% area)' in [r[3] for r in self['rl']]:
@@ -5083,26 +5083,26 @@ class No_En_Net_Zone(Node, EnViNodes):
 
             for bface in bfacelist:
                 self.outputs.new('So_En_Net_Bound', '{}_{}_b'.format(odm[bface.material_index].name, bface.index)).sn = bface.index
-                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[bface.index].value)
+                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[bface.index].value)
                 self.outputs[-1].link_limit = 1
                 self.inputs.new('So_En_Net_Bound', '{}_{}_b'.format(odm[bface.material_index].name, bface.index)).sn = bface.index
-                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[bface.index].value)
+                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[bface.index].value)
                 self.inputs[-1].link_limit = 1
             for sface in sfacelist:
                 self.afs += 1
                 self.outputs.new('So_En_Net_SFlow', '{}_{}_s'.format(odm[sface.material_index].name, sface.index)).sn = sface.index
-                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[sface.index].value)
+                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[sface.index].value)
                 self.outputs[-1].link_limit = 1
                 self.inputs.new('So_En_Net_SFlow', '{}_{}_s'.format(odm[sface.material_index].name, sface.index)).sn = sface.index
-                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[sface.index].value)
+                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[sface.index].value)
                 self.inputs[-1].link_limit = 1
             for ssface in ssfacelist:
                 self.afs += 1
                 self.outputs.new('So_En_Net_SSFlow', '{}_{}_s'.format(odm[ssface.material_index].name, ssface.index)).sn = ssface.index
-                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[ssface.index].value)
+                self.outputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[ssface.index].value)
                 self.outputs[-1].link_limit = 1
                 self.inputs.new('So_En_Net_SSFlow', '{}_{}_s'.format(odm[ssface.material_index].name, ssface.index)).sn = ssface.index
-                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.polygon_layers_int["viuid"].data[ssface.index].value)
+                self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[ssface.index].value)
                 self.inputs[-1].link_limit = 1
 
         self.vol_update(context)
@@ -7328,7 +7328,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
         self['matname'] = get_mat(self, 1).name
         con_node = self if self.envi_con_proxy == '0' else get_con_node(bpy.data.materials[self.envi_con_base].vi_params)
         reversed_mat = True if self.envi_con_proxy == '2' else False
-        con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[self.envi_con_type] if self.envi_con_con in ('Thermal mass', 'Zone') and self.envi_con_type in ('Roof', 'Wall', 'Floor') else self.envi_con_type
+        con_type = {'Roof': 'Ceiling', 'Floor': 'Internal floor', 'Wall': 'Internal wall'}[con_node.envi_con_type] if con_node.envi_con_con in ('Thermal mass', 'Zone') and con_node.envi_con_type in ('Roof', 'Wall', 'Floor') else con_node.envi_con_type
 
         if not con_node.ec.updated:
             con_node.ec.update()
@@ -7346,11 +7346,10 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 ep_text += epentry("WindowMaterial:SimpleGlazingSystem", params, paramvs)
             else:
                 con_node.thicklist = [con_node.lt0, con_node.lt1, con_node.lt2, con_node.lt3, con_node.lt4, con_node.lt5, con_node.lt6, con_node.lt7, con_node.lt8, con_node.lt9]
-                mats = con_node.ec.propdict[con_node.envi_con_type][con_node.envi_con_list]
+                mats = con_node.ec.propdict[con_type][con_node.envi_con_list]
                 params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(mats) - 1)]
-                paramvs = [mn] + ['{}-layer-{}'.format(ln, (mi, len(mats) - mi)[reversed_mat]) for mi, m in enumerate(mats)]
+                paramvs = [mn] + ['{}-layer-{}'.format(ln, (mi, len(mats) - 1 - mi)[reversed_mat]) for mi, m in enumerate(mats)]
                 ep_text = epentry('Construction', params, paramvs)
-
 
                 for pm, presetmat in enumerate(mats):
                     matlist = list(con_node.em.matdat[presetmat])
@@ -7363,7 +7362,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         con_node.em.namedict[presetmat] = con_node.em.namedict[presetmat] + 1
                         con_node.em.thickdict[presetmat].append(con_node.thicklist[pm] * 0.001)
 
-                    if con_node.envi_con_type in ('Wall', 'Floor', 'Roof', 'Ceiling', 'Door') and presetmat not in con_node.em.gas_dat:
+                    if con_type in ('Wall', 'Floor', 'Roof', 'Ceiling', 'Door') and presetmat not in con_node.em.gas_dat:
                         con_node.resist += con_node.thicklist[pm]* 0.001/float(matlist[1])
                         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
                         paramvs = ['{}-layer-{}'.format(mn, (pm, len(mats) - pm)[reversed_mat]), matlist[0], str(con_node.thicklist[pm] * 0.001)] + matlist[1:8]
@@ -7394,7 +7393,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         if self.envi_con_proxy == '0':
                             ep_text += epentry("Material:AirGap", params, paramvs)
 
-                    elif con_node.envi_con_type =='Window':
+                    elif con_type == 'Window':
                         if con_node.em.matdat[presetmat][0] == 'Glazing':
                             params = ('Name', 'Optical Data Type', 'Window Glass Spectral Data Set Name', 'Thickness (m)', 'Solar Transmittance at Normal Incidence', 'Front Side Solar Reflectance at Normal Incidence',
                         'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
@@ -7424,6 +7423,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
             while in_sock.links:
                 node = in_sock.links[0].from_node
+                
                 paramvs.append('{}-layer-{}'.format(ln, n))
                 params.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
 
@@ -7458,76 +7458,81 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 in_sock = node.inputs['Layer']
                 n += 1
 
-                if get_mat(con_node, 1).vi_params.envi_shading:
-                    in_sock = con_node.inputs['Outer layer']
-                    n = 0
-                    shparams = ['Name']
-                    shparamvs = ['{}-shading'.format(mn)]
+            if get_mat(con_node, 1).vi_params.envi_shading:
+                in_sock = con_node.inputs['Outer layer']
+                s = 0
+                ns = 0
+                shparams = ['Name']
+                shparamvs = ['{}-shading'.format(mn)]
 
-                    while in_sock.links:
-                        node = in_sock.links[0].from_node
+                while in_sock.links:
+                    node = in_sock.links[0].from_node
 
-                        if node.bl_idname == 'No_En_Mat_Tr' and node.inputs['Shade'].links and node.inputs['Shade'].links[0].from_node.bl_idname == 'No_En_Mat_SG':
-                            shparamvs.append('{}-shading-{}'.format(mn, n))
-                            shparams.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
-                            ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
+                    if node.bl_idname == 'No_En_Mat_Tr' and node.inputs['Shade'].links and node.inputs['Shade'].links[0].from_node.bl_idname == 'No_En_Mat_SG':
+                        shparamvs.append('{}-shading-{}'.format(mn, s))
+                        shparams.append(('Outer shader', 'Shading layer {}'.format(s))[s > 0])
+                        ep_text += node.inputs['Shade'].links[0].from_node.ep_write(s, mn)
+                        s += 1
+                    
+                    elif node.bl_idname == 'No_En_Mat_Tr' and node.outputs['Layer'].links[0].to_node.bl_idname != 'No_En_Mat_Gas':
+                        if node.outputs['Shade'].links:
+                            shparamvs.append('{}-shading-{}'.format(mn, s))
+                            shparams.append(('Outer shader', 'Shading layer {}'.format(s))[s > 0])
+                            ep_text += node.outputs['Shade'].links[0].to_node.ep_write(s, mn)
 
-                        elif node.bl_idname == 'No_En_Mat_Tr' and node.outputs['Layer'].links[0].to_node.bl_idname != 'No_En_Mat_Gas':
-                            if node.outputs['Shade'].links:
-                                shparamvs.append('{}-shading-{}'.format(mn, n))
-                                shparams.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
-                                ep_text += node.outputs['Shade'].links[0].to_node.ep_write(n, mn)
+                        shparamvs.append('{}-layer-{}'.format(mn, ns))
+                        shparams.append(('Outside layer', 'Layer {}'.format(ns))[ns > 0])
+                        ns += 1
 
-                            shparamvs.append('{}-layer-{}'.format(mn, n))
-                            shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
+                        if node.inputs['Shade'].links:
+                            shparamvs.append('{}-shading-{}'.format(mn, s))
+                            shparams.append(('Outer shader', 'Shading layer {}'.format(s))[s > 0])
+                            ep_text += node.inputs['Shade'].links[0].from_node.ep_write(s, mn)
+                            s += 1
 
-                            if node.inputs['Shade'].links:
-                                shparamvs.append('{}-shading-{}'.format(mn, n))
-                                shparams.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
-                                ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
+                    elif node.bl_idname == 'No_En_Mat_Gas':
+                        shade_bool = len(node.outputs['Layer'].links[0].to_node.inputs['Shade'].links) or (node.inputs['Layer'].links and len(node.inputs['Layer'].links[0].from_node.outputs['Shade'].links))
+                        if shade_bool:
+                            if node.outputs['Layer'].links[0].to_node.inputs['Shade'].links and node.outputs['Layer'].links[0].to_node.inputs['Shade'].links[0].from_node.bl_idname == 'No_En_Mat_SG':
+                                shade_bool = 0
 
-                        elif node.bl_idname == 'No_En_Mat_Gas':
-                            shade_bool = len(node.outputs['Layer'].links[0].to_node.inputs['Shade'].links) or (node.inputs['Layer'].links and len(node.inputs['Layer'].links[0].from_node.outputs['Shade'].links))
-                            if shade_bool:
-                                if node.outputs['Layer'].links[0].to_node.inputs['Shade'].links and node.outputs['Layer'].links[0].to_node.inputs['Shade'].links[0].from_node.bl_idname == 'No_En_Mat_SG':
-                                    shade_bool = 0
-
-                            if not shade_bool:
-                                shparamvs.append('{}-layer-{}'.format(mn, n))
-                                shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-                            else:
-                                shparamvs.append('{}-layer-{}'.format(mn + '_split', n))
-                                shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-                                shparamvs.append('{}-shading-{}'.format(mn, n))
-                                shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-
-                                if node.outputs['Layer'].links and node.outputs['Layer'].links[0].to_node.inputs['Shade'].links:
-                                    shade_node = node.outputs['Layer'].links[0].to_node.inputs['Shade'].links[0].from_node
-                                else:
-                                    shade_node = node.inputs['Layer'].links[0].from_node.outputs['Shade'].links[0].to_node
-
-                                ep_text += shade_node.ep_write(n, mn)
-                                shparamvs.append('{}-layer-{}'.format(mn + '_split', n))
-                                shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-
-                        elif not node.inputs['Layer'].links:
-                            if not node.inputs['Shade'].links or not node.inputs['Layer'].links:
-                                shparamvs.append('{}-layer-{}'.format(mn, n))
-                                shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
-
-                            if node.inputs['Shade'].links:
-                                shparamvs.append('{}-shading-{}'.format(mn, n))
-                                shparams.append(('Outer shader', 'Shading layer {}'.format(n))[n > 0])
-
-                                ep_text += node.inputs['Shade'].links[0].from_node.ep_write(n, mn)
-
+                        if not shade_bool:
+                            shparamvs.append('{}-layer-{}'.format(mn, ns))
+                            shparams.append(('Outside layer', 'Layer {}'.format(ns))[ns > 0])
+                            ns += 1
                         else:
-                            shparamvs.append('{}-layer-{}'.format(mn, n))
+                            shparamvs.append('{}-layer-{}'.format(mn + '_split', ns))
+                            shparams.append(('Outside layer', 'Layer {}'.format(ns))[ns > 0])
+                            ns += 1
+                            shparamvs.append('{}-shading-{}'.format(mn, s))
+                            shparams.append(('Outside layer', 'Layer {}'.format(s))[s > 0])
+                            s += 1
+                            if node.outputs['Layer'].links and node.outputs['Layer'].links[0].to_node.inputs['Shade'].links:
+                                shade_node = node.outputs['Layer'].links[0].to_node.inputs['Shade'].links[0].from_node
+                            else:
+                                shade_node = node.inputs['Layer'].links[0].from_node.outputs['Shade'].links[0].to_node
+
+                            ep_text += shade_node.ep_write(n, mn)
+                            shparamvs.append('{}-layer-{}'.format(mn + '_split', n))
                             shparams.append(('Outside layer', 'Layer {}'.format(n))[n > 0])
 
-                        n += 1
-                        in_sock = node.inputs['Layer']
-
+                    elif not node.inputs['Layer'].links:
+                        if not node.inputs['Shade'].links or not node.inputs['Layer'].links:
+                            shparamvs.append('{}-layer-{}'.format(mn, ns))
+                            shparams.append(('Outside layer', 'Layer {}'.format(ns))[ns > 0])
+                            ns += 1
+                        if node.inputs['Shade'].links:
+                            shparamvs.append('{}-shading-{}'.format(mn, s))
+                            shparams.append(('Outer shader', 'Shading layer {}'.format(s))[s > 0])
+                            ep_text += node.inputs['Shade'].links[0].from_node.ep_write(s, mn)
+                            s += 1
+                    else:
+                        shparamvs.append('{}-layer-{}'.format(mn, ns))
+                        shparams.append(('Outside layer', 'Layer {}'.format(ns))[ns > 0])
+                        ns += 1
+                    
+                    in_sock = node.inputs['Layer']
+                
             ep_text += epentry('Construction', params, (paramvs, [paramvs[0]] + paramvs[1:][::-1])[reversed_mat])
 
             try:
@@ -7535,8 +7540,8 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             except:
                 pass
 
-        if self.envi_con_type in ('Window', 'Door'):
-            if con_node.fclass == '0' or self.envi_con_type == 'Door':
+        if con_type in ('Window', 'Door'):
+            if con_node.fclass == '0' or con_type == 'Door':
                 params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance', 'Name', 'Outside Layer')
                 paramvs = ('{}-frame-layer{}'.format(ln, 0), 'Smooth', '0.12', '0.1', '1400.00', '1000', '0.9', '0.6', '0.6', '{}-frame'.format(mn), '{}-frame-layer{}'.format(ln, 0))
 
@@ -8061,7 +8066,7 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                     row.label(text='ec/m2/y: {}'.format(self['ecm2y']))
 
                 except Exception as e:
-                    print(e)
+                    print(f'Problem with transparent material embodied specification: {e}')
 
             else:
                 newrow(layout, "Embodied id:", self, "ec_id")

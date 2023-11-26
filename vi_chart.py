@@ -274,33 +274,6 @@ def hmchart_disp(chart_op, plt, dnode, col):
     else:
         bar_extend = ('', 'min')[low_extend == 'lower'] + ('', 'max')[up_extend == 'upper']
 
-    # if dnode.cf:
-    #     plt.contourf(x - 0.5, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=[zmin + (i + 1) * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels - 1)], cmap=col, extend='both')
-    # else:
-    #     plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
-
-    # cbar = plt.colorbar(use_gridspec=True, pad=0.01, extend='neither')
-
-    # if dnode.cl:
-    #     try:
-    #         ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]
-    #         cp = plt.contour(x - 0.5, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=ls, colors='Black', linewidths=dnode.lw)
-    #         plt.clabel(cp, inline=True, fontsize=10)
-    #     except Exception as e:
-    #         print('except', linspace(zmin, zmax, num=dnode.clevels + 1))
-    #         cp = plt.contour(x - 0.5, y, z, linspace(zmin, zmax, num=dnode.clevels + 1), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels)], colors='Black', linewidths=dnode.lw)
-
-    # if dnode.grid and dnode.cf:
-    #     ax.grid(True, which='both', zorder=10)
-
-    # cbar.set_label(label=var, size=16)
-    # cbar.ax.tick_params(labelsize=14)
-
-    # if dnode.inputs[0].links[0].from_node.bl_idname == 'No_Loc':
-    #     plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
-    # else:
-    #     plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
-
     if dnode.cf:
         plt.contourf(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1),
                      levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend=bar_extend)
@@ -315,10 +288,18 @@ def hmchart_disp(chart_op, plt, dnode, col):
 
     if dnode.cl:
         try:
-            ls = dnode.clevels + 1 if not dnode.lvals else [float(lev) for lev in dnode.lvals.split(" ")]
-            cp = plt.contour(x, y, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
+            lvals = [float(lev) for lev in dnode.lvals.split(" ") if lev]
+            
+            if lvals:
+                ls = lvals
+            elif dnode.lvals:
+                ls = [zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:-1]
+            else:
+                ls = ''
+
+            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
             plt.clabel(cp, inline=True, fontsize=10)
-        except Exception as e:
+        except Exception:
             cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:], colors='Black', linewidths=dnode.lw)
 
     if dnode.grid and dnode.cf:

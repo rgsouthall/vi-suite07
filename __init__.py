@@ -146,6 +146,10 @@ else:
                 requests.get('https://www.google.com/')
                 upg = '' if sys.platform == 'linux' else '--upgrade'
 
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
+                    pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(pyqt_cmd)).wait()
+                    
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
                     gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(gp_cmd)).wait()
@@ -172,10 +176,6 @@ else:
 
                         for dll in dlls:
                             shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
-
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
-                    pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(pyqt_cmd)).wait()
 
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
                     mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
