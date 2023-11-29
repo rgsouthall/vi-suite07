@@ -7362,7 +7362,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                         con_node.em.namedict[presetmat] = con_node.em.namedict[presetmat] + 1
                         con_node.em.thickdict[presetmat].append(con_node.thicklist[pm] * 0.001)
 
-                    if con_type in ('Wall', 'Floor', 'Roof', 'Ceiling', 'Door') and presetmat not in con_node.em.gas_dat:
+                    if con_type in ('Wall', 'Floor', 'Roof', 'Ceiling', 'Door', 'Internal floor', 'Internal wall') and presetmat not in con_node.em.gas_dat:
                         con_node.resist += con_node.thicklist[pm]* 0.001/float(matlist[1])
                         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
                         paramvs = ['{}-layer-{}'.format(mn, (pm, len(mats) - pm)[reversed_mat]), matlist[0], str(con_node.thicklist[pm] * 0.001)] + matlist[1:8]

@@ -1240,6 +1240,7 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
             reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
             reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+
         agas = []
         
         for agv in range(simnode['coptions']['ga_views']):
@@ -1331,12 +1332,24 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['aga1v{}'.format(frame)] = max(self['omax'][f'aga{vi + 1}v{frame}'] for vi in range(simnode['coptions']['ga_views']))
             self['oave']['aga1v{}'.format(frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
             self['omin']['aga1v{}'.format(frame)] = min(self['omin'][f'aga{vi + 1}v{frame}'] for vi in range(simnode['coptions']['ga_views']))
-            svp['liparams']['views'] = simnode['coptions']['ga_views']
+            
         else:
             resarray = genfromtxt(dcg_run.stdout, dtype=float)
-            dgp_res = nsum(((resarray <= 0.01 * simnode['coptions']['dgp_thresh']).T * rareas).T, axis=0)/nsum(rareas)
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'GA view (% area)', ' '.join([f'{p:.2f}' for p in 100 * dgp_res])])
 
+            for vi in range(simnode['coptions']['ga_views']):
+                dgp_res = nsum(((resarray[vi::simnode['coptions']['ga_views']] <= 0.01 * simnode['coptions']['dgp_thresh']).T * rareas).T, axis=0)/nsum(rareas)
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, f'GA view {vi + 1} (% area)', ' '.join([f'{p:.2f}' for p in 100 * dgp_res])])
+            
+                for ri, rg in enumerate(rgeom):
+                    rg[agas[vi]] = 100 * sum(resarray[vi::simnode['coptions']['ga_views']][ri] <= 0.01 * simnode['coptions']['dgp_thresh'])/len(resarray[ri])
+                    ri += 1
+
+                self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
+                self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
+                self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
+        
+        svp['liparams']['views'] = simnode['coptions']['ga_views']
+    
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)
     bm.free()
