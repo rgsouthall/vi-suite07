@@ -81,7 +81,7 @@ else:
         print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PyQt6', 'Matplotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
         for ifi, ifs in enumerate(install_fails):
             if ifs:
-                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6', 'Matplotlib', 'Kivy'][ifi])
+                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6==6.5.3', 'Matplotlib==3.8.2', 'Kivy==2.2.1'][ifi])
                 print('Attempting system installation of {}'.format(['PyQt6', 'Matplotlib', 'Kivy'][ifi]))
                 Popen(shlex.split(install_cmd)).wait()
 
@@ -118,14 +118,6 @@ else:
                 os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
         else:
             os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
-
-        # if sys.platform == 'win32':
-            # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
-
-            # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-            #                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-            #                          'site-packages'))
-
         try:
             import PyQt6
             import matplotlib
@@ -150,15 +142,19 @@ else:
                     gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(gp_cmd)).wait()
 
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
+                    pyqt_cmd = '"{}" -m pip install PyQt6==6.5.3 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(pyqt_cmd)).wait()
+
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
                     pil_cmd = '"{}" -m pip install Pillow==9.5 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(pil_cmd)).wait()
 
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
                     if sys.platform == 'win32':
-                        kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                        kivy_cmd = '"{}" -m pip install kivy==2.2.1 kivy.deps.sdl2==0.6.0 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                     else:
-                        kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                        kivy_cmd = '"{}" -m pip install kivy[base]==2.2.1 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
 
                     Popen(shlex.split(kivy_cmd)).wait()
 
@@ -173,12 +169,8 @@ else:
                         for dll in dlls:
                             shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
 
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
-                    pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(pyqt_cmd)).wait()
-
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                    mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    mp_cmd = '"{}" -m pip install matplotlib==3.8.2 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(mp_cmd)).wait()
 
                 import PyQt6
@@ -196,20 +188,6 @@ else:
 
             except Exception as e:
                 print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
-
-    # try:
-    #     import PyQt6
-    #     import matplotlib.pyplot as plt
-    #     # Next line is required to initiate a QApplication for QImage
-    #     plt.text(0, 0, 'dummy')
-    #     plt.clf()
-    #     from kivy.config import Config
-    #     Config.set('kivy', 'log_level', 'error')
-    #     Config.write()
-    #     from kivy.app import App
-    #     print('VI-Suite: Using built-in libraries')
-    # except Exception as e:
-    #     print(f'Cannot find required system, or install local, packages. Error {e}')
 
     try:
         import netgen
