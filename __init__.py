@@ -43,6 +43,10 @@ else:
     from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
     from bpy.types import AddonPreferences, Image, Material
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    
+    if sys.platform == 'linux':
+        os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = '0'
+    
     os.environ["KIVY_NO_CONSOLELOG"] = "1"
     install_fails = []
 
@@ -81,7 +85,7 @@ else:
         print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PyQt6', 'Matplotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
         for ifi, ifs in enumerate(install_fails):
             if ifs:
-                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6', 'Matplotlib', 'Kivy'][ifi])
+                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6==6.5.3', 'Matplotlib==3.8.2', 'Kivy'][ifi])
                 print('Attempting system installation of {}'.format(['PyQt6', 'Matplotlib', 'Kivy'][ifi]))
                 Popen(shlex.split(install_cmd)).wait()
 
@@ -147,7 +151,7 @@ else:
                 upg = '' if sys.platform == 'linux' else '--upgrade'
 
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
-                    pyqt_cmd = '"{}" -m pip install PyQt6 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    pyqt_cmd = '"{}" -m pip install PyQt6==6.5.3 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(pyqt_cmd)).wait()
                     
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
@@ -178,7 +182,7 @@ else:
                             shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
 
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                    mp_cmd = '"{}" -m pip install matplotlib --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    mp_cmd = '"{}" -m pip install matplotlib==3.8.2 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(mp_cmd)).wait()
 
                 import PyQt6

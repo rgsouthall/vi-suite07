@@ -304,6 +304,8 @@ def hmchart_disp(chart_op, plt, dnode, col):
 
     if dnode.grid and dnode.cf:
         ax.grid(True, which='both', zorder=10)
+    else:
+        ax.grid(False)
 
     plt.xticks(size=14)
     plt.yticks(size=14)
