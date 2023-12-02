@@ -51,10 +51,10 @@ else:
     install_fails = []
 
     try:
-        import PyQt6
+        import PySide6
         install_fails.append(0)
     except:
-        print('System PyQt6 not found')
+        print('System PySide6 not found')
         install_fails.append(1)
 
     try:
@@ -82,11 +82,11 @@ else:
         print('VI-Suite: Using system libraries')
     
     elif not all(install_fails):
-        print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PyQt6', 'Matplotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
+        print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PySide6', 'Matplotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
         for ifi, ifs in enumerate(install_fails):
             if ifs:
-                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PyQt6==6.5.3', 'Matplotlib==3.8.2', 'Kivy'][ifi])
-                print('Attempting system installation of {}'.format(['PyQt6', 'Matplotlib', 'Kivy'][ifi]))
+                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PySide6==6.6.0', 'Matplotlib==3.8.2', 'Kivy==2.2.1'][ifi])
+                print('Attempting system installation of {}'.format(['PySide6', 'Matplotlib', 'Kivy'][ifi]))
                 Popen(shlex.split(install_cmd)).wait()
 
     elif all(install_fails) and (sys.version_info[0] > 3 or sys.version_info[1] >= 9):
@@ -102,6 +102,8 @@ else:
             os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                                                     ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                                                     'site-packages')
+            #os.environ['PYTHONHOME'] = os.path.dirname(sys.executable)
+        
         if sys.platform == 'linux':
             if not os.environ.get('LD_LIBRARY_PATH'):
                 os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
@@ -124,14 +126,14 @@ else:
             os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
 
         # if sys.platform == 'win32':
-            # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform))
+        #     os.add_dll_directory(bpy.app.binary_path)
 
-            # os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-            #                          ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-            #                          'site-packages'))
+        #     os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+        #                              ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+        #                              'site-packages'))
 
         try:
-            import PyQt6
+            import PySide6
             import matplotlib
             matplotlib.use('qtagg', force=True)
             import matplotlib.pyplot as plt
@@ -149,24 +151,24 @@ else:
                 print('VI-Suite: Installing built-in libraries')
                 requests.get('https://www.google.com/')
                 upg = '' if sys.platform == 'linux' else '--upgrade'
-
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PyQt6')):
-                    pyqt_cmd = '"{}" -m pip install PyQt6==6.5.3 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(pyqt_cmd)).wait()
                     
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
                     gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(gp_cmd)).wait()
 
+                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PySide6')):
+                    pyqt_cmd = '"{}" -m pip install PySide6==6.6.0 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    Popen(shlex.split(pyqt_cmd)).wait()
+                    
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
                     pil_cmd = '"{}" -m pip install Pillow==9.5 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(pil_cmd)).wait()
 
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
                     if sys.platform == 'win32':
-                        kivy_cmd = '"{}" -m pip install kivy kivy.deps.sdl2 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                        kivy_cmd = '"{}" -m pip install kivy==2.2.1 kivy.deps.sdl2==0.6.0 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
                     else:
-                        kivy_cmd = '"{}" -m pip install kivy[base] {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
+                        kivy_cmd = '"{}" -m pip install kivy[base]==2.2.1 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
 
                     Popen(shlex.split(kivy_cmd)).wait()
 
@@ -180,12 +182,12 @@ else:
 
                         for dll in dlls:
                             shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
-
+                
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
                     mp_cmd = '"{}" -m pip install matplotlib==3.8.2 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(mp_cmd)).wait()
 
-                import PyQt6
+                import PySide6
                 import matplotlib
                 matplotlib.use('qtagg', force=True)
                 import matplotlib.pyplot as plt
@@ -219,9 +221,9 @@ else:
         import netgen
     except:
         if sys.platform == 'linux':
-            print('For Netgen functionality on linux, a system install of Blender, PyQt6, Kivy, Matplotlib and Netgen is required')
+            print('For Netgen functionality on linux, a system install of Blender, PySide6, Kivy, Matplotlib and Netgen is required')
         else:
-            ng_cmd = '"{0}" -m pip install --prefix="{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()
 
             try:
