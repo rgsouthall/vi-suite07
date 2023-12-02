@@ -39,14 +39,12 @@ from numpy import log10 as nlog10
 from numpy import append as nappend
 from xml.dom.minidom import parseString
 # from bpy.app.handlers import persistent
-from PyQt6.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter, QPageSize
-from PyQt6.QtPrintSupport import QPrinter
-from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtCore import QSizeF, QMarginsF
-from PyQt6.QtCore import QSize
-#from PyQt6.QtGui import QImage, QPainter
-#from PyQt6.QtSvg  import QSvgRenderer
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtGui import QImage, QPdfWriter, QPagedPaintDevice, QPainter, QPageSize
+from PySide6.QtPrintSupport import QPrinter
+from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtCore import QSizeF, QMarginsF
+from PySide6.QtCore import QSize
+from PySide6.QtWidgets import QApplication
 
 
 try:
