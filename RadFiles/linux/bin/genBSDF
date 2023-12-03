@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# RCSid $Id: genBSDF.pl,v 2.86 2020/05/06 00:36:28 greg Exp $
+# RCSid $Id: genBSDF.pl,v 2.90 2023/09/22 18:01:32 greg Exp $
 #
 # Compute BSDF based on geometry and material description
 #
@@ -13,7 +13,7 @@ sub userror {
 	exit 1;
 }
 my ($td,$radscn,$mgfscn,$octree,$fsender,$bsender,$receivers,$facedat,$behinddat,$rmtmp);
-my ($tf,$rf,$tb,$rb,$tfx,$rfx,$tbx,$rbx,$tfz,$rfz,$tbz,$rbz,$cph);
+my ($tf,$rf,$tb,$rb,$tfx,$rfx,$tbx,$rbx,$tfz,$rfz,$tbz,$rbz);
 my ($curphase, $recovery);
 if ($#ARGV == 1 && "$ARGV[0]" =~ /^-rec/) {
 	$td = $ARGV[1];
@@ -57,7 +57,6 @@ if ($windoz) {
 	$rfz = "$td\\rfz.dat";
 	$tbz = "$td\\tbz.dat";
 	$rbz = "$td\\rbz.dat";
-	$cph = "$td\\phase.txt";
 	$rmtmp = "rd /S /Q $td";
 } else {
 	$radscn = "$td/device.rad";
@@ -80,7 +79,6 @@ if ($windoz) {
 	$rfz = "$td/rfz.dat";
 	$tbz = "$td/tbz.dat";
 	$rbz = "$td/rbz.dat";
-	$cph = "$td/phase.txt";
 	$rmtmp = "rm -rf $td";
 }
 my @savedARGV = @ARGV;
@@ -213,6 +211,7 @@ if ( !defined $recovery ) {
 		printf MGFSCN "xf -t %.6f %.6f 0\n", -($dim[0]+$dim[1])/2, -($dim[2]+$dim[3])/2;
 		close MGFSCN;
 		if ( $mgfin ) {
+			die "+mgf requires input file with +geom\n" if ($#ARGV < 0);
 			system qq{mgfilt "#,o,xf,c,cxy,cspec,cmix,m,sides,rd,td,rs,ts,ir,v,p,n,f,fh,sph,cyl,cone,prism,ring,torus" @ARGV >> $mgfscn};
 		} else {
 			system "rad2mgf $radscn >> $mgfscn";
@@ -436,7 +435,7 @@ sub ttree_comp {
 		}
 	}
 	if ($pctcull >= 0) {
-		my $avg = ( $dorecip && "$typ" =~ /^r[fb]/ ) ? " -a" : "";
+		my $avg = ( $dorecip && ( $tensortree == 3 || "$typ" =~ /^r[fb]/ ) ) ? " -a" : "";
 		my $pcull = ("$spec" eq "Visible") ? $pctcull :
 						     (100 - (100-$pctcull)*.25) ;
 		if ($windoz) {

@@ -51,7 +51,7 @@ else:
     install_fails = []
 
     try:
-        import PySide6
+        from PySide6.QtGui import QImage
         install_fails.append(0)
     except:
         print('System PySide6 not found')
@@ -91,6 +91,11 @@ else:
 
     elif all(install_fails) and (sys.version_info[0] > 3 or sys.version_info[1] >= 9):
         print("Setting library paths")
+        sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                                        ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+                                        'site-packages'))
+        sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform))
+
         if os.environ.get('PYTHONPATH'):
             if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
                 os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
@@ -115,10 +120,10 @@ else:
             if not os.environ.get('DYLD_LIBRARY_PATH'):
                 os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
 
-        sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
-        sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-                                        ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                        'site-packages'))
+        # sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
+        # sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+        #                                 ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
+        #                                 'site-packages'))
         if os.environ.get('PATH'):
             if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
                 os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
