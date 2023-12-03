@@ -2745,11 +2745,9 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
         image = QImage.fromData(svg_bytes)
         image = image.convertToFormat(QImage.Format.Format_RGBA8888)
         image = image.mirrored(0, 1)
-        bs = image.bits()
+        buf = image.bits()
 
-        if bs:
-            bs.setsize(image.sizeInBytes())
-            buf = memoryview(bs)
+        if buf:
             arr = frombuffer(buf, dtype=ubyte).astype(float32)
             ipwidth, ipheight = dim[0], dim[1]
 
