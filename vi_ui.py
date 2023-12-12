@@ -143,7 +143,7 @@ class VI_PT_3D(bpy.types.Panel):
                     if not svp.ss_disp_panel:
                         newrow(layout, 'Result type:', svp, "li_disp_menu")
 
-                        if svp.li_disp_menu == 'aga1v':
+                        if svp.li_disp_menu in ('ago1v', 'aga1v'):
                             newrow(layout, 'GA view:', svp, "vi_views")
 
                         newrow(layout, 'Legend unit:', svp, "vi_leg_unit")
@@ -213,7 +213,7 @@ class VI_PT_Mat(bpy.types.Panel):
                 rmmenu(layout, cm)
 
                 if mvp.mattype == '0':
-                    if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):  # in bpy.data.node_groups:
+                    if not mvp.envi_nodes or (mvp.envi_nodes.name != cm.name and mvp.envi_nodes.name in [m.name for m in bpy.data.materials]):
                         row = layout.row()
                         row.operator("material.envi_node", text="Create EnVi Nodes")
 
@@ -227,7 +227,6 @@ class VI_PT_Mat(bpy.types.Panel):
                     if mvp.flovi_bmbp_subtype in ('fixedValue', 'totalPressure'):
                         if mvp.flovi_bmbp_subtype == 'totalPressure':
                             newrow(layout, "p0 value:", mvp, "flovi_bmbp_p0val")
-                            #newrow(layout, "Gamma value:", mvp, "flovi_bmbp_gamma")
 
                         newrow(layout, "Pressure field value:", mvp, "flovi_p_field")
 
@@ -252,9 +251,9 @@ class VI_PT_Mat(bpy.types.Panel):
 
                         if not mvp.flovi_u_field:
                             newrow(layout, "U direction:", mvp, "flovi_u_type")
+
                             if mvp.flovi_u_type == '0':
                                 newrow(layout, "U value:", mvp, "flovi_bmbu_val")
-                                # newrow(layout, "U inlet value:", mvp, "flovi_bmbu_inval")
                             else:
                                 newrow(layout, "Azimuth:", mvp, "flovi_u_azi")
                                 newrow(layout, "Speed:", mvp, "flovi_u_speed")
@@ -306,32 +305,6 @@ class VI_PT_Mat(bpy.types.Panel):
 
                             elif mvp.flovi_bmbe_subtype == 'turbulentMixingLengthDissipationRateInlet':
                                 newrow(layout, "Epsilon ml:", mvp, "flovi_eml_val")
-
-                        # elif 'o' in svp['flparams']['params']:
-                        #     newrow(layout, "k type:", mvp, "flovi_k_subtype")
-
-                        #     if mvp.flovi_k_subtype == 'fixedValue':
-                        #         newrow(layout, "k field:", mvp, "flovi_k_field")
-
-                        #         if not mvp.flovi_k_field:
-                        #             newrow(layout, "k value:", mvp, "flovi_k_val")
-
-                        #     newrow(layout, "Omega type:", mvp, "flovi_bmbo_subtype")
-
-                        #     if mvp.flovi_bmbo_subtype == 'fixedValue':
-                        #         newrow(layout, "Omega field:", mvp, "flovi_o_field")
-
-                        #         if not mvp.flovi_o_field:
-                        #             newrow(layout, "Omega value:", mvp, "flovi_bmbo_val")
-
-                        # elif 's' in svp['flparams']['params']:
-                        #     newrow(layout, "Nutilda type:", mvp, "flovi_bmbnutilda_subtype")
-
-                        #     if mvp.flovi_bmbnutilda_subtype == 'fixedValue':
-                        #         newrow(layout, "Nutilda field:", mvp, "flovi_nutilda_field")
-
-                        #         if not mvp.flovi_nutilda_field:
-                        #             newrow(layout, "Nutilda value:", mvp, "flovi_bmbnutilda_val")
 
                         if svp['flparams']['solver_type'] == 'bf':
                             newrow(layout, "T type:", mvp, "flovi_bmbt_subtype")
@@ -527,36 +500,43 @@ def rmmenu(layout, cm):
         newrow(layout, 'Up vector:', mvp, 'li_bsdf_up')
         row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
+    
     elif mvp.radmatmenu == '9':
         layout.prop_search(mvp, 'radfile', bpy.data, 'texts', text='File', icon='TEXT')
+    
     if mvp.get('bsdf'):
         row.operator("material.del_bsdf", text="Delete BSDF")
         row = layout.row()
         row.operator("material.save_bsdf", text="Save BSDF")
+    
     if mvp.radmatmenu in ('1', '2', '3', '7'):
         newrow(layout, 'Photon port:', mvp, 'pport')
+    
     if mvp.mattype == '0' and mvp.radmatmenu in ('0', '1', '2', '3', '6'):
-        newrow(layout, 'Dirt noise:', mvp, 'li_dirt')
+        newrow(layout, 'Textured:', mvp, 'radtex')
 
-        if mvp.li_dirt:
-            newrow(layout, 'Dirt spacing:', mvp, 'li_dirt_spacing')
-            newrow(layout, 'Dirt level:', mvp, 'li_dirt_level')
+        if mvp.radtex:
+            newrow(layout, 'Dirt noise:', mvp, 'li_dirt')
 
-        newrow(layout, 'Texture image:', mvp, 'li_tex')
+            if mvp.li_dirt:
+                newrow(layout, 'Dirt spacing:', mvp, 'li_dirt_spacing')
+                newrow(layout, 'Dirt level:', mvp, 'li_dirt_level')
 
-        if not mvp.li_am:
-            newrow(layout, 'Normal map:', mvp, 'li_norm')
+            newrow(layout, 'Texture image:', mvp, 'li_tex')
 
-        if not mvp.li_norm:
-            newrow(layout, 'Blend mask:', mvp, 'li_am')
+            if not mvp.li_am:
+                newrow(layout, 'Normal map:', mvp, 'li_norm')
 
-            if mvp.li_am:
-                newrow(layout, 'Background image:', mvp, 'li_tex_black')
+            if not mvp.li_norm:
+                newrow(layout, 'Blend mask:', mvp, 'li_am')
 
-        else:
-            newrow(layout, 'Strength:', mvp, 'li_norm_strength')
-            newrow(layout, 'Image green vector:', mvp, 'nu')
-            newrow(layout, 'Image red vector:', mvp, 'nside')
+                if mvp.li_am:
+                    newrow(layout, 'Background image:', mvp, 'li_tex_black')
+
+            else:
+                newrow(layout, 'Strength:', mvp, 'li_norm_strength')
+                newrow(layout, 'Image green vector:', mvp, 'nu')
+                newrow(layout, 'Image red vector:', mvp, 'nside')
 
     row = layout.row()
     row.label(text="-----------------------------------------")

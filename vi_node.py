@@ -783,7 +783,7 @@ class No_Li_Con(Node, ViNodes):
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
         basic_unit = 'W/m2' if self.sp else (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1']
         unitdict = {'Basic': basic_unit,
-                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)', 'GA (%)')[int(self.cbanalysismenu)]}
+                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)', 'GO (%)')[int(self.cbanalysismenu)]}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu],
                            'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour,
                            'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval,

@@ -374,8 +374,9 @@ def unititems(self, context):
                     ('firradg', 'W (green)', 'Green irradiance'),
                     ('firradbm2', 'W/m2 (blue)', 'Blue irradiance per metre square'),
                     ('firradb', 'W (blue)', 'Blue irradiance')]
-        elif svp['liparams']['unit'] == 'GA (%)':
-            return [('aga1v', 'GA (%)', 'Glare autonomy')]
+        elif svp['liparams']['unit'] == 'GO (%)':
+            return [('ago1v', 'GO (%)', 'Glare occurance'),
+                    ('aga1v', 'GA (%)', 'Glare autonomy')]
         else:
             return [('None', 'None', 'None')]
 

@@ -24,7 +24,8 @@ unit2res = {'Lux': 'illu', 'DF (%)': 'df', 'W/m2 (v)': 'virradm2', 'W/m2 (f)': '
             'klxh': 'illuh', 'kWh (f)': 'firradh', 'kWh/m2 (f)': 'firradhm2', 'kWh (v)': 'virradh',
             'kWh/m2 (v)': 'virradhm2', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup',
             'Sunlit (% hrs)': 'sm', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh',
-            'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux', 'GA (%)': 'aga1v'}
+            'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux', 'GA (%)': 'aga1v',
+            'GO (%)': 'ago1v'}
 
 res2unit = {unit2res[u]: u for u in unit2res}
 

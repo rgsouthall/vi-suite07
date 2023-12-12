@@ -67,8 +67,10 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
 
     if tri:
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
-    if not m_export:
+    
+    if not m_export and not any([slot.material.vi_params.radtex for slot in oms if slot.material]) and not o.data.polygons[0].use_smooth:
         gradfile += radpoints(o, bm.faces, 0)
+    
     else:
         valid_fmis = [msi for msi, ms in enumerate(oms) if oms[msi].material]
         o_mats = [oms[fmi].material for fmi in valid_fmis]
@@ -85,17 +87,18 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
 
         if o.data.polygons and o.data.polygons[0].use_smooth:
-            vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
+            vtext += ''.join(['vn {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(v.normal.normalized()) for v in bm.verts])
 
-        if not o.data.uv_layers:
+        if not any([slot.material.vi_params.radtex for slot in oms if slot.material]):
             if mfaces:
                 for mat in mmats:
                     matname = mat.vi_params['radname']
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
-        else:
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[o.data.polygons[0].use_smooth and all([e.smooth for e in f.edges])].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
+        
+        elif bm.loops.layers.uv.values():
             uv_layer = bm.loops.layers.uv.values()[0]
             bm.faces.ensure_lookup_table()
-            vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
+            vtext += ''.join([''.join(['vt {0[0]:.3f} {0[1]:.3f}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
             li = 1
 
             for face in bm.faces:
@@ -106,7 +109,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
             if mfaces:
                 for mat in mmats:
                     matname = mat.vi_params['radname']
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth] for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), 
+                                                                                                '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[o.data.polygons[0].use_smooth and all([e.smooth for e in f.edges])] for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
 
         if ffaces:
             gradfile += radpoints(o, ffaces, 0)
@@ -159,8 +163,8 @@ def radgexport(export_op, node):
     if not node.mesh:
         for m in mats:
             if m and m.vi_params.radtex:
-                logentry('Mesh option not selected so the texture on material {} will not be applied'.format(m.name))
-                export_op.report({'WARNING'}, 'Mesh export has not been selected so the texture on material {} will not be applied'.format(m.name))
+                logentry('Turning on mesh export for objects with textured material {}'.format(m.name))
+                export_op.report({'WARNING'}, 'Turning on mesh export for objects with textured material {}'.format(m.name))
 
     svp['liparams']['livig'], svp['liparams']['livic'], svp['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
     eolist = set(geooblist + caloblist)
