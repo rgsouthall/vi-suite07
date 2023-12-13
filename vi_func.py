@@ -361,6 +361,7 @@ def regresults(scene, frames, simnode, res):
         simnode['maxres'][str(f)] = amax(res[i])
         simnode['minres'][str(f)] = amin(res[i])
         simnode['avres'][str(f)] = average(res[i])
+    print('regresults')
     scene.vi_leg_max, scene.vi_leg_min = max(simnode['maxres'].values()), min(simnode['minres'].values())
 
 
@@ -667,7 +668,13 @@ def lividisplay(self, scene):
             bm.from_mesh(self.id_data.data)
             geom = bm.verts if svp['liparams']['cp'] == '1' else bm.faces
             sf = str(frame)
-            res_name = f'{svp.li_disp_menu}{frame}' if svp.li_disp_menu != 'aga1v' else f'aga{svp.vi_views}v{frame}'
+
+            if svp.li_disp_menu == 'aga1v':
+                res_name = f'aga{svp.vi_views}v{frame}'
+            elif svp.li_disp_menu == 'ago1v':
+                res_name = f'ago{svp.vi_views}v{frame}'
+            else:
+                res_name = f'{svp.li_disp_menu}{frame}'
 
             if geom.layers.float.get(res_name):
                 livires = geom.layers.float[res_name]

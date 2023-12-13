@@ -1300,11 +1300,23 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 logentry(f'Running rcontrib with command: {dc1_cmd}')
                 dc1_run = Popen(shlex.split(dc1_cmd), stdin=vf_file, stdout=dc1_file, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([r[rv].decode('utf-8') for r in rgeom]))
         
+        curres += 0.33 * reslen
+
+        if pfile.check(curres) == 'CANCELLED':
+            bm.free()
+            return {'CANCELLED'}
+        
         with open("{}-{}.dc8".format(svp['viparams']['filebase'], frame), 'w') as dc8_file:
             with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 'r') as vf_file:
                 logentry(f'Running rcontrib with command: {dc8_cmd}')
                 dc8_run = Popen(shlex.split(dc8_cmd), stdin=vf_file, stdout=dc8_file, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([r[rv].decode('utf-8') for r in rgeom]))
         
+        curres += 0.33 * reslen
+
+        if pfile.check(curres) == 'CANCELLED':
+            bm.free()
+            return {'CANCELLED'}
+
         dgp_level = '-l {:.2f}'.format(0.01 * simnode['coptions']['dgp_thresh']) if not simnode['coptions']['dgp_hourly'] else ''
         dcg_cmd = 'dcglare -h {4} -vf "{0}" "{1}-{3}.dc1" "{1}-{3}.dc8" "{2}"'.format(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 
                                                                     svp['viparams']['filebase'],
@@ -1332,13 +1344,7 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GA view {vi + 1}', ' '.join([str(rg[agas[vi]]) for rg in rgeom])])
                 reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GO view {vi + 1}', ' '.join([str(rg[agos[vi]]) for rg in rgeom])])
             
-            for vi in range(simnode['coptions']['ga_views']):
-                self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
-                self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
-                self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
-                self['omax']['ago{}v{}'.format(vi + 1, frame)] = max(rg[agos[vi]] for rg in rgeom)
-                self['oave']['ago{}v{}'.format(vi + 1, frame)] = sum(rg[agos[vi]] for rg in rgeom)/len(rgeom)
-                self['omin']['ago{}v{}'.format(vi + 1, frame)] = min(rg[agos[vi]] for rg in rgeom)
+            
                         
         else:
             resarray = genfromtxt(dcg_run.stdout, dtype=float)
@@ -1353,13 +1359,27 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     rg[agos[vi]] = 100 * (1 - sum(resarray[vi::simnode['coptions']['ga_views']][ri] <= 0.01 * simnode['coptions']['dgp_thresh'])/len(resarray[ri]))
                     ri += 1
 
-                self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
-                self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
-                self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
-                self['omax']['ago{}v{}'.format(vi + 1, frame)] = max(rg[agos[vi]] for rg in rgeom)
-                self['oave']['ago{}v{}'.format(vi + 1, frame)] = sum(rg[agos[vi]] for rg in rgeom)/len(rgeom)
-                self['omin']['ago{}v{}'.format(vi + 1, frame)] = min(rg[agos[vi]] for rg in rgeom)
-        
+                # self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
+                # self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
+                # self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
+                # self['omax']['ago{}v{}'.format(vi + 1, frame)] = max(rg[agos[vi]] for rg in rgeom)
+                # self['oave']['ago{}v{}'.format(vi + 1, frame)] = sum(rg[agos[vi]] for rg in rgeom)/len(rgeom)
+                # self['omin']['ago{}v{}'.format(vi + 1, frame)] = min(rg[agos[vi]] for rg in rgeom)
+
+        for vi in range(simnode['coptions']['ga_views']):
+            self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
+            self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
+            self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
+            self['omax']['ago{}v{}'.format(vi + 1, frame)] = max(rg[agos[vi]] for rg in rgeom)
+            self['oave']['ago{}v{}'.format(vi + 1, frame)] = sum(rg[agos[vi]] for rg in rgeom)/len(rgeom)
+            self['omin']['ago{}v{}'.format(vi + 1, frame)] = min(rg[agos[vi]] for rg in rgeom)
+
+        self['omax']['aga1v{}'.format(frame)] = max([self['omax']['aga{}v{}'.format(vi + 1, frame)] for vi in range(simnode['coptions']['ga_views'])])
+        self['oave']['aga1v{}'.format(frame)] = sum([self['oave']['aga{}v{}'.format(vi + 1, frame)] for vi in range(simnode['coptions']['ga_views'])])/simnode['coptions']['ga_views']
+        self['omin']['aga1v{}'.format(frame)] = min([self['omin']['aga{}v{}'.format(vi + 1, frame)] for vi in range(simnode['coptions']['ga_views'])])
+        self['omax']['ago1v{}'.format(frame)] = max([self['omax']['ago{}v{}'.format(vi + 1, frame)] for vi in range(simnode['coptions']['ga_views'])])
+        self['oave']['ago1v{}'.format(frame)] = sum([self['oave']['ago{}v{}'.format(vi + 1, frame)] for vi in range(simnode['coptions']['ga_views'])])/simnode['coptions']['ga_views']
+        self['omin']['ago1v{}'.format(frame)] = min([self['omin']['ago{}v{}'.format(vi + 1, frame)] for vi in range(simnode['coptions']['ga_views'])])
         svp['liparams']['views'] = simnode['coptions']['ga_views']
     
     bm.transform(self.id_data.matrix_world.inverted())

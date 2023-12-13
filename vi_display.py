@@ -117,7 +117,12 @@ def leg_update(self, context):
                 bpy.ops.object.material_slot_remove()
 
         for f, frame in enumerate(frames):
-            res_name = '{}{}'.format(svp.li_disp_menu, frame) if svp.li_disp_menu != 'aga1v' else 'aga{}v{}'.format(svp.vi_views, frame)
+            if svp.li_disp_menu == 'aga1v':
+                res_name = 'aga{}v{}'.format(svp.vi_views, frame)
+            elif svp.li_disp_menu == 'ago1v':
+                res_name = 'ago{}v{}'.format(svp.vi_views, frame)
+            else:
+                res_name = '{}{}'.format(svp.li_disp_menu, frame)
 
             if bm.faces.layers.float.get(res_name):
                 livires = bm.faces.layers.float[res_name]
@@ -176,7 +181,12 @@ def e_update(self, context):
 
     if odiff:
         for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-            res_name = '{}{}'.format(svp.li_disp_menu, frame) if svp.li_disp_menu != 'aga1v' else 'aga{}v{}'.format(svp.vi_views, frame)
+            if svp.li_disp_menu == 'aga1v':
+                res_name = 'aga{}v{}'.format(svp.vi_views, frame)
+            elif svp.li_disp_menu == 'ago1v':
+                res_name = 'ago{}v{}'.format(svp.vi_views, frame)
+            else:
+                res_name = '{}{}'.format(svp.li_disp_menu, frame)
 
             for o in [obj for obj in bpy.data.objects if obj.vi_params.vi_type_string == 'LiVi Res' and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:
                 ovp = o.vi_params
@@ -460,7 +470,13 @@ class linumdisplay():
             bm.from_object(ob, dp)
             bm.transform(ob.matrix_world)
             bm.normal_update()
-            var = svp.li_disp_menu if svp.li_disp_menu != 'aga1v' else 'aga{}v'.format(svp.vi_views)
+
+            if svp.li_disp_menu == 'aga1v':
+                var = 'aga{}v'.format(svp.vi_views)
+            elif svp.li_disp_menu == 'ago1v':
+                var = 'ago{}v'.format(svp.vi_views)
+            else:
+                var = svp.li_disp_menu
 
             if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
                 geom = bm.faces
