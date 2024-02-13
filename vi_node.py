@@ -427,7 +427,7 @@ class No_Li_Con(Node, ViNodes):
     cbdm_start_hour:  IntProperty(name='', description="Hour of the day (1 being the first hour: midnight to 1am)", default=8, min=0, max=23, update=nodeupdate)
     cbdm_end_hour:  IntProperty(name='', description="Hour of the day (24 being the last hour: 11pm to midnight)", default=20, min=0, max=23, update=nodeupdate)
     cbdm_edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=365, update=nodeupdate)
-    cbdm_res: IntProperty(name='', default=1, min=1, max=3, update=nodeupdate)
+    cbdm_res: IntProperty(name='', default=1, min=1, max=12, update=nodeupdate)
     dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
     damin: IntProperty(name='lux', default=100, min=1, max=2000, update=nodeupdate)
     dasupp: IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
@@ -642,6 +642,8 @@ class No_Li_Con(Node, ViNodes):
             (sdoy, edoy) = (self.sdoy, self.edoy)
 
         elif self.contextmenu == 'CBDM':
+            if self.cbanalysismenu == '0' or self.hdr:
+                self.cbdm_res = 2 if self.cbdm_res > 2 else self.cbdm_res
             if self.cbanalysismenu == '2' and self.leed4:
                 (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour)
             elif self.ay:
@@ -749,7 +751,7 @@ class No_Li_Con(Node, ViNodes):
                 self['mtxfile'] = bpy.path.abspath(self.mtxname)
                 matrix_ns = '.'.join(self['mtxfile'].split('.')[:-2] + [self['mtxfile'].split('.')[-2] + 'ns'] + [self['mtxfile'].split('.')[-1]])
                 self['mtxfilens'] = matrix_ns
-
+            
             if self.cbanalysismenu == '0':
                 self['preview'] = 1
                 self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene, export_op)
@@ -764,7 +766,7 @@ class No_Li_Con(Node, ViNodes):
                     with open(bpy.path.abspath(self.mtxname), 'r') as mtxfile:
                         for line in mtxfile.readlines():
                             if line.split('=')[0] == 'NROWS':
-                                self.cbdm_res = (146, 578, 2306).index(int(line.split('=')[1])) + 1
+                                self.cbdm_res = (146, 578, 2306, 9218).index(int(line.split('=')[1])) + 1
                                 break
                             # elif line.split('=')[0] == 'NCOLS':
                             #     if len(self.times) != int(line.split('=')[1]):
@@ -776,6 +778,7 @@ class No_Li_Con(Node, ViNodes):
 
                 if self.hdr:
                     cbdmhdr(self, scene, export_op)
+            print('happy')
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
@@ -793,7 +796,7 @@ class No_Li_Con(Node, ViNodes):
                            'cbdm_eh': ceh, 'cbdm_sd': sdoy, 'cbdm_ed': edoy, 'weekdays': (7, 5)[self.weekdays],
                            'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
                            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
-                           'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306)[self.cbdm_res - 1],
+                           'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306, 9218)[self.cbdm_res - 1],
                            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay, 'ga_views': self.dgp_views, 'dgp_azi': self.dgp_azi,
                            'dgp_thresh': self.dgp_thresh, 'dgp_hourly': self.dgp_hourly}
 
@@ -873,7 +876,7 @@ class No_Li_Im(Node, ViNodes):
     mp: BoolProperty(name='', default=False, update=nodeupdate)
     camera: StringProperty(description="Select camera", update=nodeupdate)
     fisheye: BoolProperty(name='', default=0, update=nodeupdate)
-    fov: FloatProperty(name='', default=180, min=1, max=180, update=nodeupdate)
+    fov: FloatProperty(name='', default=180, min=1, max=360, update=nodeupdate)
     processors: IntProperty(name='', default=1, min=1, max=128, update=nodeupdate)
     processes: IntProperty(name='', default=1, min=1, max=1000, update=nodeupdate)
     normal: BoolProperty(name='', description="Generate denoising normal map", default=False)
@@ -976,6 +979,10 @@ class No_Li_Im(Node, ViNodes):
             scene.camera = bpy.data.objects[self.camera.lstrip()]
             cam = bpy.data.objects[self.camera.lstrip()]
             cang = cam.data.angle if not self.fisheye else self.fov
+            # cang_x = cang
+            # cang_y = cang*scene.render.resolution_y/scene.render.resolution_x
+            #cang_x = cam.data.angle_x if not self.fisheye else self.fov
+            #cang_y = cam.data.angle_y if not self.fisheye else self.fov
             2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
             vh = 180/math.pi * cang if self.x >= self.y else 180/math.pi * 2 * math.atan((0.5 * self.x) / (0.5 * self.y / math.tan(cang / 2)))
             vv = 180/math.pi * cang if self.x < self.y else 180/math.pi * 2 * math.atan((0.5 * self.y) / (0.5 * self.x / math.tan(cang / 2)))
@@ -985,18 +992,21 @@ class No_Li_Im(Node, ViNodes):
             self['pmapcnos'][sf] = self.pmapcno
             self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['gpentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['gpfileentry'], self['pmparams'][sf]['cpfileentry'] = retpmap(self, frame, scene)
 
-            if self.fisheye and self.fov == 180:
+            if self.fisheye and self.fov <= 180:
+                self['viewparams'][sf]['-vth'] = ''
+            elif self.fisheye and self.fov > 180:
                 self['viewparams'][sf]['-vta'] = ''
 
-            # (self['viewparams'][sf]['-vh'], self['viewparams'][sf]['-vv']) = (self.fov, self.fov) if self.fisheye else ('{:.4f}'.format(vh), '{:.4f}'.format(vv))
-            self['viewparams'][sf]['-vd'] = ' '.join(['{:.2f}'.format(v) for v in vd])
-            self['viewparams'][sf]['-x'], self['viewparams'][sf]['-y'] = self.x, self.y
-
+            (self['viewparams'][sf]['-vh'], self['viewparams'][sf]['-vv']) = (f'{self.fov:.3f}', f'{self.fov:.3f}') if self.fisheye else ('{:.4f}'.format(vh), '{:.4f}'.format(vv))
+            self['viewparams'][sf]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
+            self['viewparams'][sf]['-x'] = self.x
+            self['viewparams'][sf]['-y'] = self.y
+            
             if self.mp:
                 self['viewparams'][sf]['-X'], self['viewparams'][sf]['-Y'] = self.processes, 1
 
-            self['viewparams'][sf]['-vp'] = '{0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(cam.location)
-            self['viewparams'][sf]['-vu'] = '{0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)))
+            self['viewparams'][sf]['-vp'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.location)
+            self['viewparams'][sf]['-vu'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.matrix_world.to_quaternion()@mathutils.Vector((0, 1, 0)))
 
             if self.illu:
                 self['viewparams'][sf]['-i'] = ''
@@ -1247,16 +1257,24 @@ class No_Li_Sim(Node, ViNodes):
                     row.prop(self, 'cusacc')
 
                 if not self.run and (self.simacc != '3' or self.validparams):
-                    if cinnode['Options']['Preview']:
-                        row = layout.row()
-                        row.prop(self, "camera")
+                    try:
+                        if not any([n.use_custom_color for n in (self.inputs[0].links[0].from_node, self.inputs[1].links[0].from_node)]):
+                            if cinnode['Options']['Preview']:
+                                row = layout.row()
+                                row.prop(self, "camera")
 
-                        if self.camera != 'None':
-                            row.operator("node.radpreview", text='Preview')
+                                if self.camera != 'None':
+                                    row.operator("node.radpreview", text='Preview')
 
-                    if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
+                            if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
+                                row = layout.row()
+                                row.operator("node.livicalc", text='Calculate')
+                        else:
+                            row = layout.row()
+                            row.label(text="Red input node")
+                    except:
                         row = layout.row()
-                        row.operator("node.livicalc", text='Calculate')
+                        row.label(text="Missing input node")
 
     def update(self):
         for sock in self.outputs:
@@ -5589,7 +5607,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     noof: IntProperty(default=2, min=2, max=4, name='', description='Number of Sets of Opening Factor Data')
     spa: IntProperty(default=90, min=0, max=90, name='', description='Opening Angle')
     dcof: FloatProperty(default=0.7, min=0.01, max=1, name='', description='Discharge Coefficient')
-    ddtw: FloatProperty(default=0.001, min=0.001, max=10, name='', description='Minimum Density Difference for Two-way Flow')
+    ddtw: FloatProperty(default=0.001, min=0.001, max=10, name='', precision=4, description='Minimum Density Difference for Two-way Flow')
     amfc: FloatProperty(min=0.001, max=1, default=0.01, precision=5, name="")
     amfe: FloatProperty(min=0.5, max=1, default=0.65, precision=3, name="")
     dlen: FloatProperty(default=2, name="")
@@ -7187,6 +7205,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
     def ret_uv(self):
         if self.envi_con_proxy == '0':
+            print(self.id_data.name)
             if self.envi_con_makeup == '1':
                 resists = []
                 lsock = self.inputs['Outer layer']
@@ -7194,13 +7213,19 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 while lsock.links:
                     if lsock.links[0].from_node.bl_idname not in ("No_En_Mat_Sh",):
                         resists.append(lsock.links[0].from_node.ret_resist())
+                    
                     lsock = lsock.links[0].from_node.inputs['Layer']
 
                 self.cuv = '{:.3f}'.format(1/(sum(resists) + 0.12 + 0.08))
 
             return self.cuv
-        else:
+
+        elif self.envi_con_base:
             return get_con_node(bpy.data.materials[self.envi_con_base].vi_params).ret_uv()
+        
+        else:
+            logentry('Material {} has no construction specification'.format(self.id_data.name))
+            return
 
     def ret_frame_uv(self):
         if self.envi_con_type == 'Window' and self.fclass == '2':

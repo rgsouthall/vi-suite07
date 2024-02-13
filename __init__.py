@@ -450,17 +450,19 @@ def set_frame(self, value):
 
 
 def d_update(self, context):
-    if not self.vi_display and context.scene.vi_params.get('viparams'):
+    csvp = context.scene.vi_params
+    
+    if not self.vi_display and csvp.get('viparams'):
         dns = bpy.app.driver_namespace
         try:
-            for d in context.scene.vi_params['viparams'].get('drivers'):
+            for d in csvp['viparams'].get('drivers'):
                 if d in dns:
                     bpy.types.SpaceView3D.draw_handler_remove(dns[d], 'WINDOW')
                     logentry('Stopping {} display'.format(d))
         except:
             pass
 
-        context.scene.vi_params['viparams']['drivers'] = []
+        csvp['viparams']['drivers'] = []
 
 
 class VI_Params_Scene(bpy.types.PropertyGroup):
@@ -526,7 +528,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     li_disp_panel: iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     li_disp_menu: EnumProperty(items=unititems, name="", description="LiVi metric selection", update=livires_update)
     vi_display_rp_fsh: fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
-    vi_display_rp_fs: iprop("", "Point result font size", 4, 24, 24)
+    vi_display_rp_fs: iprop("", "Point result font size", 4, 64, 24)
     vi_display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_sh: bprop("", "Toggle for font shadow display",  False)
     vi_display: BoolProperty(name="", description="Toggle results display", default=0, update=d_update)

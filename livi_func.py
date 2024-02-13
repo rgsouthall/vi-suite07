@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil
+import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time
 from math import sin, cos, pi
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
@@ -249,7 +249,7 @@ def radmat(self, scene):
 
 def cbdmmtx(self, scene, locnode, export_op):
     svp = scene.vi_params
-    res = (1, 2, 4)[self.cbdm_res - 1]
+    res = (1, 2, 4, 8)[self.cbdm_res - 1]
     os.chdir(svp['viparams']['newdir'])
     (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour + 1) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (0, 24)
     (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if not self.ay else (1, 365)
@@ -283,11 +283,11 @@ def cbdmmtx(self, scene, locnode, export_op):
 
         with open("{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
             Popen(shlex.split(gdmcmdns), stdout=mtxfile, stderr=STDOUT).communicate()
-
+        
         with open("{}-whitesky.oct".format(svp['viparams']['filebase']), 'w') as wsfile:
             oconvcmd = "oconv -w -"
             Popen(shlex.split(oconvcmd), stdin=PIPE, stdout=wsfile).communicate(input=self['whitesky'].encode(sys.getfilesystemencoding()))
-
+        
         return ("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), "{}ns.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])))
 
     else:
@@ -296,8 +296,8 @@ def cbdmmtx(self, scene, locnode, export_op):
 
 
 def cbdmhdr(node, scene, exp_op):
-    patches = (146, 578, 2306)[node.cbdm_res - 1]
-    cbdm_res = (146, 578, 0, 2306).index(patches) + 1
+    patches = (146, 578, 2306, 9218)[node.cbdm_res - 1]
+    cbdm_res = (146, 578, 0, 2306, 9218).index(patches) + 1
     svp = scene.vi_params
     svpnd = svp['viparams']['newdir']
     targethdr = os.path.join(svpnd, node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
@@ -307,7 +307,7 @@ def cbdmhdr(node, scene, exp_op):
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         mtxlines = open(node['mtxfile'], 'r').readlines()
-
+        
         # for line in mtxlines:
         #     if line.split('=')[0] == 'NROWS':
         #         patches = int(line.split('=')[1])
@@ -321,6 +321,7 @@ def cbdmhdr(node, scene, exp_op):
         #             return
 
         vecvals, vals = mtx2vals(mtxlines, datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
+        
         pcombfiles = ''.join(["{} ".format(os.path.join(svpnd, 'ps{}.hdr'.format(i))) for i in range(patches)])
         vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
         rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -e MF:{} -f reinhart.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'],
@@ -332,6 +333,7 @@ def cbdmhdr(node, scene, exp_op):
         vwrun = Popen(shlex.split(vwcmd), stdout=PIPE)
         rcrun = Popen(shlex.split(rcontribcmd), stderr=PIPE, stdin=vwrun.stdout)
         rcrun.wait()
+
 
         for line in rcrun.stderr:
             logentry('HDR generation error: {}'.format(line))
@@ -898,7 +900,6 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params
     self['livires'] = {}
     reslists = []
-    # self['compmat'] = [slot.material.name for slot in self.id_data.material_slots if slot.material and slot.material.vi_params.mattype == '1'][0]
     selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()
     bm.from_mesh(self.id_data.data)
@@ -1210,7 +1211,7 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     mtxlines = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines()
     mtxlinesns = open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfilens'], 'r').readlines()
-    cbdm_res = (1, 2, 4)[(146, 578, 2306).index(simnode['coptions']['cbdm_res'])]
+    cbdm_res = (1, 2, 4, 8)[(146, 578, 2306, 9218).index(simnode['coptions']['cbdm_res'])]
 
     for line in mtxlines:
         if line.split("=")[0] == 'NROWS':
@@ -1318,36 +1319,59 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             return {'CANCELLED'}
 
         dgp_level = '-l {:.2f}'.format(0.01 * simnode['coptions']['dgp_thresh']) if not simnode['coptions']['dgp_hourly'] else ''
+        # dgc_cmds = []
+        # with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 'r') as vf_file:
+        #         vf_lines = vf_file.readlines()
+        #         n_lines = len(vf_lines)
+
+        #         for ci, chunk in enumerate(chunks(vf_lines, int(svp['viparams']['nproc']))):
+        #             with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf{}'.format(frame, ci)), 'w') as pvf_file:
+        #                 pvf_file.write(''.join(chunk))
+        #             with open(os.path.join(svp['viparams']['newdir'], 'views_{}.vf{}'.format(frame, ci)), 'r') as pvf_pfile:
+        #                 # dc1_cmd = 'rcontrib -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -n {} -m sky_glow -I+ -ab 1 -ad 50000 -lw .00002 -lr -10 -faf "{}-{}.oct"'.format(cbdm_res, svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
+        #                 # dc1_run = Popen(shlex.split(dc1_cmd), stdin=vf_pfile, stdout=dc1_file, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([r[rv].decode('utf-8') for r in rgeom]))
+        #                 # dc8_cmd = 'rcontrib -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -n {} -m sky_glow -I+ -ab 8 -ad 50000 -lw .00002 -lr -10 -faf "{}-{}.oct"'.format(cbdm_res, svp['viparams']['nproc'], svp['viparams']['filebase'], frame)
+        #                 # dc8_run = Popen(shlex.split(dc8_cmd), stdin=vf_pfile, stdout=dc8_file, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([r[rv].decode('utf-8') for r in rgeom])) 
+        #                 dgc_cmds.append('dcglare -h {4} -vf "{0}" "{1}-{3}.dc1" "{1}-{3}.dc8" "{2}"'.format(os.path.join(svp['viparams']['newdir'], 'views_{}.vf{}'.format(frame, ci)), 
+        #                                                                                 svp['viparams']['filebase'],
+        #                                                                                 simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 
+        #                                                                                 frame, dgp_level))
+                
+        #         dgc_runs = [Popen(shlex.split(dgc_cmd), stdout=PIPE) for dgc_cmd in dgc_cmds]                                                             
+
         dcg_cmd = 'dcglare -h {4} -vf "{0}" "{1}-{3}.dc1" "{1}-{3}.dc8" "{2}"'.format(os.path.join(svp['viparams']['newdir'], 'views_{}.vf'.format(frame)), 
                                                                     svp['viparams']['filebase'],
                                                                     simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 
                                                                     frame, dgp_level)
         logentry(f'Running dcglare with command {dcg_cmd}')
-        dcg_run = Popen(shlex.split(dcg_cmd), stdout=PIPE)
+        dgc_run = Popen(shlex.split(dcg_cmd), stdout=PIPE)
+        # while not all([dgc_run.poll() is not None for dgc_run in dgc_runs]):
+        #     time.sleep(0.2)
+        
+        #for ci, chunk in enumerate(chunks(rgeom, int(svp['viparams']['nproc']))):
 
         if not simnode['coptions']['dgp_hourly']:
-            resarray = array([float(line.decode()) for line in dcg_run.stdout])
+            resarray = array([float(line.decode()) for line in dgc_run.stdout])
             ri = 0
 
+            # for rg in chunk:
             for rg in rgeom:
                 for vi in range(simnode['coptions']['ga_views']):
                     rg[agas[vi]] = 100 * resarray[ri]
                     rg[agos[vi]] = (1 - resarray[ri]) * 100
                     ri += 1
 
-            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in rpos])])
-            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in rpos])])
-            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in rpos])])
-            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
-            
-            for vi in range(simnode['coptions']['ga_views']):
-                reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GA view {vi + 1}', ' '.join([str(rg[agas[vi]]) for rg in rgeom])])
-                reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GO view {vi + 1}', ' '.join([str(rg[agos[vi]]) for rg in rgeom])])
-            
-            
-                        
+                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in rpos])])
+                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in rpos])])
+                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in rpos])])
+                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
+                
+                # for vi in range(simnode['coptions']['ga_views']):
+                #     reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GA view {vi + 1}', ' '.join([str(rg[agas[vi]]) for rg in rgeom])])
+                #     reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GO view {vi + 1}', ' '.join([str(rg[agos[vi]]) for rg in rgeom])])
+
         else:
-            resarray = genfromtxt(dcg_run.stdout, dtype=float)
+            resarray = genfromtxt(dgc_run.stdout, dtype=float)
 
             for vi in range(simnode['coptions']['ga_views']):
                 dgp_res = nsum(((resarray[vi::simnode['coptions']['ga_views']] <= 0.01 * simnode['coptions']['dgp_thresh']).T * rareas).T, axis=0)/nsum(rareas)
@@ -1358,13 +1382,6 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     rg[agas[vi]] = 100 * sum(resarray[vi::simnode['coptions']['ga_views']][ri] <= 0.01 * simnode['coptions']['dgp_thresh'])/len(resarray[ri])
                     rg[agos[vi]] = 100 * (1 - sum(resarray[vi::simnode['coptions']['ga_views']][ri] <= 0.01 * simnode['coptions']['dgp_thresh'])/len(resarray[ri]))
                     ri += 1
-
-                # self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)
-                # self['oave']['aga{}v{}'.format(vi + 1, frame)] = sum(rg[agas[vi]] for rg in rgeom)/len(rgeom)
-                # self['omin']['aga{}v{}'.format(vi + 1, frame)] = min(rg[agas[vi]] for rg in rgeom)
-                # self['omax']['ago{}v{}'.format(vi + 1, frame)] = max(rg[agos[vi]] for rg in rgeom)
-                # self['oave']['ago{}v{}'.format(vi + 1, frame)] = sum(rg[agos[vi]] for rg in rgeom)/len(rgeom)
-                # self['omin']['ago{}v{}'.format(vi + 1, frame)] = min(rg[agos[vi]] for rg in rgeom)
 
         for vi in range(simnode['coptions']['ga_views']):
             self['omax']['aga{}v{}'.format(vi + 1, frame)] = max(rg[agas[vi]] for rg in rgeom)

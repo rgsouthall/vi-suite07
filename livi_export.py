@@ -68,7 +68,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
     if tri:
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
     
-    if o.data.polygons and not m_export and not any([slot.material.vi_params.radtex for slot in oms if slot.material]) and not o.data.polygons[0].use_smooth:
+    if not m_export and not any([slot.material.vi_params.radtex for slot in oms if slot.material]) and not o.data.polygons[0].use_smooth:
         gradfile += radpoints(o, bm.faces, 0)
     
     else:
@@ -86,7 +86,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
 
-        if o.data.polygons and o.data.polygons[0].use_smooth:
+        if o.data.polygons[0].use_smooth:
             vtext += ''.join(['vn {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(v.normal.normalized()) for v in bm.verts])
 
         if not any([slot.material.vi_params.radtex for slot in oms if slot.material]):

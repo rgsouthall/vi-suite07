@@ -1256,7 +1256,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         scontext = self.simnode['coptions']['Context']
         subcontext = self.simnode['coptions']['Type']
         patches = self.simnode['coptions']['cbdm_res']
-        rh = (146, 578, 0, 2306).index(patches) + 1
+        rh = (146, 578, 0, 2306, 0, 0, 0, 9218).index(patches) + 1
         svp['liparams']['maxres'], svp['liparams']['minres'], svp['liparams']['avres'] = {}, {}, {}
 
         if frame not in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
@@ -1438,7 +1438,9 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     if self.xindex == 0:
                         if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame)):
                             os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame))
+                        
                         logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
+                    
                     self.xindex += 1
 
                 if self.xindex == self.processes:
@@ -1507,6 +1509,11 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                             return {'CANCELLED'}
 
                 self.imupdate(f)
+
+                if os.path.isfile("{}-{}.hdr_temp".format(os.path.join(self.folder, 'images', self.basename), f)):
+                    os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
+                    os.rename("{}-{}.hdr_temp".format(os.path.join(self.folder, 'images', self.basename), f), "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
+                
                 return {self.terminate()}
 
             elif self.pmfin and self.mp:
@@ -1530,7 +1537,32 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             return {'PASS_THROUGH'}
 
     def imupdate(self, f):
-        inp = ImageInput.open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
+        imfp = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
+        inp = ImageInput.open(imfp)
+
+        if not inp:
+            gicmd = f'getinfo "{imfp}"'
+            girun = Popen(shlex.split(gicmd), stdout=PIPE, stderr=PIPE)
+
+            for line in girun.stdout:
+                lid = line.decode()
+                
+                if "VIEW=" in lid:
+                    if "-vu" in lid:
+                        lsplit = lid.split()
+                        vui = lsplit.index("-vu")
+                        lsplit[vui + 1] = lsplit[vui + 1][:5]
+                        lsplit[vui + 2] = lsplit[vui + 2][:5]
+                        lsplit[vui + 3] = lsplit[vui + 3][:5]
+                        newline = ' '.join(lsplit)
+
+                        with open(imfp, "r") as ifile:
+                            gicmd = f'getinfo -r "{newline}"'
+
+                            with open(imfp+ "_temp", "w") as nifile:
+                                girun = Popen(shlex.split(gicmd), stdin=ifile, stdout=nifile).wait()
+
+                        inp = ImageInput.open(imfp+ "_temp")
 
         if inp:
             spec = inp.spec()
@@ -1538,6 +1570,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
             for y in range(spec.height):
                 sl = inp.read_scanline(y, 0, "float32")
+
                 if not isinstance(sl, ndarray):
                     pass
                 else:
@@ -1632,7 +1665,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
             self.rppmcmds = [('', ' -ap "{}" {}'.format('{}-{}.gpm'.format(self.fb, frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
             self.rpictcmds = ['rpict -u+ -pa 0 -t 10 -e "{}" '.format(self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '"{0}-{1}.oct"'.format(self.fb, frame) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ['rpiece -u+ -pa 0 -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ['rpiece -u+ -t 10 -af "{}" -e "{}" '.format('{}-{}.amb'.format(self.fb, frame), self.rpictfile) + vps[frame - self.fs] + self.rppmcmds[frame - self.fs] + self.radparams + '-o "{2}-{1}.hdr" "{0}-{1}.oct"'.format(self.fb, frame, os.path.join(self.folder, 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
 
             if simnode.normal or simnode.albedo:
                 for frame in range(self.fs, self.fe + 1):
@@ -1733,10 +1766,9 @@ class NODE_OT_Li_Gl(bpy.types.Operator):
         for i, im in enumerate(imnode['images']):
             with open(im, 'rb') as imtext:
                 for line in imtext:
-
                     if line.decode()[0:2] == '-Y':
-                        imy = int(line.decode().split(' ')[1])
-                        imx = int(line.decode().split(' ')[3])
+                        imy = int(line.decode().split()[1])
+                        imx = int(line.decode().split()[3])
                         break
 
             glfile = os.path.join(svp['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + svp['liparams']['fs']))

@@ -361,7 +361,7 @@ def regresults(scene, frames, simnode, res):
         simnode['maxres'][str(f)] = amax(res[i])
         simnode['minres'][str(f)] = amin(res[i])
         simnode['avres'][str(f)] = average(res[i])
-    print('regresults')
+
     scene.vi_leg_max, scene.vi_leg_min = max(simnode['maxres'].values()), min(simnode['minres'].values())
 
 
@@ -1626,26 +1626,26 @@ def retobjs(otypes):
             o.vi_params.vi_type_string = ''
 
     if otypes == 'livig':
-        return [o for o in validobs if o.type == 'MESH' and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
                 and o.vi_params.vi_type not in ('4', '5')
                 and o.vi_params.vi_type_string != 'LiVi Res'
                 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')]
     elif otypes == 'livigeno':
-        return [o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])]
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])]
     elif otypes == 'livigengeosel':
-        return [o for o in validobs if o.type == 'MESH' and o.select is True and o.data.materials
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and o.select is True and o.data.materials
                 and not any([m.vi_params.livi_sense for m in o.data.materials])]
     elif otypes == 'livil':
         return [o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4']
     elif otypes == 'livic':
-        return [o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
     elif otypes == 'livir':
-        return [o for o in validobs if o.type == 'MESH' and True in [m.vi_params.livi_sense for m in o.data.materials]
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and True in [m.vi_params.livi_sense for m in o.data.materials]
                 and o.vi_params.vi_type_string != 'LiVi Calc']
     elif otypes == 'envig':
         return [o for o in scene.objects if o.type == 'MESH' and o.hide is False]
     elif otypes == 'ssc':
-        return [o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
     elif otypes == 'selected':
         return [o for o in [bpy.context.active_object] if o.type == 'MESH']
 
@@ -1743,8 +1743,11 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             print('Drawing index error: ', e)
 
 
-def draw_index(posis, res, dists, fontsize, fontcol, shadcol):
-    nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]
+def draw_index(posis, res, dists, fontsize, fontcol, shadcol, **kwargs):
+    if not kwargs.get('hour'):
+        nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]
+    else:
+        nres = res
 
     for ri, nr in enumerate(nres):
         blf.size(0, int(0.25 * fontsize + 0.25 * fontsize * (max(dists) - dists[ri])/(max(dists) - min(dists)))* 150/72)
@@ -1754,6 +1757,7 @@ def draw_index(posis, res, dists, fontsize, fontcol, shadcol):
 
 
 def draw_time(pos, time, fontsize, fontcol, shadcol):
+    blf.size(0, int(fontsize))
     blf.position(0, pos[0], pos[1] - blf.dimensions(0, time)[1] * 0.5, 0)
     blf.draw(0, time)
     blf.disable(0, 4)
