@@ -2201,7 +2201,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
         self.legend_num = linumdisplay(self, context)
         self.height = r5h - r0h
-        self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_VIEW')
+        self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["svf"] = self.draw_handle_svfnum
         self.cao = context.active_object
         context.region.tag_redraw()
