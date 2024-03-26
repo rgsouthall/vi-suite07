@@ -6450,7 +6450,7 @@ class No_En_Net_EMSZone(Node, EnViNodes):
     '''Node describing a Energy management System routine'''
     bl_idname = 'No_En_Net_EMSZone'
     bl_label = 'EMS Zone'
-    bl_icon = 'LIGHTPROBE_CUBEMAP'
+    bl_icon = 'META_CUBE'
 
     def zonelist(self, context):
         return [('Environment', 'Environment', 'Environmental sensor')] + [(c.name, c.name, c.name) for c in bpy.data.collections['EnVi Geometry'].children]
