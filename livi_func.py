@@ -17,10 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time
-from math import sin, cos, pi
+from math import sin, cos, pi, log10
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt
+from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt, logspace
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
@@ -78,6 +78,140 @@ def face_bsdf(o, m, mname, f):
         return radentry
     else:
         return ''
+
+def res_interpolate(scene, dp, o, ores, plt, offset):
+    bm = bmesh.new()
+    bm.from_object(o, dp)
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    ovp = o.vi_params
+    svp = scene.vi_params
+
+    if svp.vi_leg_levels < 3:
+        svp.vi_leg_levels = 3
+
+    if svp.li_disp_menu == 'aga1v':
+        var = 'aga{}v'.format(svp.vi_views)
+    elif svp.li_disp_menu == 'ago1v':
+        var = 'ago{}v'.format(svp.vi_views)
+    else:
+        var = svp.li_disp_menu
+
+    if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
+        geom = bm.faces
+    elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):
+        geom = bm.verts
+    else:
+        logentry(f"No result data on {o.name}. Re-export LiVi Context and Geometry")
+        return
+
+    if svp.vi_leg_scale == '0':
+        levels = [svp.vi_leg_min + i * (svp.vi_leg_max - svp.vi_leg_min)/svp.vi_leg_levels for i in range(1, svp.vi_leg_levels)]
+
+    elif svp.vi_leg_scale == '1':
+        slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
+        bins = array([1 - log10(i)/log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
+        levels = svp.vi_leg_min + (svp.vi_leg_max - svp.vi_leg_min) * bins[1:-1]
+
+    poss = [v.co for v in bm.verts]
+    xs = [p[0] for p in poss]
+    ys = [p[1] for p in poss]
+    tris = [[v.index for v in face.verts] for face in bm.faces]
+    res_lay = geom.layers.float['{}{}'.format(var, scene.frame_current)]
+    ress = array([sum([f[res_lay] for f in v.link_faces])/len(v.link_faces) for v in bm.verts])
+    bm.free()
+    CS = plt.tricontourf(xs, ys, tris, ress, levels=levels, extend="both")
+    vi, vcos, eis, fis, mis, v_start = 0, [], [], [], [], 0 
+    plt.gca().set_aspect('equal')
+
+    for csi, ca in enumerate(CS.allsegs):
+        for ci, c_cos in enumerate(ca):
+            vcos += [o.matrix_world@Vector(c + [offset + (1, -1)[svp.vi_disp_pos == "1"] * 0.0001 * csi]) for c in c_cos.tolist()]
+            fis.append([vi for vi in range(v_start, v_start + len(c_cos))])      
+            mis.append(csi)
+            v_start += len(c_cos)
+
+    while ores.material_slots:
+        bpy.ops.object.material_slot_remove()
+
+    ores.data.clear_geometry()
+    ores.data.from_pydata(vcos, [], fis)   
+    ores.data.validate()
+    ores.data.update(calc_edges=True)
+
+    for fi, face in enumerate(ores.data.polygons):
+        face.material_index = mis[fi]
+    
+    for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
+        if bpy.data.materials[matname] not in ores.data.materials[:]:
+            bpy.ops.object.material_slot_add()
+            ores.material_slots[-1].material = bpy.data.materials[matname]
+
+
+def res_direction(scene, o, ores, offset):
+    svp = scene.vi_params
+    views = len([attrib for attrib in o.data.attributes if 'aga' == attrib.name[:3]])
+    vf = o.data.attributes[f'aga{views}v{scene.frame_current}'].domain
+    v_cos = []
+    f_vs = []
+    osizel = 0.2
+    osizeh = 0.5
+    azi = o.vi_params['azi'] + (svp.vi_views - 1) * 360/views
+    v_angles = [azi, azi + 120, azi + 240]
+    angxs = [sin(ang*pi/180) for ang in v_angles]
+    angys = [cos(ang*pi/180) for ang in v_angles]
+    rps = o.data.polygons if vf == 'FACE' else o.data.vertices
+    maxval = max([v.value for v in o.data.attributes[f'{svp.li_disp_menu}{svp.vi_frames}'].data])
+    minval = min([v.value for v in o.data.attributes[f'{svp.li_disp_menu}{svp.vi_frames}'].data])
+
+    for rpi, rp in enumerate(rps):
+        val = o.data.attributes[f'{svp.li_disp_menu}{svp.vi_frames}'].data[rpi].value
+        size = osizel + (osizeh - osizel) * (val - minval)/(maxval - minval)
+        size = svp.vi_arrow_size
+        pc = o.matrix_world@rp.center if vf == 'FACE' else o.matrix_world@rp.location
+        v_cos.append([pc[0] + angxs[0] * size, pc[1] + angys[0] * size, pc[2] + offset])
+        v_cos.append([pc[0] + angxs[1] * size * 0.5, pc[1] + angys[1] * size * 0.5, pc[2] + offset])
+        v_cos.append([pc[0] - angxs[0] * size * 0.5, pc[1] - angys[0] * size * 0.5, pc[2] + offset])
+        v_cos.append([pc[0] + angxs[2] * size * 0.5, pc[1] + angys[2] * size * 0.5, pc[2] + offset])
+        f_vs.append([rpi*4, rpi*4+1, rpi*4+2, rpi*4+3])
+    
+    while ores.material_slots:
+        bpy.ops.object.material_slot_remove()
+
+    ores.data.clear_geometry()   
+    ores.data.from_pydata(vertices=v_cos, edges=[], faces=f_vs)
+    bm = bmesh.new()
+    bm.from_mesh(ores.data)
+
+    for attrib in o.data.attributes:
+        if attrib.data_type == 'FLOAT':
+            bm.faces.layers.float.new(attrib.name)
+            res = bm.faces.layers.float[attrib.name]
+            
+            for fi, face in enumerate(bm.faces):
+                face[res] = o.data.attributes[attrib.name].data[fi].value
+                    
+        elif attrib.data_type == 'INT':
+            bm.faces.layers.int.new(attrib.name)
+            res = bm.faces.layers.int[attrib.name]
+            
+            for fi, face in enumerate(bm.faces):
+                face[res] = o.data.attributes[attrib.name].data[fi].value
+
+    if svp.vi_leg_scale == '0':
+        levels = [svp.vi_leg_min + i * (svp.vi_leg_max - svp.vi_leg_min)/svp.vi_leg_levels for i in range(1, svp.vi_leg_levels)]
+
+    elif svp.vi_leg_scale == '1':
+        slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
+        bins = array([1 - log10(i)/log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
+        levels = svp.vi_leg_min + (svp.vi_leg_max - svp.vi_leg_min) * bins[1:-1]
+
+    bm.to_mesh(ores.data)
+    bm.free()
+
+    for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
+        if bpy.data.materials[matname] not in ores.data.materials[:]:
+            bpy.ops.object.material_slot_add()
+            ores.material_slots[-1].material = bpy.data.materials[matname]
 
 
 def rtpoints(self, bm, offset, cp, frame):
@@ -1200,6 +1334,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     svp = scene.vi_params
     self['livires'] = {}
+    self['azi'] = simnode['coptions']['dgp_azi']
     reslists = []
     selobj(bpy.context.view_layer, self.id_data)
     bm = bmesh.new()

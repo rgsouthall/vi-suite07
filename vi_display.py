@@ -25,7 +25,7 @@ from .vi_func import ret_vp_loc, viewdesc, draw_index, draw_time, blf_props, ret
 from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im, move_obs
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
-from .livi_func import setscenelivivals
+from .livi_func import setscenelivivals, res_interpolate, res_direction
 # from .livi_export import spfc
 from .vi_dicts import res2unit, unit2res
 from . import livi_export
@@ -57,7 +57,6 @@ try:
     import matplotlib.colors as mcolors
     from matplotlib.patches import Rectangle
     from matplotlib.collections import PatchCollection
-    # from mpl_toolkits.axes_grid1 import make_axes_locatable
     mp = 1
 except Exception as e:
     print("No matplotlib: {}".format(e))
@@ -72,6 +71,7 @@ def ret_dcoords(context):
 
 
 def script_update(self, context):
+    print('script_update')
     svp = context.scene.vi_params
 
     if svp.vi_res_process == '2' and svp.script_file in bpy.data.texts:
@@ -88,8 +88,10 @@ def col_update(self, context):
 def leg_update(self, context):
     scene = context.scene
     svp = scene.vi_params
+    legmm = leg_min_max(svp)
     frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
     obs = [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Res']
+    cobs = [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']
     increment = 1/svp.vi_leg_levels
 
     if svp.vi_leg_scale == '0':
@@ -107,54 +109,110 @@ def leg_update(self, context):
         bm.from_mesh(o.data)
         cmap(self)
         
+        if svp.vi_disp_process == '2':
+            if o.name[:-3] in [cob.name for cob in cobs]:
+                cob = cobs[[cob.name for cob in cobs].index(o.name[:-3])]                
+                res_interpolate(scene, context.evaluated_depsgraph_get(), cob, o, plt, svp['liparams']['offset'])
+        
+        elif svp.vi_disp_process == '3':
+            if o.name[:-3] in [cob.name for cob in cobs]:
+                cob = cobs[[cob.name for cob in cobs].index(o.name[:-3])] 
+                res_direction(scene, cob, o, svp['liparams']['offset'])
 
-        if len(o.material_slots) != svp.vi_leg_levels:
-            for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels)]:
-                if bpy.data.materials[matname] not in o.data.materials[:]:
-                    bpy.ops.object.material_slot_add()
-                    o.material_slots[-1].material = bpy.data.materials[matname]
-            while len(o.material_slots) > svp.vi_leg_levels:
-                bpy.ops.object.material_slot_remove()
+            if len(o.material_slots) != svp.vi_leg_levels:
+                for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels)]:
+                    if bpy.data.materials[matname] not in o.data.materials[:]:
+                        bpy.ops.object.material_slot_add()
+                        o.material_slots[-1].material = bpy.data.materials[matname]
+                while len(o.material_slots) > svp.vi_leg_levels:
+                    bpy.ops.object.material_slot_remove()
 
-        for f, frame in enumerate(frames):
-            if svp.li_disp_menu == 'aga1v':
-                res_name = 'aga{}v{}'.format(svp.vi_views, frame)
-            elif svp.li_disp_menu == 'ago1v':
-                res_name = 'ago{}v{}'.format(svp.vi_views, frame)
-            else:
-                res_name = '{}{}'.format(svp.li_disp_menu, frame)
+            for f, frame in enumerate(frames):
+                if svp.li_disp_menu == 'aga1v':
+                    res_name = 'aga{}v{}'.format(svp.vi_views, frame)
+                elif svp.li_disp_menu == 'ago1v':
+                    res_name = 'ago{}v{}'.format(svp.vi_views, frame)
+                else:
+                    res_name = '{}{}'.format(svp.li_disp_menu, frame)
 
-            if bm.faces.layers.float.get(res_name):
-                livires = bm.faces.layers.float[res_name]
-                ovals = array([f[livires] for f in bm.faces])
-            elif bm.verts.layers.float.get(res_name):
-                livires = bm.verts.layers.float[res_name]
-                ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
+                if bm.faces.layers.float.get(res_name):
+                    livires = bm.faces.layers.float[res_name]
+                    ovals = array([f[livires] for f in bm.faces])
+                elif bm.verts.layers.float.get(res_name):
+                    livires = bm.verts.layers.float[res_name]
+                    ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
 
-            ovals = array(ret_res_vals(svp, ovals))
-            legmm = leg_min_max(svp)
+                ovals = array(ret_res_vals(svp, ovals))
 
-            if legmm[1] > legmm[0]:
-                vals = ovals - legmm[0]
-                vals = vals/(legmm[1] - legmm[0])
-            else:
-                vals = array([legmm[1] for f in bm.faces])
+                if legmm[1] > legmm[0]:
+                    vals = ovals - legmm[0]
+                    vals = vals/(legmm[1] - legmm[0])
+                else:
+                    vals = array([legmm[1] for f in bm.faces])
 
-            if svp.vi_res_process == '2' and svp.script_file:
-                nmatis = array(ovals).astype(int8)
-            else:
-                nmatis = digitize(vals, bins, right=False).clip(0, svp.vi_leg_levels - 1)
+                if svp.vi_res_process == '2' and svp.script_file:
+                    nmatis = array(ovals).astype(int8)
+                else:
+                    nmatis = digitize(vals, bins, right=False).clip(0, svp.vi_leg_levels - 1)
 
-            if len(frames) == 1:
-                o.data.polygons.foreach_set('material_index', nmatis)
-                o.data.update()
+                if len(frames) == 1:
+                    o.data.polygons.foreach_set('material_index', nmatis)
+                    o.data.update()
 
-            elif len(frames) > 1:
-                for fi, fc in enumerate(o.data.animation_data.action.fcurves):
-                    fc.keyframe_points[f].co = frame, nmatis[fi]
+                elif len(frames) > 1:
+                    for fi, fc in enumerate(o.data.animation_data.action.fcurves):
+                        fc.keyframe_points[f].co = frame, nmatis[fi]
+
+        else:
+            if len(o.material_slots) != svp.vi_leg_levels:
+                for matname in ['{}#{}'.format('vi-suite', i) for i in range(0, svp.vi_leg_levels)]:
+                    if bpy.data.materials[matname] not in o.data.materials[:]:
+                        bpy.ops.object.material_slot_add()
+                        o.material_slots[-1].material = bpy.data.materials[matname]
+                while len(o.material_slots) > svp.vi_leg_levels:
+                    bpy.ops.object.material_slot_remove()
+
+            for f, frame in enumerate(frames):
+                if svp.li_disp_menu == 'aga1v':
+                    res_name = 'aga{}v{}'.format(svp.vi_views, frame)
+                elif svp.li_disp_menu == 'ago1v':
+                    res_name = 'ago{}v{}'.format(svp.vi_views, frame)
+                else:
+                    res_name = '{}{}'.format(svp.li_disp_menu, frame)
+
+                if bm.faces.layers.float.get(res_name):
+                    livires = bm.faces.layers.float[res_name]
+                    ovals = array([f[livires] for f in bm.faces])
+                elif bm.verts.layers.float.get(res_name):
+                    livires = bm.verts.layers.float[res_name]
+                    ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
+
+                ovals = array(ret_res_vals(svp, ovals))
+
+                if legmm[1] > legmm[0]:
+                    vals = ovals - legmm[0]
+                    vals = vals/(legmm[1] - legmm[0])
+                else:
+                    vals = array([legmm[1] for f in bm.faces])
+
+                if svp.vi_res_process == '2' and svp.script_file:
+                    nmatis = array(ovals).astype(int8)
+                else:
+                    nmatis = digitize(vals, bins, right=False).clip(0, svp.vi_leg_levels - 1)
+
+                if len(frames) == 1:
+                    o.data.polygons.foreach_set('material_index', nmatis)
+                    o.data.update()
+
+                elif len(frames) > 1:
+                    for fi, fc in enumerate(o.data.animation_data.action.fcurves):
+                        fc.keyframe_points[f].co = frame, nmatis[fi]
         bm.free()
-
-    scene.frame_set(scene.frame_current)
+    
+    try:
+        context.space_data.region_3d.view_location[2] += 0.0001
+    except Exception as e:
+        print(e)
 
 
 def leg_min_max(svp):
@@ -264,6 +322,7 @@ def rendview(i):
 def li_display(context, disp_op, simnode):
     if not [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
         return 'CANCELLED'
+
     scene, obreslist, obcalclist = context.scene, [], []
     dp = context.evaluated_depsgraph_get()
     svp = scene.vi_params
@@ -290,86 +349,117 @@ def li_display(context, disp_op, simnode):
 
     scene.frame_set(svp['liparams']['fs'])
     context.view_layer.objects.active = None
+    cmap(svp)
 
     for i, o in enumerate(obcalclist):
-        bm = bmesh.new()
-        bm.from_object(o, dp)
         ovp = o.vi_params
 
-        if svp['liparams']['cp'] == '0':
-            cindex = bm.faces.layers.int['cindex']
-            for f in [f for f in bm.faces if f[cindex] < 1]:
-                bm.faces.remove(f)
-            [bm.verts.remove(v) for v in bm.verts if not v.link_faces]
-
-        elif svp['liparams']['cp'] == '1':
-            cindex = bm.verts.layers.int['cindex']
-            for v in [v for v in bm.verts if v[cindex] < 1]:
-                bm.verts.remove(v)
-            for v in bm.verts:
-                v.select = True
-
-        while bm.verts.layers.shape:
-            bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
-
-        for v in bm.verts:
-            v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized() * simnode['goptions']['offset']
-
-        selobj(context.view_layer, o)
-        bpy.ops.object.duplicate()
-
-        for face in bm.faces:
-            face.select = True
-
-        if not context.active_object:
-            disp_op.report({'ERROR'}, "No display object. If in local view switch to global view and/or re-export the geometry")
-            return 'CANCELLED'
-
-        ores = context.active_object
-        ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
-        move_to_coll(context, 'LiVi Results', ores)
-        context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
-        context.view_layer.objects.active = ores
-
-        while ores.material_slots:
-            bpy.ops.object.material_slot_remove()
-
-        while ores.data.shape_keys:
-            context.object.active_shape_key_index = 0
-            bpy.ops.object.shape_key_remove(all=True)
-
-        ores.visible_diffuse, ores.visible_glossy, ores.visible_transmission, ores.visible_volume_scatter, ores.visible_shadow = 0, 0, 0, 0, 0
-        obreslist.append(ores)
-        ores.vi_params.vi_type_string == 'LiVi Res'
-        orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave']
-        selobj(context.view_layer, ores)
-        cmap(svp)
-
-        for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
-            if bpy.data.materials[matname] not in ores.data.materials[:]:
-                bpy.ops.object.material_slot_add()
-                ores.material_slots[-1].material = bpy.data.materials[matname]
-
-        if svp.vi_disp_3d == 1 and svp['liparams']['cp'] == '0':
-            bm.faces.layers.int.new('extrude')
-            extrude = bm.faces.layers.int['extrude']
-
-            for face in bmesh.ops.extrude_discrete_faces(bm, faces=bm.faces)['faces']:
-                face.select = True
-                face[extrude] = 1
-
-        bm.to_mesh(ores.data)
-        bm.free()
-        bpy.ops.object.shade_flat()
-        ores.vi_params.lividisplay(scene)
-
-        if svp.vi_disp_3d == 1 and not ores.data.shape_keys:
+        if svp.vi_disp_process == "2":
+            mesh = bpy.data.meshes.new(f'{o.name}_res')
+            ores = bpy.data.objects.new(f'{o.name}_res', mesh)
+            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
+            move_to_coll(context, 'LiVi Results', ores)
+            context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
+            context.view_layer.objects.active = ores
+            ores.visible_diffuse, ores.visible_glossy, ores.visible_transmission, ores.visible_volume_scatter, ores.visible_shadow = 0, 0, 0, 0, 0
+            ores.vi_params.vi_type_string == 'LiVi Res'
+            orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave']
             selobj(context.view_layer, ores)
-            bpy.ops.object.shape_key_add(from_mix=False)
+            res_interpolate(scene, dp, o, ores, plt, simnode['goptions']['offset'])
+            ores.vi_params.lividisplay(scene)
 
-            for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+        elif svp.vi_disp_process == "3":
+            mesh = bpy.data.meshes.new(f'{o.name}_res')
+            ores = bpy.data.objects.new(f'{o.name}_res', mesh)
+            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
+            move_to_coll(context, 'LiVi Results', ores)
+            context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
+            selobj(context.view_layer, ores)
+            res_direction(scene, o, ores, simnode['goptions']['offset'])
+            orvp['omax'], orvp['oave'], orvp['omin'] = ovp['omax'], ovp['omin'], ovp['oave']
+            orvp.lividisplay(scene)
+            obreslist.append(ores)
+
+        else:
+            bm = bmesh.new()
+            bm.from_object(o, dp)
+
+            if svp['liparams']['cp'] == '0':
+                cindex = bm.faces.layers.int['cindex']
+
+                for f in [f for f in bm.faces if f[cindex] < 1]:
+                    bm.faces.remove(f)
+
+                [bm.verts.remove(v) for v in bm.verts if not v.link_faces]
+
+            elif svp['liparams']['cp'] == '1':
+                cindex = bm.verts.layers.int['cindex']
+
+                for v in [v for v in bm.verts if v[cindex] < 1]:
+                    bm.verts.remove(v)
+                for v in bm.verts:
+                    v.select = True
+
+            while bm.verts.layers.shape:
+                bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
+
+            for v in bm.verts:
+                v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized() * simnode['goptions']['offset']
+
+            selobj(context.view_layer, o)
+            bpy.ops.object.duplicate()
+
+            for face in bm.faces:
+                face.select = True
+
+            if not context.active_object:
+                disp_op.report({'ERROR'}, "No display object. If in local view switch to global view and/or re-export the geometry")
+                return 'CANCELLED'
+
+            ores = context.active_object
+            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
+            move_to_coll(context, 'LiVi Results', ores)
+            context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
+            context.view_layer.objects.active = ores
+
+            while ores.material_slots:
+                bpy.ops.object.material_slot_remove()
+
+            while ores.data.shape_keys:
+                context.object.active_shape_key_index = 0
+                bpy.ops.object.shape_key_remove(all=True)
+
+            ores.visible_diffuse, ores.visible_glossy, ores.visible_transmission, ores.visible_volume_scatter, ores.visible_shadow = 0, 0, 0, 0, 0
+            obreslist.append(ores)
+            ores.vi_params.vi_type_string == 'LiVi Res'
+            orvp['omax'], orvp['omin'], orvp['oave'] = ovp['omax'], ovp['omin'], ovp['oave']
+            selobj(context.view_layer, ores)
+
+            for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
+                if bpy.data.materials[matname] not in ores.data.materials[:]:
+                    bpy.ops.object.material_slot_add()
+                    ores.material_slots[-1].material = bpy.data.materials[matname]
+
+            if svp.vi_disp_process == "1" and svp['liparams']['cp'] == '0':
+                bm.faces.layers.int.new('extrude')
+                extrude = bm.faces.layers.int['extrude']
+
+                for face in bmesh.ops.extrude_discrete_faces(bm, faces=bm.faces)['faces']:
+                    face.select = True
+                    face[extrude] = 1
+
+            bm.to_mesh(ores.data)
+            bm.free()
+            bpy.ops.object.shade_flat()
+            ores.vi_params.lividisplay(scene)
+
+            if svp.vi_disp_process == "1" and not ores.data.shape_keys:
+                selobj(context.view_layer, ores)
                 bpy.ops.object.shape_key_add(from_mix=False)
-                ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
+
+                for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+                    bpy.ops.object.shape_key_add(from_mix=False)
+                    ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
 
     skframe('', scene, obreslist)
     bpy.ops.wm.save_mainfile(check_existing=False)
@@ -491,7 +581,7 @@ class linumdisplay():
             livires = geom.layers.float['{}{}'.format(var, scene.frame_current)]
 
             if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
-                if svp.vi_disp_3d:
+                if svp.vi_disp_process == "1":
                     extrude = geom.layers.int['extrude']
                     faces = [f for f in geom if f.select and f[extrude]]
                 else:
@@ -1226,7 +1316,6 @@ class wr_table(Base_Display):
                     if self.rcarray[r][c]:
                         if c == 0:
                             blf.position(fid, self.lspos[0] + 0.01 * self.xdiff, int(rowmids[r] - 0.4 * blf.dimensions(fid, 'H')[1]), 0)
-                            # .format(self.rcarray[r][c]))[1])), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
                         else:
                             blf.position(fid, self.lspos[0] + ctws[c] - int(blf.dimensions(fid, '{}'.format(self.rcarray[r][c]))[0] * 0.5), int(rowmids[r] - 0.5 * blf.dimensions(fid, 'H')[1]), 0)
                         blf.draw(fid, '{}'.format(self.rcarray[r][c]))
@@ -2199,9 +2288,12 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.results_bar = results_bar(('legend.png',))
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
         self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
-        self.legend_num = linumdisplay(self, context)
+        
+        if svp.vi_disp_process != '2':
+            self.legend_num = linumdisplay(self, context)
+        
         self.height = r5h - r0h
-        self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_VIEW')
+        self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["svf"] = self.draw_handle_svfnum
         self.cao = context.active_object
         context.region.tag_redraw()
@@ -2210,13 +2302,17 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
 
     def draw_svfnum(self, context):
         (r0h, r2w, r5h) = ret_dcoords(context)
+        svp = context.scene.vi_params
 
         try:
             self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
-            self.legend_num.draw(context)
+            
+            if svp.vi_disp_process != '2':
+                self.legend_num.draw(context)
+                
         except Exception:
-            context.scene.vi_params.vi_display = 0
+            svp.vi_display = 0
 
     def modal(self, context, event):
         scene = context.scene
@@ -2334,7 +2430,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.results_bar = results_bar(self.images)
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
         self.legend = draw_legend(context, 'Sunlit (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
-        self.num_display = linumdisplay(self, context)
+
+        if svp.vi_disp_process != '2':
+            self.num_display = linumdisplay(self, context)
+
         svp.vi_disp_wire = 1
         self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["ss"] = self.draw_handle_ssnum
@@ -2435,14 +2534,17 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
     def draw_ssnum(self, context):
         (r0h, r2w, r5h) = ret_dcoords(context)
+        svp = context.scene.vi_params
 
         try:
             self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
-            self.num_display.draw(context)
+
+            if svp.vi_disp_process != '2':
+                self.num_display.draw(context)
 
         except Exception:
-            context.scene.vi_params.vi_display = 0
+            svp.vi_display = 0
 
 
 class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
@@ -2591,6 +2693,9 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         redraw = 0
 
         if svp.vi_display == 0 or not context.area or svp['viparams']['vidisp'] != 'li' or not [o for o in context.scene.objects if o.vi_params.vi_type_string == 'LiVi Res']:
+            if context.active_object and context.active_object.mode == 'EDIT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+
             svp.vi_display = 0
             move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
 
@@ -2671,6 +2776,10 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
                     self.legend.draw(context)
                     redraw = 1
 
+            # if svp.vi_view_update:
+            #     redraw = 1
+            #     svp.vi_view_update = False
+
             if redraw:
                 if context.area:
                     context.area.tag_redraw()
@@ -2701,7 +2810,10 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             return {'CANCELLED'}
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0], r2w, r5h - r0h, 75, 400, 20)
-        self.legend_num = linumdisplay(self, context)
+        
+        if svp.vi_disp_process != '2':
+            self.legend_num = linumdisplay(self, context)
+        
         self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["li"] = self.draw_handle_linum
         context.window_manager.modal_handler_add(self)
@@ -2709,15 +2821,18 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
 
     def draw_linum(self, context):
         (r0h, r2w, r5h) = ret_dcoords(context)
-
+        svp = context.scene.vi_params
+        
         try:
             self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
-            self.legend_num.draw(context)
+            
+            if svp.vi_disp_process != '2':
+                self.legend_num.draw(context)
 
         except Exception as e:
             logentry('Quitting LiVi display {}'.format(e))
-            context.scene.vi_params.vi_display = 0
+            svp.vi_display = 0
 
 
 class NODE_OT_Vi_Info(bpy.types.Operator):

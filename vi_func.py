@@ -646,6 +646,7 @@ def ret_res_vals(svp, reslist):
 
 def lividisplay(self, scene):
     svp = scene.vi_params
+    svp.vi_view_update = 1
 
     if self.id_data.vi_params.vi_type_string == 'LiVi Res':
         frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)

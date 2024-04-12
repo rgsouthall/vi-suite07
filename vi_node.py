@@ -117,7 +117,7 @@ class No_Loc(Node, ViNodes):
         context.space_data.edit_tree == ''
         scene = context.scene
         svp = scene.vi_params
-        nodecolour(self, self.ready())
+        
         reslists = []
 
         if self.loc == '1':
@@ -130,28 +130,32 @@ class No_Loc(Node, ViNodes):
             else:
                 epwpath = os.path.dirname(os.path.abspath(__file__)) + '/EPFiles/Weather/'
 
+            
             for wfile in glob.glob(epwpath+"/*.epw"):
-                with open(wfile, 'r') as wf:
-                    try:
-                        for wfl in wf.readlines():
-                            if wfl.split(',')[0].upper() == 'LOCATION':
-                                entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
-                                break
+                if wfile.isascii():
+                    with open(wfile, 'r') as wf:
+                        try:
+                            for wfl in wf.readlines():
+                                if wfl.split(',')[0].upper() == 'LOCATION':
+                                    entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
+                                    break
 
-                            elif wfl.split(',')[0].upper() == "B'LOCATION":
-                                with open(wfile, 'rb') as wfb:
-                                    for wfbl in wfb.readlines():
-                                        wfl = wfbl.decode()
+                                elif wfl.split(',')[0].upper() == "B'LOCATION":
+                                    with open(wfile, 'rb') as wfb:
+                                        for wfbl in wfb.readlines():
+                                            wfl = wfbl.decode()
 
-                                        if wfl.split(',')[0].upper()[2:] == 'LOCATION':
-                                            entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
-                                            break
+                                            if wfl.split(',')[0].upper()[2:] == 'LOCATION':
+                                                entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
+                                                break
 
-                                logentry("Byte formatting found in file {}. Attempting to read byte format. If it fails remove leading b', end ' and all /r line endings".format(wfile))
+                                    logentry("Byte formatting found in file {}. Attempting to read byte format. If it fails remove leading b', end ' and all /r line endings".format(wfile))
 
-                    except (TypeError, UnicodeDecodeError):
-                        logentry(f'Non-unicode character found in {wfile}')
-
+                        except (TypeError, UnicodeDecodeError):
+                            logentry(f'Non-unicode character found in {wfile}')
+                else:
+                    entries.append(('None', 'Non-ascii', 'Non-ascii characters found in the EPW file path'))
+            
             self['entries'] = entries if entries else [('None', 'None', 'None')]
 
             if os.path.isfile(self.weather):
@@ -186,10 +190,13 @@ class No_Loc(Node, ViNodes):
         for node in [link.to_node for link in self.outputs['Location out'].links]:
             node.nodeupdate(context)
 
+        nodecolour(self, self.ready())
+
     def retentries(self, context):
         try:
             return [tuple(e) for e in self['entries']]
-        except Exception:
+        except Exception as e:
+            print(e)
             return [('None', 'None', 'None')]
 
     weather: EnumProperty(name='', description="Weather file", items=retentries, options={'SKIP_SAVE'}, update=updatelatlong)
@@ -232,7 +239,7 @@ class No_Loc(Node, ViNodes):
             newrow(layout, 'Longitude', context.scene.vi_params, "longitude")
 
     def ready(self):
-        if self.loc == '1' and not self.weather:
+        if self.loc == '1' and (not self.weather or self.weather == 'None'):
             return 1
         if any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Context') and self.loc != "1" for link in self.outputs['Location out'].links]):
             return 1
@@ -315,6 +322,7 @@ class No_Li_Geo(Node, ViNodes):
     def postexport(self, scene):
         self.id_data.use_fake_user = 1
         self['exportstate'] = self.ret_params()
+        scene.vi_params['liparams']['offset'] = self.offset
         nodecolour(self, 0)
 
 
@@ -760,7 +768,7 @@ class No_Li_Con(Node, ViNodes):
                                                           "void glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
 
                 if self.sourcemenu2 == '0':
-                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
+                    with open("{}.mtx".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0])), 'r', errors="ignore") as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 else:
                     with open(bpy.path.abspath(self.mtxname), 'r') as mtxfile:
@@ -778,7 +786,6 @@ class No_Li_Con(Node, ViNodes):
 
                 if self.hdr:
                     cbdmhdr(self, scene, export_op)
-            print('happy')
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
@@ -800,7 +807,6 @@ class No_Li_Con(Node, ViNodes):
                            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay, 'ga_views': self.dgp_views, 'dgp_azi': self.dgp_azi,
                            'dgp_thresh': self.dgp_thresh, 'dgp_hourly': self.dgp_hourly}
 
-        # if self._valid:
         nodecolour(self, 0)
         self.outputs['Context out'].hide = False
         self['exportstate'] = self.ret_params()
@@ -1269,10 +1275,14 @@ class No_Li_Sim(Node, ViNodes):
                             if [o for o in scene.objects if o.vi_params.vi_type_string == 'LiVi Calc']:
                                 row = layout.row()
                                 row.operator("node.livicalc", text='Calculate')
+                            else:
+                                row = layout.row()
+                                row.label(text="No calculation surfaces")
                         else:
                             row = layout.row()
                             row.label(text="Red input node")
-                    except:
+
+                    except Exception as e:
                         row = layout.row()
                         row.label(text="Missing input node")
 
@@ -1445,6 +1455,7 @@ class No_Vi_SVF(Node, ViNodes):
     def postexport(self, scene):
         nodecolour(self, 0)
         self.outputs['Results out'].hide = False if self.get('reslists') else True
+        scene.vi_params['liparams']['offset'] = self.offset
         self['exportstate'] = [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)]
 
     def update(self):
@@ -1514,6 +1525,7 @@ class No_Vi_SS(Node, ViNodes):
     def postexport(self, scene):
         nodecolour(self, 0)
         self.outputs['Results out'].hide = False if self.get('reslists') else True
+        scene.vi_params['liparams']['offset'] = self.offset
         self['exportstate'] = [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
 
     def update(self):
@@ -5253,7 +5265,6 @@ class No_En_Net_Zone(Node, EnViNodes):
         'Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)',
         'Indoor and Outdoor Enthalpy Difference Upper Limit for Minimum Venting Open Factor (deltaJ/kg)',
         'Venting Availability Schedule Name')
-
         paramvs = (self.zone, self.control, tempschedname, mvof, lowerlim, upperlim, '0.0', '300000.0', vaschedname)
         return epentry('AirflowNetwork:MultiZone:Zone', params, paramvs)
 
@@ -5292,11 +5303,10 @@ class No_En_Net_Hvac(Node, EnViNodes):
     envi_hvachre: fprop("", "Heat recovery efficiency", 0, 1, 0.7)
     h: iprop('', '', 0, 1, 0)
     c: iprop('', '', 0, 1, 0)
-    actlist = [("0", "Air supply temp", "Actuate an ideal air load system supply temperature"), ("1", "Air supply flow", "Actuate an ideal air load system flow rate"),
-               ("2", "Outdoor Air supply flow", "Actuate an ideal air load system outdoor air flow rate")]
-    acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
-    compdict = {'0': 'AirFlow Network Window/Door Opening'}
-    actdict =  {'0': ('Venting Opening Factor', 'of')}
+    # actlist = [("0", "Air supply temp", "Actuate an ideal air load system supply temperature"), ("1", "Air supply flow", "Actuate an ideal air load system flow rate")]
+    # acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
+    # compdict = {'0': 'AirFlow Network Window/Door Opening'}
+    # actdict =  {'0': ('Venting Opening Factor', 'of')}
     envi_heat: BoolProperty(name = "Heating", description = 'Turn on zone heating', default = 0)
     envi_htsp: FloatProperty(name = u'\u00b0C', description = "Temperature", min = 0, max = 50, default = 20)
     envi_cool: BoolProperty(name = "Cooling", description = "Turn on zone cooling", default = 0)
@@ -5424,12 +5434,26 @@ class No_En_Net_Hvac(Node, EnViNodes):
         bpy.context.scene.vi_params['enparams']['hvactemplate'] = 1
         return epentry('HVACTemplate:Zone:IdealLoadsAirSystem', params, paramvs)
 
-    def epewrite(self, zn):
+    def epewrite(self, z):
+        linked_nodes = [l.links[0].from_node for l in z.inputs if l.links and l.bl_idname == 'So_En_Net_SFlow'] + [l.links[0].fto_node for l in z.outputs if l.links and l.bl_idname == 'So_En_Net_SFlow']
+        ef_name = '{} Exhaust Node'.format(z.zone) if any([l.linkmenu == 'Exhaust' for l in linked_nodes]) else ''
+        
+            
         params = ('Zone Name', 'Zone Conditioning Equipment List Name', 'Zone Air Inlet Node or NodeList Name', 'Zone Air Exhaust Node or NodeList Name',
                   'Zone Air Node Name', 'Zone Return Air Node Name')
-        paramvs = (zn, zn + '_Equipment', zn + '_supairnode', '', zn + '_airnode', zn + '_retairnode')
-        params2 = ('Name', 'Load Distribution Scheme', 'Zone Equipment 1 Object Type', 'Zone Equipment 1 Name', 'Zone Equipment 1 Cooling Sequence', 'Zone Equipment 1 Heating or No-Load Sequence')
-        paramvs2 = (zn + '_Equipment', 'SequentialLoad', 'ZoneHVAC:IdealLoadsAirSystem', zn + '_Air', 1, 1)
+        paramvs = (z.zone, z.zone + '_Equipment', z.zone + '_supairnode', ef_name, z.zone + '_airnode', z.zone + '_retairnode')
+        params2 = ['Name', 'Load Distribution Scheme', 'Zone Equipment 1 Object Type', 'Zone Equipment 1 Name', 
+                   'Zone Equipment 1 Cooling Sequence', 'Zone Equipment 1 Heating or No-Load Sequence', 
+                   'Zone Equipment 1 Sequential Cooling Fraction Schedule Name', 'Zone Equipment 1 Sequential Heating Fraction Schedule Name']
+        paramvs2 = [z.zone + '_Equipment', 'SequentialLoad', 'ZoneHVAC:IdealLoadsAirSystem', z.zone + '_Air', 1, 1, '', '']
+
+        if ef_name:
+            fi = [l.name.split('_')[-2] for l in z.inputs if l.links and l.bl_idname == 'So_En_Net_SFlow'] + [l.name.split('_')[-2] for l in z.outputs if l.links and l.bl_idname == 'So_En_Net_SFlow']
+            params2 += ['Zone Equipment 2 Object Type', 'Zone Equipment 2 Name', 
+                        'Zone Equipment 2 Cooling Sequence', 'Zone Equipment 2 Heating or No-Load Sequence',
+                        'Zone Equipment 2 Sequential Cooling Fraction Schedule Name', 'Zone Equipment 2 Sequential Heating Fraction Schedule Name']
+            paramvs2 += ['Fan:ZoneExhaust', f'{z.zone}_{fi[0]}', 2, 2, '', '']
+
         return epentry('ZoneHVAC:EquipmentConnections', params, paramvs) + epentry('ZoneHVAC:EquipmentList', params2, paramvs2)
 
     def schedwrite(self, zn):
@@ -5441,15 +5465,15 @@ class No_En_Net_Occ(Node, EnViNodes):
     bl_label = 'Occupancy'
     bl_icon = 'ARMATURE_DATA'
 
-    envi_occwatts: IntProperty(name = "W/p", description = "Watts per person", min = 1, max = 800, default = 90)
-    envi_weff: FloatProperty(name = "", description = "Work efficiency", min = 0, max = 1, default = 0.0)
-    envi_airv: FloatProperty(name = "", description = "Average air velocity", min = 0, max = 1, default = 0.1)
-    envi_cloth: FloatProperty(name = "", description = "Clothing level", min = 0, max = 10, default = 0.5)
-    envi_occtype: EnumProperty(items = [("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
-                                              ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], name = "", description = "The type of zone occupancy specification", default = "0")
-    envi_occsmax: FloatProperty(name = "", description = "Maximum level of occupancy that will occur in this schedule", min = 1, max = 500, default = 1)
-    envi_comfort: BoolProperty(name = "", description = "Enable comfort calculations for this space", default = False)
-    envi_co2: BoolProperty(name = "", description = "Enable CO2 concentration calculations", default = False)
+    envi_occwatts: IntProperty(name="W/p", description="Watts per person", min=1, max=800, default=90)
+    envi_weff: FloatProperty(name="", description="Work efficiency", min=0, max=1, default=0.0)
+    envi_airv: FloatProperty(name="", description="Average air velocity", min=0, max=1, default=0.1)
+    envi_cloth: FloatProperty(name="", description="Clothing level", min=0, max=10, default=0.5)
+    envi_occtype: EnumProperty(items=[("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
+                                              ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], name="", description="The type of zone occupancy specification", default="0")
+    envi_occsmax: FloatProperty(name="", description="Maximum level of occupancy that will occur in this schedule", min=1, max=500, default=1)
+    envi_comfort: BoolProperty(name="", description="Enable comfort calculations for this space", default=False)
+    envi_co2: BoolProperty(name="", description="Enable CO2 concentration calculations", default=False)
 
     def init(self, context):
         self.outputs.new('So_En_Net_Occ', 'Occupancy')
@@ -5502,9 +5526,9 @@ class No_En_Net_Eq(Node, EnViNodes):
     bl_label = 'Equipment'
     bl_icon = 'PLUGIN'
 
-    envi_equiptype: EnumProperty(items = [("0", "None", "No equipment"),("1", "EquipmentLevel", "Overall equpiment gains"), ("2", "Watts/Area", "Equipment gains per square metre floor area"),
-                                              ("3", "Watts/Person", "Equipment gains per occupant")], name = "", description = "The type of zone equipment gain specification", default = "0")
-    envi_equipmax: FloatProperty(name = "", description = "Maximum level of equipment gain", min = 1, max = 50000, default = 1)
+    envi_equiptype: EnumProperty(items=[("0", "None", "No equipment"),("1", "EquipmentLevel", "Overall equpiment gains"), ("2", "Watts/Area", "Equipment gains per square metre floor area"),
+                                              ("3", "Watts/Person", "Equipment gains per occupant")], name="", description="The type of zone equipment gain specification", default="0")
+    envi_equipmax: FloatProperty(name="", description="Maximum level of equipment gain", min=1, max=50000, default=1)
 
     def init(self, context):
         self.outputs.new('So_En_Net_Eq', 'Equipment')
@@ -5534,11 +5558,11 @@ class No_En_Net_Inf(Node, EnViNodes):
     bl_label = 'Infiltration'
     bl_icon = 'ORIENTATION_NORMAL'
 
-    envi_inftype: EnumProperty(items = [("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')),
+    envi_inftype: EnumProperty(items=[("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')),
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')),
-                                 ("5", "ACH", "ACH flow rate")], name = "", description = "The type of zone infiltration specification", default = "0")
+                                 ("5", "ACH", "ACH flow rate")], name="", description="The type of zone infiltration specification", default="0")
     unit = {'0':'', '1': '(m{}/s)'.format(u'\u00b3'), '2': '(m{}/s.m{})'.format(u'\u00b3', u'\u00b2'), '3': '(m{}/s per m{})'.format(u'\u00b3', u'\u00b2'), '4': '(m{}/s per m{})'.format(u'\u00b3', u'\u00b2'), "5": "(ACH)"}
-    envi_inflevel: FloatProperty(name = "", description = "Level of Infiltration", min = 0, max = 500, default = 0.001)
+    envi_inflevel: FloatProperty(name="", description="Level of Infiltration", min=0, max=500, default=0.001)
 
     def init(self, context):
         self.outputs.new('So_En_Net_Inf', 'Infiltration')
@@ -5641,11 +5665,11 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     sfof4: FloatProperty(default=0.0, min=0, max=1, name='', description='Start Height Factor for Opening Factor 4 (dimensionless)')
     dcof: FloatProperty(default=0.65, min=0.01, max=1, name='', description='Discharge Coefficient')
     extnode: BoolProperty(default = 0)
-    actlist = [("0", "Opening factor", "Actuate the opening factor")]
-    acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
-    compdict = {'0': 'AirFlow Network Window/Door Opening'}
-    actdict =  {'0': ('Venting Opening Factor', 'of')}
-    adict = {'Window': 'win', 'Door': 'door'}
+    # actlist = [("0", "Opening factor", "Actuate the opening factor")]
+    # acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0')
+    # compdict = {'0': 'AirFlow Network Window/Door Opening'}
+    # actdict =  {'0': ('Venting Opening Factor', 'of')}
+    # adict = {'Window': 'win', 'Door': 'door'}
 
     def init(self, context):
         self['init'] = 1
@@ -5693,6 +5717,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
 
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
+
         if self.linkmenu in ('SO', 'DO', 'HO'):
             if self.linkmenu in ('SO', 'DO'):
                 newrow(layout, 'Win/Door OF:', self, 'wdof1')
@@ -5934,10 +5959,20 @@ class No_En_Net_SFlow(Node, EnViNodes):
     bl_label = 'Envi surface flow'
     bl_icon = 'FORCE_WIND'
 
-    linktype = [("Crack", "Crack", "Crack aperture used for leakage calculation"),
-        ("ELA", "ELA", "Effective leakage area")]
+    def linkupdate(self, context):
+        if self.inputs.get('Fan Schedule'):
+            if self.linkmenu == "Exhaust":
+                self.inputs['Fan Schedule'].hide = False
+            elif self.inputs['Fan Schedule'].links:
+                for link in self.inputs['Fan Schedule'].links:
+                    self.id_data.links.remove(link)
+                self.inputs['Fan Schedule'].hide = True
 
-    linkmenu: EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA')
+    
+    linktype = [("Crack", "Crack", "Crack aperture used for leakage calculation"),
+                ("ELA", "ELA", "Effective leakage area"), ("Exhaust", "Exhaust fan", "Exhaust fan")]
+
+    linkmenu: EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA', update=linkupdate)
     ela: FloatProperty(default=0.1, min=0.00001, max=1, name="", description='Effective leakage area', options={'SKIP_SAVE'})
     of: FloatProperty(default=0.1, min=0.001, max=1, name="", description='Opening Factor 1 (dimensionless)')
     ecl: FloatProperty(default=0.0, min=0, name='', description='Extra Crack Length or Height of Pivoting Axis (m)')
@@ -5952,7 +5987,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
     dhtc: FloatProperty(default=0.772, name="")
     dmtc: FloatProperty(default=0.0001, name="")
     rpd: FloatProperty(default=4, min=0.1, max=50, name="", description='Reference pressure difference')
-    fe: FloatProperty(default=4, min=0.1, max=1, name="", description='Fan Efficiency')
+    fe: FloatProperty(default=1, min=0.1, max=1, name="", description='Fan Efficiency')
     pr: IntProperty(default=500, min=1, max=10000, name="", description='Fan Pressure Rise')
     mf: FloatProperty(default=0.1, min=0.001, max=5, name="", description='Maximum Fan Flow Rate (m3/s)')
     extnode: BoolProperty(default=0)
@@ -5960,6 +5995,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
 
     def init(self, context):
         self['ela'] = 1.0
+        self.inputs.new('So_En_Net_Sched', 'Fan Schedule')
+        self.inputs['Fan Schedule'].hide = True
         self.inputs.new('So_En_Net_SFlow', 'Node 1')
         self.inputs.new('So_En_Net_SFlow', 'Node 2')
         self.outputs.new('So_En_Net_SFlow', 'Node 1')
@@ -5995,7 +6032,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
         layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe')), 'ELA':(('ELA (m^2)', '["ela"]'), ('DC', 'dcof'), ('PA diff (Pa)', 'rpd'), ('FE', 'amfe')),
-        'EF':(('Off FC', 'amfc'), ('Off FE', 'amfe'), ('Efficiency', 'fe'), ('PA rise (Pa)', 'pr'), ('Max flow', 'mf'))}
+                      'Exhaust':(('Off FC', 'amfc'), ('Off FE', 'amfe'), ('Efficiency', 'fe'), ('PA rise (Pa)', 'pr'), ('Max flow', 'mf'))}
 
         for vals in layoutdict[self.linkmenu]:
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])
@@ -6018,27 +6055,29 @@ class No_En_Net_SFlow(Node, EnViNodes):
                     en = othernode.name
 
         if self.linkmenu == 'ELA':
+            lcn = '{}_{}'.format(self.name, self.linkmenu)
             cfparams = ('Name', 'Effective Leakage Area (m2)', 'Discharge Coefficient (dimensionless)', 'Reference Pressure Difference (Pa)', 'Air Mass Flow Exponent (dimensionless)')
-            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self['ela']), self.dcof, self.rpd, '{:.5f}'.format(self.amfe))
+            cfparamvs = (lcn, '{:.5f}'.format(self['ela']), self.dcof, self.rpd, '{:.5f}'.format(self.amfe))
 
         elif self.linkmenu == 'Crack':
+            lcn = '{}_{}'.format(self.name, self.linkmenu)
             crname = 'ReferenceCrackConditions' if enng['enviparams']['crref'] == 1 else ''
             cfparams = ('Name', 'Air Mass Flow Coefficient at Reference Conditions (kg/s)', 'Air Mass Flow Exponent (dimensionless)', 'Reference Crack Conditions')
-            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self.amfc), '{:.5f}'.format(self.amfe), crname)
+            cfparamvs = (lcn, '{:.5f}'.format(self.amfc), '{:.5f}'.format(self.amfe), crname)
 
-        elif self.linkmenu == 'EF':
-            cfparams = ('Name', 'Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)', 'Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)')
-            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), self.amfc, self.amfe)
-            schedname = self.inputs['Fan Schedule'].links[0].from_node.name if self.inputs['Fan Schedule'].is_linked else ''
-
+        elif self.linkmenu == 'Exhaust':
             for sock in [inp for inp in self.inputs if 'Node' in inp.name and inp.is_linked] + [outp for outp in self.outputs if 'Node' in outp.name and outp.is_linked]:
+                zsock = (sock.links[0].from_socket, sock.links[0].to_socket)[sock.is_output]
                 zname = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output].zone
+                lcn = '{}_{}'.format(zname, zsock.name.split('_')[-2])
+                cfparams = ('Name', 'Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)', 'Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)')
+                cfparamvs = (lcn, f'{self.amfc:.5f}', f'{self.amfe:.3f}')
+                schedname = self.name + '_fansched' if self.inputs['Fan Schedule'].links else ''
+                fparams = ('Name', 'Availability Schedule Name', 'Fan Efficiency', 'Pressure Rise (Pa)', 'Maximum Flow Rate (m3/s)', 'Air Inlet Node Name', 'Air Outlet Node Name', 'End-Use Subcategory')
+                fparamvs = (lcn, schedname, f'{self.fe:.2f}', f'{self.pr:.2f}', f'{self.mf:.3f}', '{} Exhaust Node'.format(zname), '{} Exhaust Fan Outlet Node'.format(zname), '{} Exhaust'.format(zname))
+                fentry = epentry('Fan:ZoneExhaust', fparams, fparamvs)
 
-            fparams = ('Name', 'Availability Schedule Name', 'Fan Efficiency', 'Pressure Rise (Pa)', 'Maximum Flow Rate (m3/s)', 'Air Inlet Node Name', 'Air Outlet Node Name', 'End-Use Subcategory')
-            fparamvs = ('{}_{}'.format(self.name,  self.linkmenu), schedname, self.fe, self.pr, self.mf, '{} Exhaust Node'.format(zname), '{} Exhaust Fan Outlet Node'.format(zname), '{} Exhaust'.format(zname))
-            fentry = epentry('Fan:ZoneExhaust', fparams, fparamvs)
-
-        cftypedict = {'Crack':'Surface:Crack', 'ELA':'Surface:EffectiveLeakageArea', 'EF': 'Component:ZoneExhaustFan'}
+        cftypedict = {'Crack':'Surface:Crack', 'ELA':'Surface:EffectiveLeakageArea', 'Exhaust': 'Component:ZoneExhaustFan'}
         cfentry = epentry('AirflowNetwork:MultiZone:{}'.format(cftypedict[self.linkmenu]), cfparams, cfparamvs)
 
         for sock in self.inputs[:] + self.outputs[:]:
@@ -6060,7 +6099,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
                         zn = othernode.zone
                         snames.append('{}_{}'.format(zn, sn))
                         params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor, or Crack Factor (dimensionless)')
-                        paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.of))
+                        paramvs = (snames[-1], lcn, en, '{:.5f}'.format(self.of))
                         surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
 
         self['sname'] = snames
@@ -6344,6 +6383,7 @@ class No_En_Net_Sched(Node, EnViNodes):
                     uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
                     ts, fs, us = rettimes(ths, fos, uns)
                     schedtext = epschedwrite(name, stype, ts, fs, us)
+
             return schedtext
         else:
             params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
@@ -6450,7 +6490,7 @@ class No_En_Net_EMSZone(Node, EnViNodes):
     '''Node describing a Energy management System routine'''
     bl_idname = 'No_En_Net_EMSZone'
     bl_label = 'EMS Zone'
-    bl_icon = 'LIGHTPROBE_CUBEMAP'
+    bl_icon = 'LIGHTPROBE_VOLUME'
 
     def zonelist(self, context):
         return [('Environment', 'Environment', 'Environmental sensor')] + [(c.name, c.name, c.name) for c in bpy.data.collections['EnVi Geometry'].children]
@@ -6462,20 +6502,23 @@ class No_En_Net_EMSZone(Node, EnViNodes):
             self.inputs[0].name = '{}'.format(self.envsensordict[self.envsensortype][0])
 
     def zupdate(self, context):
-        adict = {'Window': 'win', 'Door': 'door'}
+        adict = {'Window': 'win', 'Door': 'door', 'Wall': 'exh', 'Roof': 'exh'}
         self.supdate(context)
         sssocklist = []
 
         if self.emszone != 'Environment':
-            obj = bpy.data.collections[self.emszone].objects[0]
-            odm = [ms.material for ms in obj.material_slots]
+            for obj in bpy.data.collections[self.emszone].objects:
+                odm = [ms.material for ms in obj.material_slots]
 
-            for face in obj.data.polygons:
-                mat = odm[face.material_index]
+                for face in obj.data.polygons:
+                    mat = odm[face.material_index]
 
-                for emnode in mat.vi_params.envi_nodes.nodes:
-                    if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active and emnode.envi_afsurface and emnode.envi_con_type in ('Window', 'Door'):
-                        sssocklist.append('{}_{}_{}_{}'.format(adict[emnode.envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]))
+                    for emnode in mat.vi_params.envi_nodes.nodes:
+                        if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active and emnode.envi_afsurface and emnode.envi_con_type in ('Window', 'Door', 'Wall', 'Roof'):
+                            if emnode.envi_con_type in ('Window', 'Door') and self.acttype == '0':
+                                sssocklist.append('{}_{}_{}_{}'.format(adict[emnode.envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]))
+                            elif emnode.envi_con_type in ('Wall', 'Roof') and self.acttype == '1':
+                                sssocklist.append('{}_{}_{}'.format(self.emszone, face.index, self.actdict[self.acttype][1]))
 
         self.inputs[0].hide = False
         nodecolour(self, 0)
@@ -6487,7 +6530,10 @@ class No_En_Net_EMSZone(Node, EnViNodes):
         for sock in sorted(set(sssocklist)):
             if not self.inputs.get(sock):
                 try:
-                    self.inputs.new('So_En_Net_Act', sock).sn = sock.split('_')[0] + '-' + '_'.join(sock.split('_')[1:-1])
+                    if sock.startswith('door_') or sock.startswith('win_'):
+                        self.inputs.new('So_En_Net_Act', sock).sn = sock.split('_')[0] + '-' + '_'.join(sock.split('_')[1:-1])
+                    else:
+                        self.inputs.new('So_En_Net_Act', sock).sn = '_'.join(sock.split('_')[0:-1])
                 except Exception as e: print('3190', e)
 
 
@@ -6502,11 +6548,10 @@ class No_En_Net_EMSZone(Node, EnViNodes):
                   '2': ('CO2', 'AFN Node CO2 Concentration'), '3': ('Occ', 'Zone Occupancy'), '4': ('Equip', 'Zone Equipment')}
     envsensordict = {'0':  ('Amb_t', 'Site Outdoor Air Drybulb Temperature'), '1': ('Amd_rh', 'Site Outdoor Air Relative Humidity'),
                   '2': ('Amb_ws', 'Site Wind Speed'), '3': ('Amd_wd', 'Site Wind Direction'), '4': ('Amb_dir', 'Site Direct Solar Radiation Rate per Area'), '5': ('Amb_diff', 'Site Diffuse Solar Radiation Rate per Area')}
-    actlist = [("0", "Opening factor", "Actuate the opening factor"), ("1", "Air supply temp", "Actuate an ideal air load system supply temperature"),
-               ("2", "Air supply flow", "Actuate an ideal air load system flow rate"), ("3", "Outdoor Air supply flow", "Actuate an ideal air load system outdoor air flow rate")]
+    actlist = [("0", "Opening factor", "Actuate the opening factor"), ("1", "Fan flow", "Actuate the fan mass flow rate")]
     acttype: EnumProperty(name="", description="Actuator type", items=actlist, default='0', update=zupdate)
-    compdict = {'0': 'AirFlow Network Window/Door Opening'}
-    actdict =  {'0': ('Venting Opening Factor', 'of'), '1': ('Air supply temperature', 'ast'), '2': ('Air supply flow', 'asff'), '3': ('Outdoor air supply flow', 'oaf')}
+    compdict = {'0': 'AirFlow Network Window/Door Opening', '1': 'Fan'}
+    actdict =  {'0': ('Venting Opening Factor', 'of'), '1': ('Fan Air Mass Flow Rate', 'Exhaust')}
 
     def init(self, context):
         self.inputs.new('So_En_Net_Sense', 'Sensor')
@@ -7205,7 +7250,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
     def ret_uv(self):
         if self.envi_con_proxy == '0':
-            print(self.id_data.name)
+            #print(self.id_data.name)
             if self.envi_con_makeup == '1':
                 resists = []
                 lsock = self.inputs['Outer layer']
@@ -7421,9 +7466,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     elif con_type == 'Window':
                         if con_node.em.matdat[presetmat][0] == 'Glazing':
                             params = ('Name', 'Optical Data Type', 'Window Glass Spectral Data Set Name', 'Thickness (m)', 'Solar Transmittance at Normal Incidence', 'Front Side Solar Reflectance at Normal Incidence',
-                        'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
-                        'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)',
-                        'Dirt Correction Factor for Solar and Visible Transmittance', 'Solar Diffusing')
+                                      'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
+                                      'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)',
+                                      'Dirt Correction Factor for Solar and Visible Transmittance', 'Solar Diffusing')
                             paramvs = ['{}-layer-{}'.format(mn, pm)] + matlist[1:3] + [con_node.thicklist[pm] * 0.001] + ['{:.3f}'.format(float(sm)) for sm in matlist[4:-1]] + [1, ('No', 'Yes')[matlist[-1]]]
 
                             if self.envi_con_proxy == '0':

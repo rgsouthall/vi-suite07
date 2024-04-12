@@ -96,8 +96,7 @@ class VI_PT_3D(bpy.types.Panel):
 
             elif svp['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 if not svp.vi_display:
-                    row = layout.row()
-                    row.prop(svp, "vi_disp_3d")
+                    newrow(layout, "Process", svp, "vi_disp_process")
                     row = layout.row()
 
                     if svp['viparams']['vidisp'] == 'svf':
@@ -136,12 +135,15 @@ class VI_PT_3D(bpy.types.Panel):
                     if cao and cao.type == 'MESH':
                         newrow(layout, 'Draw wire:', svp, 'vi_disp_wire')
 
-                    if int(svp.vi_disp_3d) == 1:
+                    if svp.vi_disp_process == "1":
                         newrow(layout, "3D Level:", svp, "vi_disp_3dlevel")
 
                     newrow(layout, "Transparency:", svp, "vi_disp_trans")
 
-                    if context.mode != "EDIT":
+                    if svp.vi_disp_process == "3":
+                        newrow(layout, "Arrow size:", svp, "vi_arrow_size")
+                    
+                    if context.mode != "EDIT" and svp.vi_disp_process != "2":
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
                         newrow(layout, 'Enable:', svp, 'vi_display_rp')
@@ -157,6 +159,9 @@ class VI_PT_3D(bpy.types.Panel):
 
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
+
+                    elif context.mode != "EDIT" and svp.vi_disp_process == "2":
+                        newrow(layout, 'Placement', svp, "vi_disp_pos")
 
             if svp.vi_display:
                 newrow(layout, 'Display active', svp, 'vi_display')
@@ -350,8 +355,10 @@ class VI_PT_Ob(bpy.types.Panel):
                 row.label(text='-- Octree generation --')
                 newrow(layout, 'Triangulate:', ovp, 'triangulate')
                 newrow(layout, 'Mesh:', ovp, 'mesh')
-                row = layout.row()
-                row.operator('object.vi_genoct', text="Generate Octree")
+                
+                if context.scene.vi_params.get('viparams'):
+                    row = layout.row()
+                    row.operator('object.vi_genoct', text="Generate Octree")
 
             elif ovp.vi_type == '2':
                 pass
@@ -364,7 +371,14 @@ class VI_PT_Ob(bpy.types.Panel):
                 if ovp.embodiedtype != 'Custom':
                     newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
                     newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
+                    newrow(layout, 'Embodied modifier:', ovp, 'ec_amount_mod')
                     newrow(layout, 'Service life:', ovp, 'ec_life')
+
+                    if ovp.ec_unit == 'each' and ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
+                        newrow(layout, "Object represents:", ovp, "ec_rep")
+                        
+                        if ovp.ec_rep == '1':
+                            newrow(layout, "No. of items:", ovp, "ec_items")
 
                     if ovp.get('ecentries'):
                         for ec in ovp['ecentries']:
@@ -374,7 +388,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     row = layout.row()
                     row.operator("object.ec_edit", text="Edit")
 
-                else:
+                else:                   
                     newrow(layout, "Embodied id:", ovp, "ec_id")
                     newrow(layout, "Embodied type:", ovp, "ec_type")
                     newrow(layout, "Embodied class:", ovp, "ec_class")
@@ -382,6 +396,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     newrow(layout, "Embodied name:", ovp, "ec_name")
                     newrow(layout, "Embodied unit:", ovp, "ec_unit")
                     newrow(layout, "Embodied amount:", ovp, "ec_amount")
+                    newrow(layout, "Embodied modifier:", ovp, "ec_amount_mod")
                     newrow(layout, "Embodied value per amount:", ovp, "ec_du")
 
                     if ovp.ec_unit not in ('kg', 'm3', 'tonnes'):
@@ -391,6 +406,12 @@ class VI_PT_Ob(bpy.types.Panel):
                         newrow(layout, "Embodied density:", ovp, "ec_density")
 
                     newrow(layout, "Lifespan:", ovp, "ec_life")
+
+                    if ovp.ec_unit == 'each' and ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
+                        newrow(layout, "Object represents:", ovp, "ec_rep")
+
+                        if ovp.ec_rep == '1':
+                            newrow(layout, "No. of items:", ovp, "ec_items")
 
                     if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_du, ovp.ec_density, ovp.ec_mod)):
                         row = layout.row()

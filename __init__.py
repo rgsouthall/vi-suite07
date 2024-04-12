@@ -107,7 +107,6 @@ else:
             os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                                                     ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                                                     'site-packages')
-            #os.environ['PYTHONHOME'] = os.path.dirname(sys.executable)
         
         if sys.platform == 'linux':
             if not os.environ.get('LD_LIBRARY_PATH'):
@@ -120,22 +119,11 @@ else:
             if not os.environ.get('DYLD_LIBRARY_PATH'):
                 os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
 
-        # sys.path.append(os.path.join(addonpath, 'Python', sys.platform))
-        # sys.path.append(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-        #                                 ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-        #                                 'site-packages'))
         if os.environ.get('PATH'):
             if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
                 os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
         else:
             os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
-
-        # if sys.platform == 'win32':
-        #     os.add_dll_directory(bpy.app.binary_path)
-
-        #     os.add_dll_directory(os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
-        #                              ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-        #                              'site-packages'))
 
         try:
             import PySide6
@@ -162,7 +150,7 @@ else:
                     Popen(shlex.split(gp_cmd)).wait()
 
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PySide6')):
-                    pyqt_cmd = '"{}" -m pip install PySide6==6.6.0 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+                    pyqt_cmd = '"{}" -m pip install PySide6==6.6.2 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
                     Popen(shlex.split(pyqt_cmd)).wait()
                     
                 if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
@@ -208,20 +196,6 @@ else:
             except Exception as e:
                 print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
 
-    # try:
-    #     import PyQt6
-    #     import matplotlib.pyplot as plt
-    #     # Next line is required to initiate a QApplication for QImage
-    #     plt.text(0, 0, 'dummy')
-    #     plt.clf()
-    #     from kivy.config import Config
-    #     Config.set('kivy', 'log_level', 'error')
-    #     Config.write()
-    #     from kivy.app import App
-    #     print('VI-Suite: Using built-in libraries')
-    # except Exception as e:
-    #     print(f'Cannot find required system, or install local, packages. Error {e}')
-
     try:
         import netgen
     except:
@@ -237,39 +211,42 @@ else:
                 print('Netgen installation failed and is disabled')
 
     if sys.platform in ('linux', 'darwin'):
+        ep_path = os.path.join(addonpath, 'EPFiles', sys.platform)
+        rad_path = os.path.join(addonpath, 'RadFiles', sys.platform, 'bin')
+
         for fn in ('cnt', 'epw2wea', 'evalglare', 'falsecolor', 'genBSDF', 'gendaylit', 'gendaymtx', 'gensky',
                    'getbbox', 'getinfo', 'ies2rad', 'mkpmap', 'obj2mesh', 'oconv', 'pcomb', 'pcompos', 'pcond',
                    'pfilt', 'pkgBSDF', 'pmapdump', 'psign', 'rad2mgf', 'rcalc', 'rcontrib', 'rfluxmtx', 'rmtxop',
-                   'rpict', 'rpiece', 'rtrace', 'rttree_reduce', 'rvu', 'vwrays', 'wrapBSDF', 'xform'):
+                   'rpict', 'rpiece', 'rtrace', 'rttree_reduce', 'rvu', 'vwrays', 'wrapBSDF', 'xform', 'dcglare'):
             try:
-                if not os.access(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), os.X_OK):
-                    os.chmod(os.path.join(addonpath, 'RadFiles', sys.platform, 'bin', fn), 0o775)
+                if not os.access(os.path.join(rad_path, fn), os.X_OK):
+                    os.chmod(os.path.join(rad_path, fn), 0o775)
             except Exception:
                 print('{} not found'.format(fn))
 
         for fn in ('energyplus-22.1.0', 'ExpandObjects'):
             try:
-                if not os.access(os.path.join(addonpath, 'EPFiles', sys.platform, fn), os.X_OK):
-                    os.chmod(os.path.join(addonpath, 'EPFiles', sys.platform, fn), 0o775)
+                if not os.access(os.path.join(ep_path, fn), os.X_OK):
+                    os.chmod(os.path.join(ep_path, fn), 0o775)
             except Exception:
                 print('{} not found'.format(fn))
+        
 
-        if not os.path.islink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
-            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
-        elif not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus')):
-            os.remove(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
-            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus-22.1.0'), os.path.join(addonpath, 'EPFiles', sys.platform, 'energyplus'))
+        if not os.path.islink(os.path.join(ep_path, 'energyplus')):
+            os.symlink(os.path.join(ep_path, 'energyplus-22.1.0'), os.path.join(ep_path, 'energyplus'))
+        elif not os.path.isfile(os.path.join(ep_path, 'energyplus')):
+            os.remove(os.path.join(ep_path, 'energyplus'))
+            os.symlink(os.path.join(ep_path, 'energyplus-22.1.0'), os.path.join(ep_path, 'energyplus'))
 
-        if not os.path.islink(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
-            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform,
-                                    'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
-                                    os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
-        elif not os.path.isfile(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
-            os.remove(os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
-            os.symlink(os.path.join(addonpath, 'EPFiles', sys.platform,
-                                    'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
-                                    os.path.join(addonpath, 'EPFiles', sys.platform, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
+        if not os.path.islink(os.path.join(ep_path, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
+            os.symlink(os.path.join(ep_path, 'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
+                                    os.path.join(ep_path, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
+        elif not os.path.isfile(os.path.join(ep_path, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin']))):
+            os.remove(os.path.join(ep_path, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
+            os.symlink(os.path.join(ep_path, 'libenergyplusapi{}.22.1.0{}'.format(('.so', '')[sys.platform == 'darwin'], ('', '.dylib')[sys.platform == 'darwin'])),
+                                    os.path.join(ep_path, 'libenergyplusapi.{}'.format(('so', 'dylib')[sys.platform == 'darwin'])))
 
+    
     from .vi_node import vinode_categories, envinode_categories, envimatnode_categories, ViNetwork, No_Loc, So_Vi_Loc
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
@@ -436,17 +413,17 @@ class VIPreferences(AddonPreferences):
                 row.prop(self, self.ui_dict[entry])
 
 
-def get_frame(self):
-    return self.vi_frames
+# def get_frame(self):
+#     return self.vi_frames
 
 
-def set_frame(self, value):
-    if value > self['liparams']['fe']:
-        self.vi_frames = self['liparams']['fe']
-    elif value < self['liparams']['fs']:
-        self.vi_frames = self['liparams']['fs']
-    else:
-        self.vi_frames = value
+# def set_frame(self, value):
+#     if value > self['liparams']['fe']:
+#         self.vi_frames = self['liparams']['fe']
+#     elif value < self['liparams']['fs']:
+#         self.vi_frames = self['liparams']['fs']
+#     else:
+#         self.vi_frames = value
 
 
 def d_update(self, context):
@@ -467,7 +444,11 @@ def d_update(self, context):
 
 class VI_Params_Scene(bpy.types.PropertyGroup):
     def get_frame(self):
-        return self.get('vi_frames', self['liparams']['fe'])
+        # if self.vi_frames != self.id_data.frame_current:
+        #     self.id_data.vi_params.vi_leg_max = self.id_data.vi_params.vi_leg_max
+        #     return self.id_data.frame_current
+        # else:
+        return self.id_data.frame_current
 
     def set_frame(self, value):
         if value > self['liparams']['fe']:
@@ -477,6 +458,10 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         else:
             self.id_data.frame_set(value)
             self['vi_frames'] = value
+        
+        
+    def update_frame(self, context):
+        self.id_data.vi_params.vi_leg_max = self.id_data.vi_params.vi_leg_max
 
     def get_view(self):
         return self.get('vi_views', self['liparams']['views'])
@@ -487,13 +472,12 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         elif value < 1:
             self['vi_views'] = 1
         else:
-            #self.id_data.frame_set(value)
             self['vi_views'] = value
 
     vi_name = sprop("", "VI-Suite addon directory name", 1024, "")
     year: iprop("", 'Year', 2019, 2020, 2019)
     vipath: sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
-    vi_frames: IntProperty(name="", description="Day of year", get=get_frame, set=set_frame)
+    vi_frames: IntProperty(name="", description="Frame of parametric run", get=get_frame, set=set_frame, update=update_frame)
     solday: IntProperty(name="", description="Day of year", min=1, max=365, default=1, update=sunpath1)
     solhour: bpy.props.FloatProperty(name="", description="Time of day", subtype='TIME', unit='TIME', min=0, max=24, default=12, update=sunpath1)
     sp_hour_dash: fvprop(4, "", 'Main colour of the hour lines', [1.0, 0.0, 0.0, 0.0], 'COLOR', 0, 1)
@@ -532,12 +516,16 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_sh: bprop("", "Toggle for font shadow display",  False)
     vi_display: BoolProperty(name="", description="Toggle results display", default=0, update=d_update)
-    vi_disp_3d: bprop("VI 3D display", "Boolean for 3D results display",  False)
+    vi_disp_process: eprop([("0", "None", "No processing"), ("1", "3D", "3D results display"), 
+                            ("2", "Interpolate", "Interpolate results display"), ("3", "Direction", "Directional results display")],  "", "Processing", "0")
+    vi_disp_pos: EnumProperty(items=[("0", "Positive", "Positive face placement"), ("1", "Negative", "Negative face placement")],  name="", 
+                              description="Face placement to avoid z-fighting", default="0", update=leg_update)
     vi_leg_unit: sprop("", "Legend unit", 1024, "")
     vi_leg_max: FloatProperty(name="", description="Legend maximum", min=0, max=1000000, default=1000, update=leg_update)
     vi_leg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0, update=leg_update)
     vi_leg_col: EnumProperty(items=colours, name="", description="Legend colours", default='rainbow', update=col_update)
     vi_leg_levels: IntProperty(name="", description="Day of year", min=2, max=100, default=20, update=leg_update)
+    vi_arrow_size: FloatProperty(name="", description="Arrow size", min=0.01, max=10, default=0.5, update=leg_update)
     vi_leg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0', update=leg_update)
     wind_type: eprop([("0", "Speed", "Wind Speed (m/s)"), ("1", "Direction", "Wind Direction (deg. from North)")], "", "Wind metric", "0")
     vi_disp_trans: FloatProperty(name="", description="Sensing material transparency", min=0, max=1, default=0, update=t_update)
@@ -566,7 +554,6 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_bsdfleg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0)
     vi_bsdfleg_scale: EnumProperty(items=[('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name="", description="Legend scale", default='0')
     vi_bsdf_font: iprop("", "Font size for BSDF numerical display", 0, 48, 0)
-    #vi_views: EnumProperty(items=ga_views, name="", description="GA views", update=livires_update)
     vi_views: IntProperty(name="", description="GA views", get=get_view, set=set_view, update=livires_update)
     en_disp_type: EnumProperty(items=enparametric, name="", description="Type of EnVi display")
     vi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
@@ -680,11 +667,14 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
-    ec_amount: FloatProperty(name="", description="Amount of the declared unit", min=0.001, default=1, precision=3)
+    ec_amount: FloatProperty(name="", description="EC amount of the declared unit", min=0.001, default=1, precision=3)
+    ec_amount_mod: FloatProperty(name="", description="EC amount modifier per declared unit", min=0.00, default=0, precision=3)
     ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
     ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
+    ec_rep: eprop([("0", "Volume", "Object represents a material volume"), ("1", "Item", "Object represents an item")], "", "Specify what the object represents in EC terms", "0")
+    ec_items: FloatProperty(name="", description="Number of items the object represents", min=0.001, default=1, precision=3)
     ec_mod: StringProperty(name="", description="Embodied modules reported")
     ee = envi_embodied()
     write_stl = ob_to_stl
@@ -964,6 +954,8 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
            No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn)
+
+
 
 def register():
     for cl in classes:

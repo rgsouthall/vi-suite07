@@ -1022,7 +1022,7 @@
       "brick one brick 215 x 65 x 102.5mm": {
         "id": "497718fc-dff8-42d5-aa3b-9557e3149d87",
         "quantity": "1",
-        "unit": "qty",
+        "unit": "each",
         "density": "1487",
         "weight": "2.13",
         "ecdu": "0.45369",

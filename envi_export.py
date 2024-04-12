@@ -340,6 +340,16 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_tspsched'.format(zn.name), 'Temperature'))
 
+        safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SFlow']
+
+        for zn in safnodes:
+            for schedtype in ('Fan Schedule',):
+                if zn.inputs[schedtype].links:
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_fansched'.format(zn.name), 'Fraction'))
+
+                #elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
+                    #en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_tspsched'.format(zn.name), 'Temperature'))
+
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: GENERATORS ===========\n\n")
 
         if gens:
@@ -363,16 +373,19 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
             en_idf.write(epentry("ElectricLoadCenter:Generators", params, paramvs))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
+        
         for zn in zonenodes:
             for hvaclink in zn.inputs['HVAC'].links:
                 en_idf.write(hvaclink.from_node.eptspwrite(zn.zone))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: EQUIPMENT ===========\n\n")
+
         for zn in zonenodes:
             for hvaclink in zn.inputs['HVAC'].links:
                 hvaczone = hvaclink.from_node
+
                 if not hvaczone.envi_hvact:
-                    en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
+                    en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
 
@@ -771,6 +784,7 @@ def pregeo(context, op):
             print('Link', e)
 
     scene.frame_set(scene.frame_current)
+    print('Geometry export finished')
 
 def writeafn(exp_op, en_idf, enng):
     if [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_ACon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Zone']:
