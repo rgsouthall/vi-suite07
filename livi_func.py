@@ -117,7 +117,12 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
     ys = [p[1] for p in poss]
     tris = [[v.index for v in face.verts] for face in bm.faces]
     res_lay = geom.layers.float['{}{}'.format(var, scene.frame_current)]
-    ress = array([sum([f[res_lay] for f in v.link_faces])/len(v.link_faces) for v in bm.verts])
+
+    if isinstance(geom[:][0], bmesh.types.BMVert):
+        ress = array([v[res_lay] for v in bm.verts])
+    else:
+        ress = array([sum([f[res_lay] for f in v.link_faces])/len(v.link_faces) for v in bm.verts])
+
     bm.free()
     CS = plt.tricontourf(xs, ys, tris, ress, levels=levels, extend="both")
     vi, vcos, eis, fis, mis, v_start = 0, [], [], [], [], 0 
@@ -167,7 +172,7 @@ def res_direction(scene, o, ores, offset):
         val = o.data.attributes[f'{svp.li_disp_menu}{svp.vi_frames}'].data[rpi].value
         size = osizel + (osizeh - osizel) * (val - minval)/(maxval - minval)
         size = svp.vi_arrow_size
-        pc = o.matrix_world@rp.center if vf == 'FACE' else o.matrix_world@rp.location
+        pc = o.matrix_world@rp.center if vf == 'FACE' else o.matrix_world@rp.co
         v_cos.append([pc[0] + angxs[0] * size, pc[1] + angys[0] * size, pc[2] + offset])
         v_cos.append([pc[0] + angxs[1] * size * 0.5, pc[1] + angys[1] * size * 0.5, pc[2] + offset])
         v_cos.append([pc[0] - angxs[0] * size * 0.5, pc[1] - angys[0] * size * 0.5, pc[2] + offset])
