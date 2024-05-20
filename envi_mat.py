@@ -264,11 +264,11 @@ def envi_layertype(self, context):
     return retmatdict(self.em, self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')
 
 
-def envi_elayertype(self, context):
+def envi_eclasstype(self, context):
     if not self.ee.updated:
         self.ee.update()
 
-    ec_types = [(k, k, '{} type'.format(k)) for k in self.ee.propdict.keys()] + [('Custom', 'Custom', 'Custom embodied carbon')]
+    ec_types = [(k, k, '{} class'.format(k)) for k in self.ee.propdict.keys()] + [('Custom', 'Custom', 'Custom embodied carbon')]
     return ec_types
 
 
@@ -282,12 +282,14 @@ def envi_layer(self, context):
         return [('', '', '')]
 
 
-def envi_eclasstype(self, context):
+def envi_elayertype(self, context):
     if not self.ee.updated:
         self.ee.update()
 
-    if self.embodiedtype and self.embodiedtype != 'Custom':
-        return [((mat, mat, 'Embodied class material')) for mat in self.ee.propdict[self.embodiedtype]]
+    if not self.embodiedclass:
+        self.embodiedclass = self.ee.propdict[0]
+    if self.embodiedclass and self.embodiedclass != 'Custom':
+        return [((mat, mat, 'Embodied material type')) for mat in self.ee.propdict[self.embodiedclass]]
     else:
         return [('', '', '')]
 
@@ -296,10 +298,21 @@ def envi_emattype(self, context):
     if not self.ee.updated:
         self.ee.update()
 
-    if self.embodiedtype and self.embodiedclass and self.embodiedtype != 'Custom':
-        return [((mat, mat, 'Embodied material')) for mat in self.ee.propdict[self.embodiedtype][self.embodiedclass]]
+    try:
+        source_id = self.bl_idname
+    except:
+        source_id = 'None'
+
+    if source_id in ('No_En_Mat_Op', 'No_En_Mat_Tr', 'No_En_Mat_Con'):
+        if self.embodiedclass and self.embodiedtype and self.embodiedclass != 'Custom':
+            return [((mat, mat, 'Embodied material')) for mat in self.ee.propdict[self.embodiedclass][self.embodiedtype] if self.ee.propdict[self.embodiedclass][self.embodiedtype][mat]['unit'] != 'each']
+        else:
+            return [('', '', '')]
     else:
-        return [('', '', '')]
+        if self.embodiedclass and self.embodiedtype and self.embodiedclass != 'Custom':
+            return [((mat, mat, 'Embodied material')) for mat in self.ee.propdict[self.embodiedclass][self.embodiedtype]]
+        else:
+            return [('', '', '')]
 
 
 class envi_embodied(object):

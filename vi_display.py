@@ -2863,7 +2863,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
 
         elif node.metric == '6':
             dim = (1000, 1000)
-            imname, svg_bytes = vi_info(node, dim, svp, wlc=node['res']['wl'], ec=node['res']['ec'], noc=node['res']['noc'])
+            imname, svg_bytes = vi_info(node, dim, svp, wlc=node['res']['wl'], ec=node['res']['ec'], noc=node['res']['noc'], oc=node['res']['oc'], of=node['res']['of'])
             # qtsvg = QSvgRenderer()
             # qtsvg.load(svg_bytes)
             # printer = QPdfWriter(os.path.join(svp['viparams']['newdir'], "WLC.pdf"))

@@ -320,33 +320,38 @@ def hmchart_disp(chart_op, plt, dnode, col):
 def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
-    fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
-    labels = ['{}\n{:.1f} kgCO$_2$e'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
+    fig, ax = plt.subplots(figsize=(10, 6), subplot_kw=dict(aspect="equal"))
+    labels = ['{} {:.1f}'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
     values = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
+    fvalues = [float(v) for v in values]
+    maxval = max(fvalues)
+    minval = min(fvalues)
     wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
     cmap = plt.get_cmap('viridis')
-    colors = [list(cmap(i)[:3]) + [0.7] for i in linspace(0, 1, len(values))]
-    wedges, texts = ax.pie(values, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colors)
-    bbox_props = dict(boxstyle="round,pad=0.3,rounding_size=0.1", fc="w", ec="grey", lw=0.72)
-    kw = dict(arrowprops=dict(arrowstyle="-"), bbox=bbox_props, zorder=0, va="baseline")
+    colours = [list(cmap((fv - minval)/(maxval-minval + 0.01))[:3]) + [0.7] for fv in fvalues]
+
+    wedges, texts = ax.pie(values, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colours)
+    bbox_props = dict(boxstyle="round,pad=0.2,rounding_size=0.1", fc="w", ec="grey", lw=0.72)
+    kw = dict(arrowprops=dict(arrowstyle="-", ls='dashed'), bbox=bbox_props, zorder=-1, va="baseline")
 
     for i, p in enumerate(wedges):
         ang = (p.theta2 - p.theta1)/2. + p.theta1
         y = sin(deg2rad(ang))
         x = cos(deg2rad(ang))
         horizontalalignment = {-1: "right", 1: "left"}[int(sign(x))]
-        connectionstyle = "arc, angleA=0, angleB={}, armA=20, armB=40, rad=5".format(ang)
+        connectionstyle = "angle,angleA=0,angleB=90,rad=10"
         kw["arrowprops"].update({"connectionstyle": connectionstyle})
 
-        ax.annotate(labels[i], xy=(x, y), xytext=(1.15*sign(x), 1.35*y),
-                    horizontalalignment=horizontalalignment, verticalalignment="baseline", **kw)
+        ax.annotate(labels[i], xy=(x, y), xytext=(1.35*x, 1.35*y),
+                    horizontalalignment=horizontalalignment, verticalalignment="baseline", size=12, antialiased=True, **kw)
 
     ax.annotate('Total kgCO$_2$e\n{:.1f}\nTotal kgCO$_2$e/m$^2$\n{:.1f}\nTotal kgCO$_2$e/m$^2$/y\n{:.1f}'.format(float(node['res']['ec']['All']), float(node['res']['ecm2']['All']), float(node['res']['ecm2y']['All'])),
-                xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center", size=14)
+                xy=(0, 0), xytext=(0, 0), horizontalalignment='center', va="center", size=14, antialiased=True)
 
     if sys.platform == 'darwin':
         plt.ion()
-
+    
+    plt.tight_layout(h_pad=1.5)
     plt.show()
 
 

@@ -338,6 +338,56 @@ def vi_info(node, dim, svp, **kwargs):
 
     elif node.metric == '6':
         if node.frame_menu != 'All':
+            f_index = int(node.frame_menu) - int(node['frames'][0][0])
+            imname = "Whole_life_carbon"
+            wlc = kwargs['wlc']
+            ec = kwargs['ec']
+            noc = kwargs['noc'] 
+            oc = kwargs['oc']
+            of = kwargs['of']
+            min_res = min((min(noc), min(ec), min(wlc), -min(of), min(oc)))
+            max_res = max((max(noc), max(ec), max(wlc), -max(of), max(oc)))
+            min_res = round(min_res, -2)
+            max_res = round(max_res, -2)
+            yper = 750/(max_res - min_res) if min_res < 0 else 750/max_res
+            ycl = 850 if min_res > 0 else 850 + (min_res * yper)
+            colours = ('red', 'yellow', 'orange', 'green', 'blue')
+            svg_str = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <svg
+            id="svg5"
+            version="1.1"
+            viewBox="0 0 {0[0]} {0[0]}"
+            width="{0[0]}"
+            height="{0[1]}"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:svg="http://www.w3.org/2000/svg">\n""".format(dim)
+            svg_str += '<rect x="0" y="0" width="{0[0]}" height="{0[1]}" style="fill:rgb(107,129,153);stroke:none"/>\n'.format(dim)
+            svg_str += '<rect x="25" y="{}" width="950" height="70" style="fill:rgb(255,255,255);fill-opacity:0.1;stroke:black" rx="24"/>\n'.format(ycl - 35)
+            svg_str += '<text x="40" y="{}" text-anchor="start" font-size="48" style="fill:rgb(255,255,255);stroke:rgb(0,0,0);stroke-width:2;font-family:arial">{}</text>\n'.format(ycl + 15, u'kgCO\u2082e')
+            
+            for ri, res in enumerate((oc[f_index], -of[f_index], noc[f_index], ec[f_index], wlc[f_index])):
+                svg_str += '<text x="{}" y="{}" text-anchor="middle" font-size="38" style="fill:rgb(255,255,255);stroke:black;stroke-width:2;font-family:arial">{}</text>\n'.format(300 + ri * 150, ycl + 14, ('Space', 'Power', 'NOC', 'EC', 'WLC')[ri])
+            
+                if res < 0:
+                    ystart = ycl + 50
+                    ysize = -res * yper
+                else:
+                    ystart = ycl - 50 - (res * yper)
+                    ysize = res * yper
+
+                svg_str += '<rect x="{}" y="{}" width="100" height="{}" style="fill:{};stroke:rgb(0,0,0);stroke-width:2" rx="15"/>\n'.format(250 + ri * 150, ystart, ysize, colours[ri])
+                svg_str += '<text x="{}" y="{}" text-anchor="middle" font-size="28">{:.0f}</text>\n'.format(300 + ri * 150, (ystart + ysize + 28, ystart - 10)[res >= 0], res)
+            
+            #svg_str += '<path d="M 3.1872488,-8.5764985 -5.2042018,1.5476109 0.44532147,0.59910607 -2.7760836,8.5768289 5.2053048,-1.2927595 -1.0670148,-0.19881202Z" \
+            #            transform="translate({}, {}) scale(5, 5)" style="fill:yellow;stroke:black;stroke-width:0.5"/>'.format(350, ycl)
+            
+            svg_str += '<text x="25" y="975" text-anchor="start" font-size="38" style="fill:rgb(255,255,255);stroke:rgb(0,0,0);stroke-width:2;font-family:arial">{}</text>\n'.format('Zone: ' + node.zone_menu)
+            svg_str += '<text x="975" y="975" text-anchor="end" font-size="38" style="fill:rgb(255,255,255);stroke:rgb(0,0,0);stroke-width:2;font-family:arial">{}</text>\n'.format('  Scenario: ' + node.frame_menu)
+            svg_str += "</svg>"
+            return imname, bytearray(svg_str, encoding='utf-8')
+
+
+        elif node.frame_menu != 'All':
             imname = "Whole_life_carbon"
             wlc = kwargs['wlc']
             ec = kwargs['ec']
@@ -387,7 +437,7 @@ def vi_info(node, dim, svp, **kwargs):
             noc_pos = 450 - ((noc[0] - min_res)/(max_res - min_res)) * (900-550)
             ec_pos = 550 + ((ec[0] - min_res)/(max_res - min_res)) * (900-550)
             svg_str += '<polygon points="{},{} {},{} {},{}" style="fill:url(#WLC_grad);stroke:black;stroke-width:2"/>\n'.format(noc_pos, 500, 500, wlc_pos, ec_pos, 500)
-            svg_str += '<circle cx="500" cy="{0}" r="15" style="fill:yellow;stroke:black;stroke-width:2"/>\n'.format(wlc_pos)
+            svg_str += '<circle cx="500" cy="{0}" r="15" style="fill:yellow;stroke:rgb(0,0,0);stroke-width:2"/>\n'.format(wlc_pos)
             svg_str += '<circle cx="{}" cy="500" r="15" style="fill:yellow;stroke:black;stroke-width:2"/>\n'.format(noc_pos)
             svg_str += '<circle cx="{}" cy="500" r="15" style="fill:yellow;stroke:black;stroke-width:2"/>\n'.format(ec_pos)
             svg_str += "</svg>"
@@ -437,7 +487,7 @@ def vi_info(node, dim, svp, **kwargs):
                 pointsz = list(zip(pointsx, pointsy))
                 points = ' '.join(['{:.2f},{:.2f}'.format(p[0], p[1]) for p in pointsz])
                 svg_str += '<polyline points="{}" style="fill:none;stroke:{};stroke-width:5"/>\n'.format(points, cols[ri])
-                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{};stroke:black;stroke-width:2"/>\n'.format(50 + ri * 225, cols[ri])
+                svg_str += '<rect x="{}" y="740" width="50" height="40" style="fill:{};stroke:rgb(0,0,0);stroke-width:2"/>\n'.format(50 + ri * 225, cols[ri])
                 svg_str += '<text x="{}" y="770" style="font-size:30px;font-family:arial">{}</text>'.format(110 + ri * 225, ('Whole-life', 'Operational', 'Embodied')[ri])
                 # svg_str += '<text x="700" y="770" style="font-size:30px;font-family:arial">Zone: {}</text>'.format(node.zone_menu)
 

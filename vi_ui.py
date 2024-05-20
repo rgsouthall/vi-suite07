@@ -366,15 +366,15 @@ class VI_PT_Ob(bpy.types.Panel):
             newrow(layout, 'Embodied:', ovp, 'embodied')
 
             if ovp.embodied:
-                newrow(layout, 'Embodied class:', ovp, 'embodiedtype')
+                newrow(layout, 'Embodied class:', ovp, 'embodiedclass')
 
-                if ovp.embodiedtype != 'Custom':
-                    newrow(layout, 'Embodied type:', ovp, 'embodiedclass')
+                if ovp.embodiedclass != 'Custom':
+                    newrow(layout, 'Embodied type:', ovp, 'embodiedtype')
                     newrow(layout, 'Embodied material:', ovp, 'embodiedmat')
                     newrow(layout, 'Embodied modifier:', ovp, 'ec_amount_mod')
                     newrow(layout, 'Service life:', ovp, 'ec_life')
 
-                    if ovp.ec_unit == 'each' and ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
+                    if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
                         newrow(layout, "Object represents:", ovp, "ec_rep")
                         
                         if ovp.ec_rep == '1':
@@ -390,14 +390,14 @@ class VI_PT_Ob(bpy.types.Panel):
 
                 else:                   
                     newrow(layout, "Embodied id:", ovp, "ec_id")
+                    newrow(layout, "New class:", ovp, "ec_class")
                     newrow(layout, "Embodied type:", ovp, "ec_type")
-                    newrow(layout, "Embodied class:", ovp, "ec_class")
                     newrow(layout, "Embodied modules:", ovp, "ec_mod")
                     newrow(layout, "Embodied name:", ovp, "ec_name")
-                    newrow(layout, "Embodied unit:", ovp, "ec_unit")
-                    newrow(layout, "Embodied amount:", ovp, "ec_amount")
-                    newrow(layout, "Embodied modifier:", ovp, "ec_amount_mod")
-                    newrow(layout, "Embodied value per amount:", ovp, "ec_du")
+                    newrow(layout, "Declared unit:", ovp, "ec_unit")
+                    newrow(layout, "Amount of DU:", ovp, "ec_amount")
+                    newrow(layout, "Modifier per amount:", ovp, "ec_amount_mod")
+                    newrow(layout, "GWP per amount:", ovp, "ec_du")
 
                     if ovp.ec_unit not in ('kg', 'm3', 'tonnes'):
                         newrow(layout, "Embodied weight:", ovp, "ec_weight")
@@ -405,9 +405,9 @@ class VI_PT_Ob(bpy.types.Panel):
                     if ovp.ec_unit not in ('each'):
                         newrow(layout, "Embodied density:", ovp, "ec_density")
 
-                    newrow(layout, "Lifespan:", ovp, "ec_life")
+                    newrow(layout, "Service life:", ovp, "ec_life")
 
-                    if ovp.ec_unit == 'each' and ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
+                    if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
                         newrow(layout, "Object represents:", ovp, "ec_rep")
 
                         if ovp.ec_rep == '1':
@@ -540,11 +540,12 @@ class VI_PT_Col(bpy.types.Panel):
         newrow(layout, 'Embodied:', cvp, 'embodied')
 
         if cvp.embodied:
-            newrow(layout, 'Embodied class:', cvp, 'embodiedtype')
+            newrow(layout, 'Embodied class:', cvp, 'embodiedclass')
 
-            if cvp.embodiedtype != 'Custom':
-                newrow(layout, 'Embodied type:', cvp, 'embodiedclass')
+            if cvp.embodiedclass != 'Custom':
+                newrow(layout, 'Embodied type:', cvp, 'embodiedtype')
                 newrow(layout, 'Embodied material:', cvp, 'embodiedmat')
+                newrow(layout, 'Embodied modifer:', cvp, 'ec_amount_mod')
                 newrow(layout, 'Service life:', cvp, 'ec_life')
 
                 if cvp.get('ecentries'):
@@ -557,13 +558,13 @@ class VI_PT_Col(bpy.types.Panel):
 
             else:
                 newrow(layout, "Embodied id:", cvp, "ec_id")
+                newrow(layout, "New embodied class:", cvp, "ec_class")
                 newrow(layout, "Embodied type:", cvp, "ec_type")
-                newrow(layout, "Embodied class:", cvp, "ec_class")
                 newrow(layout, "Embodied modules:", cvp, "ec_mod")
                 newrow(layout, "Embodied name:", cvp, "ec_name")
-                newrow(layout, "Embodied unit:", cvp, "ec_unit")
-                newrow(layout, "Embodied amount:", cvp, "ec_amount")
-                newrow(layout, "Embodied value per amount:", cvp, "ec_du")
+                newrow(layout, "Declared unit:", cvp, "ec_unit")
+                newrow(layout, "Amount of DU:", cvp, "ec_amount")
+                newrow(layout, "GWP per amount:", cvp, "ec_du")
 
                 if cvp.ec_unit not in ('kg', 'm3', 'tonnes'):
                     newrow(layout, "Embodied weight:", cvp, "ec_weight")

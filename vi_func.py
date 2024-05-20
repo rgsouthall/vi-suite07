@@ -17,18 +17,14 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, blf, bpy_extras, math
-# from collections import OrderedDict
 from subprocess import Popen
 from numpy import array, digitize, amax, amin, average, clip, char, int8, frombuffer, uint8, multiply, float32
-# set_printoptions(threshold=nan)
 from math import sin, cos, asin, acos, pi, ceil, log10
 from math import e as expo
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
-# from .livi_func import li_calcob
-# from .vi_dicts import unit2res
 checked_groups_names_list = []
 materials_from_group = set()
 dtdf = datetime.date.fromordinal
@@ -51,14 +47,14 @@ def ec_update(self, context):
     if not self.ee.updated:
         self.ee.update()
 
-    if self.embodiedtype in self.ee.propdict.keys():
-        if self.embodiedclass not in self.ee.propdict[self.embodiedtype]:
-            self.embodiedclass = list(self.ee.propdict[self.embodiedtype].keys())[0]
+    if self.embodiedclass in self.ee.propdict.keys():
+        if self.embodiedtype not in self.ee.propdict[self.embodiedclass]:
+            self.embodiedtype = list(self.ee.propdict[self.embodiedclass].keys())[0]
 
-        if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
-            self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
+        if self.embodiedmat not in self.ee.propdict[self.embodiedclass][self.embodiedtype]:
+            self.embodiedmat = list(self.ee.propdict[self.embodiedclass][self.embodiedtype])[0]
 
-        self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+        self['ecdict'] = self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat]
 
         # if self['ecdict']['unit'] in ('kg', 'tonnes'):
         #     self['ecm3'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) / float(self['ecdict']['quantity']) * float(self['ecdict']['density']))
@@ -81,7 +77,7 @@ def ec_update(self, context):
         #     self['eckg'] = 'N/A'
         #     self['ecunit'] = 'N/A'
         # print([(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()])
-        self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+        self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
 def ret_datab(fname, r_w):
     addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))

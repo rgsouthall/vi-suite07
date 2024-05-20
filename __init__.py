@@ -273,7 +273,7 @@ else:
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, OBJECT_OT_EcE, NODE_OT_ECPie, NODE_OT_WLCLine, NODE_OT_COMLine
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify, OBJECT_OT_Embod, NODE_OT_En_UV, NODE_OT_En_EC, MAT_EnVi_Node_Remove
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
-    from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF
+    from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, NODE_OT_EcE
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
     from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
@@ -652,8 +652,8 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     flovi_efield: fprop("", "e field value", 0, 500, 0.03)
     flovi_ofield: fprop("", "o field value", 0, 500, 0.03)
     flovi_probe: bprop("", "OpenFoam probe", False)
-    embodied: BoolProperty(name="", description="Embodied carbon", default=0)
-    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class", update=ec_update)
+    embodied: BoolProperty(name="", description="Embodied carbon", default=0, update=ec_update)
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material type", update=ec_update)
     embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class", update=ec_update)
     embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material", update=ec_update)
     ec_id: StringProperty(name="", description="Embodied id (unique indentifier")
@@ -669,7 +669,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
                                   default="kg")
     ec_amount: FloatProperty(name="", description="EC amount of the declared unit", min=0.001, default=1, precision=3)
     ec_amount_mod: FloatProperty(name="", description="EC amount modifier per declared unit", min=0.00, default=0, precision=3)
-    ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
+    ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100, precision=3)
     ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
@@ -827,6 +827,7 @@ class VI_Params_Collection(bpy.types.PropertyGroup):
                                   description="Embodied carbon unit",
                                   default="kg")
     ec_amount: FloatProperty(name="", description="Amount of the declared unit", min=0.001, default=1, precision=3)
+    ec_amount_mod: FloatProperty(name="", description="EC amount modifier per amount of DU", min=0.00, default=0, precision=3)
     ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100)
     ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
@@ -953,8 +954,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
-           No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn)
-
+           No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, NODE_OT_EcE)
 
 
 def register():

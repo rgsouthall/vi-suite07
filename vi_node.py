@@ -1743,6 +1743,7 @@ class No_En_Con(Node, ViNodes):
     resest: bpy.props.BoolProperty(name='EST', description='External surface temperature (degC)', default=False)
     resist: bpy.props.BoolProperty(name='IST', description='Internal surface temperature (degC)', default=False)
     sta: bpy.props.BoolProperty(name='', description='Apply surface temperatures to Blender faces', default=False)
+    
 
     def init(self, context):
         self.inputs.new('So_En_Geo', 'Geometry in')
@@ -1846,7 +1847,7 @@ class No_En_Sim(Node, ViNodes):
 
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
-            row.operator("node.ensim", text = 'Calculate')
+            row.operator("node.ensim", text='Calculate')
 
     def update(self):
         for sock in self.outputs:
@@ -2791,8 +2792,11 @@ class No_Vi_Metrics(Node, ViNodes):
         self.update()
 
     def zitems(self, context):
+        #print('zitems', self['znames'])
         if self.inputs[0].links:
             try:
+                # if self.zone_menu not in [zn[0] for zn in self['znames']]:
+                #    self.zone_menu = self['znames'][0][0] 
                 return [tuple(z) for z in self['znames']]
             except Exception:
                 return [('None', 'None', 'None')]
@@ -2824,6 +2828,7 @@ class No_Vi_Metrics(Node, ViNodes):
     def ec_types(self, context):
         if self.inputs[0].links and self['rl']:
             ec_typemenu = []
+
             try:
                 ec_types = set([z[3] for z in self['rl']])
                 if 'Object EC (kgCO2e)' in ec_types:
@@ -2832,10 +2837,15 @@ class No_Vi_Metrics(Node, ViNodes):
                     ec_typemenu.append('Surface')
                 if 'Zone EC (kgCO2e/y)' in ec_types:
                     ec_typemenu.append('Zone')
+                if 'Object' in ec_typemenu and 'Surface' in ec_typemenu:
+                    ec_typemenu.append('All entities')
 
                 return [(ect, ect, 'EC type') for ect in ec_typemenu] if ec_typemenu else [('None', 'None', 'None')]
+            
             except Exception:
+                print('e')
                 return [('None', 'None', 'None')]
+        
         else:
             return [('None', 'None', 'None')]
 
@@ -2921,7 +2931,6 @@ class No_Vi_Metrics(Node, ViNodes):
         self['res'] = {}
         self.inputs.new('So_Vi_Res', 'Results in')
         self.outputs.new('So_Vi_Res', 'Results out')
-        # self.outputs['Results out'].hide = True
         self['riba_en'] = {'0': 35, '1': 55, '2': 60}
 
     def draw_buttons(self, context, layout):
@@ -3243,15 +3252,6 @@ class No_Vi_Metrics(Node, ViNodes):
                             newrow(layout, 'Reference speed:', self, "ws")
                             newrow(layout, 'Reference pressure:', self, "pref")
 
-                        # if self['res']['pressure']:
-                            # if self.zone_menu == 'All':
-                            #     newrow(layout, 'Metric', self, "probe_menu")
-
-                        # if self.zone_menu == 'All':
-                        #     for z in self['res'][self.probe_menu]:
-                        #         row = layout.row()
-                        #         row.label(text="{}: {}".format(z, self['res'][self.probe_menu][z]))
-                        # else:
                         if self['res']:
                             for m in self['res']:
                                 if self['res'][m].get(self.zone_menu):
@@ -3259,7 +3259,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                     row.label(text="{} {} at final timestep: {:.2f}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                     elif self.metric == '3':
-                        if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone') and self.frame_menu != 'All':
+                        if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone', 'All entities') and self.frame_menu != 'All':
                             # newrow(layout, 'Type', self, 'riba_menu')
                             newrow(layout, 'Timespan:', self, "ec_years")
                             row = layout.row()
@@ -3270,33 +3270,35 @@ class No_Vi_Metrics(Node, ViNodes):
                                 if self['res']['ecm2']:
                                     row = layout.row()
                                     row.label(text='Total EC/m2: {:.2f} kgCO2e/m2'.format(float(self['res']['ecm2']['All'])))
+                                
                                 if self['res']['ecm2y']:
                                     row = layout.row()
                                     row.label(text='Total EC/m2/y: {:.2f} kgCO2e/m2/y'.format(float(self['res']['ecm2y']['All'])))
+
+                                if self.frame_menu != 'All':
+                                    row = layout.row()
+                                    row.operator('node.ec_pie', text='Pie chart')
+
+                            elif self.zone_menu != 'None' and self['res']['ec'].get(self.zone_menu):
+                                row.label(text='{} EC: {:.2f} kgCO2e'.format(self.zone_menu, self['res']['ec'][self.zone_menu]))
+
+                                if self['res']['ecm2']:
+                                    row = layout.row()
+                                    row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(self.zone_menu, self['res']['ecm2'][self.zone_menu]))
+                                
+                                if self['res']['ecm2y']:
+                                    row = layout.row()
+                                    row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(self.zone_menu, self['res']['ecm2y'][self.zone_menu]))
+                                
                                 if self['res']['vol']:
                                     row = layout.row()
-                                    row.label(text='Total volume: {:.2f} m3'.format(float(self['res']['vol']['All'])))
-                                if self['res']['area']:
-                                    row = layout.row()
-                                    row.label(text='Total area: {:.2f} m2'.format(self['res']['area'][self.zone_menu]))
-
-                            elif self['res']['ec'].get(self.zone_menu):
-                                row.label(text='{} EC: {:.2f} kgCO2e'.format(self.em_menu, self['res']['ec'][self.zone_menu]))
-
-                                if self['res']['ecm2'] and self.zone_menu != 'None':
-                                    row = layout.row()
-                                    row.label(text='{} EC/m2: {:.2f} kgCO2e/m2 (floor area)'.format(self.em_menu, self['res']['ecm2'][self.zone_menu]))
-                                if self['res']['ecm2y'] and self.zone_menu != 'None':
-                                    row = layout.row()
-                                    row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(self.em_menu, self['res']['ecm2y'][self.zone_menu]))
-                                if self['res']['vol'] and self.zone_menu != 'None':
-                                    row = layout.row()
-                                    row.label(text='{} volume: {:.2f} m3'.format(self.em_menu, self['res']['vol'][self.zone_menu]))
-                                if self.em_menu != 'Object':
-                                    if self['res']['area'] and self.zone_menu != 'None':
+                                    row.label(text='{} volume: {:.2f} m3'.format(self.zone_menu, self['res']['vol'][self.zone_menu]))
+                                
+                                if self.em_menu == 'Surface':
+                                    if self['res']['area']:
                                         row = layout.row()
-                                        row.label(text='{} area: {:.2f} m2'.format(self.em_menu, self['res']['area'][self.zone_menu]))
-
+                                        row.label(text='{} surface area: {:.2f} m2'.format(self.em_menu, self['res']['area'][self.zone_menu]))
+                            
                     elif self.metric == '4':
                         newrow(layout, 'Comfort type:', self, "com_menu")
 
@@ -3381,13 +3383,14 @@ class No_Vi_Metrics(Node, ViNodes):
                             if self['res']['sda'] >= 0:
                                 row = layout.row()
                                 row.operator('node.vi_info', text='Infographic')
-                    elif self.metric == '3':
-                        if self['res']['ec'] and self.frame_menu != 'All':
-                            row = layout.row()
-                            row.operator('node.ec_pie', text='Pie chart')
-                        # elif self.frame_menu == 'All':
-                        #     row = layout.row()
-                        #     row.operator('node.ec_line', text='Line chart')
+                    # elif self.metric == '3':
+                    #     print(self['res']['ec'], self.frame_menu, self.zone_menu)
+                    #     if self['res']['ec'] and self.frame_menu != 'All' and self.zone_menu == 'All':
+                    #         row = layout.row()
+                    #         row.operator('node.ec_pie', text='Pie chart')
+                    #     # elif self.frame_menu == 'All':
+                    #     #     row = layout.row()
+                    #     #     row.operator('node.ec_line', text='Line chart')
                     elif self.metric == '4' and self.frame_menu == 'All':
                         if self['res'].get('alloh1s'):
                             row = layout.row()
@@ -3400,70 +3403,82 @@ class No_Vi_Metrics(Node, ViNodes):
 
 
     def update(self):
-        if self.inputs[0].links:
-            self['rl'] = self.inputs[0].links[0].from_node['reslists']
+        try:
+            if self.inputs[0].links:
+                self['rl'] = self.inputs[0].links[0].from_node['reslists']
 
-            if self['rl'] and len(self['rl'][0]):
-                frames = list(dict.fromkeys([z[0] for z in self['rl']]))
-                self['frames'] =  [(f, f, 'Frame') for f in frames]
+                if self['rl'] and len(self['rl'][0]):
+                    frames = list(dict.fromkeys([z[0] for z in self['rl']]))
+                    self['frames'] =  [(f, f, 'Frame') for f in frames]
 
-                if self.metric == '3':
-                    self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
-                    # if  == 'Surface':
-                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == f"{self.em_menu} EC (kgCO2e/y)"])))
-                    # elif self.em_menu == 'Zone':
-                    #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
-                    # elif self.em_menu == 'Object':
-                    #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
+                    if self.metric == '3':
+                        self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
 
-                    if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
+                        if self.em_menu == 'All entities':
+                            znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and (z[3] == "Surface EC (kgCO2e/y)" or z[3] == "Object EC (kgCO2e/y)")])))
+                        else:
+                            znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == f"{self.em_menu} EC (kgCO2e/y)"])))
+                        # elif self.em_menu == 'Zone':
+                        #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
+                        # elif self.em_menu == 'Object':
+                        #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
+
+                        # if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
+                        #     self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+                        # else:
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+
+                    elif self.metric == '2':
+                        pnames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Probe'])))
+                        self['znames'] = [(pn, pn, 'Probe name') for pn in pnames]
+
+                    elif self.metric == '0':
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone temporal'])))
+                        self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+
+                    elif self.metric == '6':
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone temporal'])))
+                        self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+
                     else:
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
 
-                elif self.metric == '2':
-                    pnames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Probe'])))
-                    self['znames'] = [(pn, pn, 'Probe name') for pn in pnames]
+                    self.inputs[0].links[0].from_node.new_res = 0
 
-                elif self.metric == '0':
-                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone temporal'])))
-                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+                    if not self.get('znames'):
+                        self['znames'] = [('None', 'None', 'None')]
+
+                    if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
+                        self.frame_menu = self['frames'][0][0]
+
+                    if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
+                        self.zone_menu = self['znames'][0][0]
+
+                    if self.metric == '2':
+                        if self.ref_point == '' or self.ref_point not in [spn[0] for spn in self['znames']]:
+                            self.ref_point = self['znames'][0][0]
+                    
+                    if self.em_menu not in ('Object', 'Surface', 'Zone', 'All entities'):
+                        self.em_menu = 'None'
 
                 else:
-                    znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
-                    self['znames'] = [(zn, zn, 'Zone name') for zn in znames]
-
-                self.inputs[0].links[0].from_node.new_res = 0
-
-                if not self.get('znames'):
-                   self['znames'] = [('None', 'None', 'None')]
+                    self['rl'] = []
+                    self['frames'] = [('None', 'None', 'None')]
+                    self['znames'] = [('None', 'None', 'None')]
 
             else:
                 self['rl'] = []
                 self['frames'] = [('None', 'None', 'None')]
                 self['znames'] = [('None', 'None', 'None')]
-        else:
-            self['rl'] = []
-            self['frames'] = [('None', 'None', 'None')]
-            self['znames'] = [('None', 'None', 'None')]
+  
+            
+            # if self.probe_menu == '' or self.probe_menu not in [spr[0] for spr in self['probes']]:
+            #     self.probe_menu = self['probes'][0][0]
 
-
-        if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
-            self.frame_menu = self['frames'][0][0]
-
-        if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
-            self.zone_menu = self['znames'][0][0]
-
-        if self.metric == '2':
-            if self.ref_point == '' or self.ref_point not in [spn[0] for spn in self['znames']]:
-                self.ref_point = self['znames'][0][0]
-
-        # if self.em_menu == '' or self.em_menu not in ('Object', 'Surface', 'Zone'):
-            # self.em_menu = 'None'
-        # if self.probe_menu == '' or self.probe_menu not in [spr[0] for spr in self['probes']]:
-        #     self.probe_menu = self['probes'][0][0]
-
-        self.res_update()
+            self.res_update()
+        except Exception as e:
+            print(e)
 
     def res_update(self):
         self['res'] = {}
@@ -3735,8 +3750,10 @@ class No_Vi_Metrics(Node, ViNodes):
                                 minDF = stdf[i][0]
                                 ir = minDF/aDF
                                 rarea += stdf[i][1]
+
                                 if rarea/nsum(dfareas) > mA:
                                     break
+
                                 i += 1
 
                     self['res']['avDF'] = round(aDF, 2)
@@ -3898,7 +3915,11 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ecm2'][r[2]] = float(r[4]) * self.ec_years
                             self['res']['ecm2y'][r[2]] = float(r[4])
                         elif r[3] == 'Object volume (m3)':
-                            self['res']['vol'][r[2]] = float(r[4])
+                            try:
+                                self['res']['vol'][r[2]] = float(r[4])
+                            except:
+                                self['res']['vol'][r[2]] = 'N/A'
+                    
                     elif self.em_menu == 'Surface':
                         if r[3] == 'Surface EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
@@ -3909,6 +3930,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['vol'][r[2]] = float(r[4])
                         elif r[3] == 'Surface area (m2)':
                             self['res']['area'][r[2]] = float(r[4])
+                    
                     elif self.em_menu == 'Zone':
                         if r[3] == 'Zone EC (kgCO2e/y)':
                             self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
@@ -3917,24 +3939,24 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ecm2y'][r[2]] = float(r[4])
                         elif r[3] == 'Surface area (m2)':
                             self['res']['area'][r[2]] = float(r[4])
+                        elif r[3] == 'Zone volume (m3)':
+                            try:
+                                self['res']['vol'][r[2]] = float(r[4])
+                            except:
+                                self['res']['vol'][r[2]] = 'N/A'
+
+                    elif self.em_menu == 'All entities':
+                        if r[3] in ('Object EC (kgCO2e/y)', 'Surface EC (kgCO2e/y)'):
+                            self['res']['ec'][r[2]] = float(r[4]) * self.ec_years
+                        elif r[3] in ('Object EC (kgCO2e/m2/y)', 'Surface EC (kgCO2e/m2/y)'):
+                            self['res']['ecm2'][r[2]] = float(r[4]) * self.ec_years
+                            self['res']['ecm2y'][r[2]] = float(r[4])
+                        elif r[3] == 'Surface area (m2)':
+                            self['res']['area'][r[2]] = float(r[4])
 
             self['res']['ec']['All'] = sum([self['res']['ec'][ec] for ec in self['res']['ec']])
             self['res']['ecm2']['All'] = sum([self['res']['ecm2'][ec] for ec in self['res']['ecm2']])
             self['res']['ecm2y']['All'] = sum([self['res']['ecm2y'][ec] for ec in self['res']['ecm2y']])
-                    # if r[2] == 'All' and r[3] == f'{self.em_menu} EC (kgCO2e/y)':
-                    #     self['res']['ec']['All'] = float(r[4]) * self.ec_years
-                    # elif r[2] == 'All' and r[3] == f'{self.em_menu} EC (kgCO2e/m2/y)':
-                    #     self['res']['ecm2']['All'] = float(r[4]) * self.ec_years
-                    #     self['res']['ecm2y']['All'] = float(r[4])
-                    # elif r[2] == 'All' and r[3] == f'{self.em_menu} volume (m3)':
-                    #     self['res']['vol']['All'] = float(r[4])
-                    # elif r[2] == 'All' and r[3] == 'Object surface area (m2)':
-                    #     if self.em_menu != 'Object':
-                    #         self['res']['area']['All'] = float(r[4])
-
-                # elif self.frame_menu == 'All':
-                #     if r[0] == 'All' and
-                #     self['res'][ec]
 
         elif self.metric == '4':
             self['res']['oh'] = -1
@@ -4025,6 +4047,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     aircool_kwh = 0
                     aaircool_kwh = 0
                     ec_kgco2e = 0
+                    aec_kgco2e = 0
 
                     if self.frame_menu and self.zone_menu:
                         for r in self['rl']:
@@ -4044,7 +4067,9 @@ class No_Vi_Metrics(Node, ViNodes):
                                         aircool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
                                         aaircool_kwh += aaircool_kwh
                                     elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
+                                        #print('zone ec', float(r[4]))
                                         ec_kgco2e = float(r[4])
+                                        aec_kgco2e += ec_kgco2e
                                     elif r[3] == 'PV power (W)':
                                         pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
 
@@ -4062,7 +4087,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
                         o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa'][int(frame) - int(frames[0])]
                         owlc = o_kwh * sum([self.carb_fac * (1 + (self.carb_annc * 0.01))**i for i in range(self.ec_years)])
-                        ecwlc = ec_kgco2e * self.ec_years
+                        ecwlc = aec_kgco2e * self.ec_years if self.zone_menu == 'All' else ec_kgco2e * self.ec_years
                         ofwlc = pv_kwh * sum([self.carb_fac * (1 + (self.carb_annc * 0.01))**i for i in range(self.ec_years)])
                         wlc = owlc + ecwlc - ofwlc
 
@@ -4071,7 +4096,12 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ecwlc'] = ecwlc
                             self['res']['ofwlc'] = ofwlc
                             self['res']['wlc'] = wlc
-
+                            # self['res']['ec'] = ecwlcs
+                            # self['res']['of'] = ofwlc
+                            # self['res']['wl'] = wlc
+                            # self['res']['oc'] = owlc
+                            # self['res']['noc'] = [owlc - ofwlc]
+                            
                         owlcs.append(owlc)
                         ecwlcs.append(ecwlc)
                         ofwlcs.append(ofwlc)
@@ -4083,11 +4113,13 @@ class No_Vi_Metrics(Node, ViNodes):
                     reslists.append([str(frame), 'Carbon', self.zone_menu, 'Net operational carbon (kgCO2e)', '{:.3f}'.format(owlc - ofwlc)])
                     reslists.append([str(frame), 'Carbon', self.zone_menu, 'Whole-life carbon (kgCO2e)', '{:.3f}'.format(wlc)])
 
+                #if self.frame_menu == 'All':
                 self['res']['ec'] = ecwlcs
                 self['res']['of'] = ofwlcs
                 self['res']['wl'] = wlcs
                 self['res']['oc'] = owlcs
                 self['res']['noc'] = [owlcs[i] - ofwlc for i, ofwlc in enumerate(ofwlcs)]
+
                 reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f[0]) for f in self['frames']])])
                 reslists.append(['All', 'Carbon', self.zone_menu, 'Carbon offset (kgCO2e)', ' '.join(['{:.3f}'.format(ofwlc) for ofwlc in ofwlcs])])
                 reslists.append(['All', 'Carbon', self.zone_menu, 'Gross operational carbon (kgCO2e)', ' '.join(['{:.3f}'.format(owlc) for owlc in owlcs])])
@@ -5435,7 +5467,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
         return epentry('HVACTemplate:Zone:IdealLoadsAirSystem', params, paramvs)
 
     def epewrite(self, z):
-        linked_nodes = [l.links[0].from_node for l in z.inputs if l.links and l.bl_idname == 'So_En_Net_SFlow'] + [l.links[0].fto_node for l in z.outputs if l.links and l.bl_idname == 'So_En_Net_SFlow']
+        linked_nodes = [l.links[0].from_node for l in z.inputs if l.links and l.bl_idname == 'So_En_Net_SFlow'] + [l.links[0].to_node for l in z.outputs if l.links and l.bl_idname == 'So_En_Net_SFlow']
         ef_name = '{} Exhaust Node'.format(z.zone) if any([l.linkmenu == 'Exhaust' for l in linked_nodes]) else ''
         
             
@@ -6955,12 +6987,14 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     def uv_update(self, context):
         pstcs, resists = [], []
 
-        if self.envi_con_type in ('Wall', 'Floor', 'Roof'):
-            if self.envi_con_makeup == '0':
-                con_layers = self.ec.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
-                thicks = [0.001 * tc for tc in [self.lt0, self.lt1, self.lt2, self.lt3,
-                                                self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9][:len(con_layers)]]
+        
+        if self.envi_con_makeup == '0':
+            con_layers = self.ec.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
+            thicks = [0.001 * tc for tc in [self.lt0, self.lt1, self.lt2, self.lt3,
+                                            self.lt4, self.lt5, self.lt6, self.lt7, self.lt8, self.lt9][:len(con_layers)]]
+            self.tthi = sum(thicks) * 1000
 
+            if self.envi_con_type in ('Wall', 'Floor', 'Roof'):
                 for p, psmat in enumerate(con_layers):
                     pi = 2 if psmat in self.em.gas_dat else 1
                     pstcs.append(float(self.em.matdat[psmat][pi]))
@@ -6968,6 +7002,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                 uv = 1/(sum(resists) + 0.12 + 0.08)
                 self.cuv = '{:.3f}'.format(uv)
+            
         else:
             self.cuv = "N/A"
 
@@ -6979,6 +7014,94 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                 self.id_data.links.unlink(link)
 
             self.inputs['Outer frame layer'].hide = True
+
+    def ec_update(self, context):
+        self['ecentries'] = []
+
+        if not self.ee.updated:
+            self.ee.update()
+
+        if self.embodiedclass in self.ee.propdict.keys():
+            if self.embodiedtype not in self.ee.propdict[self.embodiedclass]:
+                self.embodiedtype = list(self.ee.propdict[self.embodiedclass].keys())[0]
+
+            if self.embodiedmat not in self.ee.propdict[self.embodiedclass][self.embodiedtype]:
+                self.embodiedmat = list(self.ee.propdict[self.embodiedclass][self.embodiedtype])[0]
+            
+            try:
+                self['ecdict'] = self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat]
+
+                if self['ecdict']['unit'] == 'm2':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu'])/(float(self['ecdict']['quantity'])))
+                    
+                elif self['ecdict']['unit'] == 'kg':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * float(self['ecdict']['density']) * self.thi * 0.001)
+                
+                elif self['ecdict']['unit'] == 'm3':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * self.thi * 0.001/float(self['ecdict']['quantity']))
+                else:
+                    self['ecm2'] = 'N/A'
+                    self['ecm2y'] = 'N/A'
+                    return
+
+                self['ecm2y'] = '{:.3f}'.format(float(self['ecm2'])/self.ec_life)
+                self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+
+            except Exception as e:
+                print('Exception', e)
+                self['ecm2'] = 'N/A'
+                self['ecm2y'] = 'N/A'
+
+    def save_ecdict(self):
+        '''ID, Quantity, unit, density, weight, ec per unit, ec per kg, modules'''
+        if self.ec_unit == 'kg':
+            weight = self.ec_amount
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm2':
+            weight = self.ec_amount * self.ec_density * self.tthi * 0.001
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm3':
+            weight = self.ec_amount * self.ec_density
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+
+        ec_dict = self.ee.get_dat()
+
+        if self.ec_type not in ec_dict:
+            ec_dict[self.ec_class] = {}
+            ec_dict[self.ec_class][self.ec_type] = {}
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": '{:.4f}'.format(self.ec_amount),
+                                                                  "unit": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg),
+                                                                  "modules": self.ec_mod}
+        elif self.ec_type not in ec_dict[self.ec_class]:
+            ec_dict[self.ec_class][self.ec_type] = {}
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": '{:.4f}'.format(self.ec_amount),
+                                                                  "unit": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg),
+                                                                  "modules": self.ec_mod}
+        else:
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": '{:.4f}'.format(self.ec_amount),
+                                                                  "unit": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg),
+                                                                  "modules": self.ec_mod}
+        self.ee.set_dat(ec_dict)
+        self.ee.ec_save()
+        self.embodiedclass = self.ec_class
 
 
     con_name: StringProperty(name="", description="Name for the custom construction", default='')
@@ -7010,6 +7133,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     envi_con_con: EnumProperty(items=bc_update,
                                name="",
                                description="Construction context", update=con_update)
+    envi_con_exclude: EnumProperty(items=[("0", "All", "Exposed to sun and wind sun or wind"), ("1", "No Sun", "Exposed to wind only"),
+                                          ("2", "No wind", "Exposed to sun only"), ("3", "No sun or wind", "Not exposed to sun or wind")],
+                                   name="", description="Exclude environmental influences", default="0", update=con_update)
     envi_simple_glazing: BoolProperty(name="", description="Flag to signify whether to use a EP simple glazing representation", default=False)
     envi_sg_uv: FloatProperty(name="W/m^2.K", description="Window U-Value", min=0.01, max=10, default=2.4)
     envi_sg_shgc: FloatProperty(name="", description="Window Solar Heat Gain Coefficient", min=0, max=1, default=0.7)
@@ -7025,6 +7151,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     lt7: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
     lt8: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
     lt9: FloatProperty(name="mm", description="Layer thickness (mm)", min=0.1, default=100, update=uv_update)
+    tthi: FloatProperty(name="mm", description="Construction thickness (mm)")
     cuv: StringProperty(name="", description="Construction U-Value", default="N/A")
     cec: StringProperty(name="", description="Construction embodied carbon", default="N/A")
     cecy: StringProperty(name="", description="Construction embodied carbon per year", default="N/A")
@@ -7078,6 +7205,27 @@ class No_En_Mat_Con(Node, EnViMatNodes):
     ird: FloatProperty(name="m", description="Inside Reveal Depth (m)", min=0.0, max=10, default=0.1)
     irsa: FloatProperty(name="", description="Inside Reveal Solar Absorptance", min=0.01, max=1, default=0.7)
     resist: FloatProperty(name="", description="U-value", min=0.01, max=10, default=0.7)
+    embodied: BoolProperty(name="", description="Set embodied carbon for the construction", default=False)
+    embodiedclass: EnumProperty(items=envi_eclasstype, name="", description="Layer embodied class", update=ec_update)
+    embodiedtype: EnumProperty(items=envi_elayertype, name="", description="Layer embodied material class", update=ec_update)
+    embodiedmat: EnumProperty(items=envi_emattype, name="", description="Layer embodied material", update=ec_update)
+    ecm2: FloatProperty(name="kgCo2e/m2", description="Embodied carbon per metre squared", min=0.0, default=0.0)
+    ec_id: StringProperty(name="", description="Embodied id")
+    ec_class: StringProperty(name="", description="Embodied class")
+    ec_type: StringProperty(name="", description="Embodied type")
+    ec_name: StringProperty(name="", description="Embodied name")
+    ec_unit:EnumProperty(items=[("kg", "kg", "per kilogram"),
+                                  ("m2", "m2", "per square metre"),
+                                  ("m3", "m3", "per cubic metre")],
+                                  name="",
+                                  description="Embodied carbon declared unit",
+                                  default="kg")
+    ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
+    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", precision=3, default=100)
+    ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
+    ec_mod: StringProperty(name="", description="Embodied modules")
+    ec_life: IntProperty(name="Years", description="Service life in years", min=1, max=100, default=60, update=ec_update)
+    ee = envi_embodied()
 
     def init(self, context):
         self['bml'] = []
@@ -7100,8 +7248,11 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
             if self.envi_con_type != "Shading":
                 if self.envi_con_con in ('External', 'Zone') and not self.inputs['PV'].links:
+                    if self.envi_con_con == 'External':
+                        newrow(layout, 'Exclude:', self, "envi_con_exclude")
+                    
                     newrow(layout, 'Air-flow:', self, "envi_afsurface")
-
+                    
                 newrow(layout, 'Proxy:', self, "envi_con_proxy")
 
                 if self.envi_con_proxy == '0':
@@ -7196,9 +7347,9 @@ class No_En_Mat_Con(Node, EnViMatNodes):
                     row.operator('node.envi_ec', text = "EC Calc")
 
                     try:
-                        row.label(text = 'EC  = {} kgCO2e/m2'.format(self.cec))
+                        row.label(text='EC = {} kgCO2e/m2'.format(self.cec))
                     except Exception:
-                        row.label(text = 'EC  = N/A')
+                        row.label(text='EC = N/A')
 
 
             elif self.envi_con_type in ('Wall', 'Floor', 'Roof') and self.envi_con_proxy == '0':
@@ -7206,25 +7357,25 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
                 if self.envi_con_makeup == '0':
                     try:
-                        row.label(text = 'U-value  = {} W/m2.K'.format(self.cuv))
+                        row.label(text='U-value = {} W/m2.K'.format(self.cuv))
                     except Exception:
-                        row.label(text = 'U-value  = N/A')
+                        row.label(text='U-value = N/A')
 
                 elif self.envi_con_makeup == '1':
                     row.operator('node.envi_uv', text = "UV Calc")
 
                     try:
-                        row.label(text = 'U-value  = {} W/m2.K'.format(self.cuv))
+                        row.label(text='U-value = {} W/m2.K'.format(self.cuv))
                     except Exception:
-                        row.label(text = 'U-value  = N/A')
+                        row.label(text='U-value = N/A')
 
                     row = layout.row()
                     row.operator('node.envi_ec', text = "EC Calc")
 
                     try:
-                        row.label(text = 'EC  = {} kgCO2e/m2'.format(self.cec))
+                        row.label(text='EC = {} kgCO2e/m2'.format(self.cec))
                     except Exception:
-                        row.label(text = 'EC  = N/A')
+                        row.label(text='EC = N/A')
 
         if self.envi_con_makeup == '1' and self.envi_con_type != 'Shading' and self.envi_con_proxy == '0':
             newrow(layout, 'Name:', self, "con_name")
@@ -7232,6 +7383,51 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             if self.con_name and self.inputs['Outer layer'].links:
                 row = layout.row()
                 row.operator('node.con_save', text = "Save")
+        
+        if self.envi_con_makeup != '1':
+            newrow(layout, 'Embodied:', self, "embodied")
+            
+            if self.embodied:
+                newrow(layout, "Embodied class:", self, "embodiedclass")
+
+                if self.embodiedclass != 'Custom':
+                    newrow(layout, "Embodied type:", self, "embodiedtype")
+                    newrow(layout, "Embodied material:", self, "embodiedmat")
+                    newrow(layout, "Service life:", self, "ec_life")
+
+                    try:
+                        for ec in self['ecentries']:
+                            row = layout.row()
+                            row.label(text='{}: {}'.format(ec[0], ec[1]))
+
+                        row = layout.row()
+                        row.label(text='ec/m2: {}'.format(self['ecm2']))
+                        row = layout.row()
+                        row.label(text='ec/m2/y: {}'.format(self['ecm2y']))
+                        row = layout.row()
+                        row.operator("node.ec_edit", text="Embodied Edit")
+
+                    except Exception:
+                        pass
+
+                else:
+                    newrow(layout, "Embodied id:", self, "ec_id")
+                    newrow(layout, "Embodied class:", self, "ec_class")
+                    newrow(layout, "Embodied type:", self, "ec_type")
+                    newrow(layout, "Embodied name:", self, "ec_name")
+                    newrow(layout, "Embodied modules:", self, "ec_mod")
+                    newrow(layout, "Declared unit:", self, "ec_unit")
+
+                    if self.ec_unit in ('kg', 'm2', 'm3'):
+                        newrow(layout, "Amount of DU:", self, "ec_amount")
+
+                    newrow(layout, "GWP per amount:", self, "ec_kgco2e")
+                    newrow(layout, "Embodied density:", self, "ec_density")
+                    newrow(layout, "Service life:", self, "ec_life")
+
+                    if all((self.ec_id, self.ec_name, self.ec_type, self.ec_class, self.ec_mod)):
+                        row = layout.row()
+                        row.operator('node.ec_save', text="Embodied Save")
 
     def update(self):
         if not self.em.updated:
@@ -7250,7 +7446,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
     def ret_uv(self):
         if self.envi_con_proxy == '0':
-            #print(self.id_data.name)
             if self.envi_con_makeup == '1':
                 resists = []
                 lsock = self.inputs['Outer layer']
@@ -7347,7 +7542,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             if lks:
                 lay_name = lks[0].from_node.lay_name if lks[0].from_node.layer == '1' else lks[0].from_node.material
                 lay_names.append(lay_name)
-
 
         self.ec.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))[self.con_name] = lay_names
         self.ec.get_dat('{} - {}'.format(self.envi_con_type, self.envi_con_con))['{} (reversed)'.format(self.con_name)] = lay_names[::-1]
@@ -7693,20 +7887,38 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         if not self.ee.updated:
             self.ee.update()
 
-        if self.embodiedtype in self.ee.propdict.keys():
-            if self.embodiedclass not in self.ee.propdict[self.embodiedtype]:
-                self.embodiedclass = list(self.ee.propdict[self.embodiedtype].keys())[0]
+        if self.embodiedclass in self.ee.propdict.keys():
 
-            if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
-                self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
+            if self.embodiedtype not in self.ee.propdict[self.embodiedclass]:
+                self.embodiedtype = list(self.ee.propdict[self.embodiedclass].keys())[0]
+
+            if self.embodiedmat not in self.ee.propdict[self.embodiedclass][self.embodiedtype]:
+                self.embodiedmat = list(self.ee.propdict[self.embodiedclass][self.embodiedtype])[0]
 
             try:
-                self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
-                self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
-                self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001/self.ec_life)
-                self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+                self['ecdict'] = self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat]
+
+                if self['ecdict']['unit'] == 'm2':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu'])/float(self['ecdict']['quantity']))
+                    self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['ecdu'])/float(self['ecdict']['quantity'])/self.ec_life)
+                
+                elif self['ecdict']['unit'] == 'kg':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * float(self['ecdict']['density']) * self.thi * 0.001/float(self['ecdict']['quantity']))
+                    self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * float(self['ecdict']['density']) * self.thi * 0.001/(self.ec_life * float(self['ecdict']['quantity'])))
+                
+                elif self['ecdict']['unit'] == 'm3':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * self.thi * 0.001/float(self['ecdict']['quantity']))
+                    self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * self.thi * 0.001/(self.ec_life * float(self['ecdict']['quantity'])))
+                        
+                else:
+                    self['ecm2'] = 'N/A'
+                    self['ecm2y'] = 'N/A'
+
+                
+                self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
             except Exception as e:
+                print('embodied exception: ', e)
                 self['ecm2'] = 'N/A'
                 self['ecm2y'] = 'N/A'
 
@@ -7745,13 +7957,12 @@ class No_En_Mat_Op(Node, EnViMatNodes):
     resist: FloatProperty(name="", description="", min=0, default=0)
     envi_con_type: StringProperty(name="", description="Name")
     ec_id: StringProperty(name="", description="Embodied id")
-    ec_type: StringProperty(name="", description="Embodied type")
     ec_class: StringProperty(name="", description="Embodied class")
+    ec_type: StringProperty(name="", description="Embodied type")
     ec_name: StringProperty(name="", description="Embodied name")
     ec_unit:EnumProperty(items=[("kg", "kg", "per kilogram"),
                                   ("m2", "m2", "per square metre"),
-                                  ("m3", "m3", "per cubic metre"),
-                                  ("unit", "Unit", "per unit")],
+                                  ("m3", "m3", "per cubic metre")],
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
@@ -7768,7 +7979,6 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         self['cm'] = ''
         self.outputs.new('So_En_Mat_Op', 'Layer')
         self.inputs.new('So_En_Mat_Op', 'Layer')
-        # self.outputs.new('So_Anim', 'Parameter')
 
     def draw_buttons(self, context, layout):
         newrow(layout, "Type:", self, "materialtype")
@@ -7799,10 +8009,10 @@ class No_En_Mat_Op(Node, EnViMatNodes):
         newrow(layout, "Embodied:", self, "embodied")
 
         if self.embodied:
-            newrow(layout, "Embodied class:", self, "embodiedtype")
+            newrow(layout, "Embodied class:", self, "embodiedclass")
 
-            if self.embodiedtype != 'Custom':
-                newrow(layout, "Embodied type:", self, "embodiedclass")
+            if self.embodiedclass != 'Custom':
+                newrow(layout, "Embodied type:", self, "embodiedtype")
                 newrow(layout, "Embodied material:", self, "embodiedmat")
                 newrow(layout, "Service life:", self, "ec_life")
 
@@ -7815,20 +8025,22 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                     row.label(text='ec/m2: {}'.format(self['ecm2']))
                     row = layout.row()
                     row.label(text='ec/m2/y: {}'.format(self['ecm2y']))
-
+                    row = layout.row()
+                    row.operator("node.ec_edit", text="Edit")
+                
                 except Exception:
                     pass
 
             else:
                 newrow(layout, "Embodied id:", self, "ec_id")
-                newrow(layout, "Embodied type:", self, "ec_type")
                 newrow(layout, "Embodied class:", self, "ec_class")
+                newrow(layout, "Embodied type:", self, "ec_type")
                 newrow(layout, "Embodied name:", self, "ec_name")
                 newrow(layout, "Embodied modules:", self, "ec_mod")
-                newrow(layout, "Embodied unit:", self, "ec_unit")
+                newrow(layout, "Declared unit:", self, "ec_unit")
 
                 if self.ec_unit in ('kg', 'm2', 'm3'):
-                    newrow(layout, "Embodied amount:", self, "ec_amount")
+                    newrow(layout, "Amount of DU:", self, "ec_amount")
 
                 newrow(layout, "GWP per amount:", self, "ec_kgco2e")
                 newrow(layout, "Embodied density:", self, "ec_density")
@@ -7856,6 +8068,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
     def ret_ec(self):
         self.ec_update(0)
+
         try:
             return (float(self['ecm2']), float(self['ecm2y']))
         except Exception:
@@ -7875,6 +8088,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
 
     def save_ecdict(self):
         '''ID, Quantity, unit, density, weight, ec per unit, ec per kg, modules'''
+        
         if self.ec_unit == 'kg':
             weight = self.ec_amount
             eckg = self.ec_kgco2e/weight
@@ -7887,17 +8101,13 @@ class No_En_Mat_Op(Node, EnViMatNodes):
             weight = self.ec_amount * self.ec_density
             eckg = self.ec_kgco2e/weight
             ecdu = self.ec_kgco2e
-        else:
-            weight = ''
-            ecdu = self.ec_kgco2e
-            eckg = self.ec_kgco2e
 
         ec_dict = self.ee.get_dat()
 
         if self.ec_type not in ec_dict:
-            ec_dict[self.ec_type] = {}
-            ec_dict[self.ec_type][self.ec_class] = {}
-            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+            ec_dict[self.ec_class] = {}
+            ec_dict[self.ec_class][self.ec_type] = {}
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
                                                                   "quantity": '{:.4f}'.format(self.ec_amount),
                                                                   "unit": self.ec_unit,
                                                                   "density": '{:.4f}'.format(self.ec_density),
@@ -7905,9 +8115,9 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                                                   "ecdu": '{:.4f}'.format(ecdu),
                                                                   "eckg": '{:.4f}'.format(eckg),
                                                                   "modules": self.ec_mod}
-        elif self.ec_class not in ec_dict[self.ec_type]:
-            ec_dict[self.ec_type][self.ec_class] = {}
-            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+        elif self.ec_type not in ec_dict[self.ec_class]:
+            ec_dict[self.ec_class][self.ec_type] = {}
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
                                                                   "quantity": '{:.4f}'.format(self.ec_amount),
                                                                   "unit": self.ec_unit,
                                                                   "density": '{:.4f}'.format(self.ec_density),
@@ -7916,7 +8126,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                                                   "eckg": '{:.4f}'.format(eckg),
                                                                   "modules": self.ec_mod}
         else:
-            ec_dict[self.ec_type][self.ec_class][self.ec_name] = {"id": self.ec_id,
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
                                                                   "quantity": '{:.4f}'.format(self.ec_amount),
                                                                   "unit": self.ec_unit,
                                                                   "density": '{:.4f}'.format(self.ec_density),
@@ -7926,6 +8136,7 @@ class No_En_Mat_Op(Node, EnViMatNodes):
                                                                   "modules": self.ec_mod}
         self.ee.set_dat(ec_dict)
         self.ee.ec_save()
+        self.embodiedclass = self.ec_class
 
     def update(self):
         if not self.material:
@@ -8022,22 +8233,89 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         if not self.ee.updated:
             self.ee.update()
 
-        if self.embodiedtype in self.ee.propdict.keys():
-            if self.embodiedclass not in self.ee.propdict[self.embodiedtype]:
-                self.embodiedclass = list(self.ee.propdict[self.embodiedtype].keys())[0]
+        if self.embodiedclass in self.ee.propdict.keys():
+            if self.embodiedtype not in self.ee.propdict[self.embodiedclass]:
+                self.embodiedtype = list(self.ee.propdict[self.embodiedclass].keys())[0]
 
-            if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
-                self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
-
+            if self.embodiedmat not in self.ee.propdict[self.embodiedclass][self.embodiedtype]:
+                self.embodiedmat = list(self.ee.propdict[self.embodiedclass][self.embodiedtype])[0]
+            
             try:
-                self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
-                self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
-                self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001/self.ec_life)
-                self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+                self['ecdict'] = self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat]
+
+                if self['ecdict']['unit'] == 'm2':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu'])/float(self['ecdict']['quantity']))
+                    self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['ecdu'])/(float(self['ecdict']['quantity']) * self.ec_life))
+                
+                elif self['ecdict']['unit'] == 'kg':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * float(self['ecdict']['density']) * self.thi * 0.001/float(self['ecdict']['quantity']))
+                    self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * float(self['ecdict']['density']) * self.thi * 0.001/(self.ec_life * float(self['ecdict']['quantity'])))
+                
+                elif self['ecdict']['unit'] == 'm3':
+                    self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * self.thi * 0.001/float(self['ecdict']['quantity']))
+                    self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['ecdu']) * self.thi * 0.001/(self.ec_life * float(self['ecdict']['quantity'])))
+                        
+                else:
+                    self['ecm2'] = 'N/A'
+                    self['ecm2y'] = 'N/A'
+
+                self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
             except Exception as e:
+                print('Exception', e)
                 self['ecm2'] = 'N/A'
                 self['ecm2y'] = 'N/A'
+
+    def save_ecdict(self):
+        '''ID, Quantity, unit, density, weight, ec per unit, ec per kg, modules'''
+        if self.ec_unit == 'kg':
+            weight = self.ec_amount
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm2':
+            weight = self.ec_amount * self.ec_density * self.thi * 0.001
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+        elif self.ec_unit == 'm3':
+            weight = self.ec_amount * self.ec_density
+            eckg = self.ec_kgco2e/weight
+            ecdu = self.ec_kgco2e
+
+        ec_dict = self.ee.get_dat()
+
+        if self.ec_type not in ec_dict:
+            ec_dict[self.ec_class] = {}
+            ec_dict[self.ec_class][self.ec_type] = {}
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": '{:.4f}'.format(self.ec_amount),
+                                                                  "unit": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg),
+                                                                  "modules": self.ec_mod}
+        elif self.ec_type not in ec_dict[self.ec_class]:
+            ec_dict[self.ec_class][self.ec_type] = {}
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": '{:.4f}'.format(self.ec_amount),
+                                                                  "unit": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg),
+                                                                  "modules": self.ec_mod}
+        else:
+            ec_dict[self.ec_class][self.ec_type][self.ec_name] = {"id": self.ec_id,
+                                                                  "quantity": '{:.4f}'.format(self.ec_amount),
+                                                                  "unit": self.ec_unit,
+                                                                  "density": '{:.4f}'.format(self.ec_density),
+                                                                  "weight": '{:.4f}'.format(weight),
+                                                                  "ecdu": '{:.4f}'.format(ecdu),
+                                                                  "eckg": '{:.4f}'.format(eckg),
+                                                                  "modules": self.ec_mod}
+        self.ee.set_dat(ec_dict)
+        self.ee.ec_save()
+        self.embodiedclass = self.ec_class
 
     lay_name: StringProperty(name='', description='Custom layer name')
     layer: EnumProperty(items=[("0", "Database", "Select from database"),
@@ -8070,16 +8348,15 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
     ec_name: StringProperty(name="", description="Embodied name")
     ec_unit:EnumProperty(items=[("kg", "kg", "per kilogram"),
                                   ("m2", "m2", "per square metre"),
-                                  ("m3", "m3", "per cubic metre"),
-                                  ("unit", "Unit", "per unit")],
+                                  ("m3", "m3", "per cubic metre")],
                                   name="",
                                   description="Embodied carbon unit",
                                   default="kg")
     ec_amount: FloatProperty(name="", description="", min=0.001, precision=3, default=1)
-    ec_kgco2e: FloatProperty(name="", description="Embodied carbon per kg amount", precision=3, default=100)
+    ec_kgco2e: FloatProperty(name="kgCO2e", description="Embodied carbon per kg amount", precision=3, default=100)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: IntProperty(name="y", description="Service life in years", min=1, max=100, default=60, update=ec_update)
-    ec_mod: StringProperty(name="", description="Embodied modules")
+    ec_mod: StringProperty(name="kgCO2e", description="Embodied modules")
     em = envi_materials()
     ee = envi_embodied()
 
@@ -8118,10 +8395,10 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
         newrow(layout, "Embodied:", self, "embodied")
 
         if self.embodied:
-            newrow(layout, "Embodied type:", self, "embodiedtype")
+            newrow(layout, "Embodied class:", self, "embodiedclass")
 
-            if self.embodiedtype != 'Custom':
-                newrow(layout, "Embodied class:", self, "embodiedclass")
+            if self.embodiedclass != 'Custom':
+                newrow(layout, "Embodied type:", self, "embodiedtype")
                 newrow(layout, "Embodied material:", self, "embodiedmat")
                 newrow(layout, "Service life:", self, "ec_life")
 
@@ -8134,20 +8411,22 @@ class No_En_Mat_Tr(Node, EnViMatNodes):
                     row.label(text='ec/m2: {}'.format(self['ecm2']))
                     row = layout.row()
                     row.label(text='ec/m2/y: {}'.format(self['ecm2y']))
+                    row = layout.row()
+                    row.operator("node.ec_edit", text="Edit")
 
                 except Exception as e:
                     print(f'Problem with transparent material embodied specification: {e}')
 
             else:
                 newrow(layout, "Embodied id:", self, "ec_id")
-                newrow(layout, "Embodied type:", self, "ec_type")
                 newrow(layout, "Embodied class:", self, "ec_class")
+                newrow(layout, "Embodied type:", self, "ec_type")
                 newrow(layout, "Embodied name:", self, "ec_name")
                 newrow(layout, "Embodied modules:", self, "ec_mod")
-                newrow(layout, "Embodied unit:", self, "ec_unit")
+                newrow(layout, "Declared unit:", self, "ec_unit")
 
                 if self.ec_unit in ('kg', 'm2', 'm3'):
-                    newrow(layout, "Embodied amount:", self, "ec_amount")
+                    newrow(layout, "Amount of DU:", self, "ec_amount")
 
                 newrow(layout, "GWP per amount:", self, "ec_kgco2e")
                 newrow(layout, "Embodied density:", self, "ec_density")
@@ -8639,18 +8918,18 @@ class No_En_Mat_SG(Node, EnViMatNodes):
         if not self.ee.updated:
             self.ee.update()
 
-        if self.embodiedtype in self.ee.propdict.keys():
-            if self.embodiedclass not in self.ee.propdict[self.embodiedtype]:
-                self.embodiedclass = list(self.ee.propdict[self.embodiedtype].keys())[0]
+        if self.embodiedclass in self.ee.propdict.keys():
+            if self.embodiedtype not in self.ee.propdict[self.embodiedclass]:
+                self.embodiedtype = list(self.ee.propdict[self.embodiedclass].keys())[0]
 
-            if self.embodiedmat not in self.ee.propdict[self.embodiedtype][self.embodiedclass]:
-                self.embodiedmat = list(self.ee.propdict[self.embodiedtype][self.embodiedclass])[0]
+            if self.embodiedmat not in self.ee.propdict[self.embodiedclass][self.embodiedclass]:
+                self.embodiedmat = list(self.ee.propdict[self.embodiedtclass][self.embodiedclass])[0]
 
             try:
-                self['ecdict'] = self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat]
+                self['ecdict'] = self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat]
                 self['ecm2'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001)
                 self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001/self.ec_life)
-                self['ecentries'] = [(k, self.ee.propdict[self.embodiedtype][self.embodiedclass][self.embodiedmat][k]) for k in self['ecdict'].keys()]
+                self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
             except Exception as e:
                 self['ecm2'] = 'N/A'

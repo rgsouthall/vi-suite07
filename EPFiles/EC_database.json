@@ -1,5 +1,5 @@
 {
-  "aggregatesand": {
+  "Aggregatesand": {
     "general aggregate and sand": {
       "aggregates and sand  general uk  mixture of land won  marine  secondary and recycled  bulk  loose": {
         "id": "52bdfeb3-979f-4fcd-b4eb-6ffbda643c52",
@@ -119,7 +119,7 @@
       }
     }
   },
-  "aluminium": {
+  "Aluminium": {
     "general": {
       "general european mix inc imports": {
         "id": "baee69c9-da8e-40d6-91e3-1e21920eac57",
@@ -341,7 +341,7 @@
       }
     }
   },
-  "asphalt": {
+  "Asphalt": {
     "general": {
       "3% (bitumen) binder content (by mass)": {
         "id": "11315520-7219-4f5e-b547-b6163702f5e5",
@@ -527,7 +527,7 @@
       }
     }
   },
-  "bitumen": {
+  "Bitumen": {
     "straight-run": {
       "run bitumen": {
         "id": "b1a650d5-eaf6-453d-ba08-8b22899ef1ba",
@@ -565,7 +565,7 @@
       }
     }
   },
-  "cement": {
+  "Cement": {
     "average uk": {
       "average uk additions": {
         "id": "2c1fa10f-84eb-45ff-8175-fd7dac28299c",
@@ -1007,7 +1007,7 @@
       }
     }
   },
-  "clay": {
+  "Clay": {
     "brick": {
       "brick": {
         "id": "6ab355f4-7122-42a2-bc31-4c05e01f2b51",
@@ -1173,7 +1173,7 @@
       }
     }
   },
-  "concrete": {
+  "Concrete": {
     "general": {
       "average uk mix": {
         "id": "e489ece4-79e7-42bd-a517-f603097ef5e4",
@@ -3049,7 +3049,7 @@
       }
     }
   },
-  "glass": {
+  "Glass": {
     "general": {
       "single pane  per mm glass  1 mm of glass  ex frame": {
         "id": "759ba3f5-8e73-40b8-9e12-5a7a26d2a572",
@@ -3565,7 +3565,7 @@
       }
     }
   },
-  "steel": {
+  "Steel": {
     "pipe": {
       "uo pipe": {
         "id": "2332f463-c8c4-4dad-b84f-83878528b1e9",
@@ -3753,7 +3753,7 @@
       }
     }
   },
-  "timber": {
+  "Timber": {
     "general": {
       "average of all data ": {
         "id": "8aa6883b-aa36-49b3-88b9-94b597a45d23",

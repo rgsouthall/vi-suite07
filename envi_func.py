@@ -155,7 +155,7 @@ def boundpoly(obj, emnode, poly, enng):
     elif emnode.envi_con_con == 'Ground':
         return (("Ground", "", "NoSun", "NoWind"))
     else:
-        return (("Outdoors", "", "SunExposed", "WindExposed"))
+        return (("Outdoors", "", ("NoSun", "SunExposed")[emnode.envi_con_exclude in ("0", "2")], ("NoWind", "WindExposed")[emnode.envi_con_exclude in ("0", "1")]))
 
 
 def retenresdict(scene):
@@ -722,36 +722,11 @@ def processf(pro_op, node, con_node):
                     pass
 
         powrls = [powrl for powrl in rls if powrl[1] == 'Power']
-        # zpowrls = list(zip(*powrls))
         pows = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Power' and zrls[3][zi] == 'PV power (W)']
 
         for zpv in set([pow[0] for pow in pows]):
             znpows = [sum(pow[1]) for pow in pows if pow[0] == zpv]
             areslists.append(['All', 'Power', zpv, 'Power (kWh)', ' '.join([str(p * 0.001) for p in znpows])])
-
-        # print(pows)
-        # if pows:
-        #     ap_dict = {}
-        #     apz_dict = {}
-
-        #     for pn in set(zpowrls[2]):
-        #         ap_dict[pn] = []
-
-        #         for pl in pows:
-        #             if pl[0] == pn:
-        #                 ap_dict[pn].append(sum(pl[1]))
-
-        #         for ap in ap_dict:
-        #             print(ap_dict[ap], ap)
-        #             areslists.append(['All', 'Power', ap, 'Power (kWh)',
-        #                               ' '.join([str(p * 0.001) for p in ap_dict[ap]])])
-
-        #     for pzn in set(['_'.join(ap.split('_')[:-1]) for ap in ap_dict]):
-        #         ap_lists = [ap_dict[ap] for ap in ap_dict if '_'.join(ap.split('_')[:-1]) == pzn]
-        #         apz_dict[pzn] = nsum(array(ap) * 0.001 for ap in ap_lists)
-
-        #         areslists.append(['All', 'Power', pzn, 'Total power (kWh)',
-        #                           ' '.join([str(p) for p in apz_dict[pzn]])])
 
         node['envires'] = {'Invalid object': []}
     else:
@@ -877,16 +852,7 @@ def write_ec(scene, coll, frames, reslists):
             ecym2 = '{:.2f}'.format(zone_dict[zone]['ecy']/chil_fa) if chil_fa else 'N/A'
             ec_text += '{}, Zone, {}, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, zone, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
                                                                                                zone_dict[zone]['ec'], zone_dict[zone]['ecy'], ecm2, ecym2)
-        # if zone_dict:
-        #     reslists.append([str(frame), 'Embodied carbon', 'All', 'Zone EC (kgCO2e/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict]))])
-        # if mat_dict:
-        #     reslists.append([str(frame), 'Embodied carbon', 'All', 'Surface EC (kgCO2e)', '{:.3f}'.format(sum([mat_dict[mat]['ec'] for mat in mat_dict]))])
-        #     reslists.append([str(frame), 'Embodied carbon', 'All', 'Surface EC (kgCO2e/y)', '{:.3f}'.format(sum([mat_dict[mat]['ecy'] for mat in mat_dict]))])
-        #     reslists.append([str(frame), 'Embodied carbon', 'All', 'Surface area (m2)', '{:.3f}'.format(sum([mat_dict[mat]['area'] for mat in mat_dict]))])
 
-        # if fa:
-        #     reslists.append([str(frame), 'Embodied carbon', 'All', 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(sum([zone_dict[zone]['ecy'] for zone in zone_dict])/fa)])
-        #     reslists.append([str(frame), 'Embodied carbon', 'All', 'Surface EC (kgCO2e/m2/y)', '{:.3f}'.format(sum([mat_dict[mat]['ecy'] for mat in mat_dict])/fa)])
         for mat in mat_dict:
             reslists.append([str(frame), 'Embodied carbon', mat, 'Surface area (m2)', '{:.3f}'.format(mat_dict[mat]['area'])])
             reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/y)', '{:.3f}'.format(mat_dict[mat]['ecy'])])
@@ -938,11 +904,12 @@ def write_ob_ec(scene, coll, frames, reslists):
 
             for o in chil.objects:
                 ovp = o.vi_params
+                
                 if ovp.embodied:
                     if o.name not in foecs:
                         foecs[o.name] = []
 
-                    ecdict = envi_ec.propdict[ovp.embodiedtype][ovp.embodiedclass][ovp.embodiedmat]
+                    ecdict = envi_ec.propdict[ovp.embodiedclass][ovp.embodiedtype][ovp.embodiedmat]
 
                     if ecdict['unit'] in ('kg', 'm3', 'm2', 'tonnes'):
                         if o.type == 'MESH' and ovp.embodied and ovp.vi_type == '0':
@@ -956,7 +923,7 @@ def write_ob_ec(scene, coll, frames, reslists):
                                 vol = bm.calc_volume()
                                 vols.append(vol)
                                 ec = float(ecdict['eckg']) * float(ecdict['density']) * vol
-                                ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedtype, ovp.embodiedclass,
+                                ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedclass, ovp.embodiedtype,
                                                                                                                     ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec/ovp.ec_life, ec/chil_fa,
                                                                                                                     ec/(chil_fa * ovp.ec_life))
                                 bm.free()

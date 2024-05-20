@@ -102,7 +102,10 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                             if emnode.envi_con_type == 'Window':
                                 en_idf.write(emnode.ep_write(mat.name, ln))
                             else:
-                                if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
+                                if emnode.envi_con_proxy == '0':
+                                    if emnode.envi_con_type not in ('None', 'Shading', 'Aperture'):
+                                        en_idf.write(emnode.ep_write(mat.name, ln))
+                                elif get_con_node(bpy.data.materials[emnode.envi_con_base].vi_params).envi_con_type not in ('None', 'Shading', 'Aperture'):
                                     en_idf.write(emnode.ep_write(mat.name, ln))
 
                             if emnode.inputs['PV'].links:
@@ -344,7 +347,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
         for zn in safnodes:
             for schedtype in ('Fan Schedule',):
-                if zn.inputs[schedtype].links:
+                if zn.inputs.get(schedtype) and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_fansched'.format(zn.name), 'Fraction'))
 
                 #elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
@@ -595,7 +598,6 @@ def pregeo(context, op):
                     if not k:
                         no.location += context.node.geo_offset
 
-                    #no['auto_volume'] = bm.calc_volume()
                     ob.evaluated_get(depsgraph).to_mesh_clear()
                     bm.free()
                     no.name = 'en_{}'.format(c_name)
@@ -610,6 +612,9 @@ def pregeo(context, op):
 
                 bpy.ops.object.duplicate(linked=False)
                 nemob = context.active_object
+
+                for mod in nemob.modifiers:
+                    bpy.ops.object.modifier_apply(modifier=mod.name)
 
                 k = 0
 

@@ -111,6 +111,10 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
         slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
         bins = array([1 - log10(i)/log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
         levels = svp.vi_leg_min + (svp.vi_leg_max - svp.vi_leg_min) * bins[1:-1]
+    
+    if levels[0] == levels[-1]:
+        logentry(f"All the result values on {o.name} are 0. Check the model")
+        return
 
     poss = [v.co for v in bm.verts]
     xs = [p[0] for p in poss]
