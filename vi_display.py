@@ -1048,8 +1048,7 @@ class wr_legend(Base_Display):
         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
 
     def draw(self, context):
-        ah = context.area.regions[3].height
-        aw = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
 
         if self.expand:
             if self.resize:
@@ -1058,11 +1057,11 @@ class wr_legend(Base_Display):
             elif self.move:
                 self.lspos[1] = self.lepos[1] - self.ydiff
                 self.lepos[0] = self.lspos[0] + self.xdiff
-            if self.lepos[1] > ah:
-                self.lspos[1] = ah - self.ydiff
-                self.lepos[1] = ah
-            if self.lspos[0] < aw:
-                self.lspos[0] = aw
+            if self.lepos[1] > r5h - r0h:
+                self.lspos[1] = r5h - r0h - self.ydiff
+                self.lepos[1] = r5h - r0h
+            if self.lspos[0] < r2w:
+                self.lspos[0] = r2w
 
             self.base_shader.bind()
             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
@@ -1192,7 +1191,7 @@ class wr_table(Base_Display):
     def update(self, context):
         self.cao = context.active_object
 
-        if self.cao and self.cao.vi_params.get('VIType') and self.cao.vi_params['VIType'] == 'Wind_Plane':
+        if self.cao and self.cao.vi_params.get('VIType') == 'Wind_Plane':
             self.rcarray = array(self.cao.vi_params['table'])
         else:
             self.rcarray = array([['Invalid object']])
@@ -1255,8 +1254,7 @@ class wr_table(Base_Display):
         # self.line_batch.draw(self.line_shader)
 
     def draw(self, context):
-        ah = context.area.regions[3].height
-        aw = context.area.regions[2].width
+        (r0h, r2w, r5h) = ret_dcoords(context)
 
         if self.expand:
             if self.resize:
@@ -1265,11 +1263,11 @@ class wr_table(Base_Display):
             elif self.move:
                 self.lspos[1] = self.lepos[1] - self.ydiff
                 self.lepos[0] = self.lspos[0] + self.xdiff
-            if self.lepos[1] > ah:
-                self.lspos[1] = ah - self.ydiff
-                self.lepos[1] = ah
-            if self.lspos[0] < aw:
-                self.lspos[0] = aw
+            if self.lepos[1] > r5h - r0h:
+                self.lspos[1] = r5h - r0h - self.ydiff
+                self.lepos[1] = r5h - r0h
+            if self.lspos[0] < r2w:
+                self.lspos[0] = r2w
 
             self.base_shader.bind()
             self.base_shader.uniform_float("size", (self.xdiff, self.ydiff))
@@ -1390,8 +1388,6 @@ class draw_legend(Base_Display):
 
     def draw(self, context):
         (r0h, r2w, r5h) = ret_dcoords(context)
-        # self.ah = context.area.regions[3].height
-        # self.aw = context.area.regions[2].width
         svp = context.scene.vi_params
 
         if self.expand:
@@ -2141,7 +2137,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_scatt_col
         self.images = ('legend.png', 'table.png')
         self.results_bar = results_bar(self.images)
-        self.legend = wr_legend(context, 'Speed (m/s)', [305, r5h - r0h - 80], r2w, r5h - r0h, 125, 300)
+        self.legend = wr_legend(context, 'Speed (m/s)', [305, r5h - r0h - 80], r2w, r5h - r0h, 100, 400)
         self.table = wr_table(context, [355, r5h - r0h - 80], r2w, r5h - r0h, 400, 60)
         self.cao = [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"][0] if [o for o in scene.objects if o.vi_params.get('VIType') == "Wind_Plane"] else 0
 
@@ -2189,24 +2185,20 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
 
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
-            for w, window in enumerate((self.legend, self.table)):
+
+            for w, window in enumerate((self.legend, self.table)):             
                 if self.results_bar.ipos[w][0][0] < mx < self.results_bar.ipos[w][1][0] and self.results_bar.ipos[w][0][1] < my < self.results_bar.ipos[w][2][1]:
                     window.hl = (0.8, 0.8, 0.8, 0.8)
                     redraw = 1
+
                     if event.type == 'LEFTMOUSE':
                         if event.value == 'RELEASE':
                             window.expand = 0 if window.expand else 1
 
-                elif w == 2 and window.expand and window.lspos[0] + 0.1 * window.xdiff < mx < window.lepos[0] - 0.1 * window.xdiff and window.lspos[1] + \
-                        0.1 * window.ydiff < my < window.lepos[1] - 0.1 * window.ydiff:
-                    window.hl = (0.8, 0.8, 0.8, 0.8)
-                    redraw = 1
-                    if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-                        window.show_plot(context)
-
                 elif window.expand and abs(window.lspos[0] - mx) < 10 and abs(window.lepos[1] - my) < 10:
                     window.hl = (0.8, 0.8, 0.8, 0.8)
                     redraw = 1
+
                     if event.type == 'LEFTMOUSE':
                         if event.value == 'PRESS':
                             window.move = 1
@@ -2214,11 +2206,13 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                             context.area.tag_redraw()
                         elif window.move and event.value == 'RELEASE':
                             window.move = 0
+
                         return {'RUNNING_MODAL'}
 
                 elif window.expand and abs(window.lepos[0] - mx) < 10 and abs(window.lspos[1] - my) < 10:
                     window.hl = (0.8, 0.8, 0.8, 0.8)
                     context.area.tag_redraw()
+
                     if event.type == 'LEFTMOUSE':
                         if event.value == 'PRESS':
                             window.resize = 1
@@ -2226,6 +2220,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                             context.area.tag_redraw()
                         elif window.resize and event.value == 'RELEASE':
                             window.resize = 0
+
                         return {'RUNNING_MODAL'}
 
                 elif window.hl == (0.8, 0.8, 0.8, 0.8):
