@@ -654,6 +654,9 @@ def fvcdwrite(svp, node, dp):
             cdict['functions'][b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
                                      'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
                                      'operation': 'areaAverage', 'fields    (p U)': ''}
+            cdict['functions'][b+'_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
+                                     'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
+                                     'operation': 'areaNormalIntegrate', 'fields    (U)': ''}
     if htcs:
         cdict['functions']['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches' : '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
                                      'writeInterval': f'{node.w_int}', 'rho': '1.225', 'Cp': '1005', 'Pr': '0.707', 'Prt': '0.9'}

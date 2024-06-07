@@ -56,7 +56,7 @@ if sys.platform in ('darwin', 'win32'):
 
     for line in dck_run.stdout.readlines():
         lds = line.decode().split()
-        if lds[0] == 'dicehub/openfoam' and lds[1] == '10':
+        if lds[0] == 'dicehub/openfoam' and lds[1] == '11':
             ofoam = 1
 
 flo_libs = [ng, ofoam]
@@ -3290,9 +3290,13 @@ class No_Vi_Metrics(Node, ViNodes):
                                     row = layout.row()
                                     row.label(text='{} EC/m2/y: {:.2f} kgCO2e/m2/y (floor area)'.format(self.zone_menu, self['res']['ecm2y'][self.zone_menu]))
                                 
-                                if self['res']['vol']:
+                                if self['res']['vol'] and self['res']['vol'].get(self.zone_menu):
                                     row = layout.row()
                                     row.label(text='{} volume: {:.2f} m3'.format(self.zone_menu, self['res']['vol'][self.zone_menu]))
+
+                                if self['res']['area'] and self['res']['area'].get(self.zone_menu):
+                                    row = layout.row()
+                                    row.label(text='{} area: {:.2f} m2'.format(self.zone_menu, self['res']['area'][self.zone_menu]))
                                 
                                 if self.em_menu == 'Surface':
                                     if self['res']['area']:
@@ -3919,6 +3923,11 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['vol'][r[2]] = float(r[4])
                             except:
                                 self['res']['vol'][r[2]] = 'N/A'
+                        elif r[3] == 'Object area (m2)':
+                            try:
+                                self['res']['area'][r[2]] = float(r[4])
+                            except:
+                                self['res']['area'][r[2]] = 'N/A'
                     
                     elif self.em_menu == 'Surface':
                         if r[3] == 'Surface EC (kgCO2e/y)':
@@ -5268,6 +5277,7 @@ class No_En_Net_Zone(Node, EnViNodes):
         if self.errorcode():
             row = layout.row()
             row.label(text = 'Error - {}'.format(self.errorcode()))
+        
         newrow(layout, 'Zone:', self, 'zone')
 
         if bpy.data.collections.get(self.zone):
