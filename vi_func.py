@@ -2310,7 +2310,7 @@ def spfc(self):
 
 
 def bm_to_stl(bm, stl_path):
-    bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
+    #bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
 
     with open(stl_path, 'w') as stlfile:
         stlfile.write('solid\n')

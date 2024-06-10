@@ -3151,6 +3151,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get() and o.name not in meshcoll.objects]
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get() and o.name not in meshcoll.objects]
         self.obs = dobs + gobs
+
+        if any([any(s < 0 for s in o.scale) for o in self.obs]):
+            logentry('CFD domain or geometry has a negative scale. Cannot proceed')
+            self.report({'ERROR'}, 'CFD domain or geometry has a negative scale. Cannot proceed')
+            return {'CANCELLED'}
+            
         mns = [0]
         self.omats = []
 
@@ -3244,26 +3250,29 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     fd = totmesh.Add(fd)
                     fds.append(fd)
                     # totmesh.SetBCName(i, '{}'.format(mat.name))
-                    # ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
+                    #ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
 
-                    try:
-                        pass
-                        # totmesh.SetBCName(0, mat.name)
-                    except:
-                        pass
-                        # totmesh.SetBCName(1, mat.name)
+                    # try:
+                    #     pass
+                    #     # totmesh.SetBCName(0, mat.name)
+                    # except:
+                    #     pass
+                    #     # totmesh.SetBCName(1, mat.name)
                     i += 1
 
             for oi, o in enumerate(self.obs):
-                # ngpyfile.write("mp = MeshingParameters(maxh={}, yangle = {}, grading = {}, optsteps2d = {}, optsteps3d = {}, delaunay = True, maxoutersteps = {})\n".format(maxh, expnode.yang, expnode.grading, expnode.optimisations, expnode.optimisations, expnode.maxsteps))
+                # ngpyfile.write("mp = MeshingParameters(maxh={}, yangle={}, grading={}, optsteps2d={}, optsteps3d={}, delaunay=True, maxoutersteps={})\n".format(maxh, self.expnode.yang, self.expnode.grading, self.expnode.optimisations, self.expnode.optimisations, self.expnode.maxsteps))
                 mp = MeshingParameters(maxh=maxh, yangle=self.expnode.yang, grading=self.expnode.grading,
                                        optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
                                        delaunay=True, maxoutersteps=self.expnode.maxsteps)
                 # bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
                 bm = bmesh.new()
                 bm.from_object(o, dp)
-                bm.transform(o.matrix_world)
                 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+                bm.transform(o.matrix_world)
+                
+                bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
+                
                 bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
                 # ngpyfile.write("geo = STLGeometry('{}')\n".format(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name))))
                 geo = STLGeometry(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)))
@@ -3294,47 +3303,61 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     m = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)
 
                 logentry("Netgen surface mesh generated")
-                # ngpyfile.write("els = [e for e in m.Elements2D()]:\n")
-
+                # ngpyfile.write("for ei, el in enumerate([e for e in m.Elements2D()]:\n")
+                #ngpyfile.write("print(m.Elements2D()[0])")
                 for ei, el in enumerate(m.Elements2D()):
-                    # ngpyfile.write("    eli = m.Elements2D()[{}]\n".format(ei))
+                    
+                    #ngpyfile.write("el = m.Elements2D()[{}]\n".format(ei))
                     fpoint = [sum(m[v].p[x]/3 for v in el.vertices) for x in (0, 1, 2)]
                     fnorm = mathutils.geometry.normal([m[v].p for v in el.vertices])
                     intersect = 0
 
                     for face in bm.faces:
-                        if bmesh.geometry.intersect_face_point(face, fpoint) and abs(mathutils.geometry.distance_point_to_plane(fpoint, face.calc_center_median(), face.normal)) < self.expnode.pcorr and abs(fnorm.dot(face.normal)) > self.expnode.acorr:
-                            # ngpyfile.write("    eli.index = {}\n".format(omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])))
+                        hit = mathutils.geometry.intersect_point_tri(fpoint, *[v.co for v in face.verts])
+                        if hit and (hit-Vector(fpoint)).length < 0.0001:
+                        #if bmesh.geometry.intersect_face_point(face, fpoint) and abs(mathutils.geometry.distance_point_to_plane(fpoint, face.calc_center_median(), face.normal)) < self.expnode.pcorr and abs(fnorm.dot(face.normal)) > self.expnode.acorr:
+                            #print(mathutils.geometry.intersect_point_tri(fpoint, *[v.co for v in face.verts]))
+                            #ngpyfile.write("index = {}".format()
+                            #ngpyfile.write("    el.index = {}\n".format(self.omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])))
+                            if ei == 0:
+                                ngpyfile.write("    el.index = 1\n")
                             el.index = self.omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])
                             intersect = 1
                             break
+                        # else:
+                        #     hit = mathutils.geometry.intersect_point_tri(fpoint, *[v.co for v in face.verts][::-1])
+                        #     if hit and (hit-Vector(fpoint)).length < 0.0001:
+                        #         intersect = 1
+                        #         break
+                            
                     if not intersect:
+                        # print(fpoint, ei, fnorm)
                         el.index = 1
-                        # ngpyfile.write("    eli.index = 1\n")
+                        # ngpyfile.write("    el.index = 1\n")
 
                 meshes.append(m)
                 mesh_names.append(os.path.join(svp['flparams']['offilebase'], '{}_surface.vol'.format(o.name)))
                 # ngpyfile.write("m.Save('{}')\n".format(os.path.join(svp['flparams']['offilebase'], '{}_surface.vol'.format(o.name))))
                 m.Save(os.path.join(svp['flparams']['offilebase'], '{}_surface.vol'.format(o.name)))
                 bm.free()
-                # ngpyfile.write("
+                #ngpyfile.write("
             for mi, m in enumerate(meshes):
                 pmap1 = {}
 
                 for e in m.Elements2D():
                     for v in e.vertices:
                         if (v not in pmap1):
-                            # ngpyfile.write("totmesh.Add(m[{}])\n".format(v))
+                            ngpyfile.write("totmesh.Add(m[{}])\n".format(v))
                             pmap1[v] = totmesh.Add(m[v])
 
-                    # ngpyfile.write("totmesh.Add(Element2D({}, {}))\n".format(e.index, [pmap1[v] for v in e.vertices]))
+                    ngpyfile.write("totmesh.Add(Element2D({}, {}))\n".format(e.index, [pmap1[v] for v in e.vertices]))
                     totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
 
             # ngpyfile.write("totmesh.Save('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
             # ngpyfile.write("\ntotmesh.Load('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
             # ngpyfile.write("with TaskManager():\n   totmesh.GenerateVolumeMesh()\n")
-
+            # print('volume')
             with TaskManager():
                 totmesh.GenerateVolumeMesh()
 
@@ -3384,7 +3407,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
                     elif sys.platform in ('darwin', 'win32'):
                         nntf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:11 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
-                        logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
                         subprocess.Popen(nntf_cmd, shell=True).wait()
 
                     logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
