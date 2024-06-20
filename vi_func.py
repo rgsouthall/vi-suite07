@@ -80,6 +80,10 @@ def ec_update(self, context):
         self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
 def ret_datab(fname, r_w):
+    # Need the following to initiate a scene held database
+    if bpy.context.scene.vi_params.get('viparams'):
+        bpy.context.scene.vi_params['viparams'].get('datab')
+
     addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
     vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
 
@@ -88,6 +92,9 @@ def ret_datab(fname, r_w):
             datab = os.path.join(vi_prefs.datab, fname)
         else:
             datab = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', fname)
+    elif bpy.context.scene.vi_params.get('viparams') and bpy.context.scene.vi_params['viparams'].get('datab') and os.path.isdir(bpy.context.scene.vi_params['viparams']['datab']):
+        logentry('No database directory set but the scene has one built-in. Using the scene directory')
+        datab = os.path.join(bpy.context.scene.vi_params['viparams']['datab'], fname)
     else:
         datab = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', fname)
 

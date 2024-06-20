@@ -2008,7 +2008,7 @@ class MAT_EnVi_Node_Remove(bpy.types.Operator):
                         m = 1
                 if not m:
                     mat.delete()
-                    print('mat', mat.name)
+                    #print('mat', mat.name)
 
         return {'FINISHED'}
 
@@ -2943,14 +2943,14 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
                 
                 for f in frames:
                     for o in obs:
-                        print(o)
+                        #print(o)
                         htext += f'{f} {o},'
 
                 htext += '\n'
 
                 for mi, m in enumerate(res):
                     for r in rl:
-                        print(r[2])
+                        #print(r[2])
                         if r[3] == m and r[0] != 'All':
                             if m not in rtext:
                                 rtext += '{}, {},'.format(m, r[4])
@@ -3319,8 +3319,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             #print(mathutils.geometry.intersect_point_tri(fpoint, *[v.co for v in face.verts]))
                             #ngpyfile.write("index = {}".format()
                             #ngpyfile.write("    el.index = {}\n".format(self.omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])))
-                            if ei == 0:
-                                ngpyfile.write("    el.index = 1\n")
+                            #if ei == 0:
+                            #    ngpyfile.write("    el.index = 1\n")
                             el.index = self.omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])
                             intersect = 1
                             break

@@ -731,9 +731,6 @@ def fvsolwrite(svp, node):
         sol_dict['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-8', 'relTol': '0.01'}
         sol_dict['solvers']['"U|e|k|epsilon"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}
 
-        if node.age:
-            sol_dict['solvers']['age'] = {'$U': '', 'relTol': '0.001'}
-
         if svp['flparams']['features']['rad']:
             if svp['flparams']['radmodel'] == '0':
                 sol_dict['solvers']['G'] = {'$p_rgh': '', 'tolerance': '1e-05', 'relTol': '0.1'}
@@ -743,7 +740,10 @@ def fvsolwrite(svp, node):
                 sol_dict['solvers']['"Ii.*"'] = {'solver': 'GAMG', 'tolerance': '1e-4', 'relTol': '0', 'smoother': 'symGaussSeidel', 'maxIter': '5', 'nPostSweeps': '1'}
                 sol_sol_dict['residualControl']['ILambda.*'] = '1e-3'
                 sol_dict['relaxationFactors']['equations']['ILambda.*'] = '0.7'
-
+    
+    if node.age:
+        sol_dict['solvers']['age'] = {'$U': '', 'relTol': '0.001'}
+    
     htext = ofheader + write_ffile('dictionary', 'system', 'fvSolution')
     return write_fvdict(htext, sol_dict)
 
@@ -858,12 +858,12 @@ def fvschwrite(svp, node):
         if svp['flparams']['features']['rad'] and svp['flparams']['radmodel'] == '1':
             scdict['divSchemes']['div(Ji,Ii_h)'] = 'bounded Gauss linearUpwind grad(Ii_h)'
 
-        if node.age:
-            scdict['divSchemes']['div(phi,age)'] = 'bounded Gauss upwind'
-
         scdict['laplacianSchemes']['default'] = 'Gauss linear orthogonal'
         scdict['snGradSchemes']['default'] = 'orthogonal'
         scdict['interpolationSchemes']['default'] = 'linear'
+
+    if node.age:
+        scdict['divSchemes']['div(phi,age)'] = 'bounded Gauss upwind'
 
     htext = ofheader + write_ffile('dictionary', 'system', 'fvSchemes')
     return write_fvdict(htext, scdict)

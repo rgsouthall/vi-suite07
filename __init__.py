@@ -298,7 +298,27 @@ def abspath(self, context):
         self.ofetc = bpy.path.abspath(self.ofetc)
     if self.datab != bpy.path.abspath(self.datab):
         self.datab = bpy.path.abspath(self.datab)
+    
+    if context.scene:
+        svp = context.scene.vi_params
 
+        if not svp.get('viparams'):
+            svp['viparams'] = {}
+        # if self.radbin:
+        #     svp['viparams']['radbin'] = bpy.path.abspath(self.radbin)
+        # if self.radlib:
+        #     svp['viparams']['radlib'] = bpy.path.abspath(self.radlib)
+        # if self.epbin:
+        #     svp['viparams']['epbin'] = bpy.path.abspath(self.epbin)   
+        # if self.epweath:
+        #     svp['viparams']['epweath'] = bpy.path.abspath(self.epweath) 
+        # if self.ofbin:
+        #     svp['viparams']['ofbin'] = bpy.path.abspath(self.ofbin) 
+        if self.datab:
+            svp['viparams']['datab'] = bpy.path.abspath(self.datab)
+        #elif svp['viparams'].get('radbin'):
+            #self.radbin = svp['viparams']['radbin']
+        #svp['viparams']['radlib'] = bpy.path.abspath(self.radbin)
     path_update()
 
 

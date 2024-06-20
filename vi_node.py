@@ -4525,7 +4525,7 @@ class No_Flo_Case(Node, ViNodes):
                 newrow(layout, 'Metabolic', self, 'met')
                 newrow(layout, 'Humidity', self, 'rh')
 
-            newrow(layout, 'Age:', self, 'age')
+            
             newrow(layout, 'Radiation:', self, 'radiation')
 
             if self.radiation:
@@ -4552,6 +4552,7 @@ class No_Flo_Case(Node, ViNodes):
             newrow(layout, 'Ref. pressure value:', self, 'p_ref_val')
             newrow(layout, 'Reference point:', self, 'p_ref_point')
 
+        newrow(layout, 'Age:', self, 'age')
         newrow(layout, 'Field velocity type:', self, 'uval_type')
 
         if self.uval_type == '0':
@@ -4662,6 +4663,8 @@ class No_Flo_NG(Node, ViNodes):
 
             if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
                 flo_libs[1] = 1
+            #elif context.scene.vi_params.get('viparams') and context.scene.vi_params['viparams'].get('ofbin'):
+
 
         if self.inputs and self.inputs['Case in'].links:
             if all(flo_libs):
