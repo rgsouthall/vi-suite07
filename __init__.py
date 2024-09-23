@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 7, 0),
-    "blender": (3, 6),
+    "blender": (4, 2),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
@@ -43,54 +43,52 @@ else:
     from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
     from bpy.types import AddonPreferences, Image, Material
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    
+
     if sys.platform == 'linux':
         os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = '0'
-    
+        os.environ['PYTHON_INCLUDE_DIR'] = os.path.join(addonpath, 'Python', sys.platform, 'include')
+
     os.environ["KIVY_NO_CONSOLELOG"] = "1"
     install_fails = []
-
-    try:
-        from PySide6.QtGui import QImage
-        install_fails.append(0)
-    except:
-        print('System PySide6 not found')
-        install_fails.append(1)
-
-    try:
-        import matplotlib
-        matplotlib.use('qtagg', force=True)
-        import matplotlib.pyplot as plt
-        plt.text(0, 0, 'dummy')
-        plt.clf()
-        install_fails.append(0)
-    except:
-        print('System Matplotlib not found')
-        install_fails.append(1)
-
-    try:
-        from kivy.config import Config
-        Config.set('kivy', 'log_level', 'error')
-        Config.write()
-        from kivy.app import App
-        install_fails.append(0)
-    except:
-        print('System Kivy not found')
-        install_fails.append(1)
     
-    if not any(install_fails):
-        print('VI-Suite: Using system libraries')
-    
-    elif not all(install_fails):
-        print('System Python has some required packages but not all. Trying to install {} on your system'.format(', '.join([['PySide6', 'Matplotlib', 'Kivy'][ifi] for ifi, i in enumerate(install_fails) if i])))
-        for ifi, ifs in enumerate(install_fails):
-            if ifs:
-                install_cmd = '"{}" -m pip install {}'.format(sys.executable, ['PySide6==6.6.0', 'Matplotlib==3.8.2', 'Kivy==2.2.1'][ifi])
-                print('Attempting system installation of {}'.format(['PySide6', 'Matplotlib', 'Kivy'][ifi]))
-                Popen(shlex.split(install_cmd)).wait()
+    def install_libs():
+        install_fails = []
 
-    elif all(install_fails) and (sys.version_info[0] > 3 or sys.version_info[1] >= 9):
-        print("Setting library paths")
+        try:
+            from PySide6.QtGui import QImage
+            install_fails.append(0)
+        except:
+            install_fails.append(1)
+
+        try:
+            import matplotlib
+            matplotlib.use('qtagg', force=True)
+            import matplotlib.pyplot as plt
+            plt.text(0, 0, 'dummy')
+            plt.clf()
+            install_fails.append(0)
+        except Exception as e:
+            install_fails.append(1)
+
+        try:
+            from kivy.config import Config
+            Config.set('kivy', 'log_level', 'error')
+            Config.write()
+            from kivy.app import App
+            install_fails.append(0)
+        except:
+            install_fails.append(1)
+
+        try:
+            import scipy
+            install_fails.append(0)
+        except:
+            install_fails.append(1)
+
+        return install_fails
+    
+    if any(install_libs()):
+        print('Some system libraries were not found. Checking built-in libraries')
         sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                         ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                         'site-packages'))
@@ -98,13 +96,16 @@ else:
 
         if os.environ.get('PYTHONPATH'):
             if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
-                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
-                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+                os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform) + os.pathsep + os.environ['PYTHONPATH']
+                
+                if sys.platform != 'linux':
+                    os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform) + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                                                         ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
-                                                                        'site-packages')
+                                                                        'site-packages') + os.pathsep + os.environ['PYTHONPATH']
         else:
             os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
-            os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
+            if sys.platform != 'linux':
+                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
                                                                     ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[sys.platform == 'win32'],
                                                                     'site-packages')
         
@@ -114,7 +115,7 @@ else:
 
             elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
                 os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
-
+            
         elif sys.platform == 'darwin':
             if not os.environ.get('DYLD_LIBRARY_PATH'):
                 os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
@@ -125,76 +126,19 @@ else:
         else:
             os.environ['PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'bin')
 
-        try:
-            import PySide6
-            import matplotlib
-            matplotlib.use('qtagg', force=True)
-            import matplotlib.pyplot as plt
+        install_fails = install_libs()
 
-            # Next line is required to initiate a QApplication and QFont for QImage
-            plt.text(0, 0, 'dummy')
-            plt.clf()
-            from kivy.config import Config
-            Config.set('kivy', 'log_level', 'error')
-            Config.write()
-            from kivy.app import App
-            print('VI-Suite: Using built-in libraries')
-        except:
-            try:
-                print('VI-Suite: Installing built-in libraries')
-                requests.get('https://www.google.com/')
-                upg = '' if sys.platform == 'linux' else '--upgrade'
-                    
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
-                    gp_cmd = '"{}" "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'get-pip.py'), os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(gp_cmd)).wait()
+        if any(install_fails):
+            print('Some built-in libraries were not found. Installing.')
+            pyqt_cmd = '"{}" -m pip install -r "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'requirements.txt'), os.path.join(addonpath, 'Python', sys.platform))
+            Popen(shlex.split(pyqt_cmd)).wait()
+            print('Installed local libraries')
 
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PySide6')):
-                    pyqt_cmd = '"{}" -m pip install PySide6==6.6.2 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(pyqt_cmd)).wait()
-                    
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'PIL')):
-                    pil_cmd = '"{}" -m pip install Pillow==9.5 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(pil_cmd)).wait()
-
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'kivy')):
-                    if sys.platform == 'win32':
-                        kivy_cmd = '"{}" -m pip install kivy==2.2.1 kivy.deps.sdl2==0.6.0 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
-                    else:
-                        kivy_cmd = '"{}" -m pip install kivy[base]==2.2.1 {} --target "{}"'.format(sys.executable, upg, os.path.join(addonpath, 'Python', sys.platform))
-
-                    Popen(shlex.split(kivy_cmd)).wait()
-
-                    if sys.platform == 'win32':
-                        dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'sdl2', 'bin', 'SDL2*'))
-
-                        for dll in dlls:
-                            shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'core', 'window'))
-
-                        dlls = glob.glob(os.path.join(addonpath, 'Python', sys.platform, 'share', 'glew', 'bin', 'glew32*'))
-
-                        for dll in dlls:
-                            shutil.copy(dll, os.path.join(addonpath, 'Python', sys.platform, 'kivy', 'graphics', 'cgl_backend'))
-                
-                if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'matplotlib')):
-                    mp_cmd = '"{}" -m pip install matplotlib==3.8.2 --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
-                    Popen(shlex.split(mp_cmd)).wait()
-
-                import PySide6
-                import matplotlib
-                matplotlib.use('qtagg', force=True)
-                import matplotlib.pyplot as plt
-                # Next line is required to initiate a QApplication and QFont for QImage
-                plt.text(0, 0, 'dummy')
-                plt.clf()
-                from kivy.config import Config
-                Config.set('kivy', 'log_level', 'error')
-                Config.write()
-                from kivy.app import App
-                print('VI-Suite: Using built-in libraries')
-
-            except Exception as e:
-                print('{}: Cannot install Python libraries. Check you internet connection'.format(e))
+        else:
+            print('Found built-in libraries')
+    
+    else:
+        print('VI-Suite: Using system libraries')
 
     try:
         import netgen
@@ -202,7 +146,7 @@ else:
         if sys.platform == 'linux':
             print('For Netgen functionality on linux, a system install of Blender, PySide6, Kivy, Matplotlib and Netgen is required')
         else:
-            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            ng_cmd = '"{0}" -m pip install --prefix "{1}" netgen-mesher==6.2.2404.post16'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()
 
             try:
@@ -210,6 +154,17 @@ else:
             except Exception as e:
                 print('Netgen installation failed and is disabled')
 
+    try:
+        import pyroomacoustics as pra
+    except:
+        if sys.platform == 'linux':
+            print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Kivy, Matplotlib, Netgen and pyroomacoustics is required')
+        else:
+            try:
+                import pyroomacoustics as pra
+            except Exception as e:
+                print('pyroomacoustics installation failed and is disabled')
+    
     if sys.platform in ('linux', 'darwin'):
         ep_path = os.path.join(addonpath, 'EPFiles', sys.platform)
         rad_path = os.path.join(addonpath, 'RadFiles', sys.platform, 'bin')
@@ -261,6 +216,7 @@ else:
     from .vi_node import No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense, No_Flo_Case, So_Flo_Case, No_Flo_NG, So_Flo_Con, No_Flo_Bound, No_Flo_Sim
     from .vi_node import No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, No_Anim, So_Anim, No_En_Net_Anim, No_En_Mat_Anim, ViEnRIn
     from .vi_node import So_En_Mat_Sh, So_En_Mat_ShC, So_En_Mat_Sc, No_Vi_EC
+    from .vi_node import No_Au_Sim, No_Au_Conv, So_Au_IR, So_Au_Scene
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay, logentry, ob_to_stl, ec_update
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, adgpcalcapply, radmat, retsv
@@ -274,11 +230,13 @@ else:
     from .vi_operators import NODE_OT_Li_Im, NODE_OT_Li_Gl, NODE_OT_Li_Fc, NODE_OT_En_Geo, OBJECT_OT_VIGridify, OBJECT_OT_Embod, NODE_OT_En_UV, NODE_OT_En_EC, MAT_EnVi_Node_Remove
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, NODE_OT_EcE
-    from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim
-    from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
-    from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
+    from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim, NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Conv, NODE_OT_Au_Play, NODE_OT_Au_Stop
+    from .vi_operators import NODE_OT_Au_PlayC, NODE_OT_Au_Save
+    from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, VIEW3D_OT_RTDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
+    from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update, auvires_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Col, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
     from .vi_dicts import colours
+    from .auvi_mat import auvi_type_abs, auvi_type_scatt, auvi_abs, auvi_scatt, auvi_materials
 
 
 def abspath(self, context):
@@ -304,21 +262,10 @@ def abspath(self, context):
 
         if not svp.get('viparams'):
             svp['viparams'] = {}
-        # if self.radbin:
-        #     svp['viparams']['radbin'] = bpy.path.abspath(self.radbin)
-        # if self.radlib:
-        #     svp['viparams']['radlib'] = bpy.path.abspath(self.radlib)
-        # if self.epbin:
-        #     svp['viparams']['epbin'] = bpy.path.abspath(self.epbin)   
-        # if self.epweath:
-        #     svp['viparams']['epweath'] = bpy.path.abspath(self.epweath) 
-        # if self.ofbin:
-        #     svp['viparams']['ofbin'] = bpy.path.abspath(self.ofbin) 
+
         if self.datab:
             svp['viparams']['datab'] = bpy.path.abspath(self.datab)
-        #elif svp['viparams'].get('radbin'):
-            #self.radbin = svp['viparams']['radbin']
-        #svp['viparams']['radlib'] = bpy.path.abspath(self.radbin)
+
     path_update()
 
 
@@ -374,6 +321,8 @@ def unititems(self, context):
         elif svp['liparams']['unit'] == 'GO (%)':
             return [('ago1v', 'GO (%)', 'Glare occurance'),
                     ('aga1v', 'GA (%)', 'Glare autonomy')]
+        elif svp['liparams']['unit'] == 'RT60 (s)':
+            return [('rt', 'RT60 (s)', 'Reverberation time (60db)')]
         else:
             return [('None', 'None', 'None')]
 
@@ -396,6 +345,11 @@ def bsdf_direcs(self, context):
     except Exception:
         return [('None', 'None', 'None')]
 
+def get_sources(self, context):
+    try:
+        return [(i, i, i) for i in context.scene.vi_params['liparams']['sources']]
+    except Exception:
+        return [('None', 'None', 'None')]
 
 def ga_views(self, context):
     try:
@@ -433,19 +387,6 @@ class VIPreferences(AddonPreferences):
                 row.prop(self, self.ui_dict[entry])
 
 
-# def get_frame(self):
-#     return self.vi_frames
-
-
-# def set_frame(self, value):
-#     if value > self['liparams']['fe']:
-#         self.vi_frames = self['liparams']['fe']
-#     elif value < self['liparams']['fs']:
-#         self.vi_frames = self['liparams']['fs']
-#     else:
-#         self.vi_frames = value
-
-
 def d_update(self, context):
     csvp = context.scene.vi_params
     
@@ -464,10 +405,6 @@ def d_update(self, context):
 
 class VI_Params_Scene(bpy.types.PropertyGroup):
     def get_frame(self):
-        # if self.vi_frames != self.id_data.frame_current:
-        #     self.id_data.vi_params.vi_leg_max = self.id_data.vi_params.vi_leg_max
-        #     return self.id_data.frame_current
-        # else:
         return self.id_data.frame_current
 
     def set_frame(self, value):
@@ -493,6 +430,20 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
             self['vi_views'] = 1
         else:
             self['vi_views'] = value
+
+
+    def disp_options(self, context):
+        svp = context.scene.vi_params
+        try:
+            if svp['liparams']['unit'] == 'GO (%)':
+                return [("0", "None", "No processing"), ("1", "3D", "3D results display"), 
+                        ("2", "Interpolate", "Interpolate results display"), ("3", "Direction", "Directional results display")]
+            else:
+                return [("0", "None", "No processing"), ("1", "3D", "3D results display"), 
+                        ("2", "Interpolate", "Interpolate results display")]
+        except:
+            return [("0", "None", "No processing"), ("1", "3D", "3D results display"), 
+                    ("2", "Interpolate", "Interpolate results display")]
 
     vi_name = sprop("", "VI-Suite addon directory name", 1024, "")
     year: iprop("", 'Year', 2019, 2020, 2019)
@@ -536,8 +487,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_display_rp_fc: fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     vi_display_rp_sh: bprop("", "Toggle for font shadow display",  False)
     vi_display: BoolProperty(name="", description="Toggle results display", default=0, update=d_update)
-    vi_disp_process: eprop([("0", "None", "No processing"), ("1", "3D", "3D results display"), 
-                            ("2", "Interpolate", "Interpolate results display"), ("3", "Direction", "Directional results display")],  "", "Processing", "0")
+    vi_disp_process: EnumProperty(items=disp_options,  name="", description="Result processing")
     vi_disp_pos: EnumProperty(items=[("0", "Positive", "Positive face placement"), ("1", "Negative", "Negative face placement")],  name="", 
                               description="Face placement to avoid z-fighting", default="0", update=leg_update)
     vi_leg_unit: sprop("", "Legend unit", 1024, "")
@@ -552,13 +502,13 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_disp_wire: BoolProperty(name="", description="Draw wire frame", default=0, update=w_update)
     vi_disp_mat: BoolProperty(name="", description="Turn on/off result material emission", default=0, update=col_update)
     vi_disp_ems: FloatProperty(name="", description="Emissive strength", default=1, min=0, update=col_update)
-    vi_scatt_max: EnumProperty(items=[('0', 'Data', 'Get maximum from data'), ('1', 'Value', 'Specify maximum value')],
-                               name="", description="Set maximum value", default='0')
-    vi_scatt_min: EnumProperty(items=[('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')],
-                               name="", description="Set minimum value", default='0')
-    vi_scatt_max_val: fprop("", 'Maximum value', 1, 3000, 20)
-    vi_scatt_min_val: fprop("", 'Minimum value', 0, 1000, 0)
-    vi_scatt_col: EnumProperty(items=colours, name="", description="Scatter colour", default='rainbow')
+    #vi_scatt_max: EnumProperty(items=[('0', 'Data', 'Get maximum from data'), ('1', 'Value', 'Specify maximum value')],
+     #                          name="", description="Set maximum value", default='0')
+    #vi_scatt_min: EnumProperty(items=[('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')],
+    #                           name="", description="Set minimum value", default='0')
+    #vi_scatt_max_val: fprop("", 'Maximum value', 1, 3000, 20)
+    #vi_scatt_min_val: fprop("", 'Minimum value', 0, 1000, 0)
+    # vi_scatt_col: EnumProperty(items=colours, name="", description="Scatter colour", default='rainbow')
     vi_disp_refresh: bprop("", "Refresh display",  False)
     vi_res_mod: sprop("", "Result modifier", 1024, "")
     vi_res_process: EnumProperty(items=[("0", "None", ""), ("1", "Modifier", ""), ("2", "Script", "")], name="", description="Specify the type of data processing", default="0", update=script_update)
@@ -597,6 +547,8 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
      resazlmaxf_disp, resazlminf_disp, resazlavef_disp,
      resazmaxshg_disp, resazminshg_disp, resazaveshg_disp,
      resaztshg_disp, resaztshgm_disp) = aresnameunits()
+
+    au_sources: EnumProperty(items=get_sources, name="", description="Au Sources", update=livires_update)
 
 
 class VI_Params_Object(bpy.types.PropertyGroup):
@@ -698,7 +650,8 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     ec_mod: StringProperty(name="", description="Embodied modules reported")
     ee = envi_embodied()
     write_stl = ob_to_stl
-
+    auvi_sl: eprop([("0", "Source", "Object represents a sound source"), ("1", "Listener", "Object represents an item")], "", "Specify what the object represents in AuVi terms", "0")
+    
 
 class VI_Params_Material(bpy.types.PropertyGroup):
     radtex: bprop("", "Flag to signify whether the material has a texture associated with it", False)
@@ -733,7 +686,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     respacemenu: eprop(respacetype, "", "Type of retail space", '0')
     lespacemenu: eprop(lespacetype, "", "Type of space", '0')
     BSDF: bprop("", "Flag to signify a BSDF material", False)
-    mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
+    mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"), 
+                    ("2", "FloVi boundary", 'FloVi blockmesh boundary'), ("3", "AuVi material", 'Acoustic material')], "", "VI-Suite material type", "0")
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     envi_rev_enum: EnumProperty(items=ret_envi_mats, name='', description='EnVi material')
     envi_type: sprop("", "EnVi Material type", 64, "None")
@@ -827,6 +781,32 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_probe: bprop("", "Turn on pressure monitoring", False)
     flovi_htc: bprop("", "Turn on heat transfer coefficient calculation", False)
 
+    # AuVi materials
+    auvi_abs_class: eprop([('0', 'Database', 'Database material'), ('1', 'Custom', 'Custom material')], "", "AuVi material class", '0')
+    auvi_scatt_class: eprop([('0', 'Database', 'Database material'), ('1', 'Custom', 'Custom material')], "", "AuVi material class", '1')
+    # auvi_scatter: bprop("", "Turn on scattering for ray tracing", False)
+    auvi_type_abs: EnumProperty(items=auvi_type_abs, name="", description="Layer embodied material type")
+    auvi_mat_abs: EnumProperty(items=auvi_abs, name="", description="Layer embodied material type")
+    auvi_type_scatt: EnumProperty(items=auvi_type_scatt, name="", description="Layer embodied material type")
+    auvi_mat_scatt: EnumProperty(items=auvi_scatt, name="", description="Layer embodied material type")
+    auvi_o1_abs: fprop("", "125 Hz absorption value", 0, 1, 0.1)
+    auvi_o1_scatt: fprop("", "125 Hz scatter value", 0, 1, 0.05)
+    auvi_o2_abs: fprop("", "250 Hz absorption value", 0, 1, 0.1)
+    auvi_o2_scatt: fprop("", "250 Hz scatter value", 0, 1, 0.05)
+    auvi_o3_abs: fprop("", "500 Hz absorption value", 0, 1, 0.1)
+    auvi_o3_scatt: fprop("", "500 Hz scatter value", 0, 1, 0.05)
+    auvi_o4_abs: fprop("", "1000 Hz absorption value", 0, 1, 0.1)
+    auvi_o4_scatt: fprop("", "1000 Hz scatter value", 0, 1, 0.05)
+    auvi_o5_abs: fprop("", "2000 Hz absorption value", 0, 1, 0.1)
+    auvi_o5_scatt: fprop("", "2000 Hz scatter value", 0, 1, 0.05)
+    auvi_o6_abs: fprop("", "4000 Hz absorption value", 0, 1, 0.1)
+    auvi_o6_scatt: fprop("", "4000 Hz scatter value", 0, 1, 0.05)
+    auvi_o7_abs: fprop("", "8000 Hz absorption value", 0, 1, 0.1)
+    auvi_o7_scatt: fprop("", "8000 Hz scatter value", 0, 1, 0.05)
+    auvi_abs_flat: bprop("", "Turns on equal absorbtion for all frequency bands", True)
+    auvi_scatt_flat: bprop("", "Turns on equal scattering for all frequency bands", True)
+    am = auvi_materials()
+
 class VI_Params_Collection(bpy.types.PropertyGroup):
     envi_collection: bprop("", "Flag to tell EnVi to export this collection", False)
     envi_zone: bprop("", "Flag to tell EnVi this is a geometry collection", False)
@@ -908,7 +888,7 @@ def select_nodetree(dummy):
                 envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
                 if envings:
                     space.node_tree = envings[0]
-        except Exception as e:
+        except Exception as nt_error:
             pass
 
 bpy.app.handlers.depsgraph_update_post.append(select_nodetree)
@@ -937,7 +917,7 @@ def path_update():
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin')
     ofbdir = os.path.abspath(vi_prefs.ofbin) if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin')
-    datadir = os.path.abspath(vi_prefs.datab) if vi_prefs and os.path.isdir(vi_prefs.datab) else os.path.join('{}'.format(addonpath), 'EPFiles')
+    # datadir = os.path.abspath(vi_prefs.datab) if vi_prefs and os.path.isdir(vi_prefs.datab) else os.path.join('{}'.format(addonpath), 'EPFiles')
 
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
@@ -950,14 +930,14 @@ def path_update():
             if native_path in os.environ["PATH"]:
                 os.environ["PATH"].replace(native_path, radbdir)
             else:
-               os.environ["PATH"] += '{0}{1}'.format(os.pathsep, radbdir)
+                os.environ["PATH"] += '{0}{1}'.format(os.pathsep, radbdir)
 
         os.environ["PATH"] += "{0}{1}{0}{2}{0}{3}".format(os.pathsep, epdir, ofbdir, os.path.join('{}'.format(addonpath), 'Python', str(sys.platform), 'bin'))
         sys.path.append(ofbdir)
 
 classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPath, NODE_OT_TextUpdate, NODE_OT_FileSelect, NODE_OT_HdrSelect,
            VI_PT_3D, VI_Params_Scene, VI_Params_Object, VI_Params_Material, VI_Params_Collection, No_Vi_WR, No_Vi_SVF, NODE_OT_WindRose, VIEW3D_OT_WRDisplay,
-           NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, No_Vi_SS, NODE_OT_Shadow, VIEW3D_OT_SSDisplay,
+           NODE_OT_SVF, So_Vi_Res, VI_PT_Mat, VIEW3D_OT_SVFDisplay, MAT_EnVi_Node, No_Vi_SS, NODE_OT_Shadow, VIEW3D_OT_SSDisplay, VIEW3D_OT_RTDisplay,
            No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, NODE_OT_Li_Geo, So_Li_Con, NODE_OT_Li_Con, No_Text, So_Text,
            No_Vi_Im, No_Li_Im, So_Li_Im, NODE_OT_Li_Im, NODE_OT_Li_Pre, No_Li_Sim, NODE_OT_Li_Sim, VIEW3D_OT_Li_BD,
            No_Li_Gl, No_Li_Fc, NODE_OT_Li_Gl, NODE_OT_Li_Fc, No_En_Geo, VI_PT_Ob, NODE_OT_En_Geo, EnViNetwork, No_En_Net_Zone,
@@ -974,7 +954,8 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
            NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
-           No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, NODE_OT_EcE)
+           No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, NODE_OT_EcE, So_Au_Scene, So_Au_IR, No_Au_Sim, No_Au_Conv, NODE_OT_Au_Conv,
+           NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Play, NODE_OT_Au_Stop, NODE_OT_Au_PlayC, NODE_OT_Au_Save)
 
 
 def register():
@@ -1010,7 +991,7 @@ def unregister():
     for cl in reversed(classes):
         try:
             bpy.utils.unregister_class(cl)
-        except:
+        except Exception:
             pass
 
     if update_chart_node in bpy.app.handlers.load_post:

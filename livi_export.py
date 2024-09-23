@@ -461,8 +461,8 @@ def cyfc1(self):
     scene = bpy.context.scene
     svp = scene.vi_params
 
-    if 'LiVi' in svp['viparams']['resnode'] or 'Shadow' in svp['viparams']['resnode']:
-        for material in [m for m in bpy.data.materials if m.use_nodes and m.vi_params.mattype == '1']:
+    if 'LiVi' in svp['viparams']['resnode'] or 'Shadow' in svp['viparams']['resnode'] or 'AuVi' in svp['viparams']['resnode']:
+        for material in [m for m in bpy.data.materials if m.use_nodes and m.vi_params.mattype in ('1', '3')]:
             try:
                 if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
                     material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)

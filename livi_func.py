@@ -16,11 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time
+import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time, matplotlib
 from math import sin, cos, pi, log10
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt, logspace
+from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt, logspace, flatnonzero
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
@@ -90,9 +90,11 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
         svp.vi_leg_levels = 3
 
     if svp.li_disp_menu == 'aga1v':
-        var = 'aga{}v'.format(svp.vi_views)
+        var = f'aga{svp.vi_views}v'
     elif svp.li_disp_menu == 'ago1v':
-        var = 'ago{}v'.format(svp.vi_views)
+        var = f'ago{svp.vi_views}v'
+    elif svp.li_disp_menu == 'rt':
+        var = f'{svp.au_sources}_rt'
     else:
         var = svp.li_disp_menu
 
@@ -125,13 +127,13 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
     if isinstance(geom[:][0], bmesh.types.BMVert):
         ress = array([v[res_lay] for v in bm.verts])
     else:
-        ress = array([sum([f[res_lay] for f in v.link_faces])/len(v.link_faces) for v in bm.verts])
-
+        ress = array([sum([f[res_lay] for f in v.link_faces])/(len(v.link_faces), 1)[not v.link_faces] for v in bm.verts])
+    print(len(xs), len(ys), len(ress), len(tris))
     bm.free()
     CS = plt.tricontourf(xs, ys, tris, ress, levels=levels, extend="both")
     vi, vcos, eis, fis, mis, v_start = 0, [], [], [], [], 0 
     plt.gca().set_aspect('equal')
-
+    
     for csi, ca in enumerate(CS.allsegs):
         for ci, c_cos in enumerate(ca):
             vcos += [o.matrix_world@Vector(c + [offset + (1, -1)[svp.vi_disp_pos == "1"] * 0.0001 * csi]) for c in c_cos.tolist()]
@@ -812,7 +814,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Blue irradiance (W)', ' '.join(['{:.3f}'.format(g[firradbres]) for g in rgeom])])
             reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Blue irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradbm2res]) for g in rgeom])])
             firradgbinvals = [self['omin']['firradg{}'.format(frame)] + (self['omax']['firradg{}'.format(frame)] - self['omin']['firradg{}'.format(frame)])/ll * (i + increment) for i in range(ll)]
-            self['livires']['bvalbins'] = firradgbinvals
+            self['livires']['gvalbins'] = firradgbinvals
             reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Green irradiance (W)', ' '.join(['{:.3f}'.format(g[firradgres]) for g in rgeom])])
             reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Green irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradgm2res]) for g in rgeom])])
 
@@ -1489,30 +1491,24 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                                                                     frame, dgp_level)
         logentry(f'Running dcglare with command {dcg_cmd}')
         dgc_run = Popen(shlex.split(dcg_cmd), stdout=PIPE)
-        # while not all([dgc_run.poll() is not None for dgc_run in dgc_runs]):
-        #     time.sleep(0.2)
-        
-        #for ci, chunk in enumerate(chunks(rgeom, int(svp['viparams']['nproc']))):
 
         if not simnode['coptions']['dgp_hourly']:
             resarray = array([float(line.decode()) for line in dgc_run.stdout])
             ri = 0
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in rpos])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in rpos])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in rpos])])
+            reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
 
-            # for rg in chunk:
             for rg in rgeom:
                 for vi in range(simnode['coptions']['ga_views']):
                     rg[agas[vi]] = 100 * resarray[ri]
                     rg[agos[vi]] = (1 - resarray[ri]) * 100
                     ri += 1
-
-                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in rpos])])
-                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in rpos])])
-                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in rpos])])
-                # reslists.append([str(frame), 'Zone spatial', self.id_data.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
                 
-                # for vi in range(simnode['coptions']['ga_views']):
-                #     reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GA view {vi + 1}', ' '.join([str(rg[agas[vi]]) for rg in rgeom])])
-                #     reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GO view {vi + 1}', ' '.join([str(rg[agos[vi]]) for rg in rgeom])])
+            for vi in range(simnode['coptions']['ga_views']):
+                reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GA {frame} view {vi + 1}', ' '.join([str(rg[agas[vi]]) for rg in rgeom])])
+                reslists.append([str(frame), 'Zone spatial', self.id_data.name, f'GO {frame} view {vi + 1}', ' '.join([str(rg[agos[vi]]) for rg in rgeom])])
 
         else:
             resarray = genfromtxt(dgc_run.stdout, dtype=float)

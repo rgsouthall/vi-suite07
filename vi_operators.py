@@ -16,12 +16,16 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing, threading, gc
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32, concatenate, ones
+from numpy import arange, histogram, array, int8, int16, int32, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32, float64, concatenate, ones, array2string
 from numpy import sum as nsum
 from numpy import max as nmax
+from numpy import mean as nmean
+from scipy import signal
+from scipy.io import wavfile
+from scipy import signal
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -38,15 +42,18 @@ from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
 from .flovi_func import ofheader, fvcdwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogressbar
-from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
+from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar, au_pb
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, bm_to_stl
 from .livi_func import retpmap
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
-# from PyQt6.QtGui import QImage, QColor
 import OpenImageIO
 OpenImageIO.attribute("missingcolor", "0,0,0")
 from OpenImageIO import ImageInput, ImageBuf
+
+if sys.platform != 'win32':
+    if multiprocessing.get_start_method() != 'fork':
+        multiprocessing.set_start_method('fork', force=True)
 
 try:
     import netgen
@@ -76,13 +83,22 @@ except Exception as e:
 #     if plt:
 #         from .windrose import WindroseAxes
 
-try:
-    import psutil
-    psu = 1
-except Exception as e:
-    print("No psutil: {}".format(e))
-    psu = 0
+# try:
+#     import psutil
+#     psu = 1
+# except Exception as e:
+#     #print("No psutil: {}".format(e))
+#     psu = 0
 
+try:
+    import pyroomacoustics as pra
+    pra_rt = True
+    pra.constants.set("num_threads", 8)
+    ra = 1
+except:
+    ra = 0
+
+c_freqs = [125, 250, 500, 1000, 2000, 4000, 8000]
 
 class ADDON_OT_PyInstall(bpy.types.Operator):
     bl_idname = "addon.pyimport"
@@ -115,6 +131,11 @@ class ADDON_OT_PyInstall(bpy.types.Operator):
                                                                    os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
             Popen(shlex.split(ng_cmd))
 
+        if not os.path.isdir(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform, 'netgen')):
+            ng_cmd = '{} -m pip install pyroomacoustics --target {}'.format(sys.executable,
+                                                                   os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Python', sys.platform))
+            Popen(shlex.split(ng_cmd))
+        
         return {'FINISHED'}
 
 
@@ -871,6 +892,9 @@ class NODE_OT_FileSelect(bpy.types.Operator, ImportHelper):
                 self.node.resfilename = self.filepath
             elif self.nodeprop == 'idffilename':
                 self.node.idffilename = self.filepath
+            elif self.nodeprop == 'wavname':
+                self.node.wavname = self.filepath
+
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
@@ -2359,6 +2383,7 @@ class OBJECT_OT_VIGridify(bpy.types.Operator):
         o = bpy.context.active_object
         mesh = bmesh.from_edit_mesh(o.data)
         mesh.transform(o.matrix_world)
+        mesh.normal_update()
         mesh.faces.ensure_lookup_table()
         mesh.verts.ensure_lookup_table()
         fs = [f for f in mesh.faces[:] if f.select]
@@ -2387,7 +2412,6 @@ class OBJECT_OT_VIGridify(bpy.types.Operator):
                 res1 = res['geom_cut']
                 dissvs = [v for v in res1 if isinstance(v, bmesh.types.BMVert) and len(v.link_edges) == 2 and v.calc_edge_angle(1) == 0.0]
                 bmesh.ops.dissolve_verts(mesh, verts=dissvs)
-
                 gs = mesh.verts[:] + mesh.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
                 ngs1 += gs1
 
@@ -3151,7 +3175,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get() and o.name not in meshcoll.objects]
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get() and o.name not in meshcoll.objects]
         self.obs = dobs + gobs
-
+    
         if any([any(s < 0 for s in o.scale) for o in self.obs]):
             logentry('CFD domain or geometry has a negative scale. Cannot proceed')
             self.report({'ERROR'}, 'CFD domain or geometry has a negative scale. Cannot proceed')
@@ -3164,7 +3188,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             logentry('FloVi requires a domain object but none was found. Check the domain object is not hidden or in the FloVi Mesh collection')
             self.report({'ERROR'}, 'No, or hidden, domain objects')
             return {'CANCELLED'}
-
+        
         for ob in self.obs:
             bm = bmesh.new()
             bm.from_object(ob, dp)
@@ -3189,27 +3213,54 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             mns.append(len(set(mis)))
             bm.free()
 
+        surf_no = 0
+        fm_dict = {}
+        totmesh = Mesh()
+        self.fomats = list(dict.fromkeys(itertools.chain.from_iterable(self.omats)))
+
+        for dob in dobs:
+            for mi, ms in enumerate(dob.material_slots):
+                mindex = self.fomats.index(ms.material)
+                fd = FaceDescriptor(bc=mindex, domin=1, surfnr=surf_no + 1)
+                fd.bcname = ms.material.name
+                fd.color = ms.material.diffuse_color[:3]
+                fm_dict[f'{dob.name}-{ms.material.name}'] = fd               
+                totmesh.Add(fd)
+                surf_no += 1
+        
+        # Sets the material of the domain (1)
+        totmesh.SetMaterial(1, 'Air')
+
+        for gob in gobs:
+            for ms in gob.material_slots:
+                mindex = self.fomats.index(ms.material)
+                fd = FaceDescriptor(bc=mindex, domin=0, domout=1, surfnr=surf_no + 1)
+                fd.bcname = ms.material.name
+                fd.color = ms.material.diffuse_color[:3]
+                fm_dict[f'{gob.name}-{ms.material.name}'] = fd
+                totmesh.Add(fd)
+                surf_no += 1
+
         if os.environ.get('LD_LIBRARY_PATH'):
             os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'netgen')
         else:
             os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'netgen')
 
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
-            ngpyfile.write(inspect.cleandoc('''
-            import netgen, os
-            from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
-            from netgen.stl import STLGeometry
-            from pyngcore import SetNumThreads, TaskManager
+            # ngpyfile.write(inspect.cleandoc('''
+            # import netgen, os
+            # from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+            # from netgen.stl import STLGeometry
+            # from pyngcore import SetNumThreads, TaskManager
 
-            SetNumThreads({})
-            #maxh = {}
-            totmesh = Mesh()
-            '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs)))
+            # SetNumThreads({})
+            # #maxh = {}
+            # totmesh = Mesh()
 
+            # '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs)))
+            
             SetNumThreads(int(svp['viparams']['nproc']))
-            maxh = self.expnode.maxcs
-            # st = '0'
-            totmesh = Mesh()
+            maxh = self.expnode.maxcs          
             meshes = []
             mesh_names = []
             mats = []
@@ -3232,40 +3283,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     bpy.ops.object.modifier_apply(modifier=dbool.name)
                     self.obs = [dobs[0]]
 
-            self.fomats = [item for sublist in self.omats for item in sublist]
-            i = 0
-
-            for mis, mats in enumerate(self.omats):
-                for mi, mat in enumerate(mats):
-                    if not mis:
-                        # ngpyfile.write("\nfd = FaceDescriptor(bc = {0}, domin = 1, surfnr = {0} + 1)\n".format(i))
-                        fd = FaceDescriptor(bc=i, domin=1, surfnr=i + 1)
-                        fd.bcname = mat.name
-                    else:
-                        # ngpyfile.write("fd = FaceDescriptor(bc = {0}, domin = 0, domout = 1, surfnr = {0} + 1)\n".format(i))
-                        fd = FaceDescriptor(bc=i, domin=0, domout=1, surfnr=i + 1)
-                        fd.bcname = mat.name
-
-                    # ngpyfile.write("fd = totmesh.Add(fd)\n")
-                    fd = totmesh.Add(fd)
-                    fds.append(fd)
-                    # totmesh.SetBCName(i, '{}'.format(mat.name))
-                    #ngpyfile.write("totmesh.SetBCName(fd, '{}')\n".format(mat.name))
-
-                    # try:
-                    #     pass
-                    #     # totmesh.SetBCName(0, mat.name)
-                    # except:
-                    #     pass
-                    #     # totmesh.SetBCName(1, mat.name)
-                    i += 1
-
             for oi, o in enumerate(self.obs):
                 # ngpyfile.write("mp = MeshingParameters(maxh={}, yangle={}, grading={}, optsteps2d={}, optsteps3d={}, delaunay=True, maxoutersteps={})\n".format(maxh, self.expnode.yang, self.expnode.grading, self.expnode.optimisations, self.expnode.optimisations, self.expnode.maxsteps))
                 mp = MeshingParameters(maxh=maxh, yangle=self.expnode.yang, grading=self.expnode.grading,
                                        optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
                                        delaunay=True, maxoutersteps=self.expnode.maxsteps)
-                # bm = o.vi_params.write_stl(os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(o.name)), dp)
                 bm = bmesh.new()
                 bm.from_object(o, dp)
                 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -3304,9 +3326,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 logentry("Netgen surface mesh generated")
                 # ngpyfile.write("for ei, el in enumerate([e for e in m.Elements2D()]:\n")
-                #ngpyfile.write("print(m.Elements2D()[0])")
+                # ngpyfile.write("print(m.Elements2D()[0])")
+
                 for ei, el in enumerate(m.Elements2D()):
-                    
                     #ngpyfile.write("el = m.Elements2D()[{}]\n".format(ei))
                     fpoint = [sum(m[v].p[x]/3 for v in el.vertices) for x in (0, 1, 2)]
                     fnorm = mathutils.geometry.normal([m[v].p for v in el.vertices])
@@ -3321,7 +3343,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             #ngpyfile.write("    el.index = {}\n".format(self.omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])))
                             #if ei == 0:
                             #    ngpyfile.write("    el.index = 1\n")
-                            el.index = self.omats[oi].index(o.material_slots[face.material_index].material) + 1 + sum(mns[:oi + 1])
+                            el.index = fm_dict[f'{o.name}-{o.material_slots[face.material_index].material.name}'].surfnr
                             intersect = 1
                             break
                         # else:
@@ -3347,30 +3369,33 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 for e in m.Elements2D():
                     for v in e.vertices:
                         if (v not in pmap1):
-                            ngpyfile.write("totmesh.Add(m[{}])\n".format(v))
+                            #ngpyfile.write("totmesh.Add(m[{}])\n".format(v))
                             pmap1[v] = totmesh.Add(m[v])
 
-                    ngpyfile.write("totmesh.Add(Element2D({}, {}))\n".format(e.index, [pmap1[v] for v in e.vertices]))
+                    #ngpyfile.write("totmesh.Add(Element2D({}, {}))\n".format(e.index, [pmap1[v] for v in e.vertices]))
                     totmesh.Add(Element2D(e.index, [pmap1[v] for v in e.vertices]))
 
             # ngpyfile.write("totmesh.Save('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
+            # Boundary layer takes the existing boundary, the thicknesses the new material the domain to project into
+            # fd = FaceDescriptor(bc=5, domin=1, domout=2, surfnr=surf_no + 1)
+            # fd.bcname = "Solid-Air"
+            # fm_dict['Solid-Air'] = fd
+            # totmesh.Add(fd)
+            # totmesh.BoundaryLayer(boundary="Solid", thickness=0.1, material="Solid-Air", domains="Air")
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
             # ngpyfile.write("\ntotmesh.Load('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
             # ngpyfile.write("with TaskManager():\n   totmesh.GenerateVolumeMesh()\n")
-            # print('volume')
+            
             with TaskManager():
                 totmesh.GenerateVolumeMesh()
 
-            # logentry("Netgen surface mesh generated")
-            # The below would create a boundary layer but this is not currently supported in Netgen Python interface
-            # totmesh.BoundaryLayer(boundary=1, thickness=[0.2, 0.5], material='Layer', domains=0, outside=0)
             # ngpyfile.write("totmesh.Save('{}')\n".format((os.path.join(svp['flparams']['offilebase'], 'ng.vol'))))
             totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
             # ngpyfile.write("totmesh.Export('{}', format='Neutral Format')".format(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))
             totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
 
         self.expnode.running = 1
-        self.ng_mesh = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE)
+        #self.ng_mesh = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE)
         self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
         self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Volume Mesh')
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
@@ -3381,14 +3406,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         scene = context.scene
         svp = scene.vi_params
 
-        if self.ng_mesh.poll() is None:
-            if self.kivyrun.poll() is None:
-                return {'PASS_THROUGH'}
-            else:
-                self.ng_mesh.kill()
-                self.kivyrun.kill()
-                self.expnode.running = 0
-                return {'CANCELLED'}
+        if self.kivyrun.poll() is not None:
+            self.kivyrun.kill()
+            self.expnode.running = 0
+            return {'CANCELLED'}
         else:
             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
                 offb = svp['flparams']['offilebase']
@@ -3578,8 +3599,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 residict = {}
 
                 for line in lines:
-                    if 'Solving for' in line:
-                        residict[line.split()[3][:-1]] = abs(float(line.split()[7][:-1]))
+                    line_split = line.split()
+                    
+                    if 'Initial residual' in line:
+                        residict[line_split[3][:-1]] = abs(float(line_split[line_split.index('Initial') + 3][:-1]))
                     elif len(line.split()) and line.split()[0] == 'Time' and line.split()[1] == '=':
                         residict[line.split()[0]] = float(line.split()[2].strip('s'))
                     if len(residict) == len(self.residuals) + 1:
@@ -3647,7 +3670,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         return {'CANCELLED'}
                     else:
                         logentry(f'ERROR: {dline[1]}')
-
 
             self.runs[-1].kill()
             frame_n = svp['flparams']['start_frame'] + len(self.runs)
@@ -3950,33 +3972,495 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         return {'CANCELLED'}
 
 
-# class NODE_OT_Chart_new(bpy.types.Operator, ExportHelper):
-#     bl_idname = "node.chart_new"
-#     bl_label = "Chart"
-#     bl_description = "Create a 2D graph from the results file"
-#     bl_register = True
-#     bl_undo = True
+class NODE_OT_Au_Rir(bpy.types.Operator):
+    bl_idname = "node.rir_sim"
+    bl_label = "IR Generator"
+    bl_description = "Generates a room impulse response"
+    bl_register = True
+    bl_undo = False
 
-#     def invoke(self, context, event):
-#         node = context.node
-#         innode = node.inputs['Results in'].links[0].from_node
-#         rl = innode['reslists']
-#         zrl = list(zip(*rl))
-#         year = context.scene.vi_params.year
+    def calc_thread(self, room, q_rts, ir_list):
+        i = 0
 
-#         # try:
-#         #     node.inputs['X-axis'].framemenu
-#         # except Exception as e:
-#         #     if node.inputs['X-axis'].framemenu not in zrl[0]:
-#         #         self.report({'ERROR'}, f"There are no results in the results file. Check the results.err file in Blender's text editor: {e}")
-#         #         return {'CANCELLED'}
+        try:
+            room.compute_rir()
+            rts = room.measure_rt60(plot=False, decay_db=60)
+        except:
+            try:
+                rts = room.measure_rt60(plot=False, decay_db=30)
+            except Exception as e:
+                q_rts.put(e)
+                return
+        
+        try:
+            for mi, mrir in enumerate(room.rir):
+                for si, srir in enumerate(mrir):
+                    ir_list[i] = srir
+                    i += 1
+        except Exception as e:
+            print(e)
+        
+        q_rts.put(rts)
+        return
 
-#         if not mp:
-#             self.report({'ERROR'}, "Matplotlib cannot be found by the Python installation used by Blender")
-#             return {'CANCELLED'}
+    def execute(self, context):
+        scene = context.scene
+        svp = scene.vi_params
+        svp.vi_display = 0
 
-#         plt.clf()
-#         Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)  # + datetime.timedelta(hours = node.dsh - 1)
-#         Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)  # + datetime.timedelta(hours = node.deh - 1)
-#         chart_disp(self, plt, node, innodes, Sdate, Edate)
-#         return {'FINISHED'}
+        if viparams(self, scene):
+            return {'CANCELLED'}
+
+        if not svp.get('viparams'):
+            svp['viparams'] = {}
+
+        if not svp.get('liparams'):
+            svp['liparams'] = {}  
+
+        clearscene(context, self)
+
+        for o in scene.objects:
+            o.vi_params.vi_type_string = ''
+
+        simnode = context.node
+        simnode.presim()
+        dp = context.evaluated_depsgraph_get()
+        empties = [o for o in bpy.data.objects if o.type == 'EMPTY' and o.visible_get()]
+        sources = [o for o in empties if o.vi_params.auvi_sl == '0']
+        simnode['coptions']['au_sources'] = [s.name for s in sources]
+        mics = [o for o in empties if o.vi_params.auvi_sl == '1']
+        mic_arrays = [o for o in bpy.data.objects if o.type == 'MESH' and o.material_slots and o.visible_get() and any([o.material_slots[p.material_index].material.vi_params.mattype == '1' for p in o.data.polygons])]
+        
+        for o in mic_arrays:
+            (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
+        
+        robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype =='3' for ms in o.material_slots])]
+        mats = [mat for mat in bpy.data.materials if mat.vi_params.mattype =='3']
+        reslists = []
+        frames = [f for f in range(simnode.startframe, simnode.endframe + 1)] if simnode.animated else [scene.frame_current]
+        resdict = {}
+        
+        for frame in frames:
+            amat_abs = {}
+            amat_scatts = {}
+            amat_dict = {}
+            resdict[str(frame)] = {}
+            scene.frame_set(frame)
+            
+            for mat in mats:
+                mvp = mat.vi_params
+
+                if not mvp.am.updated:
+                    mvp.am.update()
+
+                if mvp.auvi_abs_class == '0':
+                    new_abs = mvp.am.mat_dict['absorption'][mvp.auvi_type_abs][mvp.auvi_mat_abs]['coeffs']
+                    
+                    if len(new_abs) < 7:
+                        new_abs += [new_abs[-1]] * (7 - len(new_abs))
+                
+                elif mvp.auvi_abs_flat:
+                    new_abs = [mvp.auvi_o1_abs] * 7
+                
+                else:
+                    new_abs = [mvp.auvi_o1_abs, mvp.auvi_o2_abs, mvp.auvi_o3_abs, mvp.auvi_o4_abs, mvp.auvi_o5_abs, mvp.auvi_o6_abs, mvp.auvi_o7_abs]
+
+                if mvp.auvi_scatt_class == '0':
+                    new_scatts = mvp.am.mat_dict['scattering'][mvp.auvi_type_scatt][mvp.auvi_mat_scatt]['coeffs']
+                    
+                    if len(new_scatts) < 7:
+                        new_scatts += [new_scatts[-1]] * (7 - len(new_scatts))
+
+                elif mvp.auvi_scatt_flat:
+                    new_scatts = [round(mvp.auvi_o1_scatt, 2)] * 7
+                else:
+                    new_scatts = [round(mvp.auvi_o1_scatt, 2), round(mvp.auvi_o2_scatt, 2), round(mvp.auvi_o3_scatt, 2), round(mvp.auvi_o4_scatt, 2), 
+                                  round(mvp.auvi_o5_scatt, 2), round(mvp.auvi_o6_scatt, 2), round(mvp.auvi_o7_scatt, 2)]
+
+                amat_abs = {'coeffs': new_abs, "center_freqs": c_freqs}
+                amat_scatts = {'coeffs': new_scatts, "center_freqs": c_freqs}
+                amat_dict[mat.name] = pra.Material(energy_absorption=amat_abs, scattering=amat_scatts)
+            
+            for rob in robs:
+                walls = []
+                mic_names = []
+                room_bm = bmesh.new()
+                room_bm.from_object(rob, dp)
+                room_bm.transform(rob.matrix_world)
+                bmesh.ops.triangulate(room_bm, faces=room_bm.faces)
+
+                for face in room_bm.faces:
+                    mat = rob.material_slots[face.material_index].material
+
+                    if mat.name in amat_dict:
+                        poly_vecs = array([v.co for v in face.verts]).T
+                        walls.append(
+                            pra.wall_factory(
+                                poly_vecs,
+                                amat_dict[mat.name].energy_absorption["coeffs"],
+                                amat_dict[mat.name].scattering["coeffs"],
+                            )
+                        )
+
+                room_bm.free()
+
+                room = (
+                    pra.Room(
+                        walls,
+                        fs=16000,
+                        max_order=simnode.max_order,
+                        ray_tracing=pra_rt,
+                        air_absorption=False,
+                        use_rand_ism = True, 
+                        max_rand_disp = 0.1
+                    )
+                )
+
+                if pra_rt:
+                    room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius, 
+                                         hist_bin_size=0.004, energy_thres=1e-07)
+                    
+                for source in sources:
+                    if room.is_inside(source.location[:]):
+                        room.add_source(source.location[:])
+
+                if not room.sources:
+                    self.report({'ERROR'},  f'No visible sources inside room {rob.name}')
+                    return {'CANCELLED'}
+
+                for mic in mics:
+                    if room.is_inside(mic.location[:]):
+                        room.add_microphone(mic.location[:])
+                        mic_names.append(mic.name)
+
+                for mic_a in mic_arrays:
+                    mic_bm = bmesh.new()
+                    mic_bm.from_mesh(mic_a.data)
+                    mic_bm.transform(mic_a.matrix_world)
+
+                    if not mic_bm.faces.layers.int.get('cindex'):
+                        mic_bm.faces.layers.int.new('cindex')
+
+                    bm_ir = mic_bm.faces.layers.int['cindex']
+                    mic_bm.faces.ensure_lookup_table()
+
+                    for fi, f in enumerate(mic_bm.faces):
+                        if mic_a.material_slots[f.material_index].material.vi_params.mattype == '1':
+                            if room.is_inside(f.calc_center_median()[:]):
+                                if mic_a.vi_params.vi_type_string != 'LiVi Calc':
+                                    mic_a.vi_params.vi_type_string = 'LiVi Calc'
+
+                                f[bm_ir] = 1
+                                room = room.add_microphone(f.calc_center_median()[:])
+                                mic_names.append(f'{mic_a.name}-{f.index}')
+                            else:
+                                f[bm_ir] = 0
+                        else:
+                            f[bm_ir] = 0
+
+                    mic_bm.transform(mic_a.matrix_world.inverted())
+                    mic_bm.to_mesh(mic_a.data)
+                    mic_bm.free()
+                
+                if not room.n_mics:
+                    self.report({'ERROR'},  'No visible listeners inside the room')
+                    return {'CANCELLED'}
+
+                try:
+                    if sys.platform != 'win32':
+                        kivyrun = au_pb(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'))
+                        p_manager = multiprocessing.Manager()
+                        ir_list = p_manager.list()
+
+                        for m in range(room.n_mics * len(sources)):
+                            ir_list.append([])
+
+                        q_rts = multiprocessing.Queue()
+                        t1 = multiprocessing.Process(target=self.calc_thread, args=(room, q_rts, ir_list))
+                        t1.daemon = True
+                        t1.start()
+
+                        while t1.is_alive():
+                            if kivyrun.poll() is not None:
+                                t1.kill()
+                                return {'CANCELLED'}
+                            sleep(0.1)
+                        
+                        if kivyrun.poll() is None:
+                            kivyrun.kill()
+                        
+                        t1.join()
+                        rts = q_rts.get()
+
+                        if isinstance(rts, Exception):
+                            logentry(f'Current settings cannot produce valid RTs. Try increasing reciver radius or RT rays {str(rts)}')
+                            self.report({'ERROR'}, 'Current settings cannot produce valid RTs. Try increasing reciver radius or RT rays')
+                            return {'CANCELLED'}
+
+                        rirs = ir_list
+                        t1.kill()
+
+                    else:
+                        room.compute_rir()
+                        rirs = []
+
+                        for mrir in room.rir:
+                            for srir in mrir:
+                                rirs.append(srir)
+
+                        try:
+                            rts = room.measure_rt60(plot=False, decay_db=60)
+                        except:
+                            logentry("Can't get a reliable 60dB reduction. Extrapolating from a 30dB reduction")
+                            rts = room.measure_rt60(plot=False, decay_db=30)
+                    
+                    gc.collect()
+
+                except Exception as e:
+                    logentry(str(e))
+                    self.report({'ERROR'}, str(e))
+                    return {'CANCELLED'}
+
+                i = 0
+                for mi, mic_rt in enumerate(rts):
+                    if mi < len(mics):
+                        for si, source_rt in enumerate(mic_rt):
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'Seconds', ' '.join([str(s/16000) for s in range(len(rirs[i]))])])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RIR', ' '.join(rirs[i].astype('str'))])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RT', f'{source_rt:.3f}']) 
+                            resdict[str(frame)][f'{mic_names[mi]} - {sources[si].name}'] = f'{source_rt:.3f}'
+                            i += 1
+                
+                for si, source in enumerate(sources):
+                    fi = len(mics)
+
+                    for mic_a in mic_arrays:
+                        ovp = mic_a.vi_params
+                        mic_bm = bmesh.new()
+                        mic_bm.from_mesh(mic_a.data)
+                        
+                        if not mic_bm.faces.layers.float.get(f'{source.name}_rt{frame}'):
+                            mic_bm.faces.layers.float.new(f'{source.name}_rt{frame}')
+                        
+                        bm_rtres = mic_bm.faces.layers.float[f'{source.name}_rt{frame}']
+                        bm_ir = mic_bm.faces.layers.int['cindex']
+
+                        for face in mic_bm.faces:
+                            if face[bm_ir]:
+                                try:
+                                    face[bm_rtres] = rts[fi][si]
+                                except Exception as e:
+                                    print(e)
+                                fi += 1
+                        
+                        res = [face[bm_rtres] for face in mic_bm.faces if face[bm_ir]]
+
+                        if res:
+                            ovp['omax'][f'rt{frame}'] = max(res) if not ovp['omax'].get(f'rt{frame}') or max(res) > ovp['omax'][f'rt{frame}'] else ovp['omax'][f'rt{frame}']
+                            ovp['oave'][f'rt{frame}'] = sum(res)/len(res)
+                            ovp['omin'][f'rt{frame}'] = min(res) if not ovp['omin'].get(f'rt{frame}') or min(res) < ovp['omin'][f'rt{frame}'] else ovp['omin'][f'rt{frame}']
+                            ovp['livires'][f'rt{frame}'] = res
+                            mic_bm.to_mesh(mic_a.data)
+                        else:
+                            self.report({'WARNING'}, f'No results on sensor mesh {mic_a.name}')
+
+                        mic_bm.free()
+
+                print("Room volume:", f'{room.get_volume():.2f}')
+                print("RT60 (Simulated):", rts[0, 0])
+                print("RT60 (Sabine):", room.rt60_theory(formula='sabine'))
+                print("RT60 (Eyring):", room.rt60_theory(formula='eyring'))
+
+        if len(frames) > 1:
+            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])]) 
+            p_dict = {}
+
+            for frame in frames:
+                for rl in reslists:
+                    if rl[0] == str(frame):
+                        if rl[3] == 'RT':
+                            if frame == frames[0]:
+                                p_dict[rl[2]] = [rl[4]]
+                            else:
+                                p_dict[rl[2]].append(rl[4])
+
+            for pd in p_dict:
+                reslists.append(['All', 'Probe', pd, 'RT', ' '.join(p_dict[pd])]) 
+
+        if mic_arrays:             
+            svp['liparams']['unit'] = 'RT60 (s)'
+            svp['liparams']['type'] = 'VI Acoustics'
+            svp['liparams']['fs'] = frames[0]
+            svp['liparams']['fe'] = frames[-1]
+            svp['liparams']['cp'] = '0'
+            svp['liparams']['offset'] = 0.01
+            svp['viparams']['resnode'], svp['viparams']['restree'] = simnode.name, simnode.id_data.name
+            svp['viparams']['vidisp'] = 'rt'
+            
+        if not simnode.get('goptions'):
+            simnode['goptions'] = {}
+            
+        simnode['goptions']['offset'] = 0.01
+        simnode['reslists'] = reslists
+        simnode['resdict'] = resdict
+        simnode['frames'] = frames
+        svp['liparams']['sources'] = simnode['coptions']['au_sources']
+        simnode.postsim()
+        scene.frame_set(frames[0])
+        return {'FINISHED'}
+
+
+class NODE_OT_WavSelect(NODE_OT_FileSelect):
+    bl_idname = "node.wavselect"
+    bl_label = "Select WAV file"
+    bl_description = "Select the WAV to be convolved"
+    filename_ext = ".WAV;.wav;"
+    filter_glob: bpy.props.StringProperty(default="*.WAV;*.wav;", options={'HIDDEN'})
+    nodeprop = 'wavname'
+    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("WAV", "wav")
+
+
+class NODE_OT_Au_Conv(bpy.types.Operator):
+    bl_idname = "node.auvi_conv"
+    bl_label = "Convolve"
+    bl_description = "Generates a convolved sound based on an impulse response"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        convnode = context.node
+        ir_node = convnode.inputs[0].links[0].from_node
+        fs, audio = wavfile.read(convnode.wavname)
+        odt = audio.dtype
+        
+        if len(audio.shape) > 1:
+            audio = nmean(audio, axis=1).astype(odt)
+
+        if odt == int16:
+            audio = audio.astype(float32)/32768
+        elif odt == int32:
+            audio = (audio.astype(float32)/2147483647)
+        elif odt == float64:
+            audio.astype(float32)
+
+        if fs != 16000:
+            samples = int(16000 * len(audio)/fs)
+            audio = signal.resample(audio, samples)
+            fs = 16000
+
+        for rl in ir_node['reslists']:
+            if f'{rl[0]} - {rl[2]}' == convnode.rir and rl[3] == 'RIR':
+                ir = array([float(s) for s in rl[4].split()]).astype(float32, order='C')
+                break
+        
+        convnode['convolved_audio'] = []
+        convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
+        convnode.postsim()
+        return {'FINISHED'}
+
+class NODE_OT_Au_Play(bpy.types.Operator):
+    bl_idname = "node.auvi_play"
+    bl_label = "Play"
+    bl_description = "Plays a wav file"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        scene = context.scene
+        self.convnode = context.node
+        wm = context.window_manager
+        device = aud.Device()
+        sound = aud.Sound(self.convnode.wavname)
+        self.handle = device.play(sound)
+        self.convnode.play_o = True
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+    
+    def modal(self, context, event):        
+        scene = context.scene
+
+        if not self.convnode.play_o:
+            self.handle.stop()
+            return {'FINISHED'}
+
+        if not self.handle.status:
+            self.convnode.play_o = False
+            return {'FINISHED'}
+
+        return {'PASS_THROUGH'}
+
+class NODE_OT_Au_Stop(bpy.types.Operator):
+    bl_idname = "node.auvi_stop"
+    bl_label = "Stop"
+    bl_description = "Stop playing a wav file"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        scene = context.scene
+        convnode = context.node
+        convnode.play_o = False
+        convnode.play_c = False
+        return {'FINISHED'}
+
+class NODE_OT_Au_PlayC(bpy.types.Operator):
+    bl_idname = "node.auvi_playc"
+    bl_label = "Play convolved file"
+    bl_description = "Plays a convolved wav file"
+    bl_register = True
+    bl_undo = False
+
+    def execute(self, context):
+        scene = context.scene
+        self.convnode = context.node
+        wm = context.window_manager
+        device = aud.Device()
+        sound = aud.Sound.buffer(array(self.convnode['convolved_audio']).astype(float32), 16000)
+        sound = sound.resample(48000, True)
+        self.handle = device.play(sound)
+        self.convnode.play_c = True
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+    
+    def modal(self, context, event):        
+        scene = context.scene
+
+        if not self.convnode.play_c:
+            self.handle.stop()
+            return {'FINISHED'}
+
+        if not self.handle.status:
+            self.convnode.play_c = False
+
+            return {'FINISHED'}
+
+        return {'PASS_THROUGH'}
+
+class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
+    bl_idname = "node.auvi_save"
+    bl_label = "Save"
+    bl_description = "Save a convolved wav file"
+    bl_register = True
+    bl_undo = False
+    filename_ext = ".wav"
+
+    filter_glob: bpy.props.StringProperty(
+        default="*.wav",
+        options={'HIDDEN'},
+        maxlen=255,  # Max internal buffer length, longer would be clamped.
+    )
+
+    def invoke(self, context, event):
+        self.node = context.node
+        self.filepath = f"{self.node.rir}.wav"
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
+    def execute(self, context):
+        sound = aud.Sound.buffer(array(self.node['convolved_audio']).astype(float32), 16000)
+        sound.write(self.filepath, 16000, 1, 0, 0, 0, 16, 256)
+        return {'FINISHED'}
+

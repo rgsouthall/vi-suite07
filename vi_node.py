@@ -35,19 +35,21 @@ from .flovi_func import ret_fvb_menu, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_m
 from numpy import array, stack, where, unique
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
-# import matplotlib
-# matplotlib.use('qtagg', force=True)
 cur_dir = os.getcwd()
 
 try:
-    #import netgen
     from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
     from netgen.stl import STLGeometry
     from pyngcore import SetNumThreads, TaskManager
     ng = 1
 except Exception as e:
-    print('Problem with Netgen installation: {}'.format(e))
     ng = 0
+
+try:
+    import pyroomacoustics as pra
+    ra = 1
+except:
+    ra = 0
 
 ofoam = 0
 
@@ -56,6 +58,9 @@ if sys.platform in ('darwin', 'win32'):
 
     for line in dck_run.stdout.readlines():
         lds = line.decode().split()
+        # Below is required to register the lines
+        print(lds[0], lds[1])
+
         if lds[0] == 'dicehub/openfoam' and lds[1] == '11':
             ofoam = 1
 
@@ -63,7 +68,6 @@ flo_libs = [ng, ofoam]
 os.chdir(cur_dir)
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
-# envi_ecs = envi_embodied()
 
 
 class ViNetwork(NodeTree):
@@ -71,7 +75,6 @@ class ViNetwork(NodeTree):
     bl_idname = 'ViN'
     bl_label = 'VI-Suite Nodes'
     bl_icon = 'NODETREE'
-#    viparams = {}
 
 
 class ViNodes:
@@ -79,8 +82,8 @@ class ViNodes:
     def poll(cls, ntree):
         return ntree.bl_idname == 'ViN'
 
-# Parametric nodes
 
+# Parametric nodes
 
 class No_Anim(Node, ViNodes):
     '''Node to automate changes in parameters'''
@@ -211,7 +214,6 @@ class No_Loc(Node, ViNodes):
 
     def init(self, context):
         self.outputs.new('So_Vi_Loc', 'Location out')
-        #self.outputs.new('So_Anim', 'Parameter')
         self['entries'] = [('None', 'None', 'None')]
 
         try:
@@ -262,8 +264,8 @@ class No_ASC_Import(Node, ViNodes):
         row = layout.row()
         row.operator('node.ascimport', text='Import ASC')
 
-# Export Nodes
 
+# Export Nodes
 
 class No_Li_Geo(Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
@@ -2179,8 +2181,8 @@ class ViEnRIn(So_En_ResU):
                                 resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
                                 resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
                                 resdict[r[0]][r[1]][r[2]].append(r[3])
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logentry(e)
 
                     self.node.inputs[ax]['resdict'] = resdict
                     self.node.inputs[ax].r_len = self.node.inputs['X-axis'].r_len if resdict else 0
@@ -2789,14 +2791,11 @@ class No_Vi_Metrics(Node, ViNodes):
     bl_icon = 'LONGDISPLAY'
 
     def zupdate(self, context):
-        self.update()
+        self.res_update()
 
     def zitems(self, context):
-        #print('zitems', self['znames'])
         if self.inputs[0].links:
             try:
-                # if self.zone_menu not in [zn[0] for zn in self['znames']]:
-                #    self.zone_menu = self['znames'][0][0] 
                 return [tuple(z) for z in self['znames']]
             except Exception:
                 return [('None', 'None', 'None')]
@@ -2843,7 +2842,6 @@ class No_Vi_Metrics(Node, ViNodes):
                 return [(ect, ect, 'EC type') for ect in ec_typemenu] if ec_typemenu else [('None', 'None', 'None')]
             
             except Exception:
-                print('e')
                 return [('None', 'None', 'None')]
         
         else:
@@ -2855,7 +2853,8 @@ class No_Vi_Metrics(Node, ViNodes):
                                 ("3", "Embodied carbon", "Embodied carbon results"),
                                 ("4", "Comfort", "Comfort results"),
                                 ("5", "IAQ", "Internal air quality results"),
-                                ("6", "WLC", "WHole life carbon results")],
+                                ("6", "WLC", "Whole life carbon results"),
+                                ("7", "Acoustics", "Acoustics results")],
                                 name="", description="Results type", default="0", update=zupdate)
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results"),
                                     ("1", "RIBA 2030", "RIBA 2030 results"),
@@ -2946,10 +2945,9 @@ class No_Vi_Metrics(Node, ViNodes):
                     newrow(layout, 'Metric:', self, "energy_menu")
                 elif self.metric == '1':
                     newrow(layout, 'Metric:', self, "light_menu")
-                # elif self.metric == '3':
-                #     newrow(layout, 'Embodied standard:', self, "ec_menu")
 
                 newrow(layout, 'Frame:', self, "frame_menu")
+
                 if self.frame_menu and self.frame_menu != 'None':
 
                     if self.metric == '3':
@@ -3016,7 +3014,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                     newrow(layout, 'Type', self, 'riba_menu')
                                     tar = self['riba_en'][self.riba_menu]
                                     epass = '(FAIL kWh/m2 > {})'.format(tar) if self['res']['totkwh']/self['res']['fa'] > tar else '(PASS kWh/m2 <= {})'.format(tar)
-    #                                shpass = '(FAIL kWh/m2 > {})'.format(20) if self['res']['totkwh']/self['res']['fa'] > 20 else '(PASS kWh/m2 <= {})'.format(20)
                                     row = layout.row()
                                     row.label(text = "Space heating (kWh/m2): {:.1f}".format(self['res']['hkwh']/self['res']['fa']))
                                     row = layout.row()
@@ -3089,15 +3086,17 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['b_area'] = areaDF
                                 if self.breeam_menu == '0':
                                     # if avDF >= 2 and ratioDF >= 0.3:
-                                    # newrow(layout, 'Education space:', self, "breeam_edumenu")
                                     if self.breeam_edumenu == '0':
                                         self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [2]
+
                                         if areaDF >= 80:
                                             credits = 2
+
                                     elif self.breeam_edumenu == '1':
                                         self['res']['b_areas'] = [0.6, 0.8]
                                         self['res']['b_creds'] = [1, 2]
+
                                         if areaDF >= 60:
                                             credits = 1
                                         if areaDF >= 80:
@@ -3107,24 +3106,28 @@ class No_Vi_Metrics(Node, ViNodes):
                                     if self.breeam_healthmenu == '0':
                                         self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [2]
+
                                         if areaDF >= 80:
                                             credits = 2
 
                                     elif self.breeam_healthmenu == '1':
                                         self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [1, 2]
+
                                         if areaDF >= 80:
                                             credits = 1 if avDF < 3 else 2
 
                                 elif self.breeam_menu == '2':
                                     self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
+
                                     if areaDF >= 80:
                                         credits = 2
 
                                 elif self.breeam_menu == '3':
                                     self['res']['b_areas'] = [0.35]
                                     self['res']['b_creds'] = [1]
+
                                     if self.breeam_retailmenu == '0':
                                         if areaDF >= 35:
                                             credits = 1
@@ -3132,12 +3135,14 @@ class No_Vi_Metrics(Node, ViNodes):
                                     elif self.breeam_retailmenu == '1':
                                         self['res']['b_areas'] = [0.8]
                                         self['res']['b_creds'] = [1]
+
                                         if areaDF >= 80:
                                             credits = 1
 
                                 elif self.breeam_menu == '4':
                                     self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
+
                                     if self.breeam_prisonmenu == '0':
                                         if areaDF >= 80:
                                             credits = 2
@@ -3161,22 +3166,24 @@ class No_Vi_Metrics(Node, ViNodes):
                                 elif self.breeam_menu == '5':
                                     self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
+
                                     if areaDF >= 80:
                                         credits = 2
 
                                 elif self.breeam_menu == '6':
                                     self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [2]
+
                                     if areaDF >= 80:
                                         credits = 2
 
                                 elif self.breeam_menu == '7':
                                     self['res']['b_areas'] = [0.8]
                                     self['res']['b_creds'] = [1]
+
                                     if areaDF >= 80:
                                         credits = 1
 
-                                #self['res']['b_creds'] = credits
                                 row = layout.row()
                                 row.label(text="Average DF: {}%".format(avDF))
                                 row = layout.row()
@@ -3191,8 +3198,6 @@ class No_Vi_Metrics(Node, ViNodes):
                             elif sda != 'N/A':
                                 row = layout.row()
                                 row.label(text=f"Hours above target: {sda}")
-                                # row = layout.row()
-                                # row.label(text=f"Area above target: {sdaarea}")
 
                         elif self.light_menu == '1':
                             newrow(layout, 'Healthcare', self, 'leed_menu')
@@ -3260,7 +3265,6 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     elif self.metric == '3':
                         if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone', 'All entities') and self.frame_menu != 'All':
-                            # newrow(layout, 'Type', self, 'riba_menu')
                             newrow(layout, 'Timespan:', self, "ec_years")
                             row = layout.row()
 
@@ -3387,14 +3391,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             if self['res']['sda'] >= 0:
                                 row = layout.row()
                                 row.operator('node.vi_info', text='Infographic')
-                    # elif self.metric == '3':
-                    #     print(self['res']['ec'], self.frame_menu, self.zone_menu)
-                    #     if self['res']['ec'] and self.frame_menu != 'All' and self.zone_menu == 'All':
-                    #         row = layout.row()
-                    #         row.operator('node.ec_pie', text='Pie chart')
-                    #     # elif self.frame_menu == 'All':
-                    #     #     row = layout.row()
-                    #     #     row.operator('node.ec_line', text='Line chart')
+
                     elif self.metric == '4' and self.frame_menu == 'All':
                         if self['res'].get('alloh1s'):
                             row = layout.row()
@@ -3405,6 +3402,10 @@ class No_Vi_Metrics(Node, ViNodes):
                             row = layout.row()
                             row.operator('node.wlc_line', text='Line chart')
 
+                    elif self.metric == '7':
+                        if self['res']['rt'] and type(self['res']['rt']) is float:                           
+                            row = layout.row()
+                            row.label(text='RT60 (s) = {:.3f}s'.format(self['res']['rt']))
 
     def update(self):
         try:
@@ -3415,6 +3416,9 @@ class No_Vi_Metrics(Node, ViNodes):
                     frames = list(dict.fromkeys([z[0] for z in self['rl']]))
                     self['frames'] =  [(f, f, 'Frame') for f in frames]
 
+                    if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
+                        self.frame_menu = self['frames'][0][0]
+
                     if self.metric == '3':
                         self['frames'] =  [(f, f, 'Frame') for f in frames if f != 'All']
 
@@ -3422,14 +3426,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and (z[3] == "Surface EC (kgCO2e/y)" or z[3] == "Object EC (kgCO2e/y)")])))
                         else:
                             znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == f"{self.em_menu} EC (kgCO2e/y)"])))
-                        # elif self.em_menu == 'Zone':
-                        #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Zone EC (kgCO2e/y)"])))
-                        # elif self.em_menu == 'Object':
-                        #     znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Embodied carbon' and z[3] == "Object EC (kgCO2e/y)"])))
 
-                        # if any ([z[3] == "Total EC (kgCO2e/y)" for z in self['rl']]):
-                        #     self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
-                        # else:
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
 
                     elif self.metric == '2':
@@ -3443,6 +3440,10 @@ class No_Vi_Metrics(Node, ViNodes):
                     elif self.metric == '6':
                         znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Zone temporal'])))
                         self['znames'] = [(zn, zn, 'Zone name') for zn in znames] + [('All', 'All', 'All entities')]
+                    
+                    elif self.metric == '7':
+                        znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Probe'])))
+                        self['znames'] = [(zn, zn, 'Probe name') for zn in znames]
 
                     else:
                         znames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] in ('Zone spatial', 'Zone temporal')])))
@@ -3452,9 +3453,6 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     if not self.get('znames'):
                         self['znames'] = [('None', 'None', 'None')]
-
-                    if self.frame_menu == '' or self.frame_menu not in [sf[0] for sf in self['frames']]:
-                        self.frame_menu = self['frames'][0][0]
 
                     if self.zone_menu == '' or self.zone_menu not in [szn[0] for szn in self['znames']]:
                         self.zone_menu = self['znames'][0][0]
@@ -3476,11 +3474,8 @@ class No_Vi_Metrics(Node, ViNodes):
                 self['frames'] = [('None', 'None', 'None')]
                 self['znames'] = [('None', 'None', 'None')]
   
-            
-            # if self.probe_menu == '' or self.probe_menu not in [spr[0] for spr in self['probes']]:
-            #     self.probe_menu = self['probes'][0][0]
-
             self.res_update()
+
         except Exception as e:
             print(e)
 
@@ -3652,7 +3647,6 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     if self.breeam_edumenu == '1':
                         mAs = (0.6, 0.8)
-                    #     cred = 1
 
                 elif self.breeam_menu == '1':
                     self['res']['rDF'] = [2]
@@ -4076,7 +4070,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                         aircool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
                                         aaircool_kwh += aaircool_kwh
                                     elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
-                                        #print('zone ec', float(r[4]))
                                         ec_kgco2e = float(r[4])
                                         aec_kgco2e += ec_kgco2e
                                     elif r[3] == 'PV power (W)':
@@ -4137,6 +4130,17 @@ class No_Vi_Metrics(Node, ViNodes):
                 reslists.append(['All', 'Carbon', self.zone_menu, 'Whole-life carbon (kgCO2e)', ' '.join(['{:.3f}'.format(wlc) for wlc in wlcs])])
                 self['reslists'] = reslists
 
+        elif self.metric == '7':
+            self['res']['rt'] = 0
+
+            for r in self['rl']:
+                if r[0] == self.frame_menu:
+                    if r[0] != 'All':
+                        if r[2] == self.zone_menu:
+                            if r[3] == 'RT':
+                                #rts = array([float(p) for p in r[4].split()])
+                                #rt = float(r[4])
+                                self['res']['rt'] = float(r[4])
     # def ret_reslists(self, zones):
     #     reslists = []
 
@@ -4880,11 +4884,12 @@ vi_edit = [NodeItem("No_Text", label="Text Edit")]
 vi_analysis = [NodeItem("No_Vi_SP", label="Sun Path"), NodeItem("No_Vi_WR", label="Wind Rose"),
              NodeItem("No_Vi_SVF", label="Sky View"), NodeItem("No_Vi_SS", label="Shadow map"),
              NodeItem("No_Li_Sim", label="LiVi Simulation"), NodeItem("No_En_Sim", label="EnVi Simulation"),
-             NodeItem("No_Flo_Sim", label="FloVi Simulation"), NodeItem("No_Vi_EC", label="Embodied Carbon")]
+             NodeItem("No_Flo_Sim", label="FloVi Simulation"), NodeItem("No_Vi_EC", label="Embodied Carbon"),
+             NodeItem("No_Au_Sim", label="AuVi Simulation")]
 
 # vi_anim = [NodeItem("No_Anim", label="Parametric")]
 vi_display = [NodeItem("No_Vi_Chart", label="Chart"), NodeItem("No_Vi_HMChart", label="Heatmap"), NodeItem("No_Vi_Metrics", label="Metrics")]
-vi_out = [NodeItem("No_CSV", label="CSV")]
+vi_out = [NodeItem("No_CSV", label="CSV"), NodeItem("No_Au_Conv", label="AuVi Convolve")]
 vi_image = [NodeItem("No_Li_Im", label="LiVi Image"),
             NodeItem("No_Li_Gl", label="LiVi Glare"), NodeItem("No_Li_Fc", label="LiVi False-colour")]
 vi_input = [NodeItem("No_Loc", label="VI Location"), NodeItem("No_ASC_Import", label="ASC Import")]
@@ -6999,7 +7004,6 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
     def uv_update(self, context):
         pstcs, resists = [], []
-
         
         if self.envi_con_makeup == '0':
             con_layers = self.ec.propdict[self.con_type(self.envi_con_type)][self.envi_con_list]
@@ -9626,3 +9630,178 @@ envimatnode_categories = [
         EnViMatNodeCategory("Shading", "Shading Node", items=envi_mat_sha),
         EnViMatNodeCategory("Schedule", "Schedule Node", items=envi_mat_sch),
         EnViMatNodeCategory("Power", "PV Node", items=envi_mat_pv)]
+
+
+#  AuVi Nodes
+
+class So_Au_Scene(NodeSocket):
+    '''AuVi scene socket'''
+    bl_idname = 'So_Au_Scene'
+    bl_label = 'AuVi Scene'
+
+    valid = ['Au_Scene']
+
+    def draw(self, context, layout, node, text):
+        layout.label(text=text)
+
+    def draw_color(self, context, node):
+        return (0.45, 1.0, 0.45, 1.0)
+
+class So_Au_IR(NodeSocket):
+    '''AuVi IR socket'''
+    bl_idname = 'So_Au_IR'
+    bl_label = 'AuVi IR'
+
+    valid = ['Au_IR']
+
+    def draw(self, context, layout, node, text):
+        layout.label(text=text)
+
+    def draw_color(self, context, node):
+        return (0.45, 1.0, 0.45, 1.0)
+
+    #def ret_valid(self, node):
+        #return ['Location']
+
+class No_Au_Sim(Node, ViNodes):
+    '''Node to simulate acoustics with pyroomacoustics'''
+    bl_idname = 'No_Au_Sim'
+    bl_label = 'AuVi Simulation'
+    bl_icon = 'SPEAKER'
+
+    def ret_params(self):
+        return [str(x) for x in (self.max_order, self.rt_rays, self.r_radius, self.animated, self.startframe, self.endframe)]
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != self.ret_params())
+
+    max_order: IntProperty(name='', description='Accuracy: the higher the number the more accurate', min=0, max=3, default=1, update=nodeupdate)
+    rt_rays: IntProperty(name='', description='No. of ray-tracing rays', min=1000, max=1000000, default=4000, update=nodeupdate)
+    r_radius: FloatProperty(name = "m", description = "Receiver radius", min=0.05, max=1, default=0.5, update=nodeupdate)
+    animated: BoolProperty(name="", description="Animated analysis", default=0, update=nodeupdate)
+    startframe: IntProperty(name="", description="Start frame for animation", min=0, default=0, update=nodeupdate)
+    endframe: IntProperty(name="", description="End frame for animation", min=0, default=0, update=nodeupdate)
+
+    def init(self, context):
+        self['exportstate'] = ''
+        self.outputs.new('So_Au_IR', 'IR')
+        self.outputs.new('So_Vi_Res', 'Results out')
+    
+    def draw_buttons(self, context, layout):
+        if ra:
+            newrow(layout, "Animated:", self, 'animated')
+
+            if self.animated:
+                row = layout.row()
+                row.label(text='Frames:')
+                col = row.column()
+                subrow = col.row(align=True)
+                subrow.prop(self, 'startframe')
+                subrow.prop(self, 'endframe')
+
+            newrow(layout, "Max order:", self, 'max_order')
+            newrow(layout, "RT rays:", self, 'rt_rays')
+            newrow(layout, "Receiver radius:", self, 'r_radius')
+            row = layout.row()
+            row.operator('node.rir_sim', text='Generate IR')
+        else:
+            row = layout.row()
+            row.label(text='Pyroomacoustics not found')
+
+    def update(self):
+        for sock in self.outputs:
+            socklink(sock, self.id_data.name)
+
+    def presim(self):
+        self['coptions'] = {}
+        self['goptions'] = {'offset': 0.01}
+        #self['goptions']['offset'] = 0.01
+        
+    def postsim(self):
+        self['exportstate'] = self.ret_params()
+
+        for ops in self.outputs:
+            if ops.links:
+                for dnode in set([li.to_node for li in ops.links]):
+                    if dnode.bl_idname in ('No_AuVi_Conv', 'No_Vi_Chart', 'No_Vi_Metrics'):
+                        dnode.update()
+
+        nodecolour(self, 0)
+
+class No_Au_Conv(Node, ViNodes):
+    '''AuVi convolution node'''
+    bl_idname = 'No_Au_Conv'
+    bl_label = 'AuVi Convolve'
+    bl_icon = 'SPEAKER'
+
+    def update(self):
+        context = bpy.context
+
+        if self.rir not in [rir[0] for rir in self.ret_rirs(context)]:
+            self.rir = self.ret_rirs(context)[0][0]
+
+    def ret_rirs(self, context):
+        rirs = []
+
+        if self.inputs[0].links:
+            if self.inputs[0].links[0].from_node.get("reslists"):
+                for rl in self.inputs[0].links[0].from_node['reslists']:
+                    if rl[3] == 'RIR':
+                        rirs.append((f'{rl[0]} - {rl[2]}', f'{rl[0]} - {rl[2]}', f'{rl[2]} impulse response (frame {rl[0]}'))                
+                return rirs
+            return [('None', 'None', 'None')]
+        return [('None', 'None', 'None')]
+
+    def ret_params(self):
+        return [str(x) for x in (self.wavname, self.rir)]
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != self.ret_params())
+        
+    wavname: StringProperty(name="", description="Name of the WAV file to be convolved", default="", update=nodeupdate)
+    rir: EnumProperty(name='', description='Impulse response', items=ret_rirs, update=nodeupdate)
+    play_o: bprop("", "", False)
+    play_c: bprop("", "", False)
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self.inputs.new('So_Au_IR', 'IR')
+        self.outputs.new('So_Vi_Res', 'Results out')
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator('node.wavselect', text='WAV select')
+
+        if self.wavname:
+            row = layout.row()
+            row.label(text=self.wavname)
+            row = layout.row()
+
+            if self.play_o:
+                row.operator('node.auvi_stop', text='Stop')
+            else:
+                row.operator('node.auvi_play', text='Play')
+            
+            newrow(layout, 'IR', self, "rir")
+
+            if self.rir != 'None':
+                row = layout.row()
+                
+                if not self.play_c:
+                    row.operator('node.auvi_conv', text='Convolve')
+
+                if self.get('convolved_audio'):
+                    row = layout.row()
+
+                    if self.play_c:
+                        row.operator('node.auvi_stop', text='Stop')
+                    else:
+                        row.operator('node.auvi_playc', text='Play')
+                    
+                    row = layout.row()
+                    row.operator('node.auvi_save', text='Save')
+
+    def postsim(self):
+        self['exportstate'] = self.ret_params()
+        nodecolour(self, 0)
+

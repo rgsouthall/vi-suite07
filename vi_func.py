@@ -18,7 +18,7 @@
 
 import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, blf, bpy_extras, math
 from subprocess import Popen
-from numpy import array, digitize, amax, amin, average, clip, char, int8, frombuffer, uint8, multiply, float32
+from numpy import array, digitize, amax, amin, average, clip, char, int8, int16, frombuffer, uint8, multiply, float32
 from math import sin, cos, asin, acos, pi, ceil, log10
 from math import e as expo
 from mathutils import Vector, Matrix
@@ -532,6 +532,47 @@ if __name__ == '__main__':\n\
         kivyfile.write(kivytext)
     return Popen([sys.executable, file+".py"])
 
+def au_pb(file):
+    kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+from kivy.app import App \n\
+from kivy.clock import Clock \n\
+from kivy.uix.progressbar import ProgressBar\n\
+from kivy.uix.boxlayout import BoxLayout\n\
+from kivy.uix.button import Button\n\
+from kivy.uix.label import Label\n\
+from kivy.config import Config\n\
+Config.set('graphics', 'width', '500')\n\
+Config.set('graphics', 'height', '200')\n\
+Config.set('kivy', 'log_level', 'warning')\n\
+\n\
+class CancelButton(Button):\n\
+    def on_touch_down(self, touch):\n\
+        if 'button' in touch.profile:\n\
+            if self.collide_point(*touch.pos):\n\
+                App.get_running_app().stop()\n\
+        else:\n\
+            return\n\
+    def on_open(self, widget, parent):\n\
+        self.focus = True\n\
+\n\
+class Calculating(App):\n\
+    bl = BoxLayout(orientation='vertical')\n\
+    rpb = ProgressBar()\n\
+    button = CancelButton(text='Cancel', font_size=20)\n\
+    bl.add_widget(rpb)\n\
+    bl.add_widget(button)\n\
+\n\
+    def build(self):\n\
+        self.title = 'Calculating RTs'\n\
+        refresh_time = 1\n\
+        return self.bl\n\
+\n\
+if __name__ == '__main__':\n\
+    Calculating().run()\n"
+
+    with open(file+".py", 'w') as kivyfile:
+        kivyfile.write(kivytext)
+    return Popen([sys.executable, file+".py"])
 
 def fvprogressbar(file, et, residuals, frame):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -677,6 +718,8 @@ def lividisplay(self, scene):
                 res_name = f'aga{svp.vi_views}v{frame}'
             elif svp.li_disp_menu == 'ago1v':
                 res_name = f'ago{svp.vi_views}v{frame}'
+            elif svp.li_disp_menu == 'rt':
+                res_name = f'{svp.au_sources}_rt{frame}'    
             else:
                 res_name = f'{svp.li_disp_menu}{frame}'
 
@@ -722,6 +765,86 @@ def lividisplay(self, scene):
                     for fii, fi in enumerate(fis):
                         lms[fi].keyframe_points[f].co = frame, nmatis[fii]
 
+def lividisplay(self, scene):
+    svp = scene.vi_params
+    svp.vi_view_update = 1
+    anim_name = "LiVi {} MI".format(self.name)
+    disp_menu = svp.li_disp_menu
+    params = 'liparams'
+    type_strings = ('LiVi Res', 'LiVi_Calc')
+
+    if self.id_data.vi_params.vi_type_string == type_strings[0]:
+        frames = range(svp[params]['fs'], svp[params]['fe'] + 1)
+        ll = svp.vi_leg_levels
+        increment = 1/ll
+
+        if len(frames) > 1:
+            if not self.id_data.data.animation_data:
+                self.id_data.data.animation_data_create()
+
+            self.id_data.data.animation_data.action = bpy.data.actions.new(name=anim_name)
+            fis = [str(face.index) for face in self.id_data.data.polygons]
+            lms = {fi: self.id_data.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
+
+            for fi in fis:
+                lms[fi].keyframe_points.add(len(frames))
+
+        for f, frame in enumerate(frames):
+            bm = bmesh.new()
+            bm.from_mesh(self.id_data.data)
+            geom = bm.verts if svp[params]['cp'] == '1' else bm.faces
+            sf = str(frame)
+
+            if disp_menu == 'aga1v':
+                res_name = f'aga{svp.vi_views}v{frame}'
+            elif disp_menu == 'ago1v':
+                res_name = f'ago{svp.vi_views}v{frame}'
+            elif disp_menu == 'rt':
+                res_name = f'{svp.au_sources}_rt{frame}'  
+            else:
+                res_name = f'{disp_menu}{frame}'
+
+            if geom.layers.float.get(res_name):
+                vires = geom.layers.float[res_name]
+                res = geom.layers.float[res_name]
+                oreslist = [g[vires] for g in geom]
+                self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+
+                if svp.vi_res_process == '2' and svp.script_file:
+                    try:
+                        vals = ret_res_vals(svp, array([f[vires] for f in bm.faces])) if svp[params]['cp'] == '0' else \
+                        ret_res_vals(svp, array([(sum([vert[vires] for vert in f.verts]))/len(f.verts) for f in bm.faces]))
+                        nmatis = array(vals).astype(int8)
+                    except:
+                        nmatis = zeros(len(bm.faces))
+
+                else:
+                    smaxres, sminres = ret_res_vals(svp, [max(svp[params]['maxres'].values()), min(svp[params]['minres'].values())])[:2]
+
+                    if smaxres > sminres:
+                        vals = (array(ret_res_vals(svp, array([f[vires] for f in bm.faces]))) - sminres)/(smaxres - sminres) if svp[params]['cp'] == '0' else \
+                            (array(ret_res_vals(svp, array([(sum([vert[vires] for vert in f.verts]))/len(f.verts) for f in bm.faces]))) - sminres)/(smaxres - sminres)
+                    else:
+                        vals = array(ret_res_vals(svp, array([max(svp[params]['maxres'].values()) for x in range(len(bm.faces))])))
+
+                    if vires != res:
+                        for g in geom:
+                            g[res] = g[vires]
+
+                    if svp[params]['unit'] == 'SVF (%)X':
+                        nmatis = [(0, ll - 1)[v == 1] for v in vals]
+                    else:
+                        bins = array([increment * i for i in range(ll)])
+                        nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
+
+                bm.to_mesh(self.id_data.data)
+                bm.free()
+
+                if len(frames) == 1:
+                    self.id_data.data.polygons.foreach_set('material_index', nmatis)
+                elif len(frames) > 1:
+                    for fii, fi in enumerate(fis):
+                        lms[fi].keyframe_points[f].co = frame, nmatis[fii]
 
 def ret_vp_loc(context):
     cspr = context.space_data.region_3d
@@ -1732,7 +1855,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             dp = 0 if max(res) > 100 else 2 - int(log10(max(res)))
             dpi = bpy.context.preferences.system.dpi
             nres = char.mod('%.{}f'.format(dp), res)
-            fsdist = (fontsize/distances).astype(int8)
+            fsdist = (fontsize/distances).astype(int16)
             xposis = posis[0::2]
             yposis = posis[1::2]
             alldata = zip(nres, fsdist, xposis, yposis)
@@ -1964,9 +2087,9 @@ def solarRiseSet(doy, beta, lat, lon, riseset):
 #    return(fig, ax)
 
 
-def skframe(pp, scene, oblist):
+def skframe(pp, scene, oblist, params):
     svp = scene.vi_params
-    for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+    for frame in range(svp[params]['fs'], svp[params]['fe'] + 1):
         scene.frame_set(frame)
         for o in [o for o in oblist if o.data.shape_keys]:
             for shape in o.data.shape_keys.key_blocks:

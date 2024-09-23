@@ -94,7 +94,7 @@ class VI_PT_3D(bpy.types.Panel):
                     if svp.vi_display_rp_sh:
                         newrow(layout, "Shadow colour:", svp, "vi_display_rp_fsh")
 
-            elif svp['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
+            elif svp['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc', 'rt'):
                 if not svp.vi_display:
                     newrow(layout, "Process", svp, "vi_disp_process")
                     row = layout.row()
@@ -105,6 +105,8 @@ class VI_PT_3D(bpy.types.Panel):
                         row.operator("view3d.ssdisplay", text="Shadow Display")
                     elif svp['viparams']['vidisp'] == 'li':
                         row.operator("view3d.libd", text="Radiance Display")
+                    elif svp['viparams']['vidisp'] == 'rt':
+                        row.operator("view3d.rtdisplay", text="Acoustics Display")
 
                 elif [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
                     if not svp.ss_disp_panel:
@@ -112,6 +114,9 @@ class VI_PT_3D(bpy.types.Panel):
 
                         if svp.li_disp_menu in ('ago1v', 'aga1v'):
                             newrow(layout, 'GA view:', svp, "vi_views")
+
+                        elif svp['viparams']['vidisp'] == 'rt':
+                            newrow(layout, 'Source:', svp, "au_sources")
 
                         newrow(layout, 'Legend unit:', svp, "vi_leg_unit")
                         newrow(layout, 'Processing:', svp, "vi_res_process")
@@ -180,7 +185,7 @@ class VI_PT_Mat(bpy.types.Panel):
             svp = scene.vi_params
             mvp = cm.vi_params
             layout = self.layout
-            newrow(layout, 'Material type', mvp, "mattype")
+            newrow(layout, 'Material type:', mvp, "mattype")
 
             if mvp.mattype in ('0', '1'):
                 rmmenu(layout, cm)
@@ -332,6 +337,53 @@ class VI_PT_Mat(bpy.types.Panel):
 
                     if mvp.flovi_bmb_type in ('Wall', 'Solid'):
                         newrow(layout, "HTC:", mvp, "flovi_htc")
+                
+            elif mvp.mattype == '3':
+                if not mvp.am.updated:
+                    mvp.am.update()
+
+                newrow(layout, "AuVi absorption class:", mvp, "auvi_abs_class")
+
+                if mvp.auvi_abs_class == '0':
+                    newrow(layout, "Absorption type:", mvp, "auvi_type_abs")
+                    newrow(layout, "Absorption material:", mvp, "auvi_mat_abs")
+
+                elif mvp.auvi_abs_class == '1': 
+                    newrow(layout, "Flat response:", mvp, "auvi_abs_flat")
+
+                    if mvp.auvi_abs_flat:
+                        newrow(layout, "Absorption coefficient:", mvp, "auvi_o1_abs")
+                    else:
+                        row = layout.row()
+                        row.label(text="Absorption coefficients:")
+                        newrow(layout, "125Hz", mvp, "auvi_o1_abs")
+                        newrow(layout, "250Hz", mvp, "auvi_o2_abs")
+                        newrow(layout, "500Hz", mvp, "auvi_o3_abs")
+                        newrow(layout, "1000Hz", mvp, "auvi_o4_abs")
+                        newrow(layout, "2000Hz", mvp, "auvi_o5_abs")
+                        newrow(layout, "4000Hz", mvp, "auvi_o6_abs")
+                        newrow(layout, "8000Hz", mvp, "auvi_o7_abs")
+                    
+                newrow(layout, "AuVi scatter class:", mvp, "auvi_scatt_class")
+                
+                if mvp.auvi_scatt_class == '0':
+                    newrow(layout, "Scatter type:", mvp, "auvi_type_scatt")
+                    newrow(layout, "Scatter material", mvp, "auvi_mat_scatt")
+                else:
+                    newrow(layout, "Flat response", mvp, "auvi_scatt_flat")
+
+                    if mvp.auvi_scatt_flat:
+                        newrow(layout, "Scatter coefficient:", mvp, "auvi_o1_scatt")
+                    else:
+                        row = layout.row()
+                        row.label(text="Scatter coefficients")
+                        newrow(layout, "125Hz", mvp, "auvi_o1_scatt")
+                        newrow(layout, "250Hz", mvp, "auvi_o2_scatt")
+                        newrow(layout, "500Hz", mvp, "auvi_o3_scatt")
+                        newrow(layout, "1000Hz", mvp, "auvi_o4_scatt")
+                        newrow(layout, "2000Hz", mvp, "auvi_o5_scatt")
+                        newrow(layout, "4000Hz", mvp, "auvi_o6_scatt")
+                        newrow(layout, "8000Hz", mvp, "auvi_o7_scatt")
 
 
 class VI_PT_Ob(bpy.types.Panel):
@@ -453,7 +505,9 @@ class VI_PT_Ob(bpy.types.Panel):
 
         if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
             newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
-
+            
+            if obj.type == 'EMPTY':
+                newrow(layout, 'AuVi type:', ovp, 'auvi_sl')
 
 def rmmenu(layout, cm):
     mvp = cm.vi_params
