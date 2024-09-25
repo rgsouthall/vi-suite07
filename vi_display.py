@@ -26,7 +26,7 @@ from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im, move_obs
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
 from .livi_func import setscenelivivals, res_interpolate, res_direction
-from .auvi_func import setsceneauvivals 
+#from .auvi_func import setsceneauvivals 
 # from .livi_export import spfc
 from .vi_dicts import res2unit, unit2res
 from . import livi_export
@@ -2008,10 +2008,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         self.spcoll = create_coll(context, 'SunPath')
         context.view_layer.layer_collection.children[self.spcoll.name].exclude = 0
         sd = 100
-
-        # Set the node colour
         node.export()
-
         svp['viparams']['resnode'], svp['viparams']['restree'] = node.name, node.id_data.name
         scene.cursor.location = (0.0, 0.0, 0.0)
         suns = [ob for ob in self.spcoll.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN']
@@ -2061,6 +2058,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
             if spathob.name not in self.spcoll.objects:
                 self.spcoll.objects.link(spathob)
+
                 if spathob.name in scene.collection.objects:
                     scene.collection.objects.unlink(spathob)
 
@@ -2150,7 +2148,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         svp = scene.vi_params
         svp.vi_display = 1
         svp['viparams']['vidisp'] = 'wr'
-        self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_scatt_col
+        self.wt, self.scatcol, self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = svp.wind_type, 0, 0, 0, 0, 0, svp.vi_leg_col
         self.images = ('legend.png', 'table.png')
         self.results_bar = results_bar(self.images)
         simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
@@ -2556,7 +2554,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.frame = self.scene.frame_current
         self.zmax = 100
         self.zmin = 0
-        self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = 0, 0, 0, 0, svp.vi_scatt_col
+        self.scattmax, self.scattmin, self.scattmaxval, self.scattminval, self.scattcol = 0, 0, 0, 0, svp.vi_leg_col
         self.title = 'Total Area Sunlit'
         self.scatt_legend = 'Area (%)'
         self.xtitle = 'Days'

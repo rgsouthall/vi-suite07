@@ -442,7 +442,7 @@ class NODE_OT_SVF(bpy.types.Operator):
             for frame in frange:
                 g = 0
                 scene.frame_set(frame)
-                shadtree = rettree(scene, [ob for ob in shadobs if ob.visible_get()], ('', '2')[simnode.signore])
+                shadtree = rettree(scene, [ob for ob in shadobs if ob.visible_get()], ('', '1')[simnode.signore])
                 shadres = geom.layers.float['svf{}'.format(frame)]
 
                 if gpoints:
@@ -608,7 +608,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             for frame in frange:
                 g = 0
                 scene.frame_set(frame)
-                shadtree = rettree(scene, [ob for ob in shadobs if ob.visible_get()], ('', '2')[simnode.signore])
+                shadtree = rettree(scene, [ob for ob in shadobs if ob.visible_get()], ('', '1')[simnode.signore])
                 shadres = geom.layers.float['sm{}'.format(frame)]
 
                 if gpoints:
@@ -4371,6 +4371,11 @@ class NODE_OT_Au_Play(bpy.types.Operator):
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
+
+        if not os.path.isfile(self.convnode.wavname):
+            self.report({'ERROR'}, 'No file found')
+            return {'CANCELLED'}
+
         sound = aud.Sound(self.convnode.wavname)
         self.handle = device.play(sound)
         self.convnode.play_o = True

@@ -233,7 +233,7 @@ else:
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim, NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Conv, NODE_OT_Au_Play, NODE_OT_Au_Stop
     from .vi_operators import NODE_OT_Au_PlayC, NODE_OT_Au_Save
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, VIEW3D_OT_RTDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
-    from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update, auvires_update
+    from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Col, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
     from .vi_dicts import colours
     from .auvi_mat import auvi_type_abs, auvi_type_scatt, auvi_abs, auvi_scatt, auvi_materials
