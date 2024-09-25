@@ -1425,7 +1425,7 @@ class No_Vi_SVF(Node, ViNodes):
     cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"), ("1", "Vertices", "Export vertices for calculation points")],
                          name="", description="Specify the calculation point geometry", default="0", update=nodeupdate)
     offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, precision=3, update=nodeupdate)
-    signore: BoolProperty(name='', default=0, description='Ignore sensor surfaces', update=nodeupdate)
+    signore: BoolProperty(name='', default=0, description='Ignore other sensor surfaces', update=nodeupdate)
     skytype = [('0', "Tregenza", "145 Tregenza sky patches"), ('1', "Reinhart 577", "577 Reinhart sky patches"), ('2', 'Reinhart 2305', '2305 Reinhart sky patches')]
     skypatches: EnumProperty(name="", description="Animation type", items=skytype, default='0', update=nodeupdate)
 
@@ -1487,7 +1487,7 @@ class No_Vi_SS(Node, ViNodes):
     cpoint: EnumProperty(items=[("0", "Faces", "Export faces for calculation points"), ("1", "Vertices", "Export vertices for calculation points")],
                          name="", description="Specify the calculation point geometry", default="0", update=nodeupdate)
     offset: FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update=nodeupdate)
-    signore: BoolProperty(name='', default=0, description='Ignore sensor surfaces', update=nodeupdate)
+    signore: BoolProperty(name='', default=0, description='Ignore other sensor surfaces', update=nodeupdate)
 
     def init(self, context):
         self.inputs.new('So_Vi_Loc', 'Location in')
@@ -1548,7 +1548,7 @@ class No_Vi_EC(Node, ViNodes):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
     entities: EnumProperty(name="", description="Entity type", items=[('0', "Objects", "Calculate EC based on objects"), ('1', "Collections", "Calculate EC based on collections")], default='0', update=nodeupdate)
-    parametric: BoolProperty(name='', default=0, description='Ignore sensor surfaces', update=nodeupdate)
+    parametric: BoolProperty(name='', default=0, description='Parametric analysis', update=nodeupdate)
     heal: BoolProperty(name='', default=0, description='Attempt to heal meshes', update=nodeupdate)
     fa: FloatProperty(name='m2', default=50, min=1, max=1024, description='Floor area', update=nodeupdate)
     startframe: IntProperty(name='', default=0, min=0, max=1024, description='Start frame', update=nodeupdate)

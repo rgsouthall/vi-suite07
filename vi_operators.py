@@ -617,7 +617,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
                     for chunk in chunks(gpoints, int(svp['viparams']['nproc']) * 200):
                         for gp in chunk:
-                            pointres = array([(0, 1)[not shadtree.ray_cast(posis[g], direc)[3]] for direc in valdirecs], dtype=int8)
+                            pointres = array([(0, 1)[not shadtree.ray_cast(posis[g], direc)[3]] and gp.normal.normalized().dot(direc) > 0 for direc in valdirecs], dtype=int8)
                             place(allpoints[g], valmask == 1, pointres)
                             gp[shadres] = (100 * (nsum(pointres) * ilvaldirecs)).astype(float16)
                             g += 1

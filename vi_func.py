@@ -400,6 +400,7 @@ def rettree(scene, obs, ignore):
         bmtemp = bmesh.new()
         bmtemp.from_object(so, dp)
         bmtemp.transform(so.matrix_world)
+        bmtemp.normal_update()
         delfaces = [face for face in bmtemp.faces if face.material_index >= len(so.data.materials) or so.data.materials[face.material_index].vi_params.mattype == ignore]
         bmesh.ops.delete(bmtemp, geom=delfaces, context='FACES')
         bmtemp.to_mesh(btemp)
