@@ -76,7 +76,6 @@ class ViNetwork(NodeTree):
     bl_label = 'VI-Suite Nodes'
     bl_icon = 'NODETREE'
 
-
 class ViNodes:
     @classmethod
     def poll(cls, ntree):
@@ -249,7 +248,7 @@ class No_Loc(Node, ViNodes):
 
 
 class No_ASC_Import(Node, ViNodes):
-    '''Node describing a LiVi geometry export node'''
+    '''Node to import ASC terrain files'''
     bl_idname = 'No_ASC_Import'
     bl_label = 'VI ASC Import'
     bl_icon = 'GRID'
@@ -258,6 +257,7 @@ class No_ASC_Import(Node, ViNodes):
     ascfile: StringProperty()
     clear_nodata: EnumProperty(name="", description="Deal with no data", items=[('0', 'Zero', 'Make no data zero'), ('1', 'Delete', 'Delete no data')], default='0')
 
+    
     def draw_buttons(self, context, layout):
         newrow(layout, 'Single file:', self, 'single')
         newrow(layout, 'No data:', self, 'clear_nodata')
@@ -274,7 +274,7 @@ class No_Li_Geo(Node, ViNodes):
     bl_icon = 'OBJECT_DATA'
 
     def ret_params(self):
-        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.mesh, self.triangulate)]
+        return [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.mesh, self.triangulate, self.texs)]
 
     def nodeupdate(self, context):
         context.scene.vi_params.vi_nodes = self.id_data
@@ -288,6 +288,8 @@ class No_Li_Geo(Node, ViNodes):
     endframe: IntProperty(name="", description="End frame for animation", min=0, default=0, update=nodeupdate)
     mesh: BoolProperty(name="", description="Radiance mesh geometry export", default=0, update=nodeupdate)
     triangulate: BoolProperty(name="", description="Triangulate mesh geometry for export", default=0, update=nodeupdate)
+    mesh: BoolProperty(name="", description="Radiance mesh geometry export", default=0, update=nodeupdate)
+    texs: BoolProperty(name="", description="Overwrite Radiance textures", default=1, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -309,6 +311,7 @@ class No_Li_Geo(Node, ViNodes):
 
         newrow(layout, 'Result point:', self, 'cpoint')
         newrow(layout, 'Offset:', self, 'offset')
+        newrow(layout, 'Overwrite textures:', self, 'texs')
         row = layout.row()
         row.operator("node.ligexport", text="Export")
 
@@ -348,7 +351,7 @@ class No_Li_Con(Node, ViNodes):
         return ['{}'.format(x) for x in (self.contextmenu, self.spectrummenu, self.cbanalysismenu,
                 self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                 self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
-                self.cbdm_end_hour, self.leed4, self.colour, self.cbdm_res, self.ay, self.sp)]
+                self.cbdm_end_hour, self.leed4, self.colour, self.cbdm_res, self.ay, self.sp, self.metric)]
 
     def nodeupdate(self, context):
         scene = context.scene
@@ -435,7 +438,7 @@ class No_Li_Con(Node, ViNodes):
     mtxname: StringProperty(name="", description="Name of the calculated vector sky file", default="", subtype="FILE_PATH", update=nodeupdate)
     weekdays: BoolProperty(name='', default=False, update=nodeupdate)
     cbdm_start_hour:  IntProperty(name='', description="Hour of the day (1 being the first hour: midnight to 1am)", default=8, min=0, max=23, update=nodeupdate)
-    cbdm_end_hour:  IntProperty(name='', description="Hour of the day (24 being the last hour: 11pm to midnight)", default=20, min=0, max=23, update=nodeupdate)
+    cbdm_end_hour:  IntProperty(name='', description="Hour of the day (24 being the last hour: 11pm to midnight)", default=18, min=0, max=23, update=nodeupdate)
     cbdm_edoy: IntProperty(name="", description="End day of simulation", min=1, max=365, default=365, update=nodeupdate)
     cbdm_res: IntProperty(name='', default=1, min=1, max=12, update=nodeupdate)
     dalux:  IntProperty(name='lux', default=300, min=1, max=2000, update=nodeupdate)
@@ -448,6 +451,9 @@ class No_Li_Con(Node, ViNodes):
     endmonth: IntProperty(name='', default=12, min=1, max=12, description='End Month', update=nodeupdate)
     startframe: IntProperty(name='', default=0, min=0, description='Start Frame', update=nodeupdate)
     leed4: BoolProperty(name='', description='LEED v4 Compliance',  default=False, update=nodeupdate)
+    metric: EnumProperty(name="", items=[('0', "None", "No specific metric"), ('1', "LEED v4", "LEED version 4 compliance"),
+                                          ("2", "EN17037", "EN17037 compliance")],
+                          description="Specify compliance metrics", default="0", update=nodeupdate)
     ay: BoolProperty(name='', description='All year simulation',  default=False, update=nodeupdate)
     colour: BoolProperty(name='', description='Coloured Gendaylit sky',  default=False, update=nodeupdate)
     sp: BoolProperty(name='', description='Split channels',  default=False, update=nodeupdate)
@@ -538,33 +544,53 @@ class No_Li_Con(Node, ViNodes):
 
         elif self.contextmenu == 'CBDM':
             newrow(layout, 'Type:', self, 'cbanalysismenu')
+            newrow(layout, 'Metric:', self, 'metric')
 
             if self.cbanalysismenu == '0' and self.sourcemenu != '1':
                 newrow(layout, "Spectrum:", self, 'spectrummenu')
+            if self.metric == '0':
+                #newrow(layout, 'All year:', self, 'ay')
+                newrow(layout, 'Weekdays only:', self, 'weekdays')
 
-            newrow(layout, 'All year:', self, 'ay')
-            newrow(layout, 'Weekdays only:', self, 'weekdays')
+            if self.metric == '1':
+                newrow(layout, 'Weekdays only:', self, 'weekdays')
+                newrow(layout, 'Start hours:', self, 'cbdm_start_hour')
+                newrow(layout, 'End hour:', self, 'cbdm_end_hour')
+                
+                # if self.cbdm_start_hour != 8 or self.cbdm_end_hour != 18:
+                #     row = layout.row()
+                #     row.label(text='* sDA requires 08:00 to 18:00')
+                
+                
+            #     if not self.ay or (self.leed4 and (self.cbdm_start_hour != 0 or self.cbdm_end_hour != 23)):
+            #         row = layout.row()
+            #         row.label(text='* EN17073 requires "All year" simulation')
+            #     if not self.leed4 or (self.cbdm_start_hour != 8 or self.cbdm_end_hour != 18):
+            #         row = layout.row()
+            #         row.label(text='* sDA requires "All year" simulation')
+            #         row = layout.row()
+            #         row.label(text='and a "LEED v4" 8am to 6pm occupied period')
 
-            if self.cbanalysismenu == '2':
-                newrow(layout, 'LEED v4:', self, 'leed4')
-
-            if self.cbanalysismenu in ('0', '1', '3') or (self.cbanalysismenu == '2' and not self.leed4):
-                if not self.ay:
-                    if self.cbanalysismenu != '3':
-                        newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
-                        newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "cbdm_edoy")
-                    
-                    newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
-                    newrow(layout, 'End hour:', self, 'cbdm_end_hour')
+            #if self.cbanalysismenu in ('0', '1', '3') or (self.cbanalysismenu == '2' and self.metric == 'None'):
+                #if not self.ay:
+            if self.metric == '0':
+                #if self.cbanalysismenu != '3':
+                newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+                newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "cbdm_edoy")
+                newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
+                newrow(layout, 'End hour:', self, 'cbdm_end_hour')
 
                 if self.cbanalysismenu == '2':
                     row = layout.row()
                     row.label(text="--")
-                    newrow(layout, 'DA (Min):', self, 'dalux')
-                    newrow(layout, 'UDI Low (Max):', self, 'damin')
-                    newrow(layout, 'UDI Supp. (Max):', self, 'dasupp')
-                    newrow(layout, 'UDI Auto. (Max):', self, 'daauto')
-                    newrow(layout, 'ASE level:', self, 'asemax')
+
+                    if self.metric == '0':
+                        newrow(layout, 'DA (Min):', self, 'dalux')
+                        newrow(layout, 'UDI Low (Max):', self, 'damin')
+                        newrow(layout, 'UDI Supp. (Max):', self, 'dasupp')
+                        newrow(layout, 'UDI Auto. (Max):', self, 'daauto')
+                        newrow(layout, 'ASE level:', self, 'asemax')
+                    
                     row = layout.row()
                     row.label(text="--")
 
@@ -577,7 +603,7 @@ class No_Li_Con(Node, ViNodes):
                     newrow(layout, 'Views:', self, 'dgp_views')
                     newrow(layout, 'Azimuth:', self, 'dgp_azi')
 
-            elif self.cbanalysismenu == '2' and self.leed4:
+            elif self.cbanalysismenu == '2' and self.metric == '0':
                 newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
                 newrow(layout, 'End hour:', self, 'cbdm_end_hour')
 
@@ -635,7 +661,7 @@ class No_Li_Con(Node, ViNodes):
             self.nodeupdate(bpy.context)
 
     def preexport(self):
-        if self.contextmenu == 'CBDM' and self.leed4:
+        if self.contextmenu == 'CBDM' and self.metric == '1':
             self.asemax = 1000
             self.sdamin = 300
             self.daauto = 3000
@@ -654,18 +680,19 @@ class No_Li_Con(Node, ViNodes):
         elif self.contextmenu == 'CBDM':
             if self.cbanalysismenu == '0' or self.hdr:
                 self.cbdm_res = 2 if self.cbdm_res > 2 else self.cbdm_res
-            if self.cbanalysismenu == '2' and self.leed4:
+            
+            if self.cbanalysismenu == '2' and self.metric in ('0', '1'):
                 (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour)
-            elif self.ay:
-                (shour, ehour) = (0, 23)
             else:
-                (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour)
-            (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if not self.ay else (1, 365)
+                (shour, ehour) = (0, 23)
+            # else:
+            #     (shour, ehour) = (self.cbdm_start_hour, self.cbdm_end_hour)
+            (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if self.metric == '0' else (1, 365)
 
         interval = 1
         starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=sdoy - 1) + datetime.timedelta(hours=shour)
 
-        if (self.contextmenu == 'CBDM' and not self.leed4) or (self.contextmenu == 'Basic' and self.animated):
+        if (self.contextmenu == 'CBDM' and self.metric == '0') or (self.contextmenu == 'Basic' and self.animated):
             endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         elif self.contextmenu == 'CBDM':
             starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours=shour)
@@ -685,7 +712,7 @@ class No_Li_Con(Node, ViNodes):
             else:
                 times.append(ctime)
 
-        self.times = [t for t in times if t.weekday() <= (6, 4)[self.weekdays]]
+        self.times = [t for t in times if t.weekday() <= (6, 4)[self.weekdays]] if self.metric in ('0', '1') else times
         self.starttime = times[0]
         self.endtime = times[-1]
         self['skynum'] = int(self.skymenu)
@@ -790,12 +817,12 @@ class No_Li_Con(Node, ViNodes):
                     cbdmhdr(self, scene, export_op)
 
     def postexport(self):
-        (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (1, 24)
-        (sdoy, edoy) = (self.sdoy, (self.cbdm_edoy, self.edoy)[self.contextmenu == '0']) if self.contextmenu == '0' or not self.ay else (1, 365)
+        (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour) if (self.cbanalysismenu == '2' and self.metric in ('0', '1')) else (1, 24)
+        (sdoy, edoy) = (self.sdoy, (self.cbdm_edoy, self.edoy)[self.contextmenu == '0']) if self.contextmenu == '0' or self.metric == '0' else (1, 365)
         typedict = {'Basic': '0', 'CBDM': self.cbanalysismenu}
         basic_unit = 'W/m2' if self.sp else (("Lux", "DF (%)")[self.skyprog == '0' and self.skymenu == '3'], 'W/m2 (f)')[self.skyprog == '1' and self.spectrummenu == '1']
         unitdict = {'Basic': basic_unit,
-                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', 'DA (%)', 'GO (%)')[int(self.cbanalysismenu)]}
+                    'CBDM': (('klxh', 'kWh (f)')[int(self.spectrummenu)], 'kWh (f)', ('DA (%)', 'sDA (%)', 'EN17037_100 (% hrs)')[int(self.metric)], 'GO (%)')[int(self.cbanalysismenu)]}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu],
                            'fs': self.startframe, 'fe': self['endframe'], 'anim': self.animated, 'shour': self.shour,
                            'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval,
@@ -805,9 +832,9 @@ class No_Li_Con(Node, ViNodes):
                            'cbdm_eh': ceh, 'cbdm_sd': sdoy, 'cbdm_ed': edoy, 'weekdays': (7, 5)[self.weekdays],
                            'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
                            'mtxfile': self['mtxfile'], 'mtxfilens': self['mtxfilens'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times],
-                           'leed4': self.leed4, 'colour': self.colour, 'cbdm_res': (146, 578, 2306, 9218)[self.cbdm_res - 1],
+                           'leed4': self.leed4, 'metric': self.metric, 'colour': self.colour, 'cbdm_res': (146, 578, 2306, 9218)[self.cbdm_res - 1],
                            'sm': self.skymenu, 'sp': self.skyprog, 'ay': self.ay, 'ga_views': self.dgp_views, 'dgp_azi': self.dgp_azi,
-                           'dgp_thresh': self.dgp_thresh, 'dgp_hourly': self.dgp_hourly}
+                           'dgp_thresh': self.dgp_thresh, 'dgp_hourly': self.dgp_hourly, 'dl_hours': self['dl_hours']}
 
         nodecolour(self, 0)
         self.outputs['Context out'].hide = False
@@ -967,7 +994,10 @@ class No_Li_Im(Node, ViNodes):
 
         if sys.platform == 'win32':
             self.mp = 0
-
+        elif self.mp:
+            self.x = int(self.x/self.processes) * self.processes
+            self.y = int(self.y/self.processes) * self.processes
+        
         pmaps = []
         sf, ef, = self.retframes()
         self['frames'] = range(sf, ef + 1)
@@ -1574,7 +1604,7 @@ class No_Vi_EC(Node, ViNodes):
 
         newrow(layout, 'Heal:', self, 'heal')
         newrow(layout, 'Floor area:', self, 'fa')
-        newrow(layout, 'Timeframe:', self, 'tyears')
+        # newrow(layout, 'Timeframe:', self, 'tyears')
         row = layout.row()
         row.operator("node.ec_calc", text='Calculate')
 
@@ -2700,9 +2730,9 @@ class No_Vi_HMChart(Node, ViNodes):
                         elif r[3] == self.metricmenu and r[2] == self.locmenu:
                             self.z = array([float(r) for r in r[4].split()])
             try:
-                self.x = self.x.reshape(dno, hno)
-                self.y = self.y.reshape(dno, hno)
-                self.z = self.z.reshape(dno, hno)
+                self.x = self.x.reshape(dno, -1)
+                self.y = self.y.reshape(dno, -1)
+                self.z = self.z.reshape(dno, -1)
 
             except Exception:
                 logentry('Mis-match in result length. Try reconnecting the Heatmap chart node')
@@ -2862,7 +2892,8 @@ class No_Vi_Metrics(Node, ViNodes):
                                     name="", description="Results metric", default="0", update=zupdate)
     light_menu: EnumProperty(items=[("0", "BREEAM", "BREEAM HEA1 results"),
                                     ("1", "LEED", "LEED v4 results"),
-                                    ("2", "RIBA 2030", "RIBA 2030 results")],
+                                    ("2", "RIBA 2030", "RIBA 2030 results"),
+                                    ("3", "EN17037", "EN17037 results")],
                                     name="", description="Results metric", default="0", update=zupdate)
     em_menu: EnumProperty(items=ec_types, name="", description="Results metric", update=zupdate)
     leed_menu: BoolProperty(name="", description="LEED space type", default=0)
@@ -3249,6 +3280,17 @@ class No_Vi_Metrics(Node, ViNodes):
                             row = layout.row()
                             row.label(text="Uniformity: {} {}".format(uDF, udfpass))
 
+                        elif self.light_menu == '3':
+                            if self['res']['EN100'] < 0:
+                                (en100pass, en300pass) = ('', '')
+                            else:
+                                en100pass = '(FAIL % area < 95)' if self['res']['EN100'] < 95 else '(PASS % area >= 95)'
+                                en300pass = '(FAIL % area < 50)' if self['res']['EN300'] < 50 else '(PASS % area >= 50)'
+                                row = layout.row()
+                                row.label(text="EN17037_100 (% area): {:.1f} {}".format(self['res']['EN100'], en100pass))
+                                row = layout.row()
+                                row.label(text="EN17037_300 (% area): {:.1f} {}".format(self['res']['EN300'], en300pass))
+
                     elif self.metric == '2' and self.probe_menu != 'None' and self.frame_menu != 'All':
                         newrow(layout, 'Reference type:', self, "ref_type")
                         if self.ref_type == '0':
@@ -3633,6 +3675,8 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['o1'] = -1
             self['res']['areaDF'] = -1
             self['res']['minDF'] = -1
+            self['res']['EN100'] = -1
+            self['res']['EN300'] = -1
             mir = 0.7 if self.g_roof else 0.3
 
             if self.light_menu == '0':
@@ -3830,6 +3874,25 @@ class No_Vi_Metrics(Node, ViNodes):
 
                                         self['res']['sv'] = 100 * res_ob.vi_params['livires']['svarea{}'.format(self.frame_menu)]/res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
 
+            elif self.light_menu == '3':
+                if 'EN17037_100 (% area)' in [r[3] for r in self['rl']]:
+                    for r in self['rl']:
+                        if r[0] == self.frame_menu:
+                            if r[2] == self.zone_menu:
+                                if self.zone_menu in bpy.context.scene.objects:
+                                    res_ob = bpy.context.scene.objects[self.zone_menu]
+
+                                    if res_ob.vi_params.get('livires') and res_ob.vi_params['livires'].get('totarea{}'.format(self.frame_menu)):
+                                        self['res']['totarea'] = res_ob.vi_params['livires']['totarea{}'.format(self.frame_menu)]
+
+                                        if r[3] == 'EN17037_100 (% area)':
+                                            self['res']['EN100'] = 100 * res_ob.vi_params['livires']['en100{}'.format(self.frame_menu)]
+                                        elif r[3] == 'EN17037_300 (% area)':
+                                            self['res']['EN300'] = 100 * res_ob.vi_params['livires']['en300{}'.format(self.frame_menu)]
+                                # if r[3] == 'EN17037_100 (% area)':
+                                #     print('100', sum([(0, 1)[float(x) > 95] for x in r[4].split()]))
+                                # if r[3] == 'EN17037_300 (% area)':
+                                #     print('300', sum([(0, 1)[float(x) > 50] for x in r[4].split()]))
         elif self.metric == '2':
             self['res']['pressure'] = {}
             self['res']['speed'] = {}
@@ -7604,7 +7667,10 @@ class No_En_Mat_Con(Node, EnViMatNodes):
 
     def ep_write(self, mn, ln):
         if self.get('bm') and self['bm'] != self.envi_con_base:
-            self.envi_con_base = self['bm']
+            try:
+                self.envi_con_base = self['bm']
+            except:
+                self['bm'] = str(self.envi_con_base)
 
         self['matname'] = get_mat(self, 1).name
         con_node = self if self.envi_con_proxy == '0' else get_con_node(bpy.data.materials[self.envi_con_base].vi_params)
@@ -9686,6 +9752,13 @@ class No_Au_Sim(Node, ViNodes):
         self['exportstate'] = ''
         self.outputs.new('So_Au_IR', 'IR')
         self.outputs.new('So_Vi_Res', 'Results out')
+        # print('1')
+        # print(NodeTree.get_from_context(context).use_fake_user)
+        # print('3')
+        try:
+            NodeTree.get_from_context(context).use_fake_user = True
+        except Exception:
+            pass
     
     def draw_buttons(self, context, layout):
         if ra:

@@ -300,7 +300,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
             cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
             plt.clabel(cp, inline=True, fontsize=10)
         except Exception:
-            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:], colors='Black', linewidths=dnode.lw)
+            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:-1], colors='Black', linewidths=dnode.lw)
 
     if dnode.grid and dnode.cf:
         ax.grid(True, which='both', zorder=10)

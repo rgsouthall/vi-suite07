@@ -436,6 +436,12 @@ class VI_PT_Ob(bpy.types.Panel):
                         if ovp.ec_rep == '1':
                             newrow(layout, "No. of items:", ovp, "ec_items")
 
+                    if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'm2':
+                        newrow(layout, "Object represents:", ovp, "ec_arep") 
+
+                        if ovp.ec_arep:
+                            newrow(layout, "Area (m2):", ovp, "ec_ma") 
+
                     if ovp.get('ecentries'):
                         for ec in ovp['ecentries']:
                             row = layout.row()
@@ -463,12 +469,19 @@ class VI_PT_Ob(bpy.types.Panel):
 
                     newrow(layout, "Service life:", ovp, "ec_life")
 
-                    if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
-                        newrow(layout, "Object represents:", ovp, "ec_rep")
+                    # if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
+                    #     newrow(layout, "Object represents:", ovp, "ec_rep")
 
-                        if ovp.ec_rep == '1':
-                            newrow(layout, "No. of items:", ovp, "ec_items")
+                    #     if ovp.ec_rep == '1':
+                    #         newrow(layout, "No. of items:", ovp, "ec_items")
+                    
+                    # if ovp.ec_unit == 'm2':
+                    #     newrow(layout, "Object represents:", ovp, "ec_arep") 
 
+                    #     if ovp.ec_arep:
+                    #         newrow(layout, "Area (m2):", ovp, "ec_ma") 
+
+                    
                     if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_du, ovp.ec_density, ovp.ec_mod)):
                         row = layout.row()
                         row.operator("object.ec_save", text="Save")

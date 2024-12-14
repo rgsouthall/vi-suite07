@@ -138,6 +138,10 @@ def leg_update(self, context):
                     res_name = 'ago{}v{}'.format(svp.vi_views, frame)
                 elif disp_menu == 'rt':
                     res_name = f'{svp.au_sources}_rt{frame}'
+                elif disp_menu == 'vol':
+                    res_name = f'{svp.au_sources}_vol{frame}'
+                elif disp_menu == 'sti':
+                    res_name = f'{svp.au_sources}_sti{frame}'
                 else:
                     res_name = '{}{}'.format(disp_menu, frame)
 
@@ -185,6 +189,10 @@ def leg_update(self, context):
                     res_name = 'ago{}v{}'.format(svp.vi_views, frame)
                 elif disp_menu == 'rt':
                     res_name = f'{svp.au_sources}_rt{frame}'
+                elif disp_menu == 'vol':
+                    res_name = f'{svp.au_sources}_vol{frame}'
+                elif disp_menu == 'sti':
+                    res_name = f'{svp.au_sources}_sti{frame}'
                 else:
                     res_name = '{}{}'.format(disp_menu, frame)
 
@@ -253,6 +261,10 @@ def e_update(self, context):
                 res_name = 'ago{}v{}'.format(svp.vi_views, frame)
             elif svp.li_disp_menu == 'rt':
                 res_name = f'{svp.au_sources}_rt{frame}'
+            elif svp.li_disp_menu == 'vol':
+                res_name = f'{svp.au_sources}_vol{frame}'
+            elif svp.li_disp_menu == 'sti':
+                res_name = f'{svp.au_sources}_sti{frame}'
             else:
                 res_name = '{}{}'.format(svp.li_disp_menu, frame)
 
@@ -422,7 +434,8 @@ def li_display(context, disp_op, simnode):
                 bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
 
             for v in bm.verts:
-                v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized() * simnode['goptions']['offset']
+                v_norm = mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized()
+                v.co += mathutils.Vector([v_norm[i]/abs(o.scale[i]) for i in range(3)]) * simnode['goptions']['offset']
 
             selobj(context.view_layer, o)
             bpy.ops.object.duplicate()
@@ -584,6 +597,10 @@ class linumdisplay():
                 var = 'ago{}v'.format(svp.vi_views)
             elif svp.li_disp_menu == 'rt':
                 var = f'{svp.au_sources}_rt'
+            elif svp.li_disp_menu == 'vol':
+                var = f'{svp.au_sources}_vol'
+            elif svp.li_disp_menu == 'sti':
+                var = f'{svp.au_sources}_sti'
             else:
                 var = svp.li_disp_menu
 
@@ -613,7 +630,7 @@ class linumdisplay():
                     direcs = [self.view_location - f for f in fcos]
 
                     try:
-                        (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl.depsgraph, fcos[i], direcs[i], distance=distances[i])[0]]))
+                        (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(vl.depsgraph, fcos[i], direcs[i], distance=distances[i])[0] and f.normal.dot(direcs[i]) > 0]))
                     except Exception as e:
                         (faces, distances) = ([], [])
 

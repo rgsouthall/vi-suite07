@@ -22,7 +22,7 @@ from math import pi
 from subprocess import PIPE, Popen, TimeoutExpired
 from .vi_func import clearscene, solarPosition, retobjs, clearlayers, ct2RGB, logentry, sunpath2
 from .livi_func import face_bsdf
-from numpy import array, where, in1d
+from numpy import array, where, in1d, zeros, savetxt
 
 
 def radpoints(o, faces, sks):
@@ -66,7 +66,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
     oms = o.material_slots
 
     if tri:
-        bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
+        bmesh.ops.connect_verts_concave(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
+        #bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
     
     if not m_export and not any([slot.material.vi_params.radtex for slot in oms if slot.material]) and not o.data.polygons[0].use_smooth:
         gradfile += radpoints(o, bm.faces, 0)
@@ -141,7 +142,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
 
 def radgexport(export_op, node):
     dp = bpy.context.evaluated_depsgraph_get()
-    mats = bpy.data.materials
+    #mats = bpy.data.materials
     scene = bpy.context.scene
     svp = scene.vi_params
     clearscene(bpy.context, export_op)
@@ -154,6 +155,20 @@ def radgexport(export_op, node):
         for m in o.data.materials:
             if m not in mats:
                 mats.append(m)
+
+                if m.vi_params.li_norm:
+                    norm = m.vi_params.li_norm
+
+                    if not os.path.isfile(os.path.join(svp['liparams']['texfilebase'], norm.name + '.ddx')) or node.texs:
+                        (w, h) = norm.size
+                        ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
+                        normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
+                        norm.pixels.foreach_get(normpixels)
+                        header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
+                        xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
+                        ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
+                        savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(norm.name)), xdat, fmt='%.2f', header=header, comments='')
+                        savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(norm.name)), ydat, fmt='%.2f', header=header, comments='')
 
     for o in caloblist:
         if any([s < 0 for s in o.scale]):

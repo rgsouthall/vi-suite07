@@ -25,7 +25,8 @@ unit2res = {'Lux': 'illu', 'DF (%)': 'df', 'W/m2 (v)': 'virradm2', 'W/m2 (f)': '
             'kWh/m2 (v)': 'virradhm2', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup',
             'Sunlit (% hrs)': 'sm', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi', 'kWh': 'kwh',
             'kWh/m2': 'kwhm2', 'Lux (max)': 'maxlux', 'Lux (min)': 'minlux', 'Lux (ave)': 'avelux', 'GA (%)': 'aga1v',
-            'GO (%)': 'ago1v', 'RT60 (s)': 'rt'}
+            'GO (%)': 'ago1v', 'RT60 (s)': 'rt', 'TSL (dB)': 'vol', 'STI': 'sti', 'EN17037_100 (% hrs)': 'en100', 
+            'EN17037_300 (% hrs)': 'en300'}
 
 res2unit = {unit2res[u]: u for u in unit2res}
 
@@ -60,12 +61,13 @@ rvuerrdict = {'view up parallel to view direction': "Camera cannot point directl
               ' x11': "No X11 display server found. You may need to install XQuartz",
               'source center': "A light source has concave faces. Use mesh - cleanup - split concave faces"}
 
-pmerrdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry",
-             'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
-             'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-             'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
-             'fatal - no valid photon ports found\n': 'Make sure photon ports are valid',
-             'fatal - failed photon distribution\n': 'Do the lights see enough geometry?'}
+pmerrdict = {'too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry or increase the photon count",
+             'too many prepasses, no caustic photons stored\n': "Too many caustic prepasses have occurred. Make sure your materials have a specular component",
+             'too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
+             'zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
+             'no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
+             'no valid photon ports found\n': 'Make sure photon ports are valid',
+             'failed photon distribution\n': 'Failed to gather enough photons. Do the lights see enough geometry or produce enough photons?'}
 
 rnu = {'0': ("Air", "Ambient air metrics"), '1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
        '3': ("Humidity", "Ambient Humidity"), '4': ("Solar", 'Ambient solar metrics'), '5': ("Temperature", "Zone Temperature"), '6': ("Humidity", "Zone Humidity"),

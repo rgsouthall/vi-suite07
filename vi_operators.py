@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing, threading, gc
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, int16, int32, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32, float64, concatenate, ones, array2string
+from numpy import arange, histogram, array, int8, int16, int32, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32, float64, concatenate, ones, array2string, square
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import mean as nmean
@@ -30,7 +30,7 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
-from math import cos, sin, pi, ceil, tan, radians
+from math import cos, sin, pi, ceil, tan, radians, log
 from time import sleep
 from mathutils import Euler, Vector, Matrix
 from xml.dom.minidom import parseString
@@ -45,6 +45,7 @@ from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, fvprogres
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar, au_pb
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, bm_to_stl
 from .livi_func import retpmap
+from .auvi_func import rir2sti
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict
 import OpenImageIO
@@ -1126,10 +1127,15 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 for line in self.rvurun.stderr:
                     if b'fatal IO error' not in line and b'events remaining' not in line and b'Broken pipe' not in line and b'explicit kill' not in line:
                         logentry(line)
-                    for rvuerr in rvuerrdict:
-                        if rvuerr in line.decode():
-                            self.report({'ERROR'}, rvuerrdict[rvuerr])
-                            return {'CANCELLED'}
+                    
+                    if b'explicit kill' not in line:
+                        for rvuerr in rvuerrdict:
+                            if rvuerr in line.decode():
+                                self.report({'ERROR'}, rvuerrdict[rvuerr])
+                                return {'CANCELLED'}
+                            else:
+                                self.report({'ERROR'}, f'rvu error: {line.decode()}')
+                                return {'CANCELLED'}
 
                 return {'FINISHED'}
             else:
@@ -1188,7 +1194,13 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
 
                 for line in pmrun.stderr:
-                    logentry('Photon mapping error: {}'.format(line.decode()))
+                    self.report({'ERROR'}, f'mkpmap errer: {line.decode()}')
+
+                    if self.kivyrun.poll() is None:
+                        self.kivyrun.kill()
+
+                    pmrun.kill()
+                    return {'CANCELLED'}
 
                 while pmrun.poll() is None:
                     sleep(2)
@@ -1197,10 +1209,8 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                             if '%' in line:
                                 for entry in line.split():
                                     if '%' in entry:
-                                        curres = float(entry[:-2])
-                                        break
-                            break
-
+                                        curres = float(entry[:-2]) if float(entry[:-2]) > curres else curres
+                            
                     if self.pfile.check(curres) == 'CANCELLED':
                         pmrun.kill()
                         return {'CANCELLED'}
@@ -1210,9 +1220,15 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                 with open('{}-{}'.format(self.pmfile, frame), 'r') as pmapfile:
                     for line in pmapfile.readlines():
-                        if line in pmerrdict:
-                            logentry(line)
-                            self.report({'ERROR'}, pmerrdict[line])
+                        if 'fatal -' in line:
+                            for pmerr in pmerrdict:
+                                if pmerr in line:
+                                    logentry(pmerrdict[pmerr])
+                                    self.report({'ERROR'}, pmerrdict[pmerr])
+                                    return {'CANCELLED'}
+                            
+                            logentry(f'Photon map error: {line}')
+                            self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
                             return {'CANCELLED'}
 
                 if self.simnode.pmappreview:
@@ -1347,27 +1363,32 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             if self.simnode.pmap:
                 pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
                 pmappfile.close()
+                pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
                 pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
                 self.kivyrun = progressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'Photon map')
-                errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have occurred. Make sure light sources can see your geometry",
-                           'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have occurred. Turn off caustic photons and encompass the scene",
-                           'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-                           'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
-                           'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry = retpmap(self.simnode, frame, scene)
-                open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
+                #open('{}.pmapmon'.format(svp['viparams']['filebase']), 'w')
 
                 if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
-                    pmcmd = 'mkpmap {6} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apD 0.001 {0} {3} {4} {5} "{1}-{2}.oct"'.format(pportentry, svp['viparams']['filebase'], frame, gpentry, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                    pmcmd = 'mkpmap {7} -t 2 -e "{1}-{3}" -fo+ -bv+ -apD 0.001 {0} {4} {5} {6} "{2}-{3}.oct"'.format(pportentry, pmfile, svp['viparams']['filebase'], frame, gpentry, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
                 else:
-                    pmcmd = 'mkpmap {3} -t 2 -e "{1}.pmapmon" -fo+ -bv+ -apC "{1}-{2}.copm" {0} "{1}-{2}.oct"'.format(self.simnode.pmapgno, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                    pmcmd = 'mkpmap {4} -t 2 -e "{1}-{3}" -fo+ -bv+ -apC "{2}-{3}.copm" {0} "{2}-{3}.oct"'.format(self.simnode.pmapgno, pmfile, svp['viparams']['filebase'], frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
 
                 logentry('Generating photon map: {}'.format(pmcmd))
                 pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
 
+                for line in pmrun.stderr:
+                    self.report({'ERROR'}, f'mkpmap errer: {line.decode()}')
+
+                    if self.kivyrun.poll() is None:
+                        self.kivyrun.kill()
+
+                    pmrun.kill()
+                    return {'CANCELLED'}
+                    
                 while pmrun.poll() is None:
                     sleep(10)
-                    with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as vip:
+                    with open(f'{pmfile}-{frame}', 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '%' in line:
                                 curres = float(line.split()[6][:-2])/len(frames)
@@ -1380,20 +1401,33 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 if self.kivyrun.poll() is None:
                     self.kivyrun.kill()
 
-                with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as pmapfile:
-                    pmlines = pmapfile.readlines()
+                with open(f'{pmfile}-{frame}', 'r') as pmapfile:
+                    for line in pmapfile.readlines():
+                        if 'fatal -' in line:
+                            for pmerr in pmerrdict:
+                                if pmerr in line:
+                                    logentry(pmerrdict[pmerr])
+                                    self.report({'ERROR'}, pmerrdict[pmerr])
+                                    return {'CANCELLED'}
+                            
+                            logentry(f'Photon map error: {line}')
+                            self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
+                            return {'CANCELLED'}
 
-                    if pmlines:
-                        for line in pmlines:
-                            if line in errdict:
-                                self.report({'ERROR'}, errdict[line])
-                                return {'CANCELLED'}
-                            if 'fatal - ' in line:
-                                self.report({'ERROR'}, line)
-                                return {'CANCELLED'}
-                    else:
-                        self.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
-                        return {'CANCELLED'}
+                # with open('{}.pmapmon'.format(svp['viparams']['filebase']), 'r') as pmapfile:
+                #     pmlines = pmapfile.readlines()
+
+                #     if pmlines:
+                #         for line in pmlines:
+                #             if line in pmerrdict:
+                #                 self.report({'ERROR'}, pmerrdict[line])
+                #                 return {'CANCELLED'}
+                #             if 'fatal - ' in line:
+                #                 self.report({'ERROR'}, line)
+                #                 return {'CANCELLED'}
+                #     else:
+                #         self.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
+                #         return {'CANCELLED'}
 
             if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                 if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
@@ -1438,6 +1472,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
             elif scontext == 'CBDM' and subcontext == '0':
                 lhout = ovp.lhcalcapply(scene, frames, rtcmds, self.simnode, curres, pfile)
+
                 if lhout == 'CANCELLED':
                     if self.kivyrun.poll() is None:
                         self.kivyrun.kill()
@@ -1445,8 +1480,18 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 else:
                     self.reslists += lhout
 
-            elif (scontext == 'CBDM' and subcontext in ('1', '2')):
+            elif scontext == 'CBDM' and subcontext in ('1', '2'):
+                times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in self.simnode['coptions']['times']]
+
+                for f, frame in enumerate(frames):
+                    self.reslists.append([str(frame), 'Time', 'Time', 'Month', ' '.join([str(t.month) for t in times])])
+                    self.reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
+                    self.reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
+                    self.reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+                    self.reslists.append([str(frame), 'Climate', 'Exterior', 'Daylight', self.simnode['coptions']['dl_hours']])
+                
                 cbdmout = ovp.udidacalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
+                
                 if cbdmout == 'CANCELLED':
                     if self.kivyrun.poll() is None:
                         self.kivyrun.kill()
@@ -1544,31 +1589,31 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
         if event.type == 'TIMER':
             f = self.frame if self.frame <= self.fe else self.fe
+            #if self.pmfin and not self.rpruns:
+            if self.pmfin:    
+                self.percent = 0
+                with open('{}-{}'.format(self.pmfile, f), 'r') as vip:
+                    vip_lines = vip.readlines()
 
-            if self.pmfin and not self.rpruns:
-                for line in self.pmruns[0].stderr:
-                    logentry('Photon mapping error: {}'.format(line.decode()))
+                    for line in vip_lines:
+                        for pmerr in pmerrdict:
+                            if pmerr in line:
+                                #print(line, pmerr)
+                                self.report({'ERROR'}, pmerrdict[pmerr])
+                                self.kivyrun.kill()
+                                self.simnode.run = 0
+                                return {'CANCELLED'}
 
-                    for pmerr in pmerrdict:
-                        if pmerr in line.decode():
-                            self.report({'ERROR'}, pmerrdict[pmerr])
-                            self.kivyrun.kill()
-                            self.simnode.run = 0
-                            return {'CANCELLED'}
-
-            elif os.path.isfile(self.pmfile) and not self.rpruns:
+            elif os.path.isfile(f'{self.pmfile}-{f}') and not self.rpruns:
                 if sum(self.pmaps):
                     self.percent = 0
-
-                    for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
+                    with open('{}-{}'.format(self.pmfile, f), 'r') as vip:
+                    #for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
                         for line in vip.readlines()[::-1]:
                             if '% after' in line:
-                                self.percent += [float(ls[:-2]) for ls in line.split() if '%' in ls][0]/sum(self.pmaps)
+                                perc = [float(ls[:-2]) for ls in line.split() if '%' in ls][0]/sum(self.pmaps)
+                                self.percent = perc if perc > self.percent else self.percent
                                 break
-                            elif line in pmerrdict:
-                                logentry(line)
-                                self.report({'ERROR'}, pmerrdict[line])
-                                return {'CANCELLED'}
 
             if self.pmfin and self.rpruns and all([rp.poll() is not None for rp in self.rpruns]):
                 for line in self.rpruns[0].stderr:
@@ -1669,9 +1714,20 @@ class NODE_OT_Li_Im(bpy.types.Operator):
         for pm in self.pmruns:
             if pm.poll() is None:
                 pm.kill()
+
+                try:
+                    os.system("killall -9 mkpmap")
+                except:
+                    pass
+
         for rp in self.rpruns:
             if rp.poll() is None:
                 rp.kill()
+
+                try:
+                    os.system("killall -9 rpict")
+                except:
+                    pass
 
         self.simnode.postsim(self.images)
 
@@ -1742,7 +1798,8 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
             if simnode.normal or simnode.albedo:
                 for frame in range(self.fs, self.fe + 1):
-                    res = (int(simnode.x/self.processes) * self.processes, simnode.y) if self.mp else (simnode.x, simnode.y)
+                    #res = (int(simnode.x/self.processes) * self.processes, simnode.y) if self.mp else (simnode.x, simnode.y)
+                    res = (simnode.x, simnode.y)
                     vwcmd = 'vwrays -pa 0 -x {0[0]} -y {0[1]} -ff {1}'.format(res, vps_vwrays[frame - self.fs])
 
                     if simnode.normal:
@@ -2492,25 +2549,29 @@ class NODE_OT_EC(bpy.types.Operator):
                             return {'CANCELLED'}
 
                         ecdict = envi_ec.propdict[ovp.embodiedclass][ovp.embodiedtype][ovp.embodiedmat]
-
+                        #print(ecdict)
+                        vol, mass, area = 0, 0, 0
+                        
                         if ecdict['unit'] in ('kg', 'm3', 'm2', 'tonnes') or (ecdict['unit'] == 'each' and ovp.ec_rep == '0'):
                             bm = bmesh.new()
                             bm.from_object(o, dp)
                             bm.transform(o.matrix_world)
-                            vol, mass, area = 0, 0, 0
-
+                            
                             if node.heal:
                                 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
                                 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
-                            if all([e.is_manifold for e in bm.edges]):
+                            if all([e.is_manifold for e in bm.edges]) and ecdict['unit'] in ('m3', 'kg'):
                                 vol = bm.calc_volume()
                                 mass = vol * float(ecdict['density'])
-                                ec = float(ecdict['eckg']) * float(ecdict['density']) * vol + ovp.ec_amount_mod * vol/(float(ecdict['weight'])/float(ecdict['density']))
+                                ec = float(ecdict['eckg']) * float(ecdict['density']) * vol + ovp.ec_amount_mod * vol/(float(ecdict['weight'])/float(ecdict['density'])) # * node.tyears / float(ovp.ec_life)
+                            
+                            elif ecdict['unit'] == 'each':
+                                ec = float(ecdict['ecdu'])/float(ecdict['quantity']) # * node.tyears / float(ovp.ec_life)
                             
                             elif ecdict['unit'] == 'm2':
-                                area = sum([f.calc_area() for f in bm.faces])
-                                ec = float(ecdict['ecdu']) * area/float(ecdict['quantity'])
+                                area = sum([f.calc_area() for f in bm.faces]) if ovp.ec_arep == '1' else ovp.ec_ma
+                                ec = float(ecdict['ecdu']) * area/float(ecdict['quantity']) # * node.tyears / float(ovp.ec_life)
                             
                             else:
                                 logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
@@ -4115,10 +4176,12 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         max_rand_disp = 0.1
                     )
                 )
+                
+                
 
                 if pra_rt:
                     room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius, 
-                                         hist_bin_size=0.004, energy_thres=1e-07)
+                                         hist_bin_size=0.004, energy_thres=1e-08)
                     
                 for source in sources:
                     if room.is_inside(source.location[:]):
@@ -4165,7 +4228,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 if not room.n_mics:
                     self.report({'ERROR'},  'No visible listeners inside the room')
                     return {'CANCELLED'}
-
+                
+                Lsf = array([62.9, 62.9, 59.2, 53.2, 47.2, 41.2, 35.2])
+                Lsf = Lsf if room.volume < 250 else Lsf + 10
+                octave = pra.acoustics.OctaveBandsFactory(base_frequency=125, fs=16000, n_fft=512)
+                
                 try:
                     if sys.platform != 'win32':
                         kivyrun = au_pb(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'))
@@ -4198,6 +4265,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             return {'CANCELLED'}
 
                         rirs = ir_list
+                        #print(room.volume)
+                        #print(rirs.shape)
+                        # rir_square = square(rirs[0])
+                        # rir_sum = nsum(rir_square)/16000
+                        # print('volume', 10 * log(rir_sum/6E-07, 10), rirs[0][0])
                         t1.kill()
 
                     else:
@@ -4207,7 +4279,6 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         for mrir in room.rir:
                             for srir in mrir:
                                 rirs.append(srir)
-
                         try:
                             rts = room.measure_rt60(plot=False, decay_db=60)
                         except:
@@ -4241,25 +4312,45 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         
                         if not mic_bm.faces.layers.float.get(f'{source.name}_rt{frame}'):
                             mic_bm.faces.layers.float.new(f'{source.name}_rt{frame}')
-                        
+                        if not mic_bm.faces.layers.float.get(f'{source.name}_vol{frame}'):
+                            mic_bm.faces.layers.float.new(f'{source.name}_vol{frame}')
+                        if not mic_bm.faces.layers.float.get(f'{source.name}_sti{frame}'):
+                            mic_bm.faces.layers.float.new(f'{source.name}_sti{frame}')
+
                         bm_rtres = mic_bm.faces.layers.float[f'{source.name}_rt{frame}']
+                        bm_volres = mic_bm.faces.layers.float[f'{source.name}_vol{frame}']
+                        bm_stires = mic_bm.faces.layers.float[f'{source.name}_sti{frame}']
                         bm_ir = mic_bm.faces.layers.int['cindex']
 
                         for face in mic_bm.faces:
                             if face[bm_ir]:
                                 try:
                                     face[bm_rtres] = rts[fi][si]
+                                    # print(nsum(square(rirs[fi])))
+                                    face[bm_volres] = 10 * log(nsum(square(rirs[fi * len(sources) + si])/16000)/6E-07, 10)
+                                    face[bm_stires] = rir2sti(rirs[fi * len(sources) + si], room.volume, source.location, mic_a.matrix_world@face.calc_center_bounds(), octave, 'male', Lsf)
+
                                 except Exception as e:
                                     print(e)
                                 fi += 1
                         
-                        res = [face[bm_rtres] for face in mic_bm.faces if face[bm_ir]]
+                        res_rt = [face[bm_rtres] for face in mic_bm.faces if face[bm_ir]]
+                        res_vol = [face[bm_volres] for face in mic_bm.faces if face[bm_ir]]
+                        res_sti = [face[bm_stires] for face in mic_bm.faces if face[bm_ir]]
 
-                        if res:
-                            ovp['omax'][f'rt{frame}'] = max(res) if not ovp['omax'].get(f'rt{frame}') or max(res) > ovp['omax'][f'rt{frame}'] else ovp['omax'][f'rt{frame}']
-                            ovp['oave'][f'rt{frame}'] = sum(res)/len(res)
-                            ovp['omin'][f'rt{frame}'] = min(res) if not ovp['omin'].get(f'rt{frame}') or min(res) < ovp['omin'][f'rt{frame}'] else ovp['omin'][f'rt{frame}']
-                            ovp['livires'][f'rt{frame}'] = res
+                        if res_rt:
+                            ovp['omax'][f'rt{frame}'] = max(res_rt) if not ovp['omax'].get(f'rt{frame}') or max(res_rt) > ovp['omax'][f'rt{frame}'] else ovp['omax'][f'rt{frame}']
+                            ovp['oave'][f'rt{frame}'] = sum(res_rt)/len(res_rt)
+                            ovp['omin'][f'rt{frame}'] = min(res_rt) if not ovp['omin'].get(f'rt{frame}') or min(res_rt) < ovp['omin'][f'rt{frame}'] else ovp['omin'][f'rt{frame}']
+                            ovp['omax'][f'vol{frame}'] = max(res_vol) if not ovp['omax'].get(f'vol{frame}') or max(res_vol) > ovp['omax'][f'vol{frame}'] else ovp['omax'][f'vol{frame}']
+                            ovp['oave'][f'vol{frame}'] = sum(res_vol)/len(res_vol)
+                            ovp['omin'][f'vol{frame}'] = min(res_vol) if not ovp['omin'].get(f'vol{frame}') or min(res_vol) < ovp['omin'][f'vol{frame}'] else ovp['omin'][f'vol{frame}']
+                            ovp['omax'][f'sti{frame}'] = max(res_sti) if not ovp['omax'].get(f'sti{frame}') or max(res_sti) > ovp['omax'][f'sti{frame}'] else ovp['omax'][f'sti{frame}']
+                            ovp['oave'][f'sti{frame}'] = sum(res_sti)/len(res_sti)
+                            ovp['omin'][f'sti{frame}'] = min(res_sti) if not ovp['omin'].get(f'sti{frame}') or min(res_sti) < ovp['omin'][f'sti{frame}'] else ovp['omin'][f'sti{frame}']
+                            ovp['livires'][f'rt{frame}'] = res_rt
+                            ovp['livires'][f'vol{frame}'] = res_vol
+                            ovp['livires'][f'sti{frame}'] = res_sti
                             mic_bm.to_mesh(mic_a.data)
                         else:
                             self.report({'WARNING'}, f'No results on sensor mesh {mic_a.name}')

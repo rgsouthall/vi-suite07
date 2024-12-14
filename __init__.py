@@ -295,16 +295,20 @@ def unititems(self, context):
                     ('firradhm2', 'kWh/m2 (f)', 'kilo-Watt hours per square metre (solar spectrum)')]
         elif svp['liparams']['unit'] == 'DA (%)':
             return [("da", "DA", "Daylight Autonomy"),
-                    ("sda", "sDA", "Spatial Daylight Autonomy"),
                     ("udilow", "UDI (low)", "Useful daylight illuminance (low)"),
                     ("udisup", "UDI (supp)", "Useful daylight illuminance (supplemented)"),
                     ("udiauto", "UDI (auto)", "Useful daylight illuminance (autonomous)"),
                     ("udihi", "UDI (high)", "Useful daylight illuminance (high)"),
-                    ("ase", "ASE", "Annual Sunlight Exposure"),
                     ("maxlux", "Lux level (max)", "Maximum lux level"),
                     ("avelux", "Lux level (ave)", "Average lux level"),
-                    ("minlux", "Lux level (min)", "Minimum lux level"),
+                    ("minlux", "Lux level (min)", "Minimum lux level")]
+        elif svp['liparams']['unit'] == 'sDA (%)':
+            return [("sda", "sDA", "Spatial Daylight Autonomy"),
+                    ("ase", "ASE", "Annual Sunlight Exposure"),
                     ("sv", "Perimeter area", "Perimeter")]
+        elif svp['liparams']['unit'] == 'EN17037_100 (% hrs)':
+            return [("en100", "EN17037_100", "EN17037 100 lux"),
+                    ("en300", "EN17037_300", "EN17037 300 lux")]
         elif svp['liparams']['unit'] == 'Sunlit (% hrs)':
             return [('sm', '% Sunlit', '% of time sunlit')]
         elif svp['liparams']['unit'] == 'SVF (%)':
@@ -322,7 +326,9 @@ def unititems(self, context):
             return [('ago1v', 'GO (%)', 'Glare occurance'),
                     ('aga1v', 'GA (%)', 'Glare autonomy')]
         elif svp['liparams']['unit'] == 'RT60 (s)':
-            return [('rt', 'RT60 (s)', 'Reverberation time (60db)')]
+            return [('rt', 'RT60 (s)', 'Reverberation time (60db)'),
+                    ('sti', 'STI', 'Speech Transmission Index'),
+                    ('vol', 'TSL (dB)', 'Total sound level (db)')]
         else:
             return [('None', 'None', 'None')]
 
@@ -424,12 +430,18 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
         return self.get('vi_views', self['liparams']['views'])
 
     def set_view(self, value):
-        if value > self['liparams']['views']:
-            self['vi_views'] = self['liparams']['views']
-        elif value < 1:
-            self['vi_views'] = 1
+        if self['liparams'].get('views'):
+            if value > self['liparams']['views']:
+                self['vi_views'] = self['liparams']['views']
+            elif value < 1:
+                self['vi_views'] = 1
+            else:
+                self['vi_views'] = value
         else:
-            self['vi_views'] = value
+            if value < 1:
+                self['vi_views'] = 1
+            else:
+                self['vi_views'] = value
 
 
     def disp_options(self, context):
@@ -642,10 +654,12 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     ec_amount: FloatProperty(name="", description="EC amount of the declared unit", min=0.001, default=1, precision=3)
     ec_amount_mod: FloatProperty(name="", description="EC amount modifier per declared unit", min=0.00, default=0, precision=3)
     ec_du: FloatProperty(name="", description="Embodied carbon per declared unit", default=100, precision=3)
+    ec_ma: FloatProperty(name="", description="Area of object in embodied carbon terms", default=1, precision=3)
     ec_weight: FloatProperty(name="kg", description="Weight", default=1)
     ec_density: FloatProperty(name="kg/m^3", description="Material density", default=1000)
     ec_life: iprop("y", "Lifespan in years", 1, 100, 60)
     ec_rep: eprop([("0", "Volume", "Object represents a material volume"), ("1", "Item", "Object represents an item")], "", "Specify what the object represents in EC terms", "0")
+    ec_arep: eprop([("0", "Manual area", "Area defined manually"), ("1", "Object area", "Area defined by all object faces")], "", "Specify what the object represents in EC terms", "0")
     ec_items: FloatProperty(name="", description="Number of items the object represents", min=0.001, default=1, precision=3)
     ec_mod: StringProperty(name="", description="Embodied modules reported")
     ee = envi_embodied()

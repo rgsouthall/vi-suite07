@@ -20,7 +20,8 @@ import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time, matplot
 from math import sin, cos, pi, log10
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, where, in1d, transpose, savetxt, int8, float16, float32, float64, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt, logspace, flatnonzero
+from numpy import array, where, in1d, transpose, sort, broadcast_to, savetxt, int8, float16, float32, float64, put
+from numpy import argpartition, digitize, zeros, choose, inner, average, amax, amin, concatenate, logical_and, genfromtxt, logspace, flatnonzero
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
@@ -128,12 +129,59 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
         ress = array([v[res_lay] for v in bm.verts])
     else:
         ress = array([sum([f[res_lay] for f in v.link_faces])/(len(v.link_faces), 1)[not v.link_faces] for v in bm.verts])
-    print(len(xs), len(ys), len(ress), len(tris))
+
     bm.free()
     CS = plt.tricontourf(xs, ys, tris, ress, levels=levels, extend="both")
-    vi, vcos, eis, fis, mis, v_start = 0, [], [], [], [], 0 
+    vi, vcos, nvcos, eis, fis, mis, v_start, vpi = 0, [], [], [], [], [], 0, 0
+    meshes = []
     plt.gca().set_aspect('equal')
-    
+    cverts, cfaces, mis = [], [], []
+    # This uses bezier curves. It works but gets the odd result.
+    # for pi, path in enumerate(CS.get_paths()):
+    #     if len(path.vertices):
+    #         vpi = 0
+    #         lci = 0
+    #         curve = bpy.data.curves.new('hi', type='CURVE')
+    #         curve.dimensions = '2D'
+    #         curve.fill_mode = 'BOTH'
+
+    #         for ci, code in enumerate(path.codes):
+    #             curve.splines.new('BEZIER')
+    #             spline = curve.splines[vpi]
+    #             spline.use_cyclic_u = True
+    #             points = spline.bezier_points
+
+    #             if ci - lci >= len(points):
+    #                 points.add(1)
+
+    #             points[ci - lci].handle_left_type = 'VECTOR'
+    #             points[ci - lci].handle_right_type = 'VECTOR'
+    #             points[ci - lci].co = o.matrix_world@Vector(path.vertices[ci].tolist() + [0.01])
+                
+    #             if code == 79:
+    #                 curve.splines.new('BEZIER')
+    #                 vpi += 1
+    #                 lci = ci + 1
+
+    #         curveOB = bpy.data.objects.new('myCurve', curve)
+    #         curveM = bpy.data.meshes.new_from_object(curveOB)
+            
+    #         for poly in curveM.polygons:
+    #             poly.material_index = pi
+
+    #         for poly in curveM.polygons:
+    #             cfaces += [[v + len(cverts) for v in poly.vertices]]
+    #             mis.append(poly.material_index)
+
+    #         cverts += [v.co for v in curveM.vertices]
+
+            
+    # ores.data.clear_geometry()        
+    # ores.data.from_pydata(cverts, [], cfaces) 
+    # for pi, poly in enumerate(ores.data.polygons):
+    #     poly.material_index = mis[pi]
+
+
     for csi, ca in enumerate(CS.allsegs):
         for ci, c_cos in enumerate(ca):
             vcos += [o.matrix_world@Vector(c + [offset + (1, -1)[svp.vi_disp_pos == "1"] * 0.0001 * csi]) for c in c_cos.tolist()]
@@ -229,6 +277,7 @@ def rtpoints(self, bm, offset, cp, frame):
     geom = bm.verts if cp == '1' else bm.faces
     cindex = geom.layers.int['cindex']
     rt = geom.layers.string['rt{}'.format(frame)]
+    #bm.normal_update()
 
     for gp in geom:
         gp[cindex] = 0
@@ -249,7 +298,8 @@ def rtpoints(self, bm, offset, cp, frame):
         self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]
 
     for g, gp in enumerate(gpoints):
-        gp[rt] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f} {1[0]:.4f} {1[1]:.4f} {1[2]:.4f}'.format([gpcos[g][i] + offset * gp.normal.normalized()[i] for i in range(3)], gp.normal[:]).encode('utf-8')
+        gp_norm = Vector([gp.normal[i]/self.id_data.scale[i] for i in range(3)]).normalized()
+        gp[rt] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f} {1[0]:.4f} {1[1]:.4f} {1[2]:.4f}'.format([gpcos[g][i] + offset * gp_norm[i] for i in range(3)], gp_norm[:]).encode('utf-8')
         gp[cindex] = g + 1
 
     self['rtpnum'] = g + 1
@@ -368,17 +418,17 @@ def radmat(self, scene):
                 t_mod = mod
                 mod = '{}_norm'.format(radname)
                 norm = self.li_norm
-                (w, h) = norm.size
-                ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-                normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
-                norm.pixels.foreach_get(normpixels)
-                header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
-                xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
-                ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
-                savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
-                savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
+                # (w, h) = norm.size
+                # ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
+                # normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
+                # norm.pixels.foreach_get(normpixels)
+                # header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
+                # xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
+                # ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
+                # savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
+                # savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
                 radentries.append("{7} texdata {0}\n9 ddx ddy ddz '{1}.ddx' '{1}.ddy' '{1}.ddy' nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(mod,
-                                    os.path.join(svp['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside, t_mod))
+                                    os.path.join(svp['viparams']['newdir'], 'textures', norm.name), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside, t_mod))
                 radentries.append(ret_radentry(self, radname, mod))
 
 
@@ -396,8 +446,9 @@ def cbdmmtx(self, scene, locnode, export_op):
     svp = scene.vi_params
     res = (1, 2, 4, 8)[self.cbdm_res - 1]
     os.chdir(svp['viparams']['newdir'])
-    (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour + 1) if not self.ay or (self.cbanalysismenu == '2' and self.leed4) else (0, 24)
-    (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if not self.ay else (1, 365)
+    (csh, ceh) = (self.cbdm_start_hour, self.cbdm_end_hour + 1) if self.metric in ('0', '1') else (0, 24)
+    (sdoy, edoy) = (self.sdoy, self.cbdm_edoy) if self.metric == '0' else (1, 365)
+    dhs = []
 
     if self['epwbase'][1] in (".epw", ".EPW"):
         with open(locnode.weather, "r") as epwfile:
@@ -417,6 +468,18 @@ def cbdmmtx(self, scene, locnode, export_op):
                     weafile.write(line)
                 elif csh <= float(ls[2]) <= ceh and sdoy <= datetime.datetime(svp['year'], int(ls[0]), int(ls[1])).timetuple().tm_yday <= edoy and datetime.datetime(svp['year'], int(ls[0]), int(ls[1])).weekday() <= (6, 4)[self.weekdays]:
                     weafile.write(line)
+                    dhs.append(int(ls[4]))
+        
+        dhs_array = array(dhs)
+
+        try:
+            ind = argpartition(dhs_array, -4380)[-4380:]
+            dl_array = zeros(len(dhs)).astype(int8)
+            put(dl_array, ind, 1)
+        except:
+            dl_array = where(dhs_array > 0, 1, 0)
+
+        self['dl_hours'] = ' '.join(map(str, dl_array))
 
         gdmcmd = ('gendaymtx -m {} {} "{}"'.format(res, ('-O0', '-O1')[self['watts']],
                   "{0}.wea".format(os.path.join(svp['viparams']['newdir'], self['epwbase'][0]))))
@@ -1072,27 +1135,34 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     cbdm_days = list(set([t.timetuple().tm_yday for t in times]))
     cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'] + 1)]
     dno, hno = len(cbdm_days), len(cbdm_hours)
-    sdah = 10 if simnode['coptions']['ay'] else hno
+    #sdah = 10 if simnode['coptions']['ay'] else hno
+    # en_times = []
+    # en_times = array([solarPosition(t.timetuple().tm_yday, t.hour, svp.latitude, svp.longitude)[0] > 0 for t in times])
+
+    #for t in times:
+    #    en_times.append(1) if solarPosition(t.timetuple().tm_yday, t.hour, svp.latitude, svp.longitude)[0] > 0 else en_times.append(0)
+        
     (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax'])
     vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     vecvalsns = array([vv[2:] for vv in vecvalsns if vv[1] < simnode['coptions']['weekdays']]).astype(float32)
     hours = vecvals.shape[0]
     logentry(f'Running CBDM calculation over {hours} hours')
     hour_array = array([t.hour for t in times])
-    restypes = ('da', 'sda', 'sv', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firradh', 'firradhm2', 'maxlux', 'minlux', 'avelux')
+    restypes = ('da', 'sda', 'sv', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'firradh', 'firradhm2', 'maxlux', 'minlux', 'avelux', 'en100', 'en300')
     self['livires']['cbdm_days'] = cbdm_days
     self['livires']['cbdm_hours'] = cbdm_hours
 
     for f, frame in enumerate(frames):
-        reslists.append([str(frame), 'Time', 'Time', 'Month', ' '.join([str(t.month) for t in times])])
-        reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
-        reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
-        reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+        # reslists.append([str(frame), 'Time', 'Time', 'Month', ' '.join([str(t.month) for t in times])])
+        # reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([str(t.day) for t in times])])
+        # reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
+        # reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+        # reslists.append([str(frame), 'Climate', 'Exterior', 'Daylight', ' '.join([('0', '1')[solarPosition(t.timetuple().tm_yday, t.hour, svp.latitude, svp.longitude)[0] > 0] for t in times])])
 
         for restype in restypes:
             geom.layers.float.new('{}{}'.format(restype, frame))
 
-        (resda, ressda, ressv, resase, res, resudilow, resudisup, resudiauto, resudihi, firrad, firradm2, maxillu, minillu, aveillu) = [geom.layers.float['{}{}'.format(r, frame)] for r in restypes]
+        (resda, ressda, ressv, resase, res, resudilow, resudisup, resudiauto, resudihi, firrad, firradm2, maxillu, minillu, aveillu, en100, en300) = [geom.layers.float['{}{}'.format(r, frame)] for r in restypes]
 
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
@@ -1147,69 +1217,108 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
                 sensrunns = Popen(shlex.split(rccmd), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
                 resarrayd = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrunns[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
-                sensarrayns = nsum(resarrayd*illumod, axis=2).astype(float32)
-                finalilluns = inner(sensarrayns, vecvalsns).astype(float32)
-                dabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
-                asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)
-                udilbool = choose(finalillu < simnode['coptions']['damin'], [0, 1]).astype(int8)
-                udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
-                udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
-                udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)
-                svbool = choose(nsum(nsum(resarrayd, axis=1), axis=1) > 0.0, [0, 1]).astype(int8)
-                sdafinalillu = finalillu[:, logical_and(8 <= hour_array, hour_array < 18)] if simnode['coptions']['ay'] else finalillu
-                sdabool = choose(sdafinalillu >= 300, [0, 1]).astype(int8)
-                daareares = (dabool.T*chareas).T
-                udilareares = (udilbool.T*chareas).T
-                udisareares = (udisbool.T*chareas).T
-                udiaareares = (udiabool.T*chareas).T
-                udihareares = (udihbool.T*chareas).T
-                aseareares = (asebool.T*chareas).T
-                sdaareares = (sdabool.T*chareas).T
-                sdaarearespa = (sdabool.T*chareas*svbool).T
-                dares = dabool.sum(axis=1)*100/hours
-                udilow = udilbool.sum(axis=1)*100/hours
-                udisup = udisbool.sum(axis=1)*100/hours
-                udiauto = udiabool.sum(axis=1)*100/hours
-                udihi = udihbool.sum(axis=1)*100/hours
-                sdares = sdabool.sum(axis=1)*100/(dno * sdah)
-                aseres = asebool.sum(axis=1)*1.0
+                
+                if simnode['coptions']['metric'] == '1':
+                    sensarrayns = nsum(resarrayd*illumod, axis=2).astype(float32)
+                    finalilluns = inner(sensarrayns, vecvalsns).astype(float32)
+                    
+                    asebool = choose(finalilluns >= luxmax, [0, 1]).astype(int8)
+                    
+                    svbool = choose(nsum(nsum(resarrayd, axis=1), axis=1) > 0.0, [0, 1]).astype(int8)
+                    #sdafinalillu = finalillu[:, logical_and(8 <= hour_array, hour_array < 18)] if simnode['coptions']['ay'] else finalillu
+                    sdabool = choose(finalillu >= 300, [0, 1]).astype(int8)
+                    
+                    aseareares = (asebool.T*chareas).T
+                    sdaareares = (sdabool.T*chareas).T
+                    sdaarearespa = (sdabool.T*chareas*svbool).T
+                    sdares = sdabool.sum(axis=1)*100/(dno * hno)
+                    aseres = asebool.sum(axis=1)*1.0
 
+                elif simnode['coptions']['metric'] == '2':
+                    en_times = array([int(dl) for dl in simnode['coptions']['dl_hours'].split()])
+                    en_illu = en_times * finalillu
+                    en100bool = where(en_illu >= 100, 1, 0).astype(int8)
+                    en300bool = where(en_illu >= 300, 1, 0).astype(int8)
+                    en100areares = (en100bool.T*chareas).T
+                    en300areares = (en300bool.T*chareas).T
+                    en100res = en100bool.sum(axis=1)*100/4380
+                    en300res = en300bool.sum(axis=1)*100/4380
+                else:
+                    dabool = choose(finalillu >= luxmin, [0, 1]).astype(int8)
+                    udilbool = choose(finalillu < simnode['coptions']['damin'], [0, 1]).astype(int8)
+                    udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]).astype(int8) - udilbool
+                    udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]).astype(int8) - udilbool - udisbool
+                    udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1]).astype(int8)
+                    daareares = (dabool.T*chareas).T
+                    udilareares = (udilbool.T*chareas).T
+                    udisareares = (udisbool.T*chareas).T
+                    udiaareares = (udiabool.T*chareas).T
+                    udihareares = (udihbool.T*chareas).T
+                    dares = dabool.sum(axis=1)*100/hours
+                    udilow = udilbool.sum(axis=1)*100/hours
+                    udisup = udisbool.sum(axis=1)*100/hours
+                    udiauto = udiabool.sum(axis=1)*100/hours
+                    udihi = udihbool.sum(axis=1)*100/hours
+                
                 if not ch:
                     totfinalillu = finalillu
-                    totdaarea = nsum(100 * daareares/totarea, axis=0)
-                    totudiaarea = nsum(100 * udiaareares/totarea, axis=0)
-                    totudisarea = nsum(100 * udisareares/totarea, axis=0)
-                    totudilarea = nsum(100 * udilareares/totarea, axis=0)
-                    totudiharea = nsum(100 * udihareares/totarea, axis=0)
-                    totsdaarea = nsum(sdaareares, axis=0)
-                    totsdaareapa = nsum(sdaarearespa, axis=0)
-                    totasearea = nsum(aseareares, axis=0)
-                    svarea = nsum(chareas * svbool)
+
+                    if simnode['coptions']['metric'] == '0':
+                        totdaarea = nsum(100 * daareares/totarea, axis=0)
+                        totudiaarea = nsum(100 * udiaareares/totarea, axis=0)
+                        totudisarea = nsum(100 * udisareares/totarea, axis=0)
+                        totudilarea = nsum(100 * udilareares/totarea, axis=0)
+                        totudiharea = nsum(100 * udihareares/totarea, axis=0)
+                    
+                    if simnode['coptions']['metric'] == '1':
+                        totsdaarea = nsum(sdaareares, axis=0)
+                        totsdaareapa = nsum(sdaarearespa, axis=0)
+                        totasearea = nsum(aseareares, axis=0)
+                        svarea = nsum(chareas * svbool)
+
+                    elif simnode['coptions']['metric'] == '2':
+                        toten100area = 100 * nsum(en100areares, axis=0)/totarea
+                        toten300area = 100 * nsum(en300areares, axis=0)/totarea
                 else:
                     nappend(totfinalillu, finalillu)
-                    totdaarea += nsum(100 * daareares/totarea, axis=0)
-                    totudiaarea += nsum(100 * udiaareares/totarea, axis=0)
-                    totudilarea += nsum(100 * udilareares/totarea, axis=0)
-                    totudisarea += nsum(100 * udisareares/totarea, axis=0)
-                    totudiharea += nsum(100 * udihareares/totarea, axis=0)
-                    totsdaarea += nsum(sdaareares, axis=0)
-                    totsdaareapa += nsum(sdaarearespa, axis=0)
-                    totasearea += nsum(aseareares, axis=0)
-                    svarea += nsum(chareas * svbool)
+
+                    if simnode['coptions']['metric'] == '0':
+                        totdaarea += nsum(100 * daareares/totarea, axis=0)
+                        totudiaarea += nsum(100 * udiaareares/totarea, axis=0)
+                        totudilarea += nsum(100 * udilareares/totarea, axis=0)
+                        totudisarea += nsum(100 * udisareares/totarea, axis=0)
+                        totudiharea += nsum(100 * udihareares/totarea, axis=0)
+
+                    elif simnode['coptions']['metric'] == '1':
+                        totsdaarea += nsum(sdaareares, axis=0)
+                        totsdaareapa += nsum(sdaarearespa, axis=0)
+                        totasearea += nsum(aseareares, axis=0)
+                        svarea += nsum(chareas * svbool)
+                    
+                    elif simnode['coptions']['metric'] == '2':
+                        toten100area += nsum(100 * en100areares/totarea, axis=0)
+                        toten300area += nsum(100 * en300areares, axis=0)/totarea
 
                 for gi, gp in enumerate(chunk):
-                    gp[resda] = dares[gi]
-                    gp[res] = dares[gi]
-                    gp[resudilow] = udilow[gi]
-                    gp[resudisup] = udisup[gi]
-                    gp[resudiauto] = udiauto[gi]
-                    gp[resudihi] = udihi[gi]
-                    gp[maxillu] = max(finalillu[gi])
-                    gp[minillu] = min(finalillu[gi])
-                    gp[aveillu] = nmean(finalillu[gi])
-                    gp[ressda] = sdares[gi]
-                    gp[resase] = aseres[gi]
-                    gp[ressv] = svbool[gi]
+                    if simnode['coptions']['metric'] == '0':
+                        gp[resda] = dares[gi]
+                        gp[res] = dares[gi]
+                        gp[resudilow] = udilow[gi]
+                        gp[resudisup] = udisup[gi]
+                        gp[resudiauto] = udiauto[gi]
+                        gp[resudihi] = udihi[gi]
+                        gp[maxillu] = max(finalillu[gi])
+                        gp[minillu] = min(finalillu[gi])
+                        gp[aveillu] = nmean(finalillu[gi])
+                    
+                    elif simnode['coptions']['metric'] == '1':
+                        gp[ressda] = sdares[gi]
+                        gp[resase] = aseres[gi]
+                        gp[ressv] = svbool[gi]
+                    
+                    elif simnode['coptions']['metric'] == '2':
+                        gp[en100] = en100res[gi]
+                        gp[en300] = en300res[gi]
 
             curres += len(chunk)
 
@@ -1230,80 +1339,99 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'ave kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
 
         elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
-            dares = [gp[resda] for gp in rgeom]
-            udilow = [gp[resudilow] for gp in rgeom]
-            udisup = [gp[resudisup] for gp in rgeom]
-            udiauto = [gp[resudiauto] for gp in rgeom]
-            udihi = [gp[resudihi] for gp in rgeom]
-            sdas = [gp[ressda] for gp in rgeom]
-            ases = [gp[resase] for gp in rgeom]
-            svres = [gp[ressv] for gp in rgeom]
-            self['omax']['udilow{}'.format(frame)] = max(udilow)
-            self['omin']['udilow{}'.format(frame)] = min(udilow)
-            self['oave']['udilow{}'.format(frame)] = nmean(udilow)
-            self['omax']['udisup{}'.format(frame)] = max(udisup)
-            self['omin']['udisup{}'.format(frame)] = min(udisup)
-            self['oave']['udisup{}'.format(frame)] = nmean(udisup)
-            self['omax']['udiauto{}'.format(frame)] = max(udiauto)
-            self['omin']['udiauto{}'.format(frame)] = min(udiauto)
-            self['oave']['udiauto{}'.format(frame)] = sum(udiauto)
-            self['omax']['udihi{}'.format(frame)] = max(udihi)
-            self['omin']['udihi{}'.format(frame)] = min(udihi)
-            self['oave']['udihi{}'.format(frame)] = nmean(udihi)
-            self['omax']['da{}'.format(frame)] = max(dares)
-            self['omin']['da{}'.format(frame)] = min(dares)
-            self['oave']['da{}'.format(frame)] = nmean(dares)
-            self['omax']['maxlux{}'.format(frame)] = max(nmax(totfinalillu, axis=1).astype(float64))
-            self['omin']['maxlux{}'.format(frame)] = min(nmax(totfinalillu, axis=1).astype(float64))
-            self['oave']['maxlux{}'.format(frame)] = nmean(nmax(totfinalillu, axis=1).astype(float64))
-            self['omax']['minlux{}'.format(frame)] = max(nmin(totfinalillu, axis=1).astype(float64))
-            self['omin']['minlux{}'.format(frame)] = min(nmin(totfinalillu, axis=1).astype(float64))
-            self['oave']['minlux{}'.format(frame)] = nmean(nmin(totfinalillu, axis=1).astype(float64))
-            self['omax']['avelux{}'.format(frame)] = max(nmean(totfinalillu, axis=1).astype(float64))
-            self['omin']['avelux{}'.format(frame)] = min(nmean(totfinalillu, axis=1).astype(float64))
-            self['oave']['avelux{}'.format(frame)] = nmean(nmean(totfinalillu, axis=1).astype(float64))
-            self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis=0).flatten().reshape(dno, hno).transpose().tolist()
-            self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis=0).reshape(dno, hno).transpose().tolist()
-            self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis=0).reshape(dno, hno).transpose().tolist()
-            self['livires']['daarea{}'.format(frame)] = totdaarea.reshape(dno, hno).transpose().tolist()
-            self['livires']['udiaarea{}'.format(frame)] = totudiaarea.reshape(dno, hno).transpose().tolist()
-            self['livires']['udisarea{}'.format(frame)] = totudisarea.reshape(dno, hno).transpose().tolist()
-            self['livires']['udilarea{}'.format(frame)] = totudilarea.reshape(dno, hno).transpose().tolist()
-            self['livires']['udiharea{}'.format(frame)] = totudiharea.reshape(dno, hno).transpose().tolist()
-            self['omax']['sv{}'.format(frame)] = max(svres)
-            self['omin']['sv{}'.format(frame)] = min(svres)
-            self['oave']['sv{}'.format(frame)] = nmean(svres)
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([f'{p:.2f}' for p in totdaarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-a Area (%)', ' '.join([f'{p:.2f}' for p in totudiaarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([f'{p:.2f}' for p in totudisarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([f'{p:.2f}' for p in totudilarea])])
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([f'{p:.2f}' for p in totudiharea])])
-            overallsdaareapa = sum([g.calc_area() for g in rgeom if g[ressv] == 1.0]) if svp['liparams']['cp'] == '0' else sum([vertarea(bm, g) for g in rgeom if g[ressv] == 1.0])
-            overallsdaarea = totarea
-            self['omax']['sda{}'.format(frame)] = max(sdas)
-            self['omin']['sda{}'.format(frame)] = min(sdas)
-            self['oave']['sda{}'.format(frame)] = sum(sdas)/reslen
-            self['omax']['ase{}'.format(frame)] = max(ases)
-            self['omin']['ase{}'.format(frame)] = min(ases)
-            self['oave']['ase{}'.format(frame)] = sum(ases)/reslen
-            self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose().tolist()
-            self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, sdah).transpose().tolist()
-            self['livires']['sdaareapa{}'.format(frame)] = (100 * totsdaareapa/svarea).reshape(dno, sdah).transpose().tolist()
             self['livires']['totarea{}'.format(frame)] = totarea
-            self['livires']['svarea{}'.format(frame)] = svarea
-            self['livires']['ase{}'.format(frame)] = sum(areas[array(ases) > 250])/totarea
-            sumsdaareas = sum(areas[array(sdas) >= 50])
-            self['livires']['sda{}'.format(frame)] = sumsdaareas/totarea
-            self['livires']['sdapa{}'.format(frame)] = sumsdaareas/svarea
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaarea/totarea])])
 
-            if svarea:
-                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaareapa/svarea])])
-            else:
-                logentry(f'Sensor object {self.id_data.name} cannot see any sky.')
+            if simnode['coptions']['metric'] == '0':
+                dares = [gp[resda] for gp in rgeom]
+                udilow = [gp[resudilow] for gp in rgeom]
+                udisup = [gp[resudisup] for gp in rgeom]
+                udiauto = [gp[resudiauto] for gp in rgeom]
+                udihi = [gp[resudihi] for gp in rgeom]
+                self['omax']['udilow{}'.format(frame)] = max(udilow)
+                self['omin']['udilow{}'.format(frame)] = min(udilow)
+                self['oave']['udilow{}'.format(frame)] = nmean(udilow)
+                self['omax']['udisup{}'.format(frame)] = max(udisup)
+                self['omin']['udisup{}'.format(frame)] = min(udisup)
+                self['oave']['udisup{}'.format(frame)] = nmean(udisup)
+                self['omax']['udiauto{}'.format(frame)] = max(udiauto)
+                self['omin']['udiauto{}'.format(frame)] = min(udiauto)
+                self['oave']['udiauto{}'.format(frame)] = sum(udiauto)
+                self['omax']['udihi{}'.format(frame)] = max(udihi)
+                self['omin']['udihi{}'.format(frame)] = min(udihi)
+                self['oave']['udihi{}'.format(frame)] = nmean(udihi)
+                self['omax']['da{}'.format(frame)] = max(dares)
+                self['omin']['da{}'.format(frame)] = min(dares)
+                self['oave']['da{}'.format(frame)] = nmean(dares)
+                self['omax']['maxlux{}'.format(frame)] = max(nmax(totfinalillu, axis=1).astype(float64))
+                self['omin']['maxlux{}'.format(frame)] = min(nmax(totfinalillu, axis=1).astype(float64))
+                self['oave']['maxlux{}'.format(frame)] = nmean(nmax(totfinalillu, axis=1).astype(float64))
+                self['omax']['minlux{}'.format(frame)] = max(nmin(totfinalillu, axis=1).astype(float64))
+                self['omin']['minlux{}'.format(frame)] = min(nmin(totfinalillu, axis=1).astype(float64))
+                self['oave']['minlux{}'.format(frame)] = nmean(nmin(totfinalillu, axis=1).astype(float64))
+                self['omax']['avelux{}'.format(frame)] = max(nmean(totfinalillu, axis=1).astype(float64))
+                self['omin']['avelux{}'.format(frame)] = min(nmean(totfinalillu, axis=1).astype(float64))
+                self['oave']['avelux{}'.format(frame)] = nmean(nmean(totfinalillu, axis=1).astype(float64))
+                self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis=0).flatten().reshape(dno, hno).transpose().tolist()
+                self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis=0).reshape(dno, hno).transpose().tolist()
+                self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis=0).reshape(dno, hno).transpose().tolist()
+                self['livires']['daarea{}'.format(frame)] = totdaarea.reshape(dno, hno).transpose().tolist()
+                self['livires']['udiaarea{}'.format(frame)] = totudiaarea.reshape(dno, hno).transpose().tolist()
+                self['livires']['udisarea{}'.format(frame)] = totudisarea.reshape(dno, hno).transpose().tolist()
+                self['livires']['udilarea{}'.format(frame)] = totudilarea.reshape(dno, hno).transpose().tolist()
+                self['livires']['udiharea{}'.format(frame)] = totudiharea.reshape(dno, hno).transpose().tolist()
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Daylight Autonomy Area (%)', ' '.join([f'{p:.2f}' for p in totdaarea])])
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-a Area (%)', ' '.join([f'{p:.2f}' for p in totudiaarea])])
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-s Area (%)', ' '.join([f'{p:.2f}' for p in totudisarea])])
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-l Area (%)', ' '.join([f'{p:.2f}' for p in totudilarea])])
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'UDI-h Area (%)', ' '.join([f'{p:.2f}' for p in totudiharea])])
+            
+            elif simnode['coptions']['metric'] == '1':
+                ases = [gp[resase] for gp in rgeom]
+                sdas = [gp[ressda] for gp in rgeom]
+                svres = [gp[ressv] for gp in rgeom]
+                overallsdaareapa = sum([g.calc_area() for g in rgeom if g[ressv] == 1.0]) if svp['liparams']['cp'] == '0' else sum([vertarea(bm, g) for g in rgeom if g[ressv] == 1.0])
+                overallsdaarea = totarea
+                self['omax']['sda{}'.format(frame)] = max(sdas)
+                self['omin']['sda{}'.format(frame)] = min(sdas)
+                self['oave']['sda{}'.format(frame)] = sum(sdas)/reslen
+                self['omax']['sv{}'.format(frame)] = max(svres)
+                self['omin']['sv{}'.format(frame)] = min(svres)
+                self['oave']['sv{}'.format(frame)] = nmean(svres)
+                self['omax']['ase{}'.format(frame)] = max(ases)
+                self['omin']['ase{}'.format(frame)] = min(ases)
+                self['oave']['ase{}'.format(frame)] = sum(ases)/reslen
+                sumsdaareas = sum(areas[array(sdas) >= 50])
+                self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, hno).transpose().tolist()
+                self['livires']['sdaareapa{}'.format(frame)] = (100 * totsdaareapa/svarea).reshape(dno, hno).transpose().tolist()
+                self['livires']['sda{}'.format(frame)] = sumsdaareas/totarea
+                self['livires']['sdapa{}'.format(frame)] = sumsdaareas/svarea
+                self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose().tolist()
+                
+                self['livires']['svarea{}'.format(frame)] = svarea
+                self['livires']['ase{}'.format(frame)] = sum(areas[array(ases) > 250])/totarea
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaarea/totarea])])
+                
+                if svarea:
+                    reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Spatial Daylight Autonomy (% perimeter area)', ' '.join([f'{p:.2f}' for p in 100 * totsdaareapa/svarea])])
+                else:
+                    logentry(f'Sensor object {self.id_data.name} cannot see any sky.')
+                    
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join([f'{p:.2f}' for p in 100 * totasearea/totarea])])
 
-            reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'Annual Sunlight Exposure (% area)', ' '.join([f'{p:.2f}' for p in 100 * totasearea/totarea])])
-
+            elif simnode['coptions']['metric'] == '2':
+                en100s = [gp[en100] for gp in rgeom]
+                en300s = [gp[en300] for gp in rgeom]
+                self['omax']['en100{}'.format(frame)] = max(en100res)
+                self['omin']['en100{}'.format(frame)] = min(en100res)
+                self['oave']['en100{}'.format(frame)] = nmean(en100res)
+                self['omax']['en300{}'.format(frame)] = max(en300res)
+                self['omin']['en300{}'.format(frame)] = min(en300res)
+                self['oave']['en300{}'.format(frame)] = nmean(en300res)
+                self['livires']['en100{}'.format(frame)] = sum(areas[array(en100s) > 50])/totarea
+                self['livires']['en300{}'.format(frame)] = sum(areas[array(en300s) > 50])/totarea
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'EN17037_300 (% area)', ' '.join([f'{p:.2f}' for p in toten300area])])
+                reslists.append([str(frame), 'Zone temporal', self.id_data.name, 'EN17037_100 (% area)', ' '.join([f'{p:.2f}' for p in toten100area])])
+  
     if len(frames) > 1:
         reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join([str(f) for f in frames])])
         if svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '1':
@@ -1315,28 +1443,40 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum solar exposure (kWh/m2)', ' '.join(['{:.3f}'.format(self['omin']['firradhm2{}'.format(frame)]) for frame in frames])])
 
         elif svp['viparams']['visimcontext'] == 'LiVi CBDM' and simnode['coptions']['cbanalysis'] == '2':
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average sDA (% area)', ' '.join(['{:.3f}'.format(self['oave']['sda{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum sDA (% area)', ' '.join(['{:.3f}'.format(self['omax']['sda{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum sDA (% area)', ' '.join(['{:.3f}'.format(self['omin']['sda{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average DA (% area)', ' '.join(['{:.3f}'.format(self['oave']['da{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum DA (% area)', ' '.join(['{:.3f}'.format(self['omax']['da{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum DA (% area)', ' '.join(['{:.3f}'.format(self['omin']['da{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average ASE (hours)', ' '.join(['{:.3f}'.format(self['oave']['ase{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum ASE (hours)', ' '.join(['{:.3f}'.format(self['omax']['ase{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum ASE (hours)', ' '.join(['{:.3f}'.format(self['omin']['ase{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-l (% area)', ' '.join(['{:.3f}'.format(self['oave']['udilow{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-l (% area)', ' '.join(['{:.3f}'.format(self['omax']['udilow{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-l (% area)', ' '.join(['{:.3f}'.format(self['omin']['udilow{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-s (% area)', ' '.join(['{:.3f}'.format(self['oave']['udisup{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-s (% area)', ' '.join(['{:.3f}'.format(self['omax']['udisup{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-s (% area)', ' '.join(['{:.3f}'.format(self['omin']['udisup{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-a (% area)', ' '.join(['{:.3f}'.format(self['oave']['udiauto{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-a (% area)', ' '.join(['{:.3f}'.format(self['omax']['udiauto{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-a (% area)', ' '.join(['{:.3f}'.format(self['omin']['udiauto{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-h (% area)', ' '.join(['{:.3f}'.format(self['oave']['udihi{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-h (% area)', ' '.join(['{:.3f}'.format(self['omax']['udihi{}'.format(frame)]) for frame in frames])])
-            reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-h (% area)', ' '.join(['{:.3f}'.format(self['omin']['udihi{}'.format(frame)]) for frame in frames])])
-
+            if simnode['coptions']['metric'] == '0':
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average DA (% area)', ' '.join(['{:.3f}'.format(self['oave']['da{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum DA (% area)', ' '.join(['{:.3f}'.format(self['omax']['da{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum DA (% area)', ' '.join(['{:.3f}'.format(self['omin']['da{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-l (% area)', ' '.join(['{:.3f}'.format(self['oave']['udilow{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-l (% area)', ' '.join(['{:.3f}'.format(self['omax']['udilow{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-l (% area)', ' '.join(['{:.3f}'.format(self['omin']['udilow{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-s (% area)', ' '.join(['{:.3f}'.format(self['oave']['udisup{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-s (% area)', ' '.join(['{:.3f}'.format(self['omax']['udisup{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-s (% area)', ' '.join(['{:.3f}'.format(self['omin']['udisup{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-a (% area)', ' '.join(['{:.3f}'.format(self['oave']['udiauto{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-a (% area)', ' '.join(['{:.3f}'.format(self['omax']['udiauto{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-a (% area)', ' '.join(['{:.3f}'.format(self['omin']['udiauto{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average UDI-h (% area)', ' '.join(['{:.3f}'.format(self['oave']['udihi{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum UDI-h (% area)', ' '.join(['{:.3f}'.format(self['omax']['udihi{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum UDI-h (% area)', ' '.join(['{:.3f}'.format(self['omin']['udihi{}'.format(frame)]) for frame in frames])])
+            
+            elif simnode['coptions']['metric'] == '1':
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average ASE (hours)', ' '.join(['{:.3f}'.format(self['oave']['ase{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum ASE (hours)', ' '.join(['{:.3f}'.format(self['omax']['ase{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum ASE (hours)', ' '.join(['{:.3f}'.format(self['omin']['ase{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average sDA (% area)', ' '.join(['{:.3f}'.format(self['oave']['sda{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum sDA (% area)', ' '.join(['{:.3f}'.format(self['omax']['sda{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum sDA (% area)', ' '.join(['{:.3f}'.format(self['omin']['sda{}'.format(frame)]) for frame in frames])])
+            
+            elif simnode['coptions']['metric'] == '2':
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average EN17037_100 (% area)', ' '.join(['{:.3f}'.format(self['oave']['en100{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum EN17037_100 (% area)', ' '.join(['{:.3f}'.format(self['omax']['en100{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum EN17037_100 (% area)', ' '.join(['{:.3f}'.format(self['omin']['en100{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Average EN17037_300 (% area)', ' '.join(['{:.3f}'.format(self['oave']['en300{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Maximum EN17037_300 (% area)', ' '.join(['{:.3f}'.format(self['omax']['en300{}'.format(frame)]) for frame in frames])])
+                reslists.append(['All', 'Zone spatial', self.id_data.name, 'Minimum EN17037_300 (% area)', ' '.join(['{:.3f}'.format(self['omin']['en300{}'.format(frame)]) for frame in frames])])
+                
+            
     bm.transform(self.id_data.matrix_world.inverted())
     bm.to_mesh(self.id_data.data)
     bm.free()
