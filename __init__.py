@@ -502,13 +502,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     vi_disp_wire: BoolProperty(name="", description="Draw wire frame", default=0, update=w_update)
     vi_disp_mat: BoolProperty(name="", description="Turn on/off result material emission", default=0, update=col_update)
     vi_disp_ems: FloatProperty(name="", description="Emissive strength", default=1, min=0, update=col_update)
-    #vi_scatt_max: EnumProperty(items=[('0', 'Data', 'Get maximum from data'), ('1', 'Value', 'Specify maximum value')],
-     #                          name="", description="Set maximum value", default='0')
-    #vi_scatt_min: EnumProperty(items=[('0', 'Data', 'Get minimum from data'), ('1', 'Value', 'Specify minimum value')],
-    #                           name="", description="Set minimum value", default='0')
-    #vi_scatt_max_val: fprop("", 'Maximum value', 1, 3000, 20)
-    #vi_scatt_min_val: fprop("", 'Minimum value', 0, 1000, 0)
-    # vi_scatt_col: EnumProperty(items=colours, name="", description="Scatter colour", default='rainbow')
+    vi_scatt_col: EnumProperty(items=colours, name="", description="Scatter colour", default='rainbow')
     vi_disp_refresh: bprop("", "Refresh display",  False)
     vi_res_mod: sprop("", "Result modifier", 1024, "")
     vi_res_process: EnumProperty(items=[("0", "None", ""), ("1", "Modifier", ""), ("2", "Script", "")], name="", description="Specify the type of data processing", default="0", update=script_update)
