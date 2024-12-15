@@ -2176,21 +2176,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
 
         if not self.cao:
             return {'CANCELLED'}
-        else:
-            self.zdata = array(self.cao.vi_params[('d', 'wd')[int(svp.wind_type)]])
-            self.zmax = nmax(self.zdata) if svp.vi_scatt_max == '0' else svp.vi_scatt_max_val
-            self.zmin = nmin(self.zdata) if svp.vi_scatt_min == '0' else svp.vi_scatt_min_val
-            self.xdata = self.cao.vi_params['days']
-            self.ydata = self.cao.vi_params['hours']
-            self.title = ('Wind Speed', 'Wind Direction')[int(svp.wind_type)]
-            self.scatt_legend = ('Speed (m/s)', 'Direction ($^o$ deg from north)')[int(svp.wind_type)]
-            self.xtitle = 'Days'
-            self.ytitle = 'Hours'
 
-        self.image = 'wr_scatter.png'
-        self.zdata = array([])
-        self.xtitle = 'Days'
-        self.ytitle = 'Hours'
         self.height = r5h - r0h
         self.draw_handle_wrnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_wrnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["wr"] = self.draw_handle_wrnum
