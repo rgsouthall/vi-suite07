@@ -728,6 +728,7 @@ class No_Li_Con(Node, ViNodes):
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.animated else scene.frame_current
         self['mtxfile'] = ''
         self['mtxfilens'] = ''
+        self['dl_hours' ] = ''
         self['preview'] = 0
 
         if self.contextmenu == "Basic":
