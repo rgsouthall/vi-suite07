@@ -16,9 +16,17 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
+import bpy, bpy_extras, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
+from bpy_extras import mesh_utils
 from .vi_func import selobj, facearea, selmesh, create_coll, selobs, logentry, epentry
 from .envi_func import get_con_node, boundpoly, get_zone_node, ret_areas, epschedwrite
+
+try:
+    from netgen import occ
+    from netgen.meshing import MeshingStep
+    ng = 1
+except:
+    ng = 0
 
 dtdf = datetime.date.fromordinal
 caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "AdaptiveConvectionAlgorithm"}
@@ -549,7 +557,110 @@ def pregeo(context, op):
         if material.users == 0:
             bpy.data.materials.remove(material)
 
+    b_mats = []
+
     for c in [c for c in bpy.data.collections if c != scene.collection and c.name != 'EnVi Geometry' and c.name not in [c.name for c in eg.children]]:
+        if context.node.netgen and ng:
+            g_geos = []
+            cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH' and o.vi_params.vi_type == '1']
+            cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH']
+            if cobs:
+                for ob in cobs:
+                    print(ob.name)
+                    fi = 0
+                    faces = []
+                    bm = bmesh.new()
+                    bm.from_object(ob, depsgraph)
+                    bm.transform(ob.matrix_world)
+                    bmesh.ops.connect_verts_nonplanar(bm, angle_limit=0, faces=bm.faces)['faces']
+
+                    if not ob.material_slots:
+                        logentry(f'{ob.name} has faces with an unspecified material or an empty material slot')
+                        self.report({'ERROR'}, f'{ob.name} has faces with an unspecified material or an empty material slot')
+                        return {'CANCELLED'}
+
+                    for face in bm.faces:
+                        if max([face.normal.dot(face.calc_center_median() - vert.co) for vert in face.verts]) > 0.0000001:
+                            bmesh.ops.triangulate(bm, faces=[face])
+
+                    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+                    if not all([e.is_manifold for e in bm.edges]) or not all([v.is_manifold for v in bm.verts]):
+                        bm.free()
+                        logentry('FloVi error: {} is not manifold'.format(ob.name))
+                        self.report({'ERROR'}, 'FloVi error: {} is not manifold'.format(ob.name))
+                        return {'CANCELLED'}
+
+                    for mi, ms in enumerate(ob.material_slots):
+                        for face in bm.faces:
+                            if face.material_index == mi:
+                                if ms.material and f'{ob.name}_{ms.material.name}' not in b_mats:
+                                    b_mats.append(f'{ob.name}_{ms.material.name}')
+                                elif not ms.material:
+                                    logentry(f'{ob.name} has faces with an unspecified material or an empty material slot')
+                                    self.report({'ERROR'}, f'{ob.name} has faces with an unspecified material or an empty material slot')
+                                    return {'CANCELLED'}
+
+                                face.index = fi
+                                fi += 1
+
+                    bm.faces.sort()
+                    bm.normal_update()
+                    bm.faces.ensure_lookup_table()
+
+                    for face in bm.faces:
+                        edges = []
+                        points = [occ.gp_Pnt(loop.vert.co[:]) for loop in face.loops]
+                        verts = [occ.Vertex(p) for p in points]
+
+                        for vi, vert in enumerate(verts[:-1]):
+                            edges.append(occ.Edge(vert, verts[vi+1]))
+
+                        edges.append(occ.Edge(verts[-1], verts[0]))
+                        wire = occ.Wire(edges)
+                        f = occ.Face(wire)
+                        matname = ob.material_slots[face.material_index].material.name
+                        f.name = ob.name+'_'+matname
+                        f.mat(ob.name+'_'+matname)
+                        f.bc(ob.name+'_'+matname)
+                        faces.append(f)
+
+                    # if ob == dobs[0]:
+                    #     d_geo = occ.OCCGeometry(faces)
+                    #     d_geo.Heal()
+                    # else:
+
+                    g_geos.append(occ.OCCGeometry(occ.Compound(faces)))
+                    g_geos[-1].Heal()
+                    bm.free()
+
+                g_geo = occ.Fuse([g.shape for g in g_geos])
+                g_geo.WriteStep('/home/ryan/test_g.step')
+                d_geo = occ.Box(g_geo.bounding_box[0], g_geo.bounding_box[1])
+
+                for face in d_geo.faces:
+                    face.mat('domain')
+
+                t_geo = d_geo - g_geo
+                #m_geo = occ.Compound(t_geo.shape.faces['domain'])
+                #d_geo.WriteStep('/home/ryan/test_d.step')
+
+                #t_geo.WriteStep('/home/ryan/test.step')
+                surf_mesh = occ.OCCGeometry(occ.Glue(t_geo)).GenerateMesh(perfstepsend=MeshingStep.MESHSURFACE)
+                #surf_mesh.Export('/home/ryan/ng.mesh', format='Neutral Format')
+                f_data = [[p.nr - 1 for p in face.points][:] for face in surf_mesh.Elements2D()]
+                #print(f_data[0][0].nr)
+                v_data = [p for p in surf_mesh.Points()]
+                #print(v_data, f_data)
+                fv_mesh = bpy.data.meshes.new('fv_mesh')
+                fv_mesh.from_pydata(v_data, [], f_data)
+                nbm = bmesh.new()
+                nbm.from_mesh(fv_mesh)
+                nm_v = [v for v in nbm.verts if not v.is_manifold]
+                fv_obj = bpy.data.objects.new('floviMesh', fv_mesh)
+                scene.collection.objects.link(fv_obj)
+
+
         c.vi_params.envi_collection = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
         cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH' and o.vi_params.vi_type == '1']
@@ -569,6 +680,7 @@ def pregeo(context, op):
 
                     if context.active_object and context.active_object.mode == 'EDIT':
                         bpy.ops.object.editmode_toggle()
+
                     if ob.animation_data and ob.animation_data.action:
                         scene.frame_set(int(ob.animation_data.action.frame_range[0]))
 

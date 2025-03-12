@@ -47,7 +47,8 @@ def llabel(dnode, metric, axis, variant):
              'Power': dnode.inputs[axis].zonemenu,
              'Probe': dnode.inputs[axis].zonemenu,
              'Surface': dnode.inputs[axis].zonemenu,
-             'Time': dnode.inputs[axis].zonemenu}
+             'Time': dnode.inputs[axis].zonemenu,
+             'Timestep': dnode.inputs[axis].zonemenu}
     ldict = {'type': rdict[dnode.inputs[axis].resultmenu], 'metric': metric, }
     return ldict[variant]
 

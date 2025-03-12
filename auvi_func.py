@@ -1,6 +1,9 @@
 import bpy, math
 import numpy as np
-import pyroomacoustics as pra
+try:
+    import pyroomacoustics as pra
+except:
+    pass
 
 Qf = 1  # source directivity factor
 c = 343.0  # sound speed (m/s)

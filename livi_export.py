@@ -276,44 +276,53 @@ def radgexport(export_op, node):
             iesname = os.path.splitext(os.path.basename(ab_ies_path))[0]
 
             if os.path.isfile(ab_ies_path):
+                with open(ab_ies_path, 'r') as ies_file:
+                    if 'LM-63' not in ies_file.readlines()[0]:
+                        export_op.report({'WARNING'}, 'The IES file may not be in LM-63 format')
+                        logentry('Warning: The IES file may not be in LM-63 format')
+
                 iescmd = 'ies2rad -t default -m {0} -c {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} -p "{2}" -d{3} -o "{4}-{5}" "{6}"'.format(ovp.ies_strength, (ovp.ies_rgb, ct2RGB(ovp.ies_ct))[ovp.ies_colmenu == '1'], svp['liparams']['lightfilebase'], ovp.ies_unit, iesname, frame, ab_ies_path)
                 logentry('Running ies2rad with command: {}'.format(iescmd))
                 subprocess.call(shlex.split(iescmd))
 
-                with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'r') as dat_file:
-                    dat_str = dat_file.read()
+                if os.path.isfile(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame))):
+                    with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'r') as dat_file:
+                        dat_str = dat_file.read()
 
-                    if sys.platform == 'win32':
-                        dat_str = dat_str.replace("lights/", "lights\\")
+                        if sys.platform == 'win32':
+                            dat_str = dat_str.replace("lights/", "lights\\")
 
-                    dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
+                        dat_str = dat_str.replace(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame)), '"{}"'.format(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.dat'.format(iesname, frame))))
 
-                    for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u', f'-{frame}.s'):
-                        dat_str = dat_str.replace(iesname+suf, f'"{iesname}{suf}"')
+                        for suf in (f'-{frame}_dist', f'-{frame}_light', f'-{frame}.u', f'-{frame}.s'):
+                            dat_str = dat_str.replace(iesname+suf, f'"{iesname}{suf}"')
 
-                    dat_str = dat_str.replace(f' {iesname}-{frame}.d', f' "{iesname}-{frame}.d"')
+                        dat_str = dat_str.replace(f' {iesname}-{frame}.d', f' "{iesname}-{frame}.d"')
 
-                with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'w') as dat_file:
-                    dat_file.write(dat_str)
+                    with open(os.path.join(svp['liparams']['lightfilebase'], '{}-{}.rad'.format(iesname, frame)), 'w') as dat_file:
+                        dat_file.write(dat_str)
 
-                if o.type == 'LIGHT':
-                    if o.parent:
-                        o = o.parent
-                    lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
+                    if o.type == 'LIGHT':
+                        if o.parent:
+                            o = o.parent
+                        lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
 
-                elif o.type == 'MESH':
-                    tm = o.to_mesh()
-                    bm = bmesh.new()
-                    bm.from_mesh(tm)
-                    o.to_mesh_clear()
-                    bm.transform(o.matrix_world)
-                    bm.normal_update()
-                    bm.faces.ensure_lookup_table()
+                    elif o.type == 'MESH':
+                        tm = o.to_mesh()
+                        bm = bmesh.new()
+                        bm.from_mesh(tm)
+                        o.to_mesh_clear()
+                        bm.transform(o.matrix_world)
+                        bm.normal_update()
+                        bm.faces.ensure_lookup_table()
 
-                    for f in bm.faces:
-                        lrot = Vector.rotation_difference(Vector((0, 0, -1)), f.normal).to_euler('XYZ')
-                        lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_median(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
-                    bm.free()
+                        for f in bm.faces:
+                            lrot = Vector.rotation_difference(Vector((0, 0, -1)), f.normal).to_euler('XYZ')
+                            lradfile += u'!xform -rx {0[0]:.4f} -ry {0[1]:.4f} -rz {0[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_median(), os.path.join(svp['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
+                        bm.free()
+
+                else:
+                    export_op.report({'ERROR'}, 'The IES file associated with {} has not generated a valid Radiance description'.format(o.name))
 
             elif iesname:
                 export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
@@ -441,6 +450,11 @@ def createradfile(scene, frame, export_op, simnode):
 def createoconv(scene, frame, sim_op, simnode, **kwargs):
     svp = scene.vi_params
     fbase = "{0}-{1}".format(svp['viparams']['filebase'], frame)
+
+    # if not simnode['radfiles'].get(str(frame)):
+    #     sim_op.report({'ERROR'}, 'Missing Radiance description. Check Geometry/Context exports')
+    #     logentry('Oconv error: {}'.format('Missing Radiance description. Check Geometry/Context exports'))
+    #     return 'CANCELLED'
 
     with open("{}.oct".format(fbase), "wb") as octfile:
         try:

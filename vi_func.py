@@ -472,6 +472,82 @@ class fvprogressfile():
             else:
                 pfile.write('0 Initialising')
 
+def qtprogressbar(file, pdll_path, calctype):
+    addon_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    qttext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+import os, sys\n\
+if sys.platform == 'win32':\n\
+    os.add_dll_directory(r'"+pdll_path+"')\n\
+from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget, QProgressBar, QLabel)\n\
+from PySide6.QtCore import QProcess, QTimer, Qt\n\
+\n\
+class MainWindow(QMainWindow):\n\
+    def __init__(self):\n\
+        super().__init__()\n\
+        self.setWindowTitle('"+calctype+"')\n\
+        self.setFixedWidth(350)\n\
+        self.btn = QPushButton('Cancel')\n\
+        #self.connect(self.update)\n\
+        self.btn.pressed.connect(self.stop_process)\n\
+        #self.text = QPlainTextEdit()\n\
+        self.progress = QProgressBar()\n\
+        self.progress.setTextVisible(False)\n\
+        self.label = QLabel('Initialsing')\n\
+        font = self.label.font()\n\
+        font.setPointSize(12)\n\
+        self.label.setFont(font)\n\
+        self.label.setAlignment(Qt.AlignmentFlag.AlignHCenter)\n\
+        self.progress.setStyleSheet('QProgressBar {border: 1px solid #1DACD6; border-radius: 2px; background-color: #E0E0E0;}'\n\
+                                    'QProgressBar::chunk {background-color: #1DACD6; width: 13px; margin: 0.5px;}')\n\
+\n\
+        self.progress.setRange(0, 100)\n\
+        self.timer = QTimer()\n\
+        self.timer.timeout.connect(self.p_update)\n\
+        self.timer.start(1000)\n\
+\n\
+        #self.text.setReadOnly(False)\n\
+\n\
+        l = QVBoxLayout()\n\
+        l.addWidget(self.label)\n\
+        l.addWidget(self.progress)\n\
+        l.addWidget(self.btn)\n\
+        \n\
+        #l.addWidget(self.text)\n\
+\n\
+        w = QWidget()\n\
+        w.setLayout(l)\n\
+\n\
+        self.setCentralWidget(w)\n\
+    \n\
+    def p_update(self):\n\
+        with open(r'"+file+"', 'r') as pffile:\n\
+            try:    (percent, tr) = pffile.readlines()[0].split()\n\
+            except: percent, tr = 0, 'Not known'\n\
+\n\
+        self.progress.setValue(int(percent))\n\
+        self.label.setText(f'{percent}% Complete - Time remaining: {tr}')\n\
+        \n\
+    def stop_process(self):\n\
+        with open(r'"+file+"', 'w') as pffile:\n\
+            pffile.write('CANCELLED')\n\
+        self.close()\n\
+\n\
+#QApplication.shutdown()\n\
+#app = QApplication.instance()\n\
+try:\n\
+    app = QApplication(sys.argv)\n\
+except:\n\
+    app = QApplication.instance()\n\
+\n\
+w = MainWindow()\n\
+w.show()\n\
+\n\
+app.exec()\n\
+QApplication.shutdown(app)"
+
+    with open(file+"qt.py", 'w') as qtfile:
+        qtfile.write(qttext)
+    return Popen([sys.executable, file+"qt.py"])
 
 def progressbar(file, calctype):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -530,127 +606,266 @@ if __name__ == '__main__':\n\
         kivyfile.write(kivytext)
     return Popen([sys.executable, file+".py"])
 
-def au_pb(file):
-    kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
-from kivy.app import App \n\
-from kivy.clock import Clock \n\
-from kivy.uix.progressbar import ProgressBar\n\
-from kivy.uix.boxlayout import BoxLayout\n\
-from kivy.uix.button import Button\n\
-from kivy.uix.label import Label\n\
-from kivy.config import Config\n\
-Config.set('graphics', 'width', '500')\n\
-Config.set('graphics', 'height', '200')\n\
-Config.set('kivy', 'log_level', 'warning')\n\
+def cancel_window(file, pdll_path, calc_type):
+    qttext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+import os, sys\n\
+if sys.platform == 'win32':\n\
+    os.add_dll_directory(r'"+pdll_path+"')\n\
+from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QPlainTextEdit, QVBoxLayout, QWidget)\n\
+from PySide6.QtCore import QProcess, QTimer\n\
 \n\
-class CancelButton(Button):\n\
-    def on_touch_down(self, touch):\n\
-        if 'button' in touch.profile:\n\
-            if self.collide_point(*touch.pos):\n\
-                App.get_running_app().stop()\n\
-        else:\n\
-            return\n\
-    def on_open(self, widget, parent):\n\
-        self.focus = True\n\
+class MainWindow(QMainWindow):\n\
+    def __init__(self):\n\
+        super().__init__()\n\
+        self.setWindowTitle('{}')\n\
+        self.setFixedWidth(300)\n\
+        self.btn = QPushButton('Cancel')\n\
+        self.btn.pressed.connect(self.stop_process)\n\
+        l = QVBoxLayout()\n\
+        l.addWidget(self.btn)\n\
+        w = QWidget()\n\
+        w.setLayout(l)\n\
+        self.setCentralWidget(w)\n\
 \n\
-class Calculating(App):\n\
-    bl = BoxLayout(orientation='vertical')\n\
-    rpb = ProgressBar()\n\
-    button = CancelButton(text='Cancel', font_size=20)\n\
-    bl.add_widget(rpb)\n\
-    bl.add_widget(button)\n\
+    def stop_process(self):\n\
+        self.close()\n\
 \n\
-    def build(self):\n\
-        self.title = 'Calculating RTs'\n\
-        refresh_time = 1\n\
-        return self.bl\n\
+try:\n\
+    app = QApplication(sys.argv)\n\
+except:\n\
+    app = QApplication.instance()\n\
 \n\
-if __name__ == '__main__':\n\
-    Calculating().run()\n"
+w = MainWindow()\n\
+w.show()\n\
+\n\
+app.exec()\n\
+QApplication.shutdown(app)".format(calc_type)
 
-    with open(file+".py", 'w') as kivyfile:
-        kivyfile.write(kivytext)
+    with open(file+".py", 'w') as qtfile:
+        qtfile.write(qttext)
     return Popen([sys.executable, file+".py"])
 
-def fvprogressbar(file, et, residuals, frame):
+# def au_pb(file):
+#     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+# from kivy.app import App \n\
+# from kivy.clock import Clock \n\
+# from kivy.uix.progressbar import ProgressBar\n\
+# from kivy.uix.boxlayout import BoxLayout\n\
+# from kivy.uix.button import Button\n\
+# from kivy.uix.label import Label\n\
+# from kivy.config import Config\n\
+# Config.set('graphics', 'width', '500')\n\
+# Config.set('graphics', 'height', '200')\n\
+# Config.set('kivy', 'log_level', 'warning')\n\
+# \n\
+# class CancelButton(Button):\n\
+#     def on_touch_down(self, touch):\n\
+#         if 'button' in touch.profile:\n\
+#             if self.collide_point(*touch.pos):\n\
+#                 App.get_running_app().stop()\n\
+#         else:\n\
+#             return\n\
+#     def on_open(self, widget, parent):\n\
+#         self.focus = True\n\
+# \n\
+# class Calculating(App):\n\
+#     bl = BoxLayout(orientation='vertical')\n\
+#     rpb = ProgressBar()\n\
+#     button = CancelButton(text='Cancel', font_size=20)\n\
+#     bl.add_widget(rpb)\n\
+#     bl.add_widget(button)\n\
+# \n\
+#     def build(self):\n\
+#         self.title = 'Calculating RTs'\n\
+#         refresh_time = 1\n\
+#         return self.bl\n\
+# \n\
+# if __name__ == '__main__':\n\
+#     Calculating().run()\n"
+
+#     with open(file+".py", 'w') as kivyfile:
+#         kivyfile.write(kivytext)
+#     return Popen([sys.executable, file+".py"])
+
+def qtfvprogress(file, pdll_path, et, residuals, frame):
     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+    qttext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
 import os, sys\n\
-sys.path.append(os.path.join(r'"+addonpath+"', 'Python', sys.platform))\n\
-from kivy.app import App\n\
-from kivy.clock import Clock\n\
-from kivy.uix.progressbar import ProgressBar\n\
-from kivy.uix.boxlayout import BoxLayout\n\
-from kivy.uix.gridlayout import GridLayout\n\
-from kivy.uix.button import Button\n\
-from kivy.uix.label import Label\n\
-from kivy.config import Config\n\
-Config.set('graphics', 'width', '500')\n\
-Config.set('graphics', 'height', '250')\n\
+if sys.platform == 'win32':\n\
+    os.add_dll_directory(r'"+pdll_path+"')\n\
+from PySide6.QtWidgets import (QApplication, QMainWindow, QPushButton, QPlainTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QProgressBar, QLabel)\n\
+from PySide6.QtCore import QProcess, QTimer, Qt\n\
+r_dict = {'epsilon': 'ep', 'Time': 'Ti', 'k': 'k', 'Ux': 'Ux', 'Uy': 'Uy', 'Uz': 'Uz', 'p': 'p', 'p_rgh': 'pr', 'e': 'en', 'T': 'T'}\n\
 \n\
-class CancelButton(Button):\n\
-    def on_touch_down(self, touch):\n\
-        if 'button' in touch.profile:\n\
-            if self.collide_point(*touch.pos):\n\
-                App.get_running_app().stop()\n\
-        else:\n\
-            return\n\
-    def on_open(self, widget, parent):\n\
-        self.focus = True\n\
+class MainWindow(QMainWindow):\n\
+    def __init__(self):\n\
+        super().__init__()\n\
+        self.rpbs = []\n\
+        self.nums = []\n\
+        self.setWindowTitle('OpenFOAM Residuals')\n\
+        self.setFixedWidth(370)\n\
+        self.btn = QPushButton('Cancel')\n\
+        self.btn.pressed.connect(self.stop_process)\n\
+        l = QVBoxLayout()\n\
+        residual = QHBoxLayout()\n\
+        progress = QProgressBar()\n\
+        progress.setTextVisible(False)\n\
+        label = QLabel('Ti')\n\
+        label.setFixedWidth(20)\n\
+        num = QLabel('0')\n\
+        num.setFixedWidth(60)\n\
+        num.setAlignment(Qt.AlignmentFlag.AlignLeft)\n\
+        self.nums.append(num)\n\
+        progress.setRange(0, "+str(et)+")\n\
+        progress.setStyleSheet('QProgressBar {border: 1px solid #1DACD6; border-radius: 2px; background-color: #E0E0E0;}'\n\
+                                    'QProgressBar::chunk {background-color: #1DACD6; width: 5px; margin: 0.5px;}')\n\
+        self.rpbs.append(progress)\n\
+        residual.addWidget(label)\n\
+        residual.addWidget(progress)\n\
+        residual.addWidget(num)\n\
+        l.addLayout(residual)\n\
 \n\
-class Calculating(App):\n\
-    rpbs, labels, nums, oftime = [], [], [], '0'\n\
-    bl = BoxLayout(orientation='vertical')\n\
-    gl  = GridLayout(cols=3, height = 250)\n\
-    t = Label(text='Time:', font_size=20, size_hint=(0.2, .2))\n\
-    tpb = ProgressBar(max = "+str(et)+")\n\
-    tt = Label(text=oftime, font_size=20, size_hint=(0.2, .2))\n\
-    gl.add_widget(t)\n\
-    gl.add_widget(tpb)\n\
-    gl.add_widget(tt)\n\
+        for r in "+residuals+":\n\
+            residual = QHBoxLayout()\n\
+            label = QLabel(r_dict[r])\n\
+            label.setFixedWidth(20)\n\
+            num = QLabel('1.00000')\n\
+            num.setFixedWidth(60)\n\
+            num.setAlignment(Qt.AlignmentFlag.AlignLeft)\n\
+            self.nums.append(num)\n\
+            residual.addWidget(label)\n\
+            progress = QProgressBar()\n\
+            progress.setTextVisible(False)\n\
+            progress.setRange(0, 100)\n\
+            progress.setStyleSheet('QProgressBar {border: 1px solid #1DACD6; border-radius: 2px; background-color: #E0E0E0; margin-left: 0em; margin-right: 0em;}'\n\
+                                        'QProgressBar::chunk {background-color: #1DACD6; width: 5px; margin: 0.5px;}')\n\
+            self.rpbs.append(progress)\n\
+            residual.addWidget(progress)\n\
+            residual.addWidget(num)\n\
+            l.addLayout(residual)\n\
 \n\
-    for r in "+residuals+":\n\
-        rpb = ProgressBar(max = 1)\n\
-        rpbs.append(rpb)\n\
-        label = Label(text=r, font_size=20, size_hint=(0.2, .2))\n\
-        num = Label(text='1', font_size=20, size_hint=(0.2, .2))\n\
-        labels.append(r)\n\
-        nums.append(num)\n\
-        gl.add_widget(label)\n\
-        gl.add_widget(rpb)\n\
-        gl.add_widget(num)\n\
-    bl.add_widget(gl)\n\
-    button = CancelButton(text='Cancel', font_size=20, size_hint=(1, .2))\n\
-    bl.add_widget(button)\n\
+        l.addWidget(self.btn)\n\
+        w = QWidget()\n\
+        w.setLayout(l)\n\
+        self.setCentralWidget(w)\n\
+        self.timer = QTimer()\n\
+        self.timer.timeout.connect(self.p_update)\n\
+        self.timer.start(1000)\n\
 \n\
-    def build(self):\n\
-        self.title = 'OpenFOAM Residuals - "+str(frame)+"'\n\
-        refresh_time = 1\n\
-        Clock.schedule_interval(self.timer, refresh_time)\n\
-        return self.bl\n\
-\n\
-    def timer(self, dt):\n\
+    def p_update(self):\n\
         with open(r'"+file+"', 'r') as pffile:\n\
             for ri, r in enumerate(pffile.readlines()):\n\
-                if r.split()[0] in ('Time', 'Ux', 'Uy', 'Uz', 'p', 'k', 'epsilon', 'p_rgh', 'e'):\n\
+                if r.split()[0] in "+residuals+":\n\
                     try:\n\
-                        if r.split()[0] == 'Time':\n\
-                            self.tpb.value = float(r.split()[1])\n\
-                            self.tt.text = '{:.1f}'.format(float(r.split()[1]))\n\
-                        else:\n\
-                            li = self.labels.index(r.split()[0])\n\
-                            self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\
-                            self.nums[li].text = '{:.5f}'.format(abs(float(r.split()[1])))\n\
+                        li = "+residuals+".index(r.split()[0])\n\
+                        self.rpbs[li+1].setValue(100 * abs(float(r.split()[1]))**0.5)\n\
+                        self.nums[li+1].setText('{:.5f}'.format(abs(float(r.split()[1]))))\n\
                     except Exception as e:\n\
-                        pass\n\
+                        print(e)\n\
+                elif r.split()[0] == 'Time':\n\
+                    self.rpbs[0].setValue(float(r.split()[1]))\n\
+                    self.nums[0].setText('{:.1f}'.format(float(r.split()[1])))\n\
 \n\
-if __name__ == '__main__':\n\
-    Calculating().run()"
+    def stop_process(self):\n\
+        self.close()\n\
+\n\
+try:\n\
+    app = QApplication(sys.argv)\n\
+except:\n\
+    app = QApplication.instance()\n\
+\n\
+w = MainWindow()\n\
+w.show()\n\
+\n\
+app.exec()\n\
+QApplication.shutdown(app)"
 
-    with open(file+".py", 'w') as kivyfile:
-        kivyfile.write(kivytext)
+    with open(file+"qt.py", 'w') as qtfile:
+        qtfile.write(qttext)
 
-    return Popen([sys.executable, file+".py"])
+    return Popen([sys.executable, file+"qt.py"])
+
+
+
+# def fvprogressbar(file, et, residuals, frame):
+#     addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+#     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+# import os, sys\n\
+# sys.path.append(os.path.join(r'"+addonpath+"', 'Python', sys.platform))\n\
+# from kivy.app import App\n\
+# from kivy.clock import Clock\n\
+# from kivy.uix.progressbar import ProgressBar\n\
+# from kivy.uix.boxlayout import BoxLayout\n\
+# from kivy.uix.gridlayout import GridLayout\n\
+# from kivy.uix.button import Button\n\
+# from kivy.uix.label import Label\n\
+# from kivy.config import Config\n\
+# Config.set('graphics', 'width', '500')\n\
+# Config.set('graphics', 'height', '250')\n\
+# \n\
+# class CancelButton(Button):\n\
+#     def on_touch_down(self, touch):\n\
+#         if 'button' in touch.profile:\n\
+#             if self.collide_point(*touch.pos):\n\
+#                 App.get_running_app().stop()\n\
+#         else:\n\
+#             return\n\
+#     def on_open(self, widget, parent):\n\
+#         self.focus = True\n\
+# \n\
+# class Calculating(App):\n\
+#     rpbs, labels, nums, oftime = [], [], [], '0'\n\
+#     bl = BoxLayout(orientation='vertical')\n\
+#     gl  = GridLayout(cols=3, height = 250)\n\
+#     t = Label(text='Time:', font_size=20, size_hint=(0.2, .2))\n\
+#     tpb = ProgressBar(max = "+str(et)+")\n\
+#     tt = Label(text=oftime, font_size=20, size_hint=(0.2, .2))\n\
+#     gl.add_widget(t)\n\
+#     gl.add_widget(tpb)\n\
+#     gl.add_widget(tt)\n\
+# \n\
+#     for r in "+residuals+":\n\
+#         rpb = ProgressBar(max = 1)\n\
+#         rpbs.append(rpb)\n\
+#         label = Label(text=r, font_size=20, size_hint=(0.2, .2))\n\
+#         num = Label(text='1', font_size=20, size_hint=(0.2, .2))\n\
+#         labels.append(r)\n\
+#         nums.append(num)\n\
+#         gl.add_widget(label)\n\
+#         gl.add_widget(rpb)\n\
+#         gl.add_widget(num)\n\
+#     bl.add_widget(gl)\n\
+#     button = CancelButton(text='Cancel', font_size=20, size_hint=(1, .2))\n\
+#     bl.add_widget(button)\n\
+# \n\
+#     def build(self):\n\
+#         self.title = 'OpenFOAM Residuals - "+str(frame)+"'\n\
+#         refresh_time = 1\n\
+#         Clock.schedule_interval(self.timer, refresh_time)\n\
+#         return self.bl\n\
+# \n\
+#     def timer(self, dt):\n\
+#         with open(r'"+file+"', 'r') as pffile:\n\
+#             for ri, r in enumerate(pffile.readlines()):\n\
+#                 if r.split()[0] in ('Time', 'Ux', 'Uy', 'Uz', 'p', 'k', 'epsilon', 'p_rgh', 'e'):\n\
+#                     try:\n\
+#                         if r.split()[0] == 'Time':\n\
+#                             self.tpb.value = float(r.split()[1])\n\
+#                             self.tt.text = '{:.1f}'.format(float(r.split()[1]))\n\
+#                         else:\n\
+#                             li = self.labels.index(r.split()[0])\n\
+#                             self.rpbs[li].value = abs(float(r.split()[1]))**0.5\n\
+#                             self.nums[li].text = '{:.5f}'.format(abs(float(r.split()[1])))\n\
+#                     except Exception as e:\n\
+#                         pass\n\
+# \n\
+# if __name__ == '__main__':\n\
+#     Calculating().run()"
+
+#     with open(file+".py", 'w') as kivyfile:
+#         kivyfile.write(kivytext)
+
+#     return Popen([sys.executable, file+".py"])
 
 
 def logentry(text):

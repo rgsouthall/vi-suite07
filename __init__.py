@@ -20,11 +20,11 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 7, 0),
-    "blender": (4, 2),
+    "blender": (4, 3),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
-    "tracker_url": "https://github.com/rgsouthall/vi-suite06/issues",
+    "tracker_url": "https://github.com/rgsouthall/vi-suite07/issues",
     "doc_url": "http://blogs.brighton.ac.uk/visuite/",
     "category": "Import-Export"}
 
@@ -48,8 +48,9 @@ else:
         os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = '0'
         os.environ['PYTHON_INCLUDE_DIR'] = os.path.join(addonpath, 'Python', sys.platform, 'include')
 
-    os.environ["KIVY_NO_CONSOLELOG"] = "1"
+    #os.environ["KIVY_NO_CONSOLELOG"] = "1"
     install_fails = []
+    sys_install = 0
     
     def install_libs():
         install_fails = []
@@ -70,14 +71,14 @@ else:
         except Exception as e:
             install_fails.append(1)
 
-        try:
-            from kivy.config import Config
-            Config.set('kivy', 'log_level', 'error')
-            Config.write()
-            from kivy.app import App
-            install_fails.append(0)
-        except:
-            install_fails.append(1)
+        # try:
+        #     from kivy.config import Config
+        #     Config.set('kivy', 'log_level', 'error')
+        #     Config.write()
+        #     from kivy.app import App
+        #     install_fails.append(0)
+        # except:
+        #     install_fails.append(0)
 
         try:
             import scipy
@@ -87,6 +88,9 @@ else:
 
         return install_fails
     
+    if not all(install_libs()):
+        sys_install = 1
+
     if any(install_libs()):
         print('Some system libraries were not found. Checking built-in libraries')
         sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[sys.platform == 'win32']),
@@ -119,7 +123,7 @@ else:
         elif sys.platform == 'darwin':
             if not os.environ.get('DYLD_LIBRARY_PATH'):
                 os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
-
+        
         if os.environ.get('PATH'):
             if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
                 os.environ['PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'bin')
@@ -143,22 +147,43 @@ else:
     try:
         import netgen
     except:
-        if sys.platform == 'linux':
-            print('For Netgen functionality on linux, a system install of Blender, PySide6, Kivy, Matplotlib and Netgen is required')
-        else:
-            ng_cmd = '"{0}" -m pip install --prefix "{1}" netgen-mesher==6.2.2404.post16'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+        if sys.platform == 'darwin':
+            ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            Popen(shlex.split(ngocc_cmd)).wait()
+            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2406.post119.dev1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ng_cmd)).wait()
+            src_path = os.path.join(addonpath, 'Python', sys.platform, 'lib')
+            dest_path = os.path.join(addonpath, 'Python')
+            files = os.listdir(src_path)
 
-            try:
-                import netgen
-            except Exception as e:
-                print('Netgen installation failed and is disabled')
+            for f in files:
+                if sys.platform == 'darwin' and f.endswith('.dylib') or sys.platform == 'linux' and f.startswith('libT'):
+                    src_file = os.path.join(src_path, f)
+                    dest_file = os.path.join(dest_path, f)
+                    shutil.move(src_file, dest_file)
+
+        elif sys.platform == 'win32':
+            ngocc_cmd = '"{0}" -m pip install --target "{1}" netgen-occt==7.8.1'.format(sys.executable, addonpath)
+            Popen(shlex.split(ngocc_cmd)).wait()
+            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2406.post119.dev1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            Popen(shlex.split(ng_cmd)).wait()
+        
+        elif sys.platform == 'linux':
+            if not sys_install:
+                ng_cmd = '"{0}" -m pip install --upgrade netgen-mesher==6.2.2406.post119.dev1'.format(sys.executable)
+                Popen(shlex.split(ng_cmd)).wait()
+            else:
+                print("Blender is using the system's Python installation, but no system installation of netgen was found")
+        try:
+            import netgen
+        except Exception as e:
+            print('Netgen installation failed and is disabled')
 
     try:
         import pyroomacoustics as pra
     except:
         if sys.platform == 'linux':
-            print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Kivy, Matplotlib, Netgen and pyroomacoustics is required')
+            print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
         else:
             try:
                 import pyroomacoustics as pra
@@ -206,7 +231,7 @@ else:
     from .vi_node import No_Vi_SP, No_Vi_WR, No_Vi_SVF, So_Vi_Res, No_Vi_SS
     from .vi_node import No_Li_Geo, No_Li_Con, No_Li_Sen, So_Li_Geo, So_Li_Con, No_Text, So_Text, No_CSV
     from .vi_node import No_Vi_Im, No_Li_Im, So_Li_Im, No_Li_Gl, No_Li_Fc
-    from .vi_node import No_Li_Sim, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh
+    from .vi_node import No_Li_Sim, No_ASC_Import, So_Flo_Mesh
     from .vi_node import No_En_Net_Zone, No_En_Net_Occ, So_En_Net_Eq, So_En_Net_Inf, So_En_Net_Hvac, No_En_Net_Hvac
     from .vi_node import No_En_Geo, So_En_Geo, EnViNetwork, EnViMatNetwork, No_En_Con, So_En_Con
     from .vi_node import No_En_Mat_Con, No_En_Mat_Sc, No_En_Mat_Sh, No_En_Mat_ShC, No_En_Mat_Bl, No_En_Mat_SG, No_En_Mat_Op, No_En_Mat_Tr, No_En_Mat_Gas, So_En_Mat_Ou, So_En_Mat_Op, No_En_Mat_Sched
@@ -380,9 +405,9 @@ class VIPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
 
-        if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'pip')):
-                row = layout.row()
-                row.label(text='You do not seem to have an internet connection. Cannot download Python libraries')
+        # if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'numpy')):
+        #     row = layout.row()
+        #     row.label(text='You do not seem to have an internet connection. Cannot download Python libraries')
 
         for entry in self.ui_dict:
             if entry == 'OpenFOAM bin directory' and sys.platform != 'linux':
@@ -775,8 +800,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_prgh_p0: fprop("", "p_rgh p0", -100000, 100000, 0.0)
     flovi_prgh_gamma: fprop("", "p_rgh gamma", 0, 10, 1.4)
 
-    flovi_ng_max: fprop("", "Netgen max cell size", 0.001, 100, 0.5)
-
+    flovi_ng_max: fprop("", "Netgen max cell size (face defined)", 0.001, 100, 0.5)
+    flovi_ng_emax: fprop("", "Netgen max cell size (edge defined)", 0.001, 1, 1)
     flovi_rad_subtype: EnumProperty(items=ret_fvrad_menu, name="", description="FloVi sub-type boundary")
     flovi_rad_em: eprop([('lookup', 'Lookup', 'Lookup emissivity')], "", "Emissivity mode", 'lookup')
     flovi_rad_e: fprop("", "Emissivity value", 0, 1, 0.5)
@@ -960,7 +985,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            No_En_Net_ACon, No_En_Net_Ext, No_En_Net_EMSZone, No_En_Net_Prog, No_En_Net_EMSPy, So_En_Net_Act, So_En_Net_Sense,
            TREE_PT_vi, TREE_PT_envin, TREE_PT_envim,  TREE_OT_goto_mat, TREE_OT_goto_group,
            OBJECT_OT_Li_GBSDF, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, OBJECT_OT_GOct, OBJECT_OT_Embod, MATERIAL_OT_Li_DBSDF, VIEW3D_OT_Li_DBSDF, NODE_OT_CSV, No_CSV,
-           NODE_OT_ASCImport, No_ASC_Import, No_Flo_BMesh, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
+           NODE_OT_ASCImport, No_ASC_Import, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
            No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, NODE_OT_EcE, So_Au_Scene, So_Au_IR, No_Au_Sim, No_Au_Conv, NODE_OT_Au_Conv,
            NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Play, NODE_OT_Au_Stop, NODE_OT_Au_PlayC, NODE_OT_Au_Save)

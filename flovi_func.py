@@ -20,7 +20,7 @@ import bpy, bmesh, os, mathutils
 from math import cos, sin, pi
 from mathutils import Vector
 from .vi_func import selobj
-from .vi_dicts import flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict, flovi_t_dict, flovi_a_dict, flovi_prgh_dict, flovi_rad_dict, flovi_id_dict
+from .vi_dicts import flovi_b_dict, flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict, flovi_t_dict, flovi_a_dict, flovi_prgh_dict, flovi_rad_dict, flovi_id_dict
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
@@ -95,39 +95,39 @@ flovi_id_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '3'
                     'bf': {'0': ('greyDiffusiveRadiation'), '1': ('greyDiffusiveRadiation',), '2': ('symmetry', ), '3': ('empty',)}}
 
 def ret_fvb_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        #print(mat.name, flovi_p_dict[context.scene.vi_params['flparams']['scenario']].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] != '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[svp['flparams']['scenario']]]
     else:
-        return [("0", "Patch", "Wall boundary"), ("1", "Wall", "Inlet boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")]
+        return [("0", "Patch", "Inlet/outlet"), ("1", "Wall", "Wall boundary"), ("2", "Symmetry", "Symmetry plane boundary"), ("3", "Empty", "Empty boundary")]
 
 
 def ret_fvbp_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        # print(mat.name, flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
 
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] != '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
-        # try:
-        #     print('hello', mat.flovi_bmb_type, mat.id_data.name)
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
-
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_p_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvbu_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        # print(mat.name, flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] != '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_u_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvbnut_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        # print(mat.name, flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] != '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_nut_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 # def ret_fvbnutilda_menu(mat, context):
@@ -139,17 +139,21 @@ def ret_fvbnut_menu(mat, context):
 
 
 def ret_fvbk_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] != '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_k_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvbepsilon_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] != '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
     else:
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_epsilon_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
 
 
 def ret_fvbomega_menu(mat, context):
@@ -157,47 +161,57 @@ def ret_fvbomega_menu(mat, context):
 
 
 def ret_fvbt_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
-    elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] in ('2', '3'):
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
+    elif svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] == '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_t_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
     else:
         return [('None', 'None', 'None')]
 
 
 def ret_fvba_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
-    elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] in ('2', '3'):
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
+    elif svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] == '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_a_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
     else:
         return [('None', 'None', 'None')]
 
 
 def ret_fvbprgh_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
-    elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] in ('2', '3'):
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
+    elif svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] == '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_prgh_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
     else:
         return [('None', 'None', 'None')]
 
 
 def ret_fvrad_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
 
-    elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] in ('2', '3'):
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
+
+    elif svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] == '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_rad_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
 
     else:
         return [('None', 'None', 'None')]
 
 def ret_fvi_menu(mat, context):
-    if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] in ('2', '3'):
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_id_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type]]
-    elif context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] == '4':
-        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_id_bounds[context.scene.vi_params['flparams']['solver_type']][mat.flovi_bmb_type]]
+    svp = context.scene.vi_params
+
+    if svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] in ('2', '3'):
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_id_dict[svp['flparams']['scenario']][mat.flovi_bmb_type]]
+    elif svp.get('flparams') and svp['flparams'].get('scenario') and svp['flparams']['scenario'] == '4':
+        return [('{}'.format(b), '{}'.format(b), '{} boundary type'.format(b)) for b in flovi_id_bounds[svp['flparams']['solver_type']][mat.flovi_bmb_type]]
     else:
         return [('None', 'None', 'None')]
 
@@ -245,7 +259,7 @@ def fvboundwrite(o):
     boundary = ''
 
     for mat in o.data.materials:
-        boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("patch", "wall", "symmetry", "empty")[int(mat.flovi_bmb_type)])#;\n\n"
+        boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("patch", "wall", "symmetry", "empty")[int(mat.flovi_bmb_type)])
         faces = [face for face in o.data.polygons if o.data.materials[face.material_index] == mat]
 
         for face in faces:
@@ -256,18 +270,18 @@ def fvboundwrite(o):
     return boundary
 
 
-def write_bound(o, m, ns, nf):
-    b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Inlet/outlet': 'patch', 'Sky': 'symmetry',
-              'Solid': 'wall', '0': 'patch', '1': 'wall', '2': 'symmetry', '3': 'empty', 'Velocity in': 'patch', 'Pressure in': 'patch',
-              'Pressure out': 'patch', 'Velocity out': 'patch'}
-    t = b_dict[m.vi_params.flovi_bmb_type]
+def write_bound(mn, m, ns, nf):
+    # b_dict = {'Inlet': 'patch', 'Outlet': 'patch', 'Inlet/outlet': 'patch', 'Sky': 'symmetry',
+    #           'Solid': 'wall', '0': 'patch', '1': 'wall', '2': 'symmetry', '3': 'empty', 'Velocity in': 'patch', 'Pressure in': 'patch',
+    #           'Pressure out': 'patch', 'Velocity out': 'patch'}
+    t = flovi_b_dict[m.vi_params.flovi_bmb_type]
 
-    return '''   {0}_{1}
+    return '''   {0}
     {{
-        type            {2};
-        nFaces          {3};
-        startFace       {4};
-    }}\n'''.format(o.name, m.name, t, nf, ns)
+        type            {1};
+        nFaces          {2};
+        startFace       {3};
+    }}\n'''.format(mn, t, nf, ns)
 
 
 def fvmat(self, svp, mn, bound, frame):
@@ -974,11 +988,11 @@ def fvobjwrite(scene, fvos, bmo):
                 bm.free()
 
 
-def oftomesh(ofb, vl, fomats, st, ns, nf):
+def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
     vcoords = []
     findices = []
     fi = []
-    fn = 0
+    fn, p, f = 0, 0, 0
     prevline = ''
 
     with open(os.path.join(ofb, st, 'polyMesh', 'points'), 'r') as mfile:
@@ -993,15 +1007,24 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
                     try:
                         fi.append(int(line))
                         fn -= 1
+                        
                     except Exception:
                         pass
 
                 if not fn and fi:
-                    findices.append(fi)
+                    f += 1
+
+                    if f >= ns[0] or not bo:
+                        findices.append(fi)
+
                     fi = []
                     fn = 0
+                                       
                 elif '(' in line and ')' in line:
-                    findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
+                    if f >= ns[0] or not bo:
+                        findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
+
+                    f += 1
 
                 else:
                     try:
@@ -1009,6 +1032,7 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
                             fn = int(line)
                     except Exception:
                         fn = 0
+            
             prevline = line
 
     mesh = bpy.data.meshes.new("mesh")
@@ -1029,261 +1053,14 @@ def oftomesh(ofb, vl, fomats, st, ns, nf):
     for face in o.data.polygons:
         mi = 0
         for ni, n in enumerate(ns):
-            if face.index >= n and face.index <= n + nf[ni]:
-                face.material_index = ni
-                mi = 1
-        if not mi:
+            if not bo:
+                if face.index >= n and face.index <= n + nf[ni]:
+                    face.material_index = ni
+                    mi = 1
+            else:
+                if face.index + 1 > n - ns[0] and face.index < sum(nf[:ni + 1]):
+                    face.material_index = ni
+                    mi = 1
+
+        if not mi and not bo:
             face.material_index = len(ns)
-
-# scdict = {'lsf': {'ddtSchemes': {'default': 'steadyState'},
-    #                   'gradSchemes': {'default': 'Gauss linear',
-    #                                   'limited': 'cellLimited Gauss linear 1',
-    #                                   'grad(U)': '$limited'},
-    #                   'divSchemes': {'default': 'none',
-    #                                  'div((nuEff*dev2(T(grad(U)))))': 'Gauss linear',
-    #                                  'div(phi,U)': 'bounded Gauss linearUpwind limited'},
-    #                'laplacianSchemes': {'default': 'Gauss linear corrected'},
-    #                'interpolationSchemes': {'default': 'linear'},
-    #                'snGradSchemes': {'default': 'corrected'}},
-    #             'sf': {'ddtSchemes': {'default': 'steadyState'},
-    #                 'gradSchemes': {'default': 'Gauss linear', 'limited': 'cellLimited Gauss linear 1', 'grad(U)': '$limited'},
-    #                 'divSchemes': {'default': 'none',
-    #                     'turbulence': 'bounded Gauss limitedLinear 1',
-    #                     'div((nuEff*dev2(T(grad(U)))))': 'Gauss linear', 'div(phi,U)': 'bounded Gauss linearUpwind limited'},
-    #                'laplacianSchemes': {'default': 'Gauss linear corrected'},
-    #                'interpolationSchemes': {'default': 'linear'},
-    #                'snGradSchemes': {'default': 'corrected'}},
-    #             'bsf': {'ddtSchemes': {'default': 'steadyState'},
-    #                 'gradSchemes': {'default': 'Gauss linear'},
-    #                 'divSchemes': {'default': 'none',
-    #                     'turbulence': 'bounded Gauss upwind',
-    #                     'div(((rho*nuEff)*dev2(T(grad(U)))))': 'Gauss linear',
-    #                     'div(phi,U)': 'bounded Gauss limitedLinear 0.2', 'div(phi,K)': 'bounded Gauss limitedLinear 0.2',
-    #                     'div(phi,h)': 'bounded Gauss limitedLinear 0.2'},
-    #                 'laplacianSchemes': {'default': 'Gauss linear uncorrected'},
-    #                 'interpolationSchemes': {'default': 'linear'},
-    #                 'snGradSchemes': {'default': 'corrected'}},
-    #             'bbsf': {'ddtSchemes': {'default': 'steadyState'},
-    #                 'gradSchemes': {'default': 'Gauss linear'},
-    #                 'divSchemes': {'default': 'none',
-    #                     'turbulence': 'bounded Gauss limitedLinear 1',
-    #                     'div(phi,e)': 'bounded Gauss upwind',
-    #                     'div(phi,U)': 'bounded Gauss upwind',
-    #                     'div(((rho*nuEff)*dev2(T(grad(U)))))': 'Gauss linear', 'div(phi,Ekp)': 'bounded Gauss linear'},
-    #                 'laplacianSchemes': {'default': 'Gauss linear corrected'},
-    #                 'interpolationSchemes': {'default': 'linear'},
-    #                 'snGradSchemes': {'default': 'corrected'}}}
-
-    # if node.turbulence == 'kEpsilon':
-    #     scdict[solver]['divSchemes']['div(phi,k)'] = '$turbulence'
-    #     scdict[solver]['divSchemes']['div(phi,epsilon)'] = '$turbulence'
-    #     if solver == 'sf':
-    #         scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
-    #         scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'
-    # elif node.turbulence == 'kOmega':
-    #     scdict[solver]['divSchemes']['div(phi,k)'] = '$turbulence'
-    #     scdict[solver]['divSchemes']['div(phi,omega)'] = '$turbulence'
-    #     if solver == 'sf':
-    #         scdict[solver]['gradSchemes']['grad(k)'] = '$limited'
-    #         scdict[solver]['gradSchemes']['grad(epsilon)'] = '$limited'
-    # elif node.turbulence == 'SpalartAllmaras':
-    #     scdict['divSchemes']['div(phi,nuTilda)'] = '$turbulence'
-    #     if solver == 'sf':
-    #         scdict[solver]['gradSchemes']['grad(nuTilda)'] = '$limited'
-
-    # return write_fvdict(htext, scdict[solver])
-
-        # sol_sol_dict['pRefValue'] = '0'
-        # sol_sol_dict['pRefCell'] = '0'
-
-    # if node.p_ref != '0':
-    #     sol_sol_dict['pRefValue'] = '{}'.format(node.p_ref_val)
-
-    #     if node.p_ref:
-    #         sol_sol_dict['pRefPoint'] = '({0[0]} {0[1]} {0[2]})'.format(bpy.data.objects[node.p_ref_point].location)
-    #     else:
-    #         sol_sol_dict['pRefCell'] = '0'
-
-
-
-#     sol_dict['relaxationFactors']['equations']['U'] = '0.7'
-#     sol_dict['relaxationFactors']['fields'] = {}
-#     sol_dict['solvers'] = {}
-#     sol_dict['solvers']['p'] = {'solver': 'GAMG', 'smoother': 'GaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}
-#     sol_dict['solvers']['"U|k|epsilon|omega|nuTilda"'] = {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}
-
-#     if svp['flparams']['features']['turb']:
-#     #    soldict['solvers']['"U|k|epsilon|omega|nuTilda"'] = {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}
-#         sol_sol_dict['residualControl']['"(k|epsilon|omega|nuTilda)"'] = '{:.5f}'.format(node.keoresid)
-#         sol_dict['relaxationFactors']['equations']['"(k|epsilon|omega|nuTilda)"'] = '0.7'
-
-#     if not svp['flparams']['features']['buoy']:
-#         sol_sol_dict['residualControl']['p'] = '{:.5f}'.format(node.presid)
-#         sol_dict['solvers']['U'] = {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'}
-# #        soldict['solvers']['p'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.05'}
-#         sol_dict['relaxationFactors']['fields'] = {'p': '0.3'}
-#         sol_dict['potentialFlow'] = {'nNonOrthogonalCorrectors': '10'}
-
-#     else:
-#         sol_sol_dict['residualControl']['p_rgh'] = '{:.5f}'.format(node.presid)
-#         sol_dict['solvers'] = {}
-#         sol_dict['relaxationFactors']['fields'] = {'p_rgh': '0.3'}
-
-#         if svp['flparams']['solver_type'] == 'bbsf':
-#             sol_dict['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.01'}
-#             sol_dict['solvers']['"(U|h|k|epsilon|omega|nuTilda)"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-06', 'relTol': '0.1'}
-#             sol_sol_dict['residualControl']['h'] = '{:.5f}'.format(node.enresid)
-#             # sol_dict['relaxationFactors']['equations']['rho'] = '1'
-#             sol_dict['relaxationFactors']['fields']['p_rgh'] = '0.3'
-#             sol_dict['relaxationFactors']['equations']['U'] = '0.2'
-#             sol_dict['relaxationFactors']['equations']['h'] = '0.7'
-#             sol_dict['relaxationFactors']['equations']['R'] = '0.7'
-
-#         elif svp['flparams']['solver_type'] == 'bsf':
-#             sol_dict['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-06', 'relTol': '0.01'}
-#             sol_dict['solvers']['"(U|e|k|epsilon|omega|nuTilda)"'] = {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}
-#             sol_sol_dict['residualControl']['e'] = '{:.5f}'.format(node.enresid)
-#             sol_dict['relaxationFactors']['fields'] = {'p_rgh': '0.7'}
-#             sol_dict['relaxationFactors']['equations']['e'] = '0.1'
-
-#     if svp['flparams']['features']['rad']:
-#         sol_dict['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}
-#         sol_sol_dict['residualControl']['G'] = '1e-3'
-#         sol_dict['relaxationFactors']['equations']['G'] = '0.7'
-
-    # soldict = {'lsf': {'solvers': {'p': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-6', 'relTol': '0.05'},
-    #                             'pFinal': {'$p': '', 'relTol': '0'},
-    #                             'U': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'}},
-    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0',
-    #                            'residualControl': {'p': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
-    #                            'potentialFlow': {'nNonOrthogonalCorrectors': '10'},
-    #                            'relaxationFactors': {'fields': {'p': '0.3'}, 'equations': {'U': '0.7', '"(k|epsilon|omega)"': '0.7'}}},
-    #             'sf': {'solvers': {'p': {'solver': 'GAMG', 'smoother': 'GaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'},
-    #                                'U': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.05'},
-    #                                 '"k|epsilon|omega"': {'solver': 'smoothSolver', 'smoother': 'symGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.1'}},
-    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0',
-    #                            'residualControl': {'p': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
-    #                            'potentialFlow': {'nNonOrthogonalCorrectors': '10'},
-    #                            'relaxationFactors': {'fields': {'p': '0.3'}, 'equations': {'U': '0.7', '"(k|epsilon|omega)"': '0.7'}}},
-    #             'bsf': {'solvers': {'p_rgh': {'solver': 'GAMG', 'smoother': 'DICGaussSeidel', 'tolerance': '1e-6', 'relTol': '0.01'},
-    #                                 '"(U|h|k|epsilon|omega)"': {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.01'}},
-    #                     'SIMPLE': {'momentumPredictor': 'no', 'nNonOrthogonalCorrectors': '0', 'pRefCell': '0', 'pRefValue': '0',
-    #                     'residualControl': {'p_rgh': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), 'h': '{:.5f}'.format(node.enresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
-    #                     'relaxationFactors': {'rho': '1', 'p_rgh': '0.7', 'U': '0.3', 'h': '0.7', '"(k|epsilon|omega)"': '0.3'}},
-    #             'bbsf': {'solvers': {'p_rgh': {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance': '1e-06', 'relTol': '0.01'},
-    #                                 '"(U|e|k|epsilon|omega)"': {'solver': 'PBiCGStab', 'preconditioner': 'DILU', 'tolerance': '1e-07', 'relTol': '0.1'}},
-    #                     'SIMPLE': {'nNonOrthogonalCorrectors': '0',
-    #                     'residualControl': {'p_rgh': '{:.5f}'.format(node.presid), 'U': '{:.5f}'.format(node.uresid), 'e': '{:.5f}'.format(node.enresid), '"(k|epsilon|omega)"': '{:.5f}'.format(node.keoresid)}},
-    #                     'relaxationFactors': {'fields': {'p_rgh': '0.7'}, 'equations':{'U': '0.2', 'e': '0.1', '"(k|epsilon|R|omega)"': '0.7'}}}}
-
-    # if node.buoyancy and node.radiation:
-    #     soldict[solver]['solvers']['G'] = {'$p_rgh': '', 'tolerance' : '1e-05', 'relTol': '0.1'}
-    #     soldict[solver]['solvers']['p_rgh'] = {'solver': 'PCG', 'preconditioner': 'DIC', 'tolerance' : '1e-06', 'relTol': '0.01'}
-    #     soldict[solver]['SIMPLE']['residualControl']['G'] = '1e-3'
-    #     soldict[solver]['relaxationFactors']= {'fields': {'rho': '1.0', 'p_rgh': '0.7'}, 'equations': {'U': '0.2', 'h': '0.2', '"(k|epsilon|omega|R)"': '0.5', 'G': '0.7'}}
-
-    # return write_fvdict(htext, soldict[solver])
-
-# def flovi_bm_update(self, context):
-#     scene = context.scene
-#     svp = scene.vi_params
-#     ovp = context.object.vi_params
-#     svp = scene.vi_params
-#    svp['flparams']['solver'] = ovp.flovi_solver
-#    svp['flparams']['turbulence'] = ovp.flovi_turb
-
-
-# # @writeheader
-# def fvbmwrite(o, expnode):
-#     bm = bmesh.new()
-#     tempmesh = o.to_mesh(scene=bpy.context.scene, apply_modifiers=True, settings='PREVIEW')
-#     bm.from_mesh(tempmesh)
-#     bm.verts.ensure_lookup_table()
-#     bm.transform(o.matrix_world)
-#     bpy.data.meshes.remove(tempmesh)
-#     [xs, ys, zs] = [[v.co[i] for v in bm.verts] for i in range(3)]
-#     bm.transform(mathutils.Matrix.Translation((-min(xs), -min(ys), -min(zs))))
-#     o['flovi_translate'] = (-min(xs), -min(ys), -min(zs))
-#     lengths = [mathutils.Vector(v.co).length for v in bm.verts]
-#     vert0 = bm.verts[lengths.index(min(lengths))]
-#     angles = [mathutils.Vector(v.co).angle(mathutils.Vector((0, 0, 1))) for v in bm.verts if v != vert0]
-# #    vert0 = [v for v in bm.verts if v.co[:] == (min(xs), min(ys), min(zs))][0]
-#     vert4 = bm.verts[angles.index(min(angles)) + 1]
-# #    print(vert0.index, vert4.index)
-# #    vert4 = [v for v in bm.verts if (v.co[0], v.co[1]) == (vert0.co[0], vert0.co[1]) and v.co[2] != vert0.co[2]][0]
-
-#     for face in bm.faces:
-#         if vert0 in face.verts and vert4 not in face.verts:
-#             vis = [vert.index for vert in face.verts][::-1]
-#             vertorder1 = vis[vis.index(vert0.index):] + vis[:vis.index(vert0.index)]
-# #            vertorder1 = [vertorder1[0], vertorder1[3], vertorder1[2], vertorder1[1]]
-#         if vert4 in face.verts and vert0 not in face.verts:
-#             vis = [vert.index for vert in face.verts]
-#             vertorder2 = vis[vis.index(vert4.index):] + vis[:vis.index(vert4.index)]
-
-#     vertorder = ''.join(['{} '.format(v) for v in vertorder1 + vertorder2])
-
-# #    omw, bmovs = o.matrix_world, [vert for vert in o.data.vertices]
-# #    xvec, yvec, zvec = (omw*bmovs[3].co - omw*bmovs[0].co).normalized(), (omw*bmovs[2].co - omw*bmovs[3].co).normalized(), (omw*bmovs[4].co - omw*bmovs[0].co).normalized()
-# #    ofvpos = [[(omw*bmov.co - omw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for bmov in bmovs]
-# #    bmdict = "vertices\n(\n" + "\n".join(["  ({0:.3f} {1:.3f} {2:.3f})" .format(*ofvpo) for ofvpo in ofvpos]) +"\n);\n\n"
-#     bmdict = "vertices\n(\n" + "\n".join(["  ({0[0]:.3f} {0[1]:.3f} {0[2]:.3f})" .format(v.co) for v in bm.verts]) +"\n);\n\n"
-#     bmdict += "blocks\n(\n  hex ({}) ({} {} {}) simpleGrading ({} {} {})\n);\n\n".format(vertorder, expnode.bm_xres, expnode.bm_yres, expnode.bm_zres, expnode.bm_xgrad, expnode.bm_ygrad, expnode.bm_zgrad)
-#     bmdict += "edges\n(\n);\n\nboundary\n(\n"
-#     bmdict += fvboundwrite(o)
-#     bm.free()
-#     return ofheader + write_ffile('dictionary', '', 'blockMeshDict') + bmdict
-
-
-# def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
-#     scene = bpy.context.scene
-#     matfacedict = {mat.name: [0, 0] for mat in mats}
-
-#     for line in bfile.readlines():
-#         if line.strip() in matfacedict:
-#             mat = line.strip()
-#         elif line.strip() in [o.name for o in bpy.data.objects]:
-#             mat = bpy.data.objects[line.strip()].data.materials[0].name
-#         if 'nFaces' in line:
-#             matfacedict[mat][1] = int(line.split()[1].strip(';'))
-#         if 'startFace' in line:
-#             matfacedict[mat][0] = int(line.split()[1].strip(';'))
-#     bobs = [ob for ob in scene.objects if ob.get('VIType') and ob['VIType'] == 'FloViMesh']
-
-#     if bobs:
-#         o = bobs[0]
-#         selobj(scene, o)
-#         while o.data.materials:
-#             bpy.ops.object.material_slot_remove()
-#     else:
-#         bpy.ops.object.add(type='MESH', layers=(False, False, False, False, False, False,
-#                                                 False, False, False, False, False, False,
-#                                                 False, False, False, False, False, False, False, True))
-#         o = bpy.context.object
-#         o['VIType'] = 'FloViMesh'
-
-#     o.name = meshtype
-#     for mat in mats:
-#         if mat.name not in o.data.materials:
-#             bpy.ops.object.material_slot_add()
-#             o.material_slots[-1].material = mat
-
-#     matnamedict = {mat.name: m for m, mat in enumerate(o.data.materials)}
-#     bm = bmesh.new()
-
-#     for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
-#         bm.verts.new([float(vpos) for vpos in line[1:-2].split(' ')])
-
-#     if hasattr(bm.verts, "ensure_lookup_table"):
-#         bm.verts.ensure_lookup_table()
-
-#     for l, line in enumerate([line for line in ffile.readlines() if '(' in line and line[0].isdigit() and len(line.split(' ')) == int(line[0])]):
-#         newf = bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
-
-#         for facerange in matfacedict.items():
-#             if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
-#                 newf.material_index = matnamedict[facerange[0]]
-
-#     bm.transform(o.matrix_world.inverted())
-#     bm.to_mesh(o.data)
-#     bm.free()

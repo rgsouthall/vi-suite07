@@ -200,7 +200,8 @@ class VI_PT_Mat(bpy.types.Panel):
                     row = layout.row()
                     row.label(text='Export FloVi case')
                 else:
-                    newrow(layout, "Netgen max cell size:", mvp, "flovi_ng_max")
+                    newrow(layout, "Netgen cell face size:", mvp, "flovi_ng_max")
+                    newrow(layout, "Netgen edge size:", mvp, "flovi_ng_emax")
                     newrow(layout, "Type:", mvp, "flovi_bmb_type")
 
                     if svp.get('flparams') and svp['flparams'].get('solver_type'):

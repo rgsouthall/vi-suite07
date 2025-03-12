@@ -18,7 +18,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json, bmesh
+import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json, bmesh, shlex
 from collections import OrderedDict
 from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, StringProperty, FloatVectorProperty
 from bpy.types import NodeTree, Node, NodeSocket
@@ -53,16 +53,22 @@ except:
 
 ofoam = 0
 
-if sys.platform in ('darwin', 'win32'):
-    dck_run = Popen('docker images', shell=True, stdout=PIPE)
+try:
+    if sys.platform in ('darwin', 'win32'):
+        if sys.platform == 'darwin':
+            dck_run = Popen(shlex.split('/usr/local/bin/docker images'), stdout=PIPE)
+        else:
+            dck_run = Popen('docker images', shell=True, stdout=PIPE)
 
-    for line in dck_run.stdout.readlines():
-        lds = line.decode().split()
-        # Below is required to register the lines
-        print(lds[0], lds[1])
+        for line in dck_run.stdout.readlines():
+            lds = line.decode().split()
+            # Below is required to register the lines
+            print(lds[0], lds[1])
 
-        if lds[0] == 'dicehub/openfoam' and lds[1] == '11':
-            ofoam = 1
+            if lds[0] == 'dicehub/openfoam' and lds[1] == '12':
+                ofoam = 1
+except:
+    pass
 
 flo_libs = [ng, ofoam]
 os.chdir(cur_dir)
@@ -728,6 +734,7 @@ class No_Li_Con(Node, ViNodes):
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.animated else scene.frame_current
         self['mtxfile'] = ''
         self['mtxfilens'] = ''
+        self['dl_hours'] = ''
         self['preview'] = 0
 
         if self.contextmenu == "Basic":
@@ -1321,6 +1328,7 @@ class No_Li_Sim(Node, ViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
+            
         self.run = 0
 
     def presim(self):
@@ -1683,8 +1691,12 @@ class No_En_Geo(Node, ViNodes):
     bl_label = 'EnVi Geometry'
     bl_icon = 'MOD_BUILD'
 
+    def nodeupdate(self, context):
+        pass
+
     geo_offset: FloatVectorProperty(name="", description="", default=(0.0, 0.0, 0.0), step=3, precision=1,
                                     subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
+    netgen: BoolProperty(name="", description="Netgen mesh extraction", update=nodeupdate)
 
     def init(self, context):
         self.outputs.new('So_En_Geo', 'Geometry out')
@@ -1692,6 +1704,7 @@ class No_En_Geo(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Offset', self, 'geo_offset')
+        newrow(layout, 'Netgen', self, 'netgen')
         row = layout.row()
         row.operator("node.engexport", text="Export")
 
@@ -4537,8 +4550,8 @@ class No_Flo_Case(Node, ViNodes):
     tval: FloatProperty(name="K", description="Field Temperature (K)", min=0.0, max=500, default=293.14, update=nodeupdate)
     nutval: FloatProperty(name="", description="Nut domain value", min=0.0, max=500, default=0.0, update=nodeupdate)
     nutildaval: FloatProperty(name="", description="NuTilda domain value", min=0.0, max=500, default=0.0, update=nodeupdate)
-    kval: FloatProperty(name="", description="k domain value", min=0.001, max=500, default=0.375, precision=3, update=nodeupdate)
-    epval: FloatProperty(name="", description="Epsilon domain value", min=0.001, max=500, precision=3, default=0.004, update=nodeupdate)
+    kval: FloatProperty(name="", description="k domain value", min=0.001, max=500, default=0.001, precision=3, update=nodeupdate)
+    epval: FloatProperty(name="", description="Epsilon domain value", min=0.001, max=500, precision=3, default=0.001, update=nodeupdate)
     oval: FloatProperty(name="", description="Omega domain value", min=0.1, max=500, default=0.1, update=nodeupdate)
     presid: FloatProperty(name="", description="p convergence criteria", precision=6, min=0.000001, max=0.01, default=0.0001, update=nodeupdate)
     uresid: FloatProperty(name="", description="U convergence criteria", precision=6, min=0.000001, max=0.5, default=0.0001, update=nodeupdate)
@@ -4640,7 +4653,7 @@ class No_Flo_Case(Node, ViNodes):
         if self.buoyancy:
             newrow(layout, 'e residual:', self, 'enresid')
 
-        if self.p_ref == '0' or self.p_ref_point:
+        if self.p_ref == '0' or self.p_ref_point != 'None':
             row = layout.row()
             row.operator("node.flovi_case", text = "Export")
 
@@ -4697,25 +4710,24 @@ class No_Flo_NG(Node, ViNodes):
     bl_icon = 'MESH_ICOSPHERE'
 
     def ret_params(self):
-        return [str(x) for x in (self.poly, self.pcorr, self.acorr, self.maxcs, self.yang, self.grading, self.optimisations, self.fang)]
+        return [str(x) for x in (self.poly, self.maxcs, self.grading, self.optimisations, self.b_only, self.debug_step)]
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
-    poly: BoolProperty(name = '', description = 'Create polygonal mesh', default = 0, update = nodeupdate)
-    pcorr: FloatProperty(name = "m", description = "Maximum distance for position correspondance", min = 0, max = 1, default = 0.1, update = nodeupdate)
-    acorr: FloatProperty(name = "", description = "Minimum cosine for angular correspondance", min = 0, max = 1, default = 0.9, update = nodeupdate)
-    maxcs: FloatProperty(name = "m", description = "Max global cell size", min = 0, max = 100, default = 1, update = nodeupdate)
-    yang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 1, update = nodeupdate)
-    grading: FloatProperty(name = "", description = "Small to large cell inflation", min = 0, max = 5, default = 0.3, update = nodeupdate)
-    processors: IntProperty(name = "", description = "Number of processers", min = 0, max = 32, default = 1, update = nodeupdate)
-    optimisations: IntProperty(name = "", description = "Number of optimisation steps", min = 0, max = 32, default = 3, update = nodeupdate)
-    maxsteps: IntProperty(name = "", description = "Number of attempts", min = 0, max = 10, default = 3, update = nodeupdate)
-    fang: FloatProperty(name = "deg", description = "Minimum angle for separate faces", min = 0, max = 90, default = 30, update = nodeupdate)
-    geo_join: BoolProperty(name = '', description = 'Join Geometries', default = 0, update = nodeupdate)
-    d_diff: BoolProperty(name = '', description = 'Extract geometries from domain', default = 0, update = nodeupdate)
-    running: BoolProperty(name = '', description = '', default = 0)
-    ofbm: BoolProperty(name = '', description = 'Create Blender mesh', default=1)
+    poly: BoolProperty(name='', description='Create polygonal mesh', default=0, update=nodeupdate)
+    #pcorr: FloatProperty(name="m", description="Maximum distance for position correspondance", min=0, max=1, default=0.1, update=nodeupdate)
+    #acorr: FloatProperty(name="", description="Minimum cosine for angular correspondance", min=0, max=1, default=0.9, update=nodeupdate)
+    maxcs: FloatProperty(name="m", description="Max global cell size", min=0, max=100, default=1, update=nodeupdate)
+    #yang: FloatProperty(name="deg", description="Minimum angle for separate faces", min=0, max=90, default=1, update=nodeupdate)
+    grading: FloatProperty(name="", description="Small to large cell inflation", min=0, max=0.99, default=0.1, update=nodeupdate)
+    processors: IntProperty(name="", description="Number of processers", min=0, max=32, default=1, update=nodeupdate)
+    optimisations: IntProperty(name="", description="Number of optimisation steps", min=0, max=32, default=3, update=nodeupdate)
+    maxsteps: IntProperty(name="", description="Number of attempts", min=0, max=10, default=3, update=nodeupdate)
+    running: BoolProperty(name='', description='', default=0)
+    ofbm: BoolProperty(name='', description='Create Blender mesh', default=1)
+    b_only: BoolProperty(name='', description='Only generate a boundary Blender mesh', default=1)
+    debug_step: BoolProperty(name='', description='Export STEP debug files', default=0)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -4730,20 +4742,21 @@ class No_Flo_NG(Node, ViNodes):
 
             if os.path.isdir(vi_prefs.ofbin) and os.path.isfile(os.path.join(vi_prefs.ofbin, 'foamExec')):
                 flo_libs[1] = 1
-            #elif context.scene.vi_params.get('viparams') and context.scene.vi_params['viparams'].get('ofbin'):
 
 
         if self.inputs and self.inputs['Case in'].links:
             if all(flo_libs):
                 newrow(layout, 'Cell size:', self, 'maxcs')
-                newrow(layout, 'Position corr:', self, 'pcorr')
-                newrow(layout, 'Angular corr:', self, 'acorr')
-                newrow(layout, 'Distinction angle:', self, 'yang')
+                #newrow(layout, 'Position corr:', self, 'pcorr')
+                #newrow(layout, 'Angular corr:', self, 'acorr')
+                #newrow(layout, 'Distinction angle:', self, 'yang')
                 newrow(layout, 'Inflation:', self, 'grading')
                 newrow(layout, 'Optimisations:', self, 'optimisations')
                 newrow(layout, 'Attempts:', self, 'maxsteps')
                 # newrow(layout, 'Blender mesh:', self, 'ofbm')
                 newrow(layout, 'Polygonal:', self, 'poly')
+                newrow(layout, 'Blender boundary:', self, 'b_only')
+                newrow(layout, 'Write STEPs:', self, 'debug_step')
 
                 if not self.running:
                     row = layout.row()
@@ -4776,9 +4789,6 @@ class No_Flo_Bound(Node, ViNodes):
     bl_idname = 'No_Flo_Bound'
     bl_label = 'FloVi Boundary'
     bl_icon = 'MESH_ICOSPHERE'
-
-    # def nodeupdate(self, context):
-    #     nodecolour(self, self['exportstate'] != [str(self.pv)])
 
     def init(self, context):
         self['exportstate'] = ''
@@ -4845,49 +4855,49 @@ class So_Flo_Mesh(NodeSocket):
         row = layout.row()
         row.operator("node.blockmesh", text = "Export")
 
-class No_Flo_BMesh(Node, ViNodes):
-    '''Openfoam blockmesh export node'''
-    bl_idname = 'No_Flo_BMesh'
-    bl_label = 'FloVi BlockMesh'
-    bl_icon = 'GRID'
-
-    def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
-
-    bm_xres: IntProperty(name = "X", description = "Blockmesh X resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
-    bm_yres: IntProperty(name = "Y", description = "Blockmesh Y resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
-    bm_zres: IntProperty(name = "Z", description = "Blockmesh Z resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
-    bm_xgrad: FloatProperty(name = "X", description = "Blockmesh X simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
-    bm_ygrad: FloatProperty(name = "Y", description = "Blockmesh Y simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
-    bm_zgrad: FloatProperty(name = "Z", description = "Blockmesh Z simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
-
-    def init(self, context):
-        self['exportstate'] = ''
-        self.outputs.new('So_Flo_Mesh', 'Mesh out')
-        nodecolour(self, 1)
-
-    def draw_buttons(self, context, layout):
-        split = layout.split()
-        col = split.column(align=True)
-        col.label(text="Cell resolution:")
-        col.prop(self, "bm_xres")
-        col.prop(self, "bm_yres")
-        col.prop(self, "bm_zres")
-        col = split.column(align=True)
-        col.label(text="Cell grading:")
-        col.prop(self, "bm_xgrad")
-        col.prop(self, "bm_ygrad")
-        col.prop(self, "bm_zgrad")
-        row = layout.row()
-        row.operator("node.flovi_bm", text = "Export")
-
-    def update(self):
-        for sock in self.outputs:
-            socklink(sock, self.id_data.name)
-
-    def export(self):
-        self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
-        nodecolour(self, 0)
+# class No_Flo_BMesh(Node, ViNodes):
+#     '''Openfoam blockmesh export node'''
+#     bl_idname = 'No_Flo_BMesh'
+#     bl_label = 'FloVi BlockMesh'
+#     bl_icon = 'GRID'
+#
+#     def nodeupdate(self, context):
+#         nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
+#
+#     bm_xres: IntProperty(name = "X", description = "Blockmesh X resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
+#     bm_yres: IntProperty(name = "Y", description = "Blockmesh Y resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
+#     bm_zres: IntProperty(name = "Z", description = "Blockmesh Z resolution", min = 0, max = 1000, default = 10, update = nodeupdate)
+#     bm_xgrad: FloatProperty(name = "X", description = "Blockmesh X simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
+#     bm_ygrad: FloatProperty(name = "Y", description = "Blockmesh Y simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
+#     bm_zgrad: FloatProperty(name = "Z", description = "Blockmesh Z simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
+#
+#     def init(self, context):
+#         self['exportstate'] = ''
+#         self.outputs.new('So_Flo_Mesh', 'Mesh out')
+#         nodecolour(self, 1)
+#
+#     def draw_buttons(self, context, layout):
+#         split = layout.split()
+#         col = split.column(align=True)
+#         col.label(text="Cell resolution:")
+#         col.prop(self, "bm_xres")
+#         col.prop(self, "bm_yres")
+#         col.prop(self, "bm_zres")
+#         col = split.column(align=True)
+#         col.label(text="Cell grading:")
+#         col.prop(self, "bm_xgrad")
+#         col.prop(self, "bm_ygrad")
+#         col.prop(self, "bm_zgrad")
+#         row = layout.row()
+#         row.operator("node.flovi_bm", text = "Export")
+#
+#     def update(self):
+#         for sock in self.outputs:
+#             socklink(sock, self.id_data.name)
+#
+#     def export(self):
+#         self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
+#         nodecolour(self, 0)
 
 class No_Flo_Sim(Node, ViNodes):
     '''Openfoam simulation node'''
@@ -4900,6 +4910,7 @@ class No_Flo_Sim(Node, ViNodes):
 
     processes: IntProperty(name="", description="Number of processors", min=1, max=1000, default=1, update=nodeupdate)
     pv: BoolProperty(name="", description="Open paraview", default=0, update=nodeupdate)
+    running: BoolProperty(name="", description="", default=0)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -4908,24 +4919,34 @@ class No_Flo_Sim(Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Processes:', self, 'processes')
+        if not self.running:
+            newrow(layout, 'Processes:', self, 'processes')
 
-        if sys.platform == 'linux':
-            newrow(layout, 'Paraview:', self, 'pv')
+            if sys.platform == 'linux':
+                newrow(layout, 'Paraview:', self, 'pv')
 
-        row = layout.row()
-        row.operator("node.flovi_sim", text = "Calculate")
+            row = layout.row()
+            row.operator("node.flovi_sim", text = "Calculate")
+        else:
+            row = layout.row()
+            row.label(text="Simulating")
+            row = layout.row()
+            row.label(text="Reconnect to re-initialise")
 
     def update(self):
+        self.running = 0
+
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
     def presim(self):
-        expnode = self.inputs['Context in'].links[0].from_node
-        return (expnode.convergence, expnode.econvergence, expnode['residuals'], expnode.processes, expnode.solver)
+        self.running = 1
+        #expnode = self.inputs['Context in'].links[0].from_node
+        #return (expnode.convergence, expnode.econvergence, expnode['residuals'], expnode.processes, expnode.solver)
 
     def postsim(self):
         self['exportstate'] = [str(x) for x in (self.processes, self.pv)]
+
         if self.outputs[0].links:
             for dnode in set([li.to_node for li in self.outputs[0].links]):
                 if dnode.bl_idname == 'No_Vi_Metrics':
@@ -4934,7 +4955,9 @@ class No_Flo_Sim(Node, ViNodes):
                     dnode.update()
                 elif dnode.bl_idname == 'No_Vi_Chart':
                     dnode.update()
+
         nodecolour(self, 0)
+        self.running = 0
 
 ####################### Vi Nodes Categories ##############################
 

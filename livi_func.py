@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time, matplotlib
+import bpy, bmesh, os, datetime, shlex, sys, math, pickle, shutil, time, matplotlib, contourpy
 from math import sin, cos, pi, log10
 from mathutils import Vector
 from subprocess import Popen, PIPE, STDOUT
@@ -99,9 +99,9 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
     else:
         var = svp.li_disp_menu
 
-    if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)):
+    if bm.faces.layers.float.get('{}{}'.format(var, scene.frame_current)) != None:
         geom = bm.faces
-    elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):
+    elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)) != None:
         geom = bm.verts
     else:
         logentry(f"No result data on {o.name}. Re-export LiVi Context and Geometry")
@@ -136,69 +136,71 @@ def res_interpolate(scene, dp, o, ores, plt, offset):
     meshes = []
     plt.gca().set_aspect('equal')
     cverts, cfaces, mis = [], [], []
-    # This uses bezier curves. It works but gets the odd result.
-    # for pi, path in enumerate(CS.get_paths()):
-    #     if len(path.vertices):
-    #         vpi = 0
-    #         lci = 0
-    #         curve = bpy.data.curves.new('hi', type='CURVE')
-    #         curve.dimensions = '2D'
-    #         curve.fill_mode = 'BOTH'
 
-    #         for ci, code in enumerate(path.codes):
-    #             curve.splines.new('BEZIER')
-    #             spline = curve.splines[vpi]
-    #             spline.use_cyclic_u = True
-    #             points = spline.bezier_points
 
-    #             if ci - lci >= len(points):
-    #                 points.add(1)
+    # This uses bezier curves. It works but gets the odd weird result.
+    for pi, path in enumerate(CS.get_paths()):
+        if len(path.vertices):
+            vpi = 0
+            lci = 0
+            curve = bpy.data.curves.new('hi', type='CURVE')
+            curve.dimensions = '2D'
+            curve.fill_mode = 'BOTH'
 
-    #             points[ci - lci].handle_left_type = 'VECTOR'
-    #             points[ci - lci].handle_right_type = 'VECTOR'
-    #             points[ci - lci].co = o.matrix_world@Vector(path.vertices[ci].tolist() + [0.01])
+            for ci, code in enumerate(path.codes):
+                curve.splines.new('BEZIER')
+                spline = curve.splines[vpi]
+                spline.use_cyclic_u = True
+                points = spline.bezier_points
+
+                if ci - lci >= len(points):
+                    points.add(1)
+
+                points[ci - lci].handle_left_type = 'VECTOR'
+                points[ci - lci].handle_right_type = 'VECTOR'
+                points[ci - lci].co = o.matrix_world@Vector(path.vertices[ci].tolist() + [0.01])
                 
-    #             if code == 79:
-    #                 curve.splines.new('BEZIER')
-    #                 vpi += 1
-    #                 lci = ci + 1
+                if code == 79:
+                    curve.splines.new('BEZIER')
+                    vpi += 1
+                    lci = ci + 1
 
-    #         curveOB = bpy.data.objects.new('myCurve', curve)
-    #         curveM = bpy.data.meshes.new_from_object(curveOB)
+            curveOB = bpy.data.objects.new('myCurve', curve)
+            curveM = bpy.data.meshes.new_from_object(curveOB)
             
-    #         for poly in curveM.polygons:
-    #             poly.material_index = pi
+            for poly in curveM.polygons:
+                poly.material_index = pi
 
-    #         for poly in curveM.polygons:
-    #             cfaces += [[v + len(cverts) for v in poly.vertices]]
-    #             mis.append(poly.material_index)
+            for poly in curveM.polygons:
+                cfaces += [[v + len(cverts) for v in poly.vertices]]
+                mis.append(poly.material_index)
 
-    #         cverts += [v.co for v in curveM.vertices]
+            cverts += [v.co for v in curveM.vertices]
 
             
-    # ores.data.clear_geometry()        
-    # ores.data.from_pydata(cverts, [], cfaces) 
-    # for pi, poly in enumerate(ores.data.polygons):
-    #     poly.material_index = mis[pi]
+    ores.data.clear_geometry()        
+    ores.data.from_pydata(cverts, [], cfaces) 
+    for pi, poly in enumerate(ores.data.polygons):
+        poly.material_index = mis[pi]
 
 
-    for csi, ca in enumerate(CS.allsegs):
-        for ci, c_cos in enumerate(ca):
-            vcos += [o.matrix_world@Vector(c + [offset + (1, -1)[svp.vi_disp_pos == "1"] * 0.0001 * csi]) for c in c_cos.tolist()]
-            fis.append([vi for vi in range(v_start, v_start + len(c_cos))])      
-            mis.append(csi)
-            v_start += len(c_cos)
+    # for csi, ca in enumerate(CS.allsegs):
+    #     for ci, c_cos in enumerate(ca):
+    #         vcos += [o.matrix_world@Vector(c + [offset + (1, -1)[svp.vi_disp_pos == "1"] * 0.0001 * csi]) for c in c_cos.tolist()]
+    #         fis.append([vi for vi in range(v_start, v_start + len(c_cos))])      
+    #         mis.append(csi)
+    #         v_start += len(c_cos)
 
-    while ores.material_slots:
-        bpy.ops.object.material_slot_remove()
+    # while ores.material_slots:
+    #     bpy.ops.object.material_slot_remove()
 
-    ores.data.clear_geometry()
-    ores.data.from_pydata(vcos, [], fis)   
-    ores.data.validate()
-    ores.data.update(calc_edges=True)
+    # ores.data.clear_geometry()
+    # ores.data.from_pydata(vcos, [], fis)   
+    # ores.data.validate()
+    # ores.data.update(calc_edges=True)
 
-    for fi, face in enumerate(ores.data.polygons):
-        face.material_index = mis[fi]
+    # for fi, face in enumerate(ores.data.polygons):
+    #     face.material_index = mis[fi]
     
     for matname in ['{}#{}'.format('vi-suite', i) for i in range(svp.vi_leg_levels)]:
         if bpy.data.materials[matname] not in ores.data.materials[:]:
@@ -652,6 +654,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
     for f, frame in enumerate(frames):
         self['res{}'.format(frame)] = {}
+
         if svp['liparams']['unit'] == 'Lux':
             geom.layers.float.new('illu{}'.format(frame))
             geom.layers.float.new('virradm2{}'.format(frame))
@@ -690,7 +693,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
         geom.layers.float.new('res{}'.format(frame))
 
-        if geom.layers.string.get('rt{}'.format(frame)):
+        if geom.layers.string.get('rt{}'.format(frame)) != None:
             rtframe = frame
         else:
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
@@ -770,6 +773,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             if svp['liparams']['unit'] == 'Lux':
                 oillu = array([g[illures] for g in geom]).astype(float64)
                 maxoillu, minoillu, aveoillu = nmax(oillu), nmin(oillu), nmean(oillu)
+
             elif svp['liparams']['unit'] == 'DF (%)':
                 odf = array([g[dfres] for g in geom]).astype(float64)
                 maxodf, minodf, aveodf = nmax(odf), nmin(odf), nmean(odf)
@@ -909,9 +913,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
             ir = []
 
-            if self['oave'].get('illu{}'.format(frames[0])) or self['oave'].get('df{}'.format(frames[0])):
+            if self['oave'].get('illu{}'.format(frames[0])) != None or self['oave'].get('df{}'.format(frames[0])) != None:
                 for frame in frames:
-                    dfillu = 'illu' if self['oave'].get('illu{}'.format(frame)) else 'df'
+                    dfillu = 'illu' if self['oave'].get('illu{}'.format(frame)) != None else 'df'
+
                     if self['oave'][f'{dfillu}{frame}'] > 0:
                         ir.append('{:.3f}'.format(self['omin'][f'{dfillu}{frame}']/self['oave'][f'{dfillu}{frame}']))
                     else:
@@ -972,13 +977,14 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             virradm2res = geom.layers.float['virradhm2{}'.format(frame)]
             virradres = geom.layers.float['virradh{}'.format(frame)]
             illures = geom.layers.float['illuh{}'.format(frame)]
+
         elif simnode['coptions']['unit'] == 'kWh (f)':
             geom.layers.float.new('firradhm2{}'.format(frame))
             geom.layers.float.new('firradh{}'.format(frame))
             firradm2res = geom.layers.float['firradhm2{}'.format(frame)]
             firradres = geom.layers.float['firradh{}'.format(frame)]
 
-        if geom.layers.string.get('rt{}'.format(frame)):
+        if geom.layers.string.get('rt{}'.format(frame)) != None:
             rtframe = frame
         else:
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
@@ -1164,7 +1170,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
         (resda, ressda, ressv, resase, res, resudilow, resudisup, resudiauto, resudihi, firrad, firradm2, maxillu, minillu, aveillu, en100, en300) = [geom.layers.float['{}{}'.format(r, frame)] for r in restypes]
 
-        if geom.layers.string.get('rt{}'.format(frame)):
+        if geom.layers.string.get('rt{}'.format(frame)) != None:
             rtframe = frame
         else:
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
@@ -1541,7 +1547,7 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             else:
                 logentry('Calculating view {} with azimuth {}'.format(agv + 1, simnode['coptions']['dgp_azi'] + agv * 360/simnode['coptions']['ga_views'])) 
         
-        if geom.layers.string.get('rt{}'.format(frame)):
+        if geom.layers.string.get('rt{}'.format(frame)) != None:
             rtframe = frame
         else:
             kints = [int(k[2:]) for k in geom.layers.string.keys()]
@@ -1549,7 +1555,7 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
 
         rt = geom.layers.string['rt{}'.format(rtframe)]
         
-        if not geom.layers.string.get('rv{}'.format(frame)):
+        if not geom.layers.string.get('rv{}'.format(frame)) != None:
             geom.layers.string.new('rv{}'.format(rtframe))
         
         rv = geom.layers.string['rv{}'.format(rtframe)]
