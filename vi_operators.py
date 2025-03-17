@@ -695,11 +695,11 @@ class OBJECT_OT_EcS(bpy.types.Operator):
             eckg = ovp.ec_du/ovp.ec_weight
 
         ec_dict = envi_ecs.get_dat()
-        
+
         if ovp.ec_class not in ec_dict and ovp.ec_class.upper() in [ec_class.upper() for ec_class in ec_dict]:
             self.report({'ERROR'}, 'A class with this spelling but a different case already exists. Pick a different class name')
             return{'CANCELLED'}
-        
+
         elif ovp.ec_class not in ec_dict:
             #print(ovp.ec_class, ec_dict)
             ec_dict[ovp.ec_class] = {}
@@ -712,7 +712,7 @@ class OBJECT_OT_EcS(bpy.types.Operator):
                                                                "ecdu": '{:.4f}'.format(ecdu),
                                                                "eckg": '{:.4f}'.format(eckg),
                                                                "modules": ovp.ec_mod}
-            
+
         elif ovp.ec_type not in ec_dict[ovp.ec_class]:
             ec_dict[ovp.ec_class][ovp.ec_type] = {}
             ec_dict[ovp.ec_class][ovp.ec_type][ovp.ec_name] = {"id": ovp.ec_id,
@@ -732,11 +732,11 @@ class OBJECT_OT_EcS(bpy.types.Operator):
                                                                "ecdu": '{:.4f}'.format(ecdu),
                                                                "eckg": '{:.4f}'.format(eckg),
                                                                "modules": ovp.ec_mod}
-        
+
         # if ovp.ec_class not in ec_dict and ovp.ec_class.upper() in [ec_class.upper() for ec_class in ec_dict]:
         #     self.report({'ERROR'}, 'A class with this spelling but a different case already exists. Pick a different class name')
         #     return{'CANCELLED'}
-        
+
         envi_ecs.set_dat(ec_dict)
         envi_ecs.ec_save()
         ovp.ee.update()
@@ -1122,7 +1122,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                 for line in self.rvurun.stderr:
                     if b'fatal IO error' not in line and b'events remaining' not in line and b'Broken pipe' not in line and b'explicit kill' not in line:
                         logentry(line)
-                    
+
                     if b'explicit kill' not in line:
                         for rvuerr in rvuerrdict:
                             if rvuerr in line.decode():
@@ -1208,7 +1208,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                                 for entry in line.split():
                                     if '%' in entry:
                                         curres = float(entry[:-2]) if float(entry[:-2]) > curres else curres
-                            
+
                     if self.pfile.check(curres) == 'CANCELLED':
                         pmrun.kill()
                         return {'CANCELLED'}
@@ -1224,7 +1224,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                                     logentry(pmerrdict[pmerr])
                                     self.report({'ERROR'}, pmerrdict[pmerr])
                                     return {'CANCELLED'}
-                            
+
                             logentry(f'Photon map error: {line}')
                             self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
                             return {'CANCELLED'}
@@ -1388,7 +1388,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
                     pmrun.kill()
                     return {'CANCELLED'}
-                    
+
                 while pmrun.poll() is None:
                     sleep(10)
                     with open(f'{pmfile}-{frame}', 'r') as vip:
@@ -1412,7 +1412,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                                     logentry(pmerrdict[pmerr])
                                     self.report({'ERROR'}, pmerrdict[pmerr])
                                     return {'CANCELLED'}
-                            
+
                             logentry(f'Photon map error: {line}')
                             self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
                             return {'CANCELLED'}
@@ -1492,9 +1492,9 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     self.reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(t.hour) for t in times])])
                     self.reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
                     self.reslists.append([str(frame), 'Climate', 'Exterior', 'Daylight', self.simnode['coptions']['dl_hours']])
-                
+
                 cbdmout = ovp.udidacalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
-                
+
                 if cbdmout == 'CANCELLED':
                     if self.pb.poll() is None:
                         self.pb.kill()
@@ -1559,9 +1559,9 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                     if self.xindex == 0:
                         if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame)):
                             os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame))
-                        
+
                         logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
-                    
+
                     self.xindex += 1
 
                 if self.xindex == self.processes:
@@ -1593,7 +1593,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
         if event.type == 'TIMER':
             f = self.frame if self.frame <= self.fe else self.fe
             #if self.pmfin and not self.rpruns:
-            if self.pmfin:    
+            if self.pmfin:
                 self.percent = 0
                 with open('{}-{}'.format(self.pmfile, f), 'r') as vip:
                     vip_lines = vip.readlines()
@@ -1634,7 +1634,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                 if os.path.isfile("{}-{}.hdr_temp".format(os.path.join(self.folder, 'images', self.basename), f)):
                     os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
                     os.rename("{}-{}.hdr_temp".format(os.path.join(self.folder, 'images', self.basename), f), "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
-                
+
                 return {self.terminate()}
 
             elif self.pmfin and self.mp:
@@ -1667,7 +1667,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
             for line in girun.stdout:
                 lid = line.decode()
-                
+
                 if "VIEW=" in lid:
                     if "-vu" in lid:
                         lsplit = lid.split()
@@ -2212,7 +2212,7 @@ class NODE_OT_En_Con(bpy.types.Operator, ExportHelper):
                 bpy.ops.object.mode_set(mode='OBJECT')
 
         error = enpolymatexport(self, eg_coll, node, locnode, envi_materials(), envi_constructions())
-        
+
         if error:
             return {'CANCELLED'}
 
@@ -2548,7 +2548,7 @@ class NODE_OT_EC(bpy.types.Operator):
 
                 for o in obs:
                     ovp = o.vi_params if o.vi_params.embodied else o.users_collection[0].vi_params
-                    
+
                     if all((ovp.embodiedclass, ovp.embodiedtype, ovp.embodiedmat)):
                         if ovp.embodiedclass == 'Custom':
                             logentry(f"Object {o.name} has unsaved EC data")
@@ -2558,12 +2558,12 @@ class NODE_OT_EC(bpy.types.Operator):
                         ecdict = envi_ec.propdict[ovp.embodiedclass][ovp.embodiedtype][ovp.embodiedmat]
                         #print(ecdict)
                         vol, mass, area = 0, 0, 0
-                        
+
                         if ecdict['unit'] in ('kg', 'm3', 'm2', 'tonnes') or (ecdict['unit'] == 'each' and ovp.ec_rep == '0'):
                             bm = bmesh.new()
                             bm.from_object(o, dp)
                             bm.transform(o.matrix_world)
-                            
+
                             if node.heal:
                                 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001)
                                 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -2572,14 +2572,14 @@ class NODE_OT_EC(bpy.types.Operator):
                                 vol = bm.calc_volume()
                                 mass = vol * float(ecdict['density'])
                                 ec = float(ecdict['eckg']) * float(ecdict['density']) * vol + ovp.ec_amount_mod * vol/(float(ecdict['weight'])/float(ecdict['density'])) # * node.tyears / float(ovp.ec_life)
-                            
+
                             elif ecdict['unit'] == 'each':
                                 ec = float(ecdict['ecdu'])/float(ecdict['quantity']) # * node.tyears / float(ovp.ec_life)
-                            
+
                             elif ecdict['unit'] == 'm2':
                                 area = sum([f.calc_area() for f in bm.faces]) if ovp.ec_arep == '1' else ovp.ec_ma
                                 ec = float(ecdict['ecdu']) * area/float(ecdict['quantity']) # * node.tyears / float(ovp.ec_life)
-                            
+
                             else:
                                 logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                                 self.report({'WARNING'}, f"{o.name} is not manifold. Embodied energy metrics have not been exported")
@@ -2647,18 +2647,18 @@ class NODE_OT_EC(bpy.types.Operator):
                                 if all([e.is_manifold for e in bm.edges]):
                                     vol = bm.calc_volume()
                                     ec = float(ecdict['eckg']) * float(ecdict['density']) * vol + ovp.ec_amount_mod * vol/(float(ecdict['weight'])/float(ecdict['density']))
-                                
+
                                 elif ecdict['unit'] == 'm2':
                                     area = sum([f.calc_area() for f in bm.faces])
                                     ec = float(ecdict['ecdu']) * area/float(ecdict['quantity'])
-                                    vol = 0 
+                                    vol = 0
                                     mass = 0
-                                
+
                                 else:
                                     logentry(f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                                     self.report({'WARNING'}, f"{o.name} is not manifold. Embodied energy metrics have not been exported")
                                     nmobs.append(o)
-                                
+
                                 bm.free()
 
                             else:
@@ -2686,7 +2686,7 @@ class NODE_OT_EC(bpy.types.Operator):
 
         if len(frames) > 1:
             obs = [o.name for o in obs] if node.entities == '0' else [c for c in cobs if cobs[c]]
-            
+
             if obs:
                 reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
 
@@ -2951,7 +2951,7 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
                 obs = sorted(set(onames), key=onames.index)
                 resnames = [r[3] for r in rl if r[0] != 'All']
                 res = sorted(set(resnames), key=resnames.index)
-                
+
                 for f in frames:
                     for o in obs:
                         #print(o)
@@ -3183,7 +3183,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
         gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get() and o.name not in meshcoll.objects]
         self.obs = dobs + gobs
-   
+
         if any([any(s < 0 for s in o.scale) for o in self.obs]):
             logentry('CFD domain or geometry has a negative scale. Cannot proceed')
             self.report({'ERROR'}, 'CFD domain or geometry has a negative scale. Cannot proceed')
@@ -3193,7 +3193,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'netgen')
         else:
             os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'netgen')
-        
+
         mp = MeshingParameters(maxh=self.expnode.maxcs, minh=0.25*self.expnode.maxcs, grading=self.expnode.grading,
                                        optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
                                        delaunay=True, maxoutersteps=self.expnode.maxsteps)
@@ -3210,6 +3210,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         surf_no = 0
         fds = []
         b_mats = []
+        e_maxs = {}
 
         for ob in self.obs:
             fi = 0
@@ -3230,11 +3231,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             # bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
             # np_faces = [face for face in bm.faces if abs(max([face.normal.dot(face.calc_center_median() - vert.co) for vert in face.verts])) > 0.00000001]
             # bmesh.ops.triangulate(bm, faces=np_faces, quad_method='FIXED', ngon_method='BEAUTY')
-            
+
             # bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
             #bm.verts.ensure_lookup_table()
             #bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(ob.name)))
-            
+
 
             if len(bm.faces) > 20000:
                 bm.free()
@@ -3263,8 +3264,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             return {'CANCELLED'}
 
                         face.index = fi
-                        fi += 1 
-                        
+                        fi += 1
+
             bm.faces.sort()
             bm.normal_update()
             bm.faces.ensure_lookup_table()
@@ -3275,11 +3276,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 if ms.material:
                     fd = FaceDescriptor(bc=surf_no, domin=1, surfnr=surf_no + 1)
                     self.matnames.append(ob.name+'_'+ms.material.name)
+                    e_maxs[ob.name+'_'+ms.material.name] = ms.material.vi_params.flovi_ng_emax
                     self.omats.append(ms.material)
                     fd.bcname = ms.material.name
                     fd.color = ms.material.diffuse_color[:3]
                     fds.append(fd)
-                    totmesh.Add(fd)                   
+                    totmesh.Add(fd)
                     surf_no += 1
 
             # points = [occ.gp_Pnt(tuple(vert.co)) for vert in bm.verts]
@@ -3296,7 +3298,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
-                
+
                 if len(f.edges) < 3:
                     t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
 
@@ -3325,29 +3327,22 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     f.bc(ob.name+'_'+matname)
                     f.layer = face.index
                     f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
-
-                    for e in f.edges:
-                        e.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_emax # if e.link_faces[0].normal.angle(e.link_faces[1].normal) > 0.01 else 1
-
-                    for v in f.vertices:
-                        v.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_emax
-
                     faces.append(f)
 
             bm.free()
 
             if ob == dobs[0]:
-                d_geo = occ.OCCGeometry(occ.Glue(faces))
+                d_geo = occ.OCCGeometry(occ.Fuse(faces))
                 fns = [face.name for face in d_geo.shape.faces]
                 fms = [face.maxh for face in d_geo.shape.faces]
-                d_geo.Heal(tolerance=0.00001)
+                d_geo.Heal(tolerance=0.001)
 
                 if len(d_geo.shape.SubShapes(occ.SOLID)) == 1:
                     for fi, face in enumerate(d_geo.shape.faces):
                         if face.name == None:
                             face.name = fns[fi]
                             face.maxh = fms[fi]
-                    
+
                     if self.expnode.debug_step:
                         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
 
@@ -3370,15 +3365,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         fms = [face.maxh for face in g_geo.shape.faces]
                         print(f'Healing {ob.name} shell {mi}')
                         g_geo.Heal(tolerance=0.001)
-                        
+
                         if len(g_geo.shape.SubShapes(occ.SOLID)) == 1:
                             for fi, face in enumerate(g_geo.shape.faces):
                                 if face.name == None:
                                     face.name = fns[fi]
                                     face.maxh = fms[fi]
-                            
+
                             g_geos.append(g_geo)
-                            
+
                         else:
                             logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
                             self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
@@ -3388,7 +3383,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 else:
                     g_geo = occ.OCCGeometry(occ.Glue(faces))
-                    
+
                     if len(g_geo.shape.faces) > len(faces):
                         print(len(g_geo.shape.faces), len(faces))
 
@@ -3398,11 +3393,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         logentry(f'{ob.name} mesh requires triangulation or adjustment')
                         self.report({'ERROR'}, f'{ob.name} mesh requires triangulation')
                         return {'CANCELLED'}
-                    
+
                     fns = [face.name for face in g_geo.shape.faces]
                     fms = [face.maxh for face in g_geo.shape.faces]
                     print(f'Healing {ob.name}')
-                    g_geo.Heal(tolerance=0.00001)
+                    g_geo.Heal(tolerance=0.001)
 
                     if len(g_geo.shape.SubShapes(occ.SOLID)) != 1:
                         logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
@@ -3413,14 +3408,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             if face.name == None:
                                 face.name = fns[fi]
                                 face.maxh = fms[fi]
-                        
+
                         g_geos.append(g_geo)
-                        
+
                     if self.expnode.debug_step:
                         g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
-        
+
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
-        
+
         if g_geos:
             g_solids = occ.Fuse([g_geo.shape for g_geo in g_geos])
 
@@ -3428,13 +3423,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 fns = [face.name for face in g_solid.faces]
                 fms = [face.maxh for face in g_solid.faces]
                 g_solid = occ.OCCGeometry(g_solid)
-                g_solid.Heal()
-                
+                g_solid.Heal(tolerance=0.001)
+
                 for fi, face in enumerate(g_solid.shape.faces):
                     if face.name == None:
                         face.name = fns[fi]
                         face.maxh = fms[fi]
-                
+
                 d_geo = d_geo.shape - g_solid.shape
                 fns = [face.name for face in d_geo.faces]
                 fms = [face.maxh for face in d_geo.faces]
@@ -3446,40 +3441,83 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         face.name = fns[fi]
                         face.maxh = fms[fi]
 
-        d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))  
+        d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
         mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
 
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
             ngpyfile.write(inspect.cleandoc('''
-            import os
+            import os, math
             from netgen import occ
             from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep
             from pyngcore import SetNumThreads, TaskManager
             SetNumThreads({0})
-            mp = MeshingParameters(maxh={1}, minh={2}, grading={3}, optsteps2d={4}, delaunay=True, maxoutersteps={5})
+            mp = MeshingParameters(maxh={1}, minh={2}, grading={3}, optsteps3d={4}, optsteps2d={4}, closeedgefac=0.001, delaunay=True, maxoutersteps={5})
+            #optimize2d='smcmSmcmSmcm', optimize3d='cmdmustm',
             geo = occ.OCCGeometry(os.path.join(r'{6}', 'flovi_geometry.step'))
+            e_maxs = {7}
 
-            for f in geo.shape.faces:
-                for v in f.vertices:
-                    if v.maxh < 1:
-                        mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=v.maxh*f.maxh)
-                for e in f.edges:
-                    if e.maxh < 1:
-                        e_len = ((e.vertices[0].p[0] - e.vertices[1].p[0])**2 + (e.vertices[0].p[1] - e.vertices[1].p[1])**2 + (e.vertices[0].p[2] - e.vertices[1].p[2])**2)**0.5
-                        if e_len > 2 * f.maxh:
-                            segs = int(e_len/f.maxh) + 1
-                            for s in range(1, segs):
-                                vco = [e.vertices[0].p[i] + (e.vertices[1].p[i]* s/segs - e.vertices[0].p[i]* s/segs) for i in range(3)] 
-                                mp.RestrictH(x=vco[0], y=vco[1], z=vco[2], h=e.maxh*f.maxh)
+            def dotproduct(v1, v2):
+                return sum((a*b) for a, b in zip(v1, v2))
+
+            def length(v):
+                return math.sqrt(dotproduct(v, v))
+
+            for edge in geo.shape.edges:
+                vecs = []
+                e_maxhs = []
+
+                for face in geo.shape.faces:
+                    if edge in face.edges:
+                        f_dict = eval('{{'+str(face)+'}}')
+
+                        if 'TShape' in f_dict:
+                            f_dir = f_dict['TShape']['Surface']['pos']['Direction']
+                            vecs.append(f_dir)
+                            e_maxhs.append(e_maxs[face.name] * face.maxh)
+
+                if len(vecs) == 2 and (math.acos(dotproduct(vecs[0], vecs[1]) / (length(vecs[0]) * length(vecs[1]))) > 0.1 or len(set(e_maxhs)) > 1):
+                    edge.maxh = min(e_maxhs)
+                    e_len = ((edge.vertices[0].p[0] - edge.vertices[1].p[0])**2 + (edge.vertices[0].p[1] - edge.vertices[1].p[1])**2 + (edge.vertices[0].p[2] - edge.vertices[1].p[2])**2)**0.5
+
+                    if e_len > 2 * edge.maxh:
+                        segs = int(e_len/edge.maxh) + 1
+                        for s in range(1, segs):
+                            vco = [edge.vertices[0].p[i] + (edge.vertices[1].p[i]* s/segs - edge.vertices[0].p[i]* s/segs) for i in range(3)]
+                            mp.RestrictH(x=vco[0], y=vco[1], z=vco[2], h=edge.maxh)
+
+                        for v in edge.vertices:
+                            mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=edge.maxh)
+
+            # for vert in geo.shape.vertices:
+            #     vecs = []
+            #     v_maxhs = []
+
+            #     for face in geo.shape.faces:
+            #         if vert in face.edges:
+
+
+            # for f in geo.shape.faces:
+            #     for v in f.vertices:
+            #         if v.maxh < 1:
+            #             mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=v.maxh*f.maxh)
+            #     for e in f.edges:
+            #         if e.maxh < 1:
+            #             e_len = ((e.vertices[0].p[0] - e.vertices[1].p[0])**2 + (e.vertices[0].p[1] - e.vertices[1].p[1])**2 + (e.vertices[0].p[2] - e.vertices[1].p[2])**2)**0.5
+            #             if e_len > 2 * f.maxh:
+            #                 segs = int(e_len/f.maxh) + 1
+            #                 for s in range(1, segs):
+            #                     vco = [e.vertices[0].p[i] + (e.vertices[1].p[i]* s/segs - e.vertices[0].p[i]* s/segs) for i in range(3)]
+            #                     mp.RestrictH(x=vco[0], y=vco[1], z=vco[2], h=e.maxh*f.maxh)
 
             with TaskManager():
                 surf_mesh = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)
-            
+
+            #surf_mesh.Refine(adaptive=True)
             surf_mesh.Save(os.path.join(r'{6}', 'ng_surf.vol'))
             surf_mesh.Export(os.path.join(r'{6}', 'ng_surf.stl'), 'STL Format')
-            '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading, 
-                       self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], )))
-
+            '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading,
+                       self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs)))
+        #return
         surf_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
         self.cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
 
@@ -3487,18 +3525,18 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             if self.cancel.poll() is not None:
                 surf_run.kill()
                 return {'CANCELLED'}
-        
+
         self.cancel.kill()
         err_lines = []
 
         for surf_err, line in enumerate(surf_run.stderr):
             err_lines.append(line.decode())
             logentry(f"Surface mesh error: {line.decode()}")
-        
+
         if err_lines:
             self.report({'ERROR'}, "Surface meshing failed. Check the vi-suite-log file in Blender's text editor")
             return {'CANCELLED'}
-       
+
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
             ngpyfile.write(inspect.cleandoc('''
             import os
@@ -3524,10 +3562,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             with TaskManager():
                 tot_mesh.GenerateVolumeMesh(mp=mp)
-            
+
             tot_mesh.Save(os.path.join(r'{1}', 'ng.vol'))
             tot_mesh.Export(os.path.join(r'{1}', 'ng.mesh'), format='Neutral Format')
-            '''.format(int(svp['viparams']['nproc']), svp['flparams']['offilebase'], mis, self.expnode.maxcs, self.expnode.grading, 
+            '''.format(int(svp['viparams']['nproc']), svp['flparams']['offilebase'], mis, self.expnode.maxcs, self.expnode.grading,
                        self.expnode.optimisations)))
 
         vol_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
@@ -3537,14 +3575,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             if self.cancel.poll() is not None:
                 vol_run.kill()
                 return {'CANCELLED'}
-        
+
         self.cancel.kill()
         err_lines = []
 
         for line in vol_run.stderr:
             err_lines.append(line.decode())
             logentry(f"Volume mesh error: {line.decode()}")
-        
+
         if err_lines:
             self.report({'ERROR'}, "Volume meshing failed. Check the vi-suite-log file in Blender's text editor")
             return {'CANCELLED'}
@@ -3556,7 +3594,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
-            
+
 
     def modal(self, context, event):
         scene = context.scene
@@ -3649,19 +3687,19 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             cpf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
-                        # if sys.platform == 'linux':
-                        #     cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
-                        # elif sys.platform in ('darwin', 'win32'):
-                        #     cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
-                        #     cm = Popen(cm_cmd, shell=True, stdout=PIPE)
+                        if sys.platform == 'linux':
+                            cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
+                        elif sys.platform in ('darwin', 'win32'):
+                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
+                            cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
-                        # for line in cm.stdout:
-                        #     if '***Error' in line.decode():
-                        #         logentry('Mesh errors:{}'.format(line.decode()))
-                        #     elif '*Number' in line.decode() and sys.platform == 'linux':
-                        #         Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
-                        #     else:
-                        #         print(line.decode())
+                        for line in cm.stdout:
+                            if '***Error' in line.decode():
+                                logentry('Mesh errors:{}'.format(line.decode()))
+                            elif '*Number' in line.decode() and sys.platform == 'linux':
+                                Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
+                            else:
+                                print(line.decode())
 
                         for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                             if entry.is_file():
@@ -3689,7 +3727,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                 if omi < len(ns):
                                     bfile.write(write_bound(self.matnames[mi], mat, ns[omi], nf[omi]))
                                     omi += 1
-                           
+
                             bfile.write(')\n\n// **\n')
 
                         for file in os.listdir(os.path.join(frame_ofcfb, 'polyMesh')):
@@ -3738,13 +3776,13 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                     b_file.write(f'{b}\n')
                     b_file.write(f'{b_dict[mat][b]}\n')
 
-        for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):  
+        for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
             frame_offb = os.path.join(offb, str(frame))
             frame_ofcfb = os.path.join(frame_offb, 'constant')
-            
+
             with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'r') as bfile:
                 lines = []
-                
+
                 for line in bfile.readlines():
                     for ob in obs:
                         for mat in ob.data.materials:
@@ -3752,9 +3790,9 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                                 bound = flovi_b_dict[mat.vi_params.flovi_bmb_type]
                             if line.split() and line.split()[0] == 'type':
                                 line = f"        type            {bound};\n"
-                    
+
                     lines.append(line)
-            
+
             with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'w') as bfile:
                 bfile.write(''.join(lines))
 
@@ -3779,7 +3817,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 for line in lines:
                     line_split = line.split()
-                    
+
                     if 'Initial residual' in line:
                         residict[line_split[3][:-1]] = abs(float(line_split[line_split.index('Initial') + 3][:-1]))
                     elif len(line.split()) and line.split()[0] == 'Time' and line.split()[1] == '=':
@@ -3962,11 +4000,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             for oname in svp['flparams']['b_probes']:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname+'_vf', '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname+'_vf', '0')
-                    
+
                     if 'surfaceFieldValue.dat' in os.listdir(os.path.join(probed)):
                         if str(frame_c) not in self.o_dict:
                             self.o_dict[str(frame_c)] = {}
-                        
+
                         self.o_dict[str(frame_c)][oname] = {}
                         metrics = 'Q'
                         t_res = []
@@ -3977,7 +4015,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                                 if line and line[0] != '#':
                                     q_res.append(line.split()[1])
                                     t_res.append(line.split()[0])
-                                    
+
                             q_array = array(q_res)
                             logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, 'Q', frame_c, t_res[-1], float(q_array[-1])))
                             self.o_dict[str(frame_c)][oname]['Q'] = float(q_array[-1])
@@ -3989,10 +4027,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     if 'surfaceFieldValue.dat' in os.listdir(os.path.join(probed)):
                         if str(frame_c) not in self.o_dict:
                             self.o_dict[str(frame_c)] = {}
-                        
+
                         if oname not in self.o_dict[str(frame_c)]:
                             self.o_dict[str(frame_c)][oname] = {}
-                        
+
                         metrics = ('p', 'Ux', 'Uy', 'Uz', 'U')
                         t_res = []
                         p_res = []
@@ -4022,7 +4060,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
-            
+
             if len(self.runs) < svp['flparams']['end_frame'] - svp['flparams']['start_frame'] + 1:
                 self.pb = qtfvprogress(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, svp['flparams']['et'], str(self.residuals), frame_n)
 
@@ -4168,7 +4206,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             except Exception as e:
                 q_rts.put(e)
                 return
-        
+
         try:
             for mi, mrir in enumerate(room.rir):
                 for si, srir in enumerate(mrir):
@@ -4176,7 +4214,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     i += 1
         except Exception as e:
             print(e)
-        
+
         q_rts.put(rts)
         return
 
@@ -4192,7 +4230,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             svp['viparams'] = {}
 
         if not svp.get('liparams'):
-            svp['liparams'] = {}  
+            svp['liparams'] = {}
 
         clearscene(context, self)
 
@@ -4207,23 +4245,23 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         simnode['coptions']['au_sources'] = [s.name for s in sources]
         mics = [o for o in empties if o.vi_params.auvi_sl == '1']
         mic_arrays = [o for o in bpy.data.objects if o.type == 'MESH' and o.material_slots and o.visible_get() and any([o.material_slots[p.material_index].material.vi_params.mattype == '1' for p in o.data.polygons])]
-        
+
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
-        
+
         robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype =='3' for ms in o.material_slots])]
         mats = [mat for mat in bpy.data.materials if mat.vi_params.mattype =='3']
         reslists = []
         frames = [f for f in range(simnode.startframe, simnode.endframe + 1)] if simnode.animated else [scene.frame_current]
         resdict = {}
-        
+
         for frame in frames:
             amat_abs = {}
             amat_scatts = {}
             amat_dict = {}
             resdict[str(frame)] = {}
             scene.frame_set(frame)
-            
+
             for mat in mats:
                 mvp = mat.vi_params
 
@@ -4232,32 +4270,32 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
                 if mvp.auvi_abs_class == '0':
                     new_abs = mvp.am.mat_dict['absorption'][mvp.auvi_type_abs][mvp.auvi_mat_abs]['coeffs']
-                    
+
                     if len(new_abs) < 7:
                         new_abs += [new_abs[-1]] * (7 - len(new_abs))
-                
+
                 elif mvp.auvi_abs_flat:
                     new_abs = [mvp.auvi_o1_abs] * 7
-                
+
                 else:
                     new_abs = [mvp.auvi_o1_abs, mvp.auvi_o2_abs, mvp.auvi_o3_abs, mvp.auvi_o4_abs, mvp.auvi_o5_abs, mvp.auvi_o6_abs, mvp.auvi_o7_abs]
 
                 if mvp.auvi_scatt_class == '0':
                     new_scatts = mvp.am.mat_dict['scattering'][mvp.auvi_type_scatt][mvp.auvi_mat_scatt]['coeffs']
-                    
+
                     if len(new_scatts) < 7:
                         new_scatts += [new_scatts[-1]] * (7 - len(new_scatts))
 
                 elif mvp.auvi_scatt_flat:
                     new_scatts = [round(mvp.auvi_o1_scatt, 2)] * 7
                 else:
-                    new_scatts = [round(mvp.auvi_o1_scatt, 2), round(mvp.auvi_o2_scatt, 2), round(mvp.auvi_o3_scatt, 2), round(mvp.auvi_o4_scatt, 2), 
+                    new_scatts = [round(mvp.auvi_o1_scatt, 2), round(mvp.auvi_o2_scatt, 2), round(mvp.auvi_o3_scatt, 2), round(mvp.auvi_o4_scatt, 2),
                                   round(mvp.auvi_o5_scatt, 2), round(mvp.auvi_o6_scatt, 2), round(mvp.auvi_o7_scatt, 2)]
 
                 amat_abs = {'coeffs': new_abs, "center_freqs": c_freqs}
                 amat_scatts = {'coeffs': new_scatts, "center_freqs": c_freqs}
                 amat_dict[mat.name] = pra.Material(energy_absorption=amat_abs, scattering=amat_scatts)
-            
+
             for rob in robs:
                 walls = []
                 mic_names = []
@@ -4288,15 +4326,15 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         max_order=simnode.max_order,
                         ray_tracing=pra_rt,
                         air_absorption=False,
-                        use_rand_ism = True, 
+                        use_rand_ism = True,
                         max_rand_disp = 0.1
                     )
                 )
-                
+
                 if pra_rt:
-                    room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius, 
+                    room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius,
                                          hist_bin_size=0.004, energy_thres=1e-08)
-                    
+
                 for source in sources:
                     if room.is_inside(source.location[:]):
                         room.add_source(source.location[:])
@@ -4338,15 +4376,15 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     mic_bm.transform(mic_a.matrix_world.inverted())
                     mic_bm.to_mesh(mic_a.data)
                     mic_bm.free()
-                
+
                 if not room.n_mics:
                     self.report({'ERROR'},  'No visible listeners inside the room')
                     return {'CANCELLED'}
-                
+
                 Lsf = array([62.9, 62.9, 59.2, 53.2, 47.2, 41.2, 35.2])
                 Lsf = Lsf if room.volume < 250 else Lsf + 10
                 octave = pra.acoustics.OctaveBandsFactory(base_frequency=125, fs=16000, n_fft=512)
-                
+
                 try:
                     if sys.platform != 'win32':
                         auvi_cancel = cancel_window(os.path.join(scene.vi_params['viparams']['newdir'], pdll_path, 'viprogress'), 'Calculating RTs')
@@ -4366,10 +4404,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 t1.kill()
                                 return {'CANCELLED'}
                             sleep(0.1)
-                        
+
                         if auvi_cancel.poll() is None:
                             auvi_cancel.kill()
-                        
+
                         t1.join()
                         rts = q_rts.get()
 
@@ -4393,7 +4431,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         except:
                             logentry("Can't get a reliable 60dB reduction. Extrapolating from a 30dB reduction")
                             rts = room.measure_rt60(plot=False, decay_db=30)
-                    
+
                     gc.collect()
 
                 except Exception as e:
@@ -4407,10 +4445,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         for si, source_rt in enumerate(mic_rt):
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'Seconds', ' '.join([str(s/16000) for s in range(len(rirs[i]))])])
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RIR', ' '.join(rirs[i].astype('str'))])
-                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RT', f'{source_rt:.3f}']) 
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RT', f'{source_rt:.3f}'])
                             resdict[str(frame)][f'{mic_names[mi]} - {sources[si].name}'] = f'{source_rt:.3f}'
                             i += 1
-                
+
                 for si, source in enumerate(sources):
                     fi = len(mics)
 
@@ -4418,7 +4456,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         ovp = mic_a.vi_params
                         mic_bm = bmesh.new()
                         mic_bm.from_mesh(mic_a.data)
-                        
+
                         if not mic_bm.faces.layers.float.get(f'{source.name}_rt{frame}'):
                             mic_bm.faces.layers.float.new(f'{source.name}_rt{frame}')
                         if not mic_bm.faces.layers.float.get(f'{source.name}_vol{frame}'):
@@ -4441,7 +4479,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 except Exception as e:
                                     print(e)
                                 fi += 1
-                        
+
                         res_rt = [face[bm_rtres] for face in mic_bm.faces if face[bm_ir]]
                         res_vol = [face[bm_volres] for face in mic_bm.faces if face[bm_ir]]
                         res_sti = [face[bm_stires] for face in mic_bm.faces if face[bm_ir]]
@@ -4471,7 +4509,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 print("RT60 (Eyring):", room.rt60_theory(formula='eyring'))
 
         if len(frames) > 1:
-            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])]) 
+            reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
             p_dict = {}
 
             for frame in frames:
@@ -4484,9 +4522,9 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 p_dict[rl[2]].append(rl[4])
 
             for pd in p_dict:
-                reslists.append(['All', 'Probe', pd, 'RT', ' '.join(p_dict[pd])]) 
+                reslists.append(['All', 'Probe', pd, 'RT', ' '.join(p_dict[pd])])
 
-        if mic_arrays:             
+        if mic_arrays:
             svp['liparams']['unit'] = 'RT60 (s)'
             svp['liparams']['type'] = 'VI Acoustics'
             svp['liparams']['fs'] = frames[0]
@@ -4495,10 +4533,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             svp['liparams']['offset'] = 0.01
             svp['viparams']['resnode'], svp['viparams']['restree'] = simnode.name, simnode.id_data.name
             svp['viparams']['vidisp'] = 'rt'
-            
+
         if not simnode.get('goptions'):
             simnode['goptions'] = {}
-            
+
         simnode['goptions']['offset'] = 0.01
         simnode['reslists'] = reslists
         simnode['resdict'] = resdict
@@ -4532,7 +4570,7 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
         ir_node = convnode.inputs[0].links[0].from_node
         fs, audio = wavfile.read(convnode.wavname)
         odt = audio.dtype
-        
+
         if len(audio.shape) > 1:
             audio = nmean(audio, axis=1).astype(odt)
 
@@ -4552,7 +4590,7 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
             if f'{rl[0]} - {rl[2]}' == convnode.rir and rl[3] == 'RIR':
                 ir = array([float(s) for s in rl[4].split()]).astype(float32, order='C')
                 break
-        
+
         convnode['convolved_audio'] = []
         convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
         convnode.postsim()
@@ -4581,8 +4619,8 @@ class NODE_OT_Au_Play(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}
-    
-    def modal(self, context, event):        
+
+    def modal(self, context, event):
         scene = context.scene
 
         if not self.convnode.play_o:
@@ -4628,8 +4666,8 @@ class NODE_OT_Au_PlayC(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}
-    
-    def modal(self, context, event):        
+
+    def modal(self, context, event):
         scene = context.scene
 
         if not self.convnode.play_c:
@@ -4658,7 +4696,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         self.filepath = f"{self.node.rir}.wav"
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-    
+
     def execute(self, context):
         sound = aud.Sound.buffer(array(self.node['convolved_audio']).astype(float32), 16000)
         sound.write(self.filepath, 16000, 1, 0, 0, 0, 16, 256)
@@ -4676,9 +4714,9 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
 
         # for mi, m_geo in enumerate(m_geos):
         #     m_geo.maxh = self.omats[mi].vi_params.flovi_ng_max
-        
+
         # geo = occ.OCCGeometry(occ.Compound([occ.Fuse(m_geos)]))
-        
+
         # geo = occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
 
         # if len(geo.shape.SubShapes(occ.SOLID)) == 1:
@@ -4702,7 +4740,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         #             pmap1[v] = totmesh.Add(surf_mesh[v])
 
         #     totmesh.Add(Element2D(el.index, [pmap1[v] for v in el.vertices]))
-        
+
 
         # ngpyfile.write("\ntotmesh.Load('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
         # ngpyfile.write("with TaskManager():\n   totmesh.GenerateVolumeMesh()\n")
@@ -4714,7 +4752,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         # totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
         # # ngpyfile.write("totmesh.Export('{}', format='Neutral Format')".format(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')))
         # totmesh.Export(os.path.join(svp['flparams']['offilebase'], 'ng.mesh'), format='Neutral Format')
-        
+
 # class NODE_OT_ECLine(bpy.types.Operator, ExportHelper):
 #     bl_idname = "node.ec_line"
 #     bl_label = "Line Chart"
@@ -4832,14 +4870,14 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         #             fd = FaceDescriptor(bc=mindex, domin=1, surfnr=surf_no + 1)
         #             fd.bcname = ms.material.name
         #             fd.color = ms.material.diffuse_color[:3]
-        #             fm_dict[f'{dob.name}-{ms.material.name}'] = fd               
+        #             fm_dict[f'{dob.name}-{ms.material.name}'] = fd
         #             totmesh.Add(fd)
         #             surf_no += 1
         #         else:
         #             logentry(f'Material {ms.material.name} is not associated with any geometry and has not been exported')
-        
+
         # Sets the material of the domain (1)
-        
+
 
         # for gob in gobs:
         #     for ms in gob.material_slots:
@@ -4868,9 +4906,9 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
             # totmesh = Mesh()
 
             # '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs)))
-            
+
             #SetNumThreads(int(svp['viparams']['nproc']))
-            # maxh = self.expnode.maxcs          
+            # maxh = self.expnode.maxcs
             # meshes = []
             # mesh_names = []
             # mats = []
@@ -4962,7 +5000,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         #                 #     if hit and (hit-Vector(fpoint)).length < 0.0001:
         #                 #         intersect = 1
         #                 #         break
-                            
+
         #             if not intersect:
         #                 # print(fpoint, ei, fnorm)
         #                 el.index = 1
@@ -4998,7 +5036,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         #     totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol'))
         #     # ngpyfile.write("\ntotmesh.Load('{}')\n".format(os.path.join(svp['flparams']['offilebase'], 'ng_surf.vol')))
         #     # ngpyfile.write("with TaskManager():\n   totmesh.GenerateVolumeMesh()\n")
-            
+
         #     with TaskManager():
         #         totmesh.GenerateVolumeMesh()
         #     # totmesh.BoundaryLayer(boundary="default", thickness=0.1, domains="Air")
@@ -5035,18 +5073,18 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         #                     if face.name == None:
         #                         face.name = fns[fi]
         #                         face.maxh = fms[fi]
-        
-        
+
+
             #if all([len(gg.shape.SubShapes(occ.SOLID)) == 1 for gg in g_geos]):
 
             #all_gobs = occ.OCCGeometry(occ.Compound([occ.Fuse([g_geo.shape for g_geo in g_geos])]))
             # d_minus = 0
             # for gi, gg in enumerate(g_geos):
             #     if not gi:
-            #         agg = gg.shape 
+            #         agg = gg.shape
             #     else:
             #         agg += occ.Glue(gg.shape)
-                
+
             #     if not len(agg.SubShapes(occ.SOLID)):
             #         d_minus = 1
             #         break

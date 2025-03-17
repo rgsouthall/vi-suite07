@@ -147,7 +147,7 @@ class VI_PT_3D(bpy.types.Panel):
 
                     if svp.vi_disp_process == "3":
                         newrow(layout, "Arrow size:", svp, "vi_arrow_size")
-                    
+
                     if context.mode != "EDIT" and svp.vi_disp_process != "2":
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
@@ -197,14 +197,16 @@ class VI_PT_Mat(bpy.types.Panel):
 
             elif mvp.mattype == '2':
                 if not context.scene.vi_params.get('flparams') or not context.scene.vi_params['flparams'].get('scenario'):
+                    newrow(layout, "Netgen cell face size:", mvp, "flovi_ng_max")
+                    newrow(layout, "Netgen edge size:", mvp, "flovi_ng_emax")
                     row = layout.row()
                     row.label(text='Export FloVi case')
                 else:
-                    newrow(layout, "Netgen cell face size:", mvp, "flovi_ng_max")
-                    newrow(layout, "Netgen edge size:", mvp, "flovi_ng_emax")
                     newrow(layout, "Type:", mvp, "flovi_bmb_type")
 
                     if svp.get('flparams') and svp['flparams'].get('solver_type'):
+                        newrow(layout, "Netgen cell face size:", mvp, "flovi_ng_max")
+                        newrow(layout, "Netgen edge size:", mvp, "flovi_ng_emax")
                         newrow(layout, "Pressure type:", mvp, "flovi_bmbp_subtype")
 
                         if mvp.flovi_bmbp_subtype in ('fixedValue', 'totalPressure'):
@@ -338,7 +340,7 @@ class VI_PT_Mat(bpy.types.Panel):
 
                     if mvp.flovi_bmb_type in ('Wall', 'Solid'):
                         newrow(layout, "HTC:", mvp, "flovi_htc")
-                
+
             elif mvp.mattype == '3':
                 if not mvp.am.updated:
                     mvp.am.update()
@@ -349,7 +351,7 @@ class VI_PT_Mat(bpy.types.Panel):
                     newrow(layout, "Absorption type:", mvp, "auvi_type_abs")
                     newrow(layout, "Absorption material:", mvp, "auvi_mat_abs")
 
-                elif mvp.auvi_abs_class == '1': 
+                elif mvp.auvi_abs_class == '1':
                     newrow(layout, "Flat response:", mvp, "auvi_abs_flat")
 
                     if mvp.auvi_abs_flat:
@@ -364,9 +366,9 @@ class VI_PT_Mat(bpy.types.Panel):
                         newrow(layout, "2000Hz", mvp, "auvi_o5_abs")
                         newrow(layout, "4000Hz", mvp, "auvi_o6_abs")
                         newrow(layout, "8000Hz", mvp, "auvi_o7_abs")
-                    
+
                 newrow(layout, "AuVi scatter class:", mvp, "auvi_scatt_class")
-                
+
                 if mvp.auvi_scatt_class == '0':
                     newrow(layout, "Scatter type:", mvp, "auvi_type_scatt")
                     newrow(layout, "Scatter material", mvp, "auvi_mat_scatt")
@@ -412,7 +414,7 @@ class VI_PT_Ob(bpy.types.Panel):
                 row.label(text='-- Octree generation --')
                 newrow(layout, 'Triangulate:', ovp, 'triangulate')
                 newrow(layout, 'Mesh:', ovp, 'mesh')
-                
+
                 if context.scene.vi_params.get('viparams'):
                     row = layout.row()
                     row.operator('object.vi_genoct', text="Generate Octree")
@@ -433,15 +435,15 @@ class VI_PT_Ob(bpy.types.Panel):
 
                     if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
                         newrow(layout, "Object represents:", ovp, "ec_rep")
-                        
+
                         if ovp.ec_rep == '1':
                             newrow(layout, "No. of items:", ovp, "ec_items")
 
                     if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'm2':
-                        newrow(layout, "Object represents:", ovp, "ec_arep") 
+                        newrow(layout, "Object represents:", ovp, "ec_arep")
 
                         if ovp.ec_arep:
-                            newrow(layout, "Area (m2):", ovp, "ec_ma") 
+                            newrow(layout, "Area (m2):", ovp, "ec_ma")
 
                     if ovp.get('ecentries'):
                         for ec in ovp['ecentries']:
@@ -451,7 +453,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     row = layout.row()
                     row.operator("object.ec_edit", text="Edit")
 
-                else:                   
+                else:
                     newrow(layout, "Embodied id:", ovp, "ec_id")
                     newrow(layout, "New class:", ovp, "ec_class")
                     newrow(layout, "Embodied type:", ovp, "ec_type")
@@ -475,14 +477,14 @@ class VI_PT_Ob(bpy.types.Panel):
 
                     #     if ovp.ec_rep == '1':
                     #         newrow(layout, "No. of items:", ovp, "ec_items")
-                    
+
                     # if ovp.ec_unit == 'm2':
-                    #     newrow(layout, "Object represents:", ovp, "ec_arep") 
+                    #     newrow(layout, "Object represents:", ovp, "ec_arep")
 
                     #     if ovp.ec_arep:
-                    #         newrow(layout, "Area (m2):", ovp, "ec_ma") 
+                    #         newrow(layout, "Area (m2):", ovp, "ec_ma")
 
-                    
+
                     if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_du, ovp.ec_density, ovp.ec_mod)):
                         row = layout.row()
                         row.operator("object.ec_save", text="Save")
@@ -519,7 +521,7 @@ class VI_PT_Ob(bpy.types.Panel):
 
         if obj.type == 'EMPTY' or (ovp.vi_type == '3' and obj.type == 'MESH' and len(obj.data.polygons) == 1):
             newrow(layout, 'CFD probe:', ovp, 'flovi_probe')
-            
+
             if obj.type == 'EMPTY':
                 newrow(layout, 'AuVi type:', ovp, 'auvi_sl')
 
@@ -541,18 +543,18 @@ def rmmenu(layout, cm):
         newrow(layout, 'Up vector:', mvp, 'li_bsdf_up')
         row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
-    
+
     elif mvp.radmatmenu == '9':
         layout.prop_search(mvp, 'radfile', bpy.data, 'texts', text='File', icon='TEXT')
-    
+
     if mvp.get('bsdf'):
         row.operator("material.del_bsdf", text="Delete BSDF")
         row = layout.row()
         row.operator("material.save_bsdf", text="Save BSDF")
-    
+
     if mvp.radmatmenu in ('1', '2', '3', '7'):
         newrow(layout, 'Photon port:', mvp, 'pport')
-    
+
     if mvp.mattype == '0' and mvp.radmatmenu in ('0', '1', '2', '3', '6'):
         newrow(layout, 'Textured:', mvp, 'radtex')
 
