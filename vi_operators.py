@@ -3447,6 +3447,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
             ngpyfile.write(inspect.cleandoc('''
             import os, math
+            import numpy as np
             from netgen import occ
             from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep
             from pyngcore import SetNumThreads, TaskManager
@@ -3456,11 +3457,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             geo = occ.OCCGeometry(os.path.join(r'{6}', 'flovi_geometry.step'))
             e_maxs = {7}
 
-            def dotproduct(v1, v2):
-                return sum((a*b) for a, b in zip(v1, v2))
+            def unit_vector(vector):
+                """ Returns the unit vector of the vector.  """
+                return vector / np.linalg.norm(vector)
 
-            def length(v):
-                return math.sqrt(dotproduct(v, v))
+            def angle_between(v1, v2):
+                v1_u = unit_vector(v1)
+                v2_u = unit_vector(v2)
+                return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
             for edge in geo.shape.edges:
                 vecs = []
@@ -3475,7 +3479,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             vecs.append(f_dir)
                             e_maxhs.append(e_maxs[face.name] * face.maxh)
 
-                if len(vecs) == 2 and (math.acos(dotproduct(vecs[0], vecs[1]) / (length(vecs[0]) * length(vecs[1]))) > 0.1 or len(set(e_maxhs)) > 1):
+                if len(vecs) == 2 and (angle_between(vecs[0], vecs[1]) > 0.1 or len(set(e_maxhs)) > 1):
                     edge.maxh = min(e_maxhs)
                     e_len = ((edge.vertices[0].p[0] - edge.vertices[1].p[0])**2 + (edge.vertices[0].p[1] - edge.vertices[1].p[1])**2 + (edge.vertices[0].p[2] - edge.vertices[1].p[2])**2)**0.5
 
@@ -3487,27 +3491,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                         for v in edge.vertices:
                             mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=edge.maxh)
-
-            # for vert in geo.shape.vertices:
-            #     vecs = []
-            #     v_maxhs = []
-
-            #     for face in geo.shape.faces:
-            #         if vert in face.edges:
-
-
-            # for f in geo.shape.faces:
-            #     for v in f.vertices:
-            #         if v.maxh < 1:
-            #             mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=v.maxh*f.maxh)
-            #     for e in f.edges:
-            #         if e.maxh < 1:
-            #             e_len = ((e.vertices[0].p[0] - e.vertices[1].p[0])**2 + (e.vertices[0].p[1] - e.vertices[1].p[1])**2 + (e.vertices[0].p[2] - e.vertices[1].p[2])**2)**0.5
-            #             if e_len > 2 * f.maxh:
-            #                 segs = int(e_len/f.maxh) + 1
-            #                 for s in range(1, segs):
-            #                     vco = [e.vertices[0].p[i] + (e.vertices[1].p[i]* s/segs - e.vertices[0].p[i]* s/segs) for i in range(3)]
-            #                     mp.RestrictH(x=vco[0], y=vco[1], z=vco[2], h=e.maxh*f.maxh)
 
             with TaskManager():
                 surf_mesh = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)

@@ -1475,7 +1475,6 @@ class draw_legend(Base_Display):
                          self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, 'M')[1] * 0.5, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
-            # blf.disable(self.font_id, blf.SHADOW)
             lfontscale = max(self.resxdimen/(self.xdiff * 0.45), self.mydimen * 1.15/(self.lh * self.ydiff))
             blf.size(self.font_id, int(11/lfontscale) * self.dpi/72)
 

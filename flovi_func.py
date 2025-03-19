@@ -287,6 +287,7 @@ def write_bound(mn, m, ns, nf):
 def fvmat(self, svp, mn, bound, frame):
     begin = '\n  {}\n  {{\n    type    '.format(mn)
     end = ';\n  }\n'
+    entry = ''
 
     if bound == 'p':
         val = 'uniform {:.4f}'.format(self.flovi_bmbp_val) if not self.flovi_p_field else '$internalField'
@@ -338,7 +339,8 @@ def fvmat(self, svp, mn, bound, frame):
                   'empty': 'empty'}
 
         # entry = Utdict[Udict[self.flovi_bmb_type]]
-        entry = Utdict[self.flovi_bmbu_subtype]
+        if self.flovi_bmbu_subtype in Utdict:
+            entry = Utdict[self.flovi_bmbu_subtype]
 
     elif bound == 'nut':
         #ndict = {'0': self.flovi_bmbnut_subtype, '1': self.flovi_bmbnut_subtype, '2': 'symmetry', '3': 'empty'}
@@ -448,7 +450,10 @@ def fvmat(self, svp, mn, bound, frame):
         idict = {'greyDiffusiveRadiation': 'greyDiffusiveRadiation;\n   emissivityMode  lookup;\n   emissivity      uniform 1.0;\n  value           uniform 0'}
         entry = idict[self.flovi_i_subtype]
 
-    return begin + entry + end
+    if entry:
+        return begin + entry + end
+    else:
+        return ''
 
 
 def fvvarwrite(scene, obs, node):
