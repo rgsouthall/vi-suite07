@@ -4490,7 +4490,7 @@ class No_Flo_Case(Node, ViNodes):
 
     def ret_params(self):
         return [str(x) for x in (self.scenario, self.buoyancy, self.parametric, self.frame_start, self.frame_end,
-                                 self.dtime, self.etime, self.p_ref_point, self.pnormval, self.pabsval, self.uval, self.tval, self.nutval, self.nutildaval,
+                                 self.dtime, self.etime, self.w_int, self.p_ref_point, self.pnormval, self.pabsval, self.uval, self.tval, self.nutval, self.nutildaval,
                                  self.kval, self.epval, self.oval, self.presid, self.uresid, self.keoresid, self.aval, self.p_rghval,
                                  self.Gval, self.radmodel, self.solar, self.sun, self.comfort, self.clo, self.met, self.rh, self.age)]
 
@@ -4761,6 +4761,9 @@ class No_Flo_NG(Node, ViNodes):
                 if not self.running:
                     row = layout.row()
                     row.operator("node.flovi_ng", text="Generate")
+                else:
+                    row = layout.row()
+                    row.label(text="Running")
 
             elif not flo_libs[0]:
                 row = layout.row()

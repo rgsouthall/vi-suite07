@@ -529,7 +529,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
                               description="Face placement to avoid z-fighting", default="0", update=leg_update)
     vi_leg_unit: sprop("", "Legend unit", 1024, "")
     vi_leg_max: FloatProperty(name="", description="Legend maximum", min=0, max=1000000, default=1000, update=leg_update)
-    vi_leg_min: FloatProperty(name="", description="Legend minimum", min=0, max=1000000, default=0, update=leg_update)
+    vi_leg_min: FloatProperty(name="", description="Legend minimum", min=-1, max=1000000, default=0, update=leg_update)
     vi_leg_col: EnumProperty(items=colours, name="", description="Legend colours", default='rainbow', update=col_update)
     vi_leg_levels: IntProperty(name="", description="Day of year", min=2, max=100, default=20, update=leg_update)
     vi_arrow_size: FloatProperty(name="", description="Arrow size", min=0.01, max=10, default=0.5, update=leg_update)

@@ -34,6 +34,7 @@ from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, radians, log
 from time import sleep
 from mathutils import Euler, Vector, Matrix
+from mathutils.geometry import distance_point_to_plane
 from xml.dom.minidom import parseString
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
 from .envi_export import enpolymatexport, pregeo
@@ -3161,6 +3162,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         svp = scene.vi_params
         self.vl = context.view_layer
         self.expnode = context.node
+        self.expnode.running = 1
+        self.surf_complete = 0
+        self.vol_complete = 0
+        self.vol_running = 0
         case_nodes = [link.from_node for link in self.expnode.inputs['Case in'].links]
         bound_nodes = [link.to_node for link in self.expnode.outputs['Mesh out'].links]
 
@@ -3176,6 +3181,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         if not dobs:
             logentry('FloVi requires a domain object but none was found. Check the domain object is not hidden or in the FloVi Mesh collection')
             self.report({'ERROR'}, 'No, or hidden, domain objects')
+            self.expnode.running = 0
             return {'CANCELLED'}
 
         elif len(dobs) > 1:
@@ -3187,6 +3193,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         if any([any(s < 0 for s in o.scale) for o in self.obs]):
             logentry('CFD domain or geometry has a negative scale. Cannot proceed')
             self.report({'ERROR'}, 'CFD domain or geometry has a negative scale. Cannot proceed')
+            self.expnode.running = 0
             return {'CANCELLED'}
 
         if os.environ.get('LD_LIBRARY_PATH'):
@@ -3226,8 +3233,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             if not ob.material_slots:
                 logentry(f'{ob.name} has faces with an unspecified material or an empty material slot')
                 self.report({'ERROR'}, f'{ob.name} has faces with an unspecified material or an empty material slot')
+                self.expnode.running = 0
                 return {'CANCELLED'}
-
+            
+            if ' ' in ob.name:
+                logentry(f'{ob.name} has a space in the name')
+                self.report({'ERROR'}, f'{ob.name} has a space in the name')
+                self.expnode.running = 0
+                return {'CANCELLED'}
+           
             # bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
             # np_faces = [face for face in bm.faces if abs(max([face.normal.dot(face.calc_center_median() - vert.co) for vert in face.verts])) > 0.00000001]
             # bmesh.ops.triangulate(bm, faces=np_faces, quad_method='FIXED', ngon_method='BEAUTY')
@@ -3236,18 +3250,25 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             #bm.verts.ensure_lookup_table()
             #bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(ob.name)))
 
-
             if len(bm.faces) > 20000:
                 bm.free()
                 logentry('{} has more than 10000 faces. Simplify the geometry'.format(ob.name))
                 self.report({'ERROR'}, '{} has more than 10000. Simplify the geometry'.format(ob.name))
+                self.expnode.running = 0
                 return {'CANCELLED'}
 
             if not all([e.is_manifold for e in bm.edges]) or not all([v.is_manifold for v in bm.verts]):
-                bm.free()
-                logentry('FloVi error: {} is not manifold'.format(ob.name))
-                self.report({'ERROR'}, 'FloVi error: {} is not manifold'.format(ob.name))
-                return {'CANCELLED'}
+                bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.00001)
+                
+                if not all([e.is_manifold for e in bm.edges]) or not all([v.is_manifold for v in bm.verts]):
+                    bm.free()
+                    logentry('FloVi error: {} is not manifold'.format(ob.name))
+                    self.report({'ERROR'}, 'FloVi error: {} is not manifold'.format(ob.name))
+                    self.expnode.running = 0
+                    return {'CANCELLED'}
+                else:
+                    logentry('{} had double vertices removed to be manifold. Check its mesh geometry'.format(ob.name))
+                    self.report({'WARNING'}, '{} had double vertices removed to be manifold. Check its mesh geometry'.format(ob.name))
 
             for mi, ms in enumerate(ob.material_slots):
                 for face in bm.faces:
@@ -3257,10 +3278,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         elif not ms.material:
                             logentry(f'{ob.name} has faces with an unspecified material or an empty material slot')
                             self.report({'ERROR'}, f'{ob.name} has faces with an unspecified material or an empty material slot')
+                            self.expnode.running = 0
                             return {'CANCELLED'}
                         elif ' ' in ms.material.name:
                             logentry(f'The material {ms.material.name} has a space in the name')
                             self.report({'ERROR'}, f'The material {ms.material.name} has a space in the name')
+                            self.expnode.running = 0
                             return {'CANCELLED'}
 
                         face.index = fi
@@ -3290,29 +3313,81 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             for fi, face in enumerate(bm.faces):
                 try:
                     matname = ob.material_slots[face.material_index].material.name
+                    
+                    if ' ' in matname:
+                        logentry(f'FloVi error: Material {matname} has a space in the name')
+                        self.report({'ERROR'}, f'{matname} has a space in the name')
+                        self.expnode.running = 0
+                        return {'CANCELLED'}
+
                 except:
                     logentry(f'FloVi error: {ob.name} mesh has faces that reference a non-existant material')
                     self.report({'ERROR'}, f'{ob.name} mesh has faces that reference a non-existant material')
+                    self.expnode.running = 0
                     return {'CANCELLED'}
                 #edges = [occ.Edge(verts[loop.vert.index], verts[loop.link_loop_next.vert.index]) for loop in face.loops]
-                edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
+                try:
+                    edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
+                
+                except:
+                    logentry(f'FloVi error: {ob.name} edge generation failed on face with index {face.index}')
+                    self.report({'ERROR'}, f'{ob.name} edge generation failed on face with index {face.index}')
+                    self.expnode.running = 0
+                    return {'CANCELLED'}
+
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
 
                 if len(f.edges) < 3:
-                    t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
+                    vcos = []
+                    evcos = [(Vector(loop.vert.co), Vector(loop.link_loop_next.vert.co)) for loop in face.loops]
+                    
+                    for evco in evcos:
+                        for vco in evco:
+                            dist = distance_point_to_plane(vco, face.calc_center_median(), face.normal)
 
-                    for tf in t_faces:
-                        edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in tf.loops]
-                        wire = occ.Wire(edges)
-                        f = occ.Face(wire)
-                        matname = ob.material_slots[tf.material_index].material.name
+                            if abs(dist) < 0.001:
+                                vco -=  dist * face.normal
+                    
+                    edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(evco[0]))), occ.Vertex(occ.gp_Pnt(tuple(evco[1])))) for evco in evcos]
+                    wire = occ.Wire(edges)
+                    f = occ.Face(wire)
+
+                    if len(f.edges) >= 3:
+                        matname = ob.material_slots[face.material_index].material.name
                         f.name = ob.name+'_'+matname
                         f.mat(matname)
                         f.bc(ob.name+'_'+matname)
-                        f.layer = tf.index
-                        f.maxh = ob.material_slots[tf.material_index].material.vi_params.flovi_ng_max
+                        f.layer = face.index
+                        f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
                         faces.append(f)
+
+
+                    # edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
+                    # wire = occ.Wire(edges)
+                    # f = occ.Face(wire)
+                    # matname = ob.material_slots[face.material_index].material.name
+                    # f.name = ob.name+'_'+matname
+                    # f.mat(matname)
+                    # f.bc(ob.name+'_'+matname)
+                    # f.layer = face.index
+                    # f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                    # faces.append(f)
+
+                    else:
+                        t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
+
+                        for tf in t_faces:
+                            edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in tf.loops]
+                            wire = occ.Wire(edges)
+                            f = occ.Face(wire)
+                            matname = ob.material_slots[face.material_index].material.name
+                            f.name = ob.name+'_'+matname
+                            f.mat(matname)
+                            f.bc(ob.name+'_'+matname)
+                            f.layer = face.index
+                            f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                            faces.append(f)
 
                 #wire02 = occ.Wire([edges[0], edges[2]])
                 #f2 = occ.Face(wire02)
@@ -3338,10 +3413,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 d_geo.Heal(tolerance=0.001)
 
                 if len(d_geo.shape.SubShapes(occ.SOLID)) == 1:
-                    for fi, face in enumerate(d_geo.shape.faces):
-                        if face.name == None:
-                            face.name = fns[fi]
-                            face.maxh = fms[fi]
+                    if None in set([face.name for face in d_geo.shape.faces]):
+                        for fi, face in enumerate(d_geo.shape.faces):
+                            if face.name == None:
+                                face.name = fns[fi]
+                                face.maxh = fms[fi]
 
                     if self.expnode.debug_step:
                         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
@@ -3353,6 +3429,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     if self.expnode.debug_step:
                         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
 
+                    self.expnode.running = 0
                     return {'CANCELLED'}
 
             else:
@@ -3363,97 +3440,112 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         g_geo = occ.OCCGeometry(occ.Compound([face for face in faces if face.layer in set([f.polygon_index for f in mesh_island])]))
                         fns = [face.name for face in g_geo.shape.faces]
                         fms = [face.maxh for face in g_geo.shape.faces]
+                        fcs = [face.center for face in g_geo.shape.faces]
                         print(f'Healing {ob.name} shell {mi}')
                         g_geo.Heal(tolerance=0.001)
 
                         if len(g_geo.shape.SubShapes(occ.SOLID)) == 1:
-                            for fi, face in enumerate(g_geo.shape.faces):
-                                if face.name == None:
-                                    face.name = fns[fi]
-                                    face.maxh = fms[fi]
+                            if None in set([face.name for face in g_geo.shape.faces]):
+                                for fi, face in enumerate(g_geo.shape.faces):
+                                    if face.name == None:
+                                        for fci, fc in enumerate(fcs):
+                                            if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                                face.name = fns[fci]
+                                                face.maxh = fms[fci]
+                                                break
+                                        if face.name == None:
+                                            print(face)
 
                             g_geos.append(g_geo)
 
                         else:
-                            logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
+                            logentry(f'FloVi warning: {ob.name} shell {mi} cannot be converted to a solid')
                             self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
 
                         if self.expnode.debug_step:
                             g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}_{mi}.step'))
 
                 else:
-                    g_geo = occ.OCCGeometry(occ.Glue(faces))
+                    g_geo = occ.OCCGeometry(occ.Fuse(faces))
 
                     if len(g_geo.shape.faces) > len(faces):
                         print(len(g_geo.shape.faces), len(faces))
-
-                        if self.expnode.debug_step:
-                            g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
-
+                        g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
+                        g_geo = occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
                         logentry(f'{ob.name} mesh requires triangulation or adjustment')
-                        self.report({'ERROR'}, f'{ob.name} mesh requires triangulation')
-                        return {'CANCELLED'}
+                        self.report({'WARNING'}, f'{ob.name} mesh requires triangulation')
 
                     fns = [face.name for face in g_geo.shape.faces]
                     fms = [face.maxh for face in g_geo.shape.faces]
+                    fcs = [face.center for face in g_geo.shape.faces]
                     print(f'Healing {ob.name}')
                     g_geo.Heal(tolerance=0.001)
 
-                    if len(g_geo.shape.SubShapes(occ.SOLID)) != 1:
-                        logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
-                        self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
-
-                    else:
-                        for fi, face in enumerate(g_geo.shape.faces):
-                            if face.name == None:
-                                face.name = fns[fi]
-                                face.maxh = fms[fi]
-
+                    if len(g_geo.shape.SubShapes(occ.SOLID)) == 1:
+                        if None in set([face.name for face in g_geo.shape.faces]):
+                            for fi, face in enumerate(g_geo.shape.faces):
+                                if face.name == None:
+                                    for fci, fc in enumerate(fcs):
+                                        if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                            face.name = fns[fci]
+                                            face.maxh = fms[fci]
+                                            break
+                        
                         g_geos.append(g_geo)
 
+                    else:
+                        logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
+                        self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
+                    
                     if self.expnode.debug_step:
                         g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
 
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
 
         if g_geos:
-            g_solids = occ.Fuse([g_geo.shape for g_geo in g_geos])
+            #g_solids = occ.Fuse([g_geo.shape for g_geo in g_geos])
 
-            for g_solid in g_solids.SubShapes(occ.SOLID):
-                fns = [face.name for face in g_solid.faces]
-                fms = [face.maxh for face in g_solid.faces]
-                g_solid = occ.OCCGeometry(g_solid)
-                g_solid.Heal(tolerance=0.001)
+            # if not len(g_solids.SubShapes(occ.SOLID)):
+            #     logentry('Cannot make a solid from CFD geometry')
+            #     self.report({'ERROR'}, 'Cannot make a solid from CFD geometry')
+            # for gi, g_solid in enumerate(g_solids.SubShapes(occ.SOLID)):
+            for gi, g_solid in enumerate([g.shape for g in g_geos]):
+                d_geo = d_geo.shape - g_solid if not gi else d_geo - g_solid
 
-                for fi, face in enumerate(g_solid.shape.faces):
-                    if face.name == None:
-                        face.name = fns[fi]
-                        face.maxh = fms[fi]
+        else:
+            d_geo = d_geo.shape
 
-                d_geo = d_geo.shape - g_solid.shape
-                fns = [face.name for face in d_geo.faces]
-                fms = [face.maxh for face in d_geo.faces]
-                d_geo = occ.OCCGeometry(d_geo)
-                d_geo.Heal(tolerance=0.001)
+        fns = [face.name for face in d_geo.faces]
+        fms = [face.maxh for face in d_geo.faces]
+        fcs = [face.center for face in d_geo.faces]
+        d_geo = occ.OCCGeometry(d_geo)
 
-                for fi, face in enumerate(d_geo.shape.faces):
-                    if face.name == None:
-                        face.name = fns[fi]
-                        face.maxh = fms[fi]
+        if len(d_geo.shape.SubShapes(occ.SOLID)) != 1:
+            d_geo.Heal(tolerance=0.001)
+
+        if None in set([face.name for face in d_geo.shape.faces]):
+            for fi, face in enumerate(d_geo.shape.faces):
+                if face.name == None:
+                    for fci, fc in enumerate(fcs):
+                        if (Vector(face.center) - Vector(fc)).length < 0.001:
+                            face.name = fns[fci]
+                            face.maxh = fms[fci]
+                            break
+                    if not face.name:
+                        face.name=fns[fi]
 
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
-        mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
-
+        self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
+        
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
             ngpyfile.write(inspect.cleandoc('''
             import os, math
             import numpy as np
             from netgen import occ
-            from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep
+            from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep, meshsize
             from pyngcore import SetNumThreads, TaskManager
             SetNumThreads({0})
-            mp = MeshingParameters(maxh={1}, minh={2}, grading={3}, optsteps3d={4}, optsteps2d={4}, closeedgefac=0.001, delaunay=True, maxoutersteps={5})
-            #optimize2d='smcmSmcmSmcm', optimize3d='cmdmustm',
+            mp = MeshingParameters(meshsize.fine, maxh={1}, minh={2}, grading={3}, optimize3d='cmdmustm', optsteps3d={4}, delaunay=True, maxoutersteps={5})
             geo = occ.OCCGeometry(os.path.join(r'{6}', 'flovi_geometry.step'))
             e_maxs = {7}
 
@@ -3474,12 +3566,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     if edge in face.edges:
                         f_dict = eval('{{'+str(face)+'}}')
 
-                        if 'TShape' in f_dict:
+                        if 'TShape' in f_dict and face.name:
                             f_dir = f_dict['TShape']['Surface']['pos']['Direction']
                             vecs.append(f_dir)
                             e_maxhs.append(e_maxs[face.name] * face.maxh)
 
-                if len(vecs) == 2 and (angle_between(vecs[0], vecs[1]) > 0.1 or len(set(e_maxhs)) > 1):
+                if len(vecs) == 2 and abs(angle_between(vecs[0], vecs[1]) > 0.1 or len(set(e_maxhs)) > 1):
                     edge.maxh = min(e_maxhs)
                     e_len = ((edge.vertices[0].p[0] - edge.vertices[1].p[0])**2 + (edge.vertices[0].p[1] - edge.vertices[1].p[1])**2 + (edge.vertices[0].p[2] - edge.vertices[1].p[2])**2)**0.5
 
@@ -3500,99 +3592,116 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             surf_mesh.Export(os.path.join(r'{6}', 'ng_surf.stl'), 'STL Format')
             '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading,
                        self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs)))
-        #return
-        surf_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
-        self.cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
 
-        while surf_run.poll() is None:
-            if self.cancel.poll() is not None:
-                surf_run.kill()
-                return {'CANCELLED'}
-
-        self.cancel.kill()
-        err_lines = []
-
-        for surf_err, line in enumerate(surf_run.stderr):
-            err_lines.append(line.decode())
-            logentry(f"Surface mesh error: {line.decode()}")
-
-        if err_lines:
-            self.report({'ERROR'}, "Surface meshing failed. Check the vi-suite-log file in Blender's text editor")
-            return {'CANCELLED'}
-
-        with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
-            ngpyfile.write(inspect.cleandoc('''
-            import os
-            from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
-            from pyngcore import SetNumThreads, TaskManager
-            mp = MeshingParameters(maxh={3}, grading={4}, optsteps3d={5}, minh=0.0)
-            SetNumThreads({0})
-            surf_mesh = Mesh()
-            surf_mesh.Load(os.path.join(r'{1}', 'ng_surf.vol'))
-            tot_mesh = Mesh()
-            tot_mesh.Load(os.path.join(r'{1}', 'ng.vol'))
-            mis = {2}
-            pmap = {{}}
-
-            for ei, el in enumerate(surf_mesh.Elements2D()):
-                el.index = mis[el.index - 1] + 1
-
-                for v in el.vertices:
-                    if (v not in pmap):
-                        pmap[v] = tot_mesh.Add(surf_mesh[v])
-
-                tot_mesh.Add(Element2D(el.index, [pmap[v] for v in el.vertices]))
-
-            with TaskManager():
-                tot_mesh.GenerateVolumeMesh(mp=mp)
-
-            tot_mesh.Save(os.path.join(r'{1}', 'ng.vol'))
-            tot_mesh.Export(os.path.join(r'{1}', 'ng.mesh'), format='Neutral Format')
-            '''.format(int(svp['viparams']['nproc']), svp['flparams']['offilebase'], mis, self.expnode.maxcs, self.expnode.grading,
-                       self.expnode.optimisations)))
-
-        vol_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
-        self.cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Volume Mesh')
-
-        while vol_run.poll() is None:
-            if self.cancel.poll() is not None:
-                vol_run.kill()
-                return {'CANCELLED'}
-
-        self.cancel.kill()
-        err_lines = []
-
-        for line in vol_run.stderr:
-            err_lines.append(line.decode())
-            logentry(f"Volume mesh error: {line.decode()}")
-
-        if err_lines:
-            self.report({'ERROR'}, "Volume meshing failed. Check the vi-suite-log file in Blender's text editor")
-            return {'CANCELLED'}
-
-        self.expnode.running = 1
-        #self.ng_mesh = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE)
-        #self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
-        self.of_conv = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Converting to OpenFOAM')
+        self.surf_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
+        self.surf_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
-
 
     def modal(self, context, event):
         scene = context.scene
         svp = scene.vi_params
 
-        if self.of_conv.poll() is not None:
-            self.of_conv.kill()
-            self.expnode.running = 0
-            return {'CANCELLED'}
+        if self.surf_run.poll() is None:
+            if self.surf_cancel.poll() is not None:
+                self.surf_run.kill()
+                self.expnode.running = 0
+                return {'CANCELLED'}
+            # else:
+            #     return {'PASS_THROUGH'}
         else:
+            surf_err_lines = []
+
+            for surf_err, line in enumerate(self.surf_run.stderr):
+                surf_err_lines.append(line.decode())
+                logentry(f"Surface mesh error: {line.decode()}")
+
+            if surf_err_lines:
+                self.report({'ERROR'}, "Surface meshing failed. Check the vi-suite-log file in Blender's text editor")
+                
+                if self.surf_cancel.poll() is None:
+                    self.surf_cancel.kill()
+                
+                self.expnode.running = 0
+                return {'CANCELLED'}
+            else:
+                self.surf_cancel.kill()
+                self.surf_complete = 1
+
+        if self.surf_complete and not self.vol_complete and not self.vol_running:
+            with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
+                ngpyfile.write(inspect.cleandoc('''
+                import os
+                from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+                from pyngcore import SetNumThreads, TaskManager
+                mp = MeshingParameters(maxh={3}, grading={4}, optsteps3d={5}, optimize3d='cmdmustm')
+                SetNumThreads({0})
+                surf_mesh = Mesh()
+                surf_mesh.Load(os.path.join(r'{1}', 'ng_surf.vol'))
+                tot_mesh = Mesh()
+                tot_mesh.Load(os.path.join(r'{1}', 'ng.vol'))
+                mis = {2}
+                pmap = {{}}
+
+                for ei, el in enumerate(surf_mesh.Elements2D()):
+                    el.index = mis[el.index - 1] + 1
+
+                    for v in el.vertices:
+                        if (v not in pmap):
+                            pmap[v] = tot_mesh.Add(surf_mesh[v])
+
+                    tot_mesh.Add(Element2D(el.index, [pmap[v] for v in el.vertices]))
+
+                with TaskManager():
+                    tot_mesh.GenerateVolumeMesh(mp=mp)
+
+                tot_mesh.Save(os.path.join(r'{1}', 'ng.vol'))
+                tot_mesh.Export(os.path.join(r'{1}', 'ng.mesh'), format='Neutral Format')
+                '''.format(int(svp['viparams']['nproc']), svp['flparams']['offilebase'], self.mis, self.expnode.maxcs, self.expnode.grading,
+                        self.expnode.optimisations)))
+
+            self.vol_running = 1
+            self.vol_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
+            self.vol_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Volume Mesh')
+
+        if self.vol_running == 1:
+            if self.vol_run.poll() is None:
+                if self.vol_cancel.poll() is not None:
+                    self.vol_run.kill()
+                    self.expnode.running = 0
+                    return {'CANCELLED'}
+
+            else:
+                vol_err_lines = []
+
+                for line in self.vol_run.stderr:
+                    vol_err_lines.append(line.decode())
+                    logentry(f"FloVi volume mesh error: {line.decode()}")
+
+                if vol_err_lines:
+                    if self.vol_cancel.poll() is None:
+                        self.vol_cancel.kill()
+
+                    self.expnode.running = 0
+                    self.report({'ERROR'}, "Volume meshing failed. Check the vi-suite-log file in Blender's text editor")
+                    return {'CANCELLED'}
+                else:
+                    self.vol_cancel.kill()
+                    self.vol_complete = 1
+        
+        if self.surf_complete and self.vol_complete:
+            self.conv_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Converting to OpenFOAM')
+       
             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
                 offb = svp['flparams']['offilebase']
                 frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
                 frame_ofcfb = os.path.join(frame_offb, 'constant')
                 st = '0'
+
+                if os.path.isfile(os.path.join(frame_offb, st, 'polyMesh', 'points')):
+                    os.remove(os.path.join(frame_offb, st, 'polyMesh', 'points'))
+
                 pdm_error = 0
                 scene = context.scene
                 svp = scene.vi_params
@@ -3615,8 +3724,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 elif not os.path.isfile(os.path.join(svp['flparams']['offilebase'], 'ng.mesh')):
                     logentry('Netgen volume meshing did not complete')
                     self.expnode.running = 0
-                    self.of_conv.kill()
+                    self.conv_cancel.kill()
                     self.report({'ERROR'}, 'Netgen volume meshing did not complete')
+                    return {'CANCELLED'}
+                
+                if self.conv_cancel.poll() is not None:
+                    self.expnode.running = 0
                     return {'CANCELLED'}
 
                 if os.path.isfile(os.path.join(frame_ofcfb, 'polyMesh', 'boundary')):
@@ -3661,6 +3774,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             if 'FOAM aborting' in line.decode():
                                 logentry('polyDualMesh error. Check the mesh in Netgen')
                                 pdm_error = 1
+                     
+                    if self.conv_cancel.poll() is not None:
+                        self.expnode.running = 0
+                        return {'CANCELLED'}
 
                     if not pdm_error:
                         if sys.platform == 'linux':
@@ -3670,19 +3787,19 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             cpf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "combinePatchFaces -overwrite -case data {}"'.format(frame_offb, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
-                        if sys.platform == 'linux':
-                            cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
-                        elif sys.platform in ('darwin', 'win32'):
-                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
-                            cm = Popen(cm_cmd, shell=True, stdout=PIPE)
+                        # if sys.platform == 'linux':
+                        #     cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
+                        # elif sys.platform in ('darwin', 'win32'):
+                        #     cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
+                        #     cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
-                        for line in cm.stdout:
-                            if '***Error' in line.decode():
-                                logentry('Mesh errors:{}'.format(line.decode()))
-                            elif '*Number' in line.decode() and sys.platform == 'linux':
-                                Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
-                            else:
-                                print(line.decode())
+                        # for line in cm.stdout:
+                        #     if '***Error' in line.decode():
+                        #         logentry('Mesh errors:{}'.format(line.decode()))
+                        #     elif '*Number' in line.decode() and sys.platform == 'linux':
+                        #         Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
+                        #     else:
+                        #         print(line.decode())
 
                         for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                             if entry.is_file():
@@ -3718,18 +3835,27 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 open("{}".format(os.path.join(frame_offb, '{}.foam'.format(frame))), "w")
 
+            if self.conv_cancel.poll() is not None:
+                self.expnode.running = 0
+                return {'CANCELLED'}
+
             if os.path.isfile(os.path.join(frame_offb, st, 'polyMesh', 'points')):
                 oftomesh(frame_offb, self.vl, self.omats, st, ns, nf, self.expnode.b_only)
             else:
                 logentry('Netgen volume meshing failed:')
                 self.report({'ERROR'}, 'Volume meshing failed')
+                self.conv_cancel.kill()
+                self.expnode.running = 0
                 return {'CANCELLED'}
 
             self.expnode.post_export()
-            self.of_conv.kill()
+            self.conv_cancel.kill()
             create_coll(context, self.curcoll.name)
             self.expnode.running = 0
             return {'FINISHED'}
+
+        else:
+            return {'PASS_THROUGH'}
 
 
 class NODE_OT_Flo_Bound(bpy.types.Operator):
