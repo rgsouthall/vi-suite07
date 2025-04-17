@@ -3934,6 +3934,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         break
 
             (ws, pref) = (ws, pref) if ws_flag and pref_flag and self.ref_type == '0' else (self.ws, self.pref)
+            print(ws)
 
             for pn in pnames:
                 for r in self['rl']:
@@ -3945,7 +3946,7 @@ class No_Vi_Metrics(Node, ViNodes):
                             # if zn not in wpcs:
                             #     wpcs[zn] = []
                             # wpcs[zn].append(round((float(r[4].split()[-1]) - bpy.context.scene.vi_params['flparams']['pref'])/(0.5*1.225*(self.ws**2)), 3))
-                            self['res']['WPC'][pn] = round((float(r[4].split()[-1]) - pref)/(0.5*1.225*(ws**2)), 3) if self.ws else 0
+                            self['res']['WPC'][pn] = round((float(r[4].split()[-1]) - pref)/(0.5*1.225*(ws**2)), 3) if ws else 0
                             #reslists.append([r[0], 'Zone spatial'])
                         elif r[3] == 'Speed':
                             self['res']['speed'][pn] = float(r[4].split()[-1])
@@ -5393,7 +5394,7 @@ class No_En_Net_Zone(Node, EnViNodes):
 
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
 
-    def epwrite(self):
+    def ep_write(self):
         (tempschedname, mvof, lowerlim, upperlim) = (self.zone + '_tspsched', self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')
         vaschedname = self.zone + '_vasched' if self.inputs['VASchedule'].is_linked else ''
         params = ('Zone Name',
@@ -5645,7 +5646,7 @@ class No_En_Net_Occ(Node, EnViNodes):
             for sock in  self.outputs:
                 socklink(sock, self.id_data.name)
 
-    def epwrite(self, zn):
+    def ep_write(self, zn):
         pdict = {'0': '', '1':'People', '2': 'People/Area', '3': 'Area/Person'}
         plist = ['', '', '']
         plist[int(self.envi_occtype) - 1] = self.envi_occsmax
@@ -5716,7 +5717,7 @@ class No_En_Net_Inf(Node, EnViNodes):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
-    def epwrite(self, zn):
+    def ep_write(self, zn):
         infildict = {'0': '', '1': 'Flow/Zone', '2': 'Flow/Area', '3': 'Flow/ExteriorArea', '4': 'Flow/ExteriorWallArea',
                           '5': 'AirChanges/Hour', '6': 'Flow/Zone'}
         inflist = ['', '', '', '']
@@ -5881,7 +5882,7 @@ class No_En_Net_SSFlow(Node, EnViNodes):
                 for of4vals in self['layoutdict']['OF4']:
                     newrow(layout, of4vals[0], self, of4vals[1])
 
-    def epwrite(self, exp_op, enng):
+    def ep_write(self, exp_op, enng):
         surfentry, en, snames = '', '', []
         tspsname = '{}_tspsched'.format(self.name) if self.inputs['TSPSchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else ''
         vasname = '{}_vasched'.format(self.name) if self.inputs['VASchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') else ''
@@ -6063,7 +6064,7 @@ class No_En_Net_Ext(Node, EnViNodes):
 
         sockhide(self, ('Sub surface', 'Surface'))
 
-    def epwrite(self, enng):
+    def ep_write(self, enng):
         enentry, wpcname, wpcentry = '', '', ''
 
         if self.val_type == '0':
@@ -6176,7 +6177,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
         for vals in layoutdict[self.linkmenu]:
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])
 
-    def epwrite(self, exp_op, enng):
+    def ep_write(self, exp_op, enng):
         fentry, crentry, zn, en, enentry, surfentry, crname, snames = '', '', '', '', '', '', '', []
         paradict = {}
 
@@ -6226,7 +6227,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
 
                 if othernode.bl_idname == 'No_En_Net_Ext':
                     en = othernode.name
-                    enentry = othernode.ep_write()
+                    enentry = othernode.ep_write(enng)
 
             for link in sock.links:
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
@@ -6302,7 +6303,7 @@ class No_En_Net_ACon(Node, EnViNodes):
          ('Rel Converge:', 'rcontol'), ('Abs Converge:', 'acontol'), ('Converge Lim:', 'conal'), ('Azimuth:', 'aalax'), ('Axis ratio:', 'rsala'))
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
 
-    def epwrite(self, exp_op, enng):
+    def ep_write(self, exp_op, enng):
         wpcaentry = ''
         if self.wpctype == 'Input' and not self.inputs['Azimuth array'].is_linked:
             exp_op.report({'ERROR'},"Azimuth array input has been selected in the control node, but no Azimuth array node is attached")
@@ -6322,7 +6323,7 @@ class No_En_Net_ACon(Node, EnViNodes):
         simentry = epentry('AirflowNetwork:SimulationControl', params, paramvs)
 
         if self.inputs['Azimuth array'].is_linked:
-            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['Azimuth array'].links[0].from_node.epwrite() if wpctype == 1 else ('', 0)
+            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['Azimuth array'].links[0].from_node.ep_write() if wpctype == 1 else ('', 0)
             enng['enviparams']['wpca'] = 1
 
         self.legal()
@@ -6398,7 +6399,7 @@ class No_En_Net_Azi(Node, EnViNodes):
 
         self.id_data.interface_update(bpy.context)
 
-    def epwrite(self):
+    def ep_write(self):
         if self.azi_type == '0':
             i_angs = sorted([self.ang1, self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12])
             azis = [a for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai-1] < i_angs[ai]]
@@ -6507,7 +6508,7 @@ class No_En_Net_Sched(Node, EnViNodes):
 
         self.id_data.interface_update(bpy.context)
 
-    def epwrite(self, name, stype):
+    def ep_write(self, name, stype):
         if self.source == '0':
             schedtext, ths = '', []
 
@@ -6530,13 +6531,13 @@ class No_En_Net_Sched(Node, EnViNodes):
             schedtext = epentry('Schedule:File', params, paramvs)
             return schedtext
 
-    def epwrite_sel_file(self, name):
+    def ep_write_sel_file(self, name):
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim)
         schedtext = epentry('Schedule:File', params, paramvs)
         return schedtext
 
-    def epwrite_gen_file(self, name, data, newdir):
+    def ep_write_gen_file(self, name, data, newdir):
         schedtext, ths = '', []
 
         for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
@@ -6588,7 +6589,7 @@ class No_En_Net_Prog(Node, EnViNodes):
 
         nodecolour(self, not all([sock.links for sock in self.outputs]) and any([sock.links for sock in self.outputs]))
 
-    def epwrite(self):
+    def ep_write(self):
         if not (self.outputs['Sensor'].links and self.outputs['Actuator'].links):
             return ''
         else:
@@ -6722,7 +6723,7 @@ class No_En_Net_EMSPy(Node, EnViNodes):
         layout.prop_search(self, 'py_mod', bpy.data, 'texts', text='Module', icon='TEXT')
         newrow(layout, "Class:", self, 'py_class')
 
-    def epwrite(self):
+    def ep_write(self):
     #     for p in self.bl_rna.properties:
     #         if p.is_skip_save and p.identifier in [l.to_node.parameter for l in self.outputs['Parameter'].links]:
     #             for l in self.outputs['Parameter'].links:
@@ -7672,7 +7673,7 @@ class No_En_Mat_Con(Node, EnViMatNodes):
             ep_text += epentry('PhotovoltaicPerformance:Simple', params, paramvs)
 
             if self.inputs['PV Schedule'].links:
-                ep_text += self.inputs['PV Schedule'].links[0].from_node.epwrite('{}-pv-performance-schedule'.format(sn), 'Fraction')
+                ep_text += self.inputs['PV Schedule'].links[0].from_node.ep_write('{}-pv-performance-schedule'.format(sn), 'Fraction')
 
         elif self.pp == '1':
             params = ('Name', 'Cell type', 'Number of Cells in Series', 'Active Area (m2)', 'Transmittance Absorptance Product',
@@ -9641,7 +9642,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
 
         return schedtext
 
-    def epwrite_sel_file(self, name):
+    def ep_write_sel_file(self, name):
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim)
         schedtext = epentry('Schedule:File', params, paramvs)
@@ -9655,7 +9656,7 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
         Comma; !- Column Separator'''
         return schedtext
 
-    def epwrite_gen_file(self, name, data, newdir):
+    def ep_write_gen_file(self, name, data, newdir):
         schedtext, ths = '', []
         for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
             if not schedtext:

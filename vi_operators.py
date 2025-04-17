@@ -3160,6 +3160,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         scene = context.scene
         svp = scene.vi_params
+        self.offb = svp['flparams']['offilebase']
         self.vl = context.view_layer
         self.expnode = context.node
         self.expnode.running = 1
@@ -3195,6 +3196,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             self.report({'ERROR'}, 'CFD domain or geometry has a negative scale. Cannot proceed')
             self.expnode.running = 0
             return {'CANCELLED'}
+
+        for fn in ('ng.mesh', 'ng.vol', 'ng_surf.stl', 'ng_surf.vol' ):
+            if os.path.isfile(os.path.join(self.offb, fn)):
+                os.remove(os.path.join(self.offb, fn))
 
         if os.environ.get('LD_LIBRARY_PATH'):
             os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, 'netgen')
@@ -3249,11 +3254,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             # bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
             #bm.verts.ensure_lookup_table()
             #bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(ob.name)))
-
-            if len(bm.faces) > 20000:
+            print(len(bm.faces))
+            if len(bm.faces) > 50000:
                 bm.free()
-                logentry('{} has more than 10000 faces. Simplify the geometry'.format(ob.name))
-                self.report({'ERROR'}, '{} has more than 10000. Simplify the geometry'.format(ob.name))
+                logentry('{} has more than 50000 faces. Simplify the geometry'.format(ob.name))
+                self.report({'ERROR'}, '{} has more than 50000 faces. Simplify the geometry'.format(ob.name))
                 self.expnode.running = 0
                 return {'CANCELLED'}
 
@@ -3279,11 +3284,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             logentry(f'{ob.name} has faces with an unspecified material or an empty material slot')
                             self.report({'ERROR'}, f'{ob.name} has faces with an unspecified material or an empty material slot')
                             self.expnode.running = 0
+                            bm.free()
                             return {'CANCELLED'}
                         elif ' ' in ms.material.name:
                             logentry(f'The material {ms.material.name} has a space in the name')
                             self.report({'ERROR'}, f'The material {ms.material.name} has a space in the name')
                             self.expnode.running = 0
+                            bm.free()
                             return {'CANCELLED'}
 
                         face.index = fi
@@ -3294,6 +3301,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             bm.faces.ensure_lookup_table()
             ob_mesh = bpy.data.meshes.new("mesh")
             bm.to_mesh(ob_mesh)
+            bmesh.ops.split_edges(bm, edges=bm.edges)
 
             for mi, ms in enumerate(ob.material_slots):
                 if ms.material:
@@ -3309,8 +3317,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             # points = [occ.gp_Pnt(tuple(vert.co)) for vert in bm.verts]
             # verts = [occ.Vertex(p) for p in points]
-
-            for fi, face in enumerate(bm.faces):
+            lbm = len(bm.faces)
+            for fi, face in enumerate(bm.faces[:lbm]):
                 try:
                     matname = ob.material_slots[face.material_index].material.name
                     
@@ -3318,70 +3326,59 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         logentry(f'FloVi error: Material {matname} has a space in the name')
                         self.report({'ERROR'}, f'{matname} has a space in the name')
                         self.expnode.running = 0
+                        bm.free()
                         return {'CANCELLED'}
 
                 except:
                     logentry(f'FloVi error: {ob.name} mesh has faces that reference a non-existant material')
                     self.report({'ERROR'}, f'{ob.name} mesh has faces that reference a non-existant material')
                     self.expnode.running = 0
-                    return {'CANCELLED'}
-                #edges = [occ.Edge(verts[loop.vert.index], verts[loop.link_loop_next.vert.index]) for loop in face.loops]
-                try:
-                    edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
-                
-                except:
-                    logentry(f'FloVi error: {ob.name} edge generation failed on face with index {face.index}')
-                    self.report({'ERROR'}, f'{ob.name} edge generation failed on face with index {face.index}')
-                    self.expnode.running = 0
+                    bm.free()
                     return {'CANCELLED'}
 
+                edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
                 wire = occ.Wire(edges)
-                f = occ.Face(wire)
+                f = occ.Face(wire) 
 
-                if len(f.edges) < 3:
-                    vcos = []
-                    evcos = [(Vector(loop.vert.co), Vector(loop.link_loop_next.vert.co)) for loop in face.loops]
-                    
-                    for evco in evcos:
-                        for vco in evco:
-                            dist = distance_point_to_plane(vco, face.calc_center_median(), face.normal)
+                if len(f.edges) > 2:
+                    f.name = ob.name+'_'+matname
+                    f.mat(matname)
+                    f.bc(ob.name+'_'+matname)
+                    f.layer = face.index
+                    f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                    faces.append(f)  
 
-                            if abs(dist) < 0.001:
-                                vco -=  dist * face.normal
+                else:
+                    fc = Vector([fc for fc in face.calc_center_bounds()])
+                    fn = Vector([fn for fn in face.normal])
+                    evs = [(loop.vert, loop.link_loop_next.vert) for loop in face.loops]
+                    vs =  [loop.vert for loop in face.loops]
+
+                    for v in vs:
+                        dist = distance_point_to_plane(v.co, fc, fn)
+
+                        if abs(dist) < 0.01:
+                            v.co -= dist * fn
                     
-                    edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(evco[0]))), occ.Vertex(occ.gp_Pnt(tuple(evco[1])))) for evco in evcos]
+                    edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
                     wire = occ.Wire(edges)
-                    f = occ.Face(wire)
-
-                    if len(f.edges) >= 3:
-                        matname = ob.material_slots[face.material_index].material.name
+                    f = occ.Face(wire) 
+                    
+                    if len(f.edges) > 2:
                         f.name = ob.name+'_'+matname
                         f.mat(matname)
                         f.bc(ob.name+'_'+matname)
                         f.layer = face.index
                         f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
-                        faces.append(f)
-
-
-                    # edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
-                    # wire = occ.Wire(edges)
-                    # f = occ.Face(wire)
-                    # matname = ob.material_slots[face.material_index].material.name
-                    # f.name = ob.name+'_'+matname
-                    # f.mat(matname)
-                    # f.bc(ob.name+'_'+matname)
-                    # f.layer = face.index
-                    # f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
-                    # faces.append(f)
-
+                        faces.append(f)    
                     else:
+                        logentry(f'Object {ob.name} face with index {face.index} had to be triangulated. This could lead to poor mesh quality')
                         t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
 
-                        for tf in t_faces:
+                        for ti, tf in enumerate(t_faces):
                             edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in tf.loops]
                             wire = occ.Wire(edges)
                             f = occ.Face(wire)
-                            matname = ob.material_slots[face.material_index].material.name
                             f.name = ob.name+'_'+matname
                             f.mat(matname)
                             f.bc(ob.name+'_'+matname)
@@ -3389,46 +3386,27 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
                             faces.append(f)
 
-                #wire02 = occ.Wire([edges[0], edges[2]])
-                #f2 = occ.Face(wire02)
-                # edges.append(occ.Edge(fverts[-1], fverts[0]))
-                # points = [occ.gp_Pnt(loop.vert.co[:]) for loop in face.loops]
-                # bs = occ.BSplineCurve(points, 1)
-                # seg1 = occ.Segment(points[0],points[-1])
-                # wire = occ.Wire([bs, seg1])
-                else:
-                    f.name = ob.name+'_'+matname
-                    f.mat(matname)
-                    f.bc(ob.name+'_'+matname)
-                    f.layer = face.index
-                    f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
-                    faces.append(f)
-
             bm.free()
 
             if ob == dobs[0]:
-                d_geo = occ.OCCGeometry(occ.Fuse(faces))
+                d_geo = occ.OCCGeometry(occ.Compound(faces))
                 fns = [face.name for face in d_geo.shape.faces]
                 fms = [face.maxh for face in d_geo.shape.faces]
-                d_geo.Heal(tolerance=0.001)
+                d_geo.Heal(tolerance=0.01)
 
-                if len(d_geo.shape.SubShapes(occ.SOLID)) == 1:
-                    if None in set([face.name for face in d_geo.shape.faces]):
-                        for fi, face in enumerate(d_geo.shape.faces):
-                            if face.name == None:
-                                face.name = fns[fi]
-                                face.maxh = fms[fi]
-
-                    if self.expnode.debug_step:
+                if None in set([face.name for face in d_geo.shape.faces]):
+                    for fi, face in enumerate(d_geo.shape.faces):
+                        if face.name == None:
+                            face.name = fns[fi]
+                            face.maxh = fms[fi]
+                
+                if self.expnode.debug_step:
                         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
-
-                else:
+                
+                if len(d_geo.shape.SubShapes(occ.SOLID)) != 1:
                     logentry(f'FloVi error: {ob.name} cannot be converted to a single solid')
                     self.report({'ERROR'}, f'{ob.name} cannot be converted to a single solid')
-
-                    if self.expnode.debug_step:
-                        d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
-
+                        
                     self.expnode.running = 0
                     return {'CANCELLED'}
 
@@ -3442,60 +3420,103 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         fms = [face.maxh for face in g_geo.shape.faces]
                         fcs = [face.center for face in g_geo.shape.faces]
                         print(f'Healing {ob.name} shell {mi}')
-                        g_geo.Heal(tolerance=0.001)
+                        g_geo.Heal(tolerance=0.025)
 
-                        if len(g_geo.shape.SubShapes(occ.SOLID)) == 1:
-                            if None in set([face.name for face in g_geo.shape.faces]):
-                                for fi, face in enumerate(g_geo.shape.faces):
+                        if len(g_geo.shape.SubShapes(occ.SOLID)):
+                            for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
+                                if not all([face.name for face in g_geo_solid.faces]):
+                                    for fi, face in enumerate(g_geo_solid.faces):
+                                        if face.name == None:
+                                            for fci, fc in enumerate(fcs):
+                                                if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                                    face.name = fns[fci]
+                                                    face.maxh = fms[fci]
+                                                    break
+
+                                            if face.name == None:
+                                                face.name=fns[fi]
+                                                face.maxh = fms[fi]
+
+                                g_geos.append(g_geo_solid)
+
+                        else:
+                            g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
+                            g_geo =  occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
+                            g_geo.Heal(tolerance=0.025)
+                            print(set([face.name for face in g_geo.shape.faces]))
+
+                            for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
+                                if not all([face.name for face in g_geo_solid.faces]):
+                                    for fi, face in enumerate(g_geo_solid.faces):
+                                        if face.name == None or face.name == '':
+                                            for fci, fc in enumerate(fcs):
+                                                if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                                    face.name = fns[fci]
+                                                    face.maxh = fms[fci]
+                                                    break
+                                            if face.name == None or face.name == '':
+                                                face.name=fns[fi]
+                                                face.maxh = fms[fi]
+                            
+                                g_geos.append(g_geo_solid)
+
+                        if not len(g_geo.shape.SubShapes(occ.SOLID)):
+                            logentry(f'FloVi warning: {ob.name} shell {mi} cannot be converted to a solid')
+                            self.report({'WARNING'}, f'{ob.name} shell {mi} cannot be converted to a solid')
+
+                        if self.expnode.debug_step:
+                            g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}_{mi}.step'))
+
+                else:
+                    g_geo = occ.OCCGeometry(occ.Compound(faces))
+                    fns = [face.name for face in g_geo.shape.faces]
+                    fms = [face.maxh for face in g_geo.shape.faces]
+                    fcs = [face.center for face in g_geo.shape.faces]
+                    print(f'Healing {ob.name}')
+                    g_geo.Heal(tolerance=0.025)
+
+                    for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
+                        if not all([face.name for face in g_geo.shape.faces]):
+                            for fi, face in enumerate(g_geo_solid.faces):
+                                if face.name == None or face.name == '':
+                                    for fci, fc in enumerate(fcs):
+                                        if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                            face.name = fns[fci]
+                                            face.maxh = fms[fci]
+                                            break
+                                    if face.name == None or face.name == '':
+                                        face.name=fns[fi]
+                                        face.maxh = fms[fi]
+                        print(set([face.maxh for face in g_geo.shape.faces]))               
+                        g_geos.append(g_geo_solid)
+
+                    if not len(g_geo.shape.SubShapes(occ.SOLID)):
+                        g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
+                        g_geo =  occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
+                        fns = [face.name for face in g_geo.shape.faces]
+                        fms = [face.maxh for face in g_geo.shape.faces]
+                        fcs = [face.center for face in g_geo.shape.faces]
+                        g_geo.Heal(tolerance=0.025)
+
+                        for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
+                            if None in set([face.name for face in g_geo_solid.faces]):
+                                for fi, face in enumerate(g_geo_solid.faces):
                                     if face.name == None:
                                         for fci, fc in enumerate(fcs):
                                             if (Vector(face.center) - Vector(fc)).length < 0.001:
                                                 face.name = fns[fci]
                                                 face.maxh = fms[fci]
                                                 break
+
                                         if face.name == None:
-                                            print(face)
+                                            face.name=fns[fi]
+                                            face.maxh=fms[fi]
+  
+                                g_geos.append(g_geo_solid)
 
-                            g_geos.append(g_geo)
-
-                        else:
-                            logentry(f'FloVi warning: {ob.name} shell {mi} cannot be converted to a solid')
-                            self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
-
-                        if self.expnode.debug_step:
-                            g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}_{mi}.step'))
-
-                else:
-                    g_geo = occ.OCCGeometry(occ.Fuse(faces))
-
-                    if len(g_geo.shape.faces) > len(faces):
-                        print(len(g_geo.shape.faces), len(faces))
-                        g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
-                        g_geo = occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
-                        logentry(f'{ob.name} mesh requires triangulation or adjustment')
-                        self.report({'WARNING'}, f'{ob.name} mesh requires triangulation')
-
-                    fns = [face.name for face in g_geo.shape.faces]
-                    fms = [face.maxh for face in g_geo.shape.faces]
-                    fcs = [face.center for face in g_geo.shape.faces]
-                    print(f'Healing {ob.name}')
-                    g_geo.Heal(tolerance=0.001)
-
-                    if len(g_geo.shape.SubShapes(occ.SOLID)) == 1:
-                        if None in set([face.name for face in g_geo.shape.faces]):
-                            for fi, face in enumerate(g_geo.shape.faces):
-                                if face.name == None:
-                                    for fci, fc in enumerate(fcs):
-                                        if (Vector(face.center) - Vector(fc)).length < 0.001:
-                                            face.name = fns[fci]
-                                            face.maxh = fms[fci]
-                                            break
-                        
-                        g_geos.append(g_geo)
-
-                    else:
-                        logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
-                        self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
+                            if not len(g_geo.shape.SubShapes(occ.SOLID)):
+                                logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
+                                self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
                     
                     if self.expnode.debug_step:
                         g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
@@ -3503,13 +3524,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         totmesh.Save(os.path.join(svp['flparams']['offilebase'], 'ng.vol'))
 
         if g_geos:
-            #g_solids = occ.Fuse([g_geo.shape for g_geo in g_geos])
-
-            # if not len(g_solids.SubShapes(occ.SOLID)):
-            #     logentry('Cannot make a solid from CFD geometry')
-            #     self.report({'ERROR'}, 'Cannot make a solid from CFD geometry')
-            # for gi, g_solid in enumerate(g_solids.SubShapes(occ.SOLID)):
-            for gi, g_solid in enumerate([g.shape for g in g_geos]):
+            for gi, g_solid in enumerate([g for g in g_geos]):
                 d_geo = d_geo.shape - g_solid if not gi else d_geo - g_solid
 
         else:
@@ -3519,9 +3534,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         fms = [face.maxh for face in d_geo.faces]
         fcs = [face.center for face in d_geo.faces]
         d_geo = occ.OCCGeometry(d_geo)
-
-        if len(d_geo.shape.SubShapes(occ.SOLID)) != 1:
-            d_geo.Heal(tolerance=0.001)
+        d_geo.Heal(tolerance=0.025)
 
         if None in set([face.name for face in d_geo.shape.faces]):
             for fi, face in enumerate(d_geo.shape.faces):
@@ -3531,8 +3544,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             face.name = fns[fci]
                             face.maxh = fms[fci]
                             break
-                    if not face.name:
+                    if face.name == None:
                         face.name=fns[fi]
+                        face.maxh = fms[fi]
 
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
@@ -3608,8 +3622,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 self.surf_run.kill()
                 self.expnode.running = 0
                 return {'CANCELLED'}
-            # else:
-            #     return {'PASS_THROUGH'}
         else:
             surf_err_lines = []
 
@@ -3694,7 +3706,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             self.conv_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Converting to OpenFOAM')
        
             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
-                offb = svp['flparams']['offilebase']
                 frame_offb = os.path.join(svp['flparams']['offilebase'], str(frame))
                 frame_ofcfb = os.path.join(frame_offb, 'constant')
                 st = '0'
@@ -3706,14 +3717,14 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 scene = context.scene
                 svp = scene.vi_params
 
-                if os.path.isfile(os.path.join(offb, 'ng.mesh')):
-                    os.chdir(offb)
+                if os.path.isfile(os.path.join(self.offb, 'ng.mesh')):
+                    os.chdir(self.offb)
 
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
-                        nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(offb, 'ng.mesh'))
+                        nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(self.offb, 'ng.mesh'))
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
                     elif sys.platform in ('darwin', 'win32'):
-                        nntf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "netgenNeutralToFoam -case data/{} {}"'.format(offb, frame, 'data/ng.mesh')
+                        nntf_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "netgenNeutralToFoam -case data/{} {}"'.format(self.offb, frame, 'data/ng.mesh')
                         subprocess.Popen(nntf_cmd, shell=True).wait()
 
                     logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
@@ -3957,6 +3968,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 elif sys.platform in ('darwin', 'win32'):
                     Popen('docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamExec reconstructPar -case data"'.format(frame_coffb), shell=True).wait()
 
+            open("{}".format(os.path.join(frame_coffb, '{}.foam'.format(frame_c))), "w")
             self.simnode.running = 0
             logentry('Cancelling FloVi simulation')
             return {'CANCELLED'}
@@ -3974,6 +3986,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         self.runs[-1].kill()
                         self.report({'ERROR'}, "Pressure reference point needs to be supplied")
                         logentry('ERROR: Pressure reference point needs to be supplied')
+                        self.simnode.running = 0
                         return {'CANCELLED'}
                     elif 'You are probably trying to solve for a field with a default boundary condition' in dline[1]:
                         dlist = dline[0].split()
@@ -3982,18 +3995,22 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         self.runs[-1].kill()
                         self.report({'ERROR'}, "Change the calculated boundary on {} for field {}".format(dlist[pi + 1], dlist[fi + 1]))
                         logentry('ERROR: Change the calculated boundary on {} for field {}'.format(dlist[pi + 1], dlist[fi + 1]))
+                        self.simnode.running = 0
                         return {'CANCELLED'}
                     elif 'Continuity error cannot be removed by adjusting the outflow' in dline[1]:
                         self.report({'ERROR'}, "Mass flow discrepencies cannot be resolved.")
                         logentry('ERROR: Mass flow discrepencies cannot be resolved. This can happen if using fixed velocity on all boundaries and the areas of inflow and outflow boundaries are different.')
+                        self.simnode.running = 0
                         return {'CANCELLED'}
                     elif 'not constraint type' in dline[1]:
                         logentry('ERROR: Mesh and material boundaries are out-of-sync. Recreate the mesh')
                         self.report({'ERROR'}, 'Mesh and material boundaries are out-of-sync. Recreate the mesh')
+                        self.simnode.running = 0
                         return {'CANCELLED'}
                     elif 'Invalid wall function specification' in dline[1]:
                         logentry('ERROR: Mesh and material boundaries are out-of-sync. Recreate the mesh')
                         self.report({'ERROR'}, 'Mesh and material boundaries are out-of-sync. Recreate the mesh')
+                        self.simnode.running = 0
                         return {'CANCELLED'}
                     else:
                         logentry(f'ERROR: {dline[1]}')
@@ -5287,3 +5304,93 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
                 #             g_shells.append(g_shell)
                 #     t_shell = occ.Fuse([g_shell.shape for g_shell in g_shells])
                 #     print('shell', len(t_shell.shape.SubShapes(occ.SOLID)), len(t_shell.shape.SubShapes(occ.SHELL)))
+# try:
+                #     edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple([round(vco, 4) for vco in loop.vert.co]))), occ.Vertex(occ.gp_Pnt(tuple([round(vco, 4) for vco in loop.link_loop_next.vert.co])))) for loop in face.loops]
+                
+                # except:
+                #     logentry(f'FloVi error: {ob.name} edge generation failed on face with index {face.index}')
+                #     self.report({'ERROR'}, f'{ob.name} edge generation failed on face with index {face.index}')
+                #     self.expnode.running = 0
+                #     bm.free()
+                #     return {'CANCELLED'}
+
+                # wire = occ.Wire(edges)
+                # f = occ.Face(wire)
+
+                # if len(f.edges) < 3:
+                #     fc = Vector([fc for fc in face.calc_center_median()])
+                #     fn = Vector([fc for fc in face.normal]).normalized()
+                #     #print('bad face', face.index)
+                #     vcos = []
+                #     evcos = [(loop.vert.co, loop.link_loop_next.vert.co) for loop in face.loops]
+                #     for evco in evcos:
+                #         for vco in evco:
+                #             dist = distance_point_to_plane(vco, fc, fn)
+                #             print('dist', dist)
+                #             if abs(dist) < 0.1 :
+                #                 vco -=  dist * fn
+                #     for evco in evcos:
+                #         for vco in evco:
+                #             dist = distance_point_to_plane(vco, fc, fn)
+                #             print('new dists', dist)
+                    
+                #     edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(evco[0]))), occ.Vertex(occ.gp_Pnt(tuple(evco[1])))) for evco in evcos]
+                #     wire = occ.Wire(edges)
+                #     f = occ.Face(wire)
+
+                #     if len(f.edges) >= 3:
+                #         print('Appending', face.index)
+                #         matname = ob.material_slots[face.material_index].material.name
+                #         f.name = ob.name+'_'+matname
+                #         f.mat(matname)
+                #         f.bc(ob.name+'_'+matname)
+                #         f.layer = face.index
+                #         f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                #         faces.append(f)
+
+
+                #     # edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in face.loops]
+                #     # wire = occ.Wire(edges)
+                #     # f = occ.Face(wire)
+                #     # matname = ob.material_slots[face.material_index].material.name
+                #     # f.name = ob.name+'_'+matname
+                #     # f.mat(matname)
+                #     # f.bc(ob.name+'_'+matname)
+                #     # f.layer = face.index
+                #     # f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                #     # faces.append(f)
+
+                #     else:
+                #         logentry(f'Object {ob.name} face with index {face.index} had to be triangulated. This could lead to poor mesh quality')
+                #         t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
+                #         print('bad face again', face.index, fc, fn)
+                #         #bm.normal_update()
+                #         for ti, tf in enumerate(t_faces):
+                #             edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in tf.loops]
+                #             wire = occ.Wire(edges)
+                #             f = occ.Face(wire)
+                #             matname = ob.material_slots[face.material_index].material.name
+                #             f.name = ob.name+'_'+matname
+                #             f.mat(matname)
+                #             f.bc(ob.name+'_'+matname)
+                #             f.layer = tf.index
+                #             f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                #             print('Appending', face.index, ti)
+                #             faces.append(f)
+
+                # #wire02 = occ.Wire([edges[0], edges[2]])
+                # #f2 = occ.Face(wire02)
+                # # edges.append(occ.Edge(fverts[-1], fverts[0]))
+                # # points = [occ.gp_Pnt(loop.vert.co[:]) for loop in face.loops]
+                # # bs = occ.BSplineCurve(points, 1)
+                # # seg1 = occ.Segment(points[0],points[-1])
+                # # wire = occ.Wire([bs, seg1])
+                # else:
+                #     f.name = ob.name+'_'+matname
+                #     f.mat(matname)
+                #     f.bc(ob.name+'_'+matname)
+                #     f.layer = face.index
+                #     f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
+                #     print('Appending', face.index)
+                #     faces.append(f)
+            #print([f.name for f in faces])

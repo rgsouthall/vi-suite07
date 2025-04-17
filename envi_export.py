@@ -296,7 +296,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
 
                     try:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_hvacsched', 'Fraction'))
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone+'_hvacsched', 'Fraction'))
                     except Exception:
                         en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00, 1']]]]))
 
@@ -305,7 +305,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                     for sschedtype in hsdict:
                         if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
-                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))
+                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.ep_write(zn.zone+hsdict[sschedtype], 'Temperature'))
                         else:
                             en_idf.write(epschedwrite(zn.zone + hsdict[sschedtype], 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(tvaldict[sschedtype])]]]]))
 
@@ -319,7 +319,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                         svariant = 'Fraction' if sschedtype == 'OSchedule' else 'Any Number'
 
                         if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
-                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
+                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.ep_write(zn.zone + osdict[sschedtype], svariant))
                         else:
                             en_idf.write(epschedwrite(zn.zone + osdict[sschedtype], svariant, ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.3f}'.format(ovaldict[sschedtype])]]]]))
 
@@ -327,39 +327,39 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
                         en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
                     else:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_eqsched', 'Fraction'))
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone+'_eqsched', 'Fraction'))
 
                 elif schedtype == 'Infiltration' and zn.inputs[schedtype].links:
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
                         en_idf.write(epschedwrite(zn.zone + '_infsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
                     else:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone+'_infsched', 'Fraction'))
 
                 elif schedtype == 'VASchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_vasched', 'Fraction'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write(zn.zone+'_vasched', 'Fraction'))
 
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write(zn.zone+'_tspsched', 'Temperature'))
 
         ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SSFlow']
 
         for zn in ssafnodes:
             for schedtype in ('VASchedule', 'TSPSchedule'):
                 if schedtype == 'VASchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_vasched'.format(zn.name), 'Fraction'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write('{}_vasched'.format(zn.name), 'Fraction'))
 
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_tspsched'.format(zn.name), 'Temperature'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write('{}_tspsched'.format(zn.name), 'Temperature'))
 
         safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SFlow']
 
         for zn in safnodes:
             for schedtype in ('Fan Schedule',):
                 if zn.inputs.get(schedtype) and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_fansched'.format(zn.name), 'Fraction'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write('{}_fansched'.format(zn.name), 'Fraction'))
 
                 #elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
-                    #en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_tspsched'.format(zn.name), 'Temperature'))
+                    #en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write('{}_tspsched'.format(zn.name), 'Temperature'))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: GENERATORS ===========\n\n")
 
@@ -415,7 +415,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
         for zn in zonenodes:
             for occlink in zn.inputs['Occupancy'].links:
-                en_idf.write(occlink.from_node.epwrite(zn.zone))
+                en_idf.write(occlink.from_node.ep_write(zn.zone))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OTHER EQUIPMENT ===========\n\n")
         for zn in zonenodes:
@@ -437,7 +437,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: INFILTRATION ===========\n\n")
         for zn in zonenodes:
             for inflink in zn.inputs['Infiltration'].links:
-                en_idf.write(inflink.from_node.epwrite(zn.zone))
+                en_idf.write(inflink.from_node.ep_write(zn.zone))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
 
@@ -448,12 +448,12 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
         emsprognodes = [pn for pn in enng.nodes if pn.bl_idname == 'No_En_Net_Prog' and not pn.use_custom_color and pn.text_file]
 
         for prognode in emsprognodes:
-            en_idf.write(prognode.epwrite())
+            en_idf.write(prognode.ep_write())
 
         emspynodes = [pn for pn in enng.nodes if pn.bl_idname == 'No_En_Net_EMSPy' and not pn.use_custom_color and pn.py_mod and pn.py_class]
 
         for pynode in emspynodes:
-            en_idf.write(pynode.epwrite())
+            en_idf.write(pynode.ep_write())
 
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
         epentrydict = {"Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
@@ -908,10 +908,10 @@ def writeafn(exp_op, en_idf, enng):
         [enng.nodes.remove(enode) for enode in enng.nodes if enode.bl_idname == 'No_En_Net_ACon']
 
     for connode in [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_ACon']:
-        en_idf.write(connode.epwrite(exp_op, enng))
+        en_idf.write(connode.ep_write(exp_op, enng))
 
     for crnode in [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']:
-        en_idf.write(crnode.epwrite())
+        en_idf.write(crnode.ep_write())
         enng['enviparams']['crref'] = 1
 
     extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Ext']
@@ -921,8 +921,8 @@ def writeafn(exp_op, en_idf, enng):
 
     if enng['enviparams']['wpca'] == 1:
         for extnode in extnodes:
-            en_idf.write(extnode.epwrite(enng))
+            en_idf.write(extnode.ep_write(enng))
     for enode in zonenodes:
-        en_idf.write(enode.epwrite())
+        en_idf.write(enode.ep_write())
     for enode in ssafnodes + safnodes:
-        en_idf.write(enode.epwrite(exp_op, enng))
+        en_idf.write(enode.ep_write(exp_op, enng))
