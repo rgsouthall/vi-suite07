@@ -26,7 +26,7 @@ from .vi_func import ret_res_vals, draw_index_distance, selobj, mp2im, move_obs
 from .vi_func import logentry, move_to_coll, cmap, retvpvloc, objmode, skframe, clearscene
 from .vi_func import solarPosition, solarRiseSet, create_coll, create_empty_coll, compass, joinobj, sunpath, sunpath1
 from .livi_func import setscenelivivals, res_interpolate, res_direction
-#from .auvi_func import setsceneauvivals 
+# from .auvi_func import setsceneauvivals
 # from .livi_export import spfc
 from .vi_dicts import res2unit, unit2res
 from . import livi_export
@@ -51,6 +51,8 @@ from PySide6.QtWidgets import QApplication
 try:
     import matplotlib
     matplotlib.use('qtagg', force=True)
+    # from matplotlib import rcParams
+    # rcParams['font.family'] = 'Noto Sans'
     import matplotlib.pyplot as plt
     plt.ion()
     plt.ioff()
@@ -96,15 +98,15 @@ def leg_update(self, context):
     frames = range(svp[params]['fs'], svp[params]['fe'] + 1)
     obs = [o for o in scene.objects if o.vi_params.vi_type_string == type_strings[0]]
     cobs = [o for o in scene.objects if o.vi_params.vi_type_string == type_strings[1]]
-    increment = 1/svp.vi_leg_levels
+    increment = 1 / svp.vi_leg_levels
 
     if svp.vi_leg_scale == '0':
         bins = array([increment * i for i in range(1, svp.vi_leg_levels + 1)])
 
     elif svp.vi_leg_scale == '1':
         slices = logspace(0, 2, svp.vi_leg_levels + 1, True)
-        bins = array([(slices[i] - increment * (svp.vi_leg_levels - i))/100 for i in range(svp.vi_leg_levels + 1)])
-        bins = array([1 - log10(i)/log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
+        bins = array([(slices[i] - increment * (svp.vi_leg_levels - i)) / 100 for i in range(svp.vi_leg_levels + 1)])
+        bins = array([1 - log10(i) / log10(svp.vi_leg_levels + 1) for i in range(1, svp.vi_leg_levels + 2)][::-1])
         bins = bins[1:-1]
 
     for o in obs:
@@ -112,15 +114,15 @@ def leg_update(self, context):
         bm = bmesh.new()
         bm.from_mesh(o.data)
         cmap(self)
-        
+
         if svp.vi_disp_process == '2':
             if o.name[:-3] in [cob.name for cob in cobs]:
-                cob = cobs[[cob.name for cob in cobs].index(o.name[:-3])]                
+                cob = cobs[[cob.name for cob in cobs].index(o.name[:-3])]
                 res_interpolate(scene, context.evaluated_depsgraph_get(), cob, o, plt, svp[params]['offset'])
-        
+
         elif svp.vi_disp_process == '3':
             if o.name[:-3] in [cob.name for cob in cobs]:
-                cob = cobs[[cob.name for cob in cobs].index(o.name[:-3])] 
+                cob = cobs[[cob.name for cob in cobs].index(o.name[:-3])]
                 res_direction(scene, cob, o, svp[params]['offset'])
 
             if len(o.material_slots) != svp.vi_leg_levels:
@@ -130,7 +132,7 @@ def leg_update(self, context):
                         o.material_slots[-1].material = bpy.data.materials[matname]
                 while len(o.material_slots) > svp.vi_leg_levels:
                     bpy.ops.object.material_slot_remove()
-            
+
             for f, frame in enumerate(frames):
                 if disp_menu == 'aga1v':
                     res_name = 'aga{}v{}'.format(svp.vi_views, frame)
@@ -150,13 +152,13 @@ def leg_update(self, context):
                     ovals = array([f[vires] for f in bm.faces])
                 elif bm.verts.layers.float.get(res_name):
                     vires = bm.verts.layers.float[res_name]
-                    ovals = array([sum([vert[vires] for vert in f.verts])/len(f.verts) for f in bm.faces])
+                    ovals = array([sum([vert[vires] for vert in f.verts]) / len(f.verts) for f in bm.faces])
 
                 ovals = array(ret_res_vals(svp, ovals))
 
                 if legmm[1] > legmm[0]:
                     vals = ovals - legmm[0]
-                    vals = vals/(legmm[1] - legmm[0])
+                    vals = vals / (legmm[1] - legmm[0])
                 else:
                     vals = array([legmm[1] for f in bm.faces])
 
@@ -201,13 +203,13 @@ def leg_update(self, context):
                     ovals = array([f[vires] for f in bm.faces])
                 elif bm.verts.layers.float.get(res_name):
                     vires = bm.verts.layers.float[res_name]
-                    ovals = array([sum([vert[vires] for vert in f.verts])/len(f.verts) for f in bm.faces])
+                    ovals = array([sum([vert[vires] for vert in f.verts]) / len(f.verts) for f in bm.faces])
 
                 ovals = array(ret_res_vals(svp, ovals))
 
                 if legmm[1] > legmm[0]:
                     vals = ovals - legmm[0]
-                    vals = vals/(legmm[1] - legmm[0])
+                    vals = vals / (legmm[1] - legmm[0])
                 else:
                     vals = array([legmm[1] for f in bm.faces])
 
@@ -224,7 +226,7 @@ def leg_update(self, context):
                     for fi, fc in enumerate(o.data.animation_data.action.fcurves):
                         fc.keyframe_points[f].co = frame, nmatis[fi]
         bm.free()
-    
+
     try:
         context.space_data.region_3d.view_location[2] += 0.0001
     except Exception as e:
@@ -247,9 +249,10 @@ def leg_min_max(svp):
 def e_update(self, context):
     scene = context.scene
     svp = scene.vi_params
+    sv3dl = svp.vi_disp_3dlevel
     maxo, mino = svp.vi_leg_max, svp.vi_leg_min
     odiff = svp.vi_leg_max - svp.vi_leg_min
-    
+
     if context.active_object and context.active_object.mode == 'EDIT':
         return
 
@@ -284,8 +287,8 @@ def e_update(self, context):
                         faces = [f for f in bm.faces if f[extrude]]
                         fnorms = array([f.normal.normalized() for f in faces]).T
                         fres = array([f[res] for f in faces])
-                        extrudes = (0.1 * svp.vi_disp_3dlevel * (nlog10(maxo * (fres + 1 - mino)/odiff)) * fnorms).T if svp.vi_leg_scale == '1' else \
-                            multiply(fnorms, svp.vi_disp_3dlevel * ((fres - mino)/odiff)).T
+                        extrudes = (0.1 * sv3dl * (nlog10(maxo * (fres + 1 - mino) / odiff)) * fnorms).T if svp.vi_leg_scale == '1' else \
+                            multiply(fnorms, sv3dl * ((fres - mino) / odiff)).T
 
                         for f, face in enumerate(faces):
                             for v in face.verts:
@@ -295,8 +298,7 @@ def e_update(self, context):
                         res = bm.verts.layers.float[res_name]
                         vnorms = array([v.normal.normalized() for v in bm.verts]).T
                         vres = array([v[res] for v in bm.verts])
-                        extrudes = multiply(vnorms, svp.vi_disp_3dlevel * ((vres-mino)/odiff)).T if svp.vi_leg_scale == '0' else \
-                            [0.1 * svp.vi_disp_3dlevel * (log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]
+                        extrudes = multiply(vnorms, svp3dll * ((vres - mino) / odiff)).T if svp.vi_leg_scale == '0' else [0.1 * svp3dl * (log10(maxo * (v[res] + 1 - mino) / odiff)) * v.normal.normalized() for v in bm.verts]
 
                         for v, vert in enumerate(bm.verts):
                             vert[skf] = vert[skb] + mathutils.Vector(extrudes[v])
@@ -312,7 +314,7 @@ def t_update(self, context):
     for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(context.scene.vi_params.vi_leg_levels)]:
         mat.blend_method = 'BLEND'
         mat.diffuse_color[3] = self.id_data.vi_params.vi_disp_trans
-    
+
     cmap(self)
 
 
@@ -338,6 +340,7 @@ def auvires_update(self, context):
         o.vi_params.lividisplay(context.scene)
 
     e_update(self, context)
+
 
 def rendview(i):
     for scrn in bpy.data.screens:
@@ -383,11 +386,11 @@ def li_display(context, disp_op, simnode):
 
     for i, o in enumerate(obcalclist):
         ovp = o.vi_params
-        
+
         if svp.vi_disp_process == "2":
             mesh = bpy.data.meshes.new(f'{o.name}_res')
             ores = bpy.data.objects.new(f'{o.name}_res', mesh)
-            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
+            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name + "res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
             move_to_coll(context, 'LiVi Results', ores)
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
             context.view_layer.objects.active = ores
@@ -401,7 +404,7 @@ def li_display(context, disp_op, simnode):
         elif svp.vi_disp_process == "3":
             mesh = bpy.data.meshes.new(f'{o.name}_res')
             ores = bpy.data.objects.new(f'{o.name}_res', mesh)
-            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
+            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name + "res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
             move_to_coll(context, 'LiVi Results', ores)
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
             selobj(context.view_layer, ores)
@@ -435,7 +438,7 @@ def li_display(context, disp_op, simnode):
 
             for v in bm.verts:
                 v_norm = mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized()
-                v.co += mathutils.Vector([v_norm[i]/abs(o.scale[i]) for i in range(3)]) * simnode['goptions']['offset']
+                v.co += mathutils.Vector([v_norm[i] / abs(o.scale[i]) for i in range(3)]) * simnode['goptions']['offset']
 
             selobj(context.view_layer, o)
             bpy.ops.object.duplicate()
@@ -448,7 +451,7 @@ def li_display(context, disp_op, simnode):
                 return 'CANCELLED'
 
             ores = context.active_object
-            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name+"res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
+            ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name + "res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
             move_to_coll(context, 'LiVi Results', ores)
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
             context.view_layer.objects.active = ores
@@ -496,6 +499,7 @@ def li_display(context, disp_op, simnode):
     bpy.ops.wm.save_mainfile(check_existing=False)
     scene.frame_set(svp['liparams']['fs'])
     rendview(1)
+
 
 class linumdisplay():
     def __init__(self, disp_op, context):
@@ -578,6 +582,7 @@ class linumdisplay():
         scene = context.scene
         vl = context.view_layer
         svp = scene.vi_params
+        svpro = svp.vi_display_rp_off
         self.allpcs, self.alldepths, self.allres = array([]), array([]), array([])
 
         for ob in self.obd:
@@ -623,10 +628,10 @@ class linumdisplay():
                 else:
                     faces = [f for f in geom if f.select]
 
-                distances = [(self.view_location - f.calc_center_median_weighted() + svp.vi_display_rp_off * f.normal.normalized()).length for f in faces]
+                distances = [(self.view_location - f.calc_center_median_weighted() + svpro * f.normal.normalized()).length for f in faces]
 
                 if svp.vi_display_vis_only:
-                    fcos = [f.calc_center_median_weighted() + svp.vi_display_rp_off * f.normal.normalized() for f in faces]
+                    fcos = [f.calc_center_median_weighted() + svpro * f.normal.normalized() for f in faces]
                     direcs = [self.view_location - f for f in fcos]
 
                     try:
@@ -647,13 +652,13 @@ class linumdisplay():
                     res = ret_res_vals(svp, res)
 
             elif bm.verts.layers.float.get('{}{}'.format(var, scene.frame_current)):
-                verts = [v for v in geom if not v.hide and v.select and (context.space_data.region_3d.view_location -
-                         self.view_location).dot(v.co + svp.vi_display_rp_off * v.normal.normalized() - self.view_location) /
-                         ((context.space_data.region_3d.view_location-self.view_location).length * (v.co + svp.vi_display_rp_off * v.normal.normalized() - self.view_location).length) > 0]
-                distances = [(self.view_location - v.co + svp.vi_display_rp_off * v.normal.normalized()).length for v in verts]
+                csdvl = context.space_data.region_3d.view_location
+                svl = self.view_location
+                verts = [v for v in geom if not v.hide and v.select and (csdvl - svl).dot(v.co + svpro * v.normal.normalized() - svl) / ((csdvl - svl).length * (v.co + svpro * v.normal.normalized() - svl).length) > 0]
+                distances = [(svl - v.co + svpro * v.normal.normalized()).length for v in verts]
 
                 if svp.vi_display_vis_only:
-                    vcos = [v.co + svp.vi_display_rp_off * v.normal.normalized() for v in verts]
+                    vcos = [v.co + svpro * v.normal.normalized() for v in verts]
                     direcs = [self.view_location - v for v in vcos]
 
                     try:
@@ -670,7 +675,9 @@ class linumdisplay():
                         (verts, pcs, depths) = ([], [], [])
 
                     res = array([v[livires] for v in verts])
+                    print(res)
                     res = ret_res_vals(svp, res)
+                    
             bm.free()
 
             if len(res):
@@ -679,7 +686,7 @@ class linumdisplay():
                 self.allres = nappend(self.allres, res)
 
         if len(self.alldepths):
-            self.alldepths = self.alldepths/nmin(self.alldepths)
+            self.alldepths = self.alldepths / nmin(self.alldepths)
             draw_index_distance(self.allpcs, self.allres, self.fontmult * svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, self.alldepths)
 
 
@@ -707,7 +714,7 @@ class results_bar():
         self.yoffset = 10
         self.size = 50
         self.isize = self.size - 10
-        self.iyoffset = self.yoffset + (self.size - self.isize)/2
+        self.iyoffset = self.yoffset + (self.size - self.isize) / 2
         self.ixoffset = self.isize + 5
         self.iyoffsetb = self.iyoffset + self.isize
         self.ipos = []
@@ -715,7 +722,7 @@ class results_bar():
         for ii, im in enumerate(images):
             if im not in bpy.data.images:
                 bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Images', im))
-            
+
             self.shaders.append(gpu.shader.from_builtin('IMAGE'))
             pos = self.ret_coords(self.xpos, self.rh, ii)
             self.ipos.append(pos)
@@ -742,7 +749,7 @@ class results_bar():
                 pos = self.ret_coords(self.xpos, rh, i)
                 self.batches.append(batch_for_shader(self.shaders[i + 2], 'TRI_FAN', {"pos": pos, "texCoord": self.tex_coords}))
                 self.ipos.append(pos)
-        
+
         for si, s in enumerate(self.shaders):
             s.bind()
 
@@ -760,7 +767,7 @@ class results_bar():
                     raise Exception()
 
                 s.uniform_sampler("image", texture)
-                #s.uniform_int("image", 0)
+                # s.uniform_int("image", 0)
                 self.batches[si].draw(s)
 
 
@@ -846,7 +853,7 @@ class draw_bsdf(Base_Display):
                 break
 
         selectdat = self.scatdat[self.scat_select].reshape(145, 145)  # if self.scale_select == 'Linear' else nlog10((self.scatdat[self.scat_select] + 1).reshape(145, 145))
-        widths = [0] + [self.uthetas[w]/90 for w in range(9)]
+        widths = [0] + [self.uthetas[w] / 90 for w in range(9)]
         patches, p = [], 0
         sa = repeat(kfsa, self.phis)
         act = repeat(kfact, self.phis)
@@ -854,22 +861,22 @@ class draw_bsdf(Base_Display):
         bg = self.plt.Rectangle((0, 0), 2 * pi, 1, color=mcm.get_cmap(svp.vi_leg_col)((0, 0.01)[svp.vi_bsdfleg_scale == '1']), zorder=0)
 
         for ring in range(1, 10):
-            angdiv = pi/self.phis[ring - 1]
+            angdiv = pi / self.phis[ring - 1]
             anglerange = range(self.phis[ring - 1], 0, -1)  # if self.type_select == 'Transmission' else range(self.phis[ring - 1])
-            ri = widths[ring] - widths[ring-1]
+            ri = widths[ring] - widths[ring - 1]
 
             for wedge in anglerange:
                 phi1, phi2 = wedge * 2 * angdiv - angdiv, (wedge + 1) * 2 * angdiv - angdiv
                 patches.append(Rectangle((phi1, widths[ring - 1]), phi2 - phi1, ri))
 
                 if self.num_disp:
-                    y = 0 if ring == 1 else 0.5 * (widths[ring] + widths[ring-1])
+                    y = 0 if ring == 1 else 0.5 * (widths[ring] + widths[ring - 1])
                     self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center",
                                   va='center', family='sans-serif', size=self.num_disp)
                 p += 1
 
-        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax=svp.vi_bsdfleg_max), cmap=self.col, linewidths=[0] + 144*[0.5],
-                             edgecolors=('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths=[0] + 144*[0.5], edgecolors=('black',))
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=leg_min, vmax=svp.vi_bsdfleg_max), cmap=self.col, linewidths=[0] + 144 * [0.5],
+                             edgecolors=('black',)) if svp.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths=[0] + 144 * [0.5], edgecolors=('black',))
         pc.set_array(patchdat)
         ax.add_collection(pc)
         ax.add_artist(bg)
@@ -890,37 +897,37 @@ class draw_bsdf(Base_Display):
 
             if self.sseg == 1:
                 va_coords = [(0, 0)]
-                va_coords += [(self.radii[self.sr] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180),
-                              self.radii[self.sr] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(720)]
+                va_coords += [(self.radii[self.sr] * cos((x * 0.5 - 360 / (2 * self.segments[self.sr])) * pi / 180),
+                              self.radii[self.sr] * sin((x * 0.5 - 360 / (2 * self.segments[self.sr])) * pi / 180)) for x in range(720)]
                 fa_indices = [(0, x + (1, -719)[x > 0 and not x % 720], x) for x in range(1, 720 + 1)]
             else:
-                va_coords = [(-self.radii[self.sr - 1] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180),
-                              self.radii[self.sr - 1] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(int((self.srs - 1) * 720/self.segments[self.sr]),
-                             int((self.srs) * 720/self.segments[self.sr]) + 1)]
-                va_coords += [(-self.radii[self.sr] * cos((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180),
-                              self.radii[self.sr] * sin((x*0.5 - 360/(2 * self.segments[self.sr]))*pi/180)) for x in range(int((self.srs - 1) * 720/self.segments[self.sr]),
-                              int((self.srs)*720/self.segments[self.sr]) + 1)]
+                va_coords = [(-self.radii[self.sr - 1] * cos((x * 0.5 - 360 / (2 * self.segments[self.sr])) * pi / 180),
+                              self.radii[self.sr - 1] * sin((x * 0.5 - 360 / (2 * self.segments[self.sr])) * pi / 180)) for x in range(int((self.srs - 1) * 720 / self.segments[self.sr]),
+                             int((self.srs) * 720 / self.segments[self.sr]) + 1)]
+                va_coords += [(-self.radii[self.sr] * cos((x * 0.5 - 360 / (2 * self.segments[self.sr])) * pi / 180),
+                              self.radii[self.sr] * sin((x * 0.5 - 360 / (2 * self.segments[self.sr])) * pi / 180)) for x in range(int((self.srs - 1) * 720 / self.segments[self.sr]),
+                              int((self.srs) * 720 / self.segments[self.sr]) + 1)]
 
-                fa_indices = [(x, x+1, int(x+720/self.segments[self.sr] + 1)) for x in range(int(720/self.segments[self.sr]))] + \
-                             [(x-1, x, int(x-720/self.segments[self.sr] - 1)) for x in range(int(720/self.segments[self.sr] + 2), int(1440/self.segments[self.sr] + 2))]
+                fa_indices = [(x, x + 1, int(x + 720 / self.segments[self.sr] + 1)) for x in range(int(720 / self.segments[self.sr]))] + \
+                             [(x - 1, x, int(x - 720 / self.segments[self.sr] - 1)) for x in range(int(720 / self.segments[self.sr] + 2), int(1440 / self.segments[self.sr] + 2))]
 
             fa_colours = [(1, 1, 0.0, 1) for _ in range(len(va_coords))]
 
             for ri, radius in enumerate(self.radii):
                 if ri < 8:
                     for si, s in enumerate(range(self.segments[ri + 1])):
-                        vl_coords += [(radius * cos((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180),
-                                      radius * sin((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180)),
-                                      (self.radii[ri + 1] * cos((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180),
-                                       self.radii[ri + 1] * sin((360/self.segments[ri + 1] * si + 360/(2 * self.segments[ri + 1])) * pi/180))]
+                        vl_coords += [(radius * cos((360 / self.segments[ri + 1] * si + 360 / (2 * self.segments[ri + 1])) * pi / 180),
+                                      radius * sin((360 / self.segments[ri + 1] * si + 360 / (2 * self.segments[ri + 1])) * pi / 180)),
+                                      (self.radii[ri + 1] * cos((360 / self.segments[ri + 1] * si + 360 / (2 * self.segments[ri + 1])) * pi / 180),
+                                       self.radii[ri + 1] * sin((360 / self.segments[ri + 1] * si + 360 / (2 * self.segments[ri + 1])) * pi / 180))]
 
-                vl_coords1 = [[radius * cos((x*0.5 - 360/(2 * self.segments[ri]))*pi/180), radius * sin((x*0.5 - 360/(2 * self.segments[ri]))*pi/180)] for x in range(720)]
-                vl_coords2 = [[radius * cos(((x*0.5 + 0.5) - 360/(2 * self.segments[ri]))*pi/180), radius * sin(((x*0.5 + 0.5) - 360/(2 * self.segments[ri]))*pi/180)] for x in range(720)]
+                vl_coords1 = [[radius * cos((x * 0.5 - 360 / (2 * self.segments[ri])) * pi / 180), radius * sin((x * 0.5 - 360 / (2 * self.segments[ri])) * pi / 180)] for x in range(720)]
+                vl_coords2 = [[radius * cos(((x * 0.5 + 0.5) - 360 / (2 * self.segments[ri])) * pi / 180), radius * sin(((x * 0.5 + 0.5) - 360 / (2 * self.segments[ri])) * pi / 180)] for x in range(720)]
                 vl_coordstot = list(zip(vl_coords1, vl_coords2))
                 vl_coords += [item for sublist in vl_coordstot for item in sublist]
                 v_coords += vl_coords1
 
-            f_indices = [(0, x + (1, -719)[x > 0 and not x % 720], x) for x in range(1, 720*9 + 1)][::-1]
+            f_indices = [(0, x + (1, -719)[x > 0 and not x % 720], x) for x in range(1, 720 * 9 + 1)][::-1]
             return (vl_coords, v_coords, f_indices, va_coords, fa_colours, fa_indices)
 
     def create_batch(self, sel):
@@ -994,7 +1001,9 @@ class draw_bsdf(Base_Display):
             self.image_shader = gpu.shader.from_builtin('IMAGE')
             self.vi2_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1])]
             self.image_batch = batch_for_shader(self.image_shader, 'TRI_FAN', {"pos": self.vi2_coords, "texCoord": self.tex_coords})
-            self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
+            self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]),
+                               (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]),
+                               (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
             self.iimage_shader = gpu.shader.from_builtin('IMAGE')
             self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"pos": self.vi3_coords, "texCoord": self.tex_coords})
             self.back_batch = batch_for_shader(self.back_shader, 'TRIS', {"position": b_coords, "colour": b_colours}, indices=b_indices)
@@ -1021,8 +1030,12 @@ class draw_bsdf(Base_Display):
                 raise Exception()
 
             self.iimage_shader.uniform_sampler("image", texture)
-            self.vi2_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1] + self.isize[1]), (self.lspos[0] + self.isize[0], self.lspos[1])]
-            self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]), (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
+            self.vi2_coords = [(self.lspos[0], self.lspos[1]), (self.lspos[0], self.lspos[1] + self.isize[1]),
+                               (self.lspos[0] + self.isize[0], self.lspos[1] + self.isize[1]),
+                               (self.lspos[0] + self.isize[0], self.lspos[1])]
+            self.vi3_coords = [(self.lspos[0] + 50, self.lepos[1] - 280), (self.lspos[0] + 50, self.lepos[1] - 280 + self.iisize[1]),
+                               (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280 + self.iisize[1]),
+                               (self.lspos[0] + 50 + self.iisize[0], self.lepos[1] - 280)]
             self.iimage_batch = batch_for_shader(self.iimage_shader, 'TRI_FAN', {"pos": self.vi3_coords, "texCoord": self.tex_coords})
             self.iimage_batch.draw(self.iimage_shader)
             self.arc_shader.bind()
@@ -1073,9 +1086,9 @@ class wr_legend(Base_Display):
             svp.vi_display = 0
             return
 
-        self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
+        self.resvals = ['{0:.0f} - {1:.0f}'.format(2 * i, 2 * (i + 1)) for i in range(simnode['nbins'])]
         self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"
-        blf.size(self.font_id, 12 * self.dpi/72)
+        blf.size(self.font_id, 12 * self.dpi / 72)
         self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
         self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
         self.mydimen = blf.dimensions(self.font_id, self.unit)[1]
@@ -1110,23 +1123,23 @@ class wr_legend(Base_Display):
             self.line_shader.uniform_float("spos", self.lspos)
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
             self.line_batch.draw(self.line_shader)
-            fontscale = max(self.titxdimen/(self.xdiff * 0.9), self.resxdimen/(self.xdiff * 0.65), self.mydimen * 1.25/(self.lh * self.ydiff))
+            fontscale = max(self.titxdimen / (self.xdiff * 0.9), self.resxdimen / (self.xdiff * 0.65), self.mydimen * 1.25 / (self.lh * self.ydiff))
             blf.enable(self.font_id, 4)
             blf.enable(self.font_id, 8)
             # blf.shadow(self.font_id, 3, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, 12 * int(self.dpi/fontscale*72))
+            blf.size(self.font_id, 12 * int(self.dpi / fontscale * 72))
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
                          self.lepos[1] - 0.5 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, self.unit)[1] * 0.3, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
             # blf.shadow(self.font_id, 3, 0.8, 0.8, 0.8, 1)
-            blf.size(self.font_id, 14* int(self.dpi/fontscale*72))
+            blf.size(self.font_id, 14 * int(self.dpi / fontscale * 72))
 
             for i in range(self.levels):
                 num = self.resvals[i]
                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
                 blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]),
-                             int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1])*0.55), 0)
+                             int(self.lspos[1] + i * self.lh * self.ydiff) + int((self.lh * self.ydiff - ndimen[1]) * 0.55), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
 
             blf.disable(self.font_id, 8)
@@ -1195,7 +1208,7 @@ class wr_legend(Base_Display):
         self.col_shader = gpu.shader.create_from_info(col_shader)
         v_coords = [(0, 0), (0, 1), (1, 1), (1, 0)]
         f_indices = [(0, 1, 2), (2, 3, 0)]
-        lh = 1/(self.levels + 1.25)
+        lh = 1 / (self.levels + 1.25)
         vl_coords = v_coords
         f_indices = [(0, 1, 2), (2, 3, 0)]
         fl1_indices = [tuple(array((0, 1, 2)) + 4 * i) for i in range(self.levels)]
@@ -1266,10 +1279,10 @@ class wr_table(Base_Display):
         vl_coords = v_coords
         rno = len(self.rcarray)
         cno = len(self.rcarray[0])
-        rh = 1/rno
-        blf.size(0, 24*300/72)
+        rh = 1 / rno
+        blf.size(0, 24 * 300 / 72)
         ctws = array([int(max([blf.dimensions(0, 'u{}'.format(e))[0] for e in entry])) for entry in self.rcarray.T])
-        ctws = ctws/sum(ctws)
+        ctws = ctws / sum(ctws)
         ctws = [sum(ctws[:i]) for i in range(4)] + [1]
 
         for ci in range(cno):
@@ -1319,27 +1332,27 @@ class wr_table(Base_Display):
             blf.enable(fid, 4)
             blf.enable(fid, 8)
             # blf.shadow(self.font_id, 5, 0.7, 0.7, 0.7, 1)
-            blf.size(fid, 24*300/72)
+            blf.size(fid, 24 * 300 / 72)
             rcshape = self.rcarray.shape
             [rowno, colno] = self.rcarray.shape
             ctws = array([int(max([blf.dimensions(fid, '{}'.format(e))[0] for e in entry])) for entry in self.rcarray.T])
-            ctws = self.xdiff * ctws/sum(ctws)
+            ctws = self.xdiff * ctws / sum(ctws)
             ctws = [sum(ctws[:i]) for i in range(4)] + [self.xdiff]
-            ctws = [sum(ctws[i:i+2])/2 for i in range(4)]
+            ctws = [sum(ctws[i:i + 2]) / 2 for i in range(4)]
             coltextwidths = array([int(max([blf.dimensions(fid, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
-            colscale = sum(coltextwidths)/(self.xdiff * 0.98)
+            colscale = sum(coltextwidths) / (self.xdiff * 0.98)
             maxrowtextheight = max([max([blf.dimensions(fid, '{}'.format(e))[1] for e in entry if e]) for entry in self.rcarray.T])
-            rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
-            rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.025)
-            rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
+            rowtextheight = maxrowtextheight + 0.1 * self.ydiff / rowno
+            rowscale = (rowno * rowtextheight) / (self.ydiff - self.xdiff * 0.025)
+            rowheight = int((self.ydiff - self.xdiff * 0.01) / rowno)
             rowtops = [int(self.lepos[1] - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
             rowbots = [int(self.lepos[1] - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
             rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
 
             if abs(max(colscale, rowscale) - 1) > 0.05:
-                self.fontdpi = int(280/max(colscale, rowscale))
+                self.fontdpi = int(280 / max(colscale, rowscale))
 
-            blf.size(fid, 24 * self.fontdpi/72)
+            blf.size(fid, 24 * self.fontdpi / 72)
             blf.color(fid, 0, 0, 0, 1)
 
             for r in range(rcshape[0]):
@@ -1373,7 +1386,7 @@ class draw_legend(Base_Display):
 
         if svp.li_disp_menu != 'None':
             self.levels = svp.vi_leg_levels
-            self.lh = 1/(self.levels + 1.5)
+            self.lh = 1 / (self.levels + 1.5)
             self.cao = context.active_object
             self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
             (self.minres, self.maxres) = leg_min_max(svp)
@@ -1387,8 +1400,8 @@ class draw_legend(Base_Display):
                 return
 
             dplaces = retdp(self.maxres, 1)
-            resvals = [format(self.minres + i*(resdiff)/self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
-                      [format(self.minres + (1 - log10(i)/log10(self.levels + 1))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
+            resvals = [format(self.minres + i * (resdiff) / self.levels, '.{}f'.format(dplaces)) for i in range(self.levels + 1)] if self.scale == '0' else \
+                      [format(self.minres + (1 - log10(i) / log10(self.levels + 1)) * (resdiff), '.{}f'.format(dplaces)) for i in range(1, self.levels + 2)[::-1]]
 
             if svp.vi_res_process == '2' and 'restext' in bpy.app.driver_namespace.keys():
                 self.resvals = [''] + bpy.app.driver_namespace.get('restext')()
@@ -1398,13 +1411,13 @@ class draw_legend(Base_Display):
                 self.resvals = ['{0}'.format(resvals[i]) for i in range(self.levels + 1)]
 
             self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(5)][:-1]
-            blf.size(self.font_id, 12 * self.dpi/72)
+            blf.size(self.font_id, 12 * self.dpi / 72)
             self.titxdimen = blf.dimensions(self.font_id, self.unit)[0]
             self.resxdimen = blf.dimensions(self.font_id, self.resvals[-1])[0]
             self.mydimen = blf.dimensions(self.font_id, 'M')[1]
 
     def ret_coords(self):
-        lh = 1/(self.levels + 1.5)
+        lh = 1 / (self.levels + 1.5)
         vl_coords = []
         fl1_indices = [tuple(array((0, 1, 2)) + 5 * i) for i in range(self.levels)]
         fl2_indices = [tuple(array((2, 3, 4)) + 5 * i) for i in range(self.levels - 1)]
@@ -1413,9 +1426,9 @@ class draw_legend(Base_Display):
 
         for i in range(0, self.levels):
             if i < self.levels - 1:
-                vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.45, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
+                vl_coords += [(0.05, (i + 0.2) * lh), (0.4, (i + 0.2) * lh), (0.4, ((i + 0.2) + 1) * lh), (0.45, ((i + 0.2) + 1) * lh), (0.05, ((i + 0.2) + 1) * lh)]
             else:
-                vl_coords += [(0.05, (i+0.2) * lh), (0.4, (i+0.2) * lh), (0.4, ((i+0.2) + 1) * lh), (0.05, ((i+0.2) + 1) * lh)]
+                vl_coords += [(0.05, (i + 0.2) * lh), (0.4, (i + 0.2) * lh), (0.4, ((i + 0.2) + 1) * lh), (0.05, ((i + 0.2) + 1) * lh)]
 
         return (vl_coords, fl_indices)
 
@@ -1465,23 +1478,23 @@ class draw_legend(Base_Display):
             self.line_shader.uniform_float("spos", self.lspos)
             self.line_shader.uniform_float("colour", (0, 0, 0, 1))
             self.line_batch.draw(self.line_shader)
-            tfontscale = max(self.titxdimen/(self.xdiff * 0.95), self.mydimen * 1.15/(self.lh * self.ydiff))
+            tfontscale = max(self.titxdimen / (self.xdiff * 0.95), self.mydimen * 1.15 / (self.lh * self.ydiff))
             blf.enable(self.font_id, 4)
             blf.enable(self.font_id, 8)
             blf.enable(self.font_id, blf.SHADOW)
             blf.shadow(self.font_id, 3, 0.7, 0.7, 0.7, 1)
-            blf.size(self.font_id, int(12/tfontscale) * self.dpi/72)
+            blf.size(self.font_id, int(12 / tfontscale) * self.dpi / 72)
             blf.position(self.font_id, self.lspos[0] + (self.xdiff - blf.dimensions(self.font_id, self.unit)[0]) * 0.45,
                          self.lepos[1] - 0.55 * (self.lh * self.ydiff) - blf.dimensions(self.font_id, 'M')[1] * 0.5, 0)
             blf.color(self.font_id, 0, 0, 0, 1)
             blf.draw(self.font_id, self.unit)
-            lfontscale = max(self.resxdimen/(self.xdiff * 0.45), self.mydimen * 1.15/(self.lh * self.ydiff))
-            blf.size(self.font_id, int(11/lfontscale) * self.dpi/72)
+            lfontscale = max(self.resxdimen / (self.xdiff * 0.45), self.mydimen * 1.15 / (self.lh * self.ydiff))
+            blf.size(self.font_id, int(11 / lfontscale) * self.dpi / 72)
 
             for i in range(1, self.levels):
                 num = self.resvals[i]
                 ndimen = blf.dimensions(self.font_id, "{}".format(num))
-                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + (i + 0.25) * self.lh * self.ydiff - ndimen[1]*0.5), 0)
+                blf.position(self.font_id, int(self.lepos[0] - self.xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + (i + 0.25) * self.lh * self.ydiff - ndimen[1] * 0.5), 0)
                 blf.draw(self.font_id, "{}".format(self.resvals[i]))
 
             blf.disable(self.font_id, blf.SHADOW)
@@ -1613,7 +1626,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for hour in range(1, 25):
             for doy in range(0, 365, 2):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
-                coord = Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)])
+                coord = Vector([-(sd - (sd - (sd * cos(solalt)))) * sin(solazi), -(sd - (sd - (sd * cos(solalt)))) * cos(solazi), sd * sin(solalt)])
                 coords.append(coord)
                 if d % 183 == 0:
                     breaks.append(1)
@@ -1623,8 +1636,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for doy in (79, 172, 355):
             for hour in range(1, 241):
-                ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
-                coord = Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)])
+                ([solalt, solazi]) = solarPosition(doy, hour * 0.1, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
+                coord = Vector([-(sd - (sd - (sd * cos(solalt)))) * sin(solazi), -(sd - (sd - (sd * cos(solalt)))) * cos(solazi), sd * sin(solalt)])
                 coords.append(coord)
                 breaks.append(2)
 
@@ -1635,10 +1648,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     if hour in (120, 240):
                         wincoords.append(coord)
 
-        self.summid = (sumcoords[0]+sumcoords[1])/2
-        self.winmid = (wincoords[0]+wincoords[1])/2
-        self.sumnorm = mathutils.Matrix().Rotation(pi/2, 4, 'X')@mathutils.Vector([0] + list((sumcoords[0]-sumcoords[1])[1:])).normalized()
-        self.winnorm = mathutils.Matrix().Rotation(pi/2, 4, 'X')@mathutils.Vector([0] + list((wincoords[0]-wincoords[1])[1:])).normalized()
+        self.summid = (sumcoords[0] + sumcoords[1]) / 2
+        self.winmid = (wincoords[0] + wincoords[1]) / 2
+        self.sumnorm = mathutils.Matrix().Rotation(pi / 2, 4, 'X') @ mathutils.Vector([0] + list((sumcoords[0] - sumcoords[1])[1:])).normalized()
+        self.winnorm = mathutils.Matrix().Rotation(pi / 2, 4, 'X') @ mathutils.Vector([0] + list((wincoords[0] - wincoords[1])[1:])).normalized()
 
         for a, b in zip(coords[:-1], coords[1:]):
             line_lengths.append(line_lengths[-1] + (a - b).length)
@@ -1890,16 +1903,16 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     for hour in range(24):
                         ([solalt, solazi]) = solarPosition(doy, hour, svp.latitude, svp.longitude)[2:]
                         if solalt > 0:
-                            coords['{}-{}'.format(str(doy), str(hour))] = (Vector([-(sd-(sd-(sd*cos(solalt))))*sin(solazi),
-                                                                                   -(sd-(sd-(sd*cos(solalt))))*cos(solazi),
-                                                                                   sd*sin(solalt)]))
+                            coords['{}-{}'.format(str(doy), str(hour))] = (Vector([-(sd - (sd - (sd * cos(solalt)))) * sin(solazi),
+                                                                                   -(sd - (sd - (sd * cos(solalt)))) * cos(solazi),
+                                                                                   sd * sin(solalt)]))
 
                 for co in coords:
                     dists.append((vl - coords[co]).length)
-                    hs.append(str(int(co.split('-')[1]))+':00')
+                    hs.append(str(int(co.split('-')[1])) + ':00')
                     pos.append(view3d_utils.location_3d_to_region_2d(context.region,
                                                                      context.region_data,
-                                                                     ob_mat@coords[co]))
+                                                                     ob_mat @ coords[co]))
 
                 if pos:
                     draw_index(pos, hs, dists, svp.vi_display_rp_fs, svp.vi_display_rp_fc, svp.vi_display_rp_fsh, hour=1)
@@ -1908,7 +1921,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun' and ob.parent == spob]
 
                 if sobs and svp.sp_td:
-                    sunloc = ob_mat@sobs[0].location
+                    sunloc = ob_mat @ sobs[0].location
                     solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
 
                     try:
@@ -1917,7 +1930,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                             soltime += datetime.timedelta(hours=svp.sp_sh)
                             sre = sobs[0].rotation_euler
                             blf_props(scene, width, height)
-                            sol_text = soltime.strftime('     %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi)
+                            sol_text = soltime.strftime('     %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0] * 180 / pi, (180, -180)[sre[2] < -pi] - sre[2] * 180 / pi)
                             draw_time(solpos, sol_text, svp.vi_display_rp_fs,
                                       svp.vi_display_rp_fc, svp.vi_display_rp_fsh)
 
@@ -1977,16 +1990,16 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
                 startset = morn if lat >= 0 else eve
                 angrange = [startset + a * 0.0125 * mornevediff for a in range(0, 81)]
-                bm.verts.new().co = (97*sin(angrange[0]*pi/180), 97*cos(angrange[0]*pi/180), param[1])
+                bm.verts.new().co = (97 * sin(angrange[0] * pi / 180), 97 * cos(angrange[0] * pi / 180), param[1])
 
                 for a in angrange[1:-1]:
-                    bm.verts.new().co = (95*sin(a*pi/180), 95*cos(a*pi/180), param[1])
+                    bm.verts.new().co = (95 * sin(a * pi / 180), 95 * cos(a * pi / 180), param[1])
 
-                bm.verts.new().co = (97*sin(angrange[len(angrange) - 1]*pi/180), 97*cos(angrange[len(angrange) - 1]*pi/180), param[1])
+                bm.verts.new().co = (97 * sin(angrange[len(angrange) - 1] * pi / 180), 97 * cos(angrange[len(angrange) - 1] * pi / 180), param[1])
                 angrange.reverse()
 
                 for b in angrange[1:-1]:
-                    bm.verts.new().co = (99*sin(b*pi/180), 99*cos(b*pi/180), param[1])
+                    bm.verts.new().co = (99 * sin(b * pi / 180), 99 * cos(b * pi / 180), param[1])
 
                 bm.verts.ensure_lookup_table()
                 face = bm.faces.new((bm.verts[0 + 160 * param[2]], bm.verts[1 + 160 * param[2]], bm.verts[159 + 160 * param[2]]))
@@ -2078,7 +2091,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 if spathob.name in scene.collection.objects:
                     scene.collection.objects.unlink(spathob)
 
-            spathob.location, spathob.name,  spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
+            spathob.location, spathob.name, spathob['VIType'] = (0, 0, 0), "SPathMesh", "SPathMesh"
             selobj(context.view_layer, spathob)
             joinobj(context.view_layer, [spathob])
             spathob.visible_diffuse, spathob.visible_shadow, spathob.visible_glossy, spathob.visible_transmission, spathob.visible_volume_scatter = [False] * 5
@@ -2103,9 +2116,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         sunpath(context)
 
         if context.screen:
-                for a in context.screen.areas:
-                    if a.type == 'VIEW_3D':
-                        a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.5
+            for a in context.screen.areas:
+                if a.type == 'VIEW_3D':
+                    a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.5
 
         self.suns = [sun for sun in scene.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
@@ -2204,7 +2217,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             mx, my = event.mouse_region_x, event.mouse_region_y
 
-            for w, window in enumerate((self.legend, self.table)):             
+            for w, window in enumerate((self.legend, self.table)):
                 if self.results_bar.ipos[w][0][0] < mx < self.results_bar.ipos[w][1][0] and self.results_bar.ipos[w][0][1] < my < self.results_bar.ipos[w][2][1]:
                     window.hl = (0.8, 0.8, 0.8, 0.8)
                     redraw = 1
@@ -2291,7 +2304,7 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'svf'
         svp['viparams']['drivers'] = ['svf']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        
+
         if li_display(context, self, self.simnode) == 'CANCELLED':
             logentry('No result geometry present or visible')
             self.report({'ERROR'}, "No result geometry present or visible")
@@ -2301,10 +2314,10 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.results_bar = results_bar(('legend.png',))
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
         self.legend = draw_legend(context, 'Sky View (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
-        
+
         if svp.vi_disp_process != '2':
             self.legend_num = linumdisplay(self, context)
-        
+
         self.height = r5h - r0h
         self.draw_handle_svfnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_svfnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["svf"] = self.draw_handle_svfnum
@@ -2320,10 +2333,10 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         try:
             self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
-            
+
             if svp.vi_disp_process != '2':
                 self.legend_num.draw(context)
-                
+
         except Exception:
             svp.vi_display = 0
 
@@ -2335,10 +2348,10 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'svf' or not context.area:
             svp.vi_display = 0
             move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
-            
+
             try:
                 context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 1
-            except:
+            except Exception:
                 pass
 
             if context.area:
@@ -2420,7 +2433,7 @@ class VIEW3D_OT_RTDisplay(bpy.types.Operator):
         svp['viparams']['vidisp'] = 'rt'
         svp['viparams']['drivers'] = ['rt']
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        
+
         if li_display(context, self, self.simnode) == 'CANCELLED':
             logentry('No result geometry present or visible')
             self.report({'ERROR'}, "No result geometry present or visible")
@@ -2430,10 +2443,10 @@ class VIEW3D_OT_RTDisplay(bpy.types.Operator):
         self.results_bar = results_bar(('legend.png',))
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
         self.legend = draw_legend(context, 'RT60 (%)', legend_icon_pos, r2w, r5h - r0h, 100, 400, 20)
-        
+
         if svp.vi_disp_process != '2':
             self.legend_num = linumdisplay(self, context)
-        
+
         self.height = r5h - r0h
         self.draw_handle_rtnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_rtnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["rt"] = self.draw_handle_rtnum
@@ -2452,7 +2465,7 @@ class VIEW3D_OT_RTDisplay(bpy.types.Operator):
 
             if svp.vi_disp_process != '2':
                 self.legend_num.draw(context)
- 
+
         except Exception as e:
             logentry(f'Problem with number display: {e}')
             svp.vi_display = 0
@@ -2465,10 +2478,10 @@ class VIEW3D_OT_RTDisplay(bpy.types.Operator):
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'rt' or not context.area:
             svp.vi_display = 0
             move_obs(context.scene.collection, bpy.data.collections['LiVi Results'], 'LiVi Res')
-            
+
             try:
                 context.view_layer.layer_collection.children[self.livi_coll.name].exclude = 1
-            except:
+            except Exception:
                 pass
 
             if context.area:
@@ -2562,13 +2575,13 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.xtitle = 'Days'
         self.ytitle = 'Hours'
         self.simnode = bpy.data.node_groups[svp['viparams']['restree']].nodes[svp['viparams']['resnode']]
-        
+
         if li_display(context, self, self.simnode) == 'CANCELLED':
             logentry('No result geometry present or visible')
             self.report({'ERROR'}, "No result geometry present or visible")
             svp.vi_display = 0
             return {'CANCELLED'}
-        
+
         self.images = ('legend.png', )
         self.results_bar = results_bar(self.images)
         legend_icon_pos = self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0]
@@ -2576,8 +2589,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
         if svp.vi_disp_process != '2':
             self.num_display = linumdisplay(self, context)
+            svp.vi_disp_wire = 1
+        else:
+            svp.vi_disp_wire = 0
 
-        svp.vi_disp_wire = 1
         self.draw_handle_ssnum = bpy.types.SpaceView3D.draw_handler_add(self.draw_ssnum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["ss"] = self.draw_handle_ssnum
         context.window_manager.modal_handler_add(self)
@@ -2755,12 +2770,12 @@ class VIEW3D_OT_Li_DBSDF(bpy.types.Operator):
                         if dist <= radius:
                             redraw = 1
                             mring = self.bsdf.radii.index(radius)
-                            mangle = atan2(-my + (self.bsdf.lepos[1] - 155), mx - (self.bsdf.lspos[0] + 50 + 125)) + pi + pi/self.bsdf.segments[mring]
+                            mangle = atan2(-my + (self.bsdf.lepos[1] - 155), mx - (self.bsdf.lspos[0] + 50 + 125)) + pi + pi / self.bsdf.segments[mring]
 
                             if mring == 0:
                                 ms = 1
                             else:
-                                ms = int(mangle*self.bsdf.segments[mring]/(2*pi)) + 1 if int(mangle*self.bsdf.segments[mring]/(2*pi)) < self.bsdf.segments[mring] else 1
+                                ms = int(mangle * self.bsdf.segments[mring] / (2 * pi)) + 1 if int(mangle * self.bsdf.segments[mring] / (2 * pi)) < self.bsdf.segments[mring] else 1
 
                             msegment = sum([self.bsdf.segments[ri] for ri in range(mring)]) + ms
                             break
@@ -2929,7 +2944,7 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
         (r0h, r2w, r5h) = ret_dcoords(context)
         self.scene = context.scene
         svp = context.scene.vi_params
-        svp.vi_display, svp.vi_disp_wire = 1, 1
+        svp.vi_display = 1
         clearscene(context, self)
         svp['viparams']['vidisp'] = 'li'
         svp['viparams']['drivers'] = ['li']
@@ -2949,10 +2964,13 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
             return {'CANCELLED'}
 
         self.legend = draw_legend(context, svp['liparams']['unit'], self.results_bar.ret_coords(r2w, r5h - r0h, 0)[0], r2w, r5h - r0h, 75, 400, 20)
-        
+
         if svp.vi_disp_process != '2':
             self.legend_num = linumdisplay(self, context)
-        
+            svp.vi_disp_wire = 1
+        else:
+            svp.vi_disp_wire = 0
+
         self.draw_handle_linum = bpy.types.SpaceView3D.draw_handler_add(self.draw_linum, (context, ), 'WINDOW', 'POST_PIXEL')
         bpy.app.driver_namespace["li"] = self.draw_handle_linum
         context.window_manager.modal_handler_add(self)
@@ -2961,11 +2979,11 @@ class VIEW3D_OT_Li_BD(bpy.types.Operator):
     def draw_linum(self, context):
         (r0h, r2w, r5h) = ret_dcoords(context)
         svp = context.scene.vi_params
-        
+
         try:
             self.results_bar.draw(r2w, r5h - r0h)
             self.legend.draw(context)
-            
+
             if svp.vi_disp_process != '2':
                 self.legend_num.draw(context)
 
@@ -3026,8 +3044,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             ipwidth, ipheight = dim[0], dim[1]
 
             if imname not in [im.name for im in bpy.data.images]:
-                bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True,
-                                generated_type='BLANK', float=False, use_stereo_3d=False)
+                bpy.ops.image.new(name=imname, width=ipwidth, height=ipheight, color=(0, 0, 0, 0), alpha=True, generated_type='BLANK', float=False, use_stereo_3d=False)
                 im = bpy.data.images[imname]
                 im.colorspace_settings.name = 'sRGB'
 
@@ -3043,7 +3060,7 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
                 if im.size[:] != (ipwidth, ipheight):
                     im.scale(ipwidth, ipheight)
 
-            im.pixels.foreach_set((arr/255))
+            im.pixels.foreach_set((arr / 255))
             im.scale(int(dim[0]), int(dim[1]))
             area = context.area
             t = area.type
@@ -3061,10 +3078,9 @@ class NODE_OT_Vi_Info(bpy.types.Operator):
             with context.temp_override(window=win, area=win.screen.areas[0]):
                 bpy.ops.image.view_zoom_ratio(ratio=1)
 
-            area.type = t
+            area.ui_type = 'ViN'
+
         else:
             self.report({'ERROR'}, "No image data")
             return {'CANCELLED'}
         return {'FINISHED'}
-
-

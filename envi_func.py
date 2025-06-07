@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, mathutils, colorsys, os, bmesh
+import bpy, mathutils, colorsys, os, bmesh, datetime
 from collections import OrderedDict
 from numpy import arange, array
 from numpy import sum as nsum
@@ -30,15 +30,15 @@ def epschedwrite(name, stype, ts, fs, us):
     paramvs = [name, stype]
 
     for t in range(len(ts)):
-        params.append('Field {}'.format(len(params)-2))
+        params.append('Field {}'.format(len(params) - 2))
         paramvs .append(ts[t])
 
         for f in range(len(fs[t])):
-            params.append('Field {}'.format(len(params)-2))
+            params.append('Field {}'.format(len(params) - 2))
             paramvs.append(fs[t][f])
 
             for u in range(len(us[t][f])):
-                params.append('Field {}'.format(len(params)-2))
+                params.append('Field {}'.format(len(params) - 2))
                 paramvs.append(us[t][f][u][0])
 
     return epentry('Schedule:Compact', params, paramvs)
@@ -68,8 +68,10 @@ def get_mat(node, ee):
             break
     return material
 
+
 def get_base():
     return [mat.vi_params.envi_nodes.name for mat in bpy.data.materials if mat.vi_params.get('envi_nodes') and get_con_node(mat.vi_params).envi_con_proxy == '0']
+
 
 def get_con_node(mvp):
     if mvp.get('envi_nodes'):
@@ -125,11 +127,11 @@ def boundpoly(obj, emnode, poly, enng):
                 bmat = bobj.material_slots[bpoly.material_index].material
 
                 if emnode.ret_uv() != get_con_node(bmat.vi_params).ret_uv():
-                    logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {1} construction takes precedence'.format(mat.name+'_'+str(poly.index),
-                                                                                                                                           insock.links[0].to_node.zone+'_'+str(bpoly.index)))
+                    logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {1} construction takes precedence'.format(f'{mat.name}_{poly.index}',
+                                                                                                                                                                                                                          f'{insock.links[0].to_node.zone}_{bpoly.index}'))
                     return (('', '', '', ''))
                 else:
-                    return (("Surface", insock.links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+                    return (("Surface", f'{insock.links[0].from_node.zone}_{bpoly.index}', "NoSun", "NoWind"))
 
                 if len(poly.vertices) != len(bpoly.vertices):
                     logentry(f'Boundary surfaces {obj.name}-{poly.index} and {bobj.name}-{bpoly.index} vertices do not match. Made adiabatic')
@@ -141,11 +143,11 @@ def boundpoly(obj, emnode, poly, enng):
                 bmat = bobj.data.materials[bpoly.material_index]
 
                 if emnode.ret_uv() != get_con_node(bmat.vi_params).ret_uv():
-                    logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {0} construction takes precedence'.format(mat.name+'_'+str(poly.index),
-                                                                                                                                           outsock.links[0].to_node.zone+'_'+str(bpoly.index)))
+                    logentry('U-values of the paired boundary surfaces {0} and {1} do not match. {0} construction takes precedence'.format(f'{mat.name}_{poly.index}',
+                                                                                                                                                                                                                           f'{outsock.links[0].to_node.zone}_{bpoly.index}'))
                     return (("Zone", bobj.name, "NoSun", "NoWind"))
                 else:
-                    return (("Surface", outsock.links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+                    return (("Surface", f'{outsock.links[0].to_node.zone}_{bpoly.index}', "NoSun", "NoWind"))
 
             else:
                 return (("Adiabatic", "", "NoSun", "NoWind"))
@@ -251,7 +253,7 @@ def envilres(scene, resnode):
                 for frame in range(scene.frame_start, scene.frame_end + 1):
                     scene.frame_set(frame)
                     fcone.rotation_euler = fcone.rotation_euler.to_matrix().inverted().to_euler()
-                    fcone.scale = [10*float(fcone['envires']['flow'][frame]) for i in range(3)]
+                    fcone.scale = [10 * float(fcone['envires']['flow'][frame]) for i in range(3)]
                     fcone.keyframe_insert(data_path='scale', frame=frame)
                     fcone.keyframe_insert(data_path='rotation_euler', frame=frame)
 
@@ -278,7 +280,7 @@ def envizres(scene, eresobs, resnode, restype):
 
     for eo in eresobs:
         o = bpy.data.objects[eo[3:]]
-        opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
+        opos = o.matrix_world * mathutils.Vector([sum(ops) / 8 for ops in zip(*o.bound_box)])
 
         if not any([oc['VIType'] == 'envi_{}'.format(restype.lower()) for oc in o.children if oc.get('VIType')]):
             if scene.en_disp == '1':
@@ -317,7 +319,7 @@ def envizres(scene, eresobs, resnode, restype):
             bpy.context.object.data.extrude = 0.005
             bpy.ops.object.material_slot_add()
             txt.parent = ores
-            txt.location, txt.scale = (0, 0, 0), (ores.scale[0]*2, ores.scale[1]*2, 1)
+            txt.location, txt.scale = (0, 0, 0), (ores.scale[0] * 2, ores.scale[1] * 2, 1)
             txt.data.align_x, txt.data.align_y = 'CENTER', 'CENTER'
             txt.name = '{}_{}_text'.format(o.name, restype)
             tmat = bpy.data.materials.new(name='{}'.format(txt.name))
@@ -349,8 +351,8 @@ def envizres(scene, eresobs, resnode, restype):
         txt.data.body = "{:.1f}{}".format(ores[resstring][restype][0], resdict[restype][3]) if restype not in ('SHG', 'CO2') else "{:.0f}{}".format(ores[resstring][restype][0], resdict[restype][2])
 
         if maxval - minval:
-            scalevel = [(vals[frame] - minval)/(maxval - minval) for frame in range(0, len(vals))] if maxval - minval else [0] * len(vals)
-            colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[vi])/(maxval - minval), 1, 1) for vi in range(len(vals))]
+            scalevel = [(vals[frame] - minval) / (maxval - minval) for frame in range(0, len(vals))] if maxval - minval else [0] * len(vals)
+            colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[vi]) / (maxval - minval), 1, 1) for vi in range(len(vals))]
         else:
             scalevel = colval = [0] * len(vals)
 
@@ -416,7 +418,7 @@ def enparametric(self, context):
 
 
 def retrmenus(innode, node, axis, zrl):
-    ftype = [(frame, frame, "Plot "+frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']
+    ftype = [(frame, frame, "Plot " + frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']
     frame = 'All' if node.parametricmenu == '1' and len(ftype) > 1 else zrl[0][0]
 
     invalids = ['Zone temporal'] if frame == 'All' else ['Embodied carbon', 'Zone spatial']
@@ -510,22 +512,22 @@ def processh(lines, znlist):
             if linesplit[2] == 'Day of Simulation[]':
                 hdict[linesplit[0]] = ['Time']
             elif linesplit[3] in envdict:
-                hdict[linesplit[0]] = ['Climate',  linesplit[2], envdict[linesplit[3]]]
+                hdict[linesplit[0]] = ['Climate', linesplit[2], envdict[linesplit[3]]]
             elif linesplit[3] in zresdict and retzonename(linesplit[2]) in znlist:
-                hdict[linesplit[0]] = ['Zone temporal',  retzonename(linesplit[2]),  zresdict[linesplit[3]]]
+                hdict[linesplit[0]] = ['Zone temporal', retzonename(linesplit[2]), zresdict[linesplit[3]]]
             elif linesplit[3] in enresdict and 'ExtNode' in linesplit[2]:
-                hdict[linesplit[0]] = ['External',  linesplit[2],  enresdict[linesplit[3]]]
+                hdict[linesplit[0]] = ['External', linesplit[2], enresdict[linesplit[3]]]
             elif linesplit[3] in lresdict:
-                hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
+                hdict[linesplit[0]] = ['Linkage', linesplit[2], lresdict[linesplit[3]]]
             elif linesplit[3] in presdict:
-                hdict[linesplit[0]] = ['Power',  linesplit[2],  presdict[linesplit[3]]]
+                hdict[linesplit[0]] = ['Power', linesplit[2], presdict[linesplit[3]]]
             elif linesplit[3] in sresdict:
-                hdict[linesplit[0]] = ['Surface',  linesplit[2],  sresdict[linesplit[3]]]
+                hdict[linesplit[0]] = ['Surface', linesplit[2], sresdict[linesplit[3]]]
 
         if line == 'End of Data Dictionary\n':
             break
 
-    return hdict,  li + 1
+    return hdict, li + 1
 
 
 def retzonename(zn):
@@ -569,6 +571,8 @@ def processf(pro_op, node, con_node):
                     reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([sl[3] for sl in splitlines if sl[0] == k])])
                     reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(int(sl[5]) - 1) for sl in splitlines if sl[0] == k])])
                     reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([sl[1] for sl in splitlines if sl[0] == k])])
+                    #print(scene.vi_params.year, int(sl[2]), day=int(sl[1]))
+                    reslists.append([str(frame), 'Time', 'Time', 'DOY', ' '.join([str(datetime.datetime(year=scene.vi_params.year, month=int(sl[2]), day=int(sl[3])).timetuple().tm_yday) for sl in splitlines if sl[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
 
@@ -632,70 +636,70 @@ def processf(pro_op, node, con_node):
                     if temps:
                         areslists.append(['All', 'Zone spatial', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min temp (C)', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg temp (C)', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg temp (C)', ' '.join([str(sum(t[1]) / len(t[1])) for t in temps if t[0] == zn])])
                     if hums:
                         areslists.append(['All', 'Zone spatial', zn, 'Max humidity (C)', ' '.join([str(max(h[1])) for h in hums if h[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min humidity (C)', ' '.join([str(min(h[1])) for h in hums if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg humidity (C)', ' '.join([str(sum(h[1])/len(h[1])) for h in hums if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg humidity (C)', ' '.join([str(sum(h[1]) / len(h[1])) for h in hums if h[0] == zn])])
                     if heats:
                         areslists.append(['All', 'Zone spatial', zn, 'Max heating (W)', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min heating (W)', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg heating (W)', ' '.join([str(sum(h[1]) / len(h[1])) for h in heats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh)', ' '.join([str(sum(h[1]) * 0.001) for h in heats if h[0] == zn])])
 
                         if allfas:
-                            areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in heats if h[0] == zn])])])
+                            areslists.append(['All', 'Zone spatial', zn, 'Total heating (kWh/m2)', ' '.join([str(sum(h[1]) * 0.001 / fas[hi]) for hi, h in enumerate([h for h in heats if h[0] == zn])])])
 
                     if cools:
                         areslists.append(['All', 'Zone spatial', zn, 'Max cooling (W)', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min cooling (W)', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg cooling (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg cooling (W)', ' '.join([str(sum(h[1]) / len(h[1])) for h in cools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh)', ' '.join([str(sum(h[1]) * 0.001) for h in cools if h[0] == zn])])
 
                         if allfas:
-                            areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in cools if c[0] == zn])])])
+                            areslists.append(['All', 'Zone spatial', zn, 'Total cooling (kWh/m2)', ' '.join([str(sum(c[1]) * 0.001 / fas[ci]) for ci, c in enumerate([c for c in cools if c[0] == zn])])])
 
                     if aheats:
                         areslists.append(['All', 'Zone spatial', zn, 'Max air heating (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min air heating (W)', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg air heating (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg air heating (W)', ' '.join([str(sum(h[1]) / len(h[1])) for h in aheats if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh)', ' '.join([str(sum(h[1]) * 0.001) for h in aheats if h[0] == zn])])
 
                         if allfas:
-                            areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/fas[hi]) for hi, h in enumerate([h for h in aheats if h[0] == zn])])])
+                            areslists.append(['All', 'Zone spatial', zn, 'Total air heating (kWh/m2)', ' '.join([str(sum(h[1]) * 0.001 / fas[hi]) for hi, h in enumerate([h for h in aheats if h[0] == zn])])])
 
                     if acools:
                         areslists.append(['All', 'Zone spatial', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min air cool (W)', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg air cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg air cool (W)', ' '.join([str(sum(h[1]) / len(h[1])) for h in acools if h[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1]) * 0.001) for h in acools if h[0] == zn])])
 
                         if allfas:
-                            areslists.append(['All', 'Zone spatial', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1])*0.001/fas[ci]) for ci, c in enumerate([c for c in acools if c[0] == zn])])])
+                            areslists.append(['All', 'Zone spatial', zn, 'Total air cooling (kWh/m2)', ' '.join([str(sum(c[1]) * 0.001 / fas[ci]) for ci, c in enumerate([c for c in acools if c[0] == zn])])])
 
                     if co2s:
                         areslists.append(['All', 'Zone spatial', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min CO2 (ppm)', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg CO2 (ppm)', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg CO2 (ppm)', ' '.join([str(sum(t[1]) / len(t[1])) for t in co2s if t[0] == zn])])
 
                     if comfppds:
                         areslists.append(['All', 'Zone spatial', zn, 'Max PPD', ' '.join([str(max(t[1])) for t in comfppds if t[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min PPD', ' '.join([str(min(t[1])) for t in comfppds if t[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg PPD', ' '.join([str(sum(t[1])/len(t[1])) for t in comfppds if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg PPD', ' '.join([str(sum(t[1]) / len(t[1])) for t in comfppds if t[0] == zn])])
 
                     if comfpmvs:
                         areslists.append(['All', 'Zone spatial', zn, 'Max PMV', ' '.join([str(max(t[1])) for t in comfpmvs if t[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min PMV', ' '.join([str(min(t[1])) for t in comfpmvs if t[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg PMV', ' '.join([str(sum(t[1])/len(t[1])) for t in comfpmvs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg PMV', ' '.join([str(sum(t[1]) / len(t[1])) for t in comfpmvs if t[0] == zn])])
 
                     if shgs:
                         areslists.append(['All', 'Zone spatial', zn, 'Max SHG (W)', ' '.join([str(max(t[1])) for t in shgs if t[0] == zn])])
                         areslists.append(['All', 'Zone spatial', zn, 'Min SHG (W)', ' '.join([str(min(t[1])) for t in shgs if t[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Avg SHG (W)', ' '.join([str(sum(t[1])/len(t[1])) for t in shgs if t[0] == zn])])
-                        areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1])*0.001) for t in shgs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Avg SHG (W)', ' '.join([str(sum(t[1]) / len(t[1])) for t in shgs if t[0] == zn])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1]) * 0.001) for t in shgs if t[0] == zn])])
 
                         if allfas:
-                            areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(s[1])*0.001/fas[si]) for si, s in enumerate([s for s in shgs if s[0] == zn])])])
+                            areslists.append(['All', 'Zone spatial', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(s[1]) * 0.001 / fas[si]) for si, s in enumerate([s for s in shgs if s[0] == zn])])])
 
                 except Exception:
                     pro_op.report({'ERROR'}, "There are no zone results to plot. Make sure you have selected valid metrics to calculate and try re-exporting/simulating")
@@ -703,21 +707,21 @@ def processf(pro_op, node, con_node):
 
             if heats and cools:
                 try:
-                    conds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in heats if h[0] == zn], [sum(h[1])*0.001 for h in cools if h[0] == zn]])]
+                    conds = [sum(x) for x in zip(*[[sum(h[1]) * 0.001 for h in heats if h[0] == zn], [sum(h[1]) * 0.001 for h in cools if h[0] == zn]])]
                     areslists.append(['All', 'Zone spatial', zn, 'Total conditioning (kWh)', ' '.join([str(cond) for cond in conds])])
 
                     if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond/fas[ci]) for ci, cond in enumerate([c for c in conds if c[0] == zn])])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total conditioning (kWh/m2)', ' '.join([str(cond / fas[ci]) for ci, cond in enumerate([c for c in conds if c[0] == zn])])])
                 except Exception:
                     pass
 
             if aheats and acools:
                 try:
-                    aconds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in aheats if h[0] == zn], [sum(h[1])*0.001 for h in acools if h[0] == zn]])]
+                    aconds = [sum(x) for x in zip(*[[sum(h[1]) * 0.001 for h in aheats if h[0] == zn], [sum(h[1]) * 0.001 for h in acools if h[0] == zn]])]
                     areslists.append(['All', 'Zone spatial', zn, 'Total air conditioning (kWh)', ' '.join([str(cond) for cond in conds])])
 
                     if allfas:
-                        areslists.append(['All', 'Zone spatial', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond/fas[ai]) for ai, acond in enumerate([a for a in aconds if a[0] == zn])])])
+                        areslists.append(['All', 'Zone spatial', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(acond / fas[ai]) for ai, acond in enumerate([a for a in aconds if a[0] == zn])])])
                 except Exception:
                     pass
 
@@ -846,10 +850,10 @@ def write_ec(scene, coll, frames, reslists):
             reslists.append([str(frame), 'Embodied carbon', zone, 'Surface area (m2)', '{:.3f}'.format(zone_dict[zone]['area'])])
 
             if chil_fa:
-                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy']/chil_fa)])
+                reslists.append([str(frame), 'Embodied carbon', zone, 'Zone EC (kgCO2e/m2/y)', '{:.3f}'.format(zone_dict[zone]['ecy'] / chil_fa)])
 
-            ecm2 = '{:.2f}'.format(zone_dict[zone]['ec']/chil_fa) if chil_fa else 'N/A'
-            ecym2 = '{:.2f}'.format(zone_dict[zone]['ecy']/chil_fa) if chil_fa else 'N/A'
+            ecm2 = '{:.2f}'.format(zone_dict[zone]['ec'] / chil_fa) if chil_fa else 'N/A'
+            ecym2 = '{:.2f}'.format(zone_dict[zone]['ecy'] / chil_fa) if chil_fa else 'N/A'
             ec_text += '{}, Zone, {}, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, zone, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
                                                                                                zone_dict[zone]['ec'], zone_dict[zone]['ecy'], ecm2, ecym2)
 
@@ -858,10 +862,10 @@ def write_ec(scene, coll, frames, reslists):
             reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/y)', '{:.3f}'.format(mat_dict[mat]['ecy'])])
 
             if fa:
-                reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/m2/y)', '{:.3f}'.format(mat_dict[mat]['ecy']/fa)])
+                reslists.append([str(frame), 'Embodied carbon', mat, 'Surface EC (kgCO2e/m2/y)', '{:.3f}'.format(mat_dict[mat]['ecy'] / fa)])
 
-            ecm2 = '{:.2f}'.format(mat_dict[mat]['ec']/chil_fa) if chil_fa else 'N/A'
-            ecym2 = '{:.2f}'.format(mat_dict[mat]['ecy']/chil_fa) if chil_fa else 'N/A'
+            ecm2 = '{:.2f}'.format(mat_dict[mat]['ec'] / chil_fa) if chil_fa else 'N/A'
+            ecym2 = '{:.2f}'.format(mat_dict[mat]['ecy'] / chil_fa) if chil_fa else 'N/A'
             ec_text += '{}, Material, {}, {}, {}, {}, {}, {}, {:.2f}, {:.2f}, {:.2f}, {}, {}\n'.format(frame, mat, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A',
                                                                                                        mat_dict[mat]['area'], mat_dict[mat]['ec'], mat_dict[mat]['ecy'],
                                                                                                        ecm2, ecym2)
@@ -904,7 +908,7 @@ def write_ob_ec(scene, coll, frames, reslists):
 
             for o in chil.objects:
                 ovp = o.vi_params
-                
+
                 if ovp.embodied:
                     if o.name not in foecs:
                         foecs[o.name] = []
@@ -924,8 +928,8 @@ def write_ob_ec(scene, coll, frames, reslists):
                                 vols.append(vol)
                                 ec = float(ecdict['eckg']) * float(ecdict['density']) * vol
                                 ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedclass, ovp.embodiedtype,
-                                                                                                                    ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec/ovp.ec_life, ec/chil_fa,
-                                                                                                                    ec/(chil_fa * ovp.ec_life))
+                                                                                                                                                         ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec / ovp.ec_life, ec / chil_fa,
+                                                                                                                                                         ec / (chil_fa * ovp.ec_life))
                                 bm.free()
                             else:
                                 logentry(f"{o.name} is not manifold. Embodied carbon metrics have not been exported")
@@ -939,10 +943,10 @@ def write_ob_ec(scene, coll, frames, reslists):
                     foecs[o.name].append(ec)
 
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e)', '{:.3f}'.format(float(ec))])
-                    reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec)/ovp.ec_life)])
+                    reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/y)', '{:.3f}'.format(float(ec) / ovp.ec_life)])
                     reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object volume (m3)', '{:.3f}'.format(vol)])
-                    reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec)/chil_fa)])
-                    reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec)/(chil_fa * ovp.ec_life))])
+                    reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2)', '{:.3f}'.format(float(ec) / chil_fa)])
+                    reslists.append([f'{frame}', 'Embodied carbon', o.name, 'Object EC (kgCO2e/m2/y)', '{:.3f}'.format(float(ec) / (chil_fa * ovp.ec_life))])
 
             if cecs:
                 reslists.append([f'{frame}', 'Embodied carbon', chil.name, 'Zone EC (kgCO2e)', '{:.3f}'.format(sum(cecs))])

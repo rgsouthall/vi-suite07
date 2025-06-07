@@ -171,7 +171,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                         for emnode in mvp.envi_nodes.nodes:
                             if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active:
-                                emecc = emnode.envi_con_type# if emnode.envi_con_type not in ('Floor', 'Roof') else ('Floor', 'Roof')[emnode.envi_con_type == 'Floor']
+                                emecc = emnode.envi_con_type  # if emnode.envi_con_type not in ('Floor', 'Roof') else ('Floor', 'Roof')[emnode.envi_con_type == 'Floor']
                                 vcos = [v.co for v in face.verts]
                                 (obc, obco, se, we) = boundpoly(obj, emnode, face, enng)
 
@@ -470,7 +470,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                        "Output:Variable,*,Zone Infiltration Current Density Volume,hourly;\n": node.resim and not enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Infiltration Air Change Rate, hourly;\n": node.resiach and not enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Exfiltration Sensible Heat Transfer Rate, hourly;\n": node.resihl,
-                       "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate,hourly;\n": node.reswsg,
+                       "Output:Variable,*,Enclosure Windows Total Transmitted Solar Radiation Rate,hourly;\n": node.reswsg,
                        "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2 and enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Air CO2 Concentration,hourly;\n": node.resco2 and not enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt,

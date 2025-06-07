@@ -62,8 +62,8 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Longitude:", svp, 'longitude')
                 (sdate, edate) = retdates(svp.sp_sd, 365, 2015)
                 time_disps = ((("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd"),
-                               ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60) % 60)), "sp_sh")),
-                              [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh*60)) % 60), "sp_sh")],
+                               ("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh * 60) % 60)), "sp_sh")),
+                              [("Time of day: {}:{}".format(int(svp.sp_sh), int((svp.sp_sh * 60)) % 60), "sp_sh")],
                               [("Day of year: {}/{}".format(sdate.day, sdate.month), "sp_sd")])
 
                 for i in time_disps[int(svp['spparams']['suns'])]:
@@ -165,8 +165,8 @@ class VI_PT_3D(bpy.types.Panel):
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 
-                    elif context.mode != "EDIT" and svp.vi_disp_process == "2":
-                        newrow(layout, 'Placement', svp, "vi_disp_pos")
+                    # elif context.mode != "EDIT" and svp.vi_disp_process == "2":
+                    #     newrow(layout, 'Placement', svp, "vi_disp_pos")
 
             if svp.vi_display:
                 newrow(layout, 'Display active', svp, 'vi_display')
@@ -338,7 +338,7 @@ class VI_PT_Mat(bpy.types.Panel):
 
                     newrow(layout, "Probe:", mvp, "flovi_probe")
 
-                    if mvp.flovi_bmb_type in ('Wall', 'Solid'):
+                    if mvp.flovi_bmb_type in ('Wall', 'Solid', '1'):
                         newrow(layout, "HTC:", mvp, "flovi_htc")
 
             elif mvp.mattype == '3':
@@ -442,7 +442,7 @@ class VI_PT_Ob(bpy.types.Panel):
                     if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'm2':
                         newrow(layout, "Object represents:", ovp, "ec_arep")
 
-                        if ovp.ec_arep:
+                        if ovp.ec_arep == '0':
                             newrow(layout, "Area (m2):", ovp, "ec_ma")
 
                     if ovp.get('ecentries'):
@@ -471,19 +471,6 @@ class VI_PT_Ob(bpy.types.Panel):
                         newrow(layout, "Embodied density:", ovp, "ec_density")
 
                     newrow(layout, "Service life:", ovp, "ec_life")
-
-                    # if ovp.get('ecentries') and [ec[1] for ec in ovp['ecentries'] if ec[0] == 'unit'][0] == 'each':
-                    #     newrow(layout, "Object represents:", ovp, "ec_rep")
-
-                    #     if ovp.ec_rep == '1':
-                    #         newrow(layout, "No. of items:", ovp, "ec_items")
-
-                    # if ovp.ec_unit == 'm2':
-                    #     newrow(layout, "Object represents:", ovp, "ec_arep")
-
-                    #     if ovp.ec_arep:
-                    #         newrow(layout, "Area (m2):", ovp, "ec_ma")
-
 
                     if all((ovp.ec_id, ovp.ec_type, ovp.ec_class, ovp.ec_name, ovp.ec_du, ovp.ec_density, ovp.ec_mod)):
                         row = layout.row()
@@ -524,6 +511,7 @@ class VI_PT_Ob(bpy.types.Panel):
 
             if obj.type == 'EMPTY':
                 newrow(layout, 'AuVi type:', ovp, 'auvi_sl')
+
 
 def rmmenu(layout, cm):
     mvp = cm.vi_params
@@ -649,6 +637,7 @@ class VI_PT_Col(bpy.types.Panel):
                 if all((cvp.ec_id, cvp.ec_type, cvp.ec_class, cvp.ec_name, cvp.ec_du, cvp.ec_density, cvp.ec_mod)):
                     row = layout.row()
                     row.operator("object.ec_save", text="Save")
+
 
 class VI_PT_Gridify(bpy.types.Panel):
     bl_label = "VI Gridify"

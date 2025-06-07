@@ -72,7 +72,7 @@ flovi_k_bounds = {'sf': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunct
                   'bf': {'0': ('fixedValue', 'inletOutlet', 'turbulentIntensityKineticEnergyInlet'), '1': ['kqRWallFunction'], '2': ('symmetry', ), '3': ('empty',)}}
 
 flovi_epsilon_bounds = {'sf': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction', 'zeroGradient'], '2': ('symmetry', ), '3': ('empty',)},
-                        'bf': {'0': ('fixedValue', 'inletOutlet', 'turbulentMixingLengthDissipationRateInlet'), '1': ['epsilonWallFunction'], '2': ('symmetry', ),'3': ('empty',)}}
+                        'bf': {'0': ('fixedValue', 'inletOutlet', 'turbulentMixingLengthDissipationRateInlet'), '1': ['epsilonWallFunction'], '2': ('symmetry',), '3': ('empty',)}}
 
 flovi_omega_bounds = {'sf': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ('symmetry', ), '3': ('empty',)},
                       'bf': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ('symmetry', ), '3': ('empty',)}}
@@ -86,13 +86,14 @@ flovi_prgh_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '
                             '2': ('symmetry', ), '3': ('empty',)}}
 
 flovi_a_bounds = {'sf': {'0': ('None', ), '1': ['None'], '2': ('None', ), '3': ('None',)},
-                  'bf': {'0': ('calculated','inletOutlet'), '1': ('compressible::alphatWallFunction', 'compressible::alphatJayatillekeWallFunction'), '2': ('symmetry', ), '3': ('empty',)}}
+                  'bf': {'0': ('calculated', 'inletOutlet'), '1': ('compressible::alphatWallFunction', 'compressible::alphatJayatillekeWallFunction'), '2': ('symmetry', ), '3': ('empty',)}}
 
 flovi_rad_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '3': ('None',)},
                     'bf': {'0': ('MarshakRadiation', 'zeroGradient'), '1': ('MarshakRadiation',), '2': ('symmetry', ), '3': ('empty',)}}
 
 flovi_id_bounds = {'sf': {'0': ('None', ), '1': ('None', ), '2': ('None', ), '3': ('None',)},
-                    'bf': {'0': ('greyDiffusiveRadiation'), '1': ('greyDiffusiveRadiation',), '2': ('symmetry', ), '3': ('empty',)}}
+                   'bf': {'0': ('greyDiffusiveRadiation',), '1': ('greyDiffusiveRadiation',), '2': ('symmetry',), '3': ('empty',)}}
+
 
 def ret_fvb_menu(mat, context):
     svp = context.scene.vi_params

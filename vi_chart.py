@@ -55,7 +55,7 @@ def llabel(dnode, metric, axis, variant):
 
 def statdata(res, stat):
     if stat == 'Average':
-        return ([sum(r)/len(r) for r in res])
+        return ([sum(r) / len(r) for r in res])
     elif stat == 'Maximum':
         return ([max(r) for r in res])
     elif stat == 'Minimum':
@@ -149,7 +149,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     if rsx.resultmenu == 'Time':
         if dnode.timemenu == '0':
-            xdata = range(1, ei-si + 2)
+            xdata = range(1, ei - si + 2)
             xlabel = 'Time (hours)'
         elif dnode.timemenu == '1':
             xdata = range(dnode['Start'], dnode['End'] + 1)
@@ -172,6 +172,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     try:
         y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].resultmenu and ry1[2] == dnode.inputs['Y-axis 1'].zonemenu and ry1[3] == dnode.inputs['Y-axis 1'].metricmenu][0]
+        [float(y) for y in y1d]
     except Exception as e:
         chart_op.report({'ERROR'}, 'Invalid data on the y1 axis: {}'.format(e))
         return
@@ -277,7 +278,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
 
     if dnode.cf:
         plt.contourf(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1),
-                     levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend=bar_extend)
+                     levels=[zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend=bar_extend)
         plt.axis([xmin + 0.5, xmax + 0.5, ymin + 0.5, ymax + 0.5])
     else:
         plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
@@ -290,18 +291,19 @@ def hmchart_disp(chart_op, plt, dnode, col):
     if dnode.cl:
         try:
             lvals = [float(lev) for lev in dnode.lvals.split(" ") if lev]
-            
+
             if lvals:
                 ls = lvals
             elif dnode.lvals:
-                ls = [zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:-1]
+                ls = [zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)][1:-1]
             else:
                 ls = ''
 
             cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
             plt.clabel(cp, inline=True, fontsize=10)
+
         except Exception:
-            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin)/(dnode.clevels) for i in range(dnode.clevels + 1)][1:-1], colors='Black', linewidths=dnode.lw)
+            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)][1:-1], colors='Black', linewidths=dnode.lw)
 
     if dnode.grid and dnode.cf:
         ax.grid(True, which='both', zorder=10)
@@ -322,28 +324,29 @@ def ec_pie(chart_op, plt, node):
     plt.clf()
     plt.close()
     fig, ax = plt.subplots(figsize=(10, 6), subplot_kw=dict(aspect="equal"))
-    labels = ['{} {:.1f}'.format(k, node['res']['ec'][k]) for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
-    values = [node['res']['ec'][k] for k in node['res']['ec'].keys() if k != 'All' and node['res']['ec'][k] > 0]
+    s_keys = sorted(node['res']['ec'].keys())
+    labels = [f"{k} {node['res']['ec'][k]:.1f}" for k in s_keys if k != 'All' and node['res']['ec'][k] > 0]
+    values = [node['res']['ec'][k] for k in s_keys if k != 'All' and node['res']['ec'][k] > 0]
     fvalues = [float(v) for v in values]
     maxval = max(fvalues)
     minval = min(fvalues)
     wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
     cmap = plt.get_cmap('viridis')
-    colours = [list(cmap((fv - minval)/(maxval-minval + 0.01))[:3]) + [0.7] for fv in fvalues]
+    colours = [list(cmap((fv - minval) / (maxval - minval + 0.01))[:3]) + [0.7] for fv in fvalues]
 
     wedges, texts = ax.pie(values, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colours)
     bbox_props = dict(boxstyle="round,pad=0.2,rounding_size=0.1", fc="w", ec="grey", lw=0.72)
     kw = dict(arrowprops=dict(arrowstyle="-", ls='dashed'), bbox=bbox_props, zorder=-1, va="baseline")
 
     for i, p in enumerate(wedges):
-        ang = (p.theta2 - p.theta1)/2. + p.theta1
+        ang = (p.theta2 - p.theta1) / 2. + p.theta1
         y = sin(deg2rad(ang))
         x = cos(deg2rad(ang))
         horizontalalignment = {-1: "right", 1: "left"}[int(sign(x))]
         connectionstyle = "angle,angleA=0,angleB=90,rad=10"
         kw["arrowprops"].update({"connectionstyle": connectionstyle})
 
-        ax.annotate(labels[i], xy=(x, y), xytext=(1.35*x, 1.35*y),
+        ax.annotate(labels[i], xy=(x, y), xytext=(1.35 * x, 1.35 * y),
                     horizontalalignment=horizontalalignment, verticalalignment="baseline", size=12, antialiased=True, **kw)
 
     ax.annotate('Total kgCO$_2$e\n{:.1f}\nTotal kgCO$_2$e/m$^2$\n{:.1f}\nTotal kgCO$_2$e/m$^2$/y\n{:.1f}'.format(float(node['res']['ec']['All']), float(node['res']['ecm2']['All']), float(node['res']['ecm2y']['All'])),
@@ -351,7 +354,7 @@ def ec_pie(chart_op, plt, node):
 
     if sys.platform == 'darwin':
         plt.ion()
-    
+
     plt.tight_layout(h_pad=1.5)
     plt.show()
 

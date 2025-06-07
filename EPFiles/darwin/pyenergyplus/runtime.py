@@ -1,4 +1,4 @@
-# EnergyPlus, Copyright (c) 1996-2021, The Board of Trustees of the University
+# EnergyPlus, Copyright (c) 1996-2025, The Board of Trustees of the University
 # of Illinois, The Regents of the University of California, through Lawrence
 # Berkeley National Laboratory (subject to receipt of any required approvals
 # from the U.S. Dept. of Energy), Oak Ridge National Laboratory, managed by UT-
@@ -57,6 +57,7 @@ from ctypes import cdll, c_int, c_char_p, c_void_p, CFUNCTYPE
 from inspect import signature
 from typing import Union, List
 from types import FunctionType
+import os
 
 
 # CFUNCTYPE wrapped Python callbacks need to be kept in memory explicitly, otherwise GC takes it
@@ -93,6 +94,10 @@ class Runtime:
         self.api.issueText.restype = c_void_p
         self.api.stopSimulation.argtypes = [c_void_p]
         self.api.stopSimulation.restype = c_void_p
+        self.api.setConsoleOutputState.argtypes = [c_void_p, c_int]
+        self.api.setConsoleOutputState.restype = c_void_p
+        self.api.setEnergyPlusRootDirectory.argtypes = [c_void_p, c_char_p]
+        self.api.setEnergyPlusRootDirectory.restype = c_void_p
         self.py_progress_callback_type = CFUNCTYPE(c_void_p, c_int)
         self.api.registerProgressCallback.argtypes = [c_void_p, self.py_progress_callback_type]
         self.api.registerProgressCallback.restype = c_void_p
@@ -128,23 +133,45 @@ class Runtime:
         self.api.callbackEndOfSystemTimeStepAfterHVACReporting.restype = c_void_p
         self.api.callbackEndOfZoneSizing.argtypes = [c_void_p, self.py_state_callback_type]
         self.api.callbackEndOfZoneSizing.restype = c_void_p
-        self.api.callbackEndOfSystemSizing.argtypes = [self.py_state_callback_type]
+        self.api.callbackEndOfSystemSizing.argtypes = [c_void_p, self.py_state_callback_type]
         self.api.callbackEndOfSystemSizing.restype = c_void_p
-        self.api.callbackEndOfAfterComponentGetInput.argtypes = [self.py_state_callback_type]
+        self.api.callbackEndOfAfterComponentGetInput.argtypes = [c_void_p, self.py_state_callback_type]
         self.api.callbackEndOfAfterComponentGetInput.restype = c_void_p
-        # self.api.callbackUserDefinedComponentModel.argtypes = [self.py_empty_callback_type]
-        # self.api.callbackUserDefinedComponentModel.restype = c_void_p
-        self.api.callbackUnitarySystemSizing.argtypes = [self.py_state_callback_type]
+        self.api.callbackUserDefinedComponentModel.argtypes = [c_void_p, self.py_state_callback_type, c_char_p]
+        self.api.callbackUserDefinedComponentModel.restype = c_void_p
+        self.api.callbackUnitarySystemSizing.argtypes = [c_void_p, self.py_state_callback_type]
         self.api.callbackUnitarySystemSizing.restype = c_void_p
-        self.api.registerExternalHVACManager.argtypes = [self.py_state_callback_type]
+        self.api.registerExternalHVACManager.argtypes = [c_void_p, self.py_state_callback_type]
         self.api.registerExternalHVACManager.restype = c_void_p
 
     @staticmethod
-    def _check_callback_args(function_to_check, expected_num_args, calling_point_name):
+    def _check_callback_args(function_to_check: FunctionType, expected_num_args: int, calling_point_name: str):
         sig = signature(function_to_check)
         num_args = len(sig.parameters)
         if num_args != expected_num_args:
             raise TypeError(f"Registering function with incorrect arguments, calling point = {calling_point_name} needs {expected_num_args} arguments")
+
+    def _set_energyplus_root_directory(self, state, path: str):
+        """
+        Sets the EnergyPlus install root folder when calling EnergyPlus as a library.
+        When calling the API from Python, this can be done automagically.  Python can find the currently running
+        script, which is how this script finds the E+ DLL.  Because of this, this function is hidden in Python and the
+        client does not need to call this.  When calling directly through the C layer, the client should call the
+        underlying C function directly because C does not provide that same automagic.
+        For a developer perspective, this should be called prior to running EnergyPlus.  When EnergyPlus is run as EXE,
+        it is able to locate auxiliary tools relative to the running binary exe file.  However, when calling as an API,
+        the running binary will not be in the EnergyPlus install, and so EnergyPlus will fail to find those auxiliary
+        tools.  To call these tools when running as a library, the install root must be set using this function.
+        It should be noted that in many workflows, it would be better to just call those auxiliary tools directly from
+        an outside caller, rather than relying on EnergyPlus to do it via command line arguments.
+        :param state: An active EnergyPlus "state" that is returned from a call to `api.state_manager.new_state()`.
+        :param path: Path to the EnergyPlus install root, for example "C:\\EnergyPlus-9-5-0".  Because this function is
+                     only called internally, a Python str is required for this argument, and it is encoded into utf-8
+                     bytes before calling the C function to set to the install root inside the running EnergyPlus.
+        :return: Nothing
+        """
+        path = path.encode('utf-8')
+        self.api.setEnergyPlusRootDirectory(state, path)
 
     def run_energyplus(self, state: c_void_p, command_line_args: List[Union[str, bytes]]) -> int:
         """
@@ -162,6 +189,13 @@ class Runtime:
                                   from the EnergyPlus executable.
         :return: An integer exit code from the simulation, zero is success, non-zero is failure
         """
+        # note that we need to set the install root when we call E+ so that E+ can find the auxiliary tools
+        # in Python, we can do this automatically with runtime introspection, the same way we find the E+ DLL itself
+        this_file = os.path.realpath(__file__)  # returns C:\EnergyPlus\pyenergyplus\runtime.py
+        this_script_dir = os.path.dirname(this_file)  # returns C:\EnergyPlus\pyenergyplus
+        eplus_root_dir = os.path.dirname(os.path.normpath(this_script_dir))  # returns C:\EnergyPlus
+        self._set_energyplus_root_directory(state, eplus_root_dir)
+        
         args_with_program_name = [b"energyplus"]  # don't require the program name argument, just add it here
         for cla in command_line_args:
             if isinstance(cla, str):
@@ -186,8 +220,20 @@ class Runtime:
         cli_args = cli_arg_type(*args_with_program_name)
         return self.api.energyplus(state, len(args_with_program_name), cli_args)
 
-    # def stop_simulation(self, state: c_void_p) -> None:
-    #     pass
+    def stop_simulation(self, state: c_void_p) -> None:
+        self.api.stopSimulation(state)
+
+    def set_console_output_status(self, state, print_output: bool) -> None:
+        """
+        Allows disabling (and enabling) of console output (stdout and stderr) when calling EnergyPlus as a library.
+        :param state: An active EnergyPlus "state" that is returned from a call to `api.state_manager.new_state()`.
+        :param print_output: A boolean flag for whether we should mute console output
+        :return: Nothing
+        """
+        if print_output:
+            self.api.setConsoleOutputState(state, 1)
+        else:
+            self.api.setConsoleOutputState(state, 0)
 
     def issue_warning(self, state: c_void_p, message: Union[str, bytes]) -> None:
         """
@@ -505,8 +551,24 @@ class Runtime:
         all_callbacks.append(cb_ptr)
         self.api.callbackEndOfAfterComponentGetInput(state, cb_ptr)
 
-    # user defined component callbacks are not allowed, they are coupled directly to a specific EMS manager/PythonPlugin
-    # def callback_user_defined_component_model(self, f: FunctionType) -> None:
+    def callback_user_defined_component_model(self, state: c_void_p, f: FunctionType, program_name: str) -> None:
+        """
+        This function allows a client to register a function to be called by a specific user-defined equipment object
+        inside EnergyPlus.  This registration function takes a string for the program "name" which should match the
+        name given in the IDF.
+
+        :param state: An active EnergyPlus "state" that is returned from a call to `api.state_manager.new_state()`.
+        :param f: A python function which takes one argument, the current state instance, and returns nothing.
+        :param program_name: The program name which is listed in the IDF on the user-defined object, either as an
+                             initialization program name or a simulation program name.
+        :return: Nothing
+        """
+        self._check_callback_args(f, 1, 'callback_user_defined_component_model')
+        cb_ptr = self.py_state_callback_type(f)
+        all_callbacks.append(cb_ptr)
+        if isinstance(program_name, str):
+            program_name = program_name.encode('utf-8')
+        self.api.callbackUserDefinedComponentModel(state, cb_ptr, program_name)
 
     def callback_unitary_system_sizing(self, state: c_void_p, f: FunctionType) -> None:
         """

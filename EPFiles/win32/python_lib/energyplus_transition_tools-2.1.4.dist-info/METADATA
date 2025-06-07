@@ -1,0 +1,60 @@
+Metadata-Version: 2.4
+Name: energyplus_transition_tools
+Version: 2.1.4
+Summary: A library and tkinter-based tool for transitioning EnergyPlus input files
+Home-page: https://github.com/myoldmopar/EnergyPlusTransitionTools
+Author: Edwin Lee, for NREL, for the United States Department of Energy
+License: ModifiedBSD
+Keywords: energyplus_launch,ep_launch,EnergyPlus,eplus,Energy+,Building Simulation,Whole Building Energy Simulation,Heat Transfer,HVAC,Modeling
+Platform: Linux (Tested on Ubuntu)
+Platform: MacOSX
+Platform: Windows
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: Natural Language :: English
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Topic :: Scientific/Engineering
+Classifier: Topic :: Scientific/Engineering :: Physics
+Classifier: Topic :: Utilities
+Description-Content-Type: text/markdown
+License-File: LICENSE.txt
+Requires-Dist: PLAN-Tools>=0.5
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: platform
+Dynamic: requires-dist
+Dynamic: summary
+
+# EnergyPlusTransitionTools
+
+A library of transition functionality.
+Currently it is a super simple Python Tk-based IDFVersionUpdater tool.
+Soon it will hopefully contain the actual transition mechanics.
+
+# Documentation [![Documentation Status](https://readthedocs.org/projects/energyplustransitiontools/badge/?version=latest)](https://energyplustransitiontools.readthedocs.io/en/latest/?badge=latest)
+
+Project is documented on ReadTheDocs.
+
+# Testing
+
+[![Flake8](https://github.com/Myoldmopar/EnergyPlusTransitionTools/actions/workflows/flake8.yml/badge.svg)](https://github.com/Myoldmopar/EnergyPlusTransitionTools/actions/workflows/flake8.yml)
+[![Run Tests](https://github.com/Myoldmopar/EnergyPlusTransitionTools/actions/workflows/unit_tests.yml/badge.svg)](https://github.com/Myoldmopar/EnergyPlusTransitionTools/actions/workflows/unit_tests.yml)
+[![Coverage Status](https://coveralls.io/repos/github/Myoldmopar/EnergyPlusTransitionTools/badge.svg?branch=main)](https://coveralls.io/github/Myoldmopar/EnergyPlusTransitionTools?branch=main)
+
+Project is continually tested using GitHub Actions
+
+# Releases
+
+
+[![pypi](https://img.shields.io/pypi/v/energyplus-transition-tools.svg)](https://pypi.org/project/energyplus-transition-tools/)
+
+Project is built into a wheel and pushed to pypi for each tag: https://pypi.org/project/ep-transition-tools/.
+To install, it will be `pip install energyplus-transition-tools`.
+This will (eventually) install 2 binaries into the python environment: `energyplus_transition_gui` and `energyplus_transition_cli`. 

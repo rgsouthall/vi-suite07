@@ -1,0 +1,6 @@
+[console_scripts]
+energyplus_launch_configure = eplaunch.configure:configure_cli
+energyplus_launch_workflow_tester = eplaunch.workflows.workflow_tester:cli
+
+[gui_scripts]
+energyplus_launch = eplaunch.tk_runner:main_gui
