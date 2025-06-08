@@ -301,7 +301,7 @@ def rtpoints(self, bm, offset, cp, frame):
         self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]
 
     for g, gp in enumerate(gpoints):
-        gp_norm = Vector([gp.normal[i]/self.id_data.scale[i] for i in range(3)]).normalized()
+        gp_norm = Vector([gp.normal[i] / self.id_data.scale[i] for i in range(3)]).normalized()
         gp[rt] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f} {1[0]:.4f} {1[1]:.4f} {1[2]:.4f}'.format([gpcos[g][i] + offset * gp_norm[i] for i in range(3)], gp_norm[:]).encode('utf-8')
         gp[cindex] = g + 1
 
@@ -450,9 +450,8 @@ def cbdmmtx(self, scene, locnode, export_op):
     res = (1, 2, 4, 8)[self.cbdm_res - 1]
     os.chdir(svp['viparams']['newdir'])
     (csh, ceh) = (0, 24) if (self.cbanalysismenu == '2' and self.metric) == '2' or self.cbanalysismenu == '3' else (self.cbdm_shour, self.cbdm_ehour + 1)
-    (sdoy, edoy) = (1, 365) if self.cbanalysismenu == '2' and self.metric != '0' else (self.sdoy, self.cbdm_edoy)
-    print(sdoy, edoy, csh, ceh)
-    wd = 0 if (self.cbanalysismenu == '2' and self.metric == '2') or self.cbanalysismenu == '1' else self.weekdays
+    (sdoy, edoy) = (1, 365) if (self.cbanalysismenu == '2' and self.metric != '0') or self.cbanalysismenu == '3' else (self.sdoy, self.cbdm_edoy)
+    wd = 0 if (self.cbanalysismenu == '2' and self.metric == '2') or self.cbanalysismenu in ('1', '3') else self.weekdays
     dhs = []
 
     if self['epwbase'][1] in (".epw", ".EPW"):
@@ -610,7 +609,9 @@ def mtx2vals(mtxlines, fwd, node, times):
     vals = nsum(mtxshapearray, axis=1)
     vvarray = transpose(mtxshapearray)
     vvlist = vvarray.tolist()
+    print('times', tothours, len(vvlist))
     vecvals = [[hours[x], (fwd + int(hours[x] / 24)) % 7, *vvlist[x]] for x in range(tothours)]
+
     return (vecvals, vals)
 
 
