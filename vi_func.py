@@ -2170,26 +2170,42 @@ def sunposh(context, suns):
 def sunapply(scene, sun, values, solposs, frames, sdist):
     sun.data.animation_data_clear()
     sun.animation_data_clear()
-    sun.animation_data_create()
-    sun.animation_data.action = bpy.data.actions.new(name="EnVi Sun")
-    sunposx = sun.animation_data.action.fcurves.new(data_path="location", index=0)
-    sunposy = sun.animation_data.action.fcurves.new(data_path="location", index=1)
-    sunposz = sun.animation_data.action.fcurves.new(data_path="location", index=2)
+    action = bpy.data.actions.get("EnVi Sun")
+
+    if action:
+        bpy.data.actions.remove(action, do_unlink=True)
+
+    
+    action = bpy.data.actions.new(name="EnVi Sun")
+    sun.animation_data_create().action = action
+    # es_slot = sun.animation_data.action.slots.new(id_type='OBJECT', name=sun.name)
+    # es_layer = sun.animation_data.action.layers.new("Layer")
+    # strip = es_layer.strips.new(type='KEYFRAME')
+    # channelbag = strip.channelbag(es_slot, ensure=True)
+
+    sunposx = action.fcurve_ensure_for_datablock(sun, "location", index=0)
+    sunposy = action.fcurve_ensure_for_datablock(sun, "location", index=1)
+    sunposz = action.fcurve_ensure_for_datablock(sun, "location", index=2)
     sunposx.keyframe_points.add(len(frames))
     sunposy.keyframe_points.add(len(frames))
     sunposz.keyframe_points.add(len(frames))
-    sunrotx = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index=0)
-    sunroty = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index=1)
-    sunrotz = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index=2)
+    sunrotx = action.fcurve_ensure_for_datablock(sun, "rotation_euler", index=0)
+    sunroty = action.fcurve_ensure_for_datablock(sun, "rotation_euler", index=1)
+    sunrotz = action.fcurve_ensure_for_datablock(sun, "rotation_euler", index=2)
     sunrotx.keyframe_points.add(len(frames))
     sunroty.keyframe_points.add(len(frames))
     sunrotz.keyframe_points.add(len(frames))
-    sunenergy = sun.animation_data.action.fcurves.new(data_path="energy")
+    sunenergy = action.fcurve_ensure_for_datablock(sun, "energy")
     sunenergy.keyframe_points.add(len(frames))
 
 # This is an attempt to use low level routines for node value animation but it don't work.
     if sun.data.node_tree:
         sun.data.node_tree.animation_data_clear()
+        action = bpy.data.actions.get("EnVi Sun Node")
+
+        if action:
+            bpy.data.actions.remove(action, do_unlink=True)
+
         sun.data.node_tree.animation_data_create()
         sun.data.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi Sun Node")
         emnodes = [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']
@@ -2205,6 +2221,11 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
 
     if scene.world.node_tree:
         scene.world.node_tree.animation_data_clear()
+        action = bpy.data.actions.get("EnVi World Node")
+
+        if action:
+            bpy.data.actions.remove(action, do_unlink=True)
+
         scene.world.node_tree.animation_data_create()
         scene.world.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi World Node")
         stnodes = [stnode for stnode in scene.world.node_tree.nodes if stnode.bl_label == 'Sky Texture']

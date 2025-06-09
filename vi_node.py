@@ -373,7 +373,8 @@ class No_Li_Con(Node, ViNodes):
 
     def nodeupdate(self, context):
         scene = context.scene
-        scene.vi_params.vi_nodes = self.id_data
+        svp = scene.vi_params
+        svp.vi_nodes = self.id_data
         nodecolour(self, self['exportstate'] != self.ret_params())
 
         if self.edoy < self.sdoy:
