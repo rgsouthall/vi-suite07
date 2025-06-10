@@ -3882,18 +3882,23 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
             frame_offb = os.path.join(offb, str(frame))
             frame_ofcfb = os.path.join(frame_offb, 'constant')
 
-            with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'r') as bfile:
-                lines = []
+            if os.path.isfile(os.path.join(frame_ofcfb, 'polyMesh', 'boundary')):
+                with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'r') as bfile:
+                    lines = []
 
-                for line in bfile.readlines():
-                    for ob in obs:
-                        for mat in ob.data.materials:
-                            if line.strip() in b_dict and line.strip() == f'{ob.name}_{mat.name}':
-                                bound = flovi_b_dict[mat.vi_params.flovi_bmb_type]
-                            if line.split() and line.split()[0] == 'type':
-                                line = f"        type            {bound};\n"
+                    for line in bfile.readlines():
+                        for ob in obs:
+                            for mat in ob.data.materials:
+                                if line.strip() in b_dict and line.strip() == f'{ob.name}_{mat.name}':
+                                    bound = flovi_b_dict[mat.vi_params.flovi_bmb_type]
+                                if line.split() and line.split()[0] == 'type':
+                                    line = f"        type            {bound};\n"
 
-                    lines.append(line)
+                        lines.append(line)
+            else:
+                logentry('No boundary file found. Re-create the mesh after exporting the case node')
+                self.report({'ERROR'}, "No boundary file found. Re-create the mesh after exporting the case node")
+                return {'CANCELLED'}
 
             with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'w') as bfile:
                 bfile.write(''.join(lines))
