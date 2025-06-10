@@ -1469,9 +1469,14 @@ class No_Vi_WR(Node, ViNodes):
 
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose")
+        
+        elif not nodeinputs(self):
+            row = layout.row()
+            row.label(text='Connect Location node')
+        
         else:
             row = layout.row()
-            row.label(text='Location node error')
+            row.label(text='EPW required')
 
     def export(self):
         nodecolour(self, 0)
@@ -3325,6 +3330,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     elif self.metric == '2' and self.probe_menu != 'None' and self.frame_menu != 'All':
                         newrow(layout, 'Reference type:', self, "ref_type")
+                        
                         if self.ref_type == '0':
                             newrow(layout, 'Reference point:', self, "ref_point")
                         else:

@@ -4046,7 +4046,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             return {'CANCELLED'}
 
         elif self.pb.poll() is None or self.runs[-1].poll is not None:
-            print('killing')
             self.pb.kill()
             dline = ['', '']
 
@@ -4101,7 +4100,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
-                    Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "reconstructPar -case data"'.format(docker_path, frame_coffb), shell=True)
+                    Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "reconstructPar -case data"'.format(docker_path, frame_coffb), shell=True).wait()
 
             resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate', 'k': 'Turbulent KE', 'epsilon': 'Turbulent dissipation'}
 
@@ -4173,7 +4172,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate(triSurface="{}.stl") -case data"'.format(docker_path, frame_coffb, oname), stdout=PIPE, stderr=PIPE, shell=True)
+                    vf_run = Popen(shlex.split('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate\(triSurface="{}.stl"\) -case data"'.format(docker_path, frame_coffb, oname)), stdout=PIPE, stderr=PIPE)
 
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
@@ -4181,7 +4180,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 self.o_dict[str(frame_c)][oname] = {}
 
                 for line in vf_run.stdout.readlines()[::-1]:
-                    print(line.decode())
                     if "U =" in line.decode():
                         vfs.append(line.decode().split()[-1])
 

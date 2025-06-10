@@ -2345,25 +2345,27 @@ def bm_to_stl(bm, stl_path):
 
 def ob_to_stl(self, dp, stl_path):
     o = self.id_data
-    bm = bmesh.new()
-    bm.from_object(o, dp)
-    bm.transform(o.matrix_world)
-    bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
 
-    with open(stl_path, 'w') as stlfile:
-        stlfile.write('solid\n')
+    if o.visible_get():
+        bm = bmesh.new()
+        bm.from_object(o, dp)
+        bm.transform(o.matrix_world)
+        bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
 
-        for face in bm.faces:
-            stlfile.write('facet normal {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\nouter loop\n'.format(face.normal.normalized()))
+        with open(stl_path, 'w') as stlfile:
+            stlfile.write('solid\n')
 
-            for vert in face.verts:
-                stlfile.write('vertex {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(vert.co))
+            for face in bm.faces:
+                stlfile.write('facet normal {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\nouter loop\n'.format(face.normal.normalized()))
 
-            stlfile.write('endloop\nendfacet\n')
+                for vert in face.verts:
+                    stlfile.write('vertex {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(vert.co))
 
-        stlfile.write('endsolid\n')
+                stlfile.write('endloop\nendfacet\n')
 
-    bm.free()
+            stlfile.write('endsolid\n')
+
+        bm.free()
 
 
 def find_materials_in_groupinstances(empty):
