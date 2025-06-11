@@ -3330,7 +3330,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     elif self.metric == '2' and self.probe_menu != 'None' and self.frame_menu != 'All':
                         newrow(layout, 'Reference type:', self, "ref_type")
-                        
+
                         if self.ref_type == '0':
                             newrow(layout, 'Reference point:', self, "ref_point")
                         else:
@@ -3511,6 +3511,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     elif self.metric == '2':
                         pnames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Probe'])))
+                        print(pnames)
                         self['znames'] = [(pn, pn, 'Probe name') for pn in pnames]
 
                     elif self.metric == '0':

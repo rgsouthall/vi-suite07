@@ -3702,7 +3702,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     os.chdir(self.offb)
 
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
-                        nntf_cmd = 'foamExec netgenNeutralToFoam -case {} {}'.format(frame_offb, os.path.join(self.offb, 'ng.mesh'))
+                        nntf_cmd = 'foamExec netgenNeutralToFoam -noFunctionObjects -case {} {}'.format(frame_offb, os.path.join(self.offb, 'ng.mesh'))
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
 
                     elif sys.platform in ('darwin', 'win32'):
@@ -3757,8 +3757,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                     if self.expnode.poly:
                         if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
-                            pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -concaveMultiCells -noFunctionObjects -overwrite {}'.format(frame, 5)),
-                                        stdout=PIPE, stderr=PIPE)
+                            pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -concaveMultiCells -noFunctionObjects -overwrite {}'.format(frame, 5)), stdout=PIPE, stderr=PIPE)
+
                         elif sys.platform in ('darwin', 'win32'):
                             pdm_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -overwrite {}"'.format(docker_path, frame_offb, 5)
                             pdm = Popen(pdm_cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -3774,10 +3774,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                     if not pdm_error:
                         if sys.platform == 'linux':
-                            cpf_cmd = 'foamExec combinePatchFaces -overwrite -case {} {}'.format(frame_offb, 5)
+                            cpf_cmd = 'foamExec combinePatchFaces -overwrite -noFunctionObjects -case {} {}'.format(frame_offb, 5)
                             Popen(shlex.split(cpf_cmd)).wait()
                         elif sys.platform in ('darwin', 'win32'):
-                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "combinePatchFaces -overwrite -case data {}"'.format(docker_path, frame_offb, 5)
+                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
                         # if sys.platform == 'linux':
@@ -4177,7 +4177,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen(shlex.split('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate\(triSurface="{}.stl"\) -case data"'.format(docker_path, frame_coffb, oname)), stdout=PIPE, stderr=PIPE)
+                    vf_run = Popen(shlex.split('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate(triSurface="{}.stl") -case data"'.format(docker_path, frame_coffb, oname)), stdout=PIPE, stderr=PIPE)
 
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
