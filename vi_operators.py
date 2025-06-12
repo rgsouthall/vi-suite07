@@ -673,7 +673,6 @@ class OBJECT_OT_EcS(bpy.types.Operator):
             return {'CANCELLED'}
 
         elif ovp.ec_class not in ec_dict:
-            # print(ovp.ec_class, ec_dict)
             ec_dict[ovp.ec_class] = {}
             ec_dict[ovp.ec_class][ovp.ec_type] = {}
             ec_dict[ovp.ec_class][ovp.ec_type][ovp.ec_name] = {"id": ovp.ec_id,
@@ -1552,16 +1551,16 @@ class NODE_OT_Li_Im(bpy.types.Operator):
 
         if event.type == 'TIMER':
             f = self.frame if self.frame <= self.fe else self.fe
-            # if self.pmfin and not self.rpruns:
+
             if self.pmfin:
                 self.percent = 0
+
                 with open('{}-{}'.format(self.pmfile, f), 'r') as vip:
                     vip_lines = vip.readlines()
 
                     for line in vip_lines:
                         for pmerr in pmerrdict:
                             if pmerr in line:
-                                # print(line, pmerr)
                                 self.report({'ERROR'}, pmerrdict[pmerr])
                                 self.pb.kill()
                                 self.simnode.run = 0
@@ -1570,8 +1569,8 @@ class NODE_OT_Li_Im(bpy.types.Operator):
             elif os.path.isfile(f'{self.pmfile}-{f}') and not self.rpruns:
                 if sum(self.pmaps):
                     self.percent = 0
+
                     with open('{}-{}'.format(self.pmfile, f), 'r') as vip:
-                        # for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
                         for line in vip.readlines()[::-1]:
                             if '% after' in line:
                                 perc = [float(ls[:-2]) for ls in line.split() if '%' in ls][0] / sum(self.pmaps)
@@ -2054,9 +2053,9 @@ class MAT_EnVi_Node_Remove(bpy.types.Operator):
                 for o in bpy.data.objects:
                     if mat in [ms.material for ms in o.material_slots]:
                         m = 1
+
                 if not m:
                     mat.delete()
-                    # print('mat', mat.name)
 
         return {'FINISHED'}
 
@@ -2273,12 +2272,26 @@ class NODE_OT_En_Sim(bpy.types.Operator):
 
             else:
                 try:
-                    with open(os.path.join(self.nd, '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
-                        for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
+                    with open(os.path.join(self.nd, f"{self.resname}{self.frame}out.err"), 'r') as errfile:
+                        err_lines = errfile.readlines()
+
+                        if not err_lines:
+                            self.report({'ERROR'}, f"Illegal entry in the in{self.frame}.idf file. Check the file in Blender's text editor")
+                            return {self.terminate('CANCELLED', context)}
+
+                    with open(os.path.join(self.nd, f"{self.resname}{self.frame}out.eso"), 'r') as resfile:
+                        res_lines = [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]
+
+                        if not res_lines:
+                            self.report({'ERROR'}, f"Fatal error reported in the in{self.frame}.idf file. Check the file in Blender's text editor")
+                            return {self.terminate('CANCELLED', context)}
+
+                        for resline in res_lines:
                             self.percent = 100 * int(resline.split(',')[1]) / (self.simnode.dedoy - self.simnode.dsdoy)
                             break
 
-                except Exception:
+                except Exception as e:
+                    print(e)
                     logentry('There was an error in the EnVi simulation. Check the error log in the text editor')
 
             if all([esim.poll() is not None for esim in self.esimruns]) and self.e == self.lenframes:
@@ -2286,12 +2299,12 @@ class NODE_OT_En_Sim(bpy.types.Operator):
                     os.remove(os.path.join(self.nd, fname))
 
                 for f in range(self.frame, self.frame + self.e):
-                    nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, f)]
+                    nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == f"{self.resname}{f}out"]
 
                     for fname in nfns:
                         os.rename(os.path.join(self.nd, fname), os.path.join(self.nd, fname.replace("eplusout", self.simnode.resname)))
 
-                    efilename = "{}{}out.err".format(self.resname, f)
+                    efilename = f"{self.resname}{f}out.err"
 
                     if os.path.isfile(os.path.join(self.nd, efilename)):
                         if efilename not in [im.name for im in bpy.data.texts]:
@@ -3191,8 +3204,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
                                delaunay=True, maxoutersteps=self.expnode.maxsteps)
 
-        # mp = MeshingParameters()
-        # print(dir(mp))
         SetNumThreads(int(svp['viparams']['nproc']))
         mns = [0]
         self.omats = []
@@ -3212,10 +3223,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             bm.from_object(ob, dp)
             bm.transform(ob.matrix_world)
             min_elen = min([edge.calc_length() for edge in bm.edges])
-            # bm.verts.ensure_lookup_table()
-            # bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-            # bmesh.ops.connect_verts_concave(bm, faces=bm.faces)
-            # bmesh.ops.connect_verts_nonplanar(bm, angle_limit=0.0, faces=bm.faces)['faces']
 
             if not ob.material_slots:
                 logentry(f'{ob.name} has faces with an unspecified material or an empty material slot')
@@ -3229,14 +3236,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 self.expnode.running = 0
                 return {'CANCELLED'}
 
-            # bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-            # np_faces = [face for face in bm.faces if abs(max([face.normal.dot(face.calc_center_median() - vert.co) for vert in face.verts])) > 0.00000001]
-            # bmesh.ops.triangulate(bm, faces=np_faces, quad_method='FIXED', ngon_method='BEAUTY')
-
-            # bmesh.ops.triangulate(bm, faces=bm.faces, quad_method='BEAUTY', ngon_method='BEAUTY')
-            # bm.verts.ensure_lookup_table()
-            # bm_to_stl(bm.copy(), os.path.join(svp['flparams']['offilebase'], '{}.stl'.format(ob.name)))
-            print(len(bm.faces))
             if len(bm.faces) > 50000:
                 bm.free()
                 logentry('{} has more than 50000 faces. Simplify the geometry'.format(ob.name))
@@ -3297,9 +3296,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     totmesh.Add(fd)
                     surf_no += 1
 
-            # points = [occ.gp_Pnt(tuple(vert.co)) for vert in bm.verts]
-            # verts = [occ.Vertex(p) for p in points]
             lbm = len(bm.faces)
+
             for fi, face in enumerate(bm.faces[:lbm]):
                 try:
                     matname = ob.material_slots[face.material_index].material.name
@@ -3400,7 +3398,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         fns = [face.name for face in g_geo.shape.faces]
                         fms = [face.maxh for face in g_geo.shape.faces]
                         fcs = [face.center for face in g_geo.shape.faces]
-                        print(f'Healing {ob.name} shell {mi}')
                         g_geo.Heal(tolerance=min_elen * 0.8)
 
                         if len(g_geo.shape.SubShapes(occ.SOLID)):
@@ -3424,7 +3421,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
                             g_geo = occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
                             g_geo.Heal(tolerance=min_elen * 0.8)
-                            print(set([face.name for face in g_geo.shape.faces]))
 
                             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
                                 if not all([face.name for face in g_geo_solid.faces]):
@@ -3453,7 +3449,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     fns = [face.name for face in g_geo.shape.faces]
                     fms = [face.maxh for face in g_geo.shape.faces]
                     fcs = [face.center for face in g_geo.shape.faces]
-                    print(f'Healing {ob.name}')
                     g_geo.Heal(tolerance=min_elen * 0.8)
 
                     for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
@@ -3468,7 +3463,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                     if face.name is None or face.name == '':
                                         face.name = fns[fi]
                                         face.maxh = fms[fi]
-                        print(set([face.maxh for face in g_geo.shape.faces]))
+
                         g_geos.append(g_geo_solid)
 
                     if not len(g_geo.shape.SubShapes(occ.SOLID)):
@@ -4177,8 +4172,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen(shlex.split('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate(triSurface="{}.stl") -case data"'.format(docker_path, frame_coffb, oname)), stdout=PIPE, stderr=PIPE)
-
+                    vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
+                    
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
 
@@ -4596,6 +4591,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
                                 except Exception as e:
                                     print(e)
+
                                 fi += 1
 
                         res_rt = [face[bm_rtres] for face in mic_bm.faces if face[bm_ir]]

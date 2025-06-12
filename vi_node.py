@@ -727,8 +727,6 @@ class No_Li_Con(Node, ViNodes):
                 (shour, ehour) = (0, 23)
                 (sdoy, edoy) = (1, 365)
 
-            print(sdoy, edoy)
-
         elif self.contextmenu == 'Basic':
             (shour, ehour) = (self.shour, self.ehour)
             (sdoy, edoy) = (self.sdoy, self.edoy)
@@ -736,8 +734,6 @@ class No_Li_Con(Node, ViNodes):
         interval = 1
         starttime = datetime.datetime(svp.year, 1, 1, 0) + datetime.timedelta(days=sdoy - 1) + datetime.timedelta(hours=shour)
 
-        # if (self.contextmenu == 'CBDM' and self.cbanalysismenu == '2' and self.metric == '0') or (self.contextmenu == 'Basic' and self.animated):
-        #     endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
         if self.contextmenu == 'CBDM' or (self.contextmenu == 'Basic' and self.animated):
             starttime = datetime.datetime(svp.year, 1, 1, 0) + datetime.timedelta(days=sdoy - 1) + datetime.timedelta(hours=shour)
             endtime = datetime.datetime(svp.year, 1, 1, 0) + datetime.timedelta(days=edoy - 1) + datetime.timedelta(hours=ehour)
@@ -3328,14 +3324,15 @@ class No_Vi_Metrics(Node, ViNodes):
                                 row = layout.row()
                                 row.label(text="EN17037_300 (% area): {:.1f} {}".format(self['res']['EN300'], en300pass))
 
-                    elif self.metric == '2' and self.probe_menu != 'None' and self.frame_menu != 'All':
-                        newrow(layout, 'Reference type:', self, "ref_type")
+                    elif self.metric == '2' and self.frame_menu != 'All':
+                        if self.probe_menu != 'None':
+                            newrow(layout, 'Reference type:', self, "ref_type")
 
-                        if self.ref_type == '0':
-                            newrow(layout, 'Reference point:', self, "ref_point")
-                        else:
-                            newrow(layout, 'Reference speed:', self, "ws")
-                            newrow(layout, 'Reference pressure:', self, "pref")
+                            if self.ref_type == '0':
+                                newrow(layout, 'Reference point:', self, "ref_point")
+                            else:
+                                newrow(layout, 'Reference speed:', self, "ws")
+                                newrow(layout, 'Reference pressure:', self, "pref")
 
                         if self['res']:
                             for m in self['res']:
@@ -3511,7 +3508,6 @@ class No_Vi_Metrics(Node, ViNodes):
 
                     elif self.metric == '2':
                         pnames = sorted(list(dict.fromkeys([z[2] for z in self['rl'] if z[1] == 'Probe'])))
-                        print(pnames)
                         self['znames'] = [(pn, pn, 'Probe name') for pn in pnames]
 
                     elif self.metric == '0':
@@ -8918,8 +8914,8 @@ class No_En_Mat_Bl(Node, EnViMatNodes):
     bom: FloatProperty(name="", description="Blind bottom opening multiplier", min=0.0, max=1, default=0.0)
     lom: FloatProperty(name="", description="Blind left-side opening multiplier", min=0.0, max=1, default=0.5)
     rom: FloatProperty(name="", description="Blind right-side opening multiplier", min=0.0, max=1, default=0.5)
-    minsa: FloatProperty(name="deg", description="Minimum slat angle", min=0.0, max=90, default=0.0)
-    maxsa: FloatProperty(name="deg", description="Maximum slat angle", min=0.0, max=90, default=90.0)
+    minsa: FloatProperty(name="deg", description="Minimum slat angle", min=0, max=180, default=0.0)
+    maxsa: FloatProperty(name="deg", description="Maximum slat angle", min=0, max=180, default=90.0)
     resist: FloatProperty(name="", description="", min=0, default=0)
     thi: FloatProperty(name="", description="", min=0, default=0)
 
@@ -9236,9 +9232,14 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
                 newrow(layout, 'Slat angle:', self, 'sac')
             if self.ctype in ("OnIfHighOutdoorAirTempAndHighSolarOnWindow", "OnIfHighOutdoorAirTempAndHighHorizontalSolar", "OnIfHighZoneAirTempAndHighSolarOnWindow", "OnIfHighZoneAirTempAndHighHorizontalSolar"):
                 newrow(layout, "Set-point 2", self, 'sp2')
+            if self.sac == "ScheduledSlatAngle" and not self.inputs['Slat schedule'].links:
+                row = layout.row()
+                row.label(text="Connect Slat schedule")
 
     def valid(self):
-        if not self.outputs["Control"].links or (self.ctype == "OnIfScheduleAllows" and not self.inputs['Schedule'].links):
+        if not self.outputs["Control"].links or \
+            (self.ctype == "OnIfScheduleAllows" and not self.inputs['Schedule'].links) or \
+            (self.sac == "ScheduledSlatAngle" and not self.inputs['Slat schedule'].links):
             nodecolour(self, 1)
         else:
             nodecolour(self, 0)
@@ -9781,9 +9782,7 @@ class No_Au_Sim(Node, ViNodes):
         self['exportstate'] = ''
         self.outputs.new('So_Au_IR', 'IR')
         self.outputs.new('So_Vi_Res', 'Results out')
-        # print('1')
-        # print(NodeTree.get_from_context(context).use_fake_user)
-        # print('3')
+
         try:
             NodeTree.get_from_context(context).use_fake_user = True
         except Exception:
