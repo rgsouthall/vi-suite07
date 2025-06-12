@@ -4500,7 +4500,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
                 try:
                     if sys.platform != 'win32':
-                        auvi_cancel = cancel_window(os.path.join(scene.vi_params['viparams']['newdir'], pdll_path, 'viprogress'), 'Calculating RTs')
+                        auvi_cancel = cancel_window(os.path.join(scene.vi_params['viparams']['newdir'], 'viprogress'), pdll_path, 'Calculating RTs')
                         p_manager = multiprocessing.Manager()
                         ir_list = p_manager.list()
 
