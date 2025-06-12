@@ -2869,6 +2869,9 @@ class No_Vi_Metrics(Node, ViNodes):
     bl_label = 'VI Metrics'
     bl_icon = 'LONGDISPLAY'
 
+    def mupdate(self, context):
+        self.update()
+
     def zupdate(self, context):
         self.res_update()
 
@@ -2934,7 +2937,7 @@ class No_Vi_Metrics(Node, ViNodes):
                                 ("4", "Comfort", "Comfort results"),
                                 ("5", "IAQ", "Internal air quality results"),
                                 ("6", "WLC", "Whole life carbon results"),
-                                ("7", "Acoustics", "Acoustics results")], name="", description="Results type", default="0", update=zupdate)
+                                ("7", "Acoustics", "Acoustics results")], name="", description="Results type", default="0", update=mupdate)
     energy_menu: EnumProperty(items=[("0", "SAP", "SAP results"),
                                      ("1", "RIBA 2030", "RIBA 2030 results"),
                                      ("2", "PassivHaus", "PassivHaus reults")], name="", description="Results metric", default="0", update=zupdate)
