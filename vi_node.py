@@ -1727,20 +1727,29 @@ class No_En_Geo(Node, ViNodes):
     bl_label = 'EnVi Geometry'
     bl_icon = 'MOD_BUILD'
 
+    def ret_params(self):
+        return [str(x) for x in (self.geo_offset, self.netgen, self.collection)]
+
     def nodeupdate(self, context):
-        pass
+        nodecolour(self, self['exportstate'] != self.ret_params())
 
     geo_offset: FloatVectorProperty(name="", description="", default=(0.0, 0.0, 0.0), step=3, precision=1,
                                     subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
     netgen: BoolProperty(name="", description="Netgen mesh extraction", update=nodeupdate)
-
+    collection: StringProperty(description="Select collection", update=nodeupdate)
+    
     def init(self, context):
         self.outputs.new('So_En_Geo', 'Geometry out')
+        self['exportstate'] = ''
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Offset', self, 'geo_offset')
-        newrow(layout, 'Netgen', self, 'netgen')
+        newrow(layout, 'Offset:', self, 'geo_offset')
+        # newrow(layout, 'Solid:', self, 'netgen')
+
+        # if self.netgen:
+        #     layout.prop_search(self, 'collection', bpy.data, 'collections', text='', icon='COLLECTION_COLOR_05')
+
         row = layout.row()
         row.operator("node.engexport", text="Export")
 
@@ -1752,6 +1761,7 @@ class No_En_Geo(Node, ViNodes):
         pass
 
     def postexport(self):
+        self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
 
 

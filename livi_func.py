@@ -314,13 +314,14 @@ def setscenelivivals(scene):
     res = svp.li_disp_menu
     olist = [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
 
-    for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
-        svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
-        svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
-        svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(res, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(res, frame)] for o in olist])
+    if olist:
+        for frame in range(svp['liparams']['fs'], svp['liparams']['fe'] + 1):
+            svp['liparams']['maxres'][str(frame)] = max([o.vi_params['omax']['{}{}'.format(res, frame)] for o in olist])
+            svp['liparams']['minres'][str(frame)] = min([o.vi_params['omin']['{}{}'.format(res, frame)] for o in olist])
+            svp['liparams']['avres'][str(frame)] = sum([o.vi_params['oave']['{}{}'.format(res, frame)] for o in olist])/len([o.vi_params['oave']['{}{}'.format(res, frame)] for o in olist])
 
-    svp.vi_leg_max = max(svp['liparams']['maxres'].values())
-    svp.vi_leg_min = min(svp['liparams']['minres'].values())
+        svp.vi_leg_max = max(svp['liparams']['maxres'].values())
+        svp.vi_leg_min = min(svp['liparams']['minres'].values())
 
 
 def validradparams(params):

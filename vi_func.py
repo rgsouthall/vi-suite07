@@ -162,6 +162,31 @@ def clear_coll(c, coll):
             bpy.data.objects.remove(o)
 
 
+def ret_coll_bb(coll):
+    minx, miny, minz, maxx, maxy, maxz = 0, 0, 0, 0, 0, 0
+    
+    for oi, ob in enumerate(coll.objects):
+        if ob.type == 'MESH':
+            gbbs = [ob.matrix_world@Vector(bb) for bb in ob.bound_box]
+            lbbs = list(zip(*gbbs))
+
+            if not oi:
+                (minx, miny, minz) = [min(lbb) for lbb in lbbs]
+                (maxx, maxy, maxz) = [max(lbb) for lbb in lbbs]
+                
+            else:
+                mins = [min(lbb) for lbb in lbbs]
+                maxs = [max(lbb) for lbb in lbbs]
+                minx = mins[0] if mins[0] < minx else minx
+                miny = mins[1] if mins[1] < miny else miny
+                minz = mins[2] if mins[2] < minz else minz
+                maxx = maxs[0] if maxs[0] > maxx else maxx
+                maxy = maxs[1] if maxs[1] > maxy else maxy
+                maxz = maxs[2] if maxs[2] > maxz else maxz
+
+    return (minx, miny, minz, maxx, maxy, maxz)
+
+
 CIE_X = (1.299000e-04, 2.321000e-04, 4.149000e-04, 7.416000e-04, 1.368000e-03,
          2.236000e-03, 4.243000e-03, 7.650000e-03, 1.431000e-02, 2.319000e-02,
          4.351000e-02, 7.763000e-02, 1.343800e-01, 2.147700e-01, 2.839000e-01,
