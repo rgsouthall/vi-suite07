@@ -18,7 +18,7 @@
 
 import bpy, os, sys, inspect, multiprocessing, mathutils, bmesh, datetime, colorsys, blf, bpy_extras, math
 from subprocess import Popen
-from numpy import array, digitize, amax, amin, average, clip, char, int8, int16, frombuffer, uint8, multiply, float32
+from numpy import array, digitize, amax, amin, average, clip, char, int8, int16, frombuffer, uint8, multiply, float32, zeros
 from math import sin, cos, asin, acos, pi, ceil, log10
 from math import e as expo
 from mathutils import Vector, Matrix
@@ -161,6 +161,14 @@ def clear_coll(c, coll):
             coll.objects.unlink(o)
             bpy.data.objects.remove(o)
 
+
+def rm_coll(c, colls):
+    for coll in colls:
+        print(coll.name)
+        for obj in coll.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+        bpy.data.collections.remove(coll)
 
 def ret_coll_bb(coll):
     minx, miny, minz, maxx, maxy, maxz = 0, 0, 0, 0, 0, 0
@@ -474,7 +482,7 @@ class fvprogressfile():
 
 
 def qtprogressbar(file, pdll_path, calctype):
-    addon_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    #addon_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     qttext = "# -*- coding: " + sys.getfilesystemencoding() + " -*-\n\
 import os, sys\n\
 if sys.platform == 'win32':\n\
@@ -650,7 +658,7 @@ QApplication.shutdown(app)".format(calc_type)
 
 
 def qtfvprogress(file, pdll_path, et, residuals, frame):
-    addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    #addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     qttext = "# -*- coding: " + sys.getfilesystemencoding() + " -*-\n\
 import os, sys\n\
 if sys.platform == 'win32':\n\
@@ -859,86 +867,86 @@ def lividisplay(self, scene):
                         lms[fi].keyframe_points[f].co = frame, nmatis[fii]
 
 
-def lividisplay(self, scene):
-    svp = scene.vi_params
-    svp.vi_view_update = 1
-    anim_name = "LiVi {} MI".format(self.name)
-    disp_menu = svp.li_disp_menu
-    params = 'liparams'
-    type_strings = ('LiVi Res', 'LiVi_Calc')
-
-    if self.id_data.vi_params.vi_type_string == type_strings[0]:
-        frames = range(svp[params]['fs'], svp[params]['fe'] + 1)
-        ll = svp.vi_leg_levels
-        increment = 1 / ll
-
-        if len(frames) > 1:
-            if not self.id_data.data.animation_data:
-                self.id_data.data.animation_data_create()
-
-            self.id_data.data.animation_data.action = bpy.data.actions.new(name=anim_name)
-            fis = [str(face.index) for face in self.id_data.data.polygons]
-            lms = {fi: self.id_data.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
-
-            for fi in fis:
-                lms[fi].keyframe_points.add(len(frames))
-
-        for f, frame in enumerate(frames):
-            bm = bmesh.new()
-            bm.from_mesh(self.id_data.data)
-            geom = bm.verts if svp[params]['cp'] == '1' else bm.faces
-            sf = str(frame)
-
-            if disp_menu == 'aga1v':
-                res_name = f'aga{svp.vi_views}v{frame}'
-            elif disp_menu == 'ago1v':
-                res_name = f'ago{svp.vi_views}v{frame}'
-            elif disp_menu == 'rt':
-                res_name = f'{svp.au_sources}_rt{frame}'
-            else:
-                res_name = f'{disp_menu}{frame}'
-
-            if geom.layers.float.get(res_name):
-                vires = geom.layers.float[res_name]
-                res = geom.layers.float[res_name]
-                oreslist = [g[vires] for g in geom]
-                self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist) / len(oreslist)
-
-                if svp.vi_res_process == '2' and svp.script_file:
-                    try:
-                        vals = ret_res_vals(svp, array([f[vires] for f in bm.faces])) if svp[params]['cp'] == '0' else ret_res_vals(svp, array([(sum([vert[vires] for vert in f.verts])) / len(f.verts) for f in bm.faces]))
-                        nmatis = array(vals).astype(int8)
-                    except Exception:
-                        nmatis = zeros(len(bm.faces))
-
-                else:
-                    smaxres, sminres = ret_res_vals(svp, [max(svp[params]['maxres'].values()), min(svp[params]['minres'].values())])[:2]
-
-                    if smaxres > sminres:
-                        vals = (array(ret_res_vals(svp, array([f[vires] for f in bm.faces]))) - sminres) / (smaxres - sminres) if svp[params]['cp'] == '0' else \
-                            (array(ret_res_vals(svp, array([(sum([vert[vires] for vert in f.verts])) / len(f.verts) for f in bm.faces]))) - sminres) / (smaxres - sminres)
-                    else:
-                        vals = array(ret_res_vals(svp, array([max(svp[params]['maxres'].values()) for x in range(len(bm.faces))])))
-
-                    if vires != res:
-                        for g in geom:
-                            g[res] = g[vires]
-
-                    if svp[params]['unit'] == 'SVF (%)X':
-                        nmatis = [(0, ll - 1)[v == 1] for v in vals]
-                    else:
-                        bins = array([increment * i for i in range(ll)])
-                        nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
-
-                bm.to_mesh(self.id_data.data)
-                bm.free()
-
-                if len(frames) == 1:
-                    self.id_data.data.polygons.foreach_set('material_index', nmatis)
-
-                elif len(frames) > 1:
-                    for fii, fi in enumerate(fis):
-                        lms[fi].keyframe_points[f].co = frame, nmatis[fii]
+# def lividisplay(self, scene):
+#     svp = scene.vi_params
+#     svp.vi_view_update = 1
+#     anim_name = "LiVi {} MI".format(self.name)
+#     disp_menu = svp.li_disp_menu
+#     params = 'liparams'
+#     type_strings = ('LiVi Res', 'LiVi_Calc')
+#
+#     if self.id_data.vi_params.vi_type_string == type_strings[0]:
+#         frames = range(svp[params]['fs'], svp[params]['fe'] + 1)
+#         ll = svp.vi_leg_levels
+#         increment = 1 / ll
+#
+#         if len(frames) > 1:
+#             if not self.id_data.data.animation_data:
+#                 self.id_data.data.animation_data_create()
+#
+#             self.id_data.data.animation_data.action = bpy.data.actions.new(name=anim_name)
+#             fis = [str(face.index) for face in self.id_data.data.polygons]
+#             lms = {fi: self.id_data.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
+#
+#             for fi in fis:
+#                 lms[fi].keyframe_points.add(len(frames))
+#
+#         for f, frame in enumerate(frames):
+#             bm = bmesh.new()
+#             bm.from_mesh(self.id_data.data)
+#             geom = bm.verts if svp[params]['cp'] == '1' else bm.faces
+#             sf = str(frame)
+#
+#             if disp_menu == 'aga1v':
+#                 res_name = f'aga{svp.vi_views}v{frame}'
+#             elif disp_menu == 'ago1v':
+#                 res_name = f'ago{svp.vi_views}v{frame}'
+#             elif disp_menu == 'rt':
+#                 res_name = f'{svp.au_sources}_rt{frame}'
+#             else:
+#                 res_name = f'{disp_menu}{frame}'
+#
+#             if geom.layers.float.get(res_name):
+#                 vires = geom.layers.float[res_name]
+#                 res = geom.layers.float[res_name]
+#                 oreslist = [g[vires] for g in geom]
+#                 self['omax'][sf], self['omin'][sf], self['oave'][sf] = max(oreslist), min(oreslist), sum(oreslist) / len(oreslist)
+#
+#                 if svp.vi_res_process == '2' and svp.script_file:
+#                     try:
+#                         vals = ret_res_vals(svp, array([f[vires] for f in bm.faces])) if svp[params]['cp'] == '0' else ret_res_vals(svp, array([(sum([vert[vires] for vert in f.verts])) / len(f.verts) for f in bm.faces]))
+#                         nmatis = array(vals).astype(int8)
+#                     except Exception:
+#                         nmatis = zeros(len(bm.faces))
+#
+#                 else:
+#                     smaxres, sminres = ret_res_vals(svp, [max(svp[params]['maxres'].values()), min(svp[params]['minres'].values())])[:2]
+#
+#                     if smaxres > sminres:
+#                         vals = (array(ret_res_vals(svp, array([f[vires] for f in bm.faces]))) - sminres) / (smaxres - sminres) if svp[params]['cp'] == '0' else \
+#                             (array(ret_res_vals(svp, array([(sum([vert[vires] for vert in f.verts])) / len(f.verts) for f in bm.faces]))) - sminres) / (smaxres - sminres)
+#                     else:
+#                         vals = array(ret_res_vals(svp, array([max(svp[params]['maxres'].values()) for x in range(len(bm.faces))])))
+#
+#                     if vires != res:
+#                         for g in geom:
+#                             g[res] = g[vires]
+#
+#                     if svp[params]['unit'] == 'SVF (%)X':
+#                         nmatis = [(0, ll - 1)[v == 1] for v in vals]
+#                     else:
+#                         bins = array([increment * i for i in range(ll)])
+#                         nmatis = clip(digitize(vals, bins, right=True) - 1, 0, ll - 1, out=None)
+#
+#                 bm.to_mesh(self.id_data.data)
+#                 bm.free()
+#
+#                 if len(frames) == 1:
+#                     self.id_data.data.polygons.foreach_set('material_index', nmatis)
+#
+#                 elif len(frames) > 1:
+#                     for fii, fi in enumerate(fis):
+#                         lms[fi].keyframe_points[f].co = frame, nmatis[fii]
 
 
 def ret_vp_loc(context):
@@ -955,9 +963,9 @@ def viparams(op, scene):
         op.report({'ERROR'}, "The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
 
-    isascii = lambda s: len(s) == len(s.encode())
+    #isascii = lambda s: len(s) == len(s.encode())
 
-    if not isascii(bdfp):
+    if len(bdfp) != len(bdfp.encode()):
         op.report({'WARNING'}, "The directory path or Blender filename has non-ascii characters in it. Photon mapping may not work")
 
     fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]

@@ -16,20 +16,21 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bpy_extras, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing, threading, gc
+import bpy, bpy_extras, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing, gc
 from pathlib import Path
 import subprocess
 import numpy
-from numpy import arange, histogram, array, int8, int16, int32, float16, empty, uint8, transpose, where, ndarray, place, zeros, average, float32, float64, concatenate, ones, array2string, square
+from numpy import arange, histogram, array, int8, int16, int32, float16, transpose, where, ndarray, place, zeros, average, float32, float64, concatenate, ones, square
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import mean as nmean
 from scipy import signal
 from scipy.io import wavfile
-from scipy import signal
+from OpenImageIO import ImageInput
+# from scipy import signal
 # from bpy.types import Timer
 from bpy_extras.io_utils import ExportHelper, ImportHelper
-from subprocess import Popen, PIPE, call
+from subprocess import Popen, PIPE
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, radians, log
@@ -38,33 +39,33 @@ from mathutils import Euler, Vector, Matrix
 from mathutils.geometry import distance_point_to_plane
 from xml.dom.minidom import parseString
 from .livi_export import radgexport, createoconv, createradfile, gen_octree, radpoints
-from .envi_export import enpolymatexport, pregeo
+from .envi_export import enpolymatexport, pregeo, solid_pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_eclasstype
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
 from .flovi_func import ofheader, fvcdwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite
-from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress, ret_coll_bb
-from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile, progressbar
-from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, bm_to_stl, qtprogressbar
+from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
+from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, qtprogressbar, rm_coll
 from .livi_func import retpmap
 from .auvi_func import rir2sti
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict, flovi_b_dict
-from PySide6.QtWidgets import QApplication
+# from PySide6.QtWidgets import QApplication
 import OpenImageIO
 OpenImageIO.attribute("missingcolor", "0,0,0")
-from OpenImageIO import ImageInput, ImageBuf
+
 
 if sys.platform != 'win32':
     if multiprocessing.get_start_method() != 'fork':
         multiprocessing.set_start_method('fork', force=True)
 
 try:
-    import netgen
+    #import netgen
     from netgen import occ
-    from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep  # , BoundaryLayerParameters
-    from pyngcore import SetNumThreads, TaskManager
+    from netgen.meshing import FaceDescriptor, Mesh # , BoundaryLayerParameters
+    from pyngcore import SetNumThreads
 
 except Exception as e:
     print(e)
@@ -747,7 +748,7 @@ class NODE_OT_EcE(bpy.types.Operator):
     bl_label = "Embodied material edit"
 
     def execute(self, context):
-        ob = context.object if context.object else context.collection
+        #ob = context.object if context.object else context.collection
         node = context.node
         # ovp = ob.vi_params
         envi_ecs = envi_embodied()
@@ -899,12 +900,12 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
             if self.pfile.check(0) == 'CANCELLED':
                 self.bsdfrun.kill()
 
-                if psu:
-                    for proc in psutil.process_iter():
-                        if 'rcontrib' in proc.name():
-                            proc.kill()
-                else:
-                    self.report({'ERROR'}, 'psutil not found. Kill rcontrib processes manually')
+                # if psu:
+                #     for proc in psutil.process_iter():
+                #         if 'rcontrib' in proc.name():
+                #             proc.kill()
+                # else:
+                #     self.report({'ERROR'}, 'psutil not found. Kill rcontrib processes manually')
                 self.o.vi_params.bsdf_running = 0
                 return {'CANCELLED'}
             else:
@@ -1206,7 +1207,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     create_empty_coll(context, 'LiVi Results')
                     gpmbm = bmesh.new()
                     bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
-                    lvo = len(gpmbm.verts)
+                    # lvo = len(gpmbm.verts)
 
                     if self.simnode.pmapgno:
                         verts_out, faces_out = [], []
@@ -1256,7 +1257,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                     gpmbm.free()
 
-                rvucmd = 'rvu -w {11} {12} {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(svp['viparams']['filebase'], frame),
+                rvucmd = 'rvu -w {10} {11} {8} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {9[0]:.3f} {9[1]:.3f} {9[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current,
                 cpfileentry, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu], gpfileentry)
 
             else:
@@ -2075,9 +2076,15 @@ class NODE_OT_En_Geo(bpy.types.Operator):
 
         svp['viparams']['vidisp'] = ''
         node = context.node
-        node.preexport(scene)
-        pregeo(context, self)
-        node.postexport()
+
+        if node.netgen and bpy.data.collections.get(node.collection):
+            rm_coll(context, [coll for coll in bpy.data.collections if coll.vi_params.envi_zone])
+            solid_pregeo(context, self, bpy.data.collections[node.collection])
+        else:
+            node.preexport(scene)
+            pregeo(context, self)
+            node.postexport()
+
         return {'FINISHED'}
 
 
@@ -2612,7 +2619,7 @@ class NODE_OT_EC(bpy.types.Operator):
 
             for frame in frames:
                 scene.frame_set(frame)
-                tvols = []
+                # tvols = []
 
                 for cob in cobs:
                     ecs, ecys, vols, nmobs = [], [], [], []
@@ -2678,7 +2685,7 @@ class NODE_OT_EC(bpy.types.Operator):
 
                     elif cobs[cob] and len(nmobs) == len(cobs[cob]):
                         logentry(f"All objects in collection {cob} are non-manifold. Embodied energy metrics have not been exported")
-                        self.report({'WARNING'}, f"All objects in collection {c} are non-manifold. Embodied energy metrics have not been exported")
+                        self.report({'WARNING'}, f"All objects in collection {cob} are non-manifold. Embodied energy metrics have not been exported")
 
         if len(frames) > 1:
             obs = [ob.name for ob in obs] if node.entities == '0' else [cob for cob in cobs if cobs[cob]]
@@ -3200,15 +3207,16 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         else:
             os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'netgen')
 
-        mp = MeshingParameters(maxh=self.expnode.maxcs, minh=0.25 * self.expnode.maxcs, grading=self.expnode.grading,
-                               optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
-                               delaunay=True, maxoutersteps=self.expnode.maxsteps)
+        # mp = MeshingParameters(maxh=self.expnode.maxcs, minh=0.25 * self.expnode.maxcs, grading=self.expnode.grading,
+        #                        optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
+        #                        delaunay=True, maxoutersteps=self.expnode.maxsteps)
 
         SetNumThreads(int(svp['viparams']['nproc']))
-        mns = [0]
+        # mns = [0]
         self.omats = []
-        mats, self.matnames, g_geos = [], [], []
-        pmap1 = {}
+        # mats,
+        self.matnames, g_geos = [], []
+        # pmap1 = {}
         totmesh = Mesh()
         totmesh.SetMaterial(1, 'air')
         surf_no = 0
@@ -3331,7 +3339,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 else:
                     fc = Vector([fc for fc in face.calc_center_bounds()])
                     fn = Vector([fn for fn in face.normal])
-                    evs = [(loop.vert, loop.link_loop_next.vert) for loop in face.loops]
+                    # evs = [(loop.vert, loop.link_loop_next.vert) for loop in face.loops]
                     vs = [loop.vert for loop in face.loops]
 
                     for v in vs:
@@ -4719,7 +4727,7 @@ class NODE_OT_Au_Play(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        scene = context.scene
+        # scene = context.scene
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
@@ -4736,7 +4744,7 @@ class NODE_OT_Au_Play(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        scene = context.scene
+        # scene = context.scene
 
         if not self.convnode.play_o:
             self.handle.stop()
@@ -4757,7 +4765,7 @@ class NODE_OT_Au_Stop(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        scene = context.scene
+        # scene = context.scene
         convnode = context.node
         convnode.play_o = False
         convnode.play_c = False
@@ -4772,7 +4780,7 @@ class NODE_OT_Au_PlayC(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        scene = context.scene
+        # scene = context.scene
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
@@ -4785,7 +4793,7 @@ class NODE_OT_Au_PlayC(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        scene = context.scene
+        # scene = context.scene
 
         if not self.convnode.play_c:
             self.handle.stop()

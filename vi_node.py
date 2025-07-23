@@ -18,18 +18,18 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys, json, bmesh, shlex
-from collections import OrderedDict
+import bpy, glob, os, inspect, datetime, shutil, math, mathutils, sys, json, bmesh, shlex
+# from collections import OrderedDict
 from pathlib import Path
 from bpy.props import EnumProperty, FloatProperty, IntProperty, BoolProperty, StringProperty, FloatVectorProperty
 from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen, PIPE
-from .vi_func import socklink, socklink2, uvsocklink, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
-from .vi_func import nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, retdates
-from .vi_func import delobj, logentry, ret_camera_menu, ret_param, ret_empty_menu, ret_datab, epentry
+from .vi_func import socklink, socklink2, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
+from .vi_func import nodecolour, retelaarea, iprop, bprop, eprop, fprop, retdates
+from .vi_func import delobj, logentry, ret_camera_menu, ret_empty_menu, ret_datab, epentry
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
-from .envi_func import retrmenus, enresprops, epschedwrite, processf, get_mat, get_con_node, get_base
+from .envi_func import enresprops, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype
 from .flovi_func import ret_fvb_menu, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvba_menu, ret_fvbt_menu, ret_fvbprgh_menu
@@ -43,7 +43,7 @@ try:
     from netgen.stl import STLGeometry
     from pyngcore import SetNumThreads, TaskManager
     ng = 1
-except Exception as e:
+except Exception:
     ng = 0
 
 try:
@@ -1306,7 +1306,7 @@ class No_Li_Sim(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         scene = context.scene
-        svp = scene.vi_params
+        # svp = scene.vi_params
 
         if self.inputs['Context in'].links and self.inputs['Geometry in'].links:
             cinnode = self.inputs['Context in'].links[0].from_node
@@ -1352,7 +1352,7 @@ class No_Li_Sim(Node, ViNodes):
                             row = layout.row()
                             row.label(text="Red input node")
 
-                    except Exception as e:
+                    except Exception:
                         row = layout.row()
                         row.label(text="Missing input node")
 
@@ -1744,14 +1744,19 @@ class No_En_Geo(Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Offset:', self, 'geo_offset')
-        # newrow(layout, 'Solid:', self, 'netgen')
+        newrow(layout, 'Solid:', self, 'netgen')
 
-        # if self.netgen:
-        #     layout.prop_search(self, 'collection', bpy.data, 'collections', text='', icon='COLLECTION_COLOR_05')
+        if not self.netgen:
+            newrow(layout, 'Offset:', self, 'geo_offset')
+        else:
+            layout.prop_search(self, 'collection', bpy.data, 'collections', text='', icon='COLLECTION_COLOR_05')
 
-        row = layout.row()
-        row.operator("node.engexport", text="Export")
+        if not self.netgen or bpy.data.collections.get(self.collection):
+            row = layout.row()
+            row.operator("node.engexport", text="Export")
+        else:
+            row = layout.row()
+            row.label(text='Collection required')
 
     def update(self):
         for sock in self.outputs:
@@ -1982,7 +1987,7 @@ class No_En_Sim(Node, ViNodes):
                 for rl in self['reslists']:
                     if rl[1] == 'Surface':
                         ob_name = '_'.join(rl[2].split('_')[:-1]) if rl[2][:3] == 'EN_' else '_'.join(rl[2].split('_')[:-1])['_'.join(rl[2].split('_')[:-1]).find('EN_'):]
-                        f_index = rl[2].split('_')[-1]
+                        # f_index = rl[2].split('_')[-1]
 
                         if ob_name not in sresdict:
                             sresdict[ob_name] = {}
@@ -2040,7 +2045,7 @@ class No_En_IF(Node, ViNodes):
         self.inputs.new('ViLoc', 'Location in')
         self.outputs.new('ViEnC', 'Context out')
         self.outputs['Context out'].hide = True
-        self['nodeid'] = nodeid(self)
+        #self['nodeid'] = nodeid(self)
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -2146,7 +2151,7 @@ class ViEnRIn(So_En_ResU):
         except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
-                z = list(self['resdict'][self.framemenu][r].keys())[0]
+                # z = list(self['resdict'][self.framemenu][r].keys())[0]
                 self.zonemenu = list(self['resdict'][self.framemenu][r].keys())[0]
                 return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys() if res]
             except Exception:
@@ -2201,7 +2206,7 @@ class ViEnRIn(So_En_ResU):
             elif self.resultmenu == 'Frames':
                 frames = [int(k) for k in set(zrl[0]) if k != 'All']
                 startframe, endframe = min(frames), max(frames)
-                frame = 'All'
+                # frame = 'All'
                 start_ui_data = self.node.id_properties_ui("Start")
                 start_ui_data.update(min=startframe, max=endframe)
                 end_ui_data = self.node.id_properties_ui("End")
@@ -2300,12 +2305,7 @@ class ViEnRIn(So_En_ResU):
                                   ('Sum', 'Sum', 'Sum Value')], name="", description="Zone result", default='Average')
 
     def draw(self, context, layout, node, text):
-        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'],
-                    "Zone spatial": ("zonemenu", "zonermenu"), "Zone temporal": ("zonemenu", "zonermenu"),
-                    "Embodied carbon": ("ecmenu", "ecrmenu"), "Linkage": ("linkmenu", "linkrmenu"),
-                    "External": ("enmenu", "enrmenu"), "Position": ("posmenu", "posrmenu"),
-                    "Camera": ("cammenu", "camrmenu"), "Power": ("powmenu", "powrmenu"),
-                    "Probe": ("probemenu", "probermenu")}
+
         row = layout.row()
 
         if self.links and self.links[0].from_node.get('frames'):
@@ -2492,7 +2492,7 @@ class No_Vi_Chart(Node, ViNodes):
                                     break
 
                         startframe, endframe = min(frames), max(frames)
-                        frame = 'All'
+                        # frame = 'All'
                         start_ui_data = self.id_properties_ui("Start")
                         start_ui_data.update(min=startframe, max=endframe, soft_min=startframe, soft_max=endframe)
                         end_ui_data = self.id_properties_ui("End")
@@ -2739,7 +2739,7 @@ class No_Vi_HMChart(Node, ViNodes):
         except Exception:
             try:
                 r = list(self['resdict'][self.framemenu].keys())[0]
-                z = list(self['resdict'][self.framemenu][r].keys())[0]
+                # z = list(self['resdict'][self.framemenu][r].keys())[0]
                 self.locmenu = list(self['resdict'][self.framemenu][r].keys())[0]
                 return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys()]
             except Exception:
@@ -2778,7 +2778,7 @@ class No_Vi_HMChart(Node, ViNodes):
 
                         elif r[3] == 'Hour':
                             self.y = (array([float(r) for r in r[4].split()]))
-                            hno = len(unique(self.y))
+                            # hno = len(unique(self.y))
 
                     elif r[1] == self.resmenu:
                         if self.resmenu == 'Climate':
@@ -3673,13 +3673,14 @@ class No_Vi_Metrics(Node, ViNodes):
                                 self['res']['ckwh'] = sum(float(p) for p in r[4].split()) * 0.001
                             elif r[3] == 'Air cooling (W)':
                                 self['res']['ackwh'] = sum(float(p) for p in r[4].split()) * 0.001
+
                         elif r[2] != 'All' and r[1] == 'Power' and 'EN_' + r[2].split('_')[1] == self.zone_menu and r[3] == 'PV power (W)':
                             self['res']['pvkwh'] += sum(float(p) for p in r[4].split()) * 0.001
 
                 self['res']['hkwh'] = self['res']['hkwh'] / heat_mod + self['res']['ahkwh'] - self['res']['hkwh'] if self['res']['ahkwh'] > self['res']['hkwh'] else self['res']['hkwh'] / heat_mod
                 self['res']['ckwh'] = self['res']['ckwh'] / self.ac_cop + self['res']['ackwh'] - self['res']['ckwh'] if self['res']['ackwh'] > self['res']['ckwh'] else self['res']['ckwh'] / self.ac_cop
-                self['res']['totkwh'] = (self['res']['hkwh'] + self['res']['ckwh'] + self.mod * self['res']['fa'])
-                self['res']['netkwh'] = (self['res']['hkwh'] + self['res']['ckwh'] - self['res']['pvkwh'] + self.mod * self['res']['fa'])
+                self['res']['totkwh'] = self['res']['hkwh'] + self['res']['ckwh'] + self.mod * self['res']['fa']
+                self['res']['netkwh'] = self['res']['hkwh'] + self['res']['ckwh'] - self['res']['pvkwh'] + self.mod * self['res']['fa']
 
             elif self.energy_menu == '2':
                 for r in self['rl']:
@@ -3948,7 +3949,7 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['WPC'] = {}
             self['res']['Q'] = {}
             frames = []
-            wpcs = {}
+            # wpcs = {}
             reslists = []
             pref_flag = 0
             ws_flag = 0
@@ -4126,7 +4127,7 @@ class No_Vi_Metrics(Node, ViNodes):
 
             if bpy.data.collections.get('EnVi Geometry') and self.zone_menu != 'None':
                 hours = 8760
-                ofcs = {}
+                # ofcs = {}
                 owlcs, ecwlcs, ofwlcs, wlcs, reslists = [], [], [], [], []
                 cop = 1 / self.elec_cop if self.heat_type == '1' else 1 / (self.gas_eff * 0.01)
                 hw_cop = 1 / self.hw_cop if self.heat_type == '1' else 1 / (self.gas_eff * 0.01)
@@ -4287,9 +4288,9 @@ class No_Vi_Metrics(Node, ViNodes):
     #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])])
     #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ])
 
-    def ret_metrics(self):
-        if self.inputs['Results in'].links:
-            reslist = self.inputs['Results in'].links[0].from_node['reslists']
+    # def ret_metrics(self):
+    #     if self.inputs['Results in'].links:
+    #         reslist = self.inputs['Results in'].links[0].from_node['reslists']
 
 
 class No_CSV(Node, ViNodes):
@@ -5592,7 +5593,7 @@ class No_En_Net_Hvac(Node, EnViNodes):
         paramvs2 = [z.zone + '_Equipment', 'SequentialLoad', 'ZoneHVAC:IdealLoadsAirSystem', z.zone + '_Air', 1, 1, '', '']
 
         if ef_name:
-            fi = [l.name.split('_')[-2] for zi in z.inputs if zi.links and zi.bl_idname == 'So_En_Net_SFlow'] + [zo.name.split('_')[-2] for zo in z.outputs if zo.links and zo.bl_idname == 'So_En_Net_SFlow']
+            fi = [zi.name.split('_')[-2] for zi in z.inputs if zi.links and zi.bl_idname == 'So_En_Net_SFlow'] + [zo.name.split('_')[-2] for zo in z.outputs if zo.links and zo.bl_idname == 'So_En_Net_SFlow']
             params2 += ['Zone Equipment 2 Object Type', 'Zone Equipment 2 Name',
                         'Zone Equipment 2 Cooling Sequence', 'Zone Equipment 2 Heating or No-Load Sequence',
                         'Zone Equipment 2 Sequential Cooling Fraction Schedule Name', 'Zone Equipment 2 Sequential Heating Fraction Schedule Name']
@@ -6103,12 +6104,12 @@ class No_En_Net_Ext(Node, EnViNodes):
         paramvs = [self.name, self.height, wpcname]
         enentry = epentry('AirflowNetwork:MultiZone:ExternalNode', params, paramvs)
 
-        for sock in self.inputs[:] + self.outputs[:]:
-            for link in sock.links:
-                wpcname = self.name + '_wpcvals'
-                wpcs = (self.wpc1, self.wpc2, self.wpc3, self.wpc4, self.wpc5, self.wpc6, self.wpc7, self.wpc8, self.wpc9, self.wpc10, self.wpc11, self.wpc12)
-                wparams = ['Name', 'AirflowNetwork:MultiZone:WindPressureCoefficientArray Name'] + ['Wind Pressure Coefficient Value {} (dimensionless)'.format(w + 1) for w in range(enng['enviparams']['wpcn'])]
-                wparamvs = ['{}_wpcvals'.format(self.name), 'WPC Array'] + [wpcs[wp] for wp in range(len(wparams))]
+        # for sock in self.inputs[:] + self.outputs[:]:
+        #     for link in sock.links:
+        #         wpcname = self.name + '_wpcvals'
+        #         wpcs = (self.wpc1, self.wpc2, self.wpc3, self.wpc4, self.wpc5, self.wpc6, self.wpc7, self.wpc8, self.wpc9, self.wpc10, self.wpc11, self.wpc12)
+                #wparams = ['Name', 'AirflowNetwork:MultiZone:WindPressureCoefficientArray Name'] + ['Wind Pressure Coefficient Value {} (dimensionless)'.format(w + 1) for w in range(enng['enviparams']['wpcn'])]
+                #wparamvs = ['{}_wpcvals'.format(self.name), 'WPC Array'] + [wpcs[wp] for wp in range(len(wparams))]
 
         return enentry + wpcentry
 
@@ -6198,8 +6199,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])
 
     def ep_write(self, exp_op, enng):
-        fentry, crentry, zn, en, enentry, surfentry, crname, snames = '', '', '', '', '', '', '', []
-        paradict = {}
+        fentry, crentry, zn, en, surfentry, crname, snames = '', '', '', '', '', '', []
+        # paradict = {}
 
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
@@ -6238,9 +6239,9 @@ class No_En_Net_SFlow(Node, EnViNodes):
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
                 othernode = (link.from_node, link.to_node)[sock.is_output]
 
-                if othernode.bl_idname == 'No_En_Net_Ext':
-                    en = othernode.name
-                    enentry = othernode.ep_write(enng)
+                # if othernode.bl_idname == 'No_En_Net_Ext':
+                #     en = othernode.name
+                    #enentry = othernode.ep_write(enng)
 
             for link in sock.links:
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
@@ -9046,7 +9047,7 @@ class No_En_Mat_SG(Node, EnViMatNodes):
                 self['ecm2y'] = '{:.3f}'.format(float(self['ecdict']['eckg']) * float(self['ecdict']['density']) * self.thi * 0.001 / self.ec_life)
                 self['ecentries'] = [(k, self.ee.propdict[self.embodiedclass][self.embodiedtype][self.embodiedmat][k]) for k in self['ecdict'].keys()]
 
-            except Exception as e:
+            except Exception:
                 self['ecm2'] = 'N/A'
                 self['ecm2y'] = 'N/A'
 
@@ -9328,7 +9329,7 @@ class No_En_Mat_PV(Node, EnViMatNodes):
         pass
 
     sandia_dict = {}
-    l = -40
+    # l = -40
 
     def ret_e1dmenu(self, context):
         with open(ret_datab('PV_database.json', 'r'), 'r') as e1d_jfile:
