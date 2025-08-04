@@ -26,8 +26,8 @@ from bpy.types import NodeTree, Node, NodeSocket
 from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen, PIPE
 from .vi_func import socklink, socklink2, uvsocklink2, newrow, epwlatilongi, nodeinputs, remlink, rettimes, sockhide, selobj
-from .vi_func import nodecolour, retelaarea, iprop, bprop, eprop, fprop, retdates
-from .vi_func import delobj, logentry, ret_camera_menu, ret_empty_menu, ret_datab, epentry
+from .vi_func import nodecolour, retelaarea, iprop, bprop, eprop, fprop, retdates, rm_coll
+from .vi_func import delobj, logentry, ret_camera_menu, ret_empty_menu, ret_datab, epentry, meshes_to_solids, solid_to_mesh
 from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunposlivi
 from .envi_func import enresprops, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
@@ -408,7 +408,9 @@ class No_Li_Con(Node, ViNodes):
             else:
                 bpy.ops.object.light_add(type='SUN')
                 sun = bpy.context.object
-                sun['VIType'] = 'Sun'
+                
+                if sun:
+                    sun['VIType'] = 'Sun'
 
             if self.inputs['Location in'].links and suns:
                 sunposlivi(scene, self, frames, sun, starttime)
@@ -1728,7 +1730,7 @@ class No_En_Geo(Node, ViNodes):
     bl_icon = 'MOD_BUILD'
 
     def ret_params(self):
-        return [str(x) for x in (self.geo_offset, self.netgen, self.collection)]
+        return [str(x) for x in (self.geo_offset, self.netgen, self.collection, self.write_step)]
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
@@ -1737,6 +1739,7 @@ class No_En_Geo(Node, ViNodes):
                                     subtype='TRANSLATION', unit='NONE', size=3, update=None, get=None, set=None)
     netgen: BoolProperty(name="", description="Netgen mesh extraction", update=nodeupdate)
     collection: StringProperty(description="Select collection", update=nodeupdate)
+    write_step: BoolProperty(name="", description="Write STEP file", update=nodeupdate)
     
     def init(self, context):
         self.outputs.new('So_En_Geo', 'Geometry out')
@@ -1750,6 +1753,7 @@ class No_En_Geo(Node, ViNodes):
             newrow(layout, 'Offset:', self, 'geo_offset')
         else:
             layout.prop_search(self, 'collection', bpy.data, 'collections', text='', icon='COLLECTION_COLOR_05')
+            newrow(layout, 'Write STEP:', self, 'write_step')
 
         if not self.netgen or bpy.data.collections.get(self.collection):
             row = layout.row()
@@ -9791,6 +9795,8 @@ class No_Au_Sim(Node, ViNodes):
     animated: BoolProperty(name="", description="Animated analysis", default=0, update=nodeupdate)
     startframe: IntProperty(name="", description="Start frame for animation", min=0, default=0, update=nodeupdate)
     endframe: IntProperty(name="", description="End frame for animation", min=0, default=0, update=nodeupdate)
+    netgen: BoolProperty(name="", description="Netgen mesh extraction", update=nodeupdate)
+    collection: StringProperty(description="Select collection", update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -9804,21 +9810,26 @@ class No_Au_Sim(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if ra:
-            newrow(layout, "Animated:", self, 'animated')
+            newrow(layout, "Solid:", self, 'netgen')
 
-            if self.animated:
-                row = layout.row()
-                row.label(text='Frames:')
-                col = row.column()
-                subrow = col.row(align=True)
-                subrow.prop(self, 'startframe')
-                subrow.prop(self, 'endframe')
+            if self.netgen:
+                layout.prop_search(self, 'collection', bpy.data, 'collections', text='', icon='COLLECTION_COLOR_05')
+            else:    
+                newrow(layout, "Animated:", self, 'animated')
 
-            newrow(layout, "Max order:", self, 'max_order')
-            newrow(layout, "RT rays:", self, 'rt_rays')
-            newrow(layout, "Receiver radius:", self, 'r_radius')
+                if self.animated:
+                    row = layout.row()
+                    row.label(text='Frames:')
+                    col = row.column()
+                    subrow = col.row(align=True)
+                    subrow.prop(self, 'startframe')
+                    subrow.prop(self, 'endframe')
+
+                newrow(layout, "Max order:", self, 'max_order')
+                newrow(layout, "RT rays:", self, 'rt_rays')
+                newrow(layout, "Receiver radius:", self, 'r_radius')
             row = layout.row()
-            row.operator('node.rir_sim', text='Generate IR')
+            row.operator('node.rir_sim', text=('Generate IR', 'Generate Mesh')[self.netgen])
         else:
             row = layout.row()
             row.label(text='Pyroomacoustics not found')
@@ -9827,7 +9838,37 @@ class No_Au_Sim(Node, ViNodes):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
-    def presim(self):
+    def presim(self, context):
+        if self.netgen and bpy.data.collections.get(self.collection):
+            rm_coll(context, [coll for coll in bpy.data.collections if coll.vi_params.envi_zone])
+            solids = meshes_to_solids(context, bpy.data.collections[self.collection])
+
+            for si, solid in enumerate(solids):
+                manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si)
+
+                if manifold:
+                    if f'Zone {si}' not in bpy.data.collections:
+                        z_coll = bpy.data.collections.new(f'Zone {si}')
+                    else:
+                        z_coll = bpy.data.collections[f'Zone {si}']
+
+                    z_coll.vi_params.envi_zone = 1
+
+                    if f'Zone {si}' not in bpy.context.scene.collection.children:
+                        bpy.context.scene.collection.children.link(z_coll)
+
+                    if f'Zone {si}' not in [ob.name for ob in bpy.data.objects]:
+                        ob = bpy.data.objects.new(f'Zone {si}', mesh)
+                        ob.data = mesh
+                    else:
+                        ob = bpy.data.objects[f'Zone {si}']
+                        ob.data = mesh
+
+                    if ob.name not in z_coll.objects:
+                        z_coll.objects.link(ob)
+
+                    ob.vi_params.vi_type = '1'
+
         self['coptions'] = {}
         self['goptions'] = {'offset': 0.01}
 

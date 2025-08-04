@@ -27,8 +27,6 @@ from numpy import mean as nmean
 from scipy import signal
 from scipy.io import wavfile
 from OpenImageIO import ImageInput
-# from scipy import signal
-# from bpy.types import Timer
 from bpy_extras.io_utils import ExportHelper, ImportHelper
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -52,7 +50,6 @@ from .livi_func import retpmap
 from .auvi_func import rir2sti
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
 from .vi_dicts import rvuerrdict, pmerrdict, flovi_b_dict
-# from PySide6.QtWidgets import QApplication
 import OpenImageIO
 OpenImageIO.attribute("missingcolor", "0,0,0")
 
@@ -797,7 +794,6 @@ class NODE_OT_Li_Geo(bpy.types.Operator):
         svp['viparams']['vidisp'] = ''
         svp['viparams']['viexpcontext'] = 'LiVi Geometry'
         objmode()
-        # clearfiles(svp['liparams']['objfilebase'])
         clearfiles(svp['liparams']['lightfilebase'])
         node = context.node
         node.preexport(scene)
@@ -4359,7 +4355,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             o.vi_params.vi_type_string = ''
 
         simnode = context.node
-        simnode.presim()
+        simnode.presim(context)
+
+        if simnode.netgen:
+            return {'FINISHED'}
+
         dp = context.evaluated_depsgraph_get()
         empties = [o for o in bpy.data.objects if o.type == 'EMPTY' and o.visible_get()]
         sources = [o for o in empties if o.vi_params.auvi_sl == '0']
@@ -4369,8 +4369,12 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
+            # for attr in o.data.attributes:
+            #     print(attr.is_required)
+            #     if not attr.is_required:
+            #         o.data.attributes.remove(attr)
 
-        robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots])]
+        robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots]) and o.vi_params.vi_type == '1']
         mats = [mat for mat in bpy.data.materials if mat.vi_params.mattype == '3']
         reslists = []
         frames = [f for f in range(simnode.startframe, simnode.endframe + 1)] if simnode.animated else [scene.frame_current]
@@ -4417,9 +4421,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 amat_scatts = {'coeffs': new_scatts, "center_freqs": c_freqs}
                 amat_dict[mat.name] = pra.Material(energy_absorption=amat_abs, scattering=amat_scatts)
 
-            for rob in robs:
+            for ri, rob in enumerate(robs):
                 walls = []
                 mic_names = []
+                source_names = []
                 room_bm = bmesh.new()
                 room_bm.from_object(rob, dp)
                 room_bm.transform(rob.matrix_world)
@@ -4459,6 +4464,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 for source in sources:
                     if room.is_inside(source.location[:]):
                         room.add_source(source.location[:])
+                        source_names.append(source.name)
 
                 if not room.sources:
                     self.report({'ERROR'}, f'No visible sources inside room {rob.name}')
@@ -4468,6 +4474,8 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     if room.is_inside(mic.location[:]):
                         room.add_microphone(mic.location[:])
                         mic_names.append(mic.name)
+                
+                r_mics = len(mic_names)
 
                 for mic_a in mic_arrays:
                     mic_bm = bmesh.new()
@@ -4486,11 +4494,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 if mic_a.vi_params.vi_type_string != 'LiVi Calc':
                                     mic_a.vi_params.vi_type_string = 'LiVi Calc'
 
-                                f[bm_ir] = 1
+                                f[bm_ir] = ri + 1
                                 room = room.add_microphone(f.calc_center_median()[:])
                                 mic_names.append(f'{mic_a.name}-{f.index}')
                             else:
-                                f[bm_ir] = 0
+                                f[bm_ir] = f[bm_ir]
                         else:
                             f[bm_ir] = 0
 
@@ -4512,7 +4520,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         p_manager = multiprocessing.Manager()
                         ir_list = p_manager.list()
 
-                        for m in range(room.n_mics * len(sources)):
+                        for m in range(room.n_mics * len(room.sources)):
                             ir_list.append([])
 
                         q_rts = multiprocessing.Queue()
@@ -4562,51 +4570,62 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
                 i = 0
                 for mi, mic_rt in enumerate(rts):
-                    if mi < len(mics):
+                    if mi < r_mics:
                         for si, source_rt in enumerate(mic_rt):
-                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'Seconds', ' '.join([str(s / 16000) for s in range(len(rirs[i]))])])
-                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RIR', ' '.join(rirs[i].astype('str'))])
-                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {sources[si].name}', 'RT', f'{source_rt:.3f}'])
-                            resdict[str(frame)][f'{mic_names[mi]} - {sources[si].name}'] = f'{source_rt:.3f}'
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'Seconds', ' '.join([str(s / 16000) for s in range(len(rirs[i]))])])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'RIR', ' '.join(rirs[i].astype('str'))])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'RT', f'{source_rt:.3f}'])
+                            resdict[str(frame)][f'{mic_names[mi]} - {source_names[si]}'] = f'{source_rt:.3f}'
                             i += 1
 
-                for si, source in enumerate(sources):
-                    fi = len(mics)
+                for mic_a in mic_arrays:
+                    fi = r_mics
+                    ovp = mic_a.vi_params
+                    mic_bm = bmesh.new()
+                    mic_bm.from_mesh(mic_a.data)
 
-                    for mic_a in mic_arrays:
-                        ovp = mic_a.vi_params
-                        mic_bm = bmesh.new()
-                        mic_bm.from_mesh(mic_a.data)
+                    for si, source in enumerate(room.sources):                    
+                        bm_res = []
 
-                        if not mic_bm.faces.layers.float.get(f'{source.name}_rt{frame}'):
-                            mic_bm.faces.layers.float.new(f'{source.name}_rt{frame}')
-                        if not mic_bm.faces.layers.float.get(f'{source.name}_vol{frame}'):
-                            mic_bm.faces.layers.float.new(f'{source.name}_vol{frame}')
-                        if not mic_bm.faces.layers.float.get(f'{source.name}_sti{frame}'):
-                            mic_bm.faces.layers.float.new(f'{source.name}_sti{frame}')
+                        for fl_name in [f'{source_names[si]}{fl_type}{frame}' for fl_type in ('_rt', '_vol', '_sti')]:
+                            if not mic_bm.faces.layers.float.get(fl_name):
+                                mic_bm.faces.layers.float.new(fl_name)
+                            
+                            bm_res.append(mic_bm.faces.layers.float[fl_name])
 
-                        bm_rtres = mic_bm.faces.layers.float[f'{source.name}_rt{frame}']
-                        bm_volres = mic_bm.faces.layers.float[f'{source.name}_vol{frame}']
-                        bm_stires = mic_bm.faces.layers.float[f'{source.name}_sti{frame}']
+                        # if not mic_bm.faces.layers.float.get(f'{source.name}_rt{frame}'):
+                        #     mic_bm.faces.layers.float.new(f'{source.name}_rt{frame}')
+                        # if not mic_bm.faces.layers.float.get(f'{source.name}_vol{frame}'):
+                        #     mic_bm.faces.layers.float.new(f'{source.name}_vol{frame}')
+                        # if not mic_bm.faces.layers.float.get(f'{source.name}_sti{frame}'):
+                        #     mic_bm.faces.layers.float.new(f'{source.name}_sti{frame}')
+
+                        # bm_rtres = mic_bm.faces.layers.float[f'{source.name}_rt{frame}']
+                        # bm_volres = mic_bm.faces.layers.float[f'{source.name}_vol{frame}']
+                        # bm_stires = mic_bm.faces.layers.float[f'{source.name}_sti{frame}']
                         bm_ir = mic_bm.faces.layers.int['cindex']
 
                         for face in mic_bm.faces:
-                            if face[bm_ir]:
+                            if face[bm_ir] == ri + 1:
                                 try:
-                                    face[bm_rtres] = rts[fi][si]
-                                    face[bm_volres] = 10 * log(nsum(square(rirs[fi * len(sources) + si]) / 16000) / 6E-07, 10)
-                                    face[bm_stires] = rir2sti(rirs[fi * len(sources) + si], room.volume, source.location, mic_a.matrix_world @ face.calc_center_bounds(), octave, 'male', Lsf)
+                                    face[bm_res[0]] = rts[fi][si]
+                                    face[bm_res[1]] = 10 * log(nsum(square(rirs[fi * len(room.sources) + si]) / 16000) / 6E-07, 10)
+                                    face[bm_res[2]] = rir2sti(rirs[fi * len(room.sources) + si], room.volume, source.position, mic_a.matrix_world @ face.calc_center_bounds(), octave, 'male', Lsf)
 
                                 except Exception as e:
                                     print(e)
 
                                 fi += 1
+                            else:
+                                face[bm_res[0]] = 0
+                                face[bm_res[1]] = 0
+                                face[bm_res[2]] = 0
 
-                        res_rt = [face[bm_rtres] for face in mic_bm.faces if face[bm_ir]]
-                        res_vol = [face[bm_volres] for face in mic_bm.faces if face[bm_ir]]
-                        res_sti = [face[bm_stires] for face in mic_bm.faces if face[bm_ir]]
+                        res_rt = [face[bm_res[0]] for face in mic_bm.faces if face[bm_ir] == ri + 1]
+                        res_vol = [face[bm_res[1]] for face in mic_bm.faces if face[bm_ir] == ri + 1]
+                        res_sti = [face[bm_res[2]] for face in mic_bm.faces if face[bm_ir] == ri + 1]
 
-                        if res_rt:
+                        if sum(res_rt):
                             ovp['omax'][f'rt{frame}'] = max(res_rt) if not ovp['omax'].get(f'rt{frame}') or max(res_rt) > ovp['omax'][f'rt{frame}'] else ovp['omax'][f'rt{frame}']
                             ovp['oave'][f'rt{frame}'] = sum(res_rt) / len(res_rt)
                             ovp['omin'][f'rt{frame}'] = min(res_rt) if not ovp['omin'].get(f'rt{frame}') or min(res_rt) < ovp['omin'][f'rt{frame}'] else ovp['omin'][f'rt{frame}']
@@ -4619,11 +4638,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             ovp['livires'][f'rt{frame}'] = res_rt
                             ovp['livires'][f'vol{frame}'] = res_vol
                             ovp['livires'][f'sti{frame}'] = res_sti
-                            mic_bm.to_mesh(mic_a.data)
+                            
                         else:
                             self.report({'WARNING'}, f'No results on sensor mesh {mic_a.name}')
-
-                        mic_bm.free()
+                    mic_bm.to_mesh(mic_a.data)
+                    mic_bm.free()
 
                 print("Room volume:", f'{room.get_volume():.2f}')
                 print("RT60 (Simulated):", rts[0, 0])

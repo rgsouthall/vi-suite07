@@ -130,6 +130,7 @@ def leg_update(self, context):
                     if bpy.data.materials[matname] not in o.data.materials[:]:
                         bpy.ops.object.material_slot_add()
                         o.material_slots[-1].material = bpy.data.materials[matname]
+                
                 while len(o.material_slots) > svp.vi_leg_levels:
                     bpy.ops.object.material_slot_remove()
 
@@ -288,7 +289,7 @@ def e_update(self, context):
                         fnorms = array([f.normal.normalized() for f in faces]).T
                         fres = array([f[res] for f in faces])
                         extrudes = (0.1 * sv3dl * (nlog10(maxo * (fres + 1 - mino) / odiff)) * fnorms).T if svp.vi_leg_scale == '1' else \
-                            multiply(fnorms, sv3dl * ((fres - mino) / odiff)).T
+                            multiply(fnorms, sv3dl * ((fres - mino).clip(0) / odiff)).T
 
                         for f, face in enumerate(faces):
                             for v in face.verts:
@@ -298,7 +299,7 @@ def e_update(self, context):
                         res = bm.verts.layers.float[res_name]
                         vnorms = array([v.normal.normalized() for v in bm.verts]).T
                         vres = array([v[res] for v in bm.verts])
-                        extrudes = multiply(vnorms, svp3dll * ((vres - mino) / odiff)).T if svp.vi_leg_scale == '0' else [0.1 * svp3dl * (log10(maxo * (v[res] + 1 - mino) / odiff)) * v.normal.normalized() for v in bm.verts]
+                        extrudes = multiply(vnorms, sv3dl * ((vres - mino).clip(0) / odiff)).T if svp.vi_leg_scale == '0' else [0.1 * sv3dl * (log10(maxo * (v[res] + 1 - mino) / odiff)) * v.normal.normalized() for v in bm.verts]
 
                         for v, vert in enumerate(bm.verts):
                             vert[skf] = vert[skb] + mathutils.Vector(extrudes[v])
@@ -325,12 +326,13 @@ def w_update(self, context):
 
 
 def livires_update(self, context):
-    setscenelivivals(context.scene)
+    if context.scene.vi_params.vi_display:
+        setscenelivivals(context.scene)
 
-    for o in [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
-        o.vi_params.lividisplay(context.scene)
+        for o in [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Res']:
+            o.vi_params.lividisplay(context.scene)
 
-    e_update(self, context)
+        e_update(self, context)
 
 
 def auvires_update(self, context):
@@ -455,9 +457,13 @@ def li_display(context, disp_op, simnode):
             move_to_coll(context, 'LiVi Results', ores)
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
             context.view_layer.objects.active = ores
+            ores.data.materials.clear()
 
-            while ores.material_slots:
-                bpy.ops.object.material_slot_remove()
+            # while ores.material_slots:
+            #     try:
+            #         bpy.ops.object.material_slot_remove()
+            #     except:
+            #         return
 
             while ores.data.shape_keys:
                 context.object.active_shape_key_index = 0
@@ -675,7 +681,6 @@ class linumdisplay():
                         (verts, pcs, depths) = ([], [], [])
 
                     res = array([v[livires] for v in verts])
-                    print(res)
                     res = ret_res_vals(svp, res)
                     
             bm.free()

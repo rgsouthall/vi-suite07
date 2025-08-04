@@ -610,9 +610,7 @@ def mtx2vals(mtxlines, fwd, node, times):
     vals = nsum(mtxshapearray, axis=1)
     vvarray = transpose(mtxshapearray)
     vvlist = vvarray.tolist()
-    print('times', tothours, len(vvlist))
     vecvals = [[hours[x], (fwd + int(hours[x] / 24)) % 7, *vvlist[x]] for x in range(tothours)]
-
     return (vecvals, vals)
 
 

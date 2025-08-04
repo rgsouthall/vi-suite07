@@ -411,10 +411,6 @@ class VIPreferences(AddonPreferences):
     def draw(self, context):
         layout = self.layout
 
-        # if not os.path.isdir(os.path.join(addonpath, 'Python', sys.platform, 'numpy')):
-        #     row = layout.row()
-        #     row.label(text='You do not seem to have an internet connection. Cannot download Python libraries')
-
         for entry in self.ui_dict:
             if entry == 'OpenFOAM bin directory' and sys.platform != 'linux':
                 pass
@@ -588,7 +584,7 @@ class VI_Params_Object(bpy.types.PropertyGroup):
     # VI-Suite object definitions
     vi_type_string: sprop("", "VI Suite object type", 1024, "")
     vi_type: eprop([("0", "None", "Not a VI-Suite specific object"),
-                    ("1", "EnVi Surface", "Designates an EnVi surface"),
+                    ("1", "EnVi/AuVi Surface", "Designates an EnVi or AuVi surface"),
                     ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"),
                     ("3", "CFD Geometry", "Specifies an OpenFoam geometry"),
                     ("4", "Light Array", "Specifies a LiVi lighting array"),
@@ -719,7 +715,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     respacemenu: eprop(respacetype, "", "Type of retail space", '0')
     lespacemenu: eprop(lespacetype, "", "Type of space", '0')
     BSDF: bprop("", "Flag to signify a BSDF material", False)
-    mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material"),
+    mattype: eprop([("0", "Geometry", "Geometry"), ("1", 'Light/Acoustic sensor', "LiVi or AuVi sensing material"),
                     ("2", "FloVi boundary", 'FloVi blockmesh boundary'), ("3", "AuVi material", 'Acoustic material')], "", "VI-Suite material type", "0")
     envi_nodes: bpy.props.PointerProperty(type=bpy.types.NodeTree)
     envi_rev_enum: EnumProperty(items=ret_envi_mats, name='', description='EnVi material')
