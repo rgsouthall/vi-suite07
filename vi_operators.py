@@ -17,6 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, bpy_extras, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing, gc
+from bpy_extras import mesh_utils
 from pathlib import Path
 import subprocess
 import numpy
@@ -3394,7 +3395,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     return {'CANCELLED'}
 
             else:
-                mesh_islands = bpy_extras.mesh_utils.mesh_linked_triangles(ob_mesh)
+                mesh_islands = mesh_utils.mesh_linked_triangles(ob_mesh)
 
                 if len(mesh_islands) > 1:
                     for mi, mesh_island in enumerate(mesh_islands):
