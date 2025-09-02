@@ -528,10 +528,10 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
 def solid_pregeo(context, op, coll):
     rm_coll(context, [coll for coll in bpy.data.collections if coll.vi_params.envi_zone])
-    solids = meshes_to_solids(context, coll)
+    solids = meshes_to_solids(context, coll, op)
 
     for si, solid in enumerate(solids):
-        manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si)
+        manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si, op)
 
         if manifold:
             if f'Zone {si}' not in bpy.data.collections:

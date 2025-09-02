@@ -623,19 +623,6 @@ class No_Li_Con(Node, ViNodes):
                     newrow(layout, 'Start hours:', self, 'cbdm_shour')
                     newrow(layout, 'End hour:', self, 'cbdm_ehour')
 
-            # if self.metric == '0':
-                
-
-            #     if self.cbanalysismenu == '2':
-            #         row = layout.row()
-            #         row.label(text="--")
-
-            #         if self.metric == '0':
-                        
-
-            #         row = layout.row()
-            #         row.label(text="--")
-
             elif self.cbanalysismenu == '3':
                 newrow(layout, 'Hourly DGP:', self, 'dgp_hourly')
 
@@ -645,27 +632,8 @@ class No_Li_Con(Node, ViNodes):
                 newrow(layout, 'Views:', self, 'dgp_views')
                 newrow(layout, 'Azimuth:', self, 'dgp_azi')
 
-            # elif self.cbanalysismenu == '2' and self.metric == '0':
-            #     newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
-            #     newrow(layout, 'End hour:', self, 'cbdm_end_hour')
-
-            # if self.cbanalysismenu == '0':
-            #     newrow(layout, 'Source file:', self, 'sourcemenu')
-            # else:
-            #     newrow(layout, 'Source file:', self, 'sourcemenu2')
-
-            # row = layout.row()
-
-            # if self.sourcemenu2 == '1' and self.cbanalysismenu in ('1', '2'):
-            #     newrow(layout, "MTX file:", self, 'mtxname')
-
-            # elif self.sourcemenu == '1' and self.cbanalysismenu == '0':
-            #     newrow(layout, "HDR file:", self, 'hdrname')
-            # else:
-            #     newrow(layout, 'Resolution:', self, 'cbdm_res')
-
-            if self.cbanalysismenu != '0':
-                newrow(layout, 'HDR:', self, 'hdr')
+            # if self.cbanalysismenu != '0':
+            #     newrow(layout, 'HDR:', self, 'hdr')
 
         if self.contextmenu == 'Basic':
             if int(self.skymenu) > 2 or int(self.skyprog) > 1 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
@@ -849,16 +817,11 @@ class No_Li_Con(Node, ViNodes):
                             if line.split('=')[0] == 'NROWS':
                                 self.cbdm_res = (146, 578, 2306, 9218).index(int(line.split('=')[1])) + 1
                                 break
-                            # elif line.split('=')[0] == 'NCOLS':
-                            #     if len(self.times) != int(line.split('=')[1]):
-                            #         export_op.report({'ERROR'}, "Outdated MTX file")
-                            #         self._valid = 0
-                            #         return
 
                         self['Options']['MTX'] = mtxfile.read()
 
-                if self.hdr:
-                    cbdmhdr(self, scene, export_op)
+                # if self.hdr:
+                #     cbdmhdr(self, scene, export_op)
 
     def postexport(self):
         (csh, ceh) = (self.cbdm_shour, self.cbdm_ehour) if (self.cbanalysismenu == '2' and self.metric in ('0', '1')) or self.cbanalysismenu != '2' else (1, 24)
@@ -9828,6 +9791,7 @@ class No_Au_Sim(Node, ViNodes):
                 newrow(layout, "Max order:", self, 'max_order')
                 newrow(layout, "RT rays:", self, 'rt_rays')
                 newrow(layout, "Receiver radius:", self, 'r_radius')
+
             row = layout.row()
             row.operator('node.rir_sim', text=('Generate IR', 'Generate Mesh')[self.netgen])
         else:
@@ -9838,13 +9802,13 @@ class No_Au_Sim(Node, ViNodes):
         for sock in self.outputs:
             socklink(sock, self.id_data.name)
 
-    def presim(self, context):
+    def presim(self, context, op):
         if self.netgen and bpy.data.collections.get(self.collection):
             rm_coll(context, [coll for coll in bpy.data.collections if coll.vi_params.envi_zone])
-            solids = meshes_to_solids(context, bpy.data.collections[self.collection])
+            solids = meshes_to_solids(context, bpy.data.collections[self.collection], op)
 
             for si, solid in enumerate(solids):
-                manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si)
+                manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si, op)
 
                 if manifold:
                     if f'Zone {si}' not in bpy.data.collections:

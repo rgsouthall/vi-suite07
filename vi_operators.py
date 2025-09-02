@@ -60,7 +60,6 @@ if sys.platform != 'win32':
         multiprocessing.set_start_method('fork', force=True)
 
 try:
-    #import netgen
     from netgen import occ
     from netgen.meshing import FaceDescriptor, Mesh # , BoundaryLayerParameters
     from pyngcore import SetNumThreads
@@ -88,6 +87,12 @@ try:
     ra = 1
 except Exception:
     ra = 0
+
+try:
+    import psutil
+    psu = 1
+except Exception:
+    psu = 0
 
 docker_path = 'docker'
 
@@ -897,12 +902,14 @@ class OBJECT_OT_Li_GBSDF(bpy.types.Operator):
             if self.pfile.check(0) == 'CANCELLED':
                 self.bsdfrun.kill()
 
-                # if psu:
-                #     for proc in psutil.process_iter():
-                #         if 'rcontrib' in proc.name():
-                #             proc.kill()
-                # else:
-                #     self.report({'ERROR'}, 'psutil not found. Kill rcontrib processes manually')
+                if psu:
+                    for proc in psutil.process_iter():
+                        if 'rcontrib' in proc.name():
+                            proc.kill()
+
+                else:
+                    self.report({'WARNING'}, 'Kill any remaining rcontrib processes manually')
+
                 self.o.vi_params.bsdf_running = 0
                 return {'CANCELLED'}
             else:
@@ -2080,8 +2087,8 @@ class NODE_OT_En_Geo(bpy.types.Operator):
         else:
             node.preexport(scene)
             pregeo(context, self)
-            node.postexport()
-
+            
+        node.postexport()
         return {'FINISHED'}
 
 
@@ -3009,6 +3016,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
+        print(os.path.abspath(os.curdir))
         dp = bpy.context.evaluated_depsgraph_get()
         scene = context.scene
         svp = scene.vi_params
@@ -3149,6 +3157,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_undo = False
 
     def invoke(self, context, event):
+        cur_dir = os.path.abspath(os.curdir)
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
         except Exception:
@@ -3587,8 +3596,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             surf_mesh.Export(os.path.join(r'{6}', 'ng_surf.stl'), 'STL Format')
             '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading,
                        self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs)))
-
-        self.surf_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
+        print(os.path.realpath(sys.executable))
+        self.surf_run = Popen(shlex.split('"{}" "{}"'.format(os.path.realpath(sys.executable), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
         self.surf_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
         context.window_manager.modal_handler_add(self)
@@ -3655,7 +3664,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                            self.expnode.optimisations)))
 
             self.vol_running = 1
-            self.vol_run = Popen(shlex.split('"{}" "{}"'.format(sys.executable, os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
+            self.vol_run = Popen(shlex.split('"{}" "{}"'.format(os.path.realpath(sys.executable), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
             self.vol_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Volume Mesh')
 
         if self.vol_running == 1:
@@ -3699,7 +3708,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 svp = scene.vi_params
 
                 if os.path.isfile(os.path.join(self.offb, 'ng.mesh')):
-                    os.chdir(self.offb)
+                    # os.chdir(self.offb)
+                    print(os.path.realpath(sys.executable))
 
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                         nntf_cmd = 'foamExec netgenNeutralToFoam -noFunctionObjects -case {} {}'.format(frame_offb, os.path.join(self.offb, 'ng.mesh'))
@@ -4356,7 +4366,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             o.vi_params.vi_type_string = ''
 
         simnode = context.node
-        simnode.presim(context)
+        simnode.presim(context, self)
 
         if simnode.netgen:
             return {'FINISHED'}
@@ -4370,10 +4380,6 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
-            # for attr in o.data.attributes:
-            #     print(attr.is_required)
-            #     if not attr.is_required:
-            #         o.data.attributes.remove(attr)
 
         robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots]) and o.vi_params.vi_type == '1']
         mats = [mat for mat in bpy.data.materials if mat.vi_params.mattype == '3']
