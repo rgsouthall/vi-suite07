@@ -2428,7 +2428,7 @@ def meshes_to_solids(context, coll, op):
         # bm.from_mesh(ob.evaluated_get(dp).data)
 
         if not all([e.is_manifold for e in bm.edges]):
-            op.report({'WARNING': f"Object {ob.name} is not manifold and will not be exported"})
+            op.report({'WARNING'}, f"Object {ob.name} is not manifold and will not be exported")
             logentry(f"Object {ob.name} is not manifold and will not be exported")
         else:
             bmesh.ops.triangulate(bm, faces=bm.faces)
@@ -2451,8 +2451,8 @@ def meshes_to_solids(context, coll, op):
                 fi += 1
 
             g_geo = occ.OCCGeometry(occ.Compound(faces))
-            fns = [face.name for face in g_geo.faces]
-            fcs = [face.center for face in g_geo.faces]
+            fns = [face.name for face in g_geo.shape.faces]
+            fcs = [face.center for face in g_geo.shape.faces]
             print(f'Healing {ob.name}')
             g_geo.Heal(tolerance=0.001)
 
@@ -2488,13 +2488,13 @@ def meshes_to_solids(context, coll, op):
 
                 for shell in g_geo_solid.SubShapes(occ.SHELL):
                     used_shells.append(shell)
-
-        else:
+        print(g_names[gi], len(g_geo.shape.SubShapes(occ.SHELL)), len(used_shells))
+        if len(g_geo.shape.SubShapes(occ.SHELL)) > len(used_shells):
             for g_shell in g_geo.shape.SubShapes(occ.SHELL):
                 if g_shell not in used_shells:
                     g_shell_solid = occ.OCCGeometry(g_shell)
-                    fns = [face.name for face in g_shell_solid.faces]
-                    fcs = [face.center for face in g_shell_solid.faces]
+                    fns = [face.name for face in g_shell_solid.shape.faces]
+                    fcs = [face.center for face in g_shell_solid.shape.faces]
                     g_shell_solid.Heal(tolerance=0.0001)
 
                     if None in set([face.name for face in g_shell_solid.shape.faces]):
@@ -2514,8 +2514,8 @@ def meshes_to_solids(context, coll, op):
                     if not g_shell_solid.shape.SubShapes(occ.SOLID):
                         g_shell_solid.shape.WriteStep(os.path.join(svp['viparams']['newdir'], 'temp.step'))
                         g_shell_solid = occ.OCCGeometry(os.path.join(svp['viparams']['newdir'], 'temp.step'))
-                        fns = [face.name for face in g_shell_solid.faces]
-                        fcs = [face.center for face in g_shell_solid.faces]
+                        fns = [face.name for face in g_shell_solid.shape.faces]
+                        fcs = [face.center for face in g_shell_solid.shape.faces]
                         g_shell_solid.Heal(tolerance=0.0001)
 
                         if None in set([face.name for face in g_shell_solid.shape.faces]):
@@ -2534,14 +2534,16 @@ def meshes_to_solids(context, coll, op):
         if not g_geo.shape.SubShapes(occ.SOLID):
             ob = bpy.data.objects[g_names[gi]]
             mesh_islands = mesh_utils.mesh_linked_triangles(ob.evaluated_get(dp).data)
+            print('mi', len(mesh_islands))
             bm = bmesh.new()
             bm.from_object(ob, dp)
-            bmesh.ops.triangulate(bm, faces=bm.faces)
+            # bmesh.ops.triangulate(bm, faces=bm.faces)
             bm.transform(ob.matrix_world)
             bm.faces.ensure_lookup_table()
 
             for mi in mesh_islands:
                 faces = []
+
                 for face in [bm.faces[fi.polygon_index] for fi in mi]:
                     edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
                     wire = occ.Wire(edges)
@@ -2556,20 +2558,21 @@ def meshes_to_solids(context, coll, op):
                     faces.append(f)
 
                 g_mesh_solid = occ.OCCGeometry(occ.Fuse(faces))
+                print(g_names[gi], 'mi attempt')
                 g_mesh_solid.Heal()
 
-                if len(g_mesh_solid.solids):
-                    solids.append(g_mesh_solid.solids[0])
-
+                for sol in g_mesh_solid.shape.solids:
+                    solids.append(sol)
+                print(len(solids))
             bm.free()
 
-    solids = [occ.Fuse(solids)]
-
+    # solids = [occ.Fuse(solids)]
+    print(len(solids))
     for si, solid in enumerate(solids):
         d_geo = d_geo.shape - solid if not si else d_geo - solid
         fns = [face.name for face in d_geo.faces]
         fcs = [face.center for face in d_geo.faces]
-        #d_geo.Heal(tolerance=0.0001)
+        # d_geo.Heal(tolerance=0.0001)
 
         if None in set([face.name for face in d_geo.faces]):
             for fi, face in enumerate(d_geo.faces):
@@ -2581,7 +2584,11 @@ def meshes_to_solids(context, coll, op):
 
                     if face.name is None:
                         face.name = fns[fi]
-
+    # sols = []
+    # for sol in d_geo.solids[1:]:
+    #     gsol = occ.OCCGeometry(sol)
+    #     gsol.Heal()
+    #     sols.append(gsol)
     return d_geo.solids[1:]
 
 def solid_to_mesh(svp, solid, si, op):
@@ -2659,7 +2666,7 @@ def solid_to_mesh(svp, solid, si, op):
                 f += int(fi)
 
         elif len(set(mat_list)) < 2:
-            op.report({'WARNING': "Solids create a volume with only one material type. Create or duplicate an additional material on the zone boundary"})
+            op.report({'WARNING'}, "Solids create a volume with only one material type. Create or duplicate an additional material on the zone boundary")
             logentry('Error: Solids create a volume with only one material type. Create or duplicate an additional material on the zone boundary')
     
     if f'Zone{si}' not in [mesh.name for mesh in bpy.data.meshes]:
@@ -2680,6 +2687,7 @@ def solid_to_mesh(svp, solid, si, op):
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 
     manifold = all([e.is_manifold for e in bm.edges])
+    # manifold = True
 
     for mi, mat in enumerate(set(mat_list)):
         if mat:

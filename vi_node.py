@@ -9809,29 +9809,32 @@ class No_Au_Sim(Node, ViNodes):
 
             for si, solid in enumerate(solids):
                 manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si, op)
+                print(manifold, 'man')
 
-                if manifold:
-                    if f'Zone {si}' not in bpy.data.collections:
-                        z_coll = bpy.data.collections.new(f'Zone {si}')
-                    else:
-                        z_coll = bpy.data.collections[f'Zone {si}']
+                if not manifold:
+                    op.report({'WARNING'}, f'Zone {si} is not manifold. Some manual editing may be required')
 
-                    z_coll.vi_params.envi_zone = 1
+                if f'Zone {si}' not in bpy.data.collections:
+                    z_coll = bpy.data.collections.new(f'Zone {si}')
+                else:
+                    z_coll = bpy.data.collections[f'Zone {si}']
 
-                    if f'Zone {si}' not in bpy.context.scene.collection.children:
-                        bpy.context.scene.collection.children.link(z_coll)
+                z_coll.vi_params.envi_zone = 1
 
-                    if f'Zone {si}' not in [ob.name for ob in bpy.data.objects]:
-                        ob = bpy.data.objects.new(f'Zone {si}', mesh)
-                        ob.data = mesh
-                    else:
-                        ob = bpy.data.objects[f'Zone {si}']
-                        ob.data = mesh
+                if f'Zone {si}' not in bpy.context.scene.collection.children:
+                    bpy.context.scene.collection.children.link(z_coll)
 
-                    if ob.name not in z_coll.objects:
-                        z_coll.objects.link(ob)
+                if f'Zone {si}' not in [ob.name for ob in bpy.data.objects]:
+                    ob = bpy.data.objects.new(f'Zone {si}', mesh)
+                    ob.data = mesh
+                else:
+                    ob = bpy.data.objects[f'Zone {si}']
+                    ob.data = mesh
 
-                    ob.vi_params.vi_type = '1'
+                if ob.name not in z_coll.objects:
+                    z_coll.objects.link(ob)
+
+                ob.vi_params.vi_type = '1'
 
         self['coptions'] = {}
         self['goptions'] = {'offset': 0.01}

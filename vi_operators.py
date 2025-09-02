@@ -4381,7 +4381,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
 
-        robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots]) and o.vi_params.vi_type == '1']
+        robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
         mats = [mat for mat in bpy.data.materials if mat.vi_params.mattype == '3']
         reslists = []
         frames = [f for f in range(simnode.startframe, simnode.endframe + 1)] if simnode.animated else [scene.frame_current]
@@ -4716,32 +4716,37 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
     def execute(self, context):
         convnode = context.node
         ir_node = convnode.inputs[0].links[0].from_node
-        fs, audio = wavfile.read(convnode.wavname)
-        odt = audio.dtype
 
-        if len(audio.shape) > 1:
-            audio = nmean(audio, axis=1).astype(odt)
+        if os.path.isfile(convnode.wavname):
+            fs, audio = wavfile.read(convnode.wavname)
+            odt = audio.dtype
 
-        if odt == int16:
-            audio = audio.astype(float32) / 32768
-        elif odt == int32:
-            audio = (audio.astype(float32) / 2147483647)
-        elif odt == float64:
-            audio.astype(float32)
+            if len(audio.shape) > 1:
+                audio = nmean(audio, axis=1).astype(odt)
 
-        if fs != 16000:
-            samples = int(16000 * len(audio) / fs)
-            audio = signal.resample(audio, samples)
-            fs = 16000
+            if odt == int16:
+                audio = audio.astype(float32) / 32768
+            elif odt == int32:
+                audio = (audio.astype(float32) / 2147483647)
+            elif odt == float64:
+                audio.astype(float32)
 
-        for rl in ir_node['reslists']:
-            if f'{rl[0]} - {rl[2]}' == convnode.rir and rl[3] == 'RIR':
-                ir = array([float(s) for s in rl[4].split()]).astype(float32, order='C')
-                break
+            if fs != 16000:
+                samples = int(16000 * len(audio) / fs)
+                audio = signal.resample(audio, samples)
+                fs = 16000
 
-        convnode['convolved_audio'] = []
-        convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
-        convnode.postsim()
+            for rl in ir_node['reslists']:
+                if f'{rl[0]} - {rl[2]}' == convnode.rir and rl[3] == 'RIR':
+                    ir = array([float(s) for s in rl[4].split()]).astype(float32, order='C')
+                    break
+
+            convnode['convolved_audio'] = []
+            convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
+            convnode.postsim()
+        else:
+            self.report({'ERROR'}, 'Sound file cannot be found')
+
         return {'FINISHED'}
 
 
