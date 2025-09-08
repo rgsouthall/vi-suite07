@@ -46,7 +46,7 @@ from .flovi_func import ofheader, fvcdwrite, fvvarwrite, fvsolwrite, fvschwrite,
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
-from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, qtprogressbar, rm_coll
+from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, qtprogressbar, rm_coll, sys_exe
 from .livi_func import retpmap
 from .auvi_func import rir2sti
 from .vi_chart import chart_disp, hmchart_disp, ec_pie, wlc_line, com_line
@@ -3016,7 +3016,6 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        print(os.path.abspath(os.curdir))
         dp = bpy.context.evaluated_depsgraph_get()
         scene = context.scene
         svp = scene.vi_params
@@ -3157,7 +3156,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_undo = False
 
     def invoke(self, context, event):
-        cur_dir = os.path.abspath(os.curdir)
+        # cur_dir = os.path.abspath(os.curdir)
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
         except Exception:
@@ -3596,8 +3595,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             surf_mesh.Export(os.path.join(r'{6}', 'ng_surf.stl'), 'STL Format')
             '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading,
                        self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs)))
-        print(os.path.realpath(sys.executable))
-        self.surf_run = Popen(shlex.split('"{}" "{}"'.format(os.path.realpath(sys.executable), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
+
+        # print(os.path.isfile(sys.executable), os.path.relpath(sys.executable), os.path.join(os.path.expanduser('~'), os.path.relpath(sys.executable)))
+        self.surf_run = Popen(shlex.split('"{}" "{}"'.format(sys_exe(), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
         self.surf_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
         context.window_manager.modal_handler_add(self)
@@ -3664,7 +3664,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                            self.expnode.optimisations)))
 
             self.vol_running = 1
-            self.vol_run = Popen(shlex.split('"{}" "{}"'.format(os.path.realpath(sys.executable), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
+            self.vol_run = Popen(shlex.split('"{}" "{}"'.format(sys_exe(), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
             self.vol_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Volume Mesh')
 
         if self.vol_running == 1:
@@ -3708,9 +3708,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 svp = scene.vi_params
 
                 if os.path.isfile(os.path.join(self.offb, 'ng.mesh')):
-                    # os.chdir(self.offb)
-                    print(os.path.realpath(sys.executable))
-
+                    # print('sys path', os.path.realpath(sys.executable))
+                    os.chdir(self.offb)
+                    # print('Current dir', os.curdir)
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                         nntf_cmd = 'foamExec netgenNeutralToFoam -noFunctionObjects -case {} {}'.format(frame_offb, os.path.join(self.offb, 'ng.mesh'))
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()

@@ -38,6 +38,12 @@ except Exception:
     ng = 0
 
 
+def sys_exe():
+    if os.path.isfile(sys.executable):
+        return sys.executable
+    else:
+        return os.path.join(os.path.expanduser('~'), os.path.relpath(sys.executable))
+
 def li_calcob(ob, li):
     ovp = ob.vi_params
 
@@ -172,7 +178,6 @@ def clear_coll(c, coll):
 
 def rm_coll(c, colls):
     for coll in colls:
-        print(coll.name)
         for obj in coll.objects:
             bpy.data.objects.remove(obj, do_unlink=True)
 
@@ -569,7 +574,7 @@ QApplication.shutdown(app)"
 
     with open(file + "qt.py", 'w') as qtfile:
         qtfile.write(qttext)
-    return Popen([sys.executable, file + "qt.py"])
+    return Popen([sys_exe(), file + "qt.py"])
 
 
 def progressbar(file, calctype):
@@ -627,7 +632,7 @@ if __name__ == '__main__':\n\
 
     with open(file + ".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
-    return Popen([sys.executable, file + ".py"])
+    return Popen([sys_exe(), file + ".py"])
 
 
 def cancel_window(file, pdll_path, calc_type):
@@ -667,7 +672,7 @@ QApplication.shutdown(app)".format(calc_type)
 
     with open(file + ".py", 'w') as qtfile:
         qtfile.write(qttext)
-    return Popen([sys.executable, file + ".py"])
+    return Popen([sys_exe(), file + ".py"])
 
 
 def qtfvprogress(file, pdll_path, et, residuals, frame):
@@ -766,7 +771,7 @@ QApplication.shutdown(app)"
     with open(file + "qt.py", 'w') as qtfile:
         qtfile.write(qttext)
 
-    return Popen([sys.executable, file + "qt.py"])
+    return Popen([sys_exe(), file + "qt.py"])
 
 
 def logentry(text):
@@ -2488,7 +2493,7 @@ def meshes_to_solids(context, coll, op):
 
                 for shell in g_geo_solid.SubShapes(occ.SHELL):
                     used_shells.append(shell)
-        print(g_names[gi], len(g_geo.shape.SubShapes(occ.SHELL)), len(used_shells))
+
         if len(g_geo.shape.SubShapes(occ.SHELL)) > len(used_shells):
             for g_shell in g_geo.shape.SubShapes(occ.SHELL):
                 if g_shell not in used_shells:
@@ -2533,13 +2538,15 @@ def meshes_to_solids(context, coll, op):
 
         if not g_geo.shape.SubShapes(occ.SOLID):
             ob = bpy.data.objects[g_names[gi]]
-            mesh_islands = mesh_utils.mesh_linked_triangles(ob.evaluated_get(dp).data)
-            print('mi', len(mesh_islands))
+            # mesh_islands = mesh_utils.mesh_linked_triangles(ob.evaluated_get(dp).data)
             bm = bmesh.new()
             bm.from_object(ob, dp)
-            # bmesh.ops.triangulate(bm, faces=bm.faces)
+            bmesh.ops.triangulate(bm, faces=bm.faces)
             bm.transform(ob.matrix_world)
             bm.faces.ensure_lookup_table()
+            mesh = bpy.data.meshes.new(name='temp')
+            bm.to_mesh(mesh)
+            mesh_islands = mesh_utils.mesh_linked_triangles(mesh)
 
             for mi in mesh_islands:
                 faces = []
@@ -2557,22 +2564,20 @@ def meshes_to_solids(context, coll, op):
 
                     faces.append(f)
 
-                g_mesh_solid = occ.OCCGeometry(occ.Fuse(faces))
-                print(g_names[gi], 'mi attempt')
+                g_mesh_solid = occ.OCCGeometry(occ.Glue(faces))
                 g_mesh_solid.Heal()
 
                 for sol in g_mesh_solid.shape.solids:
                     solids.append(sol)
-                print(len(solids))
+
             bm.free()
 
     # solids = [occ.Fuse(solids)]
-    print(len(solids))
+
     for si, solid in enumerate(solids):
         d_geo = d_geo.shape - solid if not si else d_geo - solid
         fns = [face.name for face in d_geo.faces]
         fcs = [face.center for face in d_geo.faces]
-        # d_geo.Heal(tolerance=0.0001)
 
         if None in set([face.name for face in d_geo.faces]):
             for fi, face in enumerate(d_geo.faces):
@@ -2584,11 +2589,7 @@ def meshes_to_solids(context, coll, op):
 
                     if face.name is None:
                         face.name = fns[fi]
-    # sols = []
-    # for sol in d_geo.solids[1:]:
-    #     gsol = occ.OCCGeometry(sol)
-    #     gsol.Heal()
-    #     sols.append(gsol)
+
     return d_geo.solids[1:]
 
 def solid_to_mesh(svp, solid, si, op):
