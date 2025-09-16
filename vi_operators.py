@@ -4382,6 +4382,12 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
 
         robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
+
+        if not robs:
+            logentry('No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
+            self.report({'ERROR'}, 'No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
+            return {'CANCELLED'}
+
         mats = [mat for mat in bpy.data.materials if mat.vi_params.mattype == '3']
         reslists = []
         frames = [f for f in range(simnode.startframe, simnode.endframe + 1)] if simnode.animated else [scene.frame_current]
@@ -4438,6 +4444,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 bmesh.ops.triangulate(room_bm, faces=room_bm.faces)
 
                 for face in room_bm.faces:
+                    if face.material_index >= len(rob.material_slots):
+                        logentry('Invalid material designation. Object modifiers may need to be applied')
+                        self.report({'ERROR'}, 'Invalid material designation. Object modifiers may need to be applied')
+                        return {'CANCELLED'}
+
                     mat = rob.material_slots[face.material_index].material
 
                     if mat.name in amat_dict:
@@ -4600,16 +4611,6 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             
                             bm_res.append(mic_bm.faces.layers.float[fl_name])
 
-                        # if not mic_bm.faces.layers.float.get(f'{source.name}_rt{frame}'):
-                        #     mic_bm.faces.layers.float.new(f'{source.name}_rt{frame}')
-                        # if not mic_bm.faces.layers.float.get(f'{source.name}_vol{frame}'):
-                        #     mic_bm.faces.layers.float.new(f'{source.name}_vol{frame}')
-                        # if not mic_bm.faces.layers.float.get(f'{source.name}_sti{frame}'):
-                        #     mic_bm.faces.layers.float.new(f'{source.name}_sti{frame}')
-
-                        # bm_rtres = mic_bm.faces.layers.float[f'{source.name}_rt{frame}']
-                        # bm_volres = mic_bm.faces.layers.float[f'{source.name}_vol{frame}']
-                        # bm_stires = mic_bm.faces.layers.float[f'{source.name}_sti{frame}']
                         bm_ir = mic_bm.faces.layers.int['cindex']
 
                         for face in mic_bm.faces:
@@ -4648,6 +4649,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             
                         else:
                             self.report({'WARNING'}, f'No results on sensor mesh {mic_a.name}')
+
                     mic_bm.to_mesh(mic_a.data)
                     mic_bm.free()
 
