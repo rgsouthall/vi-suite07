@@ -48,6 +48,7 @@ else:
         os.environ['SDL_VIDEO_X11_NET_WM_BYPASS_COMPOSITOR'] = '0'
         os.environ['PYTHON_INCLUDE_DIR'] = os.path.join(addonpath, 'Python', sys.platform, 'include')
 
+    plat_path = os.path.join(addonpath, 'Python', sys.platform)
     install_fails = []
     sys_install = 0
 
@@ -93,30 +94,30 @@ else:
         win = sys.platform == 'win32'
         print('Some system libraries were not found. Checking built-in libraries')
         sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages'))
-        sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform))
+        sys.path.insert(0, plat_path)
 
         if os.environ.get('PYTHONPATH'):
-            if os.path.join(addonpath, 'Python', sys.platform) not in os.environ['PYTHONPATH']:
-                os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform) + os.pathsep + os.environ['PYTHONPATH']
+            if plat_path not in os.environ['PYTHONPATH']:
+                os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.environ['PYTHONPATH']
 
                 if sys.platform != 'linux':
-                    os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform) + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
+                    os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
         else:
-            os.environ['PYTHONPATH'] = os.path.join(addonpath, 'Python', sys.platform)
+            os.environ['PYTHONPATH'] = plat_path
 
             if sys.platform != 'linux':
                 os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages')
 
         if sys.platform == 'linux':
             if not os.environ.get('LD_LIBRARY_PATH'):
-                os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+                os.environ['LD_LIBRARY_PATH'] = plat_path
 
-            elif os.path.join(addonpath, 'Python', sys.platform) not in os.environ['LD_LIBRARY_PATH']:
-                os.environ['LD_LIBRARY_PATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform)
+            elif plat_path not in os.environ['LD_LIBRARY_PATH']:
+                os.environ['LD_LIBRARY_PATH'] += os.pathsep + plat_path
 
         elif sys.platform == 'darwin':
             if not os.environ.get('DYLD_LIBRARY_PATH'):
-                os.environ['DYLD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform)
+                os.environ['DYLD_LIBRARY_PATH'] = plat_path
 
         if os.environ.get('PATH'):
             if os.path.join(addonpath, 'Python', sys.platform, 'bin') not in os.environ['PATH']:
@@ -131,7 +132,7 @@ else:
                 raise Exception('Installation of the VI-Suite requires an internet connection')
 
             print('Some built-in libraries were not found. Installing.')
-            pyqt_cmd = '"{}" -m pip install -r "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'requirements.txt'), os.path.join(addonpath, 'Python', sys.platform))
+            pyqt_cmd = '"{}" -m pip install -r "{}" --target "{}"'.format(sys.executable, os.path.join(addonpath, 'Python', 'requirements.txt'), plat_path)
             Popen(shlex.split(pyqt_cmd)).wait()
             print('Installed local libraries')
 
@@ -146,9 +147,9 @@ else:
 
     except Exception:
         if sys.platform == 'darwin':
-            ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
             src_path = os.path.join(addonpath, 'Python', sys.platform, 'lib')
             dest_path = os.path.join(addonpath, 'Python')
@@ -163,7 +164,7 @@ else:
         elif sys.platform == 'win32':
             ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, addonpath, 'Python', sys.platform)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
 
         elif sys.platform == 'linux':
@@ -183,7 +184,10 @@ else:
 
     except Exception:
         if sys.platform == 'linux':
-            print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
+            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.7.7-cp311-cp311-linux_x86_64.whl'))
+            Popen(shlex.split(pyr_cmd)).wait()
+            print('Installing built-in pyroomacoustics')
+            #print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
         else:
             try:
                 import pyroomacoustics as pra
@@ -796,7 +800,7 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_prgh_p0: fprop("", "p_rgh p0", -100000, 100000, 0.0)
     flovi_prgh_gamma: fprop("", "p_rgh gamma", 0, 10, 1.4)
 
-    flovi_ng_max: fprop("", "Netgen max cell size (face defined)", 0.001, 100, 0.5)
+    flovi_ng_max: fprop("", "Netgen max cell size (face defined)", 0.001, 100, 2.0)
     flovi_ng_emax: fprop("", "Netgen max cell size (edge defined)", 0.001, 1, 1)
     flovi_rad_subtype: EnumProperty(items=ret_fvrad_menu, name="", description="FloVi sub-type boundary")
     flovi_rad_em: eprop([('lookup', 'Lookup', 'Lookup emissivity')], "", "Emissivity mode", 'lookup')

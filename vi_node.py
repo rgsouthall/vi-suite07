@@ -2370,10 +2370,9 @@ class No_Vi_Chart(Node, ViNodes):
                     row.prop(self, "timemenu")
 
                 row.prop(self, "dpi")
-
                 r_lens = [sock.r_len for sock in self.inputs if sock.links]
 
-                if len(r_lens) > 1 and all([r == r_lens[0] for r in r_lens]):
+                if len(r_lens) > 1 and all([r == r_lens[0] for r in r_lens]) and all([self.inputs[i].is_linked for i in range(len(r_lens))]):
                     row = layout.row()
                     row.operator("node.chart", text='Create plot')
                     row = layout.row()
@@ -3933,7 +3932,7 @@ class No_Vi_Metrics(Node, ViNodes):
                     if pref_flag and ws_flag:
                         break
 
-            (ws, pref) = (ws, pref) if ws_flag and pref_flag and self.ref_type == '0' else (self.ws, self.pref)
+            (ws, pref) = (ws, pref) if ws_flag and pref_flag and self.ref_type == '0' and ws else (self.ws, self.pref)
 
             for pn in pnames:
                 for r in self['rl']:
@@ -3956,6 +3955,7 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Y velocity':
                             uys = [float(uy) for uy in r[4].split()]
                     elif r[3] == 'Pressure':
+                        print(ws)
                         ps = ['{:.3f}'.format((float(r) - pref) / (0.5 * 1.225 * (ws**2))) for r in r[4].split()]
                         reslists.append(['All', 'Probe', r[2], 'WPCs', ' '.join(ps)])
             try:
@@ -4709,10 +4709,7 @@ class No_Flo_NG(Node, ViNodes):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
     poly: BoolProperty(name='', description='Create polygonal mesh', default=0, update=nodeupdate)
-    # pcorr: FloatProperty(name="m", description="Maximum distance for position correspondance", min=0, max=1, default=0.1, update=nodeupdate)
-    # acorr: FloatProperty(name="", description="Minimum cosine for angular correspondance", min=0, max=1, default=0.9, update=nodeupdate)
     maxcs: FloatProperty(name="m", description="Max global cell size", min=0, max=100, default=1, update=nodeupdate)
-    # yang: FloatProperty(name="deg", description="Minimum angle for separate faces", min=0, max=90, default=1, update=nodeupdate)
     grading: FloatProperty(name="", description="Small to large cell inflation", min=0, max=0.99, default=0.1, update=nodeupdate)
     processors: IntProperty(name="", description="Number of processers", min=0, max=32, default=1, update=nodeupdate)
     optimisations: IntProperty(name="", description="Number of optimisation steps", min=0, max=32, default=3, update=nodeupdate)
@@ -4739,13 +4736,9 @@ class No_Flo_NG(Node, ViNodes):
         if self.inputs and self.inputs['Case in'].links:
             if all(flo_libs):
                 newrow(layout, 'Cell size:', self, 'maxcs')
-                # newrow(layout, 'Position corr:', self, 'pcorr')
-                # newrow(layout, 'Angular corr:', self, 'acorr')
-                # newrow(layout, 'Distinction angle:', self, 'yang')
                 newrow(layout, 'Inflation:', self, 'grading')
                 newrow(layout, 'Optimisations:', self, 'optimisations')
                 newrow(layout, 'Attempts:', self, 'maxsteps')
-                # newrow(layout, 'Blender mesh:', self, 'ofbm')
                 newrow(layout, 'Polygonal:', self, 'poly')
                 newrow(layout, 'Blender boundary:', self, 'b_only')
                 newrow(layout, 'Write STEPs:', self, 'debug_step')

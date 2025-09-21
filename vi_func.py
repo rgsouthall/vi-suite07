@@ -690,7 +690,7 @@ class MainWindow(QMainWindow):\n\
         super().__init__()\n\
         self.rpbs = []\n\
         self.nums = []\n\
-        self.setWindowTitle('OpenFOAM Residuals')\n\
+        self.setWindowTitle('OpenFOAM " + str(frame) + " Residuals')\n\
         self.setFixedWidth(370)\n\
         self.btn = QPushButton('Cancel')\n\
         self.btn.pressed.connect(self.stop_process)\n\

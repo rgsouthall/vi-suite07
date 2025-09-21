@@ -371,7 +371,7 @@ def fvmat(self, svp, mn, bound, frame):
                      'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
                      'fixedFluxPressure': 'fixedFluxPressure;\n    value    {}'.format(val),
                      'fixedValue': 'fixedValue;\n    value    {}'.format(val),
-                     'prghEntrainmentPressure': 'prghEntrainmentPressure;\n    p0       $internalField'.format(p0val),
+                     'prghEntrainmentPressure': 'prghEntrainmentPressure;\n    p0       $internalField',
                      'calculated': 'calculated;\n    value    $internalField',
                      'prghPressure': 'prghPressure;\n    p    $internalField;\n    value    $internalField',
                      'freestreamPressure': 'freestreamPressure',
@@ -540,40 +540,133 @@ def fvvarwrite(scene, obs, node):
                         IDfile.write(ofheader + write_ffile('volScalarField', '', 'IDefault') + Ientry)
     return b_dict
 
-def fvmattype(mat, var):
-    if mat.flovi_bmb_type == '0':
-        matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
-        matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
-    elif mat.flovi_bmb_type in ('1', '2'):
-        matbptype = ['freestreamPressure'][int(mat.flovi_bmiop_type)]
-        matbUtype = ['fixedValue'][int(mat.flovi_bmiou_type)]
-    elif mat.flovi_bmb_type == '3':
-        matbptype = 'empty'
-        matbUtype = 'empty'
+# def fvmattype(mat, var):
+#     if mat.flovi_bmb_type == '0':
+#         matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
+#         matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
+#     elif mat.flovi_bmb_type in ('1', '2'):
+#         matbptype = ['freestreamPressure'][int(mat.flovi_bmiop_type)]
+#         matbUtype = ['fixedValue'][int(mat.flovi_bmiou_type)]
+#     elif mat.flovi_bmb_type == '3':
+#         matbptype = 'empty'
+#         matbUtype = 'empty'
 
 
 def fvcdwrite(svp, node, dp):
-    ps, ss, bs, htcs = [], [], [], []
-    solver = svp['flparams']['solver']
+    # ps, ss, bs, htcs = [], [], [], []
+    solver = svp['flparams']['solver'].split()[2]
     htext = ofheader + write_ffile('dictionary', 'system', 'controlDict')
     cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '0', 'stopAt': 'endTime',
              'endTime': f'{node.etime}', 'deltaT': f'{node.dtime:.5f}', 'writeControl': 'timeStep', 'writeInterval': f'{node.w_int}',
              'purgeWrite': '{}'.format(0), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
-             'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
+             'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'libs': '("libatmosphericModels.so")'}
+    # cdict = {'application': solver, 'startFrom': 'startTime', 'startTime': '0', 'stopAt': 'endTime',
+    #          'endTime': f'{node.etime}', 'deltaT': f'{node.dtime:.5f}', 'writeControl': 'timeStep', 'writeInterval': f'{node.w_int}',
+    #          'purgeWrite': '{}'.format(0), 'writeFormat': 'ascii', 'writePrecision': '6', 'writeCompression': 'off',
+    #          'timeFormat': 'general', 'timePrecision': '6', 'runTimeModifiable': 'true', 'functions': {}, 'libs': '("libatmosphericModels.so")'}
+
+#     if node.comfort:
+#         cdict['functions']['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo*0.155:.2f}',
+#                                          'metabolicRate': f'{node.met:.2f}', 'relHumidity': f'{node.rh * 0.01:.2f}',
+#                                          'writeControl': 'writeTime', 'executeControl': 'writeTime'}
+#     if node.age:
+#         cdict['functions']['age'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'age', 'diffusion': 'on', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
+#
+#     for o in bpy.data.objects:
+#         ovp = o.vi_params
+#
+#         # if o.type == 'MESH' and ovp.vi_type == '2':
+#         #     dom = o
+#         # elif o.type == 'EMPTY' and ovp.flovi_probe:
+#         if o.type == 'EMPTY' and ovp.flovi_probe:
+#             ps.append(o)
+#         elif o.type == 'EMPTY' and o.name == node.p_ref_point and node.p_ref != '0':
+#             ps.append(o)
+#         elif o.type == 'MESH' and ovp.vi_type == '6' and o.visible_get():
+#             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
+#                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface')):
+#                     os.makedirs(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface'))
+#                 ovp.write_stl(dp, os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface', '{}.stl'.format(o.name)))
+#
+#             ss.append(o.name)
+#
+#         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
+#             for mat in o.data.materials:
+#                 if mat.vi_params.flovi_probe:
+#                     bs.append('{}_{}'.format(o.name, mat.name))
+#
+#         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_htc for m in o.data.materials]):
+#             for mat in o.data.materials:
+#                 if mat.vi_params.flovi_htc and mat.vi_params.flovi_bmb_type in ('Solid', 'Wall'):
+#                     htcs.append('{}_{}'.format(o.name, mat.name))
+#
+#     if ps:
+#         svp['flparams']['probes'] = [p.name.replace(" ", "_") for p in ps]
+#         probe_vars = 'p U T k epsilon'
+#
+#         for p in ps:
+#             cdict['functions'][p.name.replace(" ", "_")] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name.replace(" ", "_")), 'writeControl': 'timeStep',
+#                                           'writeInterval': f'{node.w_int}', 'fields': '({0})'.format(probe_vars),
+#                                           'probeLocations\n(\n{}\n)'.format('   ({0[0]} {0[1]} {0[2]})'.format(p.location)): ''}
+#
+#         probe_text = '''functions
+# {{
+#     probes
+#     {{
+#         libs            ("libsampling.so");
+#         type            probes;
+#         name            {2};
+#         writeControl    timeStep;
+#         writeInterval   '{3}';
+#         fields          ({0});
+#         probeLocations
+#         (
+#             {1}
+#         );
+#     }}
+# }}'''.format(probe_vars, ''.join([' ({0[0]} {0[1]} {0[2]})\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name.replace(" ", "_")) for p in ps]), node.w_int)
+#
+#     else:
+#         probe_text = ''
+#         bpy.context.scene.vi_params['flparams']['probes'] = []
+#
+#     bpy.context.scene.vi_params['flparams']['s_probes'] = ss
+#     bpy.context.scene.vi_params['flparams']['b_probes'] = bs
+#
+#     if bs:
+#         for b in bs:
+#             cdict['functions'][b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
+#                                      'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
+#                                      'operation': 'areaAverage', 'fields    (p U)': ''}
+#             cdict['functions'][b+'_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
+#                                      'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
+#                                      'operation': 'areaNormalIntegrate', 'fields    (U)': ''}
+#     if htcs:
+#         cdict['functions']['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches' : '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
+#                                      'writeInterval': f'{node.w_int}', 'rho': '1.225', 'Cp': '1005', 'Pr': '0.707', 'Prt': '0.9'}
+
+    return write_fvdict(htext, cdict)
+
+
+def fvfuncwrite(svp, node, dp):
+    ps, ss, bs, htcs = [], [], [], []
+    htext = ofheader + write_ffile('dictionary', 'system', 'functions')
+    fdict = {}
 
     if node.comfort:
-        cdict['functions']['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo*0.155:.2f}',
-                                         'metabolicRate': f'{node.met:.2f}', 'relHumidity': f'{node.rh * 0.01:.2f}', 
+        fdict['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo*0.155:.2f}',
+                                         'metabolicRate': f'{node.met:.2f}', 'relHumidity': f'{node.rh * 0.01:.2f}',
                                          'writeControl': 'writeTime', 'executeControl': 'writeTime'}
     if node.age:
-        cdict['functions']['age'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'age', 'diffusion': 'on', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
+        fdict['age'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'age', 'diffusion': 'on', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
 
     for o in bpy.data.objects:
         ovp = o.vi_params
 
-        if o.type == 'MESH' and ovp.vi_type == '2':
-            dom = o
-        elif o.type == 'EMPTY' and ovp.flovi_probe:
+        # if o.type == 'MESH' and ovp.vi_type == '2':
+        #     dom = o
+        # elif o.type == 'EMPTY' and ovp.flovi_probe:
+        if o.type == 'EMPTY' and ovp.flovi_probe:
             ps.append(o)
         elif o.type == 'EMPTY' and o.name == node.p_ref_point and node.p_ref != '0':
             ps.append(o)
@@ -582,7 +675,7 @@ def fvcdwrite(svp, node, dp):
                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface')):
                     os.makedirs(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface'))
                 ovp.write_stl(dp, os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface', '{}.stl'.format(o.name)))
-            
+
             ss.append(o.name)
 
         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
@@ -600,29 +693,29 @@ def fvcdwrite(svp, node, dp):
         probe_vars = 'p U T k epsilon'
 
         for p in ps:
-            cdict['functions'][p.name.replace(" ", "_")] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name.replace(" ", "_")), 'writeControl': 'timeStep',
+            fdict[p.name.replace(" ", "_")] = {'libs': '("libsampling.so")', 'type': 'probes', 'name': '{}'.format(p.name.replace(" ", "_")), 'writeControl': 'timeStep',
                                           'writeInterval': f'{node.w_int}', 'fields': '({0})'.format(probe_vars),
                                           'probeLocations\n(\n{}\n)'.format('   ({0[0]} {0[1]} {0[2]})'.format(p.location)): ''}
 
-        probe_text = '''functions
-{{
-    probes
-    {{
-        libs            ("libsampling.so");
-        type            probes;
-        name            {2};
-        writeControl    timeStep;
-        writeInterval   '{3}';
-        fields          ({0});
-        probeLocations
-        (
-            {1}
-        );
-    }}
-}}'''.format(probe_vars, ''.join([' ({0[0]} {0[1]} {0[2]})\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name.replace(" ", "_")) for p in ps]), node.w_int)
+#         probe_text = '''functions
+# {{
+#     probes
+#     {{
+#         libs            ("libsampling.so");
+#         type            probes;
+#         name            {2};
+#         writeControl    timeStep;
+#         writeInterval   '{3}';
+#         fields          ({0});
+#         probeLocations
+#         (
+#             {1}
+#         );
+#     }}
+# }}'''.format(probe_vars, ''.join([' ({0[0]} {0[1]} {0[2]})\n'.format(p.location) for p in ps]), ','.join(['{}'.format(p.name.replace(" ", "_")) for p in ps]), node.w_int)
 
     else:
-        probe_text = ''
+        #probe_text = ''
         bpy.context.scene.vi_params['flparams']['probes'] = []
 
     bpy.context.scene.vi_params['flparams']['s_probes'] = ss
@@ -630,17 +723,15 @@ def fvcdwrite(svp, node, dp):
 
     if bs:
         for b in bs:
-            cdict['functions'][b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
-                                     'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
+            fdict[b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeFields': 'false', 'patch': '{}'.format(b),
                                      'operation': 'areaAverage', 'fields    (p U)': ''}
-            cdict['functions'][b+'_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'writeControl': 'timeStep',
-                                     'writeInterval': f'{node.w_int}', 'writeFields': 'true', 'surfaceFormat': 'raw', 'regionType': 'patch', 'name': '{}'.format(b),
+            fdict[b+'_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeFields': 'false', 'patch': '{}'.format(b),
                                      'operation': 'areaNormalIntegrate', 'fields    (U)': ''}
     if htcs:
-        cdict['functions']['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches' : '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
+        fdict['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches' : '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
                                      'writeInterval': f'{node.w_int}', 'rho': '1.225', 'Cp': '1005', 'Pr': '0.707', 'Prt': '0.9'}
 
-    return write_fvdict(htext, cdict)
+    return write_fvdict(htext, fdict)
 
 
 def fvprefwrite(node):
@@ -846,61 +937,61 @@ def fvgwrite():
     return write_fvdict(htext, gdict)
 
 
-def fvshmlayers(oname, node):
-    surfdict = {"0": (("firstLayerThickness", node.frlayer), ("thickness", node.olayer)),
-                "1": (("firstLayerThickness", node.frlayer), ("expansionRatio", node.expansion)),
-                "2": (("finalLayerThickness", node.fnlayer), ("expansionRatio", node.expansion)),
-                "3": (("finalLayerThickness", node.fnlayer), ("thickness", node.olayer)),
-                "4": (("thickness", node.olayer), ("expansionRatio", node.expansion))}
-
-    return 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n  }}\n\n'.format(oname, node.layers)
-    '  expansionRatio 1.0;\n  finalLayerThickness 0.3;\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 3;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n' + \
-    '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
-
-
-def fvshmwrite(node, fvos, bmo, **kwargs):
-    surfdict = {"0": ("firstLayerThickness", node.frlayer, "thickness", node.olayer),
-                "1": ("firstLayerThickness", node.frlayer, "expansionRatio", node.expansion),
-                "2": ("finalLayerThickness", node.fnlayer, "expansionRatio", node.expansion),
-                "3": ("finalLayerThickness", node.fnlayer, "thickness", node.olayer),
-                "4": ("thickness", node.olayer, "expansionRatio", node.expansion)}
-
-    ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    object      snappyHexMeshDict;\n}\n\n'
-    ofheader += 'castellatedMesh    {};\nsnap    {};\naddLayers    {};\ndebug    {};\n\n'.format('true', 'true', ('false', 'true')[node.layers], 0)
-
-    ofheader += 'geometry\n{\n'
-
-    for o in fvos:
-        ofheader += '    {0}\n    {{\n        type triSurfaceMesh;\n        file "{0}.obj";\n    \n}}'.format(o.name)
-
-    ofheader += '};\n\n'
-    ofheader += 'castellatedMeshControls\n{{\n  maxLocalCells {};\n  maxGlobalCells {};\n  minRefinementCells {};\n  maxLoadUnbalance 0.10;\n  nCellsBetweenLevels {};\n\n'.format(node.lcells, node.gcells, int(node.gcells/100), node.ncellsbl)
-    ofheader += '  features\n  (\n'
-
-    for o in fvos:
-        ofheader += '    {{\n      file "{}.eMesh";\n      level {};\n    }}\n\n'.format(o.name, o.flovi_fl)
-
-    ofheader += ');\n\n'
-    ofheader += '  refinementSurfaces\n  {\n'
-
-    for o in fvos:
-        ofheader += '    {}\n    {{\n      level ({} {});\n    }}\n\n  '.format(o.name, o.flovi_slmin, o.flovi_slmax)
-
-    ofheader += '};\n\n'
-    ofheader += '  resolveFeatureAngle 30;\n  refinementRegions\n  {}\n\n'
-    ofheader += '  locationInMesh ({0[0]:} {0[1]} {0[2]});\n  allowFreeStandingZoneFaces true;\n}}\n\n'.format(mathutils.Matrix.Translation(bmo['flovi_translate']) * bpy.data.objects[node.empties].location)
-    ofheader += 'snapControls\n{\n  nSmoothPatch 3;\n  tolerance 2.0;\n  nSolveIter 30;\n  nRelaxIter 5;\n  nFeatureSnapIter 10;\n  implicitFeatureSnap false;\n  explicitFeatureSnap true;\n  multiRegionFeatureSnap false;\n}\n\n'
-    ofheader += 'addLayersControls\n{\n  relativeSizes true;\n  layers\n  {\n'
-
-    for o in fvos:
-        ofheader += '"{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n'.format(o.name, o.flovi_sl)
-
-    ofheader += '}}\n\n'.format(o.name, node.layers)
-    ofheader += '  {0[0]} {0[1]};\n  {0[2]} {0[3]};\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 5;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n'.format(surfdict[node.layerspec][:]) + \
-                '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
-    ofheader += 'meshQualityControls\n{\n  #include "meshQualityDict"\n  nSmoothScale 4;\n  errorReduction 0.75;\n}\n\n'
-    ofheader += 'writeFlags\n(\n  scalarLevels\n  layerSets\n  layerFields\n);\n\nmergeTolerance 1e-6;\n'
-    return ofheader
+# def fvshmlayers(oname, node):
+#     surfdict = {"0": (("firstLayerThickness", node.frlayer), ("thickness", node.olayer)),
+#                 "1": (("firstLayerThickness", node.frlayer), ("expansionRatio", node.expansion)),
+#                 "2": (("finalLayerThickness", node.fnlayer), ("expansionRatio", node.expansion)),
+#                 "3": (("finalLayerThickness", node.fnlayer), ("thickness", node.olayer)),
+#                 "4": (("thickness", node.olayer), ("expansionRatio", node.expansion))}
+#
+#     return 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n  }}\n\n'.format(oname, node.layers)
+#     '  expansionRatio 1.0;\n  finalLayerThickness 0.3;\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 3;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n' + \
+#     '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
+#
+#
+# def fvshmwrite(node, fvos, bmo, **kwargs):
+#     surfdict = {"0": ("firstLayerThickness", node.frlayer, "thickness", node.olayer),
+#                 "1": ("firstLayerThickness", node.frlayer, "expansionRatio", node.expansion),
+#                 "2": ("finalLayerThickness", node.fnlayer, "expansionRatio", node.expansion),
+#                 "3": ("finalLayerThickness", node.fnlayer, "thickness", node.olayer),
+#                 "4": ("thickness", node.olayer, "expansionRatio", node.expansion)}
+#
+#     ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    object      snappyHexMeshDict;\n}\n\n'
+#     ofheader += 'castellatedMesh    {};\nsnap    {};\naddLayers    {};\ndebug    {};\n\n'.format('true', 'true', ('false', 'true')[node.layers], 0)
+#
+#     ofheader += 'geometry\n{\n'
+#
+#     for o in fvos:
+#         ofheader += '    {0}\n    {{\n        type triSurfaceMesh;\n        file "{0}.obj";\n    \n}}'.format(o.name)
+#
+#     ofheader += '};\n\n'
+#     ofheader += 'castellatedMeshControls\n{{\n  maxLocalCells {};\n  maxGlobalCells {};\n  minRefinementCells {};\n  maxLoadUnbalance 0.10;\n  nCellsBetweenLevels {};\n\n'.format(node.lcells, node.gcells, int(node.gcells/100), node.ncellsbl)
+#     ofheader += '  features\n  (\n'
+#
+#     for o in fvos:
+#         ofheader += '    {{\n      file "{}.eMesh";\n      level {};\n    }}\n\n'.format(o.name, o.flovi_fl)
+#
+#     ofheader += ');\n\n'
+#     ofheader += '  refinementSurfaces\n  {\n'
+#
+#     for o in fvos:
+#         ofheader += '    {}\n    {{\n      level ({} {});\n    }}\n\n  '.format(o.name, o.flovi_slmin, o.flovi_slmax)
+#
+#     ofheader += '};\n\n'
+#     ofheader += '  resolveFeatureAngle 30;\n  refinementRegions\n  {}\n\n'
+#     ofheader += '  locationInMesh ({0[0]:} {0[1]} {0[2]});\n  allowFreeStandingZoneFaces true;\n}}\n\n'.format(mathutils.Matrix.Translation(bmo['flovi_translate']) * bpy.data.objects[node.empties].location)
+#     ofheader += 'snapControls\n{\n  nSmoothPatch 3;\n  tolerance 2.0;\n  nSolveIter 30;\n  nRelaxIter 5;\n  nFeatureSnapIter 10;\n  implicitFeatureSnap false;\n  explicitFeatureSnap true;\n  multiRegionFeatureSnap false;\n}\n\n'
+#     ofheader += 'addLayersControls\n{\n  relativeSizes true;\n  layers\n  {\n'
+#
+#     for o in fvos:
+#         ofheader += '"{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n'.format(o.name, o.flovi_sl)
+#
+#     ofheader += '}}\n\n'.format(o.name, node.layers)
+#     ofheader += '  {0[0]} {0[1]};\n  {0[2]} {0[3]};\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 5;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n'.format(surfdict[node.layerspec][:]) + \
+#                 '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
+#     ofheader += 'meshQualityControls\n{\n  #include "meshQualityDict"\n  nSmoothScale 4;\n  errorReduction 0.75;\n}\n\n'
+#     ofheader += 'writeFlags\n(\n  scalarLevels\n  layerSets\n  layerFields\n);\n\nmergeTolerance 1e-6;\n'
+#     return ofheader
 
 
 def fvdcpwrite(p):
@@ -948,7 +1039,7 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
     vcoords = []
     findices = []
     fi = []
-    fn, p, f = 0, 0, 0
+    fn,  f = 0, 0
     prevline = ''
 
     with open(os.path.join(ofb, st, 'polyMesh', 'points'), 'r') as mfile:

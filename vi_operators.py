@@ -42,7 +42,7 @@ from .envi_export import enpolymatexport, pregeo, solid_pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_eclasstype
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
-from .flovi_func import ofheader, fvcdwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
+from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
@@ -83,7 +83,7 @@ except Exception as e:
 try:
     import pyroomacoustics as pra
     pra_rt = True
-    pra.constants.set("num_threads", 8)
+    pra.constants.set("num_threads", pra.parameters.get_num_threads())
     ra = 1
 except Exception:
     ra = 0
@@ -3102,11 +3102,11 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
 
             if casenode.buoyancy:
                 svp['flparams']['pref'] = casenode.pabsval
-                svp['flparams']['solver'] = 'buoyantFoam'
+                svp['flparams']['solver'] = 'foamRun -solver fluid'
                 svp['flparams']['solver_type'] = 'bf'
                 svp['flparams']['params'] = 'bke'
             else:
-                svp['flparams']['solver'] = 'simpleFoam'
+                svp['flparams']['solver'] = 'foamRun -solver incompressibleFluid'
                 svp['flparams']['pref'] = casenode.pnormval
                 svp['flparams']['solver_type'] = 'sf'
                 svp['flparams']['params'] = 'ke'
@@ -3156,7 +3156,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
     bl_undo = False
 
     def invoke(self, context, event):
-        # cur_dir = os.path.abspath(os.curdir)
         try:
             bpy.ops.object.mode_set(mode='OBJECT')
         except Exception:
@@ -3173,10 +3172,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self.surf_complete = 0
         self.vol_complete = 0
         self.vol_running = 0
-        case_nodes = [link.from_node for link in self.expnode.inputs['Case in'].links]
+        #case_nodes = [link.from_node for link in self.expnode.inputs['Case in'].links]
         bound_nodes = [link.to_node for link in self.expnode.outputs['Mesh out'].links]
 
-        for node in case_nodes + bound_nodes:
+        for node in bound_nodes:
             node.use_custom_color = 1
 
         self.curcoll = context.collection
@@ -3212,16 +3211,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         else:
             os.environ['LD_LIBRARY_PATH'] = os.path.join(addonpath, 'Python', sys.platform, 'netgen')
 
-        # mp = MeshingParameters(maxh=self.expnode.maxcs, minh=0.25 * self.expnode.maxcs, grading=self.expnode.grading,
-        #                        optsteps2d=self.expnode.optimisations, optsteps3d=self.expnode.optimisations,
-        #                        delaunay=True, maxoutersteps=self.expnode.maxsteps)
-
         SetNumThreads(int(svp['viparams']['nproc']))
-        # mns = [0]
         self.omats = []
-        # mats,
         self.matnames, g_geos = [], []
-        # pmap1 = {}
         totmesh = Mesh()
         totmesh.SetMaterial(1, 'air')
         surf_no = 0
@@ -3344,7 +3336,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 else:
                     fc = Vector([fc for fc in face.calc_center_bounds()])
                     fn = Vector([fn for fn in face.normal])
-                    # evs = [(loop.vert, loop.link_loop_next.vert) for loop in face.loops]
                     vs = [loop.vert for loop in face.loops]
 
                     for v in vs:
@@ -3596,7 +3587,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading,
                        self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs)))
 
-        # print(os.path.isfile(sys.executable), os.path.relpath(sys.executable), os.path.join(os.path.expanduser('~'), os.path.relpath(sys.executable)))
         self.surf_run = Popen(shlex.split('"{}" "{}"'.format(sys_exe(), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
         self.surf_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
         self._timer = context.window_manager.event_timer_add(2, window=context.window)
@@ -3708,9 +3698,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 svp = scene.vi_params
 
                 if os.path.isfile(os.path.join(self.offb, 'ng.mesh')):
-                    # print('sys path', os.path.realpath(sys.executable))
                     os.chdir(self.offb)
-                    # print('Current dir', os.curdir)
+
                     if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                         nntf_cmd = 'foamExec netgenNeutralToFoam -noFunctionObjects -case {} {}'.format(frame_offb, os.path.join(self.offb, 'ng.mesh'))
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
@@ -3790,19 +3779,19 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
-                        # if sys.platform == 'linux':
-                        #     cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
-                        # elif sys.platform in ('darwin', 'win32'):
-                        #     cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
-                        #     cm = Popen(cm_cmd, shell=True, stdout=PIPE)
+                        if sys.platform == 'linux':
+                            cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
+                        elif sys.platform in ('darwin', 'win32'):
+                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
+                            cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
-                        # for line in cm.stdout:
-                        #     if '***Error' in line.decode():
-                        #         logentry('Mesh errors:{}'.format(line.decode()))
-                        #     elif '*Number' in line.decode() and sys.platform == 'linux':
-                        #         Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
-                        #     else:
-                        #         print(line.decode())
+                        for line in cm.stdout:
+                            if '***Error' in line.decode():
+                                logentry('Mesh errors:{}'.format(line.decode()))
+                            elif '*Number' in line.decode() and sys.platform == 'linux':
+                                Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
+                            else:
+                                print(line.decode())
 
                         for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                             if entry.is_file():
@@ -3869,6 +3858,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
+        dp = context.evaluated_depsgraph_get()
         scene = context.scene
         svp = scene.vi_params
         dobs = [o for o in bpy.data.objects if o.visible_get() and o.vi_params.vi_type == '2']
@@ -3891,6 +3881,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
         for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
             frame_offb = os.path.join(offb, str(frame))
             frame_ofcfb = os.path.join(frame_offb, 'constant')
+            frame_ofsfb = os.path.join(frame_offb, 'system')
 
             if os.path.isfile(os.path.join(frame_ofcfb, 'polyMesh', 'boundary')):
                 with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'r') as bfile:
@@ -3912,6 +3903,8 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
 
             with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'w') as bfile:
                 bfile.write(''.join(lines))
+            with open(os.path.join(frame_ofsfb, 'functions'), 'w') as funcfile:
+                funcfile.write(fvfuncwrite(svp, casenode, dp))
 
         boundnode.post_export()
         return {'FINISHED'}
@@ -3984,7 +3977,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         with open(self.fpfile, 'w') as fvprogress:
             if self.processes > 1:
                 if sys.platform == 'linux':
-                    self.runs.append(Popen(shlex.split('mpirun --oversubscribe -np {} foamExec {} -parallel -case {}'.format(self.processes,
+                    self.runs.append(Popen(shlex.split('mpirun -np {} foamExec {} -parallel -case {}'.format(self.processes,
                                                                                                                              svp['flparams']['solver'],
                                                                                                                              fframe_offb)), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
@@ -4381,7 +4374,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
 
-        robs = [o for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
+        robs = [o.evaluated_get(dp) for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
 
         if not robs:
             logentry('No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
