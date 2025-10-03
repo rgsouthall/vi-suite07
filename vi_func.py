@@ -1527,7 +1527,7 @@ def wind_compass(loc, scale, wro, mat):
     matrot = Matrix.Rotation(pi * 0.25, 4, 'Z')
     degmatrot = Matrix.Rotation(pi * 0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
-    direc = Vector((0, 1, 0))
+    direc = Vector((0, 1, 0)) 
 
     for i, edge in enumerate(bm.edges[-8:]):
         verts = bmesh.ops.extrude_edge_only(bm, edges=[edge], use_select_history=False)['geom'][:2]
@@ -1559,7 +1559,12 @@ def wind_compass(loc, scale, wro, mat):
 
     bm.to_mesh(come)
     bm.free()
-    return joinobj(bpy.context.view_layer, txts + [coo] + [wro])
+    wr_ob = joinobj(bpy.context.view_layer, txts + [coo] + [wro])
+
+    if bpy.context.scene.vi_params['viparams'].get('North') and bpy.context.scene.vi_params['viparams']['North'] != (0, 1, 0):
+        wr_ob.rotation_euler = Vector((0, 1, 0)).rotation_difference(Vector(bpy.context.scene.vi_params['viparams']['North'])).to_euler('XYZ')
+    
+    return wr_ob
 
 
 def rgb2h(rgb):
@@ -1865,6 +1870,11 @@ def sunpath(context):
     svp = scene.vi_params
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]
 
+    if context.scene.vi_params['viparams'].get('North') and context.scene.vi_params['viparams'] != (0, 1, 0):
+        phi_mod = Vector((0, 1, 0)).rotation_difference(Vector(bpy.context.scene.vi_params['viparams']['North'])).to_euler('XYZ')[2]
+    else:
+        phi_mod = 0
+
     if svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':
         if suns:
             alt, azi, beta, phi = solarPosition(svp.sp_sd, svp.sp_sh, svp.latitude, svp.longitude)
@@ -1873,7 +1883,7 @@ def sunpath(context):
             suns[0].location.y = -(100**2 - (suns[0].location.z)**2)**0.5 * cos(phi)
             suns[0].data.energy = svp.sp_sun_strength
             suns[0].data.angle = svp.sp_sun_angle
-            suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
+            suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi + phi_mod
             sky_vec = suns[0].location.normalized()
             sky_vec.rotate(suns[0].parent.matrix_world.to_euler())
             scene.display.light_direction = (sky_vec[0], sky_vec[2], -sky_vec[1])
@@ -1908,7 +1918,7 @@ def sunpath(context):
             suns[d].location.z = 100 * sin(beta)
             suns[d].location.x = -(100**2 - (suns[d].location.z)**2)**0.5 * sin(phi)
             suns[d].location.y = -(100**2 - (suns[d].location.z)**2)**0.5 * cos(phi)
-            suns[d].rotation_euler = pi * 0.5 - beta, 0, -phi
+            suns[d].rotation_euler = pi * 0.5 - beta, 0, -phi + phi_mod
             suns[d].hide_viewport = True if alt <= 0 else False
 
             if suns[d].children:
@@ -1943,7 +1953,7 @@ def sunpath(context):
                 suns[h].location.z = 100 * sin(beta)
                 suns[h].location.x = -(100**2 - (suns[h].location.z)**2)**0.5 * sin(phi)
                 suns[h].location.y = -(100**2 - (suns[h].location.z)**2)**0.5 * cos(phi)
-                suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi
+                suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi + phi_mod
                 suns[h].data.energy = sun_strength
 
                 if scene.render.engine == 'CYCLES':
@@ -1995,6 +2005,10 @@ def solarPosition(doy, lst, lat, lon):
     # Convert altitude and azimuth from radians to degrees, since the Spatial Analyst's Hillshade function inputs solar angles in degrees
     altitude = radToDeg * beta
     phi = 2 * pi - phi if ast <= 12 or ast >= 24 else phi
+
+    if bpy.context.scene.vi_params['viparams'].get('North'):
+        phi += Vector((0, 1)).angle_signed(bpy.context.scene.vi_params['viparams'].get('North')[:2])
+        
     azimuth = radToDeg * phi
     return ([altitude, azimuth, beta, phi])
 

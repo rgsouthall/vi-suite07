@@ -4175,12 +4175,16 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
-                vfs, times = [], []
+                vfs, times, ps = [], [], []
 
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+                    # Disable this until I can find a version that works on OS X. For linux this works with OpenFOAM 13
+                    # p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
                     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
+                    # The below does not seem to work on OS X
+                    # p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceAverage\\(trisurface="{oname}.stl", p\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
                     
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
@@ -4203,8 +4207,26 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
                     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
+                    
+                # Disable below until OS X version works
+                # for line in p_run.stdout.readlines()[::-1]:
+                #     print(line)
+                #     if "p =" in line.decode():
+                #         ps.append(line.decode().split()[-1])
+                
+                # if ps:
+                #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
+                    # elif 'Time =' in line.decode():
+                    #     ti = line.decode().split()[-1].strip('s')
+                    #     times.append(ti)
 
-            for oname in svp['flparams']['b_probes']:
+            t_probes = []
+            for b_probe in svp['flparams']['b_probes']:
+                t_probes.append(b_probe)
+            for s_probe in svp['flparams']['s_probes']:
+                t_probes.append(s_probe)
+
+            for oname in t_probes:
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname + '_vf', '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname + '_vf', '0')
 
@@ -4264,6 +4286,29 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                             logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict[metrics[ri]], frame_c, t_res[-1], float(res_array[-1])))
                             self.o_dict[str(frame_c)][oname][metrics[ri]] = float(res_array[-1])
                             self.reslists.append([str(frame_c), 'Probe', oname, resdict[metrics[ri]], ' '.join(['{:5f}'.format(float(res)) for res in res_array])])
+
+                    if 'Seconds' not in [r[3] for r in self.reslists]:
+                        self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
+                
+                if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)', '0')):
+                    vold = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)')
+                    
+                    if 'surfaceFieldValue.dat' in os.listdir(os.path.join(vold)):
+                        t_res = []
+                        q_res = []
+
+                        with open(os.path.join(probed, 'surfaceFieldValue.dat'), 'r') as resfile:
+                            for line in resfile.readlines():
+                                if '# Time' in line:
+                                    q_index = line.split().index('areaNormalIntegrate(U)') - 1
+                                if line and line[0] != '#':
+                                    t_res.append(line.split()[0])
+                                    q_res.append(line.split()[1])
+                        
+                        res_array = array(q_res)
+                        logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict['Q'], frame_c, t_res[-1], float(res_array[-1])))
+                        self.o_dict[str(frame_c)][oname]['Q'] = float(res_array[-1])
+                        self.reslists.append([str(frame_c), 'Probe', oname, resdict['Q'], ' '.join(['{:5f}'.format(float(res)) for res in res_array])])
 
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
@@ -4375,7 +4420,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
 
         robs = [o.evaluated_get(dp) for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
-
+        # robs = [[o for o in c.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material])] for c in bpy.data.collections if c.vi_params.envi_zone]
         if not robs:
             logentry('No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
             self.report({'ERROR'}, 'No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')

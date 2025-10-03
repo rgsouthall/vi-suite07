@@ -135,6 +135,18 @@ class No_Loc(Node, ViNodes):
     bl_label = 'VI Location'
     bl_icon = 'WORLD'
 
+    def update_north(self, context):
+        nvec = mathutils.Vector((0.0, 1.0, 0.0))
+        
+        if self.north:
+            nvec.rotate(mathutils.Euler((0.0, 0.0, -math.radians(self.azimuth)), 'XYZ'))
+        
+            if not context.scene.vi_params.get('viparams'):
+                context.scene.vi_params['viparams'] = {}
+            
+        context.scene.vi_params['viparams']['North'] = nvec
+
+
     def updatelatlong(self, context):
         context.space_data.edit_tree == ''
         scene = context.scene
@@ -229,6 +241,8 @@ class No_Loc(Node, ViNodes):
     avws: FloatProperty(name="", description="Average wind speed", min=0, max=0, default=0)
     dsdoy: IntProperty(name="", description="", min=1, max=365, default=1)
     dedoy: IntProperty(name="", description="", min=1, max=365, default=365)
+    north: BoolProperty(name="", description="", default=0, update=update_north)
+    azimuth: FloatProperty(name="", description="Degrees clockwise +Y axis", min=-360, max=360, default=0, update=update_north)
 
     def init(self, context):
         self.outputs.new('So_Vi_Loc', 'Location out')
@@ -246,6 +260,11 @@ class No_Loc(Node, ViNodes):
         nodecolour(self, self.ready())
 
     def draw_buttons(self, context, layout):
+        newrow(layout, "Custom North:", self, 'north')
+
+        if self.north:
+            newrow(layout, "Azimuth:", self, 'azimuth')
+
         newrow(layout, "Source:", self, 'loc')
 
         if self.loc == "1":

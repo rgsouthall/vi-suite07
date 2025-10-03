@@ -588,7 +588,7 @@ class VI_PT_Col(bpy.types.Panel):
         coll = context.collection
         cvp = coll.vi_params
         layout = self.layout
-        newrow(layout, 'EnVi zone:', context.collection.vi_params, "envi_zone")
+        newrow(layout, 'EnVi/AuVi zone:', context.collection.vi_params, "envi_zone")
 
         try:
             fa = '{:.2f}'.format(context.collection.vi_params['enparams']['floorarea'][str(context.scene.frame_current)])

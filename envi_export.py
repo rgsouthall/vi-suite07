@@ -76,7 +76,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                                                                                                                                                    svp['enparams']['epversion']))
         params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
                   'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
-        paramvs = ((node.loc, 'Default')[not node.loc], '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)], '0.004', '0.4',
+        paramvs = ((node.loc, 'Default')[not node.loc], ('0.00', str(locnode.azimuth))[locnode.north], ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)], '0.004', '0.4',
                    ('MinimalShadowing', 'FullExterior', 'FullInteriorAndExterior', 'FullExteriorWithReflections', 'FullInteriorAndExteriorWithReflections')[int(node.solar)], '15')
         en_idf.write(epentry('Building', params, paramvs))
         params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Default frequency of calculation', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')

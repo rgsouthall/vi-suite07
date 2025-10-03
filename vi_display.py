@@ -363,7 +363,7 @@ def li_display(context, disp_op, simnode):
     svp = scene.vi_params
     svp.li_disp_menu = unit2res[svp['liparams']['unit']]
     setscenelivivals(scene)
-
+    
     (rcol, mtype) = ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
 
     for geo in context.view_layer.objects:
@@ -385,6 +385,7 @@ def li_display(context, disp_op, simnode):
     scene.frame_set(svp['liparams']['fs'])
     context.view_layer.objects.active = None
     cmap(svp)
+    
 
     for i, o in enumerate(obcalclist):
         ovp = o.vi_params
@@ -416,6 +417,7 @@ def li_display(context, disp_op, simnode):
             obreslist.append(ores)
 
         else:
+            
             bm = bmesh.new()
             bm.from_object(o, dp)
 
@@ -434,6 +436,7 @@ def li_display(context, disp_op, simnode):
                     bm.verts.remove(v)
                 for v in bm.verts:
                     v.select = True
+            
 
             while bm.verts.layers.shape:
                 bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
@@ -441,7 +444,7 @@ def li_display(context, disp_op, simnode):
             for v in bm.verts:
                 v_norm = mathutils.Vector((nsum([f.normal for f in v.link_faces], axis=0))).normalized()
                 v.co += mathutils.Vector([v_norm[i] / abs(o.scale[i]) for i in range(3)]) * simnode['goptions']['offset']
-
+            
             selobj(context.view_layer, o)
             bpy.ops.object.duplicate()
 
@@ -451,19 +454,13 @@ def li_display(context, disp_op, simnode):
             if not context.active_object:
                 disp_op.report({'ERROR'}, "No display object. If in local view switch to global view and/or re-export the geometry")
                 return 'CANCELLED'
-
+            
             ores = context.active_object
             ores.name, ores.show_wire, ores.show_all_edges, ores.display_type, orvp, ores.vi_params.vi_type_string = o.name + "res", 1, 1, 'SOLID', ores.vi_params, 'LiVi Res'
             move_to_coll(context, 'LiVi Results', ores)
             context.view_layer.layer_collection.children['LiVi Results'].exclude = 0
             context.view_layer.objects.active = ores
             ores.data.materials.clear()
-
-            # while ores.material_slots:
-            #     try:
-            #         bpy.ops.object.material_slot_remove()
-            #     except:
-            #         return
 
             while ores.data.shape_keys:
                 context.object.active_shape_key_index = 0

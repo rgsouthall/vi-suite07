@@ -535,9 +535,9 @@ def cbdmhdr(node, scene, exp_op):
         #             return
 
         vecvals, vals = mtx2vals(mtxlines, datetime.datetime(svp['year'], 1, 1).weekday(), node, node.times)
-
         pcombfiles = ''.join(["{} ".format(os.path.join(svpnd, 'ps{}.hdr'.format(i))) for i in range(patches)])
-        vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'
+        vd = "0 1 0" if not svp['viparams'].get('North') else ' '.join([str(d) for d in svp['viparams'].get('North')])
+        vwcmd = 'vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd {} -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0'.format(vd)
         rcontribcmd = 'rcontrib -bn {} -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -e MF:{} -f reinhart.cal -b rbin -o "{}" -m sky_glow "{}-whitesky.oct"'.format(patches, svp['viparams']['nproc'],
                                                                                                                                                                  cbdm_res,
                                                                                                                                                                  os.path.join(svpnd, 'p%d.hdr'),
