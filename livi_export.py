@@ -153,7 +153,7 @@ def radgexport(export_op, node):
 
     for o in geooblist + caloblist:
         for m in o.data.materials:
-            if m not in mats:
+            if m and m not in mats:
                 mats.append(m)
 
                 if m.vi_params.li_norm:
@@ -161,7 +161,7 @@ def radgexport(export_op, node):
 
                     if not os.path.isfile(os.path.join(svp['liparams']['texfilebase'], norm.name + '.ddx')) or node.texs:
                         (w, h) = norm.size
-                        ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
+                        # ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
                         normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
                         norm.pixels.foreach_get(normpixels)
                         header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])

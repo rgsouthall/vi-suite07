@@ -18,7 +18,7 @@
 
 import bpy
 from collections import OrderedDict
-from .vi_func import newrow, retdates, logentry, get_materials
+from .vi_func import newrow, retdates, get_materials
 
 
 class VI_PT_3D(bpy.types.Panel):
@@ -34,8 +34,8 @@ class VI_PT_3D(bpy.types.Panel):
         cao = context.active_object
         layout = self.layout
 
-        if cao:
-            covp = cao.vi_params
+        # if cao:
+        #     covp = cao.vi_params
 
         if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
             if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and not svp.vi_display:
@@ -702,7 +702,7 @@ class TREE_PT_envim(bpy.types.Panel):
 
             try:
                 icon_val = layout.icon(mat)
-            except:
+            except Exception:
                 icon_val = 1
 
             if mat.users:

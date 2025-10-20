@@ -89,12 +89,18 @@ def ret_datab(fname, r_w):
         else:
             datab = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'EPFiles', fname)
 
+    elif db and os.path.isfile(os.path.join(db, fname)):
+        datab = os.path.join(db, fname)
+        logentry('No database directory set but the scene has one built-in. Using the scene directory')
+
     elif db == os.path.join(addonfolder, 'EPFiles', fname):
         datab = db
+        logentry('No database directory set. Using the built-in database')
 
     else:
         datab = os.path.join(addonfolder, 'EPFiles', fname)
-        logentry('No database directory set but the scene has one built-in. Using the scene directory')
+        logentry('No database directory set. Using the built-in database')
+
 
     return datab
 
@@ -440,7 +446,7 @@ def rettree(scene, obs, ignore):
 
 
 def ret_empty_menu(self, context):
-    e_names = [(o.name, o.name, 'Name of empty') for o in bpy.data.objects if o.type == 'EMPTY']
+    e_names = [(o.name, o.name, 'Name of empty') for o in context.view_layer.objects if o.type == 'EMPTY']
 
     if not e_names:
         e_names = [('None', 'None', 'None')]
@@ -1092,8 +1098,8 @@ def retobj(name, fr, node, scene):
 def retelaarea(node):
     inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('So_En_Net_SSFlow', 'So_En_Net_SFlow') and sock.links]
     outlinks = [sock.links[:] for sock in node.outputs if sock.bl_idname in ('So_En_Net_SSFlow', 'So_En_Net_SFlow') and sock.links]
-    inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone') and link.from_socket.node.zone in [o.name for o in bpy.data.objects]]
-    outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone') and link.to_socket.node.zone in [o.name for o in bpy.data.objects]]
+    inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone') and link.from_socket.node.zone in [o.name for o in bpy.context.view_layer.objects]]
+    outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone') and link.to_socket.node.zone in [o.name for o in bpy.context.view_layer.objects]]
 
     if outosocks or inosocks:
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
@@ -1870,10 +1876,10 @@ def sunpath(context):
     svp = scene.vi_params
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]
 
-    if context.scene.vi_params['viparams'].get('North') and context.scene.vi_params['viparams'] != (0, 1, 0):
-        phi_mod = Vector((0, 1, 0)).rotation_difference(Vector(bpy.context.scene.vi_params['viparams']['North'])).to_euler('XYZ')[2]
-    else:
-        phi_mod = 0
+    # if context.scene.vi_params['viparams'].get('North') and context.scene.vi_params['viparams'] != (0, 1, 0):
+    #     phi_mod = Vector((0, 1, 0)).rotation_difference(Vector(bpy.context.scene.vi_params['viparams']['North'])).to_euler('XYZ')[2]
+    # else:
+    #     phi_mod = 0
 
     if svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':
         if suns:
@@ -1883,7 +1889,7 @@ def sunpath(context):
             suns[0].location.y = -(100**2 - (suns[0].location.z)**2)**0.5 * cos(phi)
             suns[0].data.energy = svp.sp_sun_strength
             suns[0].data.angle = svp.sp_sun_angle
-            suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi + phi_mod
+            suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
             sky_vec = suns[0].location.normalized()
             sky_vec.rotate(suns[0].parent.matrix_world.to_euler())
             scene.display.light_direction = (sky_vec[0], sky_vec[2], -sky_vec[1])
@@ -1918,7 +1924,7 @@ def sunpath(context):
             suns[d].location.z = 100 * sin(beta)
             suns[d].location.x = -(100**2 - (suns[d].location.z)**2)**0.5 * sin(phi)
             suns[d].location.y = -(100**2 - (suns[d].location.z)**2)**0.5 * cos(phi)
-            suns[d].rotation_euler = pi * 0.5 - beta, 0, -phi + phi_mod
+            suns[d].rotation_euler = pi * 0.5 - beta, 0, -phi
             suns[d].hide_viewport = True if alt <= 0 else False
 
             if suns[d].children:
@@ -1953,7 +1959,7 @@ def sunpath(context):
                 suns[h].location.z = 100 * sin(beta)
                 suns[h].location.x = -(100**2 - (suns[h].location.z)**2)**0.5 * sin(phi)
                 suns[h].location.y = -(100**2 - (suns[h].location.z)**2)**0.5 * cos(phi)
-                suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi + phi_mod
+                suns[h].rotation_euler = pi * 0.5 - beta, 0, -phi
                 suns[h].data.energy = sun_strength
 
                 if scene.render.engine == 'CYCLES':
@@ -2137,16 +2143,17 @@ def sockhide(node, lsocknames):
 def socklink(sock, ng):
     if ng in [g.name for g in bpy.data.node_groups]:
         try:
-            valid1 = sock.valid if not sock.get('valid') else sock['valid']
+            valid1 = sock.valid # if not sock.get('valid') else sock['valid']
 
             for link in sock.links:
-                valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid']
+                valid2 = link.to_socket.valid # if not link.to_socket.get('valid') else link.to_socket['valid']
                 valset = set(valid1) & set(valid2)
 
                 if not valset or len(valset) < min((len(valid1), len(valid2))):
                     bpy.data.node_groups[ng].links.remove(link)
 
-        except Exception:
+        except Exception as e:
+            print(e)
             if sock.links:
                 bpy.data.node_groups[ng].links.remove(sock.links[-1])
 

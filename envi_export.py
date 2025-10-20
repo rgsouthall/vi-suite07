@@ -18,7 +18,7 @@
 
 import bpy, os, subprocess, datetime, shutil, mathutils, bmesh
 # from bpy_extras import mesh_utils
-from .vi_func import selobj, create_coll, selobs, logentry, epentry, ret_coll_bb, meshes_to_solids, solid_to_mesh, rm_coll
+from .vi_func import selobj, create_coll, selobs, logentry, epentry, meshes_to_solids, solid_to_mesh, rm_coll
 from .envi_func import get_con_node, boundpoly, get_zone_node, ret_areas, epschedwrite
 
 try:

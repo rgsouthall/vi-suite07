@@ -1410,7 +1410,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     rccmds.append('rcontrib -w -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp['viparams']['filebase'], frame))
 
         try:
-            tpoints = [o.vi_params['rtpnum'] for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
+            tpoints = [o.vi_params['rtpnum'] for o in context.view_layer.objects if o.vi_params.vi_type_string == 'LiVi Calc']
         except Exception as e:
             self.report({'ERROR'}, 'Re-export the LiVi geometry: {}'.format(e))
             return {'CANCELLED'}
@@ -1419,7 +1419,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), calcsteps)
         self.pb = qtprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Lighting')
         self.reslists = []
-        obs = [o for o in bpy.data.objects if o.vi_params.vi_type_string == 'LiVi Calc']
+        obs = [o for o in context.view_layer.objects if o.vi_params.vi_type_string == 'LiVi Calc']
 
         for oi, o in enumerate(obs):
             ovp = o.vi_params
@@ -2055,7 +2055,7 @@ class MAT_EnVi_Node_Remove(bpy.types.Operator):
             m = 0
 
             if mvp.envi_nodes:
-                for o in bpy.data.objects:
+                for o in context.view_layer.objects:
                     if mat in [ms.material for ms in o.material_slots]:
                         m = 1
 
@@ -2526,7 +2526,7 @@ class NODE_OT_EC(bpy.types.Operator):
         # envi_coll = (bpy.data.collections.get('EnVi Geometry') and (o.name not in bpy.data.collections['EnVi Geometry'].all_objects)) or not bpy.data.collections.get('EnVi Geometry')
 
         if node.entities == '0':
-            obs = [o for o in context.scene.objects if o.type == 'MESH' and (o.vi_params.embodied or o.users_collection[0].vi_params.embodied) and o.visible_get() and \
+            obs = [o for o in context.view_layer.objects if o.type == 'MESH' and (o.vi_params.embodied or o.users_collection[0].vi_params.embodied) and o.visible_get() and \
                                                                             ((bpy.data.collections.get('EnVi Geometry') and (o.name not in bpy.data.collections['EnVi Geometry'].all_objects) or not bpy.data.collections.get('EnVi Geometry')))]
 
             for frame in frames:
@@ -3019,8 +3019,8 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
         dp = bpy.context.evaluated_depsgraph_get()
         scene = context.scene
         svp = scene.vi_params
-        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
-        gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get()]
+        dobs = [o for o in context.view_layer.objects if o.vi_params.vi_type == '2' and o.visible_get()]
+        gobs = [o for o in context.view_layer.objects if o.vi_params.vi_type == '2' and o.visible_get()]
 
         if viparams(self, scene):
             return {'CANCELLED'}
@@ -3182,7 +3182,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         meshcoll = create_coll(context, 'FloVi Mesh')
         clear_coll(context, meshcoll)
         dp = bpy.context.evaluated_depsgraph_get()
-        dobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '2' and o.visible_get() and o.name not in meshcoll.objects]
+        dobs = [o for o in context.view_layer.objects if o.vi_params.vi_type == '2' and o.visible_get() and o.name not in meshcoll.objects]
 
         if not dobs:
             logentry('FloVi requires a domain object but none was found. Check the domain object is not hidden or in the FloVi Mesh collection')
@@ -3193,7 +3193,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         elif len(dobs) > 1:
             self.report({'WARNING'}, 'More then one domain object found. Only the first is exported')
 
-        gobs = [o for o in bpy.data.objects if o.vi_params.vi_type == '3' and o.visible_get() and o.name not in meshcoll.objects]
+        gobs = [o for o in context.view_layer.objects if o.vi_params.vi_type == '3' and o.visible_get() and o.name not in meshcoll.objects]
         self.obs = dobs + gobs
 
         if any([any(s < 0 for s in o.scale) for o in self.obs]):
@@ -3861,8 +3861,8 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
         dp = context.evaluated_depsgraph_get()
         scene = context.scene
         svp = scene.vi_params
-        dobs = [o for o in bpy.data.objects if o.visible_get() and o.vi_params.vi_type == '2']
-        gobs = [o for o in bpy.data.objects if o.visible_get() and o.vi_params.vi_type == '3']
+        dobs = [o for o in context.view_layer.objects if o.visible_get() and o.vi_params.vi_type == '2']
+        gobs = [o for o in context.view_layer.objects if o.visible_get() and o.vi_params.vi_type == '3']
         obs = dobs + gobs
         boundnode = context.node
         meshnode = boundnode.inputs['Mesh in'].links[0].from_node
@@ -4366,6 +4366,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         try:
             room.compute_rir()
             rts = room.measure_rt60(plot=False, decay_db=60)
+            print('res', len(rts))
         except Exception:
             try:
                 rts = room.measure_rt60(plot=False, decay_db=30)
@@ -4410,16 +4411,16 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             return {'FINISHED'}
 
         dp = context.evaluated_depsgraph_get()
-        empties = [o for o in bpy.data.objects if o.type == 'EMPTY' and o.visible_get()]
+        empties = [o for o in context.view_layer.objects if o.type == 'EMPTY' and o.visible_get()]
         sources = [o for o in empties if o.vi_params.auvi_sl == '0']
         simnode['coptions']['au_sources'] = [s.name for s in sources]
         mics = [o for o in empties if o.vi_params.auvi_sl == '1']
-        mic_arrays = [o for o in bpy.data.objects if o.type == 'MESH' and o.material_slots and o.visible_get() and any([o.material_slots[p.material_index].material.vi_params.mattype == '1' for p in o.data.polygons])]
+        mic_arrays = [o for o in context.view_layer.objects if o.type == 'MESH' and o.material_slots and o.visible_get() and any([o.material_slots[p.material_index].material.vi_params.mattype == '1' for p in o.data.polygons])]
 
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
 
-        robs = [o.evaluated_get(dp) for o in bpy.data.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
+        robs = [o.evaluated_get(dp) for o in context.view_layer.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
         # robs = [[o for o in c.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material])] for c in bpy.data.collections if c.vi_params.envi_zone]
         if not robs:
             logentry('No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
@@ -4480,6 +4481,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 room_bm.from_object(rob, dp)
                 room_bm.transform(rob.matrix_world)
                 bmesh.ops.triangulate(room_bm, faces=room_bm.faces)
+                print('bm_vol', room_bm.calc_volume())
 
                 for face in room_bm.faces:
                     if face.material_index >= len(rob.material_slots):
@@ -4488,6 +4490,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         return {'CANCELLED'}
 
                     mat = rob.material_slots[face.material_index].material
+                    if not mat.vi_params.mattype == '3':
+                        logentry(f'Material {mat.name} is not an AuVi material')
+                        self.report({'ERROR'}, f'Material {mat.name} is not an AuVi material')
+                        return {'CANCELLED'}
 
                     if mat.name in amat_dict:
                         poly_vecs = array([v.co for v in face.verts]).T
@@ -4512,7 +4518,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         max_rand_disp=0.1
                     )
                 )
-
+                print('pra volume', room.get_volume())
                 if pra_rt:
                     room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius,
                                          hist_bin_size=0.004, energy_thres=1e-08)
@@ -4554,14 +4560,16 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 room = room.add_microphone(f.calc_center_median()[:])
                                 mic_names.append(f'{mic_a.name}-{f.index}')
                             else:
+                                print('not in room', f.index, f.calc_center_median()[:])
                                 f[bm_ir] = f[bm_ir]
                         else:
+                            print('not material', f.index)
                             f[bm_ir] = 0
 
                     mic_bm.transform(mic_a.matrix_world.inverted())
                     mic_bm.to_mesh(mic_a.data)
                     mic_bm.free()
-
+                print('mics', room.n_mics)
                 if not room.n_mics:
                     self.report({'ERROR'}, 'No visible listeners inside the room')
                     return {'CANCELLED'}
@@ -4617,7 +4625,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             logentry("Can't get a reliable 60dB reduction. Extrapolating from a 30dB reduction")
                             rts = room.measure_rt60(plot=False, decay_db=30)
 
-                    gc.collect()
+                    #gc.collect()
 
                 except Exception as e:
                     logentry(str(e))

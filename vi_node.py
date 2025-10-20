@@ -153,7 +153,11 @@ class No_Loc(Node, ViNodes):
         svp = scene.vi_params
         reslists = []
 
-        if self.loc == '1':
+        if self.loc == '0':
+            if 'Vi Results' in self.outputs['Location out'].valid:
+                self.outputs['Location out'].valid.remove('Vi Results')
+
+        elif self.loc == '1':
             entries = []
             addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
             vi_prefs = bpy.context.preferences.addons['{}'.format(addonfolder)].preferences
@@ -210,11 +214,12 @@ class No_Loc(Node, ViNodes):
                     for c in {"Temperature (degC)": 6, 'Humidity (%)': 8, "Direct Solar (W/m^2)": 14, "Diffuse Solar (W/m^2)": 15, 'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
                         reslists.append(['0', 'Climate', 'Exterior', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
 
-                    self.outputs['Location out']['epwtext'] = epwfile.read()
-                    self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
+                    self['epwtext'] = epwfile.read()
+                    self.outputs['Location out'].valid.append('Vi Results')
             else:
-                self.outputs['Location out']['epwtext'] = ''
-                self.outputs['Location out']['valid'] = ['Location']
+                self['epwtext'] = ''
+                if 'Vi Results' in self.outputs['Location out'].valid:
+                    self.outputs['Location out'].valid.remove('Vi Results')
 
         socklink(self.outputs['Location out'], self.id_data.name)
         self['reslists'] = reslists
@@ -3869,8 +3874,8 @@ class No_Vi_Metrics(Node, ViNodes):
                         for z in o_dfs[f]:
                             av_df = round(sum(o_dfs[f][z] * o_areas[f][z]) / sum(o_areas[f][z]), 2)
                             rat_df = round(min(o_dfs[f][z]) / self['res']['avDF'], 2)
-                            reslists.append([f, 'Zone', z, 'Average DF', str(av_df)])
-                            reslists.append([f, 'Zone', z, 'Uniformity ratio', str(rat_df)])
+                            reslists.append([f, 'Zone spatial', z, 'Average DF', str(av_df)])
+                            reslists.append([f, 'Zone spatial', z, 'Uniformity ratio', str(rat_df)])
 
                     self['reslists'] = reslists
 
@@ -3934,7 +3939,6 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['WPC'] = {}
             self['res']['Q'] = {}
             frames = []
-            # wpcs = {}
             reslists = []
             pref_flag = 0
             ws_flag = 0
@@ -4187,11 +4191,6 @@ class No_Vi_Metrics(Node, ViNodes):
                             self['res']['ecwlc'] = ecwlc
                             self['res']['ofwlc'] = ofwlc
                             self['res']['wlc'] = wlc
-                            # self['res']['ec'] = ecwlcs
-                            # self['res']['of'] = ofwlc
-                            # self['res']['wl'] = wlc
-                            # self['res']['oc'] = owlc
-                            # self['res']['noc'] = [owlc - ofwlc]
 
                         owlcs.append(owlc)
                         ecwlcs.append(ecwlc)
@@ -4204,7 +4203,6 @@ class No_Vi_Metrics(Node, ViNodes):
                     reslists.append([str(frame), 'Carbon', self.zone_menu, 'Net operational carbon (kgCO2e)', '{:.3f}'.format(owlc - ofwlc)])
                     reslists.append([str(frame), 'Carbon', self.zone_menu, 'Whole-life carbon (kgCO2e)', '{:.3f}'.format(wlc)])
 
-                # if self.frame_menu == 'All':
                 self['res']['ec'] = ecwlcs
                 self['res']['of'] = ofwlcs
                 self['res']['wl'] = wlcs
@@ -4230,53 +4228,6 @@ class No_Vi_Metrics(Node, ViNodes):
                                 # rts = array([float(p) for p in r[4].split()])
                                 # rt = float(r[4])
                                 self['res']['rt'] = float(r[4])
-    # def ret_reslists(self, zones):
-    #     reslists = []
-
-    #     for frame in [f[0] for f in self['frames']]:
-    #         for zone in zones:
-    #             for r in self['rl']:
-    #                 if r[2] == zone:
-    #                     if r[3] == 'Heating (W)':
-    #                         heat_kwh = sum([float(h) for h in r[4].split()]) * 0.001
-    #                         aheat_kwh += heat_kwh
-    #                         hours = len(r[4].split())
-    #                     if r[3] == 'Cooling (W)':
-    #                         cool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
-    #                         acool_kwh += cool_kwh
-    #                     elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
-    #                         ec_kgco2e = float(r[4])
-    #                     elif r[3] == 'PV power (W)':
-    #                         pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
-
-    #                 elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == zone and r[3] == 'PV power (W)':
-    #                     pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
-    #                 elif r[1] == 'Power' and zone == 'All' and r[3] == 'PV power (W)':
-    #                     pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
-    #                 elif r[1] == 'Zone temporal' and zone == 'All' and r[3] == 'Heating (W)':
-    #                     aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
-    #                 elif r[1] == 'Zone temporal' and zone == 'All' and r[3] == 'Cooling (W)':
-    #                     acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
-
-    #             (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
-    #             o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
-    #             owlc = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
-    #             ecwlc = ec_kgco2e * self.ec_years
-    #             ofwlc = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
-    #             wlc = owlc + ecwlc - ofwlc
-
-    #             owlcs.append(owlc)
-    #             ecwlcs.append(ecwlc)
-    #             ofwlcs.append(ofwlc)
-    #             wlcs.append(wlc)
-    #             # reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f[0]) for f in self['frames']])])
-    #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])
-    #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])])
-    #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ])
-
-    # def ret_metrics(self):
-    #     if self.inputs['Results in'].links:
-    #         reslist = self.inputs['Results in'].links[0].from_node['reslists']
 
 
 class No_CSV(Node, ViNodes):
@@ -5086,18 +5037,19 @@ class So_En_Net_SSSFlow(NodeSocket):
         return ['(Sub)Surface']
 
 
-class So_En_Net_CRef(NodeSocket):
-    '''A plain zone airflow component socket'''
-    bl_idname = 'So_En_Net_CRef'
-    bl_label = 'Plain zone airflow component socket'
-
-    sn = StringProperty()
-
-    def draw(self, context, layout, node, text):
-        layout.label(text=text)
-
-    def draw_color(self, context, node):
-        return (1.0, 0.4, 0.0, 0.75)
+# class So_En_Net_CRef(NodeSocket):
+#     '''A plain zone airflow component socket'''
+#     bl_idname = 'So_En_Net_CRef'
+#     bl_label = 'Plain zone airflow component socket'
+#
+#     sn = StringProperty()
+#     valid = ['Crack reference']
+#
+#     def draw(self, context, layout, node, text):
+#         layout.label(text=text)
+#
+#     def draw_color(self, context, node):
+#         return (1.0, 0.4, 0.0, 0.75)
 
 
 class So_En_Net_Occ(NodeSocket):
@@ -6938,6 +6890,8 @@ class So_En_Mat_Sw(NodeSocket):
     '''EnVi switchable glazing layer socket'''
     bl_idname = 'So_En_Mat_Sw'
     bl_label = 'Switchable glazing layer socket'
+
+    valid = ['SwitchLayer']
 
     def draw(self, context, layout, node, text):
         layout.label(text=text)
@@ -9187,6 +9141,10 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
             if not self.inputs['Schedule'].links:
                 nodecolour(self, 1)
 
+        elif self.outputs["Control"].links:
+            nodecolour(self, 0)
+
+
     def slatupdate(self, context):
         if self.sac != 'ScheduledSlatAngle':
             if self.inputs['Slat schedule'].links:
@@ -9642,14 +9600,6 @@ class No_En_Mat_Sched(Node, EnViMatNodes):
         params = ('Name', 'ScheduleType', 'Name of File', 'Column Number', 'Rows to Skip at Top', 'Number of Hours of Data', 'Column Separator')
         paramvs = (name, 'Any number', os.path.abspath(self.select_file), self.cn, self.rtsat, 8760, self.delim)
         schedtext = epentry('Schedule:File', params, paramvs)
-        '''    Schedule:File,
-        elecTDVfromCZ01res, !- Name
-        Any Number, !- ScheduleType
-        TDV_kBtu_CTZ01.csv, !- Name of File
-        2, !- Column Number
-        4, !- Rows to Skip at Top
-        8760, !- Number of Hours of Data
-        Comma; !- Column Separator'''
         return schedtext
 
     def ep_write_gen_file(self, name, data, newdir):
@@ -9939,3 +9889,51 @@ class No_Au_Conv(Node, ViNodes):
     def postsim(self):
         self['exportstate'] = self.ret_params()
         nodecolour(self, 0)
+
+    # def ret_reslists(self, zones):
+    #     reslists = []
+
+    #     for frame in [f[0] for f in self['frames']]:
+    #         for zone in zones:
+    #             for r in self['rl']:
+    #                 if r[2] == zone:
+    #                     if r[3] == 'Heating (W)':
+    #                         heat_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+    #                         aheat_kwh += heat_kwh
+    #                         hours = len(r[4].split())
+    #                     if r[3] == 'Cooling (W)':
+    #                         cool_kwh = sum([float(h) for h in r[4].split()]) * 0.001
+    #                         acool_kwh += cool_kwh
+    #                     elif r[3] == '{} EC (kgCO2e/y)'.format(('Zone', 'Total')[self.zone_menu == 'All']):
+    #                         ec_kgco2e = float(r[4])
+    #                     elif r[3] == 'PV power (W)':
+    #                         pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+
+    #                 elif r[1] == 'Power' and '_'.join(r[2].split('_')[:-1]) == zone and r[3] == 'PV power (W)':
+    #                     pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+    #                 elif r[1] == 'Power' and zone == 'All' and r[3] == 'PV power (W)':
+    #                     pv_kwh += sum(float(p) for p in r[4].split()) * 0.001
+    #                 elif r[1] == 'Zone temporal' and zone == 'All' and r[3] == 'Heating (W)':
+    #                     aheat_kwh += sum(float(p) for p in r[4].split()) * 0.001
+    #                 elif r[1] == 'Zone temporal' and zone == 'All' and r[3] == 'Cooling (W)':
+    #                     acool_kwh += sum(float(p) for p in r[4].split()) * 0.001
+
+    #             (heat_kwh, cool_kwh) = (aheat_kwh, acool_kwh) if self.zone_menu == 'All' else (heat_kwh, cool_kwh)
+    #             o_kwh = heat_kwh * 8760/hours * cop + cool_kwh * 8760/hours * self.ac_cop + (self.mod + self.hwmod * hw_cop) * self['res']['fa']
+    #             owlc = o_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+    #             ecwlc = ec_kgco2e * self.ec_years
+    #             ofwlc = pv_kwh * self.ec_years * self.carb_fac * (1 + (self.carb_annc * 0.01))**self.ec_years
+    #             wlc = owlc + ecwlc - ofwlc
+
+    #             owlcs.append(owlc)
+    #             ecwlcs.append(ecwlc)
+    #             ofwlcs.append(ofwlc)
+    #             wlcs.append(wlc)
+    #             # reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f[0]) for f in self['frames']])])
+    #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])
+    #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ' '.join(['{:.3f}'.format()])])
+    #             # reslists.append(['All', 'Carbon', zone, 'Embodied carbon (kgCO2e)', ])
+
+    # def ret_metrics(self):
+    #     if self.inputs['Results in'].links:
+    #         reslist = self.inputs['Results in'].links[0].from_node['reslists']

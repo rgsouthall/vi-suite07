@@ -324,6 +324,7 @@ class envi_embodied(object):
         self.updated = 0
 
     def update(self):
+        print(ret_datab('EC_database.json', 'r'))
         with open(ret_datab('EC_database.json', 'r'), 'r') as ec_jfile:
             self.ecsd, self.ecs = {}, {}
             ec_dict = json.loads(ec_jfile.read())
