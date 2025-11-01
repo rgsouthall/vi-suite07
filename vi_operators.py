@@ -488,7 +488,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         calcobs = retobjs('ssc')
 
         if not calcobs:
-            self.report({'ERROR'}, "No objects have a light sensor material attached.")
+            self.report({'ERROR'}, "No objects have a light sensor material attached, or calculation objects have unapplied modifiers.")
             return {'CANCELLED'}
 
         svp['viparams']['visimcontext'] = 'Shadow'
@@ -563,6 +563,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.transform(o.matrix_world)
             bm.normal_update()
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
+            print('hello')
             geom.layers.int.new('cindex')
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]

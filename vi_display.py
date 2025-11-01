@@ -418,9 +418,9 @@ def li_display(context, disp_op, simnode):
             obreslist.append(ores)
 
         else:
-            
             bm = bmesh.new()
             bm.from_object(o, dp)
+            print(o.name)
 
             if svp['liparams']['cp'] == '0':
                 cindex = bm.faces.layers.int['cindex']
@@ -1941,7 +1941,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
 
                     try:
-                        if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(context.view_layer.depsgraph, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)[0]:
+                        rc = scene.ray_cast(context.view_layer.depsgraph, sobs[0].location + 0.05 * (vl - sunloc), vl - sunloc)
+                        if 0 < solpos[0] < width and 0 < solpos[1] < height and rc and not rc[0]:
                             soltime = datetime.datetime.fromordinal(svp.sp_sd)
                             soltime += datetime.timedelta(hours=svp.sp_sh)
                             sre = sobs[0].rotation_euler

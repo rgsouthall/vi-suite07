@@ -2802,6 +2802,10 @@ class No_Vi_HMChart(Node, ViNodes):
     hourend: IntProperty(name='', description="End hour", default=23, min=0, max=23)
     varmin: IntProperty(name='', description="Variable minimum", default=0)
     varmax: IntProperty(name='', description="Varaible maximum", default=20)
+    m_average: BoolProperty(name="", description="Monthly average of each hour", default=0)
+    c_type: EnumProperty(items=[('0', 'Number', 'Set the number of contour levels'), ('1', 'Increment', 'Set the difference between contour levels')], name="", description="Contour specification")
+    ci: FloatProperty(name="", description="Line width", min=0.0, default=1)
+    sl: FloatProperty(name="", description="Starting level", default=0)
     grid: BoolProperty(name="", description="Grid", default=0)
     x, y, z = array([]), array([]), array([])
 
@@ -2844,19 +2848,28 @@ class No_Vi_HMChart(Node, ViNodes):
                     row.prop(self, 'varmax')
 
                 newrow(layout, 'Colour map:', svp, "vi_leg_col")
-                newrow(layout, 'Contour lines:', self, "cl")
 
-                if self.cl:
+                if self.daystart == 1 and self.dayend == 365 and self.hourstart == 0 and self.hourend == 23:
+                    newrow(layout, 'Monthly average', self, 'm_average')
+
+                if not (self.daystart == 1 and self.dayend == 365 and self.hourstart == 0 and self.hourend == 23) or not self.m_average:
+                    newrow(layout, 'Contour lines:', self, "cl")
+
+                    if self.cl:
+                        newrow(layout, 'Line width:', self, "lw")
+                        newrow(layout, 'Contour values:', self, "lvals")
+
+                    newrow(layout, 'Contour fill:', self, "cf")
+
+                    if self.cf:
+                        newrow(layout, 'Grid display:', self, "grid")
+
+                    if self.cl or self.cf:
+                        newrow(layout, 'Contour levels:', self, "clevels")
+                else:
+                    newrow(layout, 'Lowest contour:', self, "sl")
+                    newrow(layout, 'Contour interval:', self, "ci")
                     newrow(layout, 'Line width:', self, "lw")
-                    newrow(layout, 'Contour values:', self, "lvals")
-
-                newrow(layout, 'Contour fill:', self, "cf")
-
-                if self.cf:
-                    newrow(layout, 'Grid display:', self, "grid")
-
-                if self.cl or self.cf:
-                    newrow(layout, 'Contour levels:', self, "clevels")
 
                 if self.framemenu and self.metricmenu != 'None':
                     row = layout.row()

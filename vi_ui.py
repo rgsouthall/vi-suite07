@@ -81,7 +81,6 @@ class VI_PT_3D(bpy.types.Panel):
                 newrow(layout, "Sun size:", svp, 'sp_sun_size')
                 newrow(layout, "Sun colour:", svp, 'sp_sun_colour')
                 newrow(layout, "Globe colour:", svp, 'sp_globe_colour')
-
                 time_disps = ((("Display time:", "sp_td"), ("Display hours:", "sp_hd")), [("Display hours:", "sp_hd")], [("Display hours:", "sp_hd")])
 
                 for i in time_disps[int(svp['spparams']['suns'])]:
@@ -164,9 +163,6 @@ class VI_PT_3D(bpy.types.Panel):
 
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
-
-                    # elif context.mode != "EDIT" and svp.vi_disp_process == "2":
-                    #     newrow(layout, 'Placement', svp, "vi_disp_pos")
 
             if svp.vi_display:
                 newrow(layout, 'Display active', svp, 'vi_display')

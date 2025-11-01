@@ -16,10 +16,13 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy
+# import bpy
 import sys
-from .envi_func import retmenu
-from numpy import amax, amin, linspace, uint8, sin, cos, sign, deg2rad
+# import datetime
+# from .envi_func import retmenu
+from numpy import amax, amin, linspace, sin, cos, sign, deg2rad, zeros, meshgrid, clip
+from math import log, ceil, floor
+from scipy.ndimage import zoom
 
 
 def label(dnode, metric, axis, variant):
@@ -111,7 +114,6 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     rsx = dnode.inputs['X-axis']
     rnx = rsx.links[0].from_node
     rlx = rnx['reslists']
-    rzlx = list(zip(*rlx))
     mdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Month']
     ddata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'Day']
     sdata = [rx[4].split() for rx in rlx if rx[0] == rsx.framemenu and rx[1] == 'Time' and rx[2] == 'Time' and rx[3] == 'DOS']
@@ -261,57 +263,140 @@ def hmchart_disp(chart_op, plt, dnode, col):
         chart_op.report({'ERROR'}, 'Maximum metric value is not greater than minimum')
         return
 
-    plt.clf()
-    plt.close()
-    fig, ax = plt.subplots(figsize=(12, 6), dpi=dnode.dpi)
-    plt.xlabel('Days', size=16)
-    plt.ylabel('Hours', size=16)
-    low_extend = 'lower' if zmin > amin(z) else 0
-    up_extend = 'upper' if zmax < amax(z) else 0
+    if dnode.m_average and xmin == 1 and xmax == 365 and ymin == 0 and ymax == 23:
+        month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        monthly_avg = zeros((12, 24))
+        current_day = 0
 
-    if all((low_extend, up_extend)):
-        bar_extend = 'both'
-    elif not any((low_extend, up_extend)):
-        bar_extend = 'neither'
+        for i, days_in_month in enumerate(month_days):
+            month_data = z[current_day : current_day + days_in_month]
+            monthly_avg[i] = month_data.mean(axis=0)
+            current_day += days_in_month
+
+        grid = zeros((14, 26))
+
+        # Place original data in the center (Months 1-12, Hours 1-24)
+        grid[1:13, 1:25] = monthly_avg
+
+        # Y-axis padding (Hour 0 = Hour 24, Hour 25 = Hour 1)
+        grid[1:13, 0] = monthly_avg[:, 23]  # Hour 0 column gets data from Hour 24
+        grid[1:13, 25] = monthly_avg[:, 0]   # Hour 25 column gets data from Hour 1
+
+        # X-axis padding (Month 0 = Month 12, Month 13 = Month 1)
+        grid[0, 1:25] = monthly_avg[11, :] # Month 0 row gets data from Month 12
+        grid[13, 1:25] = monthly_avg[0, :]  # Month 13 row gets data from Month 1
+
+        # Set corner values for seamless interpolation
+        grid[0, 0] = monthly_avg[11, 23] # Month 0, Hour 0 = Month 12, Hour 24
+        grid[0, 25] = monthly_avg[11, 0]  # Month 0, Hour 25 = Month 12, Hour 1
+        grid[13, 0] = monthly_avg[0, 23]  # Month 13, Hour 0 = Month 1, Hour 24
+        grid[13, 25] = monthly_avg[0, 0]   # Month 13, Hour 25 = Month 1, Hour 1
+
+        # Transpose for plotting (26 hours x 14 months)
+        temp_grid = grid.T
+
+        # --- 4. Interpolate Data for a Smoother Plot ---
+        # Increase resolution by a factor of 10
+        zoomed_temp_grid = clip(zoom(temp_grid, 10), zmin, zmax)
+
+        # --- 5. Create Axes for the Graph ---
+        # X-axis from month 0 (Dec) to 13 (Jan), Y-axis from hour 0 (24) to 25 (1)
+        x = linspace(0, 13, zoomed_temp_grid.shape[1])
+        y = linspace(0, 25, zoomed_temp_grid.shape[0])
+        x, y = meshgrid(x, y)
+        z = zoomed_temp_grid
+        dp = int(1/log(zmax-zmin))
+        zmax = ceil(amax(z) * 10**dp) / 10**dp
+        # zmin = floor(amin(z) * 10**dp) / 10**dp
+        zmin = dnode.sl
+        ztemp = zmin
+
+        while ztemp < zmax:
+            ztemp += dnode.ci
+
+        zmax = ztemp
+        c_start = 1 if zmin == amin(z) else 0
+        ymin, ymax = 0.5, 24.5
+        xmin, xmax = 0.5, 12.5
+        plt.clf()
+        plt.close()
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=dnode.dpi)
+        plt.xlabel('Months', size=16)
+        plt.ylabel('Hours', size=16)
+        plt.title('', size=40)
+        ax.set_title('', pad=50)
+        plt.xticks(range(1, 13), range(1, 13), size=14)
+        plt.yticks(range(1, 25), range(1, 25), size=14)
+        bar_extend = 'min' if zmin > amin(z) else 'neither'
+        cf_levels = [zmin + i * dnode.ci for i in range(int((zmax-zmin)/dnode.ci) + 1)]
+        c_levels = [zmin + (i + c_start) * dnode.ci for i in range(int((zmax-zmin)/dnode.ci) + 1)]
+
+        if len(c_levels) < 2:
+            chart_op.report({'ERROR'}, 'Not enough contour levels')
+            return
+
+        plt.contourf(x, y, z, cf_levels, levels=cf_levels, cmap=col, extend=bar_extend)
+        plt.axis([xmin, xmax, ymin, ymax])
+        cbar = plt.colorbar(use_gridspec=True, pad=0.01, extend=bar_extend, ticks=c_levels)
+        cbar.set_label(label=var, size=16)
+        cbar.ax.tick_params(labelsize=14)
+        cp = plt.contour(x, y, z, linspace(zmin + (zmax - zmin)/dnode.ci, zmax, num=int((zmax - zmin)/dnode.ci)) + 1, levels=c_levels, colors='Black', linewidths=dnode.lw)
+        plt.clabel(cp, inline=True, fontsize=10)
     else:
-        bar_extend = ('', 'min')[low_extend == 'lower'] + ('', 'max')[up_extend == 'upper']
+        plt.clf()
+        plt.close()
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=dnode.dpi)
+        plt.xlabel('Days', size=16)
+        plt.ylabel('Hours', size=16)
+        low_extend = 'lower' if zmin > amin(z) else 0
+        up_extend = 'upper' if zmax < amax(z) else 0
 
-    if dnode.cf:
-        plt.contourf(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1),
-                     levels=[zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend=bar_extend)
-        plt.axis([xmin + 0.5, xmax + 0.5, ymin + 0.5, ymax + 0.5])
-    else:
-        plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
-        plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
+        if all((low_extend, up_extend)):
+            bar_extend = 'both'
+        elif not any((low_extend, up_extend)):
+            bar_extend = 'neither'
+        else:
+            bar_extend = ('', 'min')[low_extend == 'lower'] + ('', 'max')[up_extend == 'upper']
 
-    cbar = plt.colorbar(use_gridspec=True, pad=0.01, extend=bar_extend)
-    cbar.set_label(label=var, size=16)
-    cbar.ax.tick_params(labelsize=14)
+        if dnode.cf:
+            plt.contourf(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels + 1),
+                        levels=[zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)], cmap=col, extend=bar_extend)
+            plt.axis([xmin + 0.5, xmax + 0.5, ymin + 0.5, ymax + 0.5])
+        else:
+            plt.axis([xmin - 0.5, xmax + 0.5, ymin - 0.5, ymax + 0.5])
+            plt.pcolormesh(x, y, z, cmap=col, shading='auto', vmin=zmin, vmax=zmax, edgecolors='k', linewidths=0.075, snap=True, antialiased=True)
 
-    if dnode.cl:
-        try:
-            lvals = [float(lev) for lev in dnode.lvals.split(" ") if lev]
+        cbar = plt.colorbar(use_gridspec=True, pad=0.01, extend=bar_extend)
+        cbar.set_label(label=var, size=16)
+        cbar.ax.tick_params(labelsize=14)
 
-            if lvals:
-                ls = lvals
-            elif dnode.lvals:
-                ls = [zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)][1:-1]
-            else:
-                ls = ''
+        if dnode.cl:
+            try:
+                lvals = [float(lev) for lev in dnode.lvals.split(" ") if lev]
 
-            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
-            plt.clabel(cp, inline=True, fontsize=10)
+                if lvals:
+                    ls = lvals
+                elif dnode.lvals:
+                    ls = [zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)][1:-1]
+                else:
+                    ls = ''
 
-        except Exception:
-            cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)][1:-1], colors='Black', linewidths=dnode.lw)
+                cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=ls, colors='Black', linewidths=dnode.lw)
+                plt.clabel(cp, inline=True, fontsize=10)
 
-    if dnode.grid and dnode.cf:
-        ax.grid(True, which='both', zorder=10)
-    else:
-        ax.grid(False)
+            except Exception:
+                cp = plt.contour(x + 0.5, y + 0.5, z, linspace(zmin, zmax, num=dnode.clevels), levels=[zmin + i * (zmax - zmin) / (dnode.clevels) for i in range(dnode.clevels + 1)][1:-1], colors='Black', linewidths=dnode.lw)
 
-    plt.xticks(size=14)
-    plt.yticks(size=14)
+        if dnode.grid and dnode.cf:
+            ax.grid(True, which='both', zorder=10)
+        else:
+            ax.grid(False)
+
+        plt.xticks(size=14)
+        plt.yticks(size=14)
+
+    plt.rcParams['axes.titlesize'] = 20
+    ax.set_title('Title', pad=15, size=20)
     fig.tight_layout()
 
     if sys.platform == 'darwin':
@@ -333,10 +418,9 @@ def ec_pie(chart_op, plt, node):
     wedge_properties = {"width": 0.3, "edgecolor": "w", 'linewidth': 2}
     cmap = plt.get_cmap('viridis')
     colours = [list(cmap((fv - minval) / (maxval - minval + 0.01))[:3]) + [0.7] for fv in fvalues]
-
     wedges, texts = ax.pie(values, wedgeprops=wedge_properties, startangle=0, shadow=False, colors=colours)
     bbox_props = dict(boxstyle="round,pad=0.2,rounding_size=0.1", fc="w", ec="grey", lw=0.72)
-    kw = dict(arrowprops=dict(arrowstyle="-", ls='dashed'), bbox=bbox_props, zorder=-1, va="baseline")
+    kw = dict(arrowprops=dict(arrowstyle="-", ls='dashed', lw=2), bbox=bbox_props, zorder=-1, va="baseline")
 
     for i, p in enumerate(wedges):
         ang = (p.theta2 - p.theta1) / 2. + p.theta1
@@ -368,7 +452,6 @@ def wlc_line(chart_op, plt, node):
     plt.subplots_adjust(bottom=0.2)
     data = [node['res']['wl'], node['res']['ec'], node['res']['noc']]
     xdata = [int(f[0]) for f in node['frames'] if f[0] != 'All']
-    # cols = ('#440154', '#20A387', '#FDE725')
     cols = ('gold', 'turquoise', 'lime')
     lines = ('o-', '^-', 'd-')
     symbols = ('o', '^', 'd')
@@ -401,7 +484,6 @@ def com_line(chart_op, plt, node):
     plt.subplots_adjust(bottom=0.2)
     data = [node['res']['alloh1s'], node['res']['alloh2s']] if not node.occ or not node['res'].get('allooh1s') else [node['res']['allooh1s'], node['res']['allooh2s']]
     xdata = [int(f[0]) for f in node['frames'] if f[0] != 'All']
-    # cols = ('#440154', '#20A387', '#FDE725')
     cols = ('orangered', 'gold')
     lines = ('o-', '^-', 'd-')
     symbols = ('o', '^', 'd')
@@ -425,9 +507,3 @@ def com_line(chart_op, plt, node):
 
     plt.show()
 
-# def ec_line(chart_op, plt, node):
-#     plt.clf()
-#     plt.close()
-#     fig, ax = plt.subplots(figsize=(8, 6), subplot_kw=dict(aspect="equal"))
-
-# def ec_wlc(chart_op, plt, node):

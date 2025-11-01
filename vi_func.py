@@ -1707,13 +1707,13 @@ def retobjs(otypes):
     elif otypes == 'livil':
         return [o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4']
     elif otypes == 'livic':
-        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res' and not o.modifiers[:]]
     elif otypes == 'livir':
         return [o for o in validobs if o.type == 'MESH' and o.data.polygons and True in [m.vi_params.livi_sense for m in o.data.materials] and o.vi_params.vi_type_string != 'LiVi Calc']
     elif otypes == 'envig':
         return [o for o in scene.objects if o.type == 'MESH' and o.hide is False]
     elif otypes == 'ssc':
-        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res' and not o.modifiers[:]]
     elif otypes == 'selected':
         return [o for o in [bpy.context.active_object] if o.type == 'MESH']
 
