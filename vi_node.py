@@ -2414,6 +2414,7 @@ class No_Vi_Chart(Node, ViNodes):
                 rl = innode['reslists']
                 zrl = list(zip(*rl))
                 resdict = {}
+                self['resdict'] = {}
 
                 for r in rl:
                     if r:
