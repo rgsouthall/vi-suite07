@@ -4570,7 +4570,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     mic_bm.transform(mic_a.matrix_world.inverted())
                     mic_bm.to_mesh(mic_a.data)
                     mic_bm.free()
-                print('mics', room.n_mics)
+
                 if not room.n_mics:
                     self.report({'ERROR'}, 'No visible listeners inside the room')
                     return {'CANCELLED'}

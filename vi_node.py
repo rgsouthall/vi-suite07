@@ -2095,7 +2095,6 @@ class So_En_ResU(NodeSocket):
     bl_idname = 'So_En_ResU'
     bl_label = 'Axis'
     valid = ['Vi Results']
-
     r_len: IntProperty()
 
     def draw_color(self, context, node):
@@ -2112,56 +2111,55 @@ class ViEnRIn(So_En_ResU):
 
     def f_menu(self, context):
         try:
-            frs = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self['resdict'].keys() if frame]
+            frs = [(f'{frame}', f'{frame}', f'Frame {frame}') for frame in self.node['resdict'][self.name].keys() if frame]
 
             if frs:
                 return frs
             else:
                 return [('None', 'None', 'None')]
+
         except Exception:
             return [('None', 'None', 'None')]
 
     def r_menu(self, context):
         try:
-            ress = [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu].keys() if res]
+            ress = [(f'{res}', f'{res}', f'Frame {res}') for res in self.node['resdict'][self.name][self.framemenu].keys() if res]
             if ress:
                 return ress
             else:
                 return [('None', 'None', 'None')]
+
         except Exception:
             return [('None', 'None', 'None')]
 
     def z_menu(self, context):
         try:
-            zres = [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][self.resultmenu].keys() if res]
+            zres = [(f'{res}', f'{res}', f'Zone {res}') for res in self.node['resdict'][self.name][self.framemenu][self.resultmenu].keys() if res]
 
             if zres:
                 return zres
             else:
                 return [('None', 'None', 'None')]
+
         except Exception:
             try:
-                r = list(self['resdict'][self.framemenu].keys())[0]
-                # z = list(self['resdict'][self.framemenu][r].keys())[0]
-                self.zonemenu = list(self['resdict'][self.framemenu][r].keys())[0]
-                return [(f'{res}', f'{res}', f'Zone {res}') for res in self['resdict'][self.framemenu][r].keys() if res]
+                r = list(self.node['resdict'][self.name][self.framemenu].keys())[0]
+                self.zonemenu = list(self.node['resdict'][self.name][self.framemenu][r].keys())[0]
+                return [(f'{res}', f'{res}', f'Zone {res}') for res in self.node['resdict'][self.name][self.framemenu][r].keys() if res]
+
             except Exception:
                 return [('None', 'None', 'None')]
 
     def m_menu(self, context):
         try:
-            m_entries = [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][self.resultmenu][self.zonemenu] if res]
+            m_entries = [(f'{res}', f'{res}', f'Frame {res}') for res in self.node['resdict'][self.name][self.framemenu][self.resultmenu][self.zonemenu] if res]
 
             if m_entries:
                 return m_entries
             else:
                 return [('None', 'None', 'None')]
+
         except Exception:
-            # try:
-            #     r = list(self['resdict'][self.framemenu].keys())[0]
-            #     z = list(self['resdict'][self.framemenu][r].keys())[0]
-            #     return [(f'{res}', f'{res}', f'Frame {res}') for res in self['resdict'][self.framemenu][r][z] if res]
-            # except Exception:
             return [('None', 'None', 'None')]
 
     def f_update(self, context):
@@ -2176,6 +2174,7 @@ class ViEnRIn(So_En_ResU):
             rl = innode['reslists']
             zrl = list(zip(*rl))
             self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
+
         except Exception:
             self.r_len = 0
 
@@ -2218,6 +2217,7 @@ class ViEnRIn(So_En_ResU):
             innode = self.links[0].from_node
             rl = innode['reslists']
             self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
+
         except Exception:
             self.r_len = 0
 
@@ -2231,6 +2231,7 @@ class ViEnRIn(So_En_ResU):
             innode = self.links[0].from_node
             rl = innode['reslists']
             self.r_len = [len(res[4].split()) for res in rl if res[0] == self.framemenu and res[1] == self.resultmenu and res[2] == self.zonemenu and res[3] == self.metricmenu][0]
+
         except Exception:
             self.r_len = 0
 
@@ -2265,14 +2266,15 @@ class ViEnRIn(So_En_ResU):
                             try:
                                 resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
                                 resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
-                                resdict[r[0]][r[1]][r[2]].append(r[3])
+                                if r[3] not in resdict[r[0]][r[1]][r[2]]: # and len(r[4].split()) == len(self.node.inputs[0].resdict[r[0]][r[1]][r[2]][r[3]].split()):
+                                    resdict[r[0]][r[1]][r[2]].append(r[3])
+
                             except Exception as e:
                                 logentry(e)
 
-                    self.node.inputs[ax]['resdict'] = resdict
-                    self.node.inputs[ax].r_len = self.node.inputs['X-axis'].r_len if resdict else 0
+                    self.node['resdict'][ax] = resdict
+                    self.node.inputs[ax].r_len = self.node.inputs['X-axis'].r_len if self.node['resdict'][ax] else 0
 
-            # self.update_entries(axes)
 
     def update_entries(self, context):
         axes = ('X-axis', 'Y-axis 1', 'Y-axis 2', 'Y-axis 3')
@@ -2296,7 +2298,6 @@ class ViEnRIn(So_En_ResU):
                                   ('Sum', 'Sum', 'Sum Value')], name="", description="Zone result", default='Average')
 
     def draw(self, context, layout, node, text):
-
         row = layout.row()
 
         if self.links and self.links[0].from_node.get('frames'):
@@ -2412,7 +2413,6 @@ class No_Vi_Chart(Node, ViNodes):
                 innode = rsx.links[0].from_node
                 rl = innode['reslists']
                 zrl = list(zip(*rl))
-                rsx['resdict'] = {}
                 resdict = {}
 
                 for r in rl:
@@ -2422,19 +2422,24 @@ class No_Vi_Chart(Node, ViNodes):
                         try:
                             resdict[r[0]][r[1]] = {} if r[1] not in resdict[r[0]] else resdict[r[0]][r[1]]
                             resdict[r[0]][r[1]][r[2]] = [] if r[2] not in resdict[r[0]][r[1]] else resdict[r[0]][r[1]][r[2]]
-                            resdict[r[0]][r[1]][r[2]].append(r[3])
-                        except Exception:
-                            pass
 
-                rsx['resdict'] = resdict
+                            if r[3] not in resdict[r[0]][r[1]][r[2]]:
+                                resdict[r[0]][r[1]][r[2]].append(r[3])
 
-                if resdict:
+                        except Exception as e:
+                            print('e', e)
+
+                self['resdict']['X-axis'] = resdict
+
+                if self['resdict']['X-axis']:
                     i = 0
 
                     while rsx.framemenu not in [r[0] for r in rsx.f_menu(0)] and i < 5:
+
                         try:
                             rsx.framemenu = rsx.f_menu(self)[0][0]
-                        except Exception:
+                        except Exception as e:
+                            print(e)
                             i += 1
 
                     i = 0
@@ -2482,7 +2487,6 @@ class No_Vi_Chart(Node, ViNodes):
                                     break
 
                         startframe, endframe = min(frames), max(frames)
-                        # frame = 'All'
                         start_ui_data = self.id_properties_ui("Start")
                         start_ui_data.update(min=startframe, max=endframe, soft_min=startframe, soft_max=endframe)
                         end_ui_data = self.id_properties_ui("End")
@@ -2628,7 +2632,7 @@ class No_Vi_Chart(Node, ViNodes):
                             rsy3.metricmenu = rsy3.metricmenu
 
                 else:
-                    self.inputs['Y-axis 1']['resdict'], self.inputs['Y-axis 2']['resdict'], self.inputs['Y-axis 3']['resdict'] = {}, {}, {}
+                    self.inputs['Y-axis 1'].resdict, self.inputs['Y-axis 2'].resdict, self.inputs['Y-axis 3'].resdict = {}, {}, {}
                     if self.inputs.get('Y-axis 1'):
                         self.inputs['Y-axis 1'].hide = True
                     if self.inputs.get('Y-axis 2'):
@@ -3991,7 +3995,6 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Y velocity':
                             uys = [float(uy) for uy in r[4].split()]
                     elif r[3] == 'Pressure':
-                        print(ws)
                         ps = ['{:.3f}'.format((float(r) - pref) / (0.5 * 1.225 * (ws**2))) for r in r[4].split()]
                         reslists.append(['All', 'Probe', r[2], 'WPCs', ' '.join(ps)])
             try:
@@ -9781,10 +9784,10 @@ class No_Au_Sim(Node, ViNodes):
         if self.netgen and bpy.data.collections.get(self.collection):
             rm_coll(context, [coll for coll in bpy.data.collections if coll.vi_params.envi_zone])
             solids = meshes_to_solids(context, bpy.data.collections[self.collection], op)
-
+            print('solids', len(solids.solids))
             for si, solid in enumerate(solids):
                 manifold, mesh = solid_to_mesh(context.scene.vi_params, solid, si, op)
-                print(manifold, 'man')
+                print('mesh', mesh)
 
                 if not manifold:
                     op.report({'WARNING'}, f'Zone {si} is not manifold. Some manual editing may be required')

@@ -2027,7 +2027,12 @@ def solarRiseSet(doy, beta, lat, lon, riseset):
 
     try:
         phi = acos((sin(beta) * sin(ll) - sin(delta)) / (cos(beta) * cos(ll)))
+
+        if bpy.context.scene.vi_params['viparams'].get('North'):
+            phi += Vector((0, 1)).angle_signed(bpy.context.scene.vi_params['viparams'].get('North')[:2])
+
         phi = pi - phi if riseset == 'morn' else pi + phi
+
     except Exception:
         phi = 0
 
@@ -2245,6 +2250,7 @@ def sunposh(context, suns):
 
 
 def sunapply(scene, sun, values, solposs, frames, sdist):
+    print(solposs)
     sun.data.animation_data_clear()
     sun.animation_data_clear()
     action = bpy.data.actions.get("EnVi Sun")
@@ -2324,12 +2330,14 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
         sunrot = [(pi / 2) - solposs[f][2], 0, -solposs[f][3]]
         scene.display.light_direction = (-sin(solposs[f][3]) * cos(solposs[f][2]), sin(solposs[f][2]), cos(solposs[f][3]) * cos(solposs[f][2]))
 
-        if scene.render.engine == 'CYCLES' and scene.world.node_tree:
+        if scene.world.node_tree:
             if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
                 skydir = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])
                 st1x.keyframe_points[f].co = frame, skydir[0]
                 st1y.keyframe_points[f].co = frame, skydir[1]
                 st1z.keyframe_points[f].co = frame, skydir[2]
+                scene.world.node_tree.nodes["Sky Texture"].sun_elevation = solposs[f][2]
+                scene.world.node_tree.nodes["Sky Texture"].sun_rotation = solposs[f][3] - pi
 
         if scene.render.engine == 'CYCLES' and sun.data.node_tree:
             for emnode in emnodes:
@@ -2506,6 +2514,7 @@ def meshes_to_solids(context, coll, op):
             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
                 g_geo_solid.name = g_names[gi]
                 solids.append(g_geo_solid)
+                used_shells.append
         
         elif len(g_geo.shape.SubShapes(occ.SOLID)):
             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
@@ -2514,32 +2523,11 @@ def meshes_to_solids(context, coll, op):
 
                 for shell in g_geo_solid.SubShapes(occ.SHELL):
                     used_shells.append(shell)
-
-        if len(g_geo.shape.SubShapes(occ.SHELL)) > len(used_shells):
-            for g_shell in g_geo.shape.SubShapes(occ.SHELL):
-                if g_shell not in used_shells:
-                    g_shell_solid = occ.OCCGeometry(g_shell)
-                    fns = [face.name for face in g_shell_solid.shape.faces]
-                    fcs = [face.center for face in g_shell_solid.shape.faces]
-                    g_shell_solid.Heal(tolerance=0.0001)
-
-                    if None in set([face.name for face in g_shell_solid.shape.faces]):
-                        for fi, face in enumerate(g_shell_solid.shape.faces):
-                            if face.name is None:
-                                for fci, fc in enumerate(fcs):
-                                    if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
-                                        face.name = fns[fci]
-                                        break
-                                if face.name is None:
-                                    face.name = fns[fi]
-
-                    for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
-                        solids.append(g_solid)
-                        print('shell to solid', g_names[gi])
-
-                    if not g_shell_solid.shape.SubShapes(occ.SOLID):
-                        g_shell_solid.shape.WriteStep(os.path.join(svp['viparams']['newdir'], 'temp.step'))
-                        g_shell_solid = occ.OCCGeometry(os.path.join(svp['viparams']['newdir'], 'temp.step'))
+        # print('lens', len(g_geo.shape.SubShapes(occ.SHELL)))
+            if len(g_geo.shape.SubShapes(occ.SHELL)) > len(used_shells):
+                for g_shell in g_geo.shape.SubShapes(occ.SHELL):
+                    if g_shell not in used_shells:
+                        g_shell_solid = occ.OCCGeometry(g_shell)
                         fns = [face.name for face in g_shell_solid.shape.faces]
                         fcs = [face.center for face in g_shell_solid.shape.faces]
                         g_shell_solid.Heal(tolerance=0.0001)
@@ -2556,6 +2544,27 @@ def meshes_to_solids(context, coll, op):
 
                         for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
                             solids.append(g_solid)
+                            print('shell to solid', g_names[gi])
+
+                        if not g_shell_solid.shape.SubShapes(occ.SOLID):
+                            g_shell_solid.shape.WriteStep(os.path.join(svp['viparams']['newdir'], 'temp.step'))
+                            g_shell_solid = occ.OCCGeometry(os.path.join(svp['viparams']['newdir'], 'temp.step'))
+                            fns = [face.name for face in g_shell_solid.shape.faces]
+                            fcs = [face.center for face in g_shell_solid.shape.faces]
+                            g_shell_solid.Heal(tolerance=0.0001)
+
+                            if None in set([face.name for face in g_shell_solid.shape.faces]):
+                                for fi, face in enumerate(g_shell_solid.shape.faces):
+                                    if face.name is None:
+                                        for fci, fc in enumerate(fcs):
+                                            if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
+                                                face.name = fns[fci]
+                                                break
+                                        if face.name is None:
+                                            face.name = fns[fi]
+
+                            for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
+                                solids.append(g_solid)
 
         if not g_geo.shape.SubShapes(occ.SOLID):
             ob = bpy.data.objects[g_names[gi]]
