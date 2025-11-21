@@ -4416,7 +4416,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         sources = [o for o in empties if o.vi_params.auvi_sl == '0']
         simnode['coptions']['au_sources'] = [s.name for s in sources]
         mics = [o for o in empties if o.vi_params.auvi_sl == '1']
-        mic_arrays = [o for o in context.view_layer.objects if o.type == 'MESH' and o.material_slots and o.visible_get() and any([o.material_slots[p.material_index].material.vi_params.mattype == '1' for p in o.data.polygons])]
+        mic_arrays = [o for o in context.view_layer.objects if o.type == 'MESH' and o.material_slots and o.visible_get() and any([o.material_slots[p.material_index].material.vi_params.mattype == '1' for p in o.data.polygons if o.material_slots[p.material_index].material])]
 
         for o in mic_arrays:
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
