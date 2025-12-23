@@ -36,8 +36,8 @@ if "bpy" in locals():
     imp.reload(vi_node)
     imp.reload(envi_mat)
 else:
-    import sys, os, inspect, shlex, bpy, requests, shutil, glob, socket
-    from subprocess import Popen, call
+    import sys, os, inspect, shlex, bpy, shutil, socket
+    from subprocess import Popen
     import nodeitems_utils
     from bpy.app.handlers import persistent
     from bpy.props import StringProperty, EnumProperty, IntProperty, FloatProperty, BoolProperty
@@ -162,7 +162,7 @@ else:
                     shutil.move(src_file, dest_file)
 
         elif sys.platform == 'win32':
-            ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, addonpath, 'Python', sys.platform)
+            ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ngocc_cmd)).wait()
             ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
@@ -191,7 +191,7 @@ else:
         else:
             try:
                 import pyroomacoustics as pra
-            except Exception as e:
+            except Exception:
                 print('pyroomacoustics installation failed and is disabled')
 
     if sys.platform in ('linux', 'darwin'):
@@ -250,10 +250,10 @@ else:
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_func import lividisplay, logentry, ob_to_stl, ec_update
     from .livi_func import rtpoints, lhcalcapply, udidacalcapply, basiccalcapply, adgpcalcapply, radmat, retsv
-    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
+    from .envi_func import enparametric, resnameunits, aresnameunits
     from .envi_mat import envi_elayertype, envi_eclasstype, envi_emattype, envi_embodied
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu
-    from .flovi_func import ret_fvb_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu, ret_fvi_menu
+    from .flovi_func import ret_fvb_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu, ret_fvrad_menu, ret_fvi_menu
     from .vi_operators import NODE_OT_WindRose, NODE_OT_SVF, NODE_OT_En_Con, NODE_OT_En_Sim, NODE_OT_TextUpdate
     from .vi_operators import MAT_EnVi_Node, NODE_OT_Shadow, NODE_OT_CSV, NODE_OT_ASCImport, NODE_OT_FileSelect, NODE_OT_HdrSelect
     from .vi_operators import NODE_OT_Li_Geo, NODE_OT_Li_Con, NODE_OT_Li_Pre, NODE_OT_Li_Sim, NODE_OT_EC, OBJECT_OT_EcS, OBJECT_OT_EcE, NODE_OT_ECPie, NODE_OT_WLCLine, NODE_OT_COMLine
@@ -927,7 +927,7 @@ def select_nodetree(dummy):
                 envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViMatN' and ng == bpy.context.active_object.active_material.vi_params.envi_nodes]
                 if envings:
                     space.node_tree = envings[0]
-        except Exception as nt_error:
+        except Exception:
             pass
 
 

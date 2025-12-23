@@ -22,7 +22,7 @@ from math import pi
 from subprocess import PIPE, Popen, TimeoutExpired
 from .vi_func import clearscene, solarPosition, retobjs, clearlayers, ct2RGB, logentry, sunpath2
 from .livi_func import face_bsdf
-from numpy import array, where, in1d, zeros, savetxt
+from numpy import array, where, isin, zeros, savetxt
 
 
 def radpoints(o, faces, sks):
@@ -79,8 +79,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
         mrms = array([m.vi_params.radmatmenu for m in o_mats if m])
         mpps = array([not m.vi_params.pport for m in o_mats if m])
         mnpps = where(mpps, 0, 1)
-        mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))
-        fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert=True)
+        mmrms = isin(mrms, array(('0', '1', '2', '3', '6', '9')))
+        fmrms = isin(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert=True)
         mfaces = [f for f in mesh_faces if oms[f.material_index].material and (mmrms * mpps)[valid_fmis.index(f.material_index)]]
         ffaces = [f for f in mesh_faces if oms[f.material_index].material and (fmrms + mnpps)[valid_fmis.index(f.material_index)]]
         mmats = [mat for mat in o_mats if mat and mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
@@ -264,9 +264,9 @@ def radgexport(export_op, node):
                                 else:
                                     rdiff = Vector((0, 0, 0))
 
-                                gradfile += 'void instance {7}\n17 "{6}" -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name,
-                                            p, [-p for p in dob.location], part.location + dob.location - (part.velocity.normalized() * hl), part.size * hl, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
-                                            os.path.join(svp['viparams']['newdir'], 'octrees', '{}.oct'.format(dob.name.replace(' ', '_'), frame)), '{}_copy_{}'.format(o.name, p))
+                                gradfile += 'void instance {5}\n17 "{4}" -t {0[0]:.4f} {0[1]:.4f} {0[2]:.4f} -s {2:.3f} -rx {3[0]:.4f} -ry {3[1]:.4f} -rz {3[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} \n0\n0\n\n'.format([-p for p in dob.location],
+                                                                                                                                                                                                                            part.location + dob.location - (part.velocity.normalized() * hl), part.size * hl, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
+                                                                                                                                                                                                                            os.path.join(svp['viparams']['newdir'], 'octrees', f'{dob.name.replace(' ', '_')}.oct'), f'{o.name}_copy_{p}')
 
     # Lights export routine
         for o in [ob for ob in lightlist if ob.visible_get()]:

@@ -2250,7 +2250,6 @@ def sunposh(context, suns):
 
 
 def sunapply(scene, sun, values, solposs, frames, sdist):
-    print(solposs)
     sun.data.animation_data_clear()
     sun.animation_data_clear()
     action = bpy.data.actions.get("EnVi Sun")
@@ -2470,7 +2469,11 @@ def meshes_to_solids(context, coll, op):
             lbm = len(bm.faces)
 
             for fi, face in enumerate(bm.faces[:lbm]):
-                edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 4) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 4) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
+                if len(set([tuple(round(co, 5) for co in loop.vert.co) for loop in face.loops])) < 3:
+                    op.report({'ERROR'}, 'Extremly small edge detected. Mesh not exported')
+                    return {'CANCELLED'}
+
+                edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 5) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 5) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
 
@@ -2508,6 +2511,7 @@ def meshes_to_solids(context, coll, op):
     solids = []
 
     for gi, g_geo in enumerate(g_geos):
+        ob = bpy.data.objects[g_names[gi]]
         used_shells = []
         
         if len(g_geo.shape.SubShapes(occ.SOLID)) == len(g_geo.shape.SubShapes(occ.SHELL)):
@@ -2523,7 +2527,7 @@ def meshes_to_solids(context, coll, op):
 
                 for shell in g_geo_solid.SubShapes(occ.SHELL):
                     used_shells.append(shell)
-        # print('lens', len(g_geo.shape.SubShapes(occ.SHELL)))
+
             if len(g_geo.shape.SubShapes(occ.SHELL)) > len(used_shells):
                 for g_shell in g_geo.shape.SubShapes(occ.SHELL):
                     if g_shell not in used_shells:
@@ -2567,8 +2571,6 @@ def meshes_to_solids(context, coll, op):
                                 solids.append(g_solid)
 
         if not g_geo.shape.SubShapes(occ.SOLID):
-            ob = bpy.data.objects[g_names[gi]]
-            # mesh_islands = mesh_utils.mesh_linked_triangles(ob.evaluated_get(dp).data)
             bm = bmesh.new()
             bm.from_object(ob, dp)
             bmesh.ops.triangulate(bm, faces=bm.faces)
@@ -2602,10 +2604,16 @@ def meshes_to_solids(context, coll, op):
 
             bm.free()
 
-    # solids = [occ.Fuse(solids)]
+    #solids = [occ.Fuse(solids)]
+    for solid in solids[1:]:
+        solids[0] += solid
+
+    solids = [solids[0]]
 
     for si, solid in enumerate(solids):
+        solid.WriteStep(os.path.join(svp['viparams']['newdir'], f'solid{si}.step'))
         d_geo = d_geo.shape - solid if not si else d_geo - solid
+        d_geo.WriteStep(os.path.join(svp['viparams']['newdir'], f'{si}.step'))
         fns = [face.name for face in d_geo.faces]
         fcs = [face.center for face in d_geo.faces]
 
@@ -2620,7 +2628,11 @@ def meshes_to_solids(context, coll, op):
                     if face.name is None:
                         face.name = fns[fi]
 
-    return d_geo.solids[1:]
+    if len(d_geo.solids) > 1:
+        return d_geo.solids[1:]
+    else:
+        op.report({'ERROR'}, 'Could not create solids, returning result as is')
+        return d_geo.solids[0:1]
 
 def solid_to_mesh(svp, solid, si, op):
     if any([len(face.wires) > 1 for face in solid.faces]):
@@ -2638,12 +2650,16 @@ def solid_to_mesh(svp, solid, si, op):
         
         for li, line in enumerate(t_lines):
             if not li % 2:
+                #print(line, len(solid.faces))
                 verts.append(t_lines[li + 1].split()[:int(line.split()[0]) * 3])
                 fis.append([int(f) - 1 + vno for f in t_lines[li + 1].split()[-int(line.split()[1]) * 3:]])
                 vno += int(line.split()[0])
 
                 for m in range(int(line.split()[1])):
-                    mat_list.append(solid.faces[int(li/2)].name)
+                    if int(li/2) < len(solid.faces):
+                        mat_list.append(solid.faces[int(li/2)].name)
+                    else:
+                        mat_list.append(solid.faces[0].name)
 
         fis = [int(f) for fi in fis for f in fi]
         step_fs = [[fis[i], fis[i + 1], fis[i + 2]] for i in range(len(fis)) if not i % 3]

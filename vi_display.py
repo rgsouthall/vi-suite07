@@ -1639,6 +1639,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.vi_params.latitude, scene.vi_params.longitude)[2:]
                 coord = Vector([-(sd - (sd - (sd * cos(solalt)))) * sin(solazi), -(sd - (sd - (sd * cos(solalt)))) * cos(solazi), sd * sin(solalt)])
                 coords.append(coord)
+
                 if d % 183 == 0:
                     breaks.append(1)
                 else:

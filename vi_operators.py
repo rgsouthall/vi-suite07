@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bpy_extras, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing, gc
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing
 from bpy_extras import mesh_utils
 from pathlib import Path
 import subprocess
@@ -43,7 +43,7 @@ from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_ec
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
 from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
-from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite
+from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite, ret_of_docker
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, qtprogressbar, rm_coll, sys_exe
@@ -1154,6 +1154,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
             cang = '180 -vth ' if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle_x * 180 / pi
             vv = 180 if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle_y * 180 / pi
             vd = (0.001, 0, -1 * cam.matrix_world[2][2]) if (round(-1 * cam.matrix_world[0][2], 3), round(-1 * cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1 * cam.matrix_world[i][2] for i in range(3)]
+            cc = f'-vo {cam.data.clip_start:.3f} -va {cam.data.clip_end:.3f}' if self.simnode.camera_clip else ''
 
             if self.simnode.pmap:
                 self.pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
@@ -1181,6 +1182,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                 while pmrun.poll() is None:
                     sleep(2)
+
                     with open('{}-{}'.format(self.pmfile, frame), 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '%' in line:
@@ -1190,6 +1192,14 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                     if self.pfile.check(curres) == 'CANCELLED':
                         pmrun.kill()
+
+                        if psu:
+                            for proc in psutil.process_iter():
+                                if proc.name() == 'mkpmap':
+                                    proc.kill()
+                        else:
+                            self.report({'WARNING'}, 'Kill any remaining mkpmap processes manually')
+
                         return {'CANCELLED'}
 
                 if self.pb.poll() is None:
@@ -1262,12 +1272,10 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                     gpmbm.free()
 
-                rvucmd = 'rvu -w {10} {11} {8} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {9[0]:.3f} {9[1]:.3f} {9[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current,
-                cpfileentry, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu], gpfileentry)
-
+                rvucmd = 'rvu -w {0} {1} {2} -n {3} -vv {4:.3f} -vh {5:.3f} -vd {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} -vp {7[0]:.3f} {7[1]:.3f} {7[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {9} {10} "{11}-{12}.oct"'.format(('', '-i')[self.simnode.illu], gpfileentry, cpfileentry, svp['viparams']['wnproc'], vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
             else:
-                rvucmd = 'rvu -w {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} "{6}-{7}.oct"'.format(svp['viparams']['wnproc'],
-                                 vv, cang, vd, cam.location, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
+                rvucmd = 'rvu -w {0} -n {1} -vv {2:.3f} -vh {3:.3f} -vd {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vp {5[0]:.3f} {5[1]:.3f} {5[2]:.3f} -vu {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} {7} {8} "{9}-{10}.oct"'.format(('', '-i')[self.simnode.illu], svp['viparams']['wnproc'],
+                                 vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
 
             logentry('Rvu command: {}'.format(rvucmd))
             self.rvurun = Popen(shlex.split(rvucmd), stdout=PIPE, stderr=PIPE)
@@ -3706,7 +3714,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         subprocess.Popen(shlex.split(nntf_cmd)).wait()
 
                     elif sys.platform in ('darwin', 'win32'):
-                        nntf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "netgenNeutralToFoam -case data/{} {}"'.format(docker_path, self.offb, frame, 'data/ng.mesh')
+                        nntf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "netgenNeutralToFoam -case data/{} {}"'.format(docker_path, self.offb, self.of_docker, frame, 'data/ng.mesh')
                         subprocess.Popen(nntf_cmd, shell=True).wait()
 
                     logentry(f'Running netgenNeutraltoFoam with command: {nntf_cmd}')
@@ -3760,7 +3768,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -concaveMultiCells -noFunctionObjects -overwrite {}'.format(frame, 5)), stdout=PIPE, stderr=PIPE)
 
                         elif sys.platform in ('darwin', 'win32'):
-                            pdm_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -overwrite {}"'.format(docker_path, frame_offb, 5)
+                            pdm_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -overwrite {}"'.format(docker_path, frame_offb, self.of_docker, 5)
                             pdm = Popen(pdm_cmd, shell=True, stdout=PIPE, stderr=PIPE)
 
                         for line in pdm.stdout:
@@ -3777,13 +3785,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             cpf_cmd = 'foamExec combinePatchFaces -overwrite -noFunctionObjects -case {} {}'.format(frame_offb, 5)
                             Popen(shlex.split(cpf_cmd)).wait()
                         elif sys.platform in ('darwin', 'win32'):
-                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb, 5)
+                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb, self.of_docker, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
                         if sys.platform == 'linux':
                             cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
                         elif sys.platform in ('darwin', 'win32'):
-                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "checkMesh -case data"'.format(frame_offb)
+                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data {} "checkMesh -case data"'.format(frame_offb, self.of_docker)
                             cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
                         for line in cm.stdout:
@@ -3922,6 +3930,15 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         wm = context.window_manager
         scene = context.scene
         svp = scene.vi_params
+
+        if sys.platform in ('darwin', 'win32'):
+            self.of_docker = ret_of_docker()
+
+            if not self.of_docker:
+                logentry('No running dicehub/openfoam:12 or 13 docker image was found')
+                self.report({'ERROR'}, 'No running dicehub/openfoam:12 or 13 docker image was found')
+                return {'CANCELLED'}
+
         self.simnode = context.node
         self.simnode.presim()
         self.convergence = svp['flparams']['uresid']
@@ -3960,7 +3977,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 pp_cmd = "foamExec foamPostProcess -func writeCellCentres -case {}".format(frame_offb)
                 Popen(shlex.split(pp_cmd)).wait()
             elif sys.platform in ('darwin', 'win32'):
-                pp_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func writeCellCentres -case data"'.format(docker_path, frame_offb)
+                pp_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "foamPostProcess -func writeCellCentres -case data"'.format(docker_path, frame_offb, self.of_docker)
                 Popen(pp_cmd, shell=True).wait()
 
             if self.processes > 1:
@@ -3972,7 +3989,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     Popen(shlex.split(dcp_cmd)).wait()
 
                 elif sys.platform in ('darwin', 'win32'):
-                    dcp_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "decomposePar -force -case data"'.format(docker_path, frame_offb)
+                    dcp_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "decomposePar -force -case data"'.format(docker_path, frame_offb, self.of_docker)
                     Popen(dcp_cmd, shell=True).wait()
 
         with open(self.fpfile, 'w') as fvprogress:
@@ -3982,7 +3999,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                                                                                                                              svp['flparams']['solver'],
                                                                                                                              fframe_offb)), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
-                    self.runs.append(Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(docker_path, fframe_offb, self.processes,
+                    self.runs.append(Popen('{} run -it --rm -v "{}":/home/openfoam/data {} "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(docker_path, fframe_offb, self.of_docker, self.processes,
                                                                                                                                                                                 svp['flparams']['solver']), shell=True, stdout=fvprogress))
             else:
                 if sys.platform == 'linux':
@@ -3990,7 +4007,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.runs.append(Popen(shlex.split(sol_cmd), stderr=PIPE, stdout=fvprogress))
 
                 elif sys.platform in ('darwin', 'win32'):
-                    sol_cmd = '{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "{} -case data"'.format(docker_path, fframe_offb, svp['flparams']['solver'])
+                    sol_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "{} -case data"'.format(docker_path, fframe_offb, self.of_docker, svp['flparams']['solver'])
                     self.runs.append(Popen(sol_cmd, shell=True, stderr=PIPE, stdout=fvprogress))
 
                 logentry('Running solver with command: {}'.format(sol_cmd))
@@ -4047,7 +4064,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
-                    Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "foamExec reconstructPar -case data"'.format(docker_path, frame_coffb), shell=True).wait()
+                    Popen('{} run -it --rm -v "{}":/home/openfoam/data {} "foamExec reconstructPar -case data"'.format(docker_path, frame_coffb, self.of_docker), shell=True).wait()
 
             open("{}".format(os.path.join(frame_coffb, '{}.foam'.format(frame_c))), "w")
             self.simnode.running = 0
@@ -4109,7 +4126,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
                 elif sys.platform in ('darwin', 'win32'):
-                    Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "reconstructPar -case data"'.format(docker_path, frame_coffb), shell=True).wait()
+                    Popen('{} run -it --rm -v "{}":/home/openfoam/data {} "reconstructPar -case data"'.format(docker_path, frame_coffb, self.of_docker), shell=True).wait()
 
             resdict = {'p': 'Pressure', 'U': 'Speed', 'T': 'Temperature', 'Ux': 'X velocity', 'Uy': 'Y velocity', 'Uz': 'Z velocity', 'Q': 'Volumetric flow rate', 'k': 'Turbulent KE', 'epsilon': 'Turbulent dissipation'}
 
@@ -4176,14 +4193,14 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.simnode['frames'] = [f for f in self.frames]
 
             for oname in svp['flparams']['s_probes']:
-                vfs, times, ps = [], [], []
+                vfs, times = [], []
 
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                     # Disable this until I can find a version that works on OS X. For linux this works with OpenFOAM 13
                     # p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                 elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
+                    vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
                     # The below does not seem to work on OS X
                     # p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceAverage\\(trisurface="{oname}.stl", p\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
                     
@@ -4300,8 +4317,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                         with open(os.path.join(probed, 'surfaceFieldValue.dat'), 'r') as resfile:
                             for line in resfile.readlines():
-                                if '# Time' in line:
-                                    q_index = line.split().index('areaNormalIntegrate(U)') - 1
+                                # if '# Time' in line:
+                                #     q_index = line.split().index('areaNormalIntegrate(U)') - 1
                                 if line and line[0] != '#':
                                     t_res.append(line.split()[0])
                                     q_res.append(line.split()[1])
@@ -4328,11 +4345,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                     elif sys.platform in ('darwin', 'win32'):
                         if self.processes > 1:
-                            self.runs.append(Popen('{} run -it --rm -v {}:/home/openfoam/data dicehub/openfoam:12 "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(docker_path, frame_noffb,
+                            self.runs.append(Popen('{} run -it --rm -v {}:/home/openfoam/data {} "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(docker_path, frame_noffb, self.of_docker,
                                                                                                                                                                                       self.processes,
                                                                                                                                                                                       svp['flparams']['solver']), stderr=PIPE, stdout=fvprogress))
                         else:
-                            self.runs.append(Popen('{} run -it --rm -v "{}":/home/openfoam/data dicehub/openfoam:12 "{} -case data"'.format(docker_path, frame_noffb, svp['flparams']['solver']), shell=True, stderr=PIPE, stdout=fvprogress))
+                            self.runs.append(Popen('{} run -it --rm -v "{}":/home/openfoam/data {} "{} -case data"'.format(docker_path, frame_noffb, self.of_docker, svp['flparams']['solver']), shell=True, stderr=PIPE, stdout=fvprogress))
 
                 return {'PASS_THROUGH'}
 

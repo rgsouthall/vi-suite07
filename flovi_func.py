@@ -16,7 +16,9 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bmesh, os, mathutils
+import bpy, bmesh, os, mathutils, sys, shlex
+from subprocess import Popen, PIPE
+from pathlib import Path
 from math import cos, sin, pi
 from mathutils import Vector
 from .vi_func import selobj
@@ -1113,6 +1115,37 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
             face.material_index = len(ns)
 
 
+def ret_of_docker():
+    try:
+        if sys.platform in ('darwin', 'win32'):
+            if sys.platform == 'darwin':
+                if os.path.isfile('/usr/local/bin/docker'):
+                    dck_run = Popen(shlex.split('/usr/local/bin/docker images'), stdout=PIPE)
+
+                elif os.path.islink(f'{Path.home()}/.docker/bin/docker'):
+                    dck_run = Popen(shlex.split(f'{Path.home()}/.docker/bin/docker images'), stdout=PIPE)
+
+                else:
+                    dck_run = ''
+
+            else:
+                dck_run = Popen('docker images', shell=True, stdout=PIPE)
+
+            if dck_run:
+                for line in dck_run.stdout.readlines():
+                    lds = line.decode().split()
+                    # Below is required to register the lines
+                    print(lds[0], lds[1])
+
+                    if lds[0] == 'dicehub/openfoam' and lds[1] in ('12', '13'):
+                        # ofoam = 1
+                        return f"{lds[0]}:{lds[1]}"
+            else:
+                return ''
+        else:
+            return ''
+    except Exception:
+        return ''
 # def ret_fvbnutilda_menu(mat, context):
 #     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
 #         # print(mat.name, flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())
