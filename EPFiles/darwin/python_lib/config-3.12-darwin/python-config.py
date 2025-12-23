@@ -1,4 +1,4 @@
-#!/Users/runner/hostedtoolcache/Python/3.12.2/x64/bin/python3.12
+#!/Users/runner/hostedtoolcache/Python/3.12.2/arm64/bin/python3.12
 # -*- python -*-
 
 # Keep this script in sync with python-config.sh.in

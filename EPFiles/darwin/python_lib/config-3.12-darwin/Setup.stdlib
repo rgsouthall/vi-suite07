@@ -70,7 +70,7 @@ zlib zlibmodule.c
 # dbm needs either libndbm, libgdbm_compat, or libdb 5.x
 _dbm _dbmmodule.c
 # gdbm module needs -lgdbm
-_gdbm _gdbmmodule.c
+#_gdbm _gdbmmodule.c
 
 # needs -lreadline or -ledit, sometimes termcap, termlib, or tinfo
 readline readline.c

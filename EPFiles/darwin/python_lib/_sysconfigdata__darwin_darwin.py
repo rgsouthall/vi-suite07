@@ -4,7 +4,7 @@ build_time_vars = {'ABIFLAGS': '',
  'AIX_BUILDDATE': 0,
  'AIX_GENUINE_CPLUSPLUS': 0,
  'ALIGNOF_LONG': 8,
- 'ALIGNOF_MAX_ALIGN_T': 16,
+ 'ALIGNOF_MAX_ALIGN_T': 8,
  'ALIGNOF_SIZE_T': 8,
  'ALT_SOABI': 0,
  'ANDROID_API_LEVEL': 0,
@@ -13,24 +13,25 @@ build_time_vars = {'ABIFLAGS': '',
  'BASECFLAGS': '-fno-strict-overflow -Wsign-compare -Wunreachable-code',
  'BASECPPFLAGS': '',
  'BASEMODLIBS': '',
- 'BINDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/bin',
- 'BINLIBDEST': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12',
+ 'BINDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/bin',
+ 'BINLIBDEST': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12',
  'BLDLIBRARY': '-L. -lpython3.12',
  'BLDSHARED': 'gcc -bundle -undefined dynamic_lookup '
-              '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-              '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib',
+              '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib '
+              '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib',
  'BOOTSTRAP_HEADERS': '\\',
  'BUILDEXE': '.exe',
  'BUILDPYTHON': 'python.exe',
- 'BUILD_GNU_TYPE': 'x86_64-apple-darwin22.6.0',
+ 'BUILD_GNU_TYPE': 'aarch64-apple-darwin23.6.0',
  'BUILD_SCRIPTS_DIR': 'build/scripts-3.12',
  'BYTESTR_DEPS': '\\',
  'CC': 'gcc',
  'CCSHARED': '',
  'CFLAGS': '-fno-strict-overflow -Wsign-compare -Wunreachable-code -DNDEBUG -g '
-           '-O3 -Wall -I/usr/local/opt/gettext/include '
-           '-I/usr/local/opt/sqlite/include -I/usr/local/opt/gettext/include '
-           '-I/usr/local/opt/sqlite/include',
+           '-O3 -Wall -I/opt/homebrew/opt/gettext/include '
+           '-I/opt/homebrew/opt/sqlite/include '
+           '-I/opt/homebrew/opt/gettext/include '
+           '-I/opt/homebrew/opt/sqlite/include',
  'CFLAGSFORSHARED': '',
  'CFLAGS_ALIASING': '-fno-strict-aliasing',
  'CODECS_COMMON_HEADERS': './Modules/cjkcodecs/multibytecodec.h '
@@ -38,34 +39,35 @@ build_time_vars = {'ABIFLAGS': '',
  'COMPILEALL_OPTS': '-j0',
  'CONFIGFILES': 'configure configure.ac acconfig.h pyconfig.h.in '
                 'Makefile.pre.in',
- 'CONFIGURE_CFLAGS': '-I/usr/local/opt/gettext/include '
-                     '-I/usr/local/opt/sqlite/include',
+ 'CONFIGURE_CFLAGS': '-I/opt/homebrew/opt/gettext/include '
+                     '-I/opt/homebrew/opt/sqlite/include',
  'CONFIGURE_CFLAGS_NODIST': '-fno-semantic-interposition -flto -std=c11 '
                             '-Wextra -Wno-unused-parameter '
                             '-Wno-missing-field-initializers '
                             '-Wstrict-prototypes '
                             '-Werror=implicit-function-declaration '
                             '-fvisibility=hidden',
- 'CONFIGURE_CPPFLAGS': '-I/usr/local/opt/sqlite/include',
- 'CONFIGURE_LDFLAGS': '-L/usr/local/opt/gettext/lib '
-                      '-L/usr/local/opt/sqlite/lib',
+ 'CONFIGURE_CPPFLAGS': '-I/opt/homebrew/opt/sqlite/include',
+ 'CONFIGURE_LDFLAGS': '-L/opt/homebrew/opt/gettext/lib '
+                      '-L/opt/homebrew/opt/sqlite/lib',
  'CONFIGURE_LDFLAGS_NODIST': '-fno-semantic-interposition -flto '
                              '-Wl,-export_dynamic '
                              '-Wl,-object_path_lto,"$@".lto -g',
  'CONFIGURE_LDFLAGS_NOLTO': '-fno-lto',
- 'CONFIG_ARGS': "'--prefix=/Users/runner/hostedtoolcache/Python/3.12.2/x64' "
+ 'CONFIG_ARGS': "'--prefix=/Users/runner/hostedtoolcache/Python/3.12.2/arm64' "
                 "'--enable-optimizations' '--enable-shared' '--with-lto' "
-                "'--with-openssl=/usr/local/opt/openssl@3' "
+                "'--with-openssl=/opt/homebrew/opt/openssl@3' "
                 "'--enable-loadable-sqlite-extensions' "
-                "'CFLAGS=-I/usr/local/opt/gettext/include "
-                "-I/usr/local/opt/sqlite/include' "
-                "'LDFLAGS=-L/usr/local/opt/gettext/lib "
-                "-L/usr/local/opt/sqlite/lib' "
-                "'CPPFLAGS=-I/usr/local/opt/sqlite/include' "
-                "'TCLTK_CFLAGS=-I/usr/local/opt/tcl-tk@8/include/tcl-tk' "
-                "'TCLTK_LIBS=-L/usr/local/opt/tcl-tk@8/lib -ltcl8.6 -ltk8.6'",
- 'CONFINCLUDEDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include',
- 'CONFINCLUDEPY': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include/python3.12',
+                "'CFLAGS=-I/opt/homebrew/opt/gettext/include "
+                "-I/opt/homebrew/opt/sqlite/include' "
+                "'LDFLAGS=-L/opt/homebrew/opt/gettext/lib "
+                "-L/opt/homebrew/opt/sqlite/lib' "
+                "'CPPFLAGS=-I/opt/homebrew/opt/sqlite/include' "
+                "'TCLTK_CFLAGS=-I/opt/homebrew/opt/tcl-tk@8/include/tcl-tk' "
+                "'TCLTK_LIBS=-L/opt/homebrew/opt/tcl-tk@8/lib -ltcl8.6 "
+                "-ltk8.6'",
+ 'CONFINCLUDEDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include',
+ 'CONFINCLUDEPY': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include/python3.12',
  'COREPYTHONPATH': '',
  'COVERAGE_INFO': '/Users/runner/work/_temp/SourceCode/coverage.info',
  'COVERAGE_LCOV_OPTIONS': '--rc lcov_branch_coverage=1',
@@ -73,20 +75,20 @@ build_time_vars = {'ABIFLAGS': '',
  'COVERAGE_REPORT_OPTIONS': '--rc lcov_branch_coverage=1 --branch-coverage '
                             '--title "CPython 3.12 LCOV report [commit $(shell '
                             ')]"',
- 'CPPFLAGS': '-I. -I./Include -I/usr/local/opt/sqlite/include '
-             '-I/usr/local/opt/sqlite/include',
+ 'CPPFLAGS': '-I. -I./Include -I/opt/homebrew/opt/sqlite/include '
+             '-I/opt/homebrew/opt/sqlite/include',
  'CXX': 'g++',
  'DEEPFREEZE_C': 'Python/deepfreeze/deepfreeze.c',
  'DEEPFREEZE_DEPS': './Tools/build/deepfreeze.py _bootstrap_python '
                     './Programs/_freeze_module.py \\',
  'DEEPFREEZE_OBJS': 'Python/deepfreeze/deepfreeze.o',
- 'DESTDIRS': '/Users/runner/hostedtoolcache/Python/3.12.2/x64 '
-             '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib '
-             '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12 '
-             '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12/lib-dynload',
- 'DESTLIB': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12',
+ 'DESTDIRS': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64 '
+             '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib '
+             '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12 '
+             '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12/lib-dynload',
+ 'DESTLIB': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12',
  'DESTPATH': '',
- 'DESTSHARED': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12/lib-dynload',
+ 'DESTSHARED': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12/lib-dynload',
  'DFLAGS': '',
  'DIRMODE': 755,
  'DIST': 'README.rst ChangeLog configure configure.ac acconfig.h pyconfig.h.in '
@@ -110,7 +112,7 @@ build_time_vars = {'ABIFLAGS': '',
  'ENSUREPIP': 'upgrade',
  'EXE': '',
  'EXEMODE': 755,
- 'EXENAME': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/bin/python3.12',
+ 'EXENAME': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/bin/python3.12',
  'EXPORTSFROM': '',
  'EXPORTSYMS': '',
  'EXTRATESTOPTS': '',
@@ -254,11 +256,11 @@ build_time_vars = {'ABIFLAGS': '',
  'HAVE_FUTIMESAT': 0,
  'HAVE_GAI_STRERROR': 1,
  'HAVE_GCC_ASM_FOR_MC68881': 0,
- 'HAVE_GCC_ASM_FOR_X64': 1,
- 'HAVE_GCC_ASM_FOR_X87': 1,
+ 'HAVE_GCC_ASM_FOR_X64': 0,
+ 'HAVE_GCC_ASM_FOR_X87': 0,
  'HAVE_GCC_UINT128_T': 1,
- 'HAVE_GDBM_DASH_NDBM_H': 1,
- 'HAVE_GDBM_H': 1,
+ 'HAVE_GDBM_DASH_NDBM_H': 0,
+ 'HAVE_GDBM_H': 0,
  'HAVE_GDBM_NDBM_H': 0,
  'HAVE_GETADDRINFO': 1,
  'HAVE_GETC_UNLOCKED': 1,
@@ -618,13 +620,13 @@ build_time_vars = {'ABIFLAGS': '',
  'HAVE_ZLIB_H': 0,
  'HAVE__GETPTY': 0,
  'HOSTRUNNER': '',
- 'HOST_GNU_TYPE': 'x86_64-apple-darwin22.6.0',
- 'INCLDIRSTOMAKE': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include '
-                   '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include '
-                   '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include/python3.12 '
-                   '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include/python3.12',
- 'INCLUDEDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include',
- 'INCLUDEPY': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/include/python3.12',
+ 'HOST_GNU_TYPE': 'aarch64-apple-darwin23.6.0',
+ 'INCLDIRSTOMAKE': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include '
+                   '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include '
+                   '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include/python3.12 '
+                   '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include/python3.12',
+ 'INCLUDEDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include',
+ 'INCLUDEPY': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/include/python3.12',
  'INSTALL': '/usr/bin/install -c',
  'INSTALL_DATA': '/usr/bin/install -c -m 644',
  'INSTALL_PROGRAM': '/usr/bin/install -c',
@@ -634,46 +636,46 @@ build_time_vars = {'ABIFLAGS': '',
  'IO_H': 'Modules/_io/_iomodule.h',
  'IO_OBJS': '\\',
  'LDCXXSHARED': 'g++ -bundle -undefined dynamic_lookup',
- 'LDFLAGS': '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-            '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib',
+ 'LDFLAGS': '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib '
+            '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib',
  'LDLIBRARY': 'libpython3.12.dylib',
  'LDLIBRARYDIR': '',
  'LDSHARED': 'gcc -bundle -undefined dynamic_lookup '
-             '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-             '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib',
+             '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib '
+             '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib',
  'LDVERSION': '3.12',
  'LIBC': '',
- 'LIBDEST': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12',
- 'LIBDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib',
+ 'LIBDEST': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12',
+ 'LIBDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib',
  'LIBEXPAT_A': 'Modules/expat/libexpat.a',
  'LIBEXPAT_CFLAGS': '-I./Modules/expat -fno-strict-overflow -Wsign-compare '
                     '-Wunreachable-code -DNDEBUG -g -O3 -Wall '
-                    '-I/usr/local/opt/gettext/include '
-                    '-I/usr/local/opt/sqlite/include '
-                    '-I/usr/local/opt/gettext/include '
-                    '-I/usr/local/opt/sqlite/include '
+                    '-I/opt/homebrew/opt/gettext/include '
+                    '-I/opt/homebrew/opt/sqlite/include '
+                    '-I/opt/homebrew/opt/gettext/include '
+                    '-I/opt/homebrew/opt/sqlite/include '
                     '-fno-semantic-interposition -flto -std=c11 -Wextra '
                     '-Wno-unused-parameter -Wno-missing-field-initializers '
                     '-Wstrict-prototypes -Werror=implicit-function-declaration '
                     '-fvisibility=hidden -fprofile-instr-use=code.profclangd '
                     '-I./Include/internal -I. -I./Include '
-                    '-I/usr/local/opt/sqlite/include '
-                    '-I/usr/local/opt/sqlite/include',
+                    '-I/opt/homebrew/opt/sqlite/include '
+                    '-I/opt/homebrew/opt/sqlite/include',
  'LIBEXPAT_HEADERS': '\\',
  'LIBEXPAT_OBJS': '\\',
  'LIBHACL_CFLAGS': '-I./Modules/_hacl/include -D_BSD_SOURCE -D_DEFAULT_SOURCE '
                    '-fno-strict-overflow -Wsign-compare -Wunreachable-code '
-                   '-DNDEBUG -g -O3 -Wall -I/usr/local/opt/gettext/include '
-                   '-I/usr/local/opt/sqlite/include '
-                   '-I/usr/local/opt/gettext/include '
-                   '-I/usr/local/opt/sqlite/include '
+                   '-DNDEBUG -g -O3 -Wall -I/opt/homebrew/opt/gettext/include '
+                   '-I/opt/homebrew/opt/sqlite/include '
+                   '-I/opt/homebrew/opt/gettext/include '
+                   '-I/opt/homebrew/opt/sqlite/include '
                    '-fno-semantic-interposition -flto -std=c11 -Wextra '
                    '-Wno-unused-parameter -Wno-missing-field-initializers '
                    '-Wstrict-prototypes -Werror=implicit-function-declaration '
                    '-fvisibility=hidden -fprofile-instr-use=code.profclangd '
                    '-I./Include/internal -I. -I./Include '
-                   '-I/usr/local/opt/sqlite/include '
-                   '-I/usr/local/opt/sqlite/include',
+                   '-I/opt/homebrew/opt/sqlite/include '
+                   '-I/opt/homebrew/opt/sqlite/include',
  'LIBHACL_HEADERS': '\\',
  'LIBHACL_SHA2_A': 'Modules/_hacl/libHacl_Hash_SHA2.a',
  'LIBHACL_SHA2_HEADERS': '\\',
@@ -682,23 +684,23 @@ build_time_vars = {'ABIFLAGS': '',
  'LIBMPDEC_A': 'Modules/_decimal/libmpdec/libmpdec.a',
  'LIBMPDEC_CFLAGS': '-I./Modules/_decimal/libmpdec -DUNIVERSAL=1 '
                     '-fno-strict-overflow -Wsign-compare -Wunreachable-code '
-                    '-DNDEBUG -g -O3 -Wall -I/usr/local/opt/gettext/include '
-                    '-I/usr/local/opt/sqlite/include '
-                    '-I/usr/local/opt/gettext/include '
-                    '-I/usr/local/opt/sqlite/include '
+                    '-DNDEBUG -g -O3 -Wall -I/opt/homebrew/opt/gettext/include '
+                    '-I/opt/homebrew/opt/sqlite/include '
+                    '-I/opt/homebrew/opt/gettext/include '
+                    '-I/opt/homebrew/opt/sqlite/include '
                     '-fno-semantic-interposition -flto -std=c11 -Wextra '
                     '-Wno-unused-parameter -Wno-missing-field-initializers '
                     '-Wstrict-prototypes -Werror=implicit-function-declaration '
                     '-fvisibility=hidden -fprofile-instr-use=code.profclangd '
                     '-I./Include/internal -I. -I./Include '
-                    '-I/usr/local/opt/sqlite/include '
-                    '-I/usr/local/opt/sqlite/include',
+                    '-I/opt/homebrew/opt/sqlite/include '
+                    '-I/opt/homebrew/opt/sqlite/include',
  'LIBMPDEC_HEADERS': '\\',
  'LIBMPDEC_OBJS': '\\',
  'LIBOBJDIR': 'Python/',
  'LIBOBJS': '',
- 'LIBPC': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/pkgconfig',
- 'LIBPL': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12/config-3.12-darwin',
+ 'LIBPC': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/pkgconfig',
+ 'LIBPL': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12/config-3.12-darwin',
  'LIBPYTHON': '',
  'LIBRARY': 'libpython3.12.a',
  'LIBRARY_DEPS': 'libpython3.12.a libpython3.12.dylib',
@@ -720,32 +722,32 @@ build_time_vars = {'ABIFLAGS': '',
  'LOCALMODLIBS': '',
  'MACHDEP': 'darwin',
  'MACHDEP_OBJS': '',
- 'MACHDESTLIB': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12',
- 'MACOSX_DEPLOYMENT_TARGET': '13.7',
+ 'MACHDESTLIB': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12',
+ 'MACOSX_DEPLOYMENT_TARGET': '14.7',
  'MAJOR_IN_MKDEV': 0,
  'MAJOR_IN_SYSMACROS': 0,
  'MAKESETUP': './Modules/makesetup',
- 'MANDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/share/man',
+ 'MANDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/share/man',
  'MKDIR_P': './install-sh -c -d',
  'MODBUILT_NAMES': 'array  _asyncio  _bisect  _contextvars  _csv  _heapq  '
                    '_json  _lsprof  _opcode  _pickle  _queue  _random  '
                    '_struct  _xxsubinterpreters  _xxinterpchannels  _zoneinfo  '
                    'audioop  math  cmath  _statistics  _datetime  _decimal  '
-                   'binascii  _bz2  _lzma  zlib  _dbm  _gdbm  readline  _md5  '
-                   '_sha1  _sha2  _sha3  _blake2  pyexpat  _elementtree  '
-                   '_codecs_cn  _codecs_hk  _codecs_iso2022  _codecs_jp  '
-                   '_codecs_kr  _codecs_tw  _multibytecodec  unicodedata  '
-                   '_crypt  fcntl  grp  mmap  nis  _posixsubprocess  resource  '
-                   'select  _socket  syslog  termios  _posixshmem  '
-                   '_multiprocessing  _ctypes  _curses  _curses_panel  '
-                   '_sqlite3  _ssl  _hashlib  _uuid  _tkinter  _scproxy  '
-                   'xxsubtype  _xxtestfuzz  _testbuffer  _testinternalcapi  '
-                   '_testcapi  _testclinic  _testimportmultiple  '
-                   '_testmultiphase  _testsinglephase  _ctypes_test  '
-                   'xxlimited  xxlimited_35  atexit  faulthandler  posix  '
-                   '_signal  _tracemalloc  _codecs  _collections  errno  _io  '
-                   'itertools  _sre  _thread  time  _typing  _weakref  _abc  '
-                   '_functools  _locale  _operator  _stat  _symtable  pwd',
+                   'binascii  _bz2  _lzma  zlib  _dbm  readline  _md5  _sha1  '
+                   '_sha2  _sha3  _blake2  pyexpat  _elementtree  _codecs_cn  '
+                   '_codecs_hk  _codecs_iso2022  _codecs_jp  _codecs_kr  '
+                   '_codecs_tw  _multibytecodec  unicodedata  _crypt  fcntl  '
+                   'grp  mmap  nis  _posixsubprocess  resource  select  '
+                   '_socket  syslog  termios  _posixshmem  _multiprocessing  '
+                   '_ctypes  _curses  _curses_panel  _sqlite3  _ssl  _hashlib  '
+                   '_uuid  _tkinter  _scproxy  xxsubtype  _xxtestfuzz  '
+                   '_testbuffer  _testinternalcapi  _testcapi  _testclinic  '
+                   '_testimportmultiple  _testmultiphase  _testsinglephase  '
+                   '_ctypes_test  xxlimited  xxlimited_35  atexit  '
+                   'faulthandler  posix  _signal  _tracemalloc  _codecs  '
+                   '_collections  errno  _io  itertools  _sre  _thread  time  '
+                   '_typing  _weakref  _abc  _functools  _locale  _operator  '
+                   '_stat  _symtable  pwd',
  'MODDISABLED_NAMES': '',
  'MODLIBS': '',
  'MODOBJS': 'Modules/atexitmodule.o  Modules/faulthandler.o  '
@@ -765,8 +767,8 @@ build_time_vars = {'ABIFLAGS': '',
                     '_lsprof _opcode _pickle _queue _random _struct '
                     '_xxsubinterpreters _xxinterpchannels _zoneinfo audioop '
                     'math cmath _statistics _datetime _decimal binascii _bz2 '
-                    '_lzma zlib _dbm _gdbm readline _md5 _sha1 _sha2 _sha3 '
-                    '_blake2 pyexpat _elementtree _codecs_cn _codecs_hk '
+                    '_lzma zlib _dbm readline _md5 _sha1 _sha2 _sha3 _blake2 '
+                    'pyexpat _elementtree _codecs_cn _codecs_hk '
                     '_codecs_iso2022 _codecs_jp _codecs_kr _codecs_tw '
                     '_multibytecodec unicodedata _crypt fcntl grp mmap nis '
                     '_posixsubprocess resource select _socket syslog termios '
@@ -890,7 +892,7 @@ build_time_vars = {'ABIFLAGS': '',
  'MODULE__CRYPT_STATE': 'yes',
  'MODULE__CSV_STATE': 'yes',
  'MODULE__CTYPES_CFLAGS': '-fno-strict-overflow '
-                          '-I/Applications/Xcode_15.2.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/ffi '
+                          '-I/Applications/Xcode_15.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/ffi '
                           '-DUSING_APPLE_OS_LIBFFI=1 '
                           '-DUSING_MALLOC_CLOSURE_DOT_C=1',
  'MODULE__CTYPES_DEPS': './Modules/_ctypes/ctypes.h',
@@ -899,16 +901,16 @@ build_time_vars = {'ABIFLAGS': '',
  'MODULE__CTYPES_STATE': 'yes',
  'MODULE__CTYPES_TEST_LDFLAGS': '',
  'MODULE__CTYPES_TEST_STATE': 'yes',
- 'MODULE__CURSES_CFLAGS': '-D_XOPEN_SOURCE_EXTENDED=1',
+ 'MODULE__CURSES_CFLAGS': '-D_DARWIN_C_SOURCE -D_XOPEN_SOURCE_EXTENDED=1',
  'MODULE__CURSES_LDFLAGS': '-lncurses',
- 'MODULE__CURSES_PANEL_CFLAGS': '-D_XOPEN_SOURCE_EXTENDED=1',
+ 'MODULE__CURSES_PANEL_CFLAGS': '-D_DARWIN_C_SOURCE -D_XOPEN_SOURCE_EXTENDED=1',
  'MODULE__CURSES_PANEL_LDFLAGS': '-lpanel -lncurses',
  'MODULE__CURSES_PANEL_STATE': 'yes',
  'MODULE__CURSES_STATE': 'yes',
  'MODULE__DATETIME_LDFLAGS': '',
  'MODULE__DATETIME_STATE': 'yes',
- 'MODULE__DBM_CFLAGS': '-DUSE_GDBM_COMPAT',
- 'MODULE__DBM_LDFLAGS': '-lgdbm_compat',
+ 'MODULE__DBM_CFLAGS': '-DUSE_NDBM',
+ 'MODULE__DBM_LDFLAGS': '',
  'MODULE__DBM_STATE': 'yes',
  'MODULE__DECIMAL_CFLAGS': '-I./Modules/_decimal/libmpdec -DUNIVERSAL=1',
  'MODULE__DECIMAL_DEPS': './Modules/_decimal/docstrings.h \\ '
@@ -919,12 +921,10 @@ build_time_vars = {'ABIFLAGS': '',
  'MODULE__ELEMENTTREE_DEPS': './Modules/pyexpat.c \\ Modules/expat/libexpat.a',
  'MODULE__ELEMENTTREE_STATE': 'yes',
  'MODULE__FUNCTOOLS_LDFLAGS': '',
- 'MODULE__GDBM_CFLAGS': '',
- 'MODULE__GDBM_LDFLAGS': '-lgdbm',
- 'MODULE__GDBM_STATE': 'yes',
- 'MODULE__HASHLIB_CFLAGS': '-I/usr/local/opt/openssl@3/include',
+ 'MODULE__GDBM_STATE': 'missing',
+ 'MODULE__HASHLIB_CFLAGS': '-I/opt/homebrew/opt/openssl@3/include',
  'MODULE__HASHLIB_DEPS': './Modules/hashlib.h',
- 'MODULE__HASHLIB_LDFLAGS': '-L/usr/local/opt/openssl@3/lib   -lcrypto',
+ 'MODULE__HASHLIB_LDFLAGS': '-L/opt/homebrew/opt/openssl@3/lib   -lcrypto',
  'MODULE__HASHLIB_STATE': 'yes',
  'MODULE__HEAPQ_STATE': 'yes',
  'MODULE__IO_CFLAGS': '-I./Modules/_io',
@@ -934,8 +934,8 @@ build_time_vars = {'ABIFLAGS': '',
  'MODULE__JSON_STATE': 'yes',
  'MODULE__LOCALE_LDFLAGS': '',
  'MODULE__LSPROF_STATE': 'yes',
- 'MODULE__LZMA_CFLAGS': '-I/usr/local/Cellar/xz/5.6.4/include',
- 'MODULE__LZMA_LDFLAGS': '-L/usr/local/Cellar/xz/5.6.4/lib -llzma',
+ 'MODULE__LZMA_CFLAGS': '-I/opt/homebrew/Cellar/xz/5.6.3/include',
+ 'MODULE__LZMA_LDFLAGS': '-L/opt/homebrew/Cellar/xz/5.6.3/lib -llzma',
  'MODULE__LZMA_STATE': 'yes',
  'MODULE__MD5_CFLAGS': '-I./Modules/_hacl/include -I./Modules/_hacl/internal '
                        '-D_BSD_SOURCE -D_DEFAULT_SOURCE',
@@ -985,12 +985,12 @@ build_time_vars = {'ABIFLAGS': '',
  'MODULE__SQLITE3_LDFLAGS': '-lsqlite3',
  'MODULE__SQLITE3_STATE': 'yes',
  'MODULE__SRE_LDFLAGS': '',
- 'MODULE__SSL_CFLAGS': '-I/usr/local/opt/openssl@3/include',
+ 'MODULE__SSL_CFLAGS': '-I/opt/homebrew/opt/openssl@3/include',
  'MODULE__SSL_DEPS': './Modules/_ssl.h ./Modules/_ssl/cert.c '
                      './Modules/_ssl/debughelpers.c ./Modules/_ssl/misc.c '
                      './Modules/_ssl_data.h ./Modules/_ssl_data_111.h '
                      './Modules/_ssl_data_300.h ./Modules/socketmodule.h',
- 'MODULE__SSL_LDFLAGS': '-L/usr/local/opt/openssl@3/lib  -lssl -lcrypto',
+ 'MODULE__SSL_LDFLAGS': '-L/opt/homebrew/opt/openssl@3/lib  -lssl -lcrypto',
  'MODULE__SSL_STATE': 'yes',
  'MODULE__STATISTICS_LDFLAGS': '',
  'MODULE__STATISTICS_STATE': 'yes',
@@ -1007,9 +1007,9 @@ build_time_vars = {'ABIFLAGS': '',
  'MODULE__TESTINTERNALCAPI_STATE': 'yes',
  'MODULE__TESTMULTIPHASE_STATE': 'yes',
  'MODULE__THREAD_LDFLAGS': '',
- 'MODULE__TKINTER_CFLAGS': '-I/usr/local/opt/tcl-tk@8/include/tcl-tk '
+ 'MODULE__TKINTER_CFLAGS': '-I/opt/homebrew/opt/tcl-tk@8/include/tcl-tk '
                            '-Wno-strict-prototypes -DWITH_APPINIT=1',
- 'MODULE__TKINTER_LDFLAGS': '-L/usr/local/opt/tcl-tk@8/lib -ltcl8.6 -ltk8.6',
+ 'MODULE__TKINTER_LDFLAGS': '-L/opt/homebrew/opt/tcl-tk@8/lib -ltcl8.6 -ltk8.6',
  'MODULE__TKINTER_STATE': 'yes',
  'MODULE__TRACEMALLOC_LDFLAGS': '',
  'MODULE__TYPING_LDFLAGS': '',
@@ -1064,10 +1064,10 @@ build_time_vars = {'ABIFLAGS': '',
  'PY_BUILTIN_HASHLIB_HASHES': '"md5,sha1,sha2,sha3,blake2"',
  'PY_BUILTIN_MODULE_CFLAGS': '-fno-strict-overflow -Wsign-compare '
                              '-Wunreachable-code -DNDEBUG -g -O3 -Wall '
-                             '-I/usr/local/opt/gettext/include '
-                             '-I/usr/local/opt/sqlite/include '
-                             '-I/usr/local/opt/gettext/include '
-                             '-I/usr/local/opt/sqlite/include '
+                             '-I/opt/homebrew/opt/gettext/include '
+                             '-I/opt/homebrew/opt/sqlite/include '
+                             '-I/opt/homebrew/opt/gettext/include '
+                             '-I/opt/homebrew/opt/sqlite/include '
                              '-fno-semantic-interposition -flto -std=c11 '
                              '-Wextra -Wno-unused-parameter '
                              '-Wno-missing-field-initializers '
@@ -1076,14 +1076,14 @@ build_time_vars = {'ABIFLAGS': '',
                              '-fvisibility=hidden '
                              '-fprofile-instr-use=code.profclangd '
                              '-I./Include/internal -I. -I./Include '
-                             '-I/usr/local/opt/sqlite/include '
-                             '-I/usr/local/opt/sqlite/include '
+                             '-I/opt/homebrew/opt/sqlite/include '
+                             '-I/opt/homebrew/opt/sqlite/include '
                              '-DPy_BUILD_CORE_BUILTIN',
  'PY_CFLAGS': '-fno-strict-overflow -Wsign-compare -Wunreachable-code -DNDEBUG '
-              '-g -O3 -Wall -I/usr/local/opt/gettext/include '
-              '-I/usr/local/opt/sqlite/include '
-              '-I/usr/local/opt/gettext/include '
-              '-I/usr/local/opt/sqlite/include',
+              '-g -O3 -Wall -I/opt/homebrew/opt/gettext/include '
+              '-I/opt/homebrew/opt/sqlite/include '
+              '-I/opt/homebrew/opt/gettext/include '
+              '-I/opt/homebrew/opt/sqlite/include',
  'PY_CFLAGS_NODIST': '-fno-semantic-interposition -flto -std=c11 -Wextra '
                      '-Wno-unused-parameter -Wno-missing-field-initializers '
                      '-Wstrict-prototypes '
@@ -1092,42 +1092,45 @@ build_time_vars = {'ABIFLAGS': '',
                      '-I./Include/internal',
  'PY_COERCE_C_LOCALE': 1,
  'PY_CORE_CFLAGS': '-fno-strict-overflow -Wsign-compare -Wunreachable-code '
-                   '-DNDEBUG -g -O3 -Wall -I/usr/local/opt/gettext/include '
-                   '-I/usr/local/opt/sqlite/include '
-                   '-I/usr/local/opt/gettext/include '
-                   '-I/usr/local/opt/sqlite/include '
+                   '-DNDEBUG -g -O3 -Wall -I/opt/homebrew/opt/gettext/include '
+                   '-I/opt/homebrew/opt/sqlite/include '
+                   '-I/opt/homebrew/opt/gettext/include '
+                   '-I/opt/homebrew/opt/sqlite/include '
                    '-fno-semantic-interposition -flto -std=c11 -Wextra '
                    '-Wno-unused-parameter -Wno-missing-field-initializers '
                    '-Wstrict-prototypes -Werror=implicit-function-declaration '
                    '-fvisibility=hidden -fprofile-instr-use=code.profclangd '
                    '-I./Include/internal -I. -I./Include '
-                   '-I/usr/local/opt/sqlite/include '
-                   '-I/usr/local/opt/sqlite/include -DPy_BUILD_CORE',
- 'PY_CORE_LDFLAGS': '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-                    '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
+                   '-I/opt/homebrew/opt/sqlite/include '
+                   '-I/opt/homebrew/opt/sqlite/include -DPy_BUILD_CORE',
+ 'PY_CORE_LDFLAGS': '-L/opt/homebrew/opt/gettext/lib '
+                    '-L/opt/homebrew/opt/sqlite/lib '
+                    '-L/opt/homebrew/opt/gettext/lib '
+                    '-L/opt/homebrew/opt/sqlite/lib '
                     '-fno-semantic-interposition -flto -Wl,-export_dynamic '
                     '-Wl,-object_path_lto,"$@".lto -g',
- 'PY_CPPFLAGS': '-I. -I./Include -I/usr/local/opt/sqlite/include '
-                '-I/usr/local/opt/sqlite/include',
+ 'PY_CPPFLAGS': '-I. -I./Include -I/opt/homebrew/opt/sqlite/include '
+                '-I/opt/homebrew/opt/sqlite/include',
  'PY_ENABLE_SHARED': 1,
  'PY_HAVE_PERF_TRAMPOLINE': 0,
- 'PY_LDFLAGS': '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-               '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib',
+ 'PY_LDFLAGS': '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib '
+               '-L/opt/homebrew/opt/gettext/lib -L/opt/homebrew/opt/sqlite/lib',
  'PY_LDFLAGS_NODIST': '-fno-semantic-interposition -flto -Wl,-export_dynamic '
                       '-Wl,-object_path_lto,"$@".lto -g',
- 'PY_LDFLAGS_NOLTO': '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-                     '-L/usr/local/opt/gettext/lib -L/usr/local/opt/sqlite/lib '
-                     '-fno-lto',
+ 'PY_LDFLAGS_NOLTO': '-L/opt/homebrew/opt/gettext/lib '
+                     '-L/opt/homebrew/opt/sqlite/lib '
+                     '-L/opt/homebrew/opt/gettext/lib '
+                     '-L/opt/homebrew/opt/sqlite/lib -fno-lto',
  'PY_SQLITE_ENABLE_LOAD_EXTENSION': 1,
  'PY_SQLITE_HAVE_SERIALIZE': 1,
  'PY_SSL_DEFAULT_CIPHERS': 1,
  'PY_SSL_DEFAULT_CIPHER_STRING': 0,
  'PY_STDMODULE_CFLAGS': '-fno-strict-overflow -Wsign-compare '
                         '-Wunreachable-code -DNDEBUG -g -O3 -Wall '
-                        '-I/usr/local/opt/gettext/include '
-                        '-I/usr/local/opt/sqlite/include '
-                        '-I/usr/local/opt/gettext/include '
-                        '-I/usr/local/opt/sqlite/include '
+                        '-I/opt/homebrew/opt/gettext/include '
+                        '-I/opt/homebrew/opt/sqlite/include '
+                        '-I/opt/homebrew/opt/gettext/include '
+                        '-I/opt/homebrew/opt/sqlite/include '
                         '-fno-semantic-interposition -flto -std=c11 -Wextra '
                         '-Wno-unused-parameter -Wno-missing-field-initializers '
                         '-Wstrict-prototypes '
@@ -1135,9 +1138,9 @@ build_time_vars = {'ABIFLAGS': '',
                         '-fvisibility=hidden '
                         '-fprofile-instr-use=code.profclangd '
                         '-I./Include/internal -I. -I./Include '
-                        '-I/usr/local/opt/sqlite/include '
-                        '-I/usr/local/opt/sqlite/include',
- 'PY_SUPPORT_TIER': 1,
+                        '-I/opt/homebrew/opt/sqlite/include '
+                        '-I/opt/homebrew/opt/sqlite/include',
+ 'PY_SUPPORT_TIER': 2,
  'Py_DEBUG': 0,
  'Py_ENABLE_SHARED': 1,
  'Py_HASH_ALGORITHM': 0,
@@ -1149,7 +1152,7 @@ build_time_vars = {'ABIFLAGS': '',
  'RESSRCDIR': 'Mac/Resources/framework',
  'RETSIGTYPE': 'void',
  'RUNSHARED': 'DYLD_LIBRARY_PATH=/Users/runner/work/_temp/SourceCode',
- 'SCRIPTDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/lib',
+ 'SCRIPTDIR': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib',
  'SCRIPT_2TO3': 'build/scripts-3.12/2to3-3.12',
  'SCRIPT_IDLE': 'build/scripts-3.12/idle3.12',
  'SCRIPT_PYDOC': 'build/scripts-3.12/pydoc3.12',
@@ -1181,7 +1184,6 @@ build_time_vars = {'ABIFLAGS': '',
                'Modules/_lzma.cpython-312-darwin.so '
                'Modules/zlib.cpython-312-darwin.so '
                'Modules/_dbm.cpython-312-darwin.so '
-               'Modules/_gdbm.cpython-312-darwin.so '
                'Modules/readline.cpython-312-darwin.so '
                'Modules/_md5.cpython-312-darwin.so '
                'Modules/_sha1.cpython-312-darwin.so '
@@ -1242,7 +1244,7 @@ build_time_vars = {'ABIFLAGS': '',
  'SIZEOF_FPOS_T': 8,
  'SIZEOF_INT': 4,
  'SIZEOF_LONG': 8,
- 'SIZEOF_LONG_DOUBLE': 16,
+ 'SIZEOF_LONG_DOUBLE': 8,
  'SIZEOF_LONG_LONG': 8,
  'SIZEOF_OFF_T': 8,
  'SIZEOF_PID_T': 4,
@@ -1290,8 +1292,8 @@ build_time_vars = {'ABIFLAGS': '',
  'UPDATE_FILE': './Tools/build/update_file.py',
  'USE_COMPUTED_GOTOS': 0,
  'VERSION': '3.12',
- 'WASM_ASSETS_DIR': './Users/runner/hostedtoolcache/Python/3.12.2/x64',
- 'WASM_STDLIB': './Users/runner/hostedtoolcache/Python/3.12.2/x64/lib/python3.12/os.py',
+ 'WASM_ASSETS_DIR': './Users/runner/hostedtoolcache/Python/3.12.2/arm64',
+ 'WASM_STDLIB': './Users/runner/hostedtoolcache/Python/3.12.2/arm64/lib/python3.12/os.py',
  'WHEEL_PKG_DIR': '',
  'WINDOW_HAS_FLAGS': 1,
  'WITH_DECIMAL_CONTEXTVAR': 1,
@@ -1308,7 +1310,7 @@ build_time_vars = {'ABIFLAGS': '',
  'XMLLIBSUBDIRS': 'xml xml/dom xml/etree xml/parsers xml/sax',
  'abs_builddir': '/Users/runner/work/_temp/SourceCode',
  'abs_srcdir': '/Users/runner/work/_temp/SourceCode',
- 'datarootdir': '/Users/runner/hostedtoolcache/Python/3.12.2/x64/share',
- 'exec_prefix': '/Users/runner/hostedtoolcache/Python/3.12.2/x64',
- 'prefix': '/Users/runner/hostedtoolcache/Python/3.12.2/x64',
+ 'datarootdir': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64/share',
+ 'exec_prefix': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64',
+ 'prefix': '/Users/runner/hostedtoolcache/Python/3.12.2/arm64',
  'srcdir': '.'}
