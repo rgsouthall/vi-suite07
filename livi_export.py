@@ -264,9 +264,10 @@ def radgexport(export_op, node):
                                 else:
                                     rdiff = Vector((0, 0, 0))
 
+                                dobname = dob.name.replace(' ', '_')
                                 gradfile += 'void instance {5}\n17 "{4}" -t {0[0]:.4f} {0[1]:.4f} {0[2]:.4f} -s {2:.3f} -rx {3[0]:.4f} -ry {3[1]:.4f} -rz {3[2]:.4f} -t {1[0]:.4f} {1[1]:.4f} {1[2]:.4f} \n0\n0\n\n'.format([-p for p in dob.location],
                                                                                                                                                                                                                             part.location + dob.location - (part.velocity.normalized() * hl), part.size * hl, [180.0 * r/math.pi for r in (rdiff.x, rdiff.y, rdiff.z)],
-                                                                                                                                                                                                                            os.path.join(svp['viparams']['newdir'], 'octrees', f'{dob.name.replace(' ', '_')}.oct'), f'{o.name}_copy_{p}')
+                                                                                                                                                                                                                            os.path.join(svp['viparams']['newdir'], 'octrees', f'{dobname}.oct'), f'{o.name}_copy_{p}')
 
     # Lights export routine
         for o in [ob for ob in lightlist if ob.visible_get()]:
