@@ -3174,6 +3174,15 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         scene = context.scene
         svp = scene.vi_params
+
+        if sys.platform in ('darwin', 'win32'):
+            self.of_docker = ret_of_docker()
+
+            if not self.of_docker:
+                logentry('No running dicehub/openfoam:12 or 13 docker image was found')
+                self.report({'ERROR'}, 'No running dicehub/openfoam:12 or 13 docker image was found')
+                return {'CANCELLED'}
+      
         self.offb = svp['flparams']['offilebase']
         self.vl = context.view_layer
         self.expnode = context.node
