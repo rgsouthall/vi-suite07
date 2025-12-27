@@ -4206,12 +4206,16 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
-                    # Disable this until I can find a version that works on OS X. For linux this works with OpenFOAM 13
-                    # p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+                    p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+                
                 elif sys.platform in ('darwin', 'win32'):
                     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
-                    # The below does not seem to work on OS X
-                    # p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data dicehub/openfoam:12 "foamPostProcess -func triSurfaceAverage\\(trisurface="{oname}.stl", p\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
+                    # The below does not seem to work on OS X. Disable for now
+                    # p_cmd = f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} foamPostProcess -func "triSurfaceAverage\\(p, name="{oname}", triSurface="{oname}.stl"\\)" -case data'
+                    # p_cmd = f'{docker_path} container run -ti --rm -v $PWD:/data -w /data dicehub/openfoam:12 foamPostProcess -func "triSurfaceAverage\\("p", name="Cube.002", triSurface="Cube.002.stl"\\)"'
+                    # print(p_cmd)
+                    # p_run = Popen(p_cmd, stdout=PIPE, stderr=PIPE, shell=True)
+                    # p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(name={oname}.stl, p\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
                     
                 if str(frame_c) not in self.o_dict:
                     self.o_dict[str(frame_c)] = {}
@@ -4219,6 +4223,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 self.o_dict[str(frame_c)][oname] = {}
 
                 for line in vf_run.stdout.readlines()[::-1]:
+
                     if "U =" in line.decode():
                         vfs.append(line.decode().split()[-1])
 
@@ -4235,19 +4240,23 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
                     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
                     
-                # Disable below until OS X version works
-                # for line in p_run.stdout.readlines()[::-1]:
-                #     print(line)
-                #     if "p =" in line.decode():
-                #         ps.append(line.decode().split()[-1])
-                
-                # if ps:
-                #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
-                    # elif 'Time =' in line.decode():
-                    #     ti = line.decode().split()[-1].strip('s')
-                    #     times.append(ti)
+                # Disable below for OS X and windows
+                if sys.platform == 'linux':
+                    ps = []
+
+                    for line in p_run.stdout.readlines()[::-1]:
+                        print(line)
+                        if "p =" in line.decode():
+                            ps.append(line.decode().split()[-1])
+                    
+                    if ps:
+                        self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
+                    elif 'Time =' in line.decode():
+                        ti = line.decode().split()[-1].strip('s')
+                        times.append(ti)
 
             t_probes = []
+            
             for b_probe in svp['flparams']['b_probes']:
                 t_probes.append(b_probe)
             for s_probe in svp['flparams']['s_probes']:

@@ -149,7 +149,7 @@ else:
         if sys.platform == 'darwin':
             ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, plat_path)
+            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
             src_path = os.path.join(addonpath, 'Python', sys.platform, 'lib')
             dest_path = os.path.join(addonpath, 'Python')
@@ -164,12 +164,12 @@ else:
         elif sys.platform == 'win32':
             ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2501'.format(sys.executable, plat_path)
+            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
 
         elif sys.platform == 'linux':
             if not sys_install:
-                ng_cmd = '"{0}" -m pip install --upgrade netgen-mesher==6.2.2501'.format(sys.executable)
+                ng_cmd = '"{0}" -m pip install --upgrade netgen-mesher==6.2.2506'.format(sys.executable)
                 Popen(shlex.split(ng_cmd)).wait()
             else:
                 print("Blender is using the system's Python installation, but no system installation of netgen was found")

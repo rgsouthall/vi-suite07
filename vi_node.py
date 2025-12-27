@@ -6625,9 +6625,11 @@ class No_En_Net_EMSZone(Node, EnViNodes):
 
                     for emnode in mat.vi_params.envi_nodes.nodes:
                         if emnode.bl_idname == 'No_En_Mat_Con' and emnode.active and emnode.envi_afsurface and emnode.envi_con_type in ('Window', 'Door', 'Wall', 'Roof'):
-                            if emnode.envi_con_type in ('Window', 'Door') and self.acttype == '0':
+                            if emnode.envi_con_type in ('Window', 'Door'):
+                                self.acttype = '0'
                                 sssocklist.append('{}_{}_{}_{}'.format(adict[emnode.envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]))
-                            elif emnode.envi_con_type in ('Wall', 'Roof') and self.acttype == '1':
+                            elif emnode.envi_con_type in ('Wall', 'Roof'):
+                                self.acttype = '1'
                                 sssocklist.append('{}_{}_{}'.format(self.emszone, face.index, self.actdict[self.acttype][1]))
 
         self.inputs[0].hide = False
