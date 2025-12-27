@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 7, 0),
-    "blender": (4, 4),
+    "blender": (5, 0),
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus/OpenFOAM exporter and results visualiser",
     "warning": "This is a beta script. Some functionality is buggy",
@@ -100,13 +100,13 @@ else:
             if plat_path not in os.environ['PYTHONPATH']:
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.environ['PYTHONPATH']
 
-                if sys.platform != 'linux':
-                    os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
+                #if sys.platform != 'linux':
+                os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
         else:
             os.environ['PYTHONPATH'] = plat_path
 
-            if sys.platform != 'linux':
-                os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages')
+            #if sys.platform != 'linux':
+            os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages')
 
         if sys.platform == 'linux':
             if not os.environ.get('LD_LIBRARY_PATH'):
@@ -168,11 +168,14 @@ else:
             Popen(shlex.split(ng_cmd)).wait()
 
         elif sys.platform == 'linux':
-            if not sys_install:
-                ng_cmd = '"{0}" -m pip install --upgrade netgen-mesher==6.2.2506'.format(sys.executable)
+            try:
+                import netgen
+            except Exception:
+                ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
+                Popen(shlex.split(ngocc_cmd)).wait()
+                ng_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
                 Popen(shlex.split(ng_cmd)).wait()
-            else:
-                print("Blender is using the system's Python installation, but no system installation of netgen was found")
+
         try:
             import netgen
 
