@@ -63,7 +63,6 @@ try:
     from netgen import occ
     from netgen.meshing import FaceDescriptor, Mesh # , BoundaryLayerParameters
     from pyngcore import SetNumThreads
-
 except Exception as e:
     print(e)
 
@@ -84,6 +83,8 @@ try:
     import pyroomacoustics as pra
     pra_rt = True
     pra.constants.set("num_threads", pra.parameters.get_num_threads())
+    pra.constants.set("rir_hpf_fc", 10.0)
+    pra.constants.set("rir_hpf_enable", False)
     ra = 1
 except Exception:
     ra = 0
@@ -4646,6 +4647,9 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             return {'CANCELLED'}
 
                         rirs = ir_list
+                        print(rirs[0])
+                        # sound = aud.Sound.buffer(array(rirs[0]).astype(float32), 16000)
+                        # sound.write('/home/ryan/test0.wav', 16000, 1, 36, 0, 0, 32, 256)
                         t1.kill()
 
                     else:
@@ -4655,6 +4659,8 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         for mrir in room.rir:
                             for srir in mrir:
                                 rirs.append(srir)
+
+
                         try:
                             rts = room.measure_rt60(plot=False, decay_db=60)
                         except Exception:
@@ -4815,19 +4821,35 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
             elif odt == float64:
                 audio.astype(float32)
 
+            scale_factor = 0.1 / max(audio)
+            audio = audio * scale_factor
+
             if fs != 16000:
                 samples = int(16000 * len(audio) / fs)
                 audio = signal.resample(audio, samples)
+                # audio = pra.utilities.resample(audio, fs, 16000, backend='soxr')
                 fs = 16000
+                convnode.fs = 16000
 
             for rl in ir_node['reslists']:
                 if f'{rl[0]} - {rl[2]}' == convnode.rir and rl[3] == 'RIR':
                     ir = array([float(s) for s in rl[4].split()]).astype(float32, order='C')
                     break
 
+            # if fs != 16000:
+            #     samples = int(fs * len(ir) / 16000)
+            #     ir = signal.resample(ir, samples)
+            #     convnode.fs = fs
+
             convnode['convolved_audio'] = []
             convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
             convnode.postsim()
+
+            orig = aud.Sound(convnode.wavname)
+            ir = aud.ImpulseResponse(ir)
+
+            with multiprocessing.pool.ThreadPool() as pool:
+                new = orig.convolver(ir, pool)
         else:
             self.report({'ERROR'}, 'Sound file cannot be found')
 
@@ -4846,12 +4868,16 @@ class NODE_OT_Au_Play(bpy.types.Operator):
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
+        # print(device.rate)
 
         if not os.path.isfile(self.convnode.wavname):
             self.report({'ERROR'}, 'No file found')
             return {'CANCELLED'}
 
         sound = aud.Sound(self.convnode.wavname)
+        # sound = sound.resample(device.rate, 3)
+        # sound.write('/home/ryan/test.wav', int(device.rate))
+        # print(dir(sound))
         self.handle = device.play(sound)
         self.convnode.play_o = True
         self._timer = wm.event_timer_add(0.1, window=context.window)
@@ -4899,8 +4925,8 @@ class NODE_OT_Au_PlayC(bpy.types.Operator):
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
-        sound = aud.Sound.buffer(array(self.convnode['convolved_audio']).astype(float32), 16000)
-        sound = sound.resample(48000, True)
+        sound = aud.Sound.buffer(array(self.convnode['convolved_audio']).astype(float32), self.convnode.fs)
+        # sound = sound.resample(48000, True)
         self.handle = device.play(sound)
         self.convnode.play_c = True
         self._timer = wm.event_timer_add(0.1, window=context.window)
@@ -4939,8 +4965,30 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        sound = aud.Sound.buffer(array(self.node['convolved_audio']).astype(float32), 16000)
-        sound.write(self.filepath, 16000, 1, 0, 0, 0, 16, 256)
+        sound = aud.Sound.buffer(array(self.node['convolved_audio']), self.node.fs)
+        sound.write(self.filepath, self.node.fs, 1, 36, 0, 0, 32, 256)
+        return {'FINISHED'}
+
+class NODE_OT_RIR_Save(bpy.types.Operator, ExportHelper):
+    bl_idname = "node.rir_save"
+    bl_label = "Save"
+    bl_description = "Save a RIR wav file"
+    bl_register = True
+    bl_undo = False
+    filename_ext = ".wav"
+
+    filter_glob: bpy.props.StringProperty(default="*.wav", options={'HIDDEN'}, maxlen=255)
+
+    def invoke(self, context, event):
+        self.node = context.node
+        self.filepath = f"{self.node.rir_sources}_rir.wav"
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        rir = [rs[4] for rs in self.node['reslists'] if rs[0] == self.node.rir_sources.split()[0] and rs[3] == 'RIR' and rs[2] == ' '.join(self.node.rir_sources.split()[2:])][0]
+        rir = aud.Sound.buffer(array(rir.split()).astype(float32), 16000)
+        rir.write(self.filepath, 16000, 1, 36, 0, 0, 32, 256)
         return {'FINISHED'}
 
 # class ADDON_OT_PyInstall(bpy.types.Operator):

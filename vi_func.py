@@ -1641,7 +1641,7 @@ def bres(scene, o):
         rtlayer = bm.faces.layers.int['cindex']
         reslayer = bm.faces.layers.float['res{}'.format(scene.frame_current)]
         res = [f[reslayer] for f in bm.faces if f[rtlayer] > 0]
-    
+
     bm.free()
     return res
 
@@ -1685,7 +1685,7 @@ def retrobjs(obs):
     return robjs
 
 
-def retobjs(otypes):
+def retobjs(op, otypes):
     scene = bpy.context.scene
     validobs = [o for o in scene.objects if o.visible_get() and '/' not in o.name and o not in retrobjs(scene.objects)]
 
@@ -1707,13 +1707,25 @@ def retobjs(otypes):
     elif otypes == 'livil':
         return [o for o in validobs if o.type == 'LIGHT' or o.vi_params.vi_type == '4']
     elif otypes == 'livic':
-        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res' and not o.modifiers[:]]
+        for o in validobs:
+            calobs = [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res']
+
+            for o in calobs:
+                if o.modifiers[:]:
+                    calobs.remove(o)
+                    op.report({'WARNING'}, f'Calculation object {o.name} is not valid as it has unapplied modifiers')
+
+            return calobs
+
     elif otypes == 'livir':
         return [o for o in validobs if o.type == 'MESH' and o.data.polygons and True in [m.vi_params.livi_sense for m in o.data.materials] and o.vi_params.vi_type_string != 'LiVi Calc']
+
     elif otypes == 'envig':
         return [o for o in scene.objects if o.type == 'MESH' and o.hide is False]
+
     elif otypes == 'ssc':
         return [o for o in validobs if o.type == 'MESH' and o.data.polygons and li_calcob(o, 'livi') and o.vi_params.vi_type_string != 'LiVi Res' and not o.modifiers[:]]
+
     elif otypes == 'selected':
         return [o for o in [bpy.context.active_object] if o.type == 'MESH']
 

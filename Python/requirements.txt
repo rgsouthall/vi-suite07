@@ -1,10 +1,7 @@
-PySide6==6.6.2
-# kivy[base]==2.3.1 #; sys.platform!='win32'
-# kivy==2.2.1; sys.platform=='win32'
-# kivy.deps.sdl2==0.6.0; sys.platform=='win32'
-numpy==1.26.4
+PySide6==6.10.1
+#numpy==1.26.4
 matplotlib==3.8.2
-scipy==1.14
-pyroomacoustics==0.7.7 ; sys.platform!='linux'
+scipy==1.17
+pyroomacoustics==0.9.0 ; sys.platform!='linux'
 psutil==7.0.0
 #netgen-mesher==6.2.2406.post119.dev1; sys.platform!='linux'

@@ -137,15 +137,14 @@ class No_Loc(Node, ViNodes):
 
     def update_north(self, context):
         nvec = mathutils.Vector((0.0, 1.0, 0.0))
-        
+
         if self.north:
             nvec.rotate(mathutils.Euler((0.0, 0.0, -math.radians(self.azimuth)), 'XYZ'))
-        
+
             if not context.scene.vi_params.get('viparams'):
                 context.scene.vi_params['viparams'] = {}
-            
-        context.scene.vi_params['viparams']['North'] = nvec
 
+        context.scene.vi_params['viparams']['North'] = nvec
 
     def updatelatlong(self, context):
         context.space_data.edit_tree == ''
@@ -156,6 +155,7 @@ class No_Loc(Node, ViNodes):
         if self.loc == '0':
             if 'Vi Results' in self.outputs['Location out'].valid:
                 self.outputs['Location out'].valid.remove('Vi Results')
+                print('removing')
 
         elif self.loc == '1':
             entries = []
@@ -215,9 +215,12 @@ class No_Loc(Node, ViNodes):
                         reslists.append(['0', 'Climate', 'Exterior', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
 
                     self['epwtext'] = epwfile.read()
-                    self.outputs['Location out'].valid.append('Vi Results')
+
+                    if 'Vi Results' not in self.outputs['Location out'].valid:
+                        self.outputs['Location out'].valid.append('Vi Results')
             else:
                 self['epwtext'] = ''
+
                 if 'Vi Results' in self.outputs['Location out'].valid:
                     self.outputs['Location out'].valid.remove('Vi Results')
 
@@ -432,7 +435,7 @@ class No_Li_Con(Node, ViNodes):
             else:
                 bpy.ops.object.light_add(type='SUN')
                 sun = bpy.context.object
-                
+
                 if sun:
                     sun['VIType'] = 'Sun'
 
@@ -9739,6 +9742,19 @@ class No_Au_Sim(Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
 
+    def ret_rir_sources(self, context):
+        rirs = []
+        reslists = self.get("reslists")
+
+        if reslists:
+            for rl in reslists:
+                if rl[3] == 'RIR':
+                    rirs.append((f'{rl[0]} - {rl[2]}', f'{rl[0]} - {rl[2]}', f'{rl[2]} impulse response (frame {rl[0]}'))
+
+            return rirs
+        else:
+            return [('None', 'None', 'None')]
+
     max_order: IntProperty(name='', description='Accuracy: the higher the number the more accurate', min=0, max=3, default=1, update=nodeupdate)
     rt_rays: IntProperty(name='', description='No. of ray-tracing rays', min=1000, max=1000000, default=4000, update=nodeupdate)
     r_radius: FloatProperty(name="m", description="Receiver radius", min=0.05, max=1, default=0.5, update=nodeupdate)
@@ -9747,6 +9763,7 @@ class No_Au_Sim(Node, ViNodes):
     endframe: IntProperty(name="", description="End frame for animation", min=0, default=0, update=nodeupdate)
     netgen: BoolProperty(name="", description="Netgen mesh extraction", update=nodeupdate)
     collection: StringProperty(description="Select collection", update=nodeupdate)
+    rir_sources: EnumProperty(name='', description='Impulse response', items=ret_rir_sources, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -9781,6 +9798,14 @@ class No_Au_Sim(Node, ViNodes):
 
             row = layout.row()
             row.operator('node.rir_sim', text=('Generate IR', 'Generate Mesh')[self.netgen])
+
+            if self.get('reslists'):
+                newrow(layout, 'IR', self, "rir_sources")
+
+                if self.rir_sources != 'None':
+                    row = layout.row()
+                    row.operator('node.rir_save', text='Save IR')
+
         else:
             row = layout.row()
             row.label(text='Pyroomacoustics not found')
@@ -9857,8 +9882,11 @@ class No_Au_Conv(Node, ViNodes):
                 for rl in self.inputs[0].links[0].from_node['reslists']:
                     if rl[3] == 'RIR':
                         rirs.append((f'{rl[0]} - {rl[2]}', f'{rl[0]} - {rl[2]}', f'{rl[2]} impulse response (frame {rl[0]}'))
+
                 return rirs
+
             return [('None', 'None', 'None')]
+
         return [('None', 'None', 'None')]
 
     def ret_params(self):
@@ -9869,6 +9897,7 @@ class No_Au_Conv(Node, ViNodes):
 
     wavname: StringProperty(name="", description="Name of the WAV file to be convolved", default="", update=nodeupdate)
     rir: EnumProperty(name='', description='Impulse response', items=ret_rirs, update=nodeupdate)
+    fs: IntProperty(name='', description='Sampling rate', default=16000)
     play_o: bprop("", "", False)
     play_c: bprop("", "", False)
 

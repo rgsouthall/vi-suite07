@@ -187,7 +187,7 @@ else:
 
     except Exception:
         if sys.platform == 'linux':
-            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.7.7-cp311-cp311-linux_x86_64.whl'))
+            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.9.0-cp311-cp311-linux_x86_64.whl'))
             Popen(shlex.split(pyr_cmd)).wait()
             print('Installing built-in pyroomacoustics')
             #print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
@@ -264,7 +264,7 @@ else:
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, NODE_OT_EcE
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim, NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Conv, NODE_OT_Au_Play, NODE_OT_Au_Stop
-    from .vi_operators import NODE_OT_Au_PlayC, NODE_OT_Au_Save
+    from .vi_operators import NODE_OT_Au_PlayC, NODE_OT_Au_Save, NODE_OT_RIR_Save
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, VIEW3D_OT_RTDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
     from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Col, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
@@ -1002,7 +1002,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            NODE_OT_ASCImport, No_ASC_Import, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
            No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, NODE_OT_EcE, So_Au_Scene, So_Au_IR, No_Au_Sim, No_Au_Conv, NODE_OT_Au_Conv,
-           NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Play, NODE_OT_Au_Stop, NODE_OT_Au_PlayC, NODE_OT_Au_Save)
+           NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Play, NODE_OT_Au_Stop, NODE_OT_Au_PlayC, NODE_OT_Au_Save, NODE_OT_RIR_Save)
 
 
 def register():

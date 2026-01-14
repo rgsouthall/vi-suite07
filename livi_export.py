@@ -26,7 +26,7 @@ from numpy import array, where, isin, zeros, savetxt
 
 
 def radpoints(o, faces, sks):
-    fentries = ['']*len(faces)
+    fentries = [''] * len(faces)
     valid_fmis = [msi for msi, ms in enumerate(o.material_slots) if o.material_slots[msi].material]
     o_mats = [o.material_slots[fmi].material for fmi in valid_fmis]
     mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials if m]
@@ -42,16 +42,16 @@ def radpoints(o, faces, sks):
             mvp = m.vi_params
             mname = mns[fmi] if not mvp.get('bsdf') else '{}_{}_{}'.format(mns[fmi], o.name, face.index)
             mentry = face_bsdf(o, m, mname, face)
-            fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
+            fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3 * len(face.verts))
 
             if sks:
-                ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world@Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1,
-                                                                                                         v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1,
-                                                                                                         v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+                ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format((o.matrix_world @ Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0]) * skv1,
+                                                                                                           v[skl0][1]+(v[skl1][1]-v[skl0][1]) * skv1,
+                                                                                                           v[skl0][2]+(v[skl1][2]-v[skl0][2]) * skv1)))) for v in face.verts])
             else:
                 ventries = ''.join([" {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n".format(v.co) for v in face.verts])
 
-            fentries[f] = ''.join((mentry, fentry, ventries+'\n'))
+            fentries[f] = ''.join((mentry, fentry, ventries + '\n'))
 
         else:
             logentry(f'{o.name} face {face.index} has no material defined. Check that mesh modifiers have been applied')
@@ -148,7 +148,7 @@ def radgexport(export_op, node):
     clearscene(bpy.context, export_op)
     frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     svp['liparams']['cp'] = node.cpoint
-    geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
+    geooblist, caloblist, lightlist = retobjs(export_op, 'livig'), retobjs(export_op, 'livic'), retobjs(export_op, 'livil')
     mats = []
 
     for o in geooblist + caloblist:
