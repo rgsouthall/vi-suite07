@@ -162,7 +162,7 @@ else:
                     shutil.move(src_file, dest_file)
 
         elif sys.platform == 'win32':
-            ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, os.path.join(addonpath, 'Python', sys.platform))
+            ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, addonpath)
             Popen(shlex.split(ngocc_cmd)).wait()
             ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()

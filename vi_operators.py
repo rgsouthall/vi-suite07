@@ -4845,11 +4845,6 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
             convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
             convnode.postsim()
 
-            orig = aud.Sound(convnode.wavname)
-            ir = aud.ImpulseResponse(ir)
-
-            with multiprocessing.pool.ThreadPool() as pool:
-                new = orig.convolver(ir, pool)
         else:
             self.report({'ERROR'}, 'Sound file cannot be found')
 
