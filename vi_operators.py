@@ -4573,7 +4573,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     if room.is_inside(mic.location[:]):
                         room.add_microphone(mic.location[:])
                         mic_names.append(mic.name)
-                
+
                 r_mics = len(mic_names)
 
                 for mic_a in mic_arrays:
@@ -4647,9 +4647,6 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             return {'CANCELLED'}
 
                         rirs = ir_list
-                        print(rirs[0])
-                        # sound = aud.Sound.buffer(array(rirs[0]).astype(float32), 16000)
-                        # sound.write('/home/ryan/test0.wav', 16000, 1, 36, 0, 0, 32, 256)
                         t1.kill()
 
                     else:
@@ -4660,14 +4657,11 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             for srir in mrir:
                                 rirs.append(srir)
 
-
                         try:
                             rts = room.measure_rt60(plot=False, decay_db=60)
                         except Exception:
                             logentry("Can't get a reliable 60dB reduction. Extrapolating from a 30dB reduction")
                             rts = room.measure_rt60(plot=False, decay_db=30)
-
-                    #gc.collect()
 
                 except Exception as e:
                     logentry(str(e))
@@ -4690,13 +4684,13 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     mic_bm = bmesh.new()
                     mic_bm.from_mesh(mic_a.data)
 
-                    for si, source in enumerate(room.sources):                    
+                    for si, source in enumerate(room.sources):
                         bm_res = []
 
                         for fl_name in [f'{source_names[si]}{fl_type}{frame}' for fl_type in ('_rt', '_vol', '_sti')]:
                             if not mic_bm.faces.layers.float.get(fl_name):
                                 mic_bm.faces.layers.float.new(fl_name)
-                            
+
                             bm_res.append(mic_bm.faces.layers.float[fl_name])
 
                         bm_ir = mic_bm.faces.layers.int['cindex']
@@ -4734,7 +4728,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             ovp['livires'][f'rt{frame}'] = res_rt
                             ovp['livires'][f'vol{frame}'] = res_vol
                             ovp['livires'][f'sti{frame}'] = res_sti
-                            
+
                         else:
                             self.report({'WARNING'}, f'No results on sensor mesh {mic_a.name}')
 
@@ -4827,7 +4821,6 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
             if fs != 16000:
                 samples = int(16000 * len(audio) / fs)
                 audio = signal.resample(audio, samples)
-                # audio = pra.utilities.resample(audio, fs, 16000, backend='soxr')
                 fs = 16000
                 convnode.fs = 16000
 
@@ -4835,11 +4828,6 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
                 if f'{rl[0]} - {rl[2]}' == convnode.rir and rl[3] == 'RIR':
                     ir = array([float(s) for s in rl[4].split()]).astype(float32, order='C')
                     break
-
-            # if fs != 16000:
-            #     samples = int(fs * len(ir) / 16000)
-            #     ir = signal.resample(ir, samples)
-            #     convnode.fs = fs
 
             convnode['convolved_audio'] = []
             convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
@@ -4859,20 +4847,15 @@ class NODE_OT_Au_Play(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        # scene = context.scene
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
-        # print(device.rate)
 
         if not os.path.isfile(self.convnode.wavname):
             self.report({'ERROR'}, 'No file found')
             return {'CANCELLED'}
 
         sound = aud.Sound(self.convnode.wavname)
-        # sound = sound.resample(device.rate, 3)
-        # sound.write('/home/ryan/test.wav', int(device.rate))
-        # print(dir(sound))
         self.handle = device.play(sound)
         self.convnode.play_o = True
         self._timer = wm.event_timer_add(0.1, window=context.window)
@@ -4880,8 +4863,6 @@ class NODE_OT_Au_Play(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        # scene = context.scene
-
         if not self.convnode.play_o:
             self.handle.stop()
             return {'FINISHED'}
@@ -4901,7 +4882,6 @@ class NODE_OT_Au_Stop(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        # scene = context.scene
         convnode = context.node
         convnode.play_o = False
         convnode.play_c = False
@@ -4916,12 +4896,10 @@ class NODE_OT_Au_PlayC(bpy.types.Operator):
     bl_undo = False
 
     def execute(self, context):
-        # scene = context.scene
         self.convnode = context.node
         wm = context.window_manager
         device = aud.Device()
         sound = aud.Sound.buffer(array(self.convnode['convolved_audio']).astype(float32), self.convnode.fs)
-        # sound = sound.resample(48000, True)
         self.handle = device.play(sound)
         self.convnode.play_c = True
         self._timer = wm.event_timer_add(0.1, window=context.window)
@@ -4929,8 +4907,6 @@ class NODE_OT_Au_PlayC(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
-        # scene = context.scene
-
         if not self.convnode.play_c:
             self.handle.stop()
             return {'FINISHED'}
@@ -4963,6 +4939,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
         sound = aud.Sound.buffer(array(self.node['convolved_audio']), self.node.fs)
         sound.write(self.filepath, self.node.fs, 1, 36, 0, 0, 32, 256)
         return {'FINISHED'}
+
 
 class NODE_OT_RIR_Save(bpy.types.Operator, ExportHelper):
     bl_idname = "node.rir_save"
