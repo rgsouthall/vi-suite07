@@ -24,6 +24,7 @@ import numpy
 from numpy import arange, histogram, array, int8, int16, int32, float16, transpose, where, ndarray, place, zeros, average, float32, float64, concatenate, ones, square
 from numpy import sum as nsum
 from numpy import max as nmax
+from numpy import abs as nabs
 from numpy import mean as nmean
 from scipy import signal
 from scipy.io import wavfile
@@ -83,7 +84,7 @@ try:
     import pyroomacoustics as pra
     pra_rt = True
     pra.constants.set("num_threads", pra.parameters.get_num_threads())
-    pra.constants.set("rir_hpf_fc", 10.0)
+    # pra.constants.set("rir_hpf_fc", 10.0)
     pra.constants.set("rir_hpf_enable", False)
     ra = 1
 except Exception:
@@ -4326,10 +4327,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
-                
+
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)', '0')):
                     vold = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)')
-                    
+
                     if 'surfaceFieldValue.dat' in os.listdir(os.path.join(vold)):
                         t_res = []
                         q_res = []
@@ -4341,7 +4342,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                                 if line and line[0] != '#':
                                     t_res.append(line.split()[0])
                                     q_res.append(line.split()[1])
-                        
+
                         res_array = array(q_res)
                         logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict['Q'], frame_c, t_res[-1], float(res_array[-1])))
                         self.o_dict[str(frame_c)][oname]['Q'] = float(res_array[-1])
@@ -4830,7 +4831,12 @@ class NODE_OT_Au_Conv(bpy.types.Operator):
                     break
 
             convnode['convolved_audio'] = []
-            convnode['convolved_audio'] = signal.fftconvolve(audio, ir, mode="full").astype(float32, order='C')
+            ca = signal.convolve(audio, ir, mode="full")
+            max_abs_value = nmax(nabs(ca))
+
+        if max_abs_value > 0:
+            cd = ca / max_abs_value
+            convnode['convolved_audio'] = cd.astype(float32, order='C')
             convnode.postsim()
 
         else:
