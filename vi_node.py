@@ -32,7 +32,7 @@ from .livi_func import hdrsky, cbdmhdr, cbdmmtx, retpmap, validradparams, sunpos
 from .envi_func import enresprops, epschedwrite, processf, get_mat, get_con_node
 from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_layer, envi_layertype, envi_elayertype, envi_eclasstype, envi_emattype
-from .flovi_func import ret_fvb_menu, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvba_menu, ret_fvbt_menu, ret_fvbprgh_menu
+from .flovi_func import ret_fvb_menu, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvba_menu, ret_fvbt_menu, ret_fvbprgh_menu, ret_of_docker
 from numpy import array, stack, where, unique
 from numpy import sum as nsum
 from .vi_dicts import rpictparams, rvuparams, rtraceparams, rtracecbdmparams
@@ -54,31 +54,10 @@ except Exception:
 
 ofoam = 0
 
-try:
-    if sys.platform in ('darwin', 'win32'):
-        if sys.platform == 'darwin':
-            if os.path.isfile('/usr/local/bin/docker'):
-                dck_run = Popen(shlex.split('/usr/local/bin/docker images'), stdout=PIPE)
-
-            elif os.path.islink(f'{Path.home()}/.docker/bin/docker'):
-                dck_run = Popen(shlex.split(f'{Path.home()}/.docker/bin/docker images'), stdout=PIPE)
-
-            else:
-                dck_run = ''
-
-        else:
-            dck_run = Popen('docker images', shell=True, stdout=PIPE)
-
-        if dck_run:
-            for line in dck_run.stdout.readlines():
-                lds = line.decode().split()
-                # Below is required to register the lines
-                print(lds[0], lds[1])
-
-                if lds[0] == 'dicehub/openfoam' and lds[1] == '12':
-                    ofoam = 1
-except Exception as e:
-    print(e)
+if not ret_of_docker():
+    ofoam = 0
+else:
+    ofoam = 1
 
 flo_libs = [ng, ofoam]
 os.chdir(cur_dir)

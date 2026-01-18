@@ -99,9 +99,13 @@ else:
         if os.environ.get('PYTHONPATH'):
             if plat_path not in os.environ['PYTHONPATH']:
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.environ['PYTHONPATH']
+
+                #if sys.platform != 'linux':
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
         else:
             os.environ['PYTHONPATH'] = plat_path
+
+            #if sys.platform != 'linux':
             os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages')
 
         if sys.platform == 'linux':
@@ -166,7 +170,6 @@ else:
         elif sys.platform == 'linux':
             try:
                 import netgen
-
             except Exception:
                 ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
                 Popen(shlex.split(ngocc_cmd)).wait()
