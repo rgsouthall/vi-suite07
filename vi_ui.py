@@ -543,12 +543,6 @@ def rmmenu(layout, cm):
         newrow(layout, 'Textured:', mvp, 'radtex')
 
         if mvp.radtex:
-            newrow(layout, 'Dirt noise:', mvp, 'li_dirt')
-
-            if mvp.li_dirt:
-                newrow(layout, 'Dirt spacing:', mvp, 'li_dirt_spacing')
-                newrow(layout, 'Dirt level:', mvp, 'li_dirt_level')
-
             newrow(layout, 'Texture image:', mvp, 'li_tex')
 
             if not mvp.li_am:
@@ -564,6 +558,12 @@ def rmmenu(layout, cm):
                 newrow(layout, 'Strength:', mvp, 'li_norm_strength')
                 newrow(layout, 'Image green vector:', mvp, 'nu')
                 newrow(layout, 'Image red vector:', mvp, 'nside')
+
+        newrow(layout, 'Dirt noise:', mvp, 'li_dirt')
+
+        if mvp.li_dirt:
+            newrow(layout, 'Dirt spacing:', mvp, 'li_dirt_spacing')
+            newrow(layout, 'Dirt level:', mvp, 'li_dirt_level')
 
     row = layout.row()
     row.label(text="-----------------------------------------")

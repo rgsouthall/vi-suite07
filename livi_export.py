@@ -68,10 +68,10 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
     if tri:
         bmesh.ops.connect_verts_concave(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
         #bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f.material_index < len(oms) and not oms[f.material_index].material.vi_params.pport])
-    
+
     if not m_export and not any([slot.material.vi_params.radtex for slot in oms if slot.material]) and not o.data.polygons[0].use_smooth:
         gradfile += radpoints(o, bm.faces, 0)
-    
+
     else:
         valid_fmis = [msi for msi, ms in enumerate(oms) if oms[msi].material]
         o_mats = [oms[fmi].material for fmi in valid_fmis]
@@ -86,16 +86,47 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
         mmats = [mat for mat in o_mats if mat and mat.vi_params.radmatmenu in ('0', '1', '2', '3', '6', '9')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+        bm.faces.ensure_lookup_table()
+        fvnorms = []
 
-        if o.data.polygons[0].use_smooth:
+        if o.data.polygons[0].use_smooth and not all([e.smooth for e in bm.edges]):
+            vnorms = []
+
+            for face in bm.faces:
+                fvnorms.append([len(vnorms) + v for v in range(1, len(face.verts) + 1)])
+
+                for v in face.verts:
+                    if any([e.smooth for e in v.link_edges if e in face.edges]):
+                        norms = []
+
+                        for e in v.link_edges:
+                            if e.smooth and e in face.edges:
+                                for f in e.link_faces:
+                                    norms.append(f.normal.copy())
+
+                        for norm in norms[1:]:
+                            norms[0] += norm
+
+                        vnorm = norms[0]/len(norms)
+
+                    else:
+                        norms = [1]
+                        vnorm = face.normal
+
+                    vnorms.append(vnorm)
+
+            vtext += ''.join(['vn {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(vn.normalized()) for vn in vnorms])
+
+        else:
             vtext += ''.join(['vn {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(v.normal.normalized()) for v in bm.verts])
+            fvnorms = ([[v.index + 1 for v in face.verts] for face in bm.faces])
 
         if not any([slot.material.vi_params.radtex for slot in oms if slot.material]):
             if mfaces:
                 for mat in mmats:
                     matname = mat.vi_params['radname']
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[o.data.polygons[0].use_smooth and all([e.smooth for e in f.edges])].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
-        
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{1}')[o.data.polygons[0].use_smooth and any([e.smooth for e in f.edges])].format(v.index + 1, fvnorms[f.index][vn]) for vn, v in enumerate(f.verts))) for f in mfaces if o.data.materials[f.material_index] == mat])
+
         elif bm.loops.layers.uv.values():
             uv_layer = bm.loops.layers.uv.values()[0]
             bm.faces.ensure_lookup_table()
@@ -110,8 +141,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
             if mfaces:
                 for mat in mmats:
                     matname = mat.vi_params['radname']
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), 
-                                                                                                '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[o.data.polygons[0].use_smooth and all([e.smooth for e in f.edges])] for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}', '{0}/{1}/{2}')[o.data.polygons[0].use_smooth and any([e.smooth for e in f.edges])].format(loop.vert.index + 1, loop.index, fvnorms[f.index][li]) for li, loop in enumerate(f.loops))) for f in mfaces if o.data.materials[f.material_index] == mat])
 
         if ffaces:
             gradfile += radpoints(o, ffaces, 0)
