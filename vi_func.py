@@ -1204,7 +1204,7 @@ def clearscene(context, op):
         if ob.vi_params.vi_type_string not in ('LiVi Calc', 'LiVi Res') and 'cindex' in [a.name for a in ob.data.attributes]:
             if 'export' in op.name or 'simulation' in op.name:
                 for r in ob.data.attributes:
-                    if not r.is_required and r not in ('UVMap', 'sharp_face'):
+                    if not r.is_required and r not in ('UVMap', 'sharp_face') and r:
                         ob.data.attributes.remove(r)
 
     for mesh in bpy.data.meshes:

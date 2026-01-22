@@ -1229,7 +1229,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     if self.simnode.pmapgno:
                         verts_out, faces_out = [], []
 
-                        for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.gpm'.format(svp['viparams']['filebase'], frame)),
+                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 "{0}-{1}.gpm"'.format(svp['viparams']['filebase'], frame)),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
@@ -1241,7 +1241,8 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                             if li > self.simnode.pmapgno or li > 100000:
                                 break
-
+                        
+                        logentry(f'{li} global photons created')
                         gpm_mesh = bpy.data.meshes.new('gpm_mesh')
                         gpm_mesh.from_pydata(verts_out, [], faces_out)
                         gpmobj = bpy.data.objects.new('GlobalPM', gpm_mesh)
@@ -1252,7 +1253,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     if self.simnode.pmapcno:
                         verts_out, faces_out = [], []
 
-                        for li, line in enumerate(Popen(shlex.split('pmapdump -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)),
+                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
@@ -1264,7 +1265,8 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                             if li > self.simnode.pmapcno or li > 100000:
                                 break
-
+                        
+                        logentry(f'{li} caustic photons created')
                         cpm_mesh = bpy.data.meshes.new('cpm_mesh')
                         cpm_mesh.from_pydata(verts_out, [], faces_out)
                         cpmobj = bpy.data.objects.new('CausticPM', cpm_mesh)
@@ -1273,6 +1275,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                         move_to_coll(bpy.context, 'LiVi Results', cpmobj)
 
                     gpmbm.free()
+                    return {'FINISHED'}
 
                 rvucmd = 'rvu -w {0} {1} {2} -n {3} -vv {4:.3f} -vh {5:.3f} -vd {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} -vp {7[0]:.3f} {7[1]:.3f} {7[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {9} {10} "{11}-{12}.oct"'.format(('', '-i')[self.simnode.illu], gpfileentry, cpfileentry, svp['viparams']['wnproc'], vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
             else:
@@ -1416,7 +1419,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame))
             else:
                 if self.simnode.pmap:
-                    rccmds.append('rcontrib -w -h -I -fo -ap {2}-{3}.copm {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
+                    rccmds.append('rcontrib -w -h -I -fo -ap "{2}-{3}.copm" {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
                 else:
                     rccmds.append('rcontrib -w -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp['viparams']['filebase'], frame))
 
