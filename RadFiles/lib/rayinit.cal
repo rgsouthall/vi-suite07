@@ -1,4 +1,4 @@
-{ RCSid $Id: rayinit.cal,v 2.17 2018/01/18 19:43:43 greg Exp $ }
+{ RCSid $Id: rayinit.cal,v 2.19 2019/06/10 13:56:52 greg Exp $ }
 {
 	Initialization file for Radiance.
 
@@ -36,6 +36,9 @@
 	if(a, b, c)			- if a positive, return b, else c
 
 	select(N, a1, a2, ..)		- return aN
+
+	min(a1, a2, ..)			- return minimum argument
+	max(a1, a2, ..)			- return maximum argument
 
 	sqrt(x)				- square root function
 
@@ -93,8 +96,6 @@ xor(a,b) : if( a, not(b), b );
 abs(x) : if( x, x, -x );
 sgn(x) : if( x, 1, if(-x, -1, 0) );
 sq(x) : x*x;
-max(a,b) : if( a-b, a, b );
-min(a,b) : if( a-b, b, a );
 inside(a,x,b) : and(x-a,b-x);
 frac(x) : x - floor(x);
 mod(n,d) : n - floor(n/d)*d;
@@ -168,3 +169,24 @@ U = if( crosslen`P. - FTINY,
 V = if( crosslen`P. - FTINY,
 		Pz - Nz*(Px*Nx + Py*Ny)/crosslen`P.,
 		Py);
+
+			{ Local hemisphere direction for *func & *data types }
+			{ last 3 real args = unnormalized up-vector }
+Vux`P. = arg(AC-1)*NzP - arg(AC)*NyP;
+Vuy`P. = arg(AC)*NxP - arg(AC-2)*NzP;
+Vuz`P. = arg(AC-2)*NyP - arg(AC-1)*NxP;
+vnorm`P. = 1/sqrt(Vux`P.*Vux`P. + Vuy`P.*Vuy`P. + Vuz`P.*Vuz`P.);
+Vnx`P. = Vux`P.*vnorm`P.;
+Vny`P. = Vuy`P.*vnorm`P.;
+Vnz`P. = Vuz`P.*vnorm`P.;
+Unx`P. = NyP*Vnz`P. - NzP*Vny`P.;
+Uny`P. = NzP*Vnx`P. - NxP*Vnz`P.;
+Unz`P. = NxP*Vny`P. - NyP*Vnx`P.;
+			{ Transform vectors, normalized (dx,dy,dz) away from surf }
+Ldx(dx,dy,dz) = dx*Unx`P. + dy*Uny`P. + dz*Unz`P.;
+Ldy(dx,dy,dz) = dx*Vnx`P. + dy*Vny`P. + dz*Vnz`P.;
+Ldz(dx,dy,dz) = dx*NxP + dy*NyP + dz*NzP;
+			{ Incident vector transformed to our coords }
+Idx = Ldx(-Dx,-Dy,-Dz);
+Idy = Ldy(-Dx,-Dy,-Dz);
+Idz = RdotP;

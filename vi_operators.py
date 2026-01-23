@@ -1104,6 +1104,14 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     if b'fatal IO error' not in line and b'events remaining' not in line and b'Broken pipe' not in line and b'explicit kill' not in line:
                         logentry(line)
 
+                    if b'truncated octree' in line:
+                        self.report({'ERROR'}, f'rvu error: Encountered a truncated octree. Try re-exporting LiVi geometry/context')
+                        return {'CANCELLED'}
+                    
+                    if b'Broken pipe' in line:
+                        self.report({'ERROR'}, f'Shutdown rvu with the q command')
+                        return {'CANCELLED'}
+                    
                     if b'explicit kill' not in line:
                         for rvuerr in rvuerrdict:
                             if rvuerr in line.decode():
@@ -1128,6 +1136,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
 
         objmode()
+        vl = context.view_layer
         self.simnode = context.node
         cam = bpy.data.objects[self.simnode.camera.lstrip()]
 
@@ -1275,6 +1284,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                         move_to_coll(bpy.context, 'LiVi Results', cpmobj)
 
                     gpmbm.free()
+                    vl.layer_collection.children['LiVi Results'].exclude = 0
                     return {'FINISHED'}
 
                 rvucmd = 'rvu -w {0} {1} {2} -n {3} -vv {4:.3f} -vh {5:.3f} -vd {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} -vp {7[0]:.3f} {7[1]:.3f} {7[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {9} {10} "{11}-{12}.oct"'.format(('', '-i')[self.simnode.illu], gpfileentry, cpfileentry, svp['viparams']['wnproc'], vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
@@ -1409,6 +1419,64 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                             self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
                             return {'CANCELLED'}
 
+                if self.simnode.pmappreview:
+                    create_empty_coll(context, 'LiVi Results')
+                    gpmbm = bmesh.new()
+                    bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
+                    # lvo = len(gpmbm.verts)
+
+                    if self.simnode.pmapgno:
+                        verts_out, faces_out = [], []
+
+                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 "{0}-{1}.gpm"'.format(svp['viparams']['filebase'], frame)),
+                                                        stdout=PIPE, stderr=PIPE).stdout):
+                            dl = line.decode().split()
+                            matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                            nbm = gpmbm.copy()
+                            bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
+                            verts_out += [v.co.to_tuple() for v in nbm.verts]
+                            faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                            nbm.free()
+
+                            if li > self.simnode.pmapgno or li > 100000:
+                                break
+                        
+                        logentry(f'{li} global photons created')
+                        gpm_mesh = bpy.data.meshes.new('gpm_mesh')
+                        gpm_mesh.from_pydata(verts_out, [], faces_out)
+                        gpmobj = bpy.data.objects.new('GlobalPM', gpm_mesh)
+                        gpmobj.vi_params.vi_type_string = 'LiVi Res'
+                        scene.collection.objects.link(gpmobj)
+                        move_to_coll(bpy.context, 'LiVi Results', gpmobj)
+
+                    if self.simnode.pmapcno:
+                        verts_out, faces_out = [], []
+
+                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)),
+                                                        stdout=PIPE, stderr=PIPE).stdout):
+                            dl = line.decode().split()
+                            matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                            nbm = gpmbm.copy()
+                            bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
+                            verts_out += [v.co.to_tuple() for v in nbm.verts]
+                            faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                            nbm.free()
+
+                            if li > self.simnode.pmapcno or li > 100000:
+                                break
+                        
+                        logentry(f'{li} caustic photons created')
+                        cpm_mesh = bpy.data.meshes.new('cpm_mesh')
+                        cpm_mesh.from_pydata(verts_out, [], faces_out)
+                        cpmobj = bpy.data.objects.new('CausticPM', cpm_mesh)
+                        cpmobj.vi_params.vi_type_string = 'LiVi Res'
+                        scene.collection.objects.link(cpmobj)
+                        move_to_coll(bpy.context, 'LiVi Results', cpmobj)
+
+                    gpmbm.free()
+                    vl.layer_collection.children['LiVi Results'].exclude = 0
+                    return {'FINISHED'}
+                
             if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                 if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
                     os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))

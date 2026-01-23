@@ -1,4 +1,4 @@
-{ RCSid $Id: disk2square.cal,v 2.4 2015/03/27 18:58:06 greg Exp $ }
+{ RCSid $Id: disk2square.cal,v 2.6 2024/10/30 17:25:37 greg Exp $ }
 {
 	Convert between unit square and disk, using Shirley-Chiu mapping
 
@@ -51,13 +51,14 @@ out_square_a = select(in_disk_rgn,
 			in_disk_r,
 			(PI/2 - in_disk_phi)*in_disk_r/(PI/4),
 			-in_disk_r,
-			(in_disk_phi - 3*PI/2)*in_disk_r/(PI/4));
+			(in_disk_phi - 3*PI/2)*in_disk_r/(PI/4),
+			in_disk_r);
 
 out_square_b = select(in_disk_rgn,
 			in_disk_phi*in_disk_r/(PI/4),
 			in_disk_r,
 			(PI - in_disk_phi)*in_disk_r/(PI/4),
-			-in_disk_r);
+			-in_disk_r, -in_disk_r);
 
 out_square_x = (out_square_a + 1)/2;
 out_square_y = (out_square_b + 1)/2;
@@ -76,12 +77,12 @@ RHS = 1;
 				{ Compute oriented axis values }
 inc_dz = -Dx*rNx-Dy*rNy-Dz*rNz;
 inc_rx = -RHS*(Dx*(Uy*rNz-Uz*rNy) + Dy*(Uz*rNx-Ux*rNz) + Dz*(Ux*rNy-Uy*rNx));
-inc_ry = -Dx*Ux-Dy*Uy-Dz*Uz - inc_dz*(rNx*Ux+rNy*Uy+rNz*Uz);
+inc_ry = Dx*Ux+Dy*Uy+Dz*Uz + inc_dz*(rNx*Ux+rNy*Uy+rNz*Uz);
 inc_den2 = inc_rx*inc_rx + inc_ry*inc_ry;
 inc_radf = if(inc_den2-1e-7, sqrt((1 - inc_dz*inc_dz)/inc_den2), 0);
 				{ Pass to formulas in first section }
 in_disk_x = inc_rx*inc_radf;
-in_disk_y = inc_ry*inc_radf;
+in_disk_y = -inc_ry*inc_radf;
 				{ Compute final bin (-1 if behind surface) }
 scbin = if(inc_dz,
 		floor(out_square_x*SCdim)*SCdim + floor(out_square_y*SCdim),
