@@ -1107,11 +1107,11 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     if b'truncated octree' in line:
                         self.report({'ERROR'}, f'rvu error: Encountered a truncated octree. Try re-exporting LiVi geometry/context')
                         return {'CANCELLED'}
-                    
+
                     if b'Broken pipe' in line:
                         self.report({'ERROR'}, f'Shutdown rvu with the q command')
                         return {'CANCELLED'}
-                    
+
                     if b'explicit kill' not in line:
                         for rvuerr in rvuerrdict:
                             if rvuerr in line.decode():
@@ -1233,12 +1233,14 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     create_empty_coll(context, 'LiVi Results')
                     gpmbm = bmesh.new()
                     bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
+                    pm_suffix = 'gpm' if self.simnode['coptions']['Context'] == 'Basic' or self.simnode['coptions']['Type'] == '0' else 'copm'
+                    print(pm_suffix)
                     # lvo = len(gpmbm.verts)
 
                     if self.simnode.pmapgno:
                         verts_out, faces_out = [], []
 
-                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 "{0}-{1}.gpm"'.format(svp['viparams']['filebase'], frame)),
+                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 "{0}-{1}.{pm_suffix}"'.format(svp['viparams']['filebase'], frame)),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
@@ -1250,7 +1252,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                             if li > self.simnode.pmapgno or li > 100000:
                                 break
-                        
+
                         logentry(f'{li} global photons created')
                         gpm_mesh = bpy.data.meshes.new('gpm_mesh')
                         gpm_mesh.from_pydata(verts_out, [], faces_out)
@@ -1259,7 +1261,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                         scene.collection.objects.link(gpmobj)
                         move_to_coll(bpy.context, 'LiVi Results', gpmobj)
 
-                    if self.simnode.pmapcno:
+                    if self.simnode.pmapcno and pm_suffic == 'gpm':
                         verts_out, faces_out = [], []
 
                         for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)),
@@ -1274,7 +1276,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
 
                             if li > self.simnode.pmapcno or li > 100000:
                                 break
-                        
+
                         logentry(f'{li} caustic photons created')
                         cpm_mesh = bpy.data.meshes.new('cpm_mesh')
                         cpm_mesh.from_pydata(verts_out, [], faces_out)
@@ -1345,7 +1347,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         scene.frame_start, scene.frame_end = svp['liparams']['fs'], svp['liparams']['fe']
         self.simnode.sim(scene)
         curres = 0
-        rtcmds, rccmds = [], []
+        rtcmds, rccmds, rcdcmds = [], [], []
         scontext = self.simnode['coptions']['Context']
         subcontext = self.simnode['coptions']['Type']
         patches = self.simnode['coptions']['cbdm_res']
@@ -1365,70 +1367,78 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                 return {'CANCELLED'}
 
             if self.simnode.pmap:
-                pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
-                pmappfile.close()
-                pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
-                pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
-                self.pb = qtprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Photon map')
-                amentry, pportentry, gpentry, cpentry, gpfileentry, cpfileentry = retpmap(self.simnode, frame, scene)
+                if self.simnode.pmap_over or not all([os.path.isfile(f"{svp['viparams']['filebase']}-{frame}.{('gpm', 'copm')[self.simnode['coptions']['Context'] == 'CBDM' and self.simnode['coptions']['Type'] != '0']}") for frame in frames]):
+                    pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
+                    pmappfile.close()
+                    pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
+                    open(f'{pmfile}-{frame}', 'w')
+                    pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+                    self.pb = qtprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Photon map')
+                    amentry, pportentry, gpentry, cpentry, copentry, gpfileentry, cpfileentry, copfileentry = retpmap(self.simnode, frame, scene)
 
-                if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
-                    pmcmd = 'mkpmap {7} -t 2 -e "{1}-{3}" -fo+ -bv+ -apD 0.001 {0} {4} {5} {6} "{2}-{3}.oct"'.format(pportentry, pmfile, svp['viparams']['filebase'],
-                                                                                                                     frame, gpentry, cpentry, amentry, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
-                else:
-                    pmcmd = 'mkpmap {4} -t 2 -e "{1}-{3}" -fo+ -bv+ -apC "{2}-{3}.copm" {0} "{2}-{3}.oct"'.format(self.simnode.pmapgno, pmfile, svp['viparams']['filebase'],
-                                                                                                                  frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'])
+                    if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
+                        pmcmd = 'mkpmap {7} -t 2 -e "{1}-{3}" -fo+ -bv{8} -apD 0.001 {0} {4} {5} {6} "{2}-{3}.oct"'.format(pportentry, pmfile, svp['viparams']['filebase'],
+                                                                                                                           frame, gpentry, cpentry, amentry,
+                                                                                                                           ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], ('-', '+')[self.simnode.bfv])
+                    else:
+                        pmcmd = 'mkpmap {4} -t 2 -e "{1}-{3}" -fo+ -bv{7} {0} {5} {6} "{2}-{3}.oct"'.format(copentry, pmfile, svp['viparams']['filebase'],
+                                                                                                            frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'],
+                                                                                                            amentry, pportentry, ('-', '+')[self.simnode.bfv])
 
-                logentry('Generating photon map: {}'.format(pmcmd))
-                pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
+                    logentry('Generating photon map: {}'.format(pmcmd))
+                    pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
 
-                for line in pmrun.stderr:
-                    self.report({'ERROR'}, f'mkpmap errer: {line.decode()}')
+                    for line in pmrun.stderr:
+                        self.report({'ERROR'}, f'mkpmap errer: {line.decode()}')
+
+                        if self.pb.poll() is None:
+                            self.pb.kill()
+
+                        pmrun.kill()
+                        return {'CANCELLED'}
+
+                    while pmrun.poll() is None:
+                        sleep(10)
+                        with open(f'{pmfile}-{frame}', 'r') as vip:
+                            for line in vip.readlines()[::-1]:
+                                if '%' in line:
+                                    curres = float(line.split()[6][:-2]) / len(frames)
+                                    break
+
+                        if pfile.check(curres) == 'CANCELLED':
+                            pmrun.kill()
+                            return {'CANCELLED'}
 
                     if self.pb.poll() is None:
                         self.pb.kill()
 
-                    pmrun.kill()
-                    return {'CANCELLED'}
+                    # invalid_suns = []
 
-                while pmrun.poll() is None:
-                    sleep(10)
-                    with open(f'{pmfile}-{frame}', 'r') as vip:
-                        for line in vip.readlines()[::-1]:
-                            if '%' in line:
-                                curres = float(line.split()[6][:-2]) / len(frames)
-                                break
+                    with open(f'{pmfile}-{frame}', 'r') as pmapfile:
+                        for line in pmapfile.readlines():
+                            # if 'has zero emission' in line:
+                            #     invalid_suns.append(line.split()[3])
+                            if 'fatal -' in line:
+                                for pmerr in pmerrdict:
+                                    if pmerr in line:
+                                        logentry(pmerrdict[pmerr])
+                                        self.report({'ERROR'}, pmerrdict[pmerr])
+                                        return {'CANCELLED'}
 
-                    if pfile.check(curres) == 'CANCELLED':
-                        pmrun.kill()
-                        return {'CANCELLED'}
-
-                if self.pb.poll() is None:
-                    self.pb.kill()
-
-                with open(f'{pmfile}-{frame}', 'r') as pmapfile:
-                    for line in pmapfile.readlines():
-                        if 'fatal -' in line:
-                            for pmerr in pmerrdict:
-                                if pmerr in line:
-                                    logentry(pmerrdict[pmerr])
-                                    self.report({'ERROR'}, pmerrdict[pmerr])
-                                    return {'CANCELLED'}
-
-                            logentry(f'Photon map error: {line}')
-                            self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
-                            return {'CANCELLED'}
+                                logentry(f'Photon map error: {line}')
+                                self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
+                                return {'CANCELLED'}
 
                 if self.simnode.pmappreview:
                     create_empty_coll(context, 'LiVi Results')
                     gpmbm = bmesh.new()
                     bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
-                    # lvo = len(gpmbm.verts)
+                    pm_suffix = 'gpm' if self.simnode['coptions']['Context'] == 'Basic' or self.simnode['coptions']['Type'] == '0' else 'copm'
 
                     if self.simnode.pmapgno:
                         verts_out, faces_out = [], []
 
-                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 "{0}-{1}.gpm"'.format(svp['viparams']['filebase'], frame)),
+                        for li, line in enumerate(Popen(shlex.split(f'pmapdump -n 20k -a -c 0 0 1 "{svp['viparams']['filebase']}-{frame}.{pm_suffix}"'),
                                                         stdout=PIPE, stderr=PIPE).stdout):
                             dl = line.decode().split()
                             matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
@@ -1440,7 +1450,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
                             if li > self.simnode.pmapgno or li > 100000:
                                 break
-                        
+
                         logentry(f'{li} global photons created')
                         gpm_mesh = bpy.data.meshes.new('gpm_mesh')
                         gpm_mesh.from_pydata(verts_out, [], faces_out)
@@ -1449,7 +1459,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                         scene.collection.objects.link(gpmobj)
                         move_to_coll(bpy.context, 'LiVi Results', gpmobj)
 
-                    if self.simnode.pmapcno:
+                    if self.simnode.pmapcno and pm_suffix == 'gpm':
                         verts_out, faces_out = [], []
 
                         for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 {0}-{1}.cpm'.format(svp['viparams']['filebase'], frame)),
@@ -1464,7 +1474,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
                             if li > self.simnode.pmapcno or li > 100000:
                                 break
-                        
+
                         logentry(f'{li} caustic photons created')
                         cpm_mesh = bpy.data.meshes.new('cpm_mesh')
                         cpm_mesh.from_pydata(verts_out, [], faces_out)
@@ -1476,21 +1486,34 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     gpmbm.free()
                     vl.layer_collection.children['LiVi Results'].exclude = 0
                     return {'FINISHED'}
-                
+
             if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                 if os.path.isfile("{}-{}.af".format(svp['viparams']['filebase'], frame)):
                     os.remove("{}-{}.af".format(svp['viparams']['filebase'], frame))
 
                 if self.simnode.pmap:
                     rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame, cpfileentry, gpfileentry))
+
                 else:
+
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp['viparams']['filebase'], frame))
             else:
                 if self.simnode.pmap:
-                    rccmds.append('rcontrib -w -h -I -fo -ap "{2}-{3}.copm" {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
+                    # with open(os.path.join(os.environ['RAYPATH'], 'suns.dat'), 'w') as suns_file:
+                    #     for patch in range(1, 146):
+                    #         if f'sun{patch}' not in invalid_suns:
+                    #             suns_file.write(f'sun{patch}\n')
+
+                    rccmds.append('rcontrib -w -h -I+ -V- -fo -ap "{2}-{3}.copm" {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparamspm'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
+
+                    if self.simnode.direct:
+                        # then run this to get the direct photons
+                        rcdcmds.append('rcontrib -w -h -I -fo {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparamspm'], svp['viparams']['nproc'], svp['viparams']['filebase'], frame, rh))
+
                 else:
                     rccmds.append('rcontrib -w -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp['viparams']['filebase'], frame))
 
+                print(self.simnode['radparams'])
         try:
             tpoints = [o.vi_params['rtpnum'] for o in context.view_layer.objects if o.vi_params.vi_type_string == 'LiVi Calc']
         except Exception as e:
@@ -1539,7 +1562,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                     self.reslists.append([str(frame), 'Time', 'Time', 'DOY', ' '.join([str(t.timetuple().tm_yday) for t in times])])
                     self.reslists.append([str(frame), 'Climate', 'Exterior', 'Daylight', self.simnode['coptions']['dl_hours']])
 
-                cbdmout = ovp.udidacalcapply(scene, frames, rccmds, self.simnode, curres, pfile)
+                cbdmout = ovp.udidacalcapply(scene, frames, rccmds, rcdcmds, self.simnode, curres, pfile)
 
                 if cbdmout == 'CANCELLED':
                     if self.pb.poll() is None:

@@ -17,7 +17,8 @@ Atan2(y,x) : posangle(atan2(y,x));
 alt = Asin(Dz)/DEGREE;
 azi = Atan2(Dx,Dy)/DEGREE;
 MF = 1;
-alpha : 90/(MF*7 + .5);		{ Separation between rows in degrees }
+
+alpha = 90/(MF*7 + .5);		{ Separation between rows in degrees }
 				{ Number of patches per row }
 tnaz(r) : select(r, 30, 30, 24, 24, 18, 12, 6);
 rnaz(r) : if(r-(7*MF-.5), 1, MF*tnaz(floor((r+.5)/MF) + 1));

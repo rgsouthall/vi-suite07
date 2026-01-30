@@ -44,6 +44,7 @@ def sys_exe():
     else:
         return os.path.join(os.path.expanduser('~'), os.path.relpath(sys.executable))
 
+
 def li_calcob(ob, li):
     ovp = ob.vi_params
 
@@ -100,7 +101,6 @@ def ret_datab(fname, r_w):
     else:
         datab = os.path.join(addonfolder, 'EPFiles', fname)
         logentry('No database directory set. Using the built-in database')
-
 
     return datab
 
@@ -193,7 +193,7 @@ def rm_coll(c, colls):
 def ret_coll_bb(coll):
     for oi, ob in enumerate(coll.objects):
         if ob.type == 'MESH':
-            gbbs = [ob.matrix_world@mathutils.Vector(bb) for bb in ob.bound_box]
+            gbbs = [ob.matrix_world @ mathutils.Vector(bb) for bb in ob.bound_box]
             lbbs = list(zip(*gbbs))
 
             if not oi:
@@ -506,7 +506,7 @@ class fvprogressfile():
 
 
 def qtprogressbar(file, pdll_path, calctype):
-    #addon_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    # addon_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     qttext = "# -*- coding: " + sys.getfilesystemencoding() + " -*-\n\
 import os, sys\n\
 if sys.platform == 'win32':\n\
@@ -682,7 +682,7 @@ QApplication.shutdown(app)".format(calc_type)
 
 
 def qtfvprogress(file, pdll_path, et, residuals, frame):
-    #addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    # addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     qttext = "# -*- coding: " + sys.getfilesystemencoding() + " -*-\n\
 import os, sys\n\
 if sys.platform == 'win32':\n\
@@ -987,7 +987,7 @@ def viparams(op, scene):
         op.report({'ERROR'}, "The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
 
-    #isascii = lambda s: len(s) == len(s.encode())
+    # isascii = lambda s: len(s) == len(s.encode())
 
     if len(bdfp) != len(bdfp.encode()):
         op.report({'WARNING'}, "The directory path or Blender filename has non-ascii characters in it. Photon mapping may not work")
@@ -1569,7 +1569,7 @@ def wind_compass(loc, scale, wro, mat):
 
     if bpy.context.scene.vi_params['viparams'].get('North') and bpy.context.scene.vi_params['viparams']['North'] != (0, 1, 0):
         wr_ob.rotation_euler = Vector((0, 1, 0)).rotation_difference(Vector(bpy.context.scene.vi_params['viparams']['North'])).to_euler('XYZ')
-    
+
     return wr_ob
 
 
@@ -1696,10 +1696,9 @@ def retobjs(op, otypes):
             o.vi_params.vi_type_string = ''
 
     if otypes == 'livig':
-        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name))
-                and o.vi_params.vi_type not in ('4', '5')
-                and o.vi_params.vi_type_string != 'LiVi Res'
-                and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')]
+        return [o for o in validobs if o.type == 'MESH' and o.data.polygons and any(o.data.materials) and not (o.parent and os.path.isfile(o.vi_params.ies_name)) and
+                                       o.vi_params.vi_type not in ('4', '5') and o.vi_params.vi_type_string != 'LiVi Res' and
+                                       o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')]
     elif otypes == 'livigeno':
         return [o for o in validobs if o.type == 'MESH' and o.data.polygons and o.data.materials and not any([m.vi_params.livi_sense for m in o.data.materials])]
     elif otypes == 'livigengeosel':
@@ -2026,7 +2025,7 @@ def solarPosition(doy, lst, lat, lon):
 
     if bpy.context.scene.vi_params['viparams'].get('North'):
         phi += Vector((0, 1)).angle_signed(bpy.context.scene.vi_params['viparams'].get('North')[:2])
-        
+
     azimuth = radToDeg * phi
     return ([altitude, azimuth, beta, phi])
 
@@ -2160,10 +2159,10 @@ def sockhide(node, lsocknames):
 def socklink(sock, ng):
     if ng in [g.name for g in bpy.data.node_groups]:
         try:
-            valid1 = sock.valid # if not sock.get('valid') else sock['valid']
+            valid1 = sock.valid  # if not sock.get('valid') else sock['valid']
 
             for link in sock.links:
-                valid2 = link.to_socket.valid # if not link.to_socket.get('valid') else link.to_socket['valid']
+                valid2 = link.to_socket.valid  # if not link.to_socket.get('valid') else link.to_socket['valid']
                 valset = set(valid1) & set(valid2)
 
                 if not valset or len(valset) < min((len(valid1), len(valid2))):
@@ -2269,14 +2268,8 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
     if action:
         bpy.data.actions.remove(action, do_unlink=True)
 
-    
     action = bpy.data.actions.new(name="EnVi Sun")
     sun.animation_data_create().action = action
-    # es_slot = sun.animation_data.action.slots.new(id_type='OBJECT', name=sun.name)
-    # es_layer = sun.animation_data.action.layers.new("Layer")
-    # strip = es_layer.strips.new(type='KEYFRAME')
-    # channelbag = strip.channelbag(es_slot, ensure=True)
-
     sunposx = action.fcurve_ensure_for_datablock(sun, "location", index=0)
     sunposy = action.fcurve_ensure_for_datablock(sun, "location", index=1)
     sunposz = action.fcurve_ensure_for_datablock(sun, "location", index=2)
@@ -2525,13 +2518,13 @@ def meshes_to_solids(context, coll, op):
     for gi, g_geo in enumerate(g_geos):
         ob = bpy.data.objects[g_names[gi]]
         used_shells = []
-        
+
         if len(g_geo.shape.SubShapes(occ.SOLID)) == len(g_geo.shape.SubShapes(occ.SHELL)):
             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
                 g_geo_solid.name = g_names[gi]
                 solids.append(g_geo_solid)
                 used_shells.append
-        
+
         elif len(g_geo.shape.SubShapes(occ.SOLID)):
             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
                 g_geo_solid.name = g_names[gi]
@@ -2616,7 +2609,7 @@ def meshes_to_solids(context, coll, op):
 
             bm.free()
 
-    #solids = [occ.Fuse(solids)]
+    # solids = [occ.Fuse(solids)]
     for solid in solids[1:]:
         solids[0] += solid
 
@@ -2654,22 +2647,22 @@ def solid_to_mesh(svp, solid, si, op):
 
         with open(os.path.join(svp['viparams']['newdir'], 'temp.brep')) as brep_file:
             brep_lines = brep_file.readlines()
-        
+
         for li, line in enumerate(brep_lines):
             if line.split() and line.split()[0] == 'Triangulations':
                 t_lines = brep_lines[li + 1: li + 1 + 2 * int(line.split()[1])]
                 break
-        
+
         for li, line in enumerate(t_lines):
             if not li % 2:
-                #print(line, len(solid.faces))
+                # print(line, len(solid.faces))
                 verts.append(t_lines[li + 1].split()[:int(line.split()[0]) * 3])
                 fis.append([int(f) - 1 + vno for f in t_lines[li + 1].split()[-int(line.split()[1]) * 3:]])
                 vno += int(line.split()[0])
 
                 for m in range(int(line.split()[1])):
-                    if int(li/2) < len(solid.faces):
-                        mat_list.append(solid.faces[int(li/2)].name)
+                    if int(li / 2) < len(solid.faces):
+                        mat_list.append(solid.faces[int(li / 2)].name)
                     else:
                         mat_list.append(solid.faces[0].name)
 
@@ -2677,8 +2670,8 @@ def solid_to_mesh(svp, solid, si, op):
         step_fs = [[fis[i], fis[i + 1], fis[i + 2]] for i in range(len(fis)) if not i % 3]
         vps = [float(v) for p in verts for v in p]
         step_vs = [[vps[i], vps[i + 1], vps[i + 2]] for i in range(len(vps)) if not i % 3]
-        
-    else:   
+
+    else:
         all_vps = []
         mat_list = [face.name for face in solid.faces]
         step_vs = []
@@ -2696,11 +2689,11 @@ def solid_to_mesh(svp, solid, si, op):
                         if vps[vi] != vps[vi + 1]:
                             vps[vi + 1], vps[vi + 2] = vps[vi + 2], vps[vi + 1]
 
-                    if not all([vps[vi] == vps[vi+1] for vi in range(len(vps) -1) if vi % 2]):
+                    if not all([vps[vi] == vps[vi + 1] for vi in range(len(vps) - 1) if vi % 2]):
                         evps = [[tuple([round(p, 5) for p in e.start]), tuple([round(p, 5) for p in e.end])] for e in face.edges]
 
                         for evi in range(len(evps) - 1):
-                            if evps[evi] not in evps[evi+1] and evps[evi] not in evps[evi+1]:
+                            if evps[evi] not in evps[evi + 1] and evps[evi] not in evps[evi + 1]:
                                 for vi in range(evi + 2, len(evps)):
                                     if evps[evi][0] in evps[vi] or evps[evi][1] in evps[vi]:
                                         evps[evi + 1], evps[vi] = evps[vi], evps[evi + 1]
@@ -2717,7 +2710,7 @@ def solid_to_mesh(svp, solid, si, op):
                     all_vps.append([vps[vi] for vi in range(len(vps)) if not vi % 2])
 
             fis = [len(step_v) for step_v in all_vps]
-            step_vs = [x for xs in all_vps for x in xs ]
+            step_vs = [x for xs in all_vps for x in xs]
             f = 0
 
             for fi in fis:
@@ -2727,7 +2720,7 @@ def solid_to_mesh(svp, solid, si, op):
         elif len(set(mat_list)) < 2:
             op.report({'WARNING'}, "Solids create a volume with only one material type. Create or duplicate an additional material on the zone boundary")
             logentry('Error: Solids create a volume with only one material type. Create or duplicate an additional material on the zone boundary')
-    
+
     if f'Zone{si}' not in [mesh.name for mesh in bpy.data.meshes]:
         mesh = bpy.data.meshes.new(f'Zone{si}')
     else:
@@ -2739,7 +2732,7 @@ def solid_to_mesh(svp, solid, si, op):
     mesh.from_pydata(step_vs, [], step_fs, shade_flat=True)
     bm = bmesh.new()
     bm.from_mesh(mesh)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist = 0.00001)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.00001)
     manifold = all([e.is_manifold for e in bm.edges])
 
     if not manifold:
@@ -2763,6 +2756,7 @@ def solid_to_mesh(svp, solid, si, op):
     bm.to_mesh(mesh)
     bm.free()
     return manifold, mesh
+
 
 def ob_to_stl(self, dp, stl_path):
     o = self.id_data
