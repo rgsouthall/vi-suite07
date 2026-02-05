@@ -1303,8 +1303,8 @@ class No_Li_Sim(Node, ViNodes):
                 newrow(layout, 'Photon map:', self, 'pmap')
 
                 if self.pmap:
-                    if all([os.path.isfile(f"{svp['viparams']['filebase']}-{frame}.{('gpm', 'copm')[cinnode['Options']['Context'] == 'CBDM' and cinnode['Options']['Type'] != '0']}") for frame in frames]):
-                        newrow(layout, 'Overwrite PM:', self, 'pmap_over')
+                    if all([os.path.isfile(f"{svp['viparams']['filebase']}-{frame}.oct") for frame in frames]):
+                        newrow(layout, 'Overwrite files:', self, 'pmap_over')
 
                         if self.pmap_over:
                             newrow(layout, 'Global photons:', self, 'pmapgno')
@@ -1362,7 +1362,13 @@ class No_Li_Sim(Node, ViNodes):
 
         self.run = 0
 
-    def presim(self):
+    def presim(self, scene):
+        svp = scene.vi_params
+        self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
+
+        if not all([os.path.isfile(svp['viparams']['filebase'] + f"-{frame}.oct") for frame in self['frames']]):
+            self.pmap_over = 0
+
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
@@ -1377,7 +1383,7 @@ class No_Li_Sim(Node, ViNodes):
 
     def sim(self, scene):
         svp = scene.vi_params
-        self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
+        #
 
     def postsim(self, calcout):
         self['exportstate'] = self.ret_params()

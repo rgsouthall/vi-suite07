@@ -62,7 +62,7 @@ if sys.platform != 'win32':
 
 try:
     from netgen import occ
-    from netgen.meshing import FaceDescriptor, Mesh # , BoundaryLayerParameters
+    from netgen.meshing import FaceDescriptor, Mesh  # , BoundaryLayerParameters
     from pyngcore import SetNumThreads
 except Exception as e:
     print(e)
@@ -565,7 +565,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.transform(o.matrix_world)
             bm.normal_update()
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
-            print('hello')
             geom.layers.int.new('cindex')
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('sm{}'.format(fi)) for fi in frange]
@@ -754,7 +753,7 @@ class NODE_OT_EcE(bpy.types.Operator):
     bl_label = "Embodied material edit"
 
     def execute(self, context):
-        #ob = context.object if context.object else context.collection
+        # ob = context.object if context.object else context.collection
         node = context.node
         # ovp = ob.vi_params
         envi_ecs = envi_embodied()
@@ -1234,8 +1233,6 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     gpmbm = bmesh.new()
                     bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
                     pm_suffix = 'gpm' if self.simnode['coptions']['Context'] == 'Basic' or self.simnode['coptions']['Type'] == '0' else 'copm'
-                    print(pm_suffix)
-                    # lvo = len(gpmbm.verts)
 
                     if self.simnode.pmapgno:
                         verts_out, faces_out = [], []
@@ -1289,10 +1286,16 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
                     vl.layer_collection.children['LiVi Results'].exclude = 0
                     return {'FINISHED'}
 
-                rvucmd = 'rvu -w {0} {1} {2} -n {3} -vv {4:.3f} -vh {5:.3f} -vd {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} -vp {7[0]:.3f} {7[1]:.3f} {7[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {9} {10} "{11}-{12}.oct"'.format(('', '-i')[self.simnode.illu], gpfileentry, cpfileentry, svp['viparams']['wnproc'], vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
+                rvucmd = 'rvu -w {0} {1} {2} -n {3} -vv {4:.3f} -vh {5:.3f} -vd {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} -vp {7[0]:.3f} {7[1]:.3f} {7[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {9} {10} "{11}-{12}.oct"'.format(('', '-i')[self.simnode.illu],
+                                                                                                                                                                                                                            gpfileentry, cpfileentry, svp['viparams']['wnproc'],
+                                                                                                                                                                                                                            vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)),
+                                                                                                                                                                                                                            cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
             else:
-                rvucmd = 'rvu -w {0} -n {1} -vv {2:.3f} -vh {3:.3f} -vd {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vp {5[0]:.3f} {5[1]:.3f} {5[2]:.3f} -vu {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} {7} {8} "{9}-{10}.oct"'.format(('', '-i')[self.simnode.illu], svp['viparams']['wnproc'],
-                                 vv, cang, vd, cam.location, cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)), cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
+                rvucmd = 'rvu -w {0} -n {1} -vv {2:.3f} -vh {3:.3f} -vd {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vp {5[0]:.3f} {5[1]:.3f} {5[2]:.3f} -vu {6[0]:.3f} {6[1]:.3f} {6[2]:.3f} {7} {8} "{9}-{10}.oct"'.format(('', '-i')[self.simnode.illu],
+                                                                                                                                                                                                                  svp['viparams']['wnproc'],
+                                                                                                                                                                                                                  vv, cang, vd, cam.location,
+                                                                                                                                                                                                                  cam.matrix_world.to_quaternion() @ mathutils.Vector((0, 1, 0)),
+                                                                                                                                                                                                                  cc, self.simnode['rvuparams'], svp['viparams']['filebase'], scene.frame_current)
 
             logentry('Rvu command: {}'.format(rvucmd))
             self.rvurun = Popen(shlex.split(rvucmd), stdout=PIPE, stderr=PIPE)
@@ -1322,7 +1325,6 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         svp = scene.vi_params
         svp.vi_display = 0
         svp['viparams']['vidisp'] = ''
-        
 
         if viparams(self, scene):
             return {'CANCELLED'}
@@ -1335,7 +1337,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             self.report({'ERROR'}, 'Missing Radiance description. Check Geometry/Context exports')
             return {'CANCELLED'}
 
-        self.simnode.presim()
+        self.simnode.presim(scene)
         contextdict = {'Basic': 'LiVi Basic', 'CBDM': 'LiVi CBDM'}
 
         # Set scene parameters
@@ -1365,160 +1367,158 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
 
         for f, frame in enumerate(frames):
-            if createradfile(scene, frame, self, self.simnode) == 'CANCELLED' or createoconv(scene, frame, self, self.simnode) == 'CANCELLED':
-                return {'CANCELLED'}
+            if self.simnode.pmap_over:
+                if createradfile(scene, frame, self, self.simnode) == 'CANCELLED' or createoconv(scene, frame, self, self.simnode) == 'CANCELLED':
+                    return {'CANCELLED'}
 
-            if self.simnode.pmap:
-                pm_type = ('gpm', 'copm')[self.simnode['coptions']['Context'] == 'CBDM' and self.simnode['coptions']['Type'] != '0']
-                if self.simnode.pmap_over or not all([os.path.isfile(f"{svp_fb}-{frame}.{pm_type}") for frame in frames]):
-                    pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
-                    pmappfile.close()
-                    pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
-                    open(f'{pmfile}-{frame}', 'w')
-                    pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
-                    self.pb = qtprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Photon map')
-                    amentry, pportentry, gpentry, cpentry, copentry, gpfileentry, cpfileentry, copfileentry = retpmap(self.simnode, frame, scene)
+                if self.simnode.pmap:
+                    pm_type = ('gpm', 'copm')[self.simnode['coptions']['Context'] == 'CBDM' and self.simnode['coptions']['Type'] != '0']
 
-                    if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
-                        pmcmd = 'mkpmap {7} -t 2 -e "{1}-{3}" -fo+ -bv{8} -apD 0.001 {0} {4} {5} {6} "{2}-{3}.oct"'.format(pportentry, pmfile, svp_fb,
-                                                                                                                           frame, gpentry, cpentry, amentry,
-                                                                                                                           ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], ('-', '+')[self.simnode.bfv])
-                    else:
-                        pmcmd = 'mkpmap {4} -t 2 -e "{1}-{3}" -fo+ -bv{7} {0} {5} {6} "{2}-{3}.oct"'.format(copentry, pmfile, svp_fb,
+                    if self.simnode.pmap_over:
+                        pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
+                        pmappfile.close()
+                        pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
+                        open(f'{pmfile}-{frame}', 'w')
+                        pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
+                        self.pb = qtprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Photon map')
+                        amentry, pportentry, gpentry, cpentry, copentry, gpfileentry, cpfileentry, copfileentry = retpmap(self.simnode, frame, scene)
+
+                        if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
+                            pmcmd = 'mkpmap {7} -t 2 -e "{1}-{3}" -fo+ -bv{8} -apD 0.001 {0} {4} {5} {6} "{2}-{3}.oct"'.format(pportentry, pmfile, svp_fb,
+                                                                                                                            frame, gpentry, cpentry, amentry,
+                                                                                                                            ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'], ('-', '+')[self.simnode.bfv])
+                        else:
+                            pmcmd = 'mkpmap {4} -t 2 -e "{1}-{3}" -fo+ -bv{7} {0} {5} {6} "{2}-{3}.oct"'.format(copentry, pmfile, svp_fb,
                                                                                                             frame, ('-n {}'.format(svp['viparams']['wnproc']), '')[sys.platform == 'win32'],
                                                                                                             amentry, pportentry, ('-', '+')[self.simnode.bfv])
 
-                    logentry('Generating photon map: {}'.format(pmcmd))
-                    pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
+                        logentry('Generating photon map: {}'.format(pmcmd))
+                        pmrun = Popen(shlex.split(pmcmd), stderr=PIPE, stdout=PIPE)
 
-                    for line in pmrun.stderr:
-                        self.report({'ERROR'}, f'mkpmap errer: {line.decode()}')
+                        for line in pmrun.stderr:
+                            self.report({'ERROR'}, f'mkpmap errer: {line.decode()}')
+
+                            if self.pb.poll() is None:
+                                self.pb.kill()
+
+                            pmrun.kill()
+                            return {'CANCELLED'}
+
+                        while pmrun.poll() is None:
+                            sleep(10)
+                            with open(f'{pmfile}-{frame}', 'r') as vip:
+                                for line in vip.readlines()[::-1]:
+                                    if '%' in line:
+                                        curres = float(line.split()[6][:-2]) / len(frames)
+                                        break
+
+                            if pfile.check(curres) == 'CANCELLED':
+                                pmrun.kill()
+                                return {'CANCELLED'}
 
                         if self.pb.poll() is None:
                             self.pb.kill()
 
-                        pmrun.kill()
-                        return {'CANCELLED'}
+                        # invalid_suns = []
 
-                    while pmrun.poll() is None:
-                        sleep(10)
-                        with open(f'{pmfile}-{frame}', 'r') as vip:
-                            for line in vip.readlines()[::-1]:
-                                if '%' in line:
-                                    curres = float(line.split()[6][:-2]) / len(frames)
+                        with open(f'{pmfile}-{frame}', 'r') as pmapfile:
+                            for line in pmapfile.readlines():
+                                # if 'has zero emission' in line:
+                                #     invalid_suns.append(line.split()[3])
+                                if 'fatal -' in line:
+                                    for pmerr in pmerrdict:
+                                        if pmerr in line:
+                                            logentry(pmerrdict[pmerr])
+                                            self.report({'ERROR'}, pmerrdict[pmerr])
+                                            return {'CANCELLED'}
+
+                                    logentry(f'Photon map error: {line}')
+                                    self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
+                                    return {'CANCELLED'}
+
+                    if self.simnode.pmappreview:
+                        create_empty_coll(context, 'LiVi Results')
+                        gpmbm = bmesh.new()
+                        bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
+                        pm_suffix = 'gpm' if self.simnode['coptions']['Context'] == 'Basic' or self.simnode['coptions']['Type'] == '0' else 'copm'
+
+                        if self.simnode.pmapgno:
+                            verts_out, faces_out = [], []
+
+                            for li, line in enumerate(Popen(shlex.split(f'pmapdump -n 20k -a -c 0 0 1 "{svp_fb}-{frame}.{pm_suffix}"'),
+                                                            stdout=PIPE, stderr=PIPE).stdout):
+                                dl = line.decode().split()
+                                matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                                nbm = gpmbm.copy()
+                                bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
+                                verts_out += [v.co.to_tuple() for v in nbm.verts]
+                                faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                                nbm.free()
+
+                                if li > self.simnode.pmapgno or li > 100000:
                                     break
 
-                        if pfile.check(curres) == 'CANCELLED':
-                            pmrun.kill()
-                            return {'CANCELLED'}
+                            logentry(f'{li} global photons created')
+                            gpm_mesh = bpy.data.meshes.new('gpm_mesh')
+                            gpm_mesh.from_pydata(verts_out, [], faces_out)
+                            gpmobj = bpy.data.objects.new('GlobalPM', gpm_mesh)
+                            gpmobj.vi_params.vi_type_string = 'LiVi Res'
+                            scene.collection.objects.link(gpmobj)
+                            move_to_coll(bpy.context, 'LiVi Results', gpmobj)
 
-                    if self.pb.poll() is None:
-                        self.pb.kill()
+                        if self.simnode.pmapcno and pm_suffix == 'gpm':
+                            verts_out, faces_out = [], []
 
-                    # invalid_suns = []
+                            for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 {0}-{1}.cpm'.format(svp_fb, frame)),
+                                                            stdout=PIPE, stderr=PIPE).stdout):
+                                dl = line.decode().split()
+                                matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
+                                nbm = gpmbm.copy()
+                                bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
+                                verts_out += [v.co.to_tuple() for v in nbm.verts]
+                                faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
+                                nbm.free()
 
-                    with open(f'{pmfile}-{frame}', 'r') as pmapfile:
-                        for line in pmapfile.readlines():
-                            # if 'has zero emission' in line:
-                            #     invalid_suns.append(line.split()[3])
-                            if 'fatal -' in line:
-                                for pmerr in pmerrdict:
-                                    if pmerr in line:
-                                        logentry(pmerrdict[pmerr])
-                                        self.report({'ERROR'}, pmerrdict[pmerr])
-                                        return {'CANCELLED'}
+                                if li > self.simnode.pmapcno or li > 100000:
+                                    break
 
-                                logentry(f'Photon map error: {line}')
-                                self.report({'ERROR'}, 'Unknown photon map error. Check the VI-Suite log file')
-                                return {'CANCELLED'}
+                            logentry(f'{li} caustic photons created')
+                            cpm_mesh = bpy.data.meshes.new('cpm_mesh')
+                            cpm_mesh.from_pydata(verts_out, [], faces_out)
+                            cpmobj = bpy.data.objects.new('CausticPM', cpm_mesh)
+                            cpmobj.vi_params.vi_type_string = 'LiVi Res'
+                            scene.collection.objects.link(cpmobj)
+                            move_to_coll(bpy.context, 'LiVi Results', cpmobj)
 
-                if self.simnode.pmappreview:
-                    create_empty_coll(context, 'LiVi Results')
-                    gpmbm = bmesh.new()
-                    bmesh.ops.create_icosphere(gpmbm, subdivisions=1, radius=0.025, calc_uvs=False)
-                    pm_suffix = 'gpm' if self.simnode['coptions']['Context'] == 'Basic' or self.simnode['coptions']['Type'] == '0' else 'copm'
-
-                    if self.simnode.pmapgno:
-                        verts_out, faces_out = [], []
-
-                        for li, line in enumerate(Popen(shlex.split(f'pmapdump -n 20k -a -c 0 0 1 "{svp_fb}-{frame}.{pm_suffix}"'),
-                                                        stdout=PIPE, stderr=PIPE).stdout):
-                            dl = line.decode().split()
-                            matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
-                            nbm = gpmbm.copy()
-                            bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
-                            verts_out += [v.co.to_tuple() for v in nbm.verts]
-                            faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
-                            nbm.free()
-
-                            if li > self.simnode.pmapgno or li > 100000:
-                                break
-
-                        logentry(f'{li} global photons created')
-                        gpm_mesh = bpy.data.meshes.new('gpm_mesh')
-                        gpm_mesh.from_pydata(verts_out, [], faces_out)
-                        gpmobj = bpy.data.objects.new('GlobalPM', gpm_mesh)
-                        gpmobj.vi_params.vi_type_string = 'LiVi Res'
-                        scene.collection.objects.link(gpmobj)
-                        move_to_coll(bpy.context, 'LiVi Results', gpmobj)
-
-                    if self.simnode.pmapcno and pm_suffix == 'gpm':
-                        verts_out, faces_out = [], []
-
-                        for li, line in enumerate(Popen(shlex.split('pmapdump -n 20k -a -c 0 0 1 {0}-{1}.cpm'.format(svp_fb, frame)),
-                                                        stdout=PIPE, stderr=PIPE).stdout):
-                            dl = line.decode().split()
-                            matrix = Matrix.Translation(Vector([float(x) for x in dl[:3]]))
-                            nbm = gpmbm.copy()
-                            bmesh.ops.transform(nbm, matrix=matrix, verts=nbm.verts)
-                            verts_out += [v.co.to_tuple() for v in nbm.verts]
-                            faces_out += [[j.index + li * len(nbm.verts) for j in i.verts] for i in nbm.faces]
-                            nbm.free()
-
-                            if li > self.simnode.pmapcno or li > 100000:
-                                break
-
-                        logentry(f'{li} caustic photons created')
-                        cpm_mesh = bpy.data.meshes.new('cpm_mesh')
-                        cpm_mesh.from_pydata(verts_out, [], faces_out)
-                        cpmobj = bpy.data.objects.new('CausticPM', cpm_mesh)
-                        cpmobj.vi_params.vi_type_string = 'LiVi Res'
-                        scene.collection.objects.link(cpmobj)
-                        move_to_coll(bpy.context, 'LiVi Results', cpmobj)
-
-                    gpmbm.free()
-                    vl.layer_collection.children['LiVi Results'].exclude = 0
-                    return {'FINISHED'}
+                        gpmbm.free()
+                        vl.layer_collection.children['LiVi Results'].exclude = 0
+                        return {'FINISHED'}
 
             if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                 if os.path.isfile("{}-{}.af".format(svp_fb, frame)):
                     os.remove("{}-{}.af".format(svp_fb, frame))
 
                 if self.simnode.pmap:
-                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp_fb, frame, cpfileentry, gpfileentry))
-
+                    rtcmds.append('rtrace -n {0} -w {1} {5} {4} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'],
+                                                                                                     svp_fb, frame, cpfileentry, gpfileentry))
                 else:
-
                     rtcmds.append('rtrace -n {0} -w {1} -faa -h -ov -I "{2}-{3}.oct"'.format(svp['viparams']['nproc'], self.simnode['radparams'], svp_fb, frame))
             else:
                 if self.simnode.pmap:
-                    # with open(os.path.join(os.environ['RAYPATH'], 'suns.dat'), 'w') as suns_file:
-                    #     for patch in range(1, 146):
-                    #         if f'sun{patch}' not in invalid_suns:
-                    #             suns_file.write(f'sun{patch}\n')
-
-                    rccmds.append('rcontrib -w -h -I+ -V- -fo -ap "{2}-{3}.copm" {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparamspm'], svp['viparams']['nproc'], svp_fb, frame, rh))
+                    rccmds.append('rcontrib -w -h -I+ -V- -fo -ap "{2}-{3}.copm" {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparamspm'],
+                                                                                                                                                                           svp['viparams']['nproc'], svp_fb, frame, rh))
 
                     if self.simnode.direct:
-                        # then run this to get the direct photons
-                        rcdcmds.append('rcontrib -w -h -I -fo {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparamspm'], svp['viparams']['nproc'], svp_fb, frame, rh))
+                        rcdcmds.append('rcontrib -w -h -I -fo {0} -n {1} -e MF:{4} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{2}-{3}.oct"'.format(self.simnode['radparamspm'], svp['viparams']['nproc'],
+                                                                                                                                                        svp_fb, frame, rh))
 
                 else:
-                    rccmds.append('rcontrib -w -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'], rh, svp_fb, frame))
+                    rccmds.append('rcontrib -w -h -I -fo {} -n {} -e MF:{} -f reinhart.cal -b rbin -bn Nrbins -m sky_glow "{}-{}.oct"'.format(self.simnode['radparams'], svp['viparams']['nproc'],
+                                                                                                                                              rh, svp_fb, frame))
 
-                print(self.simnode['radparams'])
         try:
             tpoints = [o.vi_params['rtpnum'] for o in context.view_layer.objects if o.vi_params.vi_type_string == 'LiVi Calc']
+
         except Exception as e:
             self.report({'ERROR'}, 'Re-export the LiVi geometry: {}'.format(e))
             return {'CANCELLED'}
@@ -2195,7 +2195,7 @@ class NODE_OT_En_Geo(bpy.types.Operator):
         else:
             node.preexport(scene)
             pregeo(context, self)
-            
+
         node.postexport()
         return {'FINISHED'}
 
@@ -3281,7 +3281,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 logentry('No running dicehub/openfoam:12 or 13 docker image was found')
                 self.report({'ERROR'}, 'No running dicehub/openfoam:12 or 13 docker image was found')
                 return {'CANCELLED'}
-      
+
         self.offb = svp['flparams']['offilebase']
         self.vl = context.view_layer
         self.expnode = context.node
@@ -3289,7 +3289,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self.surf_complete = 0
         self.vol_complete = 0
         self.vol_running = 0
-        #case_nodes = [link.from_node for link in self.expnode.inputs['Case in'].links]
+        # case_nodes = [link.from_node for link in self.expnode.inputs['Case in'].links]
         bound_nodes = [link.to_node for link in self.expnode.outputs['Mesh out'].links]
 
         for node in bound_nodes:
@@ -3893,7 +3893,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             cpf_cmd = 'foamExec combinePatchFaces -overwrite -noFunctionObjects -case {} {}'.format(frame_offb, 5)
                             Popen(shlex.split(cpf_cmd)).wait()
                         elif sys.platform in ('darwin', 'win32'):
-                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb, self.of_docker, 5)
+                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb,
+                                                                                                                                                              self.of_docker, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
                         if sys.platform == 'linux':
@@ -3908,7 +3909,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             elif '*Number' in line.decode() and sys.platform == 'linux':
                                 Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
                             else:
-                                print(line.decode())
+                                logentry('foamToVTK error: ' + line.decode())
 
                         for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                             if entry.is_file():
@@ -4167,7 +4168,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
         elif self.runs[-1].poll() is None and self.pb.poll() is not None:
             self.runs[-1].kill()
-            
+
             if self.processes > 1:
                 if sys.platform == 'linux':
                     Popen(shlex.split("foamExec reconstructPar -case {}".format(frame_coffb))).wait()
@@ -4306,11 +4307,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
                     p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
-                
+
                 elif sys.platform in ('darwin', 'win32'):
                     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True).wait()
                     p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} foamPostProcess -func "triSurfaceAverage\\(triSurface="{oname}.stl"\\)" -case data', stdout=PIPE, stderr=PIPE, shell=True).wait()
-                    
+
                 # if str(frame_c) not in self.o_dict:
                 #     self.o_dict[str(frame_c)] = {}
 
@@ -4332,14 +4333,14 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                 #     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
                 #     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
-                    
+
                 # ps = []
 
                 # for line in p_run.stdout.readlines()[::-1]:
                 #     print(line)
                 #     if "p =" in line.decode():
                 #         ps.append(line.decode().split()[-1])
-                
+
                 # if ps:
                 #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
                 # elif 'Time =' in line.decode():
@@ -4347,7 +4348,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 #     times.append(ti)
 
             t_probes = []
-            
+
             for b_probe in svp['flparams']['b_probes']:
                 t_probes.append(b_probe)
             for s_probe in svp['flparams']['s_probes']:
@@ -4491,7 +4492,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         try:
             room.compute_rir()
             rts = room.measure_rt60(plot=False, decay_db=60)
-            print('res', len(rts))
+
         except Exception:
             try:
                 rts = room.measure_rt60(plot=False, decay_db=30)
@@ -4546,7 +4547,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
             (o.vi_params['omax'], o.vi_params['omin'], o.vi_params['oave'], o.vi_params['livires']) = ({}, {}, {}, {})
 
         robs = [o.evaluated_get(dp) for o in context.view_layer.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material]) and o.vi_params.vi_type == '1']
-        # robs = [[o for o in c.objects if o.type == 'MESH' and o.visible_get() and any([ms.material.vi_params.mattype == '3' for ms in o.material_slots if ms.material])] for c in bpy.data.collections if c.vi_params.envi_zone]
+
         if not robs:
             logentry('No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
             self.report({'ERROR'}, 'No valid rooms found. Check that the desired room objects have been designated as EnVi/AuVi surfaces and have AuVi materials attached')
@@ -4606,7 +4607,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 room_bm.from_object(rob, dp)
                 room_bm.transform(rob.matrix_world)
                 bmesh.ops.triangulate(room_bm, faces=room_bm.faces)
-                print('bm_vol', room_bm.calc_volume())
+                logentry('Bmesh volume of the room is ' + room_bm.calc_volume() + 'm3')
 
                 for face in room_bm.faces:
                     if face.material_index >= len(rob.material_slots):
@@ -4643,7 +4644,9 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         max_rand_disp=0.1
                     )
                 )
-                print('pra volume', room.get_volume())
+
+                logentry('PRA volume of the room is ' + room.get_volume() + 'm3')
+
                 if pra_rt:
                     room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius,
                                          hist_bin_size=0.004, energy_thres=1e-08)
@@ -4685,10 +4688,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 room = room.add_microphone(f.calc_center_median()[:])
                                 mic_names.append(f'{mic_a.name}-{f.index}')
                             else:
-                                print('not in room', f.index, f.calc_center_median()[:])
+                                logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} is not in room {room.name}')
                                 f[bm_ir] = f[bm_ir]
                         else:
-                            print('not material', f.index)
+                            logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} has no sensing material')
                             f[bm_ir] = 0
 
                     mic_bm.transform(mic_a.matrix_world.inverted())
@@ -4823,10 +4826,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     mic_bm.to_mesh(mic_a.data)
                     mic_bm.free()
 
-                print("Room volume:", f'{room.get_volume():.2f}')
-                print("RT60 (Simulated):", rts[0, 0])
-                print("RT60 (Sabine):", room.rt60_theory(formula='sabine'))
-                print("RT60 (Eyring):", room.rt60_theory(formula='eyring'))
+                # logentry("Room volume:", f'{room.get_volume():.2f}')
+                logentry("RT60 (Simulated):" + rts[0, 0] + '2')
+                logentry("RT60 (Sabine): " + room.rt60_theory(formula='sabine') + 's')
+                logentry("RT60 (Eyring):" + room.rt60_theory(formula='eyring') + 's')
 
         if len(frames) > 1:
             reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])

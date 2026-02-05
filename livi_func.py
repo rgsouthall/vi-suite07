@@ -1122,6 +1122,11 @@ def udidacalcapply(self, scene, frames, rccmds, rcdcmds, simnode, curres, pfile)
                 logentry(f"Running rcontrib with the command: {rccmds[f]}")
 
             sensrun = Popen(shlex.split(rccmds[f]), stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input='\n'.join([c[rt].decode('utf-8') for c in chunk]))
+
+            if sensrun[1]:
+                logentry(f'Rcontrib error: {sensrun[1]}')
+                return {'CANCELLED'}
+
             resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), patches, 3).astype(float32)
             sensarray = nsum(resarray * illumod, axis=2).astype(float32)
 
