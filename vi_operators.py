@@ -1147,7 +1147,7 @@ class NODE_OT_Li_Pre(bpy.types.Operator, ExportHelper):
             return {'CANCELLED'}
         else:
             frame = scene.frame_current
-            self.simnode.presim()
+            self.simnode.presim(svp)
             self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
             svp['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
             svp['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
@@ -1337,7 +1337,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
             self.report({'ERROR'}, 'Missing Radiance description. Check Geometry/Context exports')
             return {'CANCELLED'}
 
-        self.simnode.presim(scene)
+        self.simnode.presim(svp)
         contextdict = {'Basic': 'LiVi Basic', 'CBDM': 'LiVi CBDM'}
 
         # Set scene parameters
@@ -1837,7 +1837,7 @@ class NODE_OT_Li_Im(bpy.types.Operator):
                 os.remove(self.rpictfile)
 
             self.pmfile = os.path.join(svp['viparams']['newdir'], 'pmprogress')
-            simnode.presim()
+            simnode.presim(svp)
             svp['liparams']['fs'], svp['liparams']['fe'] = simnode.retframes()
             self.frames = self.fe - self.fs + 1
             self.frame = self.fs

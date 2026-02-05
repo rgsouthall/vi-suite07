@@ -1362,8 +1362,8 @@ class No_Li_Sim(Node, ViNodes):
 
         self.run = 0
 
-    def presim(self, scene):
-        svp = scene.vi_params
+    def presim(self, svp):
+        # svp = scene.vi_params
         self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
 
         if not all([os.path.isfile(svp['viparams']['filebase'] + f"-{frame}.oct") for frame in self['frames']]):
@@ -1382,7 +1382,8 @@ class No_Li_Sim(Node, ViNodes):
             self['rvuparams'] = ' {} '.format(self.cusacc) if self.csimacc == '0' else ''.join([' {} {} '.format(k, rvuparams[k][int(self.simacc) - 1]) for k in rvuparams])
 
     def sim(self, scene):
-        svp = scene.vi_params
+        pass
+        # svp = scene.vi_params
         #
 
     def postsim(self, calcout):
