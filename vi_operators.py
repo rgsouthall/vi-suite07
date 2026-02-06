@@ -319,7 +319,7 @@ class NODE_OT_SVF(bpy.types.Operator):
         if viparams(self, scene):
             return {'CANCELLED'}
 
-        shadobs = retobjs('livig')
+        shadobs = retobjs(self, 'livig')
 
         if not shadobs:
             self.report({'ERROR'}, "No shading objects with a material attached.")
@@ -332,7 +332,7 @@ class NODE_OT_SVF(bpy.types.Operator):
         for o in scene.objects:
             o.vi_params.vi_type_string = ''
 
-        calcobs = retobjs('ssc')
+        calcobs = retobjs(self, 'ssc')
 
         if not calcobs:
             self.report({'ERROR'}, "No objects have a light sensor material attached.")
@@ -474,7 +474,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if viparams(self, scene):
             return {'CANCELLED'}
 
-        shadobs = retobjs('livig')
+        shadobs = retobjs(self, 'livig')
 
         if not shadobs:
             self.report({'ERROR'}, "No shading objects or none with a material attached.")
@@ -487,7 +487,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         for o in scene.objects:
             o.vi_params.vi_type_string = ''
 
-        calcobs = retobjs('ssc')
+        calcobs = retobjs(self, 'ssc')
 
         if not calcobs:
             self.report({'ERROR'}, "No objects have a light sensor material attached, or calculation objects have unapplied modifiers.")

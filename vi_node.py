@@ -195,14 +195,14 @@ class No_Loc(Node, ViNodes):
                     self['epwtext'] = epwfile.read()
 
                     if 'Vi Results' not in self.outputs['Location out'].valid:
-                        self.outputs['Location out'].valid.append('Vi Results')
+                        self.outputs['Location out'].valid = ['Location', 'Vi Results'] # .append('Vi Results')
             else:
                 self['epwtext'] = ''
 
                 if 'Vi Results' in self.outputs['Location out'].valid:
                     self.outputs['Location out'].valid.remove('Vi Results')
 
-        socklink(self.outputs['Location out'], self.id_data.name)
+        # socklink2(self.outputs['Location out'], self.id_data)
         self['reslists'] = reslists
         (svp.latitude, svp.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (svp.latitude, svp.longitude)
 
@@ -241,7 +241,8 @@ class No_Loc(Node, ViNodes):
 
     def update(self):
         for sock in self.outputs:
-            socklink(sock, self.id_data.name)
+            print(self.weather)
+            socklink2(sock, self.id_data)
 
         nodecolour(self, self.ready())
 
@@ -2122,6 +2123,9 @@ class So_En_ResU(NodeSocket):
     def draw(self, context, layout, node, text):
         layout.label(text=self.bl_label)
 
+    def ret_valid(self, node):
+        return ['Vi Results']
+
 
 class ViEnRIn(So_En_ResU):
     '''Chart input socket'''
@@ -2293,7 +2297,6 @@ class ViEnRIn(So_En_ResU):
 
                     self.node['resdict'][ax] = resdict
                     self.node.inputs[ax].r_len = self.node.inputs['X-axis'].r_len if self.node['resdict'][ax] else 0
-
 
     def update_entries(self, context):
         axes = ('X-axis', 'Y-axis 1', 'Y-axis 2', 'Y-axis 3')
@@ -4331,7 +4334,10 @@ class So_Vi_Loc(NodeSocket):
         return (0.45, 1.0, 0.45, 1.0)
 
     def ret_valid(self, node):
-        return ['Location']
+        if self.is_output and node.loc == '1' and os.path.isfile(node.weather):
+            return ['Location', 'Vi Results']
+        else:
+            return ['Location']
 
 
 class So_Li_Geo(NodeSocket):
@@ -9791,7 +9797,7 @@ class No_Au_Sim(Node, ViNodes):
 
             if self.netgen:
                 layout.prop_search(self, 'collection', bpy.data, 'collections', text='', icon='COLLECTION_COLOR_05')
-            else:    
+            else:
                 newrow(layout, "Animated:", self, 'animated')
 
                 if self.animated:

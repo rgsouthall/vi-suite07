@@ -2170,7 +2170,7 @@ def socklink(sock, ng):
 
         except Exception as e:
             print(e)
-            if sock.links:
+            if sock.links and sock.links[-1] in bpy.data.node_groups[ng].links:
                 bpy.data.node_groups[ng].links.remove(sock.links[-1])
 
 
@@ -2181,6 +2181,7 @@ def socklink2(sock, ng):
         for link in sock.links:
             valid2 = link.to_socket.ret_valid(link.to_socket.node)
             valset = set(valid1) & set(valid2)
+            print(valid1, valid2)
 
             if not valset:
                 ng.links.remove(link)
