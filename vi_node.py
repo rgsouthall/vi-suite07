@@ -1301,27 +1301,29 @@ class No_Li_Sim(Node, ViNodes):
             if cinnode.get('Options'):
                 row = layout.row()
                 row.label(text='Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
-                newrow(layout, 'Photon map:', self, 'pmap')
-
-                if self.pmap:
-                    if all([os.path.isfile(f"{svp['viparams']['filebase']}-{frame}.oct") for frame in frames]):
-                        newrow(layout, 'Overwrite files:', self, 'pmap_over')
-
-                        if self.pmap_over:
+                
+                if all([os.path.isfile(f"{svp['viparams']['filebase']}-{frame}.oct") for frame in frames]):
+                    newrow(layout, 'Overwrite files:', self, 'pmap_over')
+                    
+                    if self.pmap_over:
+                        newrow(layout, 'Photon map:', self, 'pmap')
+                        
+                        if self.pmap:
                             newrow(layout, 'Global photons:', self, 'pmapgno')
                             newrow(layout, 'Caustic photons:', self, 'pmapcno')
                             newrow(layout, 'Back face visability:', self, 'bfv')
                             newrow(layout, 'Photon options:', self, 'pmapoptions')
                             newrow(layout, 'Preview photons:', self, 'pmappreview')
-                    else:
-                        newrow(layout, 'Global photons:', self, 'pmapgno')
-                        newrow(layout, 'Caustic photons:', self, 'pmapcno')
-                        newrow(layout, 'Back face visability:', self, 'bfv')
-                        newrow(layout, 'Photon options:', self, 'pmapoptions')
-                        newrow(layout, 'Preview photons:', self, 'pmappreview')
-
-                    newrow(layout, 'Direct:', self, 'direct')
-
+                            newrow(layout, 'Direct pass:', self, 'direct')
+                
+                elif self.pmap:
+                    newrow(layout, 'Global photons:', self, 'pmapgno')
+                    newrow(layout, 'Caustic photons:', self, 'pmapcno')
+                    newrow(layout, 'Back face visability:', self, 'bfv')
+                    newrow(layout, 'Photon options:', self, 'pmapoptions')
+                    newrow(layout, 'Preview photons:', self, 'pmappreview')
+                    newrow(layout, 'Direct pass:', self, 'direct')
+                
                 row = layout.row()
                 row.label(text="Accuracy:")
                 row.prop(self, self['simdict'][cinnode['Options']['Context']])
