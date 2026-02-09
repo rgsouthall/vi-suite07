@@ -420,7 +420,6 @@ def li_display(context, disp_op, simnode):
         else:
             bm = bmesh.new()
             bm.from_object(o, dp)
-            print(o.name)
 
             if svp['liparams']['cp'] == '0':
                 cindex = bm.faces.layers.int['cindex']
@@ -2172,9 +2171,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene
         svp = scene.vi_params
-        #
-        # if context.area:
-        #     context.area.tag_redraw()
 
         if svp.vi_display == 0 or svp['viparams']['vidisp'] != 'sp' or not context.view_layer.objects.get('SPathMesh'):
             try:

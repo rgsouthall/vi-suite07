@@ -194,13 +194,13 @@ class No_Loc(Node, ViNodes):
 
                     self['epwtext'] = epwfile.read()
 
-                    if 'Vi Results' not in self.outputs['Location out'].valid:
-                        self.outputs['Location out'].valid = ['Location', 'Vi Results'] # .append('Vi Results')
+                    # if 'Vi Results' not in self.outputs['Location out'].valid:
+                    #     self.outputs['Location out'].valid = ['Location', 'Vi Results'] # .append('Vi Results')
             else:
                 self['epwtext'] = ''
 
-                if 'Vi Results' in self.outputs['Location out'].valid:
-                    self.outputs['Location out'].valid.remove('Vi Results')
+                # if 'Vi Results' in self.outputs['Location out'].valid:
+                #     self.outputs['Location out'].valid.remove('Vi Results')
 
         # socklink2(self.outputs['Location out'], self.id_data)
         self['reslists'] = reslists
@@ -241,7 +241,6 @@ class No_Loc(Node, ViNodes):
 
     def update(self):
         for sock in self.outputs:
-            print(self.weather)
             socklink2(sock, self.id_data)
 
         nodecolour(self, self.ready())
@@ -256,6 +255,10 @@ class No_Loc(Node, ViNodes):
 
         if self.loc == "1":
             newrow(layout, "Weather file:", self, 'weather')
+            row = layout.row()
+            row.label(text=f"Latitude: {context.scene.vi_params.latitude:.2f}")
+            row = layout.row()
+            row.label(text=f"Longitude: {context.scene.vi_params.longitude:.2f}")
 
             if self.weather_anim:
                 layout.prop_search(self, 'weather_anim_file', bpy.data, 'texts', text='File', icon='TEXT')
@@ -420,7 +423,8 @@ class No_Li_Con(Node, ViNodes):
 
             if self.inputs['Location in'].links and suns:
                 sunposlivi(scene, self, frames, sun, starttime)
-        else:
+        
+        elif svp['viparams']['vidisp'] != 'sp':
             for so in suns:
                 selobj(context.view_layer, so)
                 bpy.ops.object.delete()
