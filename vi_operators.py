@@ -3438,7 +3438,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     bm.free()
                     return {'CANCELLED'}
 
-                edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
+                edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 7) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 7) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
 
@@ -3502,6 +3502,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             face.maxh = fms[fi]
 
                 if self.expnode.debug_step:
+                    # healed_shape = d_geo.shape.UnifySameDomain(unifyEdges=True, unifyFaces=True)
                     d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
 
                 if len(d_geo.shape.SubShapes(occ.SOLID)) != 1:
@@ -3644,6 +3645,17 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     if face.name is None:
                         face.name = fns[fi]
                         face.maxh = fms[fi]
+
+        set_mats = set(face.name for face in d_geo.shape.faces)
+        mg_shapes = []
+
+        for mat in set_mats:
+            faces = [f for f in d_geo.shape.faces if f.name == mat]
+            mat_geo = occ.OCCGeometry(occ.Sew(faces))
+            mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
+
+        d_geo = occ.OCCGeometry(mg_shapes)
+        d_geo.Heal()
 
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
