@@ -23,6 +23,8 @@ from math import cos, sin, pi
 from mathutils import Vector
 from .vi_func import selobj
 from .vi_dicts import flovi_b_dict, flovi_p_dict, flovi_u_dict, flovi_nut_dict, flovi_k_dict, flovi_epsilon_dict, flovi_t_dict, flovi_a_dict, flovi_prgh_dict, flovi_rad_dict, flovi_id_dict
+# from netgen import occ
+
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
 | =========                 |                                                 |
@@ -577,9 +579,9 @@ def fvfuncwrite(svp, node, dp):
             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface')):
                     os.makedirs(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface'))
-                
+
                 ovp.write_stl(dp, os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface', '{}.stl'.format(o.name)))
-            
+
             ss.append(o.name)
 
         if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
@@ -692,10 +694,10 @@ def fvsolwrite(svp, node):
                 sol_dict['solvers']['"Ii.*"'] = {'solver': 'GAMG', 'tolerance': '1e-4', 'relTol': '0', 'smoother': 'symGaussSeidel', 'maxIter': '5', 'nPostSweeps': '1'}
                 sol_sol_dict['residualControl']['ILambda.*'] = '1e-3'
                 sol_dict['relaxationFactors']['equations']['ILambda.*'] = '0.7'
-    
+
     if node.age:
         sol_dict['solvers']['age'] = {'$U': '', 'relTol': '0.001'}
-    
+
     htext = ofheader + write_ffile('dictionary', 'system', 'fvSolution')
     return write_fvdict(htext, sol_dict)
 
@@ -883,7 +885,7 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
                     try:
                         fi.append(int(line))
                         fn -= 1
-                        
+
                     except Exception:
                         pass
 
@@ -895,7 +897,7 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
 
                     fi = []
                     fn = 0
-                                       
+
                 elif '(' in line and ')' in line:
                     if f >= ns[0] or not bo:
                         findices.append([int(x) for x in line.split('(')[1].split(')')[0].split()])
@@ -908,7 +910,7 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
                             fn = int(line)
                     except Exception:
                         fn = 0
-            
+
             prevline = line
 
     mesh = bpy.data.meshes.new("mesh")
@@ -941,6 +943,40 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
 
         if not mi and not bo:
             face.material_index = len(ns)
+
+
+def heal_geo(occ, geo, tol):
+    fns = [face.name for face in geo.shape.faces]
+    fms = [face.maxh for face in geo.shape.faces]
+    fcs = [face.center for face in geo.shape.faces]
+    geo.Heal(tolerance=tol)
+
+    if len(geo.shape.SubShapes(occ.SOLID)):
+        for geo_solid in geo.shape.SubShapes(occ.SOLID):
+            if not all([face.name for face in geo_solid.faces]):
+                for fi, face in enumerate(geo_solid.faces):
+                    if face.name is None:
+                        for fci, fc in enumerate(fcs):
+                            if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                face.name = fns[fci]
+                                face.maxh = fms[fci]
+                                break
+
+                        if face.name is None:
+                            face.name = fns[fi]
+                            face.maxh = fms[fi]
+
+
+def simplify_shape(occ, shape):
+    set_mats = set(face.name for face in shape.faces)
+    mg_shapes = []
+
+    for mat in set_mats:
+        faces = [f for f in shape.faces if f.name == mat]
+        mat_geo = occ.OCCGeometry(occ.Sew(faces))
+        mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
+
+    d_geo = occ.OCCGeometry(mg_shapes)
 
 
 def ret_of_docker():

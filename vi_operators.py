@@ -3344,6 +3344,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             bm = bmesh.new()
             bm.from_object(ob, dp)
             bm.transform(ob.matrix_world)
+            # bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.00001)
             min_elen = min([edge.calc_length() for edge in bm.edges])
 
             if not ob.material_slots:
@@ -3438,6 +3439,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     bm.free()
                     return {'CANCELLED'}
 
+                if any([(loop.vert.co - loop.link_loop_next.vert.co).length < 0.000001 for loop in face.loops]):
+                    logentry(f'FloVi error: {ob.name} face {face.index} has an edge too short. Consider merging vertices.')
+                    self.report({'ERROR'}, f'{ob.name} face {face.index} has an edge too short. Consider merging vertices.')
+                    bm.free()
+                    return {'CANCELLED'}
+
                 edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 7) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 7) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
@@ -3502,7 +3509,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             face.maxh = fms[fi]
 
                 if self.expnode.debug_step:
-                    # healed_shape = d_geo.shape.UnifySameDomain(unifyEdges=True, unifyFaces=True)
                     d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
 
                 if len(d_geo.shape.SubShapes(occ.SOLID)) != 1:
@@ -3631,7 +3637,17 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         fns = [face.name for face in d_geo.faces]
         fms = [face.maxh for face in d_geo.faces]
         fcs = [face.center for face in d_geo.faces]
-        d_geo = occ.OCCGeometry(d_geo)
+        # d_geo = occ.OCCGeometry(d_geo)
+
+        set_mats = set(face.name for face in d_geo.faces)
+        mg_shapes = []
+
+        for mat in set_mats:
+            faces = [f for f in d_geo.faces if f.name == mat]
+            mat_geo = occ.OCCGeometry(occ.Sew(faces))
+            mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
+
+        d_geo = occ.OCCGeometry(mg_shapes)
         d_geo.Heal(tolerance=0.001)
 
         if None in set([face.name for face in d_geo.shape.faces]):
@@ -3646,16 +3662,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         face.name = fns[fi]
                         face.maxh = fms[fi]
 
-        set_mats = set(face.name for face in d_geo.shape.faces)
-        mg_shapes = []
 
-        for mat in set_mats:
-            faces = [f for f in d_geo.shape.faces if f.name == mat]
-            mat_geo = occ.OCCGeometry(occ.Sew(faces))
-            mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
-
-        d_geo = occ.OCCGeometry(mg_shapes)
-        d_geo.Heal()
+        # d_geo.Heal()
 
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
