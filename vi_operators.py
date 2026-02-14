@@ -3344,6 +3344,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             bm = bmesh.new()
             bm.from_object(ob, dp)
             bm.transform(ob.matrix_world)
+            # bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.00001)
             min_elen = min([edge.calc_length() for edge in bm.edges])
 
             if not ob.material_slots:
@@ -3439,6 +3440,13 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     return {'CANCELLED'}
 
                 edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 6) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 6) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
+
+                if any([(loop.vert.co - loop.link_loop_next.vert.co).length < 0.000001 for loop in face.loops]):
+                    logentry(f'FloVi error: {ob.name} face {face.index} has an edge too short. Consider merging vertices.')
+                    self.report({'ERROR'}, f'{ob.name} face {face.index} has an edge too short. Consider merging vertices.')
+                    bm.free()
+                    return {'CANCELLED'}
+
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
 
@@ -3563,7 +3571,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
         d_geo = occ.OCCGeometry(d_geo)
         d_geo = simplify_shape(occ, d_geo.shape)
-        heal_geo(occ, d_geo, 0.0001)
+        heal_geo(occ, d_geo, 0.00001)
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
 
