@@ -4692,7 +4692,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'RIR', ' '.join(rirs[i].astype('str'))])
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'RT', f'{source_rt:.3f}'])
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'TSL', f'{10 * log(nsum(square(rirs[i]) / 16000) / 6E-07, 10):.2f}'])
-                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'STI', f'{rir2sti(rirs[i], room.volume, sources[si].location, mics[mi].location, octave, 'male', Lsf):.2f}'])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'STI', '{:.2f}'.format(rir2sti(rirs[i], room.volume, sources[si].location, mics[mi].location, octave, 'male', Lsf))])
                             resdict[str(frame)][f'{mic_names[mi]} - {source_names[si]}'] = f'{source_rt:.3f}'
                             i += 1
 
@@ -4754,8 +4754,8 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     mic_bm.free()
 
                 logentry(f'RT60 (Simulated): {rts[0, 0]:.2f}s')
-                logentry(f'RT60 (Sabine): {room.rt60_theory(formula='sabine'):.2f}s')
-                logentry(f'RT60 (Eyring): {room.rt60_theory(formula='eyring'):.2f}s')
+                logentry('RT60 (Sabine): {:.2f}s'.format(room.rt60_theory(formula='sabine')))
+                logentry('RT60 (Eyring): {:.2f}s'.format(room.rt60_theory(formula='eyring')))
 
         if len(frames) > 1:
             reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])

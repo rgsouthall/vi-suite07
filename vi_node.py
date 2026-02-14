@@ -1372,8 +1372,7 @@ class No_Li_Sim(Node, ViNodes):
         self.run = 0
 
     def presim(self, svp):
-        # svp = scene.vi_params
-        self['frames'] = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
+        self['frames'] = self.ret_frames()
 
         if not all([os.path.isfile(svp['viparams']['filebase'] + f"-{frame}.oct") for frame in self['frames']]):
             self.pmap_over = 0
