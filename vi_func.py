@@ -1886,11 +1886,6 @@ def sunpath(context):
     scene = context.scene
     svp = scene.vi_params
     suns = [ob for ob in scene.objects if ob.parent and ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.parent.get('VIType') == "SPathMesh"]
-    print(suns)
-    # if context.scene.vi_params['viparams'].get('North') and context.scene.vi_params['viparams'] != (0, 1, 0):
-    #     phi_mod = Vector((0, 1, 0)).rotation_difference(Vector(bpy.context.scene.vi_params['viparams']['North'])).to_euler('XYZ')[2]
-    # else:
-    #     phi_mod = 0
 
     if svp.get('spparams') and svp['spparams'].get('suns') and svp['spparams']['suns'] == '0':
         if suns:
@@ -2181,7 +2176,6 @@ def socklink2(sock, ng):
         for link in sock.links:
             valid2 = link.to_socket.ret_valid(link.to_socket.node)
             valset = set(valid1) & set(valid2)
-            print(valid1, valid2)
 
             if not valset:
                 ng.links.remove(link)

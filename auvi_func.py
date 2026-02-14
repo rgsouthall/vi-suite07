@@ -17,6 +17,7 @@ beta_male = [0.085, 0.078, 0.065, 0.011, 0.047, 0.095, 0]  # BS EN 60268-16:2011
 alpha_female = [0, 0.117, 0.223, 0.216, 0.328, 0.250, 0.194]  # BS EN 60268-16:2011 Table A.3 (MTI octave band weighting factors)
 beta_female = [0, 0.099, 0.066, 0.062, 0.025, 0.076, 0]  # BS EN 60268-16:2011 Table A.3 (MTI octave band weighting factors)
 
+
 def setsceneauvivals(scene):
     svp = scene.vi_params
     svp['auparams']['maxres'], svp['auparams']['minres'], svp['auparams']['avres'] = {}, {}, {}
@@ -30,6 +31,7 @@ def setsceneauvivals(scene):
 
     svp.vi_leg_max = max(svp['auparams']['maxres'].values())
     svp.vi_leg_min = min(svp['auparams']['minres'].values())
+
 
 def modulation_depth_reduction_factor(r, Qf, rcf, F, Tf, Lsf, Lnf):
     A = (Qf / r**2) + (1 / rcf**2) * (1 + ((2 * math.pi * F * Tf) / 13.8)**2)**-1

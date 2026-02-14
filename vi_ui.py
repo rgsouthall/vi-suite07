@@ -255,7 +255,11 @@ class VI_PT_Mat(bpy.types.Panel):
                                     newrow(layout, "k field value:", mvp, "flovi_k_field")
 
                                     if not mvp.flovi_k_field:
-                                        newrow(layout, f"k value ({1.5 * (0.1 * mvp.flovi_u_speed)**2:.3f}):", mvp, "flovi_k_val")
+                                        if mvp.flovi_u_type == '0':
+                                            speed = (mvp.flovi_bmbu_val[0]**2 + mvp.flovi_bmbu_val[1]**2 + mvp.flovi_bmbu_val[2]**2)**0.5
+                                            newrow(layout, f"k value ({1.5 * (0.1 * speed)**2:.3f}):", mvp, "flovi_k_val")
+                                        else:
+                                            newrow(layout, f"k value ({1.5 * (0.1 * mvp.flovi_u_speed)**2:.3f}):", mvp, "flovi_k_val")
 
                                 if mvp.flovi_k_subtype == 'inletOutlet':
                                     newrow(layout, "k field:", mvp, "flovi_k_field")

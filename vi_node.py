@@ -383,54 +383,56 @@ class No_Li_Con(Node, ViNodes):
     def nodeupdate(self, context):
         scene = context.scene
         svp = scene.vi_params
-        svp.vi_nodes = self.id_data
-        nodecolour(self, self['exportstate'] != self.ret_params())
 
-        if self.edoy < self.sdoy:
-            self.edoy = self.sdoy
+        if (svp.get('viparams') and svg['viparams']['vidisp'] != 'sp') or not svp.get('viparams'):
+            svp.vi_nodes = self.id_data
+            nodecolour(self, self['exportstate'] != self.ret_params())
 
-        if self.cbdm_edoy < self.sdoy:
-            self.cbdm_edoy = self.sdoy
+            if self.edoy < self.sdoy:
+                self.edoy = self.sdoy
 
-        if self.edoy == self.sdoy:
-            if self.ehour < self.shour:
-                self.ehour = self.shour
+            if self.cbdm_edoy < self.sdoy:
+                self.cbdm_edoy = self.sdoy
 
-        if self.cbdm_edoy == self.sdoy:
-            if self.cbdm_ehour < self.cbdm_shour:
-                self.cbdm_ehour = self.cbdm_shour
+            if self.edoy == self.sdoy:
+                if self.ehour < self.shour:
+                    self.ehour = self.shour
 
-        self['skynum'] = int(self.skymenu)
-        suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.visible_get()]
+            if self.cbdm_edoy == self.sdoy:
+                if self.cbdm_ehour < self.cbdm_shour:
+                    self.cbdm_ehour = self.cbdm_shour
 
-        if self.contextmenu == 'Basic' and ((self.skyprog == '0' and self['skynum'] < 3) or (self.skyprog == '1' and self.epsilon > 1)):
-            starttime = datetime.datetime(svp.year, 1, 1, int(self.shour), int((self.shour - int(self.shour)) * 60)) + \
-                datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
-            self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour) / self.interval)) if self.animated else [scene.frame_current]
-            frames = range(self.startframe, self['endframe'] + 1) if self.animated else [scene.frame_current]
-            scene.frame_start, scene.frame_end = self.startframe, frames[-1]
+            self['skynum'] = int(self.skymenu)
+            suns = [ob for ob in scene.objects if ob.type == 'LIGHT' and ob.data.type == 'SUN' and ob.visible_get()]
 
-            if suns:
-                sun = suns[0]
-                sun['VIType'] = 'Sun'
-                [delobj(bpy.context.view_layer, sun) for sun in suns[1:]]
-            else:
-                bpy.ops.object.light_add(type='SUN')
-                sun = bpy.context.object
+            if self.contextmenu == 'Basic' and ((self.skyprog == '0' and self['skynum'] < 3) or (self.skyprog == '1' and self.epsilon > 1)):
+                starttime = datetime.datetime(svp.year, 1, 1, int(self.shour), int((self.shour - int(self.shour)) * 60)) + \
+                    datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
+                self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour) / self.interval)) if self.animated else [scene.frame_current]
+                frames = range(self.startframe, self['endframe'] + 1) if self.animated else [scene.frame_current]
+                scene.frame_start, scene.frame_end = self.startframe, frames[-1]
 
-                if sun:
+                if suns:
+                    sun = suns[0]
                     sun['VIType'] = 'Sun'
+                    [delobj(bpy.context.view_layer, sun) for sun in suns[1:]]
+                else:
+                    bpy.ops.object.light_add(type='SUN')
+                    sun = bpy.context.object
 
-            if self.inputs['Location in'].links and suns:
-                sunposlivi(scene, self, frames, sun, starttime)
-        
-        elif svp['viparams']['vidisp'] != 'sp':
-            for so in suns:
-                selobj(context.view_layer, so)
-                bpy.ops.object.delete()
+                    if sun:
+                        sun['VIType'] = 'Sun'
 
-        if sys.platform == 'win32' and (self.hdr or self.cbanalysismenu == '0') and self.cbdm_res == 3:
-            self.cbdm_res = 2
+                if self.inputs['Location in'].links and suns:
+                    sunposlivi(scene, self, frames, sun, starttime)
+
+            elif svp['viparams']['vidisp'] != 'sp':
+                for so in suns:
+                    selobj(context.view_layer, so)
+                    bpy.ops.object.delete()
+
+            if sys.platform == 'win32' and (self.hdr or self.cbanalysismenu == '0') and self.cbdm_res == 3:
+                self.cbdm_res = 2
 
     spectrumtype = [('0', "Visible", "Visible radiation spectrum calculation"), ('1', "Full", "Full radiation spectrum calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -3532,6 +3534,12 @@ class No_Vi_Metrics(Node, ViNodes):
                         if self['res']['rt'] and type(self['res']['rt']) is float:
                             row = layout.row()
                             row.label(text='RT60 (s) = {:.3f}s'.format(self['res']['rt']))
+                        if self['res']['tsl'] and type(self['res']['tsl']) is float:
+                            row = layout.row()
+                            row.label(text='TSL (dB) = {:.3f}dB'.format(self['res']['tsl']))
+                        if self['res']['sti'] and type(self['res']['sti']) is float:
+                            row = layout.row()
+                            row.label(text='STI = {:.3f}'.format(self['res']['sti']))
 
     def update(self):
         try:
@@ -4264,6 +4272,8 @@ class No_Vi_Metrics(Node, ViNodes):
 
         elif self.metric == '7':
             self['res']['rt'] = 0
+            self['res']['tsl'] = 0
+            self['res']['sti'] = 0
 
             for r in self['rl']:
                 if r[0] == self.frame_menu:
@@ -4273,6 +4283,10 @@ class No_Vi_Metrics(Node, ViNodes):
                                 # rts = array([float(p) for p in r[4].split()])
                                 # rt = float(r[4])
                                 self['res']['rt'] = float(r[4])
+                            elif r[3] == 'TSL':
+                                self['res']['tsl'] = float(r[4])
+                            elif r[3] == 'STI':
+                                self['res']['sti'] = float(r[4])
 
 
 class No_CSV(Node, ViNodes):

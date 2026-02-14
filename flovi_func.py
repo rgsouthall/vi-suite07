@@ -908,7 +908,7 @@ def oftomesh(ofb, vl, fomats, st, ns, nf, bo):
                             fn = int(line)
                     except Exception:
                         fn = 0
-            
+
             prevline = line
 
     mesh = bpy.data.meshes.new("mesh")
@@ -974,6 +974,42 @@ def ret_of_docker():
             return ''
     except Exception:
         return ''
+
+
+def heal_geo(occ, geo, tol):
+    fns = [face.name for face in geo.shape.faces]
+    fms = [face.maxh for face in geo.shape.faces]
+    fcs = [face.center for face in geo.shape.faces]
+    geo.Heal(tolerance=tol)
+
+    if len(geo.shape.SubShapes(occ.SOLID)):
+        for geo_solid in geo.shape.SubShapes(occ.SOLID):
+            if not all([face.name for face in geo_solid.faces]):
+                for fi, face in enumerate(geo_solid.faces):
+                    if face.name is None:
+                        for fci, fc in enumerate(fcs):
+                            if (Vector(face.center) - Vector(fc)).length < 0.001:
+                                face.name = fns[fci]
+                                face.maxh = fms[fci]
+                                break
+
+                        if face.name is None:
+                            face.name = fns[fi]
+                            face.maxh = fms[fi]
+
+
+def simplify_shape(occ, shape):
+    set_mats = set(face.name for face in shape.faces)
+    mg_shapes = []
+
+    for mat in set_mats:
+        faces = [f for f in shape.faces if f.name == mat]
+        mat_geo = occ.OCCGeometry(occ.Sew(faces))
+        mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
+
+    return occ.OCCGeometry(mg_shapes)
+
+
 # def ret_fvbnutilda_menu(mat, context):
 #     if context.scene.vi_params.get('flparams') and context.scene.vi_params['flparams'].get('scenario') and context.scene.vi_params['flparams']['scenario'] != '4':
 #         # print(mat.name, flovi_nut_dict[context.scene.vi_params['flparams']['scenario']][mat.flovi_bmb_type].keys())

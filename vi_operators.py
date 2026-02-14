@@ -43,7 +43,7 @@ from .envi_export import enpolymatexport, pregeo, solid_pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_eclasstype
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
-from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite
+from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite, heal_geo, simplify_shape
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite, ret_of_docker
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
@@ -3360,10 +3360,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             if len(bm.faces) > 50000:
                 bm.free()
-                logentry('{} has more than 50000 faces. Simplify the geometry'.format(ob.name))
-                self.report({'ERROR'}, '{} has more than 50000 faces. Simplify the geometry'.format(ob.name))
-                self.expnode.running = 0
-                return {'CANCELLED'}
+                logentry('{} has more than 50000 faces. Consider simplifying the geometry'.format(ob.name))
+                self.report({'WARNING'}, '{} has more than 50000 faces. Consider simplifying the geometry'.format(ob.name))
+                # self.expnode.running = 0
+                # return {'CANCELLED'}
 
             if not all([e.is_manifold for e in bm.edges]) or not all([v.is_manifold for v in bm.verts]):
                 bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.00001)
@@ -3438,7 +3438,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     bm.free()
                     return {'CANCELLED'}
 
-                edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 7) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 7) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
+                edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 6) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 6) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
 
@@ -3451,6 +3451,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     faces.append(f)
 
                 else:
+                    logentry(f'Object {ob.name}, face {face.index} cannot be converted as is. Trying to shift vertices.')
                     fc = Vector([fc for fc in face.calc_center_bounds()])
                     fn = Vector([fn for fn in face.normal])
                     vs = [loop.vert for loop in face.loops]
@@ -3461,7 +3462,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         if abs(dist) < min_elen * 0.4:
                             v.co -= dist * fn
 
-                    edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
+                    edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 6) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 6) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
                     wire = occ.Wire(edges)
                     f = occ.Face(wire)
 
@@ -3473,11 +3474,11 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
                         faces.append(f)
                     else:
-                        logentry(f'Object {ob.name} face with index {face.index} had to be triangulated. This could lead to poor mesh quality')
+                        logentry(f'Object {ob.name}, face with index {face.index} had to be triangulated. This could lead to poor mesh quality')
                         t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
 
                         for ti, tf in enumerate(t_faces):
-                            edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(loop.link_loop_next.vert.co)))) for loop in tf.loops]
+                            edges = [occ.Edge(occ.Vertex(occ.gp_Pnt(tuple(round(co, 6) for co in loop.vert.co))), occ.Vertex(occ.gp_Pnt(tuple(round(co, 6) for co in loop.link_loop_next.vert.co)))) for loop in tf.loops]
                             wire = occ.Wire(edges)
                             f = occ.Face(wire)
                             f.name = ob.name + '_' + matname
@@ -3491,18 +3492,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
             if ob == dobs[0]:
                 d_geo = occ.OCCGeometry(occ.Compound(faces))
-                fns = [face.name for face in d_geo.shape.faces]
-                fms = [face.maxh for face in d_geo.shape.faces]
-                d_geo.Heal(tolerance=min_elen * 0.8)
-
-                if None in set([face.name for face in d_geo.shape.faces]):
-                    for fi, face in enumerate(d_geo.shape.faces):
-                        if face.name is None:
-                            face.name = fns[fi]
-                            face.maxh = fms[fi]
+                heal_geo(occ, d_geo, min_elen * 0.8)
 
                 if self.expnode.debug_step:
-                    # healed_shape = d_geo.shape.UnifySameDomain(unifyEdges=True, unifyFaces=True)
                     d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
 
                 if len(d_geo.shape.SubShapes(occ.SOLID)) != 1:
@@ -3517,46 +3509,18 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 if len(mesh_islands) > 1:
                     for mi, mesh_island in enumerate(mesh_islands):
                         g_geo = occ.OCCGeometry(occ.Compound([face for face in faces if face.layer in set([f.polygon_index for f in mesh_island])]))
-                        fns = [face.name for face in g_geo.shape.faces]
-                        fms = [face.maxh for face in g_geo.shape.faces]
-                        fcs = [face.center for face in g_geo.shape.faces]
-                        g_geo.Heal(tolerance=min_elen * 0.8)
+                        heal_geo(occ, g_geo, min_elen * 0.8)
 
                         if len(g_geo.shape.SubShapes(occ.SOLID)):
                             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
-                                if not all([face.name for face in g_geo_solid.faces]):
-                                    for fi, face in enumerate(g_geo_solid.faces):
-                                        if face.name is None:
-                                            for fci, fc in enumerate(fcs):
-                                                if (Vector(face.center) - Vector(fc)).length < 0.001:
-                                                    face.name = fns[fci]
-                                                    face.maxh = fms[fci]
-                                                    break
-
-                                            if face.name is None:
-                                                face.name = fns[fi]
-                                                face.maxh = fms[fi]
-
                                 g_geos.append(g_geo_solid)
 
                         else:
                             g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
                             g_geo = occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
-                            g_geo.Heal(tolerance=min_elen * 0.8)
+                            heal_geo(occ, g_geo, min_elen * 0.8)
 
                             for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
-                                if not all([face.name for face in g_geo_solid.faces]):
-                                    for fi, face in enumerate(g_geo_solid.faces):
-                                        if face.name is None or face.name == '':
-                                            for fci, fc in enumerate(fcs):
-                                                if (Vector(face.center) - Vector(fc)).length < 0.001:
-                                                    face.name = fns[fci]
-                                                    face.maxh = fms[fci]
-                                                    break
-                                            if face.name is None or face.name == '':
-                                                face.name = fns[fi]
-                                                face.maxh = fms[fi]
-
                                 g_geos.append(g_geo_solid)
 
                         if not len(g_geo.shape.SubShapes(occ.SOLID)):
@@ -3568,49 +3532,18 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                 else:
                     g_geo = occ.OCCGeometry(occ.Compound(faces))
-                    fns = [face.name for face in g_geo.shape.faces]
-                    fms = [face.maxh for face in g_geo.shape.faces]
-                    fcs = [face.center for face in g_geo.shape.faces]
-                    g_geo.Heal(tolerance=min_elen * 0.8)
+                    heal_geo(occ, g_geo, min_elen * 0.8)
 
                     for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
-                        if not all([face.name for face in g_geo.shape.faces]):
-                            for fi, face in enumerate(g_geo_solid.faces):
-                                if face.name is None or face.name == '':
-                                    for fci, fc in enumerate(fcs):
-                                        if (Vector(face.center) - Vector(fc)).length < 0.001:
-                                            face.name = fns[fci]
-                                            face.maxh = fms[fci]
-                                            break
-                                    if face.name is None or face.name == '':
-                                        face.name = fns[fi]
-                                        face.maxh = fms[fi]
-
                         g_geos.append(g_geo_solid)
 
                     if not len(g_geo.shape.SubShapes(occ.SOLID)):
                         g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
                         g_geo = occ.OCCGeometry(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
-                        fns = [face.name for face in g_geo.shape.faces]
-                        fms = [face.maxh for face in g_geo.shape.faces]
-                        fcs = [face.center for face in g_geo.shape.faces]
-                        g_geo.Heal(tolerance=min_elen * 0.8)
+                        heal_geo(occ, g_geo, min_elen * 0.8)
 
                         for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
-                            if None in set([face.name for face in g_geo_solid.faces]):
-                                for fi, face in enumerate(g_geo_solid.faces):
-                                    if face.name is None:
-                                        for fci, fc in enumerate(fcs):
-                                            if (Vector(face.center) - Vector(fc)).length < 0.001:
-                                                face.name = fns[fci]
-                                                face.maxh = fms[fci]
-                                                break
-
-                                        if face.name is None:
-                                            face.name = fns[fi]
-                                            face.maxh = fms[fi]
-
-                                g_geos.append(g_geo_solid)
+                            g_geos.append(g_geo_solid)
 
                             if not len(g_geo.shape.SubShapes(occ.SOLID)):
                                 logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
@@ -3628,35 +3561,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         else:
             d_geo = d_geo.shape
 
-        fns = [face.name for face in d_geo.faces]
-        fms = [face.maxh for face in d_geo.faces]
-        fcs = [face.center for face in d_geo.faces]
         d_geo = occ.OCCGeometry(d_geo)
-        d_geo.Heal(tolerance=0.001)
-
-        if None in set([face.name for face in d_geo.shape.faces]):
-            for fi, face in enumerate(d_geo.shape.faces):
-                if face.name is None:
-                    for fci, fc in enumerate(fcs):
-                        if (Vector(face.center) - Vector(fc)).length < 0.001:
-                            face.name = fns[fci]
-                            face.maxh = fms[fci]
-                            break
-                    if face.name is None:
-                        face.name = fns[fi]
-                        face.maxh = fms[fi]
-
-        set_mats = set(face.name for face in d_geo.shape.faces)
-        mg_shapes = []
-
-        for mat in set_mats:
-            faces = [f for f in d_geo.shape.faces if f.name == mat]
-            mat_geo = occ.OCCGeometry(occ.Sew(faces))
-            mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
-
-        d_geo = occ.OCCGeometry(mg_shapes)
-        d_geo.Heal()
-
+        d_geo = simplify_shape(occ, d_geo.shape)
+        heal_geo(occ, d_geo, 0.0001)
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
 
@@ -3885,10 +3792,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                     if self.expnode.poly:
                         if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
-                            pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -concaveMultiCells -noFunctionObjects -overwrite {}'.format(frame, 5)), stdout=PIPE, stderr=PIPE)
+                            pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -noFunctionObjects -doNotPreserveFaceZones -overwrite {}'.format(frame, 5)), stdout=PIPE, stderr=PIPE)
 
                         elif sys.platform in ('darwin', 'win32'):
-                            pdm_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "polyDualMesh -case data -concaveMultiCells -noFunctionObjects -overwrite {}"'.format(docker_path, frame_offb, self.of_docker, 5)
+                            pdm_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "polyDualMesh -case data -doNotPreserveFaceZones -noFunctionObjects -overwrite {}"'.format(docker_path, frame_offb, self.of_docker, 5)
                             pdm = Popen(pdm_cmd, shell=True, stdout=PIPE, stderr=PIPE)
 
                         for line in pdm.stdout:
@@ -3902,26 +3809,24 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
                     if not pdm_error:
                         if sys.platform == 'linux':
-                            cpf_cmd = 'foamExec combinePatchFaces -overwrite -noFunctionObjects -case {} {}'.format(frame_offb, 5)
+                            cpf_cmd = 'foamExec combinePatchFaces -noFunctionObjects -case {} {}'.format(frame_offb, 5)
                             Popen(shlex.split(cpf_cmd)).wait()
                         elif sys.platform in ('darwin', 'win32'):
-                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "combinePatchFaces -overwrite -noFunctionObjects -case data {}"'.format(docker_path, frame_offb,
+                            cpf_cmd = '{} run -it --rm -v "{}":/home/openfoam/data {} "combinePatchFaces -noFunctionObjects -case data {}"'.format(docker_path, frame_offb,
                                                                                                                                                               self.of_docker, 5)
                             Popen(cpf_cmd, shell=True).wait()
 
                         if sys.platform == 'linux':
-                            cm = Popen(shlex.split('foamExec checkMesh -case {}'.format(frame_offb)), stdout=PIPE)
+                            cm = Popen(shlex.split('foamExec checkMesh -noFunctionObjects -case {}'.format(frame_offb)), stdout=PIPE)
                         elif sys.platform in ('darwin', 'win32'):
-                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data {} "checkMesh -case data"'.format(frame_offb, self.of_docker)
+                            cm_cmd = 'docker run -it --rm -v "{}":/home/openfoam/data {} "checkMesh -noFunctionObjects -case data"'.format(frame_offb, self.of_docker)
                             cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
                         for line in cm.stdout:
                             if '***Error' in line.decode():
                                 logentry('Mesh errors:{}'.format(line.decode()))
-                            elif '*Number' in line.decode() and sys.platform == 'linux':
-                                Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
-                            else:
-                                logentry('foamToVTK error: ' + line.decode())
+                            # elif '*Number' in line.decode() and sys.platform == 'linux':
+                            #     Popen(shlex.split('foamExec foamToVTK -faceSet nonOrthoFaces -case {}'.format(frame_offb)), stdout=PIPE)
 
                         for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                             if entry.is_file():
@@ -4619,7 +4524,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 room_bm.from_object(rob, dp)
                 room_bm.transform(rob.matrix_world)
                 bmesh.ops.triangulate(room_bm, faces=room_bm.faces)
-                logentry('Bmesh volume of the room is ' + room_bm.calc_volume() + 'm3')
+                logentry(f'Bmesh volume of the room is {room_bm.calc_volume():.2f}m3')
 
                 for face in room_bm.faces:
                     if face.material_index >= len(rob.material_slots):
@@ -4657,7 +4562,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     )
                 )
 
-                logentry('PRA volume of the room is ' + room.get_volume() + 'm3')
+                logentry(f'PRA volume of the room is {room.get_volume():.2f}m3')
 
                 if pra_rt:
                     room.set_ray_tracing(n_rays=simnode.rt_rays, time_thres=10.0, receiver_radius=simnode.r_radius,
@@ -4778,6 +4683,8 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'Seconds', ' '.join([str(s / 16000) for s in range(len(rirs[i]))])])
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'RIR', ' '.join(rirs[i].astype('str'))])
                             reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'RT', f'{source_rt:.3f}'])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'TSL', f'{10 * log(nsum(square(rirs[i]) / 16000) / 6E-07, 10):.2f}'])
+                            reslists.append([str(frame), 'Probe', f'{mic_names[mi]} - {source_names[si]}', 'STI', f'{rir2sti(rirs[i], room.volume, sources[si].location, mics[mi].location, octave, 'male', Lsf):.2f}'])
                             resdict[str(frame)][f'{mic_names[mi]} - {source_names[si]}'] = f'{source_rt:.3f}'
                             i += 1
 
@@ -4838,10 +4745,9 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     mic_bm.to_mesh(mic_a.data)
                     mic_bm.free()
 
-                # logentry("Room volume:", f'{room.get_volume():.2f}')
-                logentry("RT60 (Simulated):" + rts[0, 0] + '2')
-                logentry("RT60 (Sabine): " + room.rt60_theory(formula='sabine') + 's')
-                logentry("RT60 (Eyring):" + room.rt60_theory(formula='eyring') + 's')
+                logentry(f'RT60 (Simulated): {rts[0, 0]:.2f}s')
+                logentry(f'RT60 (Sabine): {room.rt60_theory(formula='sabine'):.2f}s')
+                logentry(f'RT60 (Eyring): {room.rt60_theory(formula='eyring'):.2f}s')
 
         if len(frames) > 1:
             reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(['{}'.format(f) for f in frames])])
