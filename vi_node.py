@@ -384,7 +384,7 @@ class No_Li_Con(Node, ViNodes):
         scene = context.scene
         svp = scene.vi_params
 
-        if (svp.get('viparams') and svg['viparams']['vidisp'] != 'sp') or not svp.get('viparams'):
+        if (svp.get('viparams') and svp['viparams']['vidisp'] != 'sp') or not svp.get('viparams'):
             svp.vi_nodes = self.id_data
             nodecolour(self, self['exportstate'] != self.ret_params())
 
@@ -1307,13 +1307,13 @@ class No_Li_Sim(Node, ViNodes):
             if cinnode.get('Options'):
                 row = layout.row()
                 row.label(text='Frames: {} - {}'.format(min([c['fs'] for c in (cinnode['Options'], ginnode['Options'])]), max([c['fe'] for c in (cinnode['Options'], ginnode['Options'])])))
-                
+
                 if all([os.path.isfile(f"{svp['viparams']['filebase']}-{frame}.oct") for frame in frames]):
                     newrow(layout, 'Overwrite files:', self, 'pmap_over')
-                    
+
                     if self.pmap_over:
                         newrow(layout, 'Photon map:', self, 'pmap')
-                        
+
                         if self.pmap:
                             newrow(layout, 'Global photons:', self, 'pmapgno')
                             newrow(layout, 'Caustic photons:', self, 'pmapcno')
@@ -1321,7 +1321,7 @@ class No_Li_Sim(Node, ViNodes):
                             newrow(layout, 'Photon options:', self, 'pmapoptions')
                             newrow(layout, 'Preview photons:', self, 'pmappreview')
                             newrow(layout, 'Direct pass:', self, 'direct')
-                
+
                 elif self.pmap:
                     newrow(layout, 'Global photons:', self, 'pmapgno')
                     newrow(layout, 'Caustic photons:', self, 'pmapcno')
@@ -1329,7 +1329,7 @@ class No_Li_Sim(Node, ViNodes):
                     newrow(layout, 'Photon options:', self, 'pmapoptions')
                     newrow(layout, 'Preview photons:', self, 'pmappreview')
                     newrow(layout, 'Direct pass:', self, 'direct')
-                
+
                 row = layout.row()
                 row.label(text="Accuracy:")
                 row.prop(self, self['simdict'][cinnode['Options']['Context']])
@@ -1374,8 +1374,8 @@ class No_Li_Sim(Node, ViNodes):
     def presim(self, svp):
         self['frames'] = self.ret_frames()
 
-        if not all([os.path.isfile(svp['viparams']['filebase'] + f"-{frame}.oct") for frame in self['frames']]):
-            self.pmap_over = 0
+        # if not all([os.path.isfile(svp['viparams']['filebase'] + f"-{frame}.oct") for frame in self['frames']]):
+        #     self.pmap_over = 0
 
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
@@ -1754,7 +1754,7 @@ class No_En_Geo(Node, ViNodes):
     netgen: BoolProperty(name="", description="Netgen mesh extraction", update=nodeupdate)
     collection: StringProperty(description="Select collection", update=nodeupdate)
     write_step: BoolProperty(name="", description="Write STEP file", update=nodeupdate)
-    
+
     def init(self, context):
         self.outputs.new('So_En_Geo', 'Geometry out')
         self['exportstate'] = ''
@@ -9180,24 +9180,24 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         try:
             if self.outputs['Control'].links[0].to_node.bl_idname == 'No_En_Mat_Sc':
                 return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2)]
-            
+
             elif self.outputs['Control'].links[0].to_node.bl_idname in ('No_En_Mat_Bl', 'No_En_Mat_Sh', 'No_En_Mat_SG'):
                 return [(self.ttuple[t], self.ttuple[t], self.ttuple[t]) for t in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)]
-            
+
             else:
                 return [(t, t, t) for t in self.ttuple]
-        
+
         except Exception:
             return [('None', 'None', 'None')]
 
     def schupdate(self, context):
         if self.ctype not in ("AlwaysOn", "AlwaysOff", "OnIfHighGlare"):
             self.inputs['Schedule'].hide = False
-        
+
         else:
             if self.inputs['Schedule'].links:
                 self.id_data.links.remove(self.inputs['Schedule'].links[0])
-            
+
             self.inputs['Schedule'].hide = True
 
         if self.ctype == 'OnIfScheduleAllows':
@@ -9212,15 +9212,15 @@ class No_En_Mat_ShC(Node, EnViMatNodes):
         if self.sac != 'ScheduledSlatAngle':
             if self.inputs['Slat schedule'].links:
                 self.id_data.links.remove(self.inputs['Slat schedule'].links[0])
-            
+
             self.inputs['Slat schedule'].hide = True
-        
+
         else:
             self.inputs['Slat schedule'].hide = False
 
             if not self.inputs['Slat schedule'].links:
                 nodecolour(self, 1)
-            
+
     ctype: EnumProperty(items=type_menu, name="", description="Shading schedule", update=schupdate)
     sp: FloatProperty(name="", description="Setpoint (W/m2, W or deg C)", min=0.0, max=1000, default=20)
     sac: EnumProperty(items=[("FixedSlatAngle", "FixedSlatAngle", "Constant slat angle"), ("ScheduledSlatAngle", "ScheduledSlatAngle", "Scheduled slat angle"),

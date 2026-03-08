@@ -3935,8 +3935,9 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                             for mat in ob.data.materials:
                                 if line.strip() in b_dict and line.strip() == f'{ob.name}_{mat.name}':
                                     bound = flovi_b_dict[mat.vi_params.flovi_bmb_type]
-                                if line.split() and line.split()[0] == 'type':
-                                    line = f"        type            {bound};\n"
+
+                                    if line.split() and line.split()[0] == 'type':
+                                        line = f"        type            {bound};\n"
 
                         lines.append(line)
             else:
