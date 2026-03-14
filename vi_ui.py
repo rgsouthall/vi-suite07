@@ -260,7 +260,7 @@ class VI_PT_Mat(bpy.types.Panel):
                                             newrow(layout, f"k value ({1.5 * (0.1 * speed)**2:.3f}):", mvp, "flovi_k_val")
                                         else:
                                             newrow(layout, f"k value ({1.5 * (0.1 * mvp.flovi_u_speed)**2:.3f}):", mvp, "flovi_k_val")
-
+                                
                                 if mvp.flovi_k_subtype == 'inletOutlet':
                                     newrow(layout, "k field:", mvp, "flovi_k_field")
 

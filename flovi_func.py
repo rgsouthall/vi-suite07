@@ -975,10 +975,12 @@ def simplify_shape(occ, shape):
 
     for mat in set_mats:
         faces = [f for f in shape.faces if f.name == mat]
+        # for face in faces:
+        #     print(face)
         mat_geo = occ.OCCGeometry(occ.Sew(faces))
         mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
 
-    d_geo = occ.OCCGeometry(mg_shapes)
+    return occ.OCCGeometry(mg_shapes)
 
 
 def ret_of_docker():
@@ -1004,8 +1006,12 @@ def ret_of_docker():
                     print(lds[0], lds[1])
 
                     if lds[0] == 'dicehub/openfoam' and lds[1] in ('12', '13', 'dev'):
-                        # ofoam = 1
                         return f"{lds[0]}:{lds[1]}"
+                    else:
+                        lds0 = lds[0].split(':')
+
+                        if lds0[0] == 'dicehub/openfoam' and lds0[1] in ('12', '13', 'dev'):
+                            return f"{lds0[0]}:{lds0[1]}"
             else:
                 return ''
         else:

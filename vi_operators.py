@@ -18,6 +18,7 @@
 
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, shlex, itertools, inspect, aud, multiprocessing
 from bpy_extras import mesh_utils
+from bpy.props import StringProperty, FloatProperty
 from pathlib import Path
 import subprocess
 import numpy
@@ -43,7 +44,7 @@ from .envi_export import enpolymatexport, pregeo, solid_pregeo
 from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_eclasstype
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
-from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite, heal_geo, simplify_shape
+from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite, simplify_shape, heal_geo
 from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite, ret_of_docker
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
@@ -112,7 +113,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, ImportHelper):
     bl_description = "Select the ESRI Grid file to process"
     filename = ""
     filename_ext = ".asc"
-    filter_glob: bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
+    filter_glob: StringProperty(default="*.asc", options={'HIDDEN'})
     bl_register = True
     bl_undo = False
 
@@ -884,9 +885,9 @@ class NODE_OT_HdrSelect(NODE_OT_FileSelect):
     bl_label = "Select HDR/VEC file"
     bl_description = "Select the HDR sky image or vector file"
     filename_ext = ".HDR;.hdr;"
-    filter_glob: bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
+    filter_glob: StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
     nodeprop = 'hdrname'
-    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    filepath: StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
     fextlist = ("HDR", "hdr")
 
 # BSDF Operators
@@ -1019,8 +1020,8 @@ class MATERIAL_OT_Li_LBSDF(bpy.types.Operator, ImportHelper):
     bl_idname = "material.load_bsdf"
     bl_label = "Select BSDF file"
     filename_ext = ".XML;.xml;"
-    filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
-    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    filter_glob: StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
+    filepath: StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
 
     def draw(self, context):
         layout = self.layout
@@ -1068,8 +1069,8 @@ class MATERIAL_OT_Li_SBSDF(bpy.types.Operator, ExportHelper):
     bl_register = True
     filename = "material"
     filename_ext = ".xml"
-    filter_glob: bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
-    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    filter_glob: StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
+    filepath: StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
 
     def draw(self, context):
         layout = self.layout
@@ -2528,9 +2529,9 @@ class OBJECT_OT_VIGridify(bpy.types.Operator):
     bl_label = "VI Gridify"
     bl_options = {"REGISTER", 'UNDO'}
 
-    rotate: bpy.props.FloatProperty(name='Rotation', default=0, min=0, max=360)
-    us: bpy.props.FloatProperty(default=0.6, min=0.01)
-    acs: bpy.props.FloatProperty(default=0.6, min=0.01)
+    rotate: FloatProperty(name='Rotation', default=0, min=0, max=360)
+    us: FloatProperty(default=0.6, min=0.01)
+    acs: FloatProperty(default=0.6, min=0.01)
 
     @classmethod
     def poll(cls, context):
@@ -2965,7 +2966,7 @@ class TREE_OT_goto_mat(bpy.types.Operator):
     bl_idname = 'tree.goto_mat'
     bl_label = 'Go To EnVi Material Group'
 
-    mat: bpy.props.StringProperty(default="")
+    mat: StringProperty(default="")
 
     def execute(self, context):
         context.space_data.tree_type = 'EnViMatN'
@@ -3005,8 +3006,8 @@ class TREE_OT_goto_group(bpy.types.Operator):
     bl_idname = 'tree.goto_group'
     bl_label = 'Go To Group'
 
-    tree_type: bpy.props.StringProperty(default="")
-    tree: bpy.props.StringProperty(default="")
+    tree_type: StringProperty(default="")
+    tree: StringProperty(default="")
 
     def execute(self, context):
         try:
@@ -3028,7 +3029,7 @@ class NODE_OT_CSV(bpy.types.Operator, ExportHelper):
     bl_description = "Select the CSV file to export"
     filename = "results"
     filename_ext = ".csv"
-    filter_glob: bpy.props.StringProperty(default="*.csv", options={'HIDDEN'})
+    filter_glob: StringProperty(default="*.csv", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
 
@@ -3447,6 +3448,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     bm.free()
                     return {'CANCELLED'}
 
+                edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 6) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 6) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
                 wire = occ.Wire(edges)
                 f = occ.Face(wire)
 
@@ -3462,8 +3464,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     logentry(f'Object {ob.name}, face {face.index} cannot be converted as is. Trying to shift vertices.')
                     fc = Vector([fc for fc in face.calc_center_bounds()])
                     fn = Vector([fn for fn in face.normal])
+                    print(fn)
                     vs = [loop.vert for loop in face.loops]
-
+                    
                     for v in vs:
                         dist = distance_point_to_plane(v.co, fc, fn)
 
@@ -3482,7 +3485,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         f.maxh = ob.material_slots[face.material_index].material.vi_params.flovi_ng_max
                         faces.append(f)
                     else:
-                        logentry(f'Object {ob.name}, face with index {face.index} had to be triangulated. This could lead to poor mesh quality')
+                        logentry(f'Object {ob.name} face with index {face.index} had to be triangulated. This could lead to poor mesh quality')
                         t_faces = bmesh.ops.triangulate(bm, faces=[face], quad_method='BEAUTY', ngon_method='BEAUTY')['faces']
 
                         for ti, tf in enumerate(t_faces):
@@ -3553,9 +3556,9 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                         for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
                             g_geos.append(g_geo_solid)
 
-                            if not len(g_geo.shape.SubShapes(occ.SOLID)):
-                                logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
-                                self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
+                        if not len(g_geo.shape.SubShapes(occ.SOLID)):
+                            logentry(f'FloVi warning: {ob.name} cannot be converted to a solid')
+                            self.report({'WARNING'}, f'{ob.name} cannot be converted to a solid')
 
                     if self.expnode.debug_step:
                         g_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], f'{ob.name}.step'))
@@ -4414,10 +4417,12 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
     def calc_thread(self, room, q_rts, ir_list):
         i = 0
-
+        print('hi')
         try:
-            room.compute_rir()
+            room.simulate()
+            
             rts = room.measure_rt60(plot=False, decay_db=60)
+            
 
         except Exception:
             try:
@@ -4613,9 +4618,9 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 f[bm_ir] = ri + 1
                                 room = room.add_microphone(f.calc_center_median()[:])
                                 mic_names.append(f'{mic_a.name}-{f.index}')
-                            else:
-                                logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} is not in room {room.name}')
-                                f[bm_ir] = f[bm_ir]
+                            # else:
+                            #     logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} is not in room {rob.name}')
+                                # f[bm_ir] = f[bm_ir]
                         else:
                             logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} has no sensing material')
                             f[bm_ir] = 0
@@ -4638,7 +4643,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                         p_manager = multiprocessing.Manager()
                         ir_list = p_manager.list()
 
-                        for m in range(room.n_mics * len(room.sources)):
+                        for m in range(room.n_mics * room.n_sources):
                             ir_list.append([])
 
                         q_rts = multiprocessing.Queue()
@@ -4802,9 +4807,9 @@ class NODE_OT_WavSelect(NODE_OT_FileSelect):
     bl_label = "Select WAV file"
     bl_description = "Select the WAV to be convolved"
     filename_ext = ".WAV;.wav;"
-    filter_glob: bpy.props.StringProperty(default="*.WAV;*.wav;", options={'HIDDEN'})
+    filter_glob: StringProperty(default="*.WAV;*.wav;", options={'HIDDEN'})
     nodeprop = 'wavname'
-    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    filepath: StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
     fextlist = ("WAV", "wav")
 
 
@@ -4950,7 +4955,7 @@ class NODE_OT_Au_Save(bpy.types.Operator, ExportHelper):
     bl_undo = False
     filename_ext = ".wav"
 
-    filter_glob: bpy.props.StringProperty(default="*.wav", options={'HIDDEN'}, maxlen=255)
+    filter_glob: StringProperty(default="*.wav", options={'HIDDEN'}, maxlen=255)
 
     def invoke(self, context, event):
         self.node = context.node
@@ -4972,7 +4977,7 @@ class NODE_OT_RIR_Save(bpy.types.Operator, ExportHelper):
     bl_undo = False
     filename_ext = ".wav"
 
-    filter_glob: bpy.props.StringProperty(default="*.wav", options={'HIDDEN'}, maxlen=255)
+    filter_glob: StringProperty(default="*.wav", options={'HIDDEN'}, maxlen=255)
 
     def invoke(self, context, event):
         self.node = context.node
