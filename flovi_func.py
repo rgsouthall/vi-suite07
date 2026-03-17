@@ -957,7 +957,7 @@ def heal_geo(occ, geo, tol):
         for geo_solid in geo.shape.SubShapes(occ.SOLID):
             if not all([face.name for face in geo_solid.faces]):
                 for fi, face in enumerate(geo_solid.faces):
-                    if face.name is None:
+                    if face.name == None:
                         for fci, fc in enumerate(fcs):
                             if (Vector(face.center) - Vector(fc)).length < 0.001:
                                 face.name = fns[fci]
@@ -975,8 +975,6 @@ def simplify_shape(occ, shape):
 
     for mat in set_mats:
         faces = [f for f in shape.faces if f.name == mat]
-        # for face in faces:
-        #     print(face)
         mat_geo = occ.OCCGeometry(occ.Sew(faces))
         mg_shapes.append(mat_geo.shape.UnifySameDomain(unifyFaces=True))
 

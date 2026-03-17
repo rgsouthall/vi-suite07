@@ -3361,7 +3361,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 return {'CANCELLED'}
 
             if len(bm.faces) > 50000:
-                bm.free()
+                # bm.free()
                 logentry('{} has more than 50000 faces. Consider simplifying the geometry'.format(ob.name))
                 self.report({'WARNING'}, '{} has more than 50000 faces. Consider simplifying the geometry'.format(ob.name))
                 # self.expnode.running = 0
@@ -3464,9 +3464,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                     logentry(f'Object {ob.name}, face {face.index} cannot be converted as is. Trying to shift vertices.')
                     fc = Vector([fc for fc in face.calc_center_bounds()])
                     fn = Vector([fn for fn in face.normal])
-                    print(fn)
                     vs = [loop.vert for loop in face.loops]
-                    
+
                     for v in vs:
                         dist = distance_point_to_plane(v.co, fc, fn)
 
@@ -3576,6 +3575,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         d_geo = simplify_shape(occ, d_geo.shape)
         heal_geo(occ, d_geo, 0.00001)
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
+        print(self.matnames, [face.name for face in d_geo.shape.faces])
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
 
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
@@ -4420,9 +4420,9 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
         print('hi')
         try:
             room.simulate()
-            
+
             rts = room.measure_rt60(plot=False, decay_db=60)
-            
+
 
         except Exception:
             try:
