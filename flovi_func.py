@@ -254,11 +254,12 @@ def write_fvdict(text, fvdict):
 
 
 def fvboundwrite(o):
+    mats = [mat for mat in o.data.materials if mat]
     boundary = ''
 
-    for mat in o.data.materials:
+    for mat in mats:
         boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("patch", "wall", "symmetry", "empty")[int(mat.flovi_bmb_type)])
-        faces = [face for face in o.data.polygons if o.data.materials[face.material_index] == mat]
+        faces = [face for face in o.data.polygons if mats[face.material_index] == mat]
 
         for face in faces:
             boundary += "      (" + " ".join([str(v) for v in face.vertices]) + ")\n"
@@ -469,7 +470,9 @@ def fvvarwrite(scene, obs, node):
                                                                                     ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)),
                                                                                     ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)))]
         for o in obs:
-            for mat in o.data.materials:
+            mats = [mat for mat in o.data.materials if mat]
+            
+            for mat in mats:
                 mvp = mat.vi_params
                 matname = '{}_{}'.format(o.name, mat.name)
                 b_dict[matname] = {}
@@ -570,6 +573,9 @@ def fvfuncwrite(svp, node, dp):
         fdict['age'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'age', 'diffusion': 'on', 'writeControl': 'writeTime', 'executeControl': 'writeTime'}
 
     for o in bpy.data.objects:
+        if o.type == 'MESH':
+            mats = [mat for mat in o.data.materials if mat]
+        
         ovp = o.vi_params
 
         if o.type == 'EMPTY' and ovp.flovi_probe:
@@ -585,13 +591,15 @@ def fvfuncwrite(svp, node, dp):
 
             ss.append(o.name)
 
-        if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in o.data.materials]):
-            for mat in o.data.materials:
+            # fdict['surfaceFlowRate'] = {'libs': '("fieldFunctionObjects")', 'type': 'triSurfaceVolumetricFlowRate', 'writeControl': 'timeStep', 'writeInterval': f'{node.w_int}', 'writeFields': 'false', 'surface': f'{o.name}', 'field': 'U'}
+
+        if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_probe for m in mats]):
+            for mat in mats:
                 if mat.vi_params.flovi_probe:
                     bs.append('{}_{}'.format(o.name, mat.name))
 
-        if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_htc for m in o.data.materials]):
-            for mat in o.data.materials:
+        if o.type == 'MESH' and ovp.vi_type in ('2', '3') and any([m.vi_params.flovi_htc for m in mats]):
+            for mat in mats:
                 if mat.vi_params.flovi_htc and mat.vi_params.flovi_bmb_type in ('Solid', 'Wall'):
                     htcs.append('{}_{}'.format(o.name, mat.name))
 
@@ -851,6 +859,8 @@ def fvobjwrite(scene, fvos, bmo):
 
     for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
         for o in fvos:
+            mats = [mat for mat in o.data.materials if mat]
+            
             with open(os.path.join(scene['flparams']['offilebase'], str(frame), 'constant', 'trisurface', '{}.obj'.format(o.name)), 'w') as objfile:
                 bm = bmesh.new()
                 tempmesh = o.to_mesh(scene=scene, apply_modifiers=True, settings='PREVIEW')
@@ -861,7 +871,7 @@ def fvobjwrite(scene, fvos, bmo):
                 vcos = ''.join(['v {0[0]} {0[1]} {0[2]}\n'.format(v.co) for v in bm.verts])
                 objfile.write(objheader+vcos)
 
-                for m, mat in enumerate(o.data.materials):
+                for m, mat in enumerate(mats):
                     objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces=bm.faces)['faces'] if f.material_index == m]))
 
                 objfile.write('#{}'.format(len(bm.faces)))

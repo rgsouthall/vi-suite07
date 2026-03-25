@@ -4741,6 +4741,7 @@ class No_Flo_NG(Node, ViNodes):
 
     poly: BoolProperty(name='', description='Create polygonal mesh', default=0, update=nodeupdate)
     maxcs: FloatProperty(name="m", description="Max global cell size", min=0, max=100, default=1, update=nodeupdate)
+    refinement: EnumProperty(items=[('0', 'Coarse', 'Coarse mesh'), ('1', 'Moderate', 'Moderate mesh'), ('2', 'Fine', 'Fine mesh')], name='', description='Scenario type', default='0', update=nodeupdate)
     grading: FloatProperty(name="", description="Small to large cell inflation", min=0, max=0.99, default=0.1, update=nodeupdate)
     processors: IntProperty(name="", description="Number of processers", min=0, max=32, default=1, update=nodeupdate)
     optimisations: IntProperty(name="", description="Number of optimisation steps", min=0, max=32, default=3, update=nodeupdate)
@@ -4766,7 +4767,8 @@ class No_Flo_NG(Node, ViNodes):
 
         if self.inputs and self.inputs['Case in'].links:
             if all(flo_libs):
-                newrow(layout, 'Cell size:', self, 'maxcs')
+                newrow(layout, 'Max cell size:', self, 'maxcs')
+                newrow(layout, 'Refinement:', self, 'refinement')
                 newrow(layout, 'Inflation:', self, 'grading')
                 newrow(layout, 'Optimisations:', self, 'optimisations')
                 newrow(layout, 'Attempts:', self, 'maxsteps')

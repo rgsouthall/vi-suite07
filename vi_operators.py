@@ -1368,13 +1368,15 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
         frames = range(svp['liparams']['fs'], svp['liparams']['fe'] + 1)
 
         for f, frame in enumerate(frames):
+            amentry, pportentry, gpentry, cpentry, copentry, gpfileentry, cpfileentry, copfileentry = retpmap(self.simnode, frame, scene)
+
             if self.simnode.pmap_over:
                 if createradfile(scene, frame, self, self.simnode) == 'CANCELLED' or createoconv(scene, frame, self, self.simnode) == 'CANCELLED':
                     return {'CANCELLED'}
 
                 if self.simnode.pmap:
                     pm_type = ('gpm', 'copm')[self.simnode['coptions']['Context'] == 'CBDM' and self.simnode['coptions']['Type'] != '0']
-
+                    
                     if self.simnode.pmap_over:
                         pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
                         pmappfile.close()
@@ -1382,7 +1384,6 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
                         open(f'{pmfile}-{frame}', 'w')
                         pfile = progressfile(svp['viparams']['newdir'], datetime.datetime.now(), 100)
                         self.pb = qtprogressbar(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Photon map')
-                        amentry, pportentry, gpentry, cpentry, copentry, gpfileentry, cpfileentry, copfileentry = retpmap(self.simnode, frame, scene)
 
                         if scontext == 'Basic' or (scontext == 'CBDM' and subcontext == '0'):
                             pmcmd = 'mkpmap {7} -t 2 -e "{1}-{3}" -fo+ -bv{8} -apD 0.001 {0} {4} {5} {6} "{2}-{3}.oct"'.format(pportentry, pmfile, svp_fb,
@@ -3290,6 +3291,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         self.surf_complete = 0
         self.vol_complete = 0
         self.vol_running = 0
+        refine = ('meshsize.{}'.format(('coarse', 'moderate', 'fine')[int(self.expnode.refinement)]))
         # case_nodes = [link.from_node for link in self.expnode.inputs['Case in'].links]
         bound_nodes = [link.to_node for link in self.expnode.outputs['Mesh out'].links]
 
@@ -3317,6 +3319,12 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         if any([any(s < 0 for s in o.scale) for o in self.obs]):
             logentry('CFD domain or geometry has a negative scale. Cannot proceed')
             self.report({'ERROR'}, 'CFD domain or geometry has a negative scale. Cannot proceed')
+            self.expnode.running = 0
+            return {'CANCELLED'}
+        
+        if any([any([not slot.material for slot in o.material_slots]) for o in self.obs]):
+            logentry('Geometry object has a material slot with no material')
+            self.report({'ERROR'}, 'Geometry object has a material slot with no material')
             self.expnode.running = 0
             return {'CANCELLED'}
 
@@ -3575,7 +3583,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
         d_geo = simplify_shape(occ, d_geo.shape)
         heal_geo(occ, d_geo, 0.00001)
         d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'flovi_geometry.step'))
-        print(self.matnames, [face.name for face in d_geo.shape.faces])
+        # print(self.matnames, [face.name for face in d_geo.shape.faces])
         self.mis = [self.matnames.index(face.name) for face in d_geo.shape.faces]
 
         with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
@@ -3586,7 +3594,8 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, MeshingStep, meshsize
             from pyngcore import SetNumThreads, TaskManager
             SetNumThreads({0})
-            mp = MeshingParameters(meshsize.fine, maxh={1}, minh={2}, grading={3}, optimize3d='cmdmustm', optsteps3d={4}, delaunay=True, maxoutersteps={5})
+            # mp = MeshingParameters(meshsize.fine, maxh={1}, minh={2}, grading={3}, optimize3d='cmdmustm', optsteps3d={4}, delaunay=True, maxoutersteps={5})
+            mp = MeshingParameters({8}, maxh={1}, minh={2}, grading={3:.2f}, optsteps3d={4}, delaunay=True, maxoutersteps={5})
             geo = occ.OCCGeometry(os.path.join(r'{6}', 'flovi_geometry.step'))
             e_maxs = {7}
 
@@ -3598,32 +3607,34 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 v1_u = unit_vector(v1)
                 v2_u = unit_vector(v2)
                 return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+            
+            if any([e_maxs[d] < 1 for d in e_maxs]):
+                for edge in geo.shape.edges:
+                    vecs = []
+                    e_maxhs = []
 
-            for edge in geo.shape.edges:
-                vecs = []
-                e_maxhs = []
+                    for face in geo.shape.faces:
+                        if e_maxs[face.name] < 1:               
+                            if edge in face.edges:
+                                f_dict = eval('{{'+str(face)+'}}')
 
-                for face in geo.shape.faces:
-                    if edge in face.edges:
-                        f_dict = eval('{{'+str(face)+'}}')
+                                if 'TShape' in f_dict and face.name:
+                                    f_dir = f_dict['TShape']['Surface']['pos']['Direction']
+                                    vecs.append(f_dir)
+                                    e_maxhs.append(e_maxs[face.name] * face.maxh)
 
-                        if 'TShape' in f_dict and face.name:
-                            f_dir = f_dict['TShape']['Surface']['pos']['Direction']
-                            vecs.append(f_dir)
-                            e_maxhs.append(e_maxs[face.name] * face.maxh)
+                    if len(e_maxhs) and len(vecs) == 2 and abs(angle_between(vecs[0], vecs[1]) > 0.1 or len(set(e_maxhs)) > 1):
+                        edge.maxh = min(e_maxhs)
+                        e_len = ((edge.vertices[0].p[0] - edge.vertices[1].p[0])**2 + (edge.vertices[0].p[1] - edge.vertices[1].p[1])**2 + (edge.vertices[0].p[2] - edge.vertices[1].p[2])**2)**0.5
 
-                if len(vecs) == 2 and abs(angle_between(vecs[0], vecs[1]) > 0.1 or len(set(e_maxhs)) > 1):
-                    edge.maxh = min(e_maxhs)
-                    e_len = ((edge.vertices[0].p[0] - edge.vertices[1].p[0])**2 + (edge.vertices[0].p[1] - edge.vertices[1].p[1])**2 + (edge.vertices[0].p[2] - edge.vertices[1].p[2])**2)**0.5
+                        if e_len > 2 * edge.maxh:
+                            segs = int(e_len/edge.maxh) + 1
+                            for s in range(1, segs):
+                                vco = [edge.vertices[0].p[i] + (edge.vertices[1].p[i]* s/segs - edge.vertices[0].p[i]* s/segs) for i in range(3)]
+                                mp.RestrictH(x=vco[0], y=vco[1], z=vco[2], h=edge.maxh)
 
-                    if e_len > 2 * edge.maxh:
-                        segs = int(e_len/edge.maxh) + 1
-                        for s in range(1, segs):
-                            vco = [edge.vertices[0].p[i] + (edge.vertices[1].p[i]* s/segs - edge.vertices[0].p[i]* s/segs) for i in range(3)]
-                            mp.RestrictH(x=vco[0], y=vco[1], z=vco[2], h=edge.maxh)
-
-                        for v in edge.vertices:
-                            mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=edge.maxh)
+                            for v in edge.vertices:
+                                mp.RestrictH(x=v.p[0], y=v.p[1], z=v.p[2], h=edge.maxh)
 
             with TaskManager():
                 surf_mesh = geo.GenerateMesh(mp=mp, perfstepsend=MeshingStep.MESHSURFACE)
@@ -3632,7 +3643,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             surf_mesh.Save(os.path.join(r'{6}', 'ng_surf.vol'))
             surf_mesh.Export(os.path.join(r'{6}', 'ng_surf.stl'), 'STL Format')
             '''.format(int(svp['viparams']['nproc']), self.expnode.maxcs, 0.0, self.expnode.grading,
-                       self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs)))
+                       self.expnode.optimisations, self.expnode.maxsteps, svp['flparams']['offilebase'], e_maxs, refine)))
 
         self.surf_run = Popen(shlex.split('"{}" "{}"'.format(sys_exe(), os.path.join(svp['flparams']['offilebase'], 'ngpy.py'))), stdout=PIPE, stderr=PIPE)
         self.surf_cancel = cancel_window(os.path.join(svp['viparams']['newdir'], 'viprogress'), pdll_path, 'Surface Mesh')
@@ -3936,7 +3947,7 @@ class NODE_OT_Flo_Bound(bpy.types.Operator):
                     for line in bfile.readlines():
                         for ob in obs:
                             for mat in ob.data.materials:
-                                if line.strip() in b_dict and line.strip() == f'{ob.name}_{mat.name}':
+                                if mat and line.strip() in b_dict and line.strip() == f'{ob.name}_{mat.name}':
                                     bound = flovi_b_dict[mat.vi_params.flovi_bmb_type]
 
                                     if line.split() and line.split()[0] == 'type':
@@ -4230,45 +4241,48 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
                     self.simnode['frames'] = [f for f in self.frames]
 
-            for oname in svp['flparams']['s_probes']:
-                vfs, times = [], []
+            # for oname in svp['flparams']['s_probes']:
+            #     vfs, times = [], []
 
-                if sys.platform == 'linux':
-                    vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
-                    p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+            #     if sys.platform == 'linux':
+            #         vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+            #         p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
 
-                elif sys.platform in ('darwin', 'win32'):
-                    vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True).wait()
-                    p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} foamPostProcess -func "triSurfaceAverage\\(triSurface="{oname}.stl"\\)" -case data', stdout=PIPE, stderr=PIPE, shell=True).wait()
+            #     elif sys.platform in ('darwin', 'win32'):
+            #         vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
+            #         vf_run.wait()
+            #         p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} foamPostProcess -func "triSurfaceAverage\\(triSurface="{oname}.stl"\\)" -case data', stdout=PIPE, stderr=PIPE, shell=True)
+            #         p_run.wait()
+            #         print(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"')
 
-                # if str(frame_c) not in self.o_dict:
-                #     self.o_dict[str(frame_c)] = {}
+            #     if str(frame_c) not in self.o_dict:
+            #         self.o_dict[str(frame_c)] = {}
 
-                # self.o_dict[str(frame_c)][oname] = {}
+            #     self.o_dict[str(frame_c)][oname] = {}
 
-                # for line in vf_run.stdout.readlines()[::-1]:
-                #     if "U =" in line.decode():
-                #         vfs.append(line.decode().split()[-1])
+            #     for line in vf_run.stdout.readlines()[::-1]:
+            #         if "U =" in line.decode():
+            #             vfs.append(line.decode().split()[-1])
 
-                #     elif 'Time =' in line.decode():
-                #         ti = line.decode().split()[-1].strip('s')
-                #         times.append(ti)
+            #         elif 'Time =' in line.decode():
+            #             ti = line.decode().split()[-1].strip('s')
+            #             times.append(ti)
 
-                # if vfs and times:
-                #     logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[0], vfs[0]))
+            #     if vfs and times:
+            #         logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[0], vfs[0]))
 
-                #     if 'Timestep' not in [r[1] for r in self.reslists]:
-                #         self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
+            #         if 'Timestep' not in [r[1] for r in self.reslists]:
+            #             self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
 
-                #     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
-                #     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
+            #         self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
+            #         self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
 
-                # ps = []
+            #     ps = []
 
-                # for line in p_run.stdout.readlines()[::-1]:
-                #     print(line)
-                #     if "p =" in line.decode():
-                #         ps.append(line.decode().split()[-1])
+            #     for line in p_run.stdout.readlines()[::-1]:
+            #         print(line)
+            #         if "p =" in line.decode():
+            #             ps.append(line.decode().split()[-1])
 
                 # if ps:
                 #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
