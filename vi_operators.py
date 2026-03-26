@@ -4045,11 +4045,11 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
             if self.processes > 1:
                 if sys.platform == 'linux':
                     self.runs.append(Popen(shlex.split('mpirun -np {} foamExec {} -parallel -case {}'.format(self.processes,
-                                                                                                                             svp['flparams']['solver'],
-                                                                                                                             fframe_offb)), stdout=fvprogress))
+                                                                                                             svp['flparams']['solver'],
+                                                                                                             fframe_offb)), stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
                     self.runs.append(Popen('{} run -it --rm -v "{}":/home/openfoam/data {} "mpirun --oversubscribe -np {} {} -parallel -case data"'.format(docker_path, fframe_offb, self.of_docker, self.processes,
-                                                                                                                                                                                svp['flparams']['solver']), shell=True, stdout=fvprogress))
+                                                                                                                                                           svp['flparams']['solver']), shell=True, stdout=fvprogress))
             else:
                 if sys.platform == 'linux':
                     sol_cmd = '{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", fframe_offb)
@@ -4241,48 +4241,49 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(f) for f in resarray[0]])])
                     self.simnode['frames'] = [f for f in self.frames]
 
-            # for oname in svp['flparams']['s_probes']:
-            #     vfs, times = [], []
+            for oname in svp['flparams']['s_probes']:
+                vfs, times = [], []
 
-            #     if sys.platform == 'linux':
-            #         vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate(name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
-            #         p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage(p, name={0}, triSurface={0}.stl)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+                if sys.platform == 'linux':
+                    vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate\\(triSurface={0}.stl\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
+                    p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage\\(triSurface={0}.stl\\)" -case {1} -field p'.format(oname, frame_coffb)), stdout=PIPE)
 
-            #     elif sys.platform in ('darwin', 'win32'):
-            #         vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
-            #         vf_run.wait()
-            #         p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} foamPostProcess -func "triSurfaceAverage\\(triSurface="{oname}.stl"\\)" -case data', stdout=PIPE, stderr=PIPE, shell=True)
-            #         p_run.wait()
-            #         print(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"')
+                # There is a bug in the dicehub/openfoam:13 docker image that stops this working
+                # elif sys.platform in ('darwin', 'win32'):
+                #     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
+                #     vf_run.wait()
+                #     p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl"\\) -case data -field p"', stdout=PIPE, stderr=PIPE, shell=True)
+                #     p_run.wait()
+                #     print(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"')
 
-            #     if str(frame_c) not in self.o_dict:
-            #         self.o_dict[str(frame_c)] = {}
-
-            #     self.o_dict[str(frame_c)][oname] = {}
-
-            #     for line in vf_run.stdout.readlines()[::-1]:
-            #         if "U =" in line.decode():
-            #             vfs.append(line.decode().split()[-1])
-
-            #         elif 'Time =' in line.decode():
-            #             ti = line.decode().split()[-1].strip('s')
-            #             times.append(ti)
-
-            #     if vfs and times:
-            #         logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[0], vfs[0]))
-
-            #         if 'Timestep' not in [r[1] for r in self.reslists]:
-            #             self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
-
-            #         self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
-            #         self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
-
-            #     ps = []
-
-            #     for line in p_run.stdout.readlines()[::-1]:
-            #         print(line)
-            #         if "p =" in line.decode():
-            #             ps.append(line.decode().split()[-1])
+                # if str(frame_c) not in self.o_dict:
+                #     self.o_dict[str(frame_c)] = {}
+                #
+                # self.o_dict[str(frame_c)][oname] = {}
+                #
+                # for line in vf_run.stdout.readlines()[::-1]:
+                #     if "U =" in line.decode():
+                #         vfs.append(line.decode().split()[-1])
+                #
+                #     elif 'Time =' in line.decode():
+                #         ti = line.decode().split()[-1].strip('s')
+                #         times.append(ti)
+                #
+                # if vfs and times:
+                #     logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[0], vfs[0]))
+                #
+                #     if 'Timestep' not in [r[1] for r in self.reslists]:
+                #         self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
+                #
+                #     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
+                #     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
+                #
+                # ps = []
+                #
+                # for line in p_run.stdout.readlines()[::-1]:
+                #     print(line)
+                #     if "p =" in line.decode():
+                #         ps.append(line.decode().split()[-1])
 
                 # if ps:
                 #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
@@ -4298,6 +4299,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 t_probes.append(s_probe)
 
             for oname in t_probes:
+                print(oname)
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname + '_vf', '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname + '_vf', '0')
 
@@ -4362,13 +4364,19 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
 
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)', '0')):
-                    vold = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)')
+                    vold = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceVolumetricFlowRate(triSurface={oname}.stl)', '0')
 
                     if 'surfaceFieldValue.dat' in os.listdir(os.path.join(vold)):
+                        if str(frame_c) not in self.o_dict:
+                            self.o_dict[str(frame_c)] = {}
+
+                        if oname not in self.o_dict[str(frame_c)]:
+                            self.o_dict[str(frame_c)][oname] = {}
+
                         t_res = []
                         q_res = []
 
-                        with open(os.path.join(probed, 'surfaceFieldValue.dat'), 'r') as resfile:
+                        with open(os.path.join(vold, 'surfaceFieldValue.dat'), 'r') as resfile:
                             for line in resfile.readlines():
                                 if line and line[0] != '#':
                                     t_res.append(line.split()[0])
@@ -4378,6 +4386,33 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                         logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict['Q'], frame_c, t_res[-1], float(res_array[-1])))
                         self.o_dict[str(frame_c)][oname]['Q'] = float(res_array[-1])
                         self.reslists.append([str(frame_c), 'Probe', oname, resdict['Q'], ' '.join(['{:5f}'.format(float(res)) for res in res_array])])
+
+                    if 'Seconds' not in [r[3] for r in self.reslists]:
+                        self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
+
+                if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', f'triSurfaceAverage(triSurface={oname}.stl,fields=(p),operation=areaAverage)', '0')):
+                    aapd = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceAverage(triSurface={oname}.stl,fields=(p),operation=areaAverage)', '0')
+
+                    if 'surfaceFieldValue.dat' in os.listdir(os.path.join(aapd)):
+                        if str(frame_c) not in self.o_dict:
+                            self.o_dict[str(frame_c)] = {}
+
+                        if oname not in self.o_dict[str(frame_c)]:
+                            self.o_dict[str(frame_c)][oname] = {}
+
+                        t_res = []
+                        p_res = []
+
+                        with open(os.path.join(aapd, 'surfaceFieldValue.dat'), 'r') as resfile:
+                            for line in resfile.readlines():
+                                if line and line[0] != '#':
+                                    t_res.append(line.split()[0])
+                                    p_res.append(line.split()[1])
+
+                        res_array = array(p_res)
+                        logentry('{} final {} for frame {} at time {} = {:.2f}'.format(oname, resdict['p'], frame_c, t_res[-1], float(res_array[-1])))
+                        self.o_dict[str(frame_c)][oname]['Q'] = float(res_array[-1])
+                        self.reslists.append([str(frame_c), 'Probe', oname, resdict['p'], ' '.join(['{:5f}'.format(float(res)) for res in res_array])])
 
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
