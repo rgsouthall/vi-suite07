@@ -566,7 +566,7 @@ def fvfuncwrite(svp, node, dp):
     fdict = {}
 
     if node.comfort:
-        fdict['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo*0.155:.2f}',
+        fdict['comfort'] = {'libs': '("libfieldFunctionObjects.so")', 'type': 'comfort', 'clothing': f'{node.clo * 0.155:.2f}',
                             'metabolicRate': f'{node.met:.2f}', 'relHumidity': f'{node.rh * 0.01:.2f}',
                             'writeControl': 'writeTime', 'executeControl': 'writeTime'}
     if node.age:
@@ -575,13 +575,15 @@ def fvfuncwrite(svp, node, dp):
     for o in bpy.data.objects:
         if o.type == 'MESH':
             mats = [mat for mat in o.data.materials if mat]
-        
+
         ovp = o.vi_params
 
         if o.type == 'EMPTY' and ovp.flovi_probe:
             ps.append(o)
+
         elif o.type == 'EMPTY' and o.name == node.p_ref_point and node.p_ref != '0':
             ps.append(o)
+
         elif o.type == 'MESH' and ovp.vi_type == '6' and o.visible_get():
             for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
                 if not os.path.isdir(os.path.join(svp['flparams']['offilebase'], str(frame), 'constant', 'triSurface')):
@@ -625,7 +627,7 @@ def fvfuncwrite(svp, node, dp):
             fdict[b + '_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeFields': 'false', 'patch': '{}'.format(b),
                                 'operation': 'areaNormalIntegrate', 'fields    (U)': ''}
     if htcs:
-        fdict['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches' : '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
+        fdict['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches': '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
                         'writeInterval': f'{node.w_int}', 'rho': '1.225', 'Cp': '1005', 'Pr': '0.707', 'Prt': '0.9'}
 
     return write_fvdict(htext, fdict)
