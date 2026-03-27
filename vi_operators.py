@@ -4245,9 +4245,13 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 vfs, times = [], []
 
                 if sys.platform == 'linux':
-                    vf_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate\\(triSurface={0}.stl\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE)
-                    p_run = Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage\\(triSurface={0}.stl\\)" -case {1} -field p'.format(oname, frame_coffb)), stdout=PIPE)
-
+                    Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate\\(triSurface={0}.stl\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
+                    Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage\\(triSurface={0}.stl,field=p\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
+                
+                elif sys.platform =='win32':
+                    Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True).wait()
+                    Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl",field=p\\) -case data"', stdout=PIPE, stderr=PIPE).wait()
+                    
                 # There is a bug in the dicehub/openfoam:13 docker image that stops this working
                 # elif sys.platform in ('darwin', 'win32'):
                 #     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
@@ -4279,7 +4283,7 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 #     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
                 #
                 # ps = []
-                #
+                
                 # for line in p_run.stdout.readlines()[::-1]:
                 #     print(line)
                 #     if "p =" in line.decode():
@@ -4299,7 +4303,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 t_probes.append(s_probe)
 
             for oname in t_probes:
-                print(oname)
                 if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', oname + '_vf', '0')):
                     probed = os.path.join(frame_coffb, 'postProcessing', oname + '_vf', '0')
 
@@ -4390,8 +4393,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     if 'Seconds' not in [r[3] for r in self.reslists]:
                         self.reslists.append([str(frame_c), 'Timestep', 'Probe', 'Seconds', ' '.join(['{}'.format(t) for t in t_res])])
 
-                if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', f'triSurfaceAverage(triSurface={oname}.stl,fields=(p),operation=areaAverage)', '0')):
-                    aapd = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceAverage(triSurface={oname}.stl,fields=(p),operation=areaAverage)', '0')
+                if os.path.isdir(os.path.join(frame_coffb, 'postProcessing', f'triSurfaceAverage(triSurface={oname}.stl,field=p)', '0')):
+                    aapd = os.path.join(frame_coffb, 'postProcessing', f'triSurfaceAverage(triSurface={oname}.stl,field=p)', '0')
 
                     if 'surfaceFieldValue.dat' in os.listdir(os.path.join(aapd)):
                         if str(frame_c) not in self.o_dict:
@@ -4466,12 +4469,10 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
     def calc_thread(self, room, q_rts, ir_list):
         i = 0
-        print('hi')
+
         try:
             room.simulate()
-
             rts = room.measure_rt60(plot=False, decay_db=60)
-
 
         except Exception:
             try:
@@ -4485,6 +4486,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                 for si, srir in enumerate(mrir):
                     ir_list[i] = srir
                     i += 1
+
         except Exception as e:
             print(e)
 
@@ -4658,21 +4660,21 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                     bm_ir = mic_bm.faces.layers.int['cindex']
                     mic_bm.faces.ensure_lookup_table()
 
-                    for fi, f in enumerate(mic_bm.faces):
-                        if mic_a.material_slots[f.material_index].material.vi_params.mattype == '1':
-                            if room.is_inside(f.calc_center_median()[:]):
+                    for fi, face in enumerate(mic_bm.faces):
+                        if mic_a.material_slots[face.material_index].material.vi_params.mattype == '1':
+                            if room.is_inside(face.calc_center_median()[:]):
                                 if mic_a.vi_params.vi_type_string != 'LiVi Calc':
                                     mic_a.vi_params.vi_type_string = 'LiVi Calc'
 
-                                f[bm_ir] = ri + 1
-                                room = room.add_microphone(f.calc_center_median()[:])
-                                mic_names.append(f'{mic_a.name}-{f.index}')
+                                face[bm_ir] = ri + 1
+                                room = room.add_microphone(face.calc_center_median()[:])
+                                mic_names.append(f'{mic_a.name}-{face.index}')
                             # else:
                             #     logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} is not in room {rob.name}')
                                 # f[bm_ir] = f[bm_ir]
                         else:
-                            logentry(f'Microphone index {f.index} of sensing plane {mic_a.name} has no sensing material')
-                            f[bm_ir] = 0
+                            logentry(f'Microphone index {face.index} of sensing plane {mic_a.name} has no sensing material')
+                            face[bm_ir] = 0
 
                     mic_bm.transform(mic_a.matrix_world.inverted())
                     mic_bm.to_mesh(mic_a.data)
@@ -4730,6 +4732,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
 
                         try:
                             rts = room.measure_rt60(plot=False, decay_db=60)
+                            
                         except Exception:
                             logentry("Can't get a reliable 60dB reduction. Extrapolating from a 30dB reduction")
                             rts = room.measure_rt60(plot=False, decay_db=30)
@@ -4752,12 +4755,12 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                             i += 1
 
                 for mic_a in mic_arrays:
-                    fi = r_mics
                     ovp = mic_a.vi_params
                     mic_bm = bmesh.new()
                     mic_bm.from_mesh(mic_a.data)
 
                     for si, source in enumerate(room.sources):
+                        fi = r_mics
                         bm_res = []
 
                         for fl_name in [f'{source_names[si]}{fl_type}{frame}' for fl_type in ('_rt', '_vol', '_sti')]:
@@ -4773,7 +4776,7 @@ class NODE_OT_Au_Rir(bpy.types.Operator):
                                 try:
                                     face[bm_res[0]] = rts[fi][si]
                                     face[bm_res[1]] = 10 * log(nsum(square(rirs[fi * len(room.sources) + si]) / 16000) / 6E-07, 10)
-                                    face[bm_res[2]] = rir2sti(rirs[fi * len(room.sources) + si], room.volume, source.position, mic_a.matrix_world @ face.calc_center_bounds(), octave, 'male', Lsf)
+                                    face[bm_res[2]] = rir2sti(rirs[fi * len(room.sources) + si], room.volume, source.position, mic_a.matrix_world @ face.calc_center_median(), octave, 'male', Lsf)
 
                                 except Exception as e:
                                     print(e)

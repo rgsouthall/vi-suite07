@@ -33,6 +33,7 @@ ofheader = r'''/*--------------------------------*- C++ -*----------------------
 |    \\/     M anipulation  | Created by:  FloVi (part of the VI-Suite)       |
 \*---------------------------------------------------------------------------*/''' + '\n\n'
 
+valid_dockers = ('12', '13', 'dev', '13-20260212')
 
 def fileheader(o):
     return '''FoamFile
@@ -622,9 +623,9 @@ def fvfuncwrite(svp, node, dp):
 
     if bs:
         for b in bs:
-            fdict[b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeFields': 'false', 'patch': '{}'.format(b),
+            fdict[b] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeControl': 'writeTime', 'writeFields': 'false', 'patch': '{}'.format(b),
                         'operation': 'areaAverage', 'fields    (p U)': ''}
-            fdict[b + '_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeFields': 'false', 'patch': '{}'.format(b),
+            fdict[b + '_vf'] = {'type': 'surfaceFieldValue', 'libs': '("libfieldFunctionObjects.so")', 'log': 'yes', 'writeControl': 'writeTime', 'writeFields': 'false', 'patch': '{}'.format(b),
                                 'operation': 'areaNormalIntegrate', 'fields    (U)': ''}
     if htcs:
         fdict['htc'] = {'type': 'wallHeatTransferCoeff', 'libs': '("libfieldFunctionObjects.so")', 'model': 'kappaEff', 'patches': '({})'.format(' '.join(list(set(htcs)))), 'writeControl': 'timeStep',
@@ -1015,12 +1016,12 @@ def ret_of_docker():
                     # Below is required to register the lines
                     print(lds[0], lds[1])
 
-                    if lds[0] == 'dicehub/openfoam' and lds[1] in ('12', '13', 'dev'):
+                    if lds[0] == 'dicehub/openfoam' and lds[1] in valid_dockers:
                         return f"{lds[0]}:{lds[1]}"
                     else:
                         lds0 = lds[0].split(':')
 
-                        if lds0[0] == 'dicehub/openfoam' and lds0[1] in ('12', '13', 'dev'):
+                        if lds0[0] == 'dicehub/openfoam' and lds0[1] in valid_dockers:
                             return f"{lds0[0]}:{lds0[1]}"
             else:
                 return ''
