@@ -4247,12 +4247,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate\\(triSurface={0}.stl\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
                     Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage\\(triSurface={0}.stl,field=p\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
-                
-                elif sys.platform =='win32':
+
+                elif sys.platform == 'win32':
                     Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True).wait()
                     Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl",field=p\\) -case data"', stdout=PIPE, stderr=PIPE).wait()
-                    
-                # There is a bug in the dicehub/openfoam:13 docker image that stops this working
+
+                # There is a bug in the dicehub/openfoam:13 docker image that stops this working on Mac
                 # elif sys.platform in ('darwin', 'win32'):
                 #     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
                 #     vf_run.wait()
