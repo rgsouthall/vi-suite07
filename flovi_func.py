@@ -33,7 +33,7 @@ ofheader = r'''/*--------------------------------*- C++ -*----------------------
 |    \\/     M anipulation  | Created by:  FloVi (part of the VI-Suite)       |
 \*---------------------------------------------------------------------------*/''' + '\n\n'
 
-valid_dockers = ('12', '13', 'dev', '13-20260212')
+valid_dockers = ('13', '13-20260212')
 
 def fileheader(o):
     return '''FoamFile

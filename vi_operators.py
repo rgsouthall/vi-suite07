@@ -4248,52 +4248,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceVolumetricFlowRate\\(triSurface={0}.stl\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
                     Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage\\(triSurface={0}.stl,field=p\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
 
-                elif sys.platform == 'win32':
+                elif sys.platform in ('darwin', 'win32'):
+                    # This does not currently work with OS X
                     Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True).wait()
-                    Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl",field=p\\) -case data"', stdout=PIPE, stderr=PIPE).wait()
-
-                # There is a bug in the dicehub/openfoam:13 docker image that stops this working on Mac
-                # elif sys.platform in ('darwin', 'win32'):
-                #     vf_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True)
-                #     vf_run.wait()
-                #     p_run = Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl"\\) -case data -field p"', stdout=PIPE, stderr=PIPE, shell=True)
-                #     p_run.wait()
-                #     print(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\) -case data"')
-
-                # if str(frame_c) not in self.o_dict:
-                #     self.o_dict[str(frame_c)] = {}
-                #
-                # self.o_dict[str(frame_c)][oname] = {}
-                #
-                # for line in vf_run.stdout.readlines()[::-1]:
-                #     if "U =" in line.decode():
-                #         vfs.append(line.decode().split()[-1])
-                #
-                #     elif 'Time =' in line.decode():
-                #         ti = line.decode().split()[-1].strip('s')
-                #         times.append(ti)
-                #
-                # if vfs and times:
-                #     logentry('{} final volume flow rate for frame {} at time {} = {}'.format(oname, frame_c, times[0], vfs[0]))
-                #
-                #     if 'Timestep' not in [r[1] for r in self.reslists]:
-                #         self.reslists.append([str(frame_c), 'Timestep', 'Timestep', 'Seconds', ' '.join(['{}'.format(ti) for ti in times[::-1]])])
-                #
-                #     self.o_dict[str(frame_c)][oname]['Q'] = float(vfs[0])
-                #     self.reslists.append([str(frame_c), 'Probe', oname, 'Volume flow rate', ' '.join(['{}'.format(vf) for vf in vfs[::-1]])])
-                #
-                # ps = []
-                
-                # for line in p_run.stdout.readlines()[::-1]:
-                #     print(line)
-                #     if "p =" in line.decode():
-                #         ps.append(line.decode().split()[-1])
-
-                # if ps:
-                #     self.reslists.append([str(frame_c), 'Probe', oname, 'Pressure', ' '.join(['{}'.format(p) for p in ps[::-1]])])
-                # elif 'Time =' in line.decode():
-                #     ti = line.decode().split()[-1].strip('s')
-                #     times.append(ti)
+                    Popen(f'{docker_path} run -it --rm -v "{frame_coffb}":/home/openfoam/data {self.of_docker} "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl",field=p\\) -case data"', stdout=PIPE, stderr=PIPE, shell=True).wait()
 
             t_probes = []
 
