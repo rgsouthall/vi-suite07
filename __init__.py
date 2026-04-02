@@ -187,7 +187,7 @@ else:
 
     except Exception:
         if sys.platform == 'linux':
-            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.9.0-cp313-cp313-linux_x86_64.whl'))
+            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.10.0-cp313-cp313-linux_x86_64.whl'))
             Popen(shlex.split(pyr_cmd)).wait()
             print('Installing built-in pyroomacoustics')
             #print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
