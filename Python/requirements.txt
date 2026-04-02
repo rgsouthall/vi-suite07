@@ -2,6 +2,6 @@ PySide6==6.10.2
 #numpy==1.26.4
 matplotlib==3.10.8
 scipy==1.17.1
-pyroomacoustics==0.9.0 ; sys.platform!='linux'
+pyroomacoustics==0.10.0 ; sys.platform!='linux'
 psutil==7.2.2
 #netgen-mesher==6.2.2406.post119.dev1; sys.platform!='linux'
