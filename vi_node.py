@@ -1010,7 +1010,7 @@ class No_Li_Im(Node, ViNodes):
 
         self.run = 0
 
-    def presim(self):
+    def presim(self, svp):
         self.time = datetime.datetime.now()
         scene = bpy.context.scene
 
@@ -1046,8 +1046,8 @@ class No_Li_Im(Node, ViNodes):
             pmaps.append(self.pmap)
             self['pmapgnos'][sf] = self.pmapgno
             self['pmapcnos'][sf] = self.pmapcno
-            self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['gpentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['gpfileentry'], self['pmparams'][sf]['cpfileentry'] = retpmap(self, frame, scene)
-
+            self['pmparams'][sf]['amentry'], self['pmparams'][sf]['pportentry'], self['pmparams'][sf]['gpentry'], self['pmparams'][sf]['cpentry'], self['pmparams'][sf]['copentry'], self['pmparams'][sf]['gpfileentry'], self['pmparams'][sf]['cpfileentry'], self['pmparams'][sf]['copfileentry'] = retpmap(self, frame, scene)
+            # amentry, pportentry, gpentry, cpentry, copentry, gpfileentry, cpfileentry, copfileentry = retpmap(self.simnode, frame, scene)
             if self.fisheye and self.fov <= 180:
                 self['viewparams'][sf]['-vth'] = ''
             elif self.fisheye and self.fov > 180:

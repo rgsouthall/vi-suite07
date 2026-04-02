@@ -186,7 +186,7 @@ def radgexport(export_op, node):
             if m and m not in mats:
                 mats.append(m)
 
-                if m.vi_params.li_norm:
+                if m.vi_params.radtex and m.vi_params.li_norm:
                     norm = m.vi_params.li_norm
 
                     if not os.path.isfile(os.path.join(svp['liparams']['texfilebase'], norm.name + '.ddx')) or node.texs:

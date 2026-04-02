@@ -1376,7 +1376,7 @@ class NODE_OT_Li_Sim(bpy.types.Operator):
 
                 if self.simnode.pmap:
                     pm_type = ('gpm', 'copm')[self.simnode['coptions']['Context'] == 'CBDM' and self.simnode['coptions']['Type'] != '0']
-                    
+
                     if self.simnode.pmap_over:
                         pmappfile = open(os.path.join(svp['viparams']['newdir'], 'viprogress'), 'w')
                         pmappfile.close()
