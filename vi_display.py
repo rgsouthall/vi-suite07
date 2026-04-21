@@ -2148,7 +2148,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if context.screen:
             for a in context.screen.areas:
                 if a.type == 'VIEW_3D':
-                    a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.5
+                    a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength
 
         self.suns = [sun for sun in context.view_layer.objects if sun.type == "LIGHT" and sun.data.type == 'SUN']
         self.sp = scene.objects['SPathMesh']
@@ -2185,10 +2185,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 bpy.app.handlers.frame_change_post.remove(h)
 
             [bpy.data.objects.remove(o, do_unlink=True, do_id_user=True, do_ui_user=True) for o in bpy.data.objects if o.vi_params.get('VIType') and o.vi_params['VIType'] in ('SunMesh', 'SkyMesh')]
+
             try:
                 context.view_layer.layer_collection.children[self.spcoll.name].exclude = 1
             except Exception:
                 pass
+
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}

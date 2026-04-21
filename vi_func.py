@@ -1875,7 +1875,8 @@ def edgelen(ob, edge):
 
 
 def sunpath1(self, context):
-    sunpath(bpy.context)
+    if context.scene.vi_params.vi_display:
+        sunpath(bpy.context)
 
 
 def sunpath2():
@@ -1903,7 +1904,7 @@ def sunpath(context):
             if context.screen:
                 for a in context.screen.areas:
                     if a.type == 'VIEW_3D':
-                        a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength * 0.5
+                        a.spaces[0].shading.shadow_intensity = svp.sp_sun_strength
 
             if scene.render.engine == 'CYCLES':
                 if scene.world.node_tree:

@@ -502,7 +502,7 @@ class VI_Params_Scene(bpy.types.PropertyGroup):
     sp_globe_colour: fvprop(4, "", 'Sun colour', [0.0, 0.0, 1.0, 0.25], 'COLOR', 0, 1)
     sp_sun_angle: FloatProperty(name="", description="Sun size", min=0, max=1, default=0.01, update=sunpath1)
     sp_sun_size: iprop("", 'Sun size', 1, 50, 10)
-    sp_sun_strength: FloatProperty(name="", description="Sun strength", min=0, max=100, default=1.0, update=sunpath1)
+    sp_sun_strength: FloatProperty(name="", description="Sun strength", min=0, max=1, default=0.5, update=sunpath1)
     sp_season_dash_ratio: fprop("", "Ratio of line to dash of season lines", 0, 5, 0)
     sp_hour_dash_ratio: fprop("", "Ratio of line to dash of hour lines", -1, 1, 0.5)
     sp_hour_dash_density: fprop("", "Ratio of line to dash of hour lines", 0, 5, 1)

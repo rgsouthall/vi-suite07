@@ -194,15 +194,9 @@ class No_Loc(Node, ViNodes):
 
                     self['epwtext'] = epwfile.read()
 
-                    # if 'Vi Results' not in self.outputs['Location out'].valid:
-                    #     self.outputs['Location out'].valid = ['Location', 'Vi Results'] # .append('Vi Results')
             else:
                 self['epwtext'] = ''
 
-                # if 'Vi Results' in self.outputs['Location out'].valid:
-                #     self.outputs['Location out'].valid.remove('Vi Results')
-
-        # socklink2(self.outputs['Location out'], self.id_data)
         self['reslists'] = reslists
         (svp.latitude, svp.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (svp.latitude, svp.longitude)
 
@@ -426,7 +420,7 @@ class No_Li_Con(Node, ViNodes):
                 if self.inputs['Location in'].links and suns:
                     sunposlivi(scene, self, frames, sun, starttime)
 
-            elif svp['viparams']['vidisp'] != 'sp':
+            elif svp.get('viparams') and svp['viparams']['vidisp'] != 'sp':
                 for so in suns:
                     selobj(context.view_layer, so)
                     bpy.ops.object.delete()
