@@ -16,10 +16,8 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# import bpy
+
 import sys
-# import datetime
-# from .envi_func import retmenu
 from numpy import amax, amin, linspace, sin, cos, sign, deg2rad, zeros, meshgrid, clip
 from math import log, ceil, floor
 from scipy.ndimage import zoom
@@ -283,11 +281,11 @@ def hmchart_disp(chart_op, plt, dnode, col):
         grid[1:13, 25] = monthly_avg[:, 0]   # Hour 25 column gets data from Hour 1
 
         # X-axis padding (Month 0 = Month 12, Month 13 = Month 1)
-        grid[0, 1:25] = monthly_avg[11, :] # Month 0 row gets data from Month 12
+        grid[0, 1:25] = monthly_avg[11, :]  # Month 0 row gets data from Month 12
         grid[13, 1:25] = monthly_avg[0, :]  # Month 13 row gets data from Month 1
 
         # Set corner values for seamless interpolation
-        grid[0, 0] = monthly_avg[11, 23] # Month 0, Hour 0 = Month 12, Hour 24
+        grid[0, 0] = monthly_avg[11, 23]  # Month 0, Hour 0 = Month 12, Hour 24
         grid[0, 25] = monthly_avg[11, 0]  # Month 0, Hour 25 = Month 12, Hour 1
         grid[13, 0] = monthly_avg[0, 23]  # Month 13, Hour 0 = Month 1, Hour 24
         grid[13, 25] = monthly_avg[0, 0]   # Month 13, Hour 25 = Month 1, Hour 1
@@ -305,7 +303,7 @@ def hmchart_disp(chart_op, plt, dnode, col):
         y = linspace(0, 25, zoomed_temp_grid.shape[0])
         x, y = meshgrid(x, y)
         z = zoomed_temp_grid
-        dp = int(1/log(zmax-zmin))
+        dp = int(1 / log(zmax - zmin))
         zmax = ceil(amax(z) * 10**dp) / 10**dp
         # zmin = floor(amin(z) * 10**dp) / 10**dp
         zmin = dnode.sl

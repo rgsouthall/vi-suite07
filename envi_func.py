@@ -183,7 +183,7 @@ def enresprops(disp):
                   "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0,
                   "resfhb{}".format(disp), "resoeg{}".format(disp)),
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)),
-            '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)),
+            '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp), 0, "reswp{}".format(disp)),
             '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp), 0, "resldp{}".format(disp)),
             '4': (0, "respve{}".format(disp), "respvw{}".format(disp), 0, "respveff{}".format(disp), "respvt{}".format(disp)),
             '5': (0, "resest{}".format(disp), "resist{}".format(disp))}
@@ -571,7 +571,6 @@ def processf(pro_op, node, con_node):
                     reslists.append([str(frame), 'Time', 'Time', 'Day', ' '.join([sl[3] for sl in splitlines if sl[0] == k])])
                     reslists.append([str(frame), 'Time', 'Time', 'Hour', ' '.join([str(int(sl[5]) - 1) for sl in splitlines if sl[0] == k])])
                     reslists.append([str(frame), 'Time', 'Time', 'DOS', ' '.join([sl[1] for sl in splitlines if sl[0] == k])])
-                    #print(scene.vi_params.year, int(sl[2]), day=int(sl[1]))
                     reslists.append([str(frame), 'Time', 'Time', 'DOY', ' '.join([str(datetime.datetime(year=scene.vi_params.year, month=int(sl[2]), day=int(sl[3])).timetuple().tm_yday) for sl in splitlines if sl[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
@@ -799,7 +798,7 @@ def write_ec(scene, coll, frames, reslists):
 
         for chil in coll.children:
             try:
-                chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)] if chil.vi_params['enparams']['floorarea'].get(str(frame)) else fa
+                chil_fa = chil.vi_params['enparams']['floorarea'][str(frame)] if chil.vi_params.get('enparams') and chil.vi_params['enparams']['floorarea'].get(str(frame)) else fa
 
                 for ob in chil.objects:
                     if any([get_con_node(mat.vi_params).ret_ec()[0] != 'N/A' for mat in ob.data.materials]):
@@ -836,7 +835,7 @@ def write_ec(scene, coll, frames, reslists):
                                             zone_dict[chil.name]['ecy'] += float(mat_ec[1]) * poly.calc_area()
                                 obm.free()
             except Exception as e:
-                print(e)
+                print('lll', e)
 
             for line in ec_text.split('\n'):
                 entries = line.split(',')
@@ -928,8 +927,8 @@ def write_ob_ec(scene, coll, frames, reslists):
                                 vols.append(vol)
                                 ec = float(ecdict['eckg']) * float(ecdict['density']) * vol
                                 ec_text += '{},Object,{},{},{},{},{},{},{:.2f},{:.2f},{:.2f},{:.2f},{:.2f}\n'.format(frame, o.name, ovp['ecentries'][0][1], ovp.embodiedclass, ovp.embodiedtype,
-                                                                                                                                                         ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec / ovp.ec_life, ec / chil_fa,
-                                                                                                                                                         ec / (chil_fa * ovp.ec_life))
+                                                                                                                     ovp.embodiedmat, ovp['ecentries'][7][1], vol, ec, ec / ovp.ec_life, ec / chil_fa,
+                                                                                                                     ec / (chil_fa * ovp.ec_life))
                                 bm.free()
                             else:
                                 logentry(f"{o.name} is not manifold. Embodied carbon metrics have not been exported")

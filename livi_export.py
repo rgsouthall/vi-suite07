@@ -172,7 +172,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, m_export, tri):
 
 def radgexport(export_op, node):
     dp = bpy.context.evaluated_depsgraph_get()
-    #mats = bpy.data.materials
     scene = bpy.context.scene
     svp = scene.vi_params
     clearscene(bpy.context, export_op)
@@ -186,12 +185,11 @@ def radgexport(export_op, node):
             if m and m not in mats:
                 mats.append(m)
 
-                if m.vi_params.radtex and m.vi_params.li_norm:
+                if m.vi_params.radtex and os.path.isfile(m.vi_params.li_norm.filepath):
                     norm = m.vi_params.li_norm
 
                     if not os.path.isfile(os.path.join(svp['liparams']['texfilebase'], norm.name + '.ddx')) or node.texs:
                         (w, h) = norm.size
-                        # ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
                         normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
                         norm.pixels.foreach_get(normpixels)
                         header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])

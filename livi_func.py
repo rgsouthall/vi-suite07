@@ -343,9 +343,9 @@ def radmat(self, scene):
     mod = f'{radname}_dirt' if self.li_dirt else 'void'
 
     if self.mattype == '0' and self.radmatmenu in ('0', '1', '2', '3', '6') and any((self.li_tex, self.li_am, self.li_norm)):
-
+        print(self.li_tex.filepath)
         try:
-            if self.li_tex and self.radtex:
+            if self.li_tex and os.path.isfile(self.li_tex.filepath) and self.radtex:
                 fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
                 nd = os.path.join(fd, fn)
                 svp['liparams']['texfilebase'] = os.path.join(nd, 'textures')
@@ -364,13 +364,16 @@ def radmat(self, scene):
                 radentries.append(ret_radentry(self, radname, mod))
 
             else:
+                if self.li_tex and not os.path.isfile(self.li_tex.filepath):
+                    logentry(f"{radname} material texture file cannot be found")
+
                 mod = 'void'
                 radentries = [dirt_entry, ret_radentry(self, radname, mod)]
 
-            if self.li_am and self.radtex:
+            if self.li_am and os.path.isfile(self.li_am.filepath) and self.radtex:
                 t_mod = mod
                 mod = f'{radname}_im'
-                b_mod = 'void' if not self.li_tex_black else self.li_tex_black.name
+                b_mod = 'void' if not self.li_tex_black or not os.path.isfile(self.li_tex_black.filepath) else self.li_tex_black.name
                 amim = self.li_am
                 amloc = os.path.join(svp['liparams']['texfilebase'], '{}_am.hdr'.format(radname))
                 off = scene.render.image_settings.file_format
@@ -383,19 +386,10 @@ def radmat(self, scene):
                 radentries.append("# alpha mapped material\nvoid mixpict {0}\n7 {5} '{4}' grey '{1}' . frac(Lu){2} frac(Lv){3}\n0\n0\n\n".format(f'{radname}', amloc, ar[0], ar[1], b_mod, mod))
                 mod = '{}'.format(radname)
 
-            elif self.li_norm and self.radtex:
+            elif self.li_norm and os.path.isfile(self.li_norm.filepath) and self.radtex:
                 t_mod = mod
                 mod = '{}_norm'.format(radname)
                 norm = self.li_norm
-                # (w, h) = norm.size
-                # ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-                # normpixels = zeros(norm.size[0] * norm.size[1] * 4, dtype='float32')
-                # norm.pixels.foreach_get(normpixels)
-                # header = '2\n0 1 {}\n0 1 {}\n'.format(norm.size[1], norm.size[0])
-                # xdat = -1 + 2 * normpixels[:][0::4].reshape(norm.size[0], norm.size[1])
-                # ydat = -1 + 2 * normpixels[:][1::4].reshape(norm.size[0], norm.size[1])
-                # savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddx'.format(radname)), xdat, fmt='%.2f', header=header, comments='')
-                # savetxt(os.path.join(svp['liparams']['texfilebase'], '{}.ddy'.format(radname)), ydat, fmt='%.2f', header=header, comments='')
                 radentries.append("{7} texdata {0}\n9 ddx ddy ddz '{1}.ddx' '{1}.ddy' '{1}.ddy' nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(mod,
                                   os.path.join(svp['viparams']['newdir'], 'textures', norm.name), ar[1], ar[1], self.li_norm_strength, self.nu, self.nside, t_mod))
                 radentries.append(ret_radentry(self, radname, mod))
@@ -1645,6 +1639,3 @@ def adgpcalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     bm.to_mesh(self.id_data.data)
     bm.free()
     return reslists
-
-
-

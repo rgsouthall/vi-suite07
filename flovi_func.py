@@ -35,6 +35,7 @@ ofheader = r'''/*--------------------------------*- C++ -*----------------------
 
 valid_dockers = ('13', '13-20260212')
 
+
 def fileheader(o):
     return '''FoamFile
 {{
@@ -305,12 +306,12 @@ def fvmat(self, svp, mn, bound, frame):
             v_vec = self.flovi_bmbu_val
             val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*v_vec) if not self.flovi_u_field else '$internalField'
         else:
-            v_vec = Vector((self.flovi_u_speed * sin(pi*self.flovi_u_azi/180), self.flovi_u_speed * cos(pi*self.flovi_u_azi/180), 0))
+            v_vec = Vector((self.flovi_u_speed * sin(pi * self.flovi_u_azi / 180), self.flovi_u_speed * cos(pi * self.flovi_u_azi / 180), 0))
             val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*v_vec) if not self.flovi_u_field else '$internalField'
 
         if self.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
-            fd_val = self.flovi_u_fdir if not self.flovi_u_field else svp['flparams'][str(frame)]['Udir']
-            s_val = self.flovi_u_ref if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+            fd_val = v_vec.normalized() if not self.flovi_u_field else svp['flparams'][str(frame)]['Udir']
+            s_val = self.flovi_u_uref if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
         else:
             fd_val, s_val = (0, 0, 0), 0
 
@@ -323,7 +324,7 @@ def fvmat(self, svp, mn, bound, frame):
                   'freestream': 'freestream;\n    freestreamValue    $internalField',
                   'freestreamVelocity': 'freestreamVelocity;\n    freestreamValue    $internalField',
                   'calculated': 'calculated;\n    value    $internalField',
-                  'atmBoundaryLayerInletVelocity': 'atmBoundaryLayerInletVelocity;\n    Uref {0:.3f};\n    Zref {1:.3f};\n    zDir ({2[0]:.3f} {2[1]:.3f} {2[2]:.3f});\n    flowDir    ({3[0]:.3f} {3[1]:.3f} {3[2]:.3f});\n    z0 uniform {4:.3f};\n    zGround uniform {5:.3f};\n    d uniform {6:.3f}\n    value {7}'.format(s_val,
+                  'atmBoundaryLayerInletVelocity': 'atmBoundaryLayerInletVelocity;\n    Uref {0:.3f};\n    Zref {1:.3f};\n    zDir ({2[0]:.3f} {2[1]:.3f} {2[2]:.3f});\n    flowDir    ({3[0]:.3f} {3[1]:.3f} {3[2]:.3f});\n    z0 uniform {4:.3f};\n    zGround uniform {5:.3f}'.format(s_val,
                                                                                                                                                                                                                                  self.flovi_u_zref,
                                                                                                                                                                                                                                  self.flovi_u_zdir,
                                                                                                                                                                                                                                  fd_val,
@@ -472,7 +473,7 @@ def fvvarwrite(scene, obs, node):
                                                                                     ('1', '0', '-3', '0', '{:.4f}'.format(node.Gval)))]
         for o in obs:
             mats = [mat for mat in o.data.materials if mat]
-            
+
             for mat in mats:
                 mvp = mat.vi_params
                 matname = '{}_{}'.format(o.name, mat.name)
@@ -501,6 +502,7 @@ def fvvarwrite(scene, obs, node):
                         if node.radiation:
                             Gentry += mvp.flovi_mat(svp, matname, 'G', frame)
                             b_dict[matname]['G'] = mvp.flovi_mat(svp, matname, 'G', frame)
+
                             if node.radmodel == '1':
                                 Ientry += mvp.flovi_mat(svp, matname, 'IDefault', frame)
                                 b_dict[matname]['IDefault'] = mvp.flovi_mat(svp, matname, 'IDefault', frame)

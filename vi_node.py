@@ -1832,6 +1832,7 @@ class No_En_Con(Node, ViNodes):
     resim: bpy.props.BoolProperty(name='Infiltration (m\u00b3/h)', description='Zone infiltration rate (m\u00b3/h)', default=False)
     resiach: bpy.props.BoolProperty(name='Infiltration (ACH)', description='Zone infiltration rate (ACH)', default=False)
     resco2: bpy.props.BoolProperty(name='CO2 (ppm)', description='Zone CO2 concentration (ppm)', default=False)
+    reswp: bpy.props.BoolProperty(name='Wind pressure (Pa)', description='Wind pressure (Pa)', default=False)
     resihl: bpy.props.BoolProperty(name='Exfiltration (W)', description='Exfiltration heat loss (W)', default=False)
     resl12ms: bpy.props.BoolProperty(name=u'Flow (m\u00b3/s)', description=u'Linkage flow (m\u00b3/s)', default=False)
     reslof: bpy.props.BoolProperty(name='Opening factor', description='Linkage opening factor', default=False)
@@ -1999,7 +2000,6 @@ class No_En_Sim(Node, ViNodes):
                 for rl in self['reslists']:
                     if rl[1] == 'Surface':
                         ob_name = '_'.join(rl[2].split('_')[:-1]) if rl[2][:3] == 'EN_' else '_'.join(rl[2].split('_')[:-1])['_'.join(rl[2].split('_')[:-1]).find('EN_'):]
-                        # f_index = rl[2].split('_')[-1]
 
                         if ob_name not in sresdict:
                             sresdict[ob_name] = {}
@@ -3380,9 +3380,18 @@ class No_Vi_Metrics(Node, ViNodes):
 
                         if self['res']:
                             for m in self['res']:
+                                if self['res'][m].get(self.ref_point) is not None and m == 'azimuth':
+                                    row = layout.row()
+                                    row.label(text="{} {} at final timestep: {:.2f}".format(self.ref_point, m, self['res'][m][self.ref_point]))
+
+                            for m in self['res']:
                                 if self['res'][m].get(self.zone_menu):
                                     row = layout.row()
                                     row.label(text="{} {} at final timestep: {:.2f}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+
+                                    if m == 'WPC':
+                                        row = layout.row()
+                                        row.operator('node.wpcs_save', text='Save WPCs')
 
                     elif self.metric == '3':
                         if self['res']['ec'] and self.em_menu in ('Object', 'Surface', 'Zone', 'All entities') and self.frame_menu != 'All':
@@ -3984,8 +3993,9 @@ class No_Vi_Metrics(Node, ViNodes):
             self['res']['zvelocity'] = {}
             self['res']['yvelocity'] = {}
             self['res']['WPC'] = {}
+            self['res']['azimuth'] = {}
             self['res']['Q'] = {}
-            frames = []
+            frames = [f[0] for f in self['frames'] if f[0] != 'All']
             reslists = []
             pref_flag = 0
             ws_flag = 0
@@ -4017,22 +4027,28 @@ class No_Vi_Metrics(Node, ViNodes):
                         elif r[3] == 'Volume flow rate':
                             self['res']['Q'][pn] = float(r[4].split()[-1])
 
+            anim, uxs, uys = 'All' in [r[0] for r in self['rl']], [], []
+
             for r in self['rl']:
-                if r[0] == 'All':
-                    if r[2] == self.ref_point:
+                if r[0] == (self.frame_menu, 'All')[anim]:
+                    if r[2] == (self.ref_point, '')[self.ref_type == '1']:
                         if r[3] == 'X velocity':
-                            uxs = [float(ux) for ux in r[4].split()]
+                            uxs = [float(ux) for ux in r[4].split()] if anim else [[float(ux) for ux in r[4].split()][-1]]
                         elif r[3] == 'Y velocity':
-                            uys = [float(uy) for uy in r[4].split()]
+                            uys = [float(uy) for uy in r[4].split()] if anim else [[float(uy) for uy in r[4].split()][-1]]
                     elif r[3] == 'Pressure':
                         ps = ['{:.3f}'.format((float(r) - pref) / (0.5 * 1.225 * (ws**2))) for r in r[4].split()]
+                        reslists.append(['All', 'Frames', 'Frames', 'Frames', ' '.join(frames)])
                         reslists.append(['All', 'Probe', r[2], 'WPCs', ' '.join(ps)])
-            try:
+
+            if uxs and uys:
                 azis = [round(mathutils.Vector((0, 1)).angle_signed(mathutils.Vector((uxs[i], uys[i]))), 2) for i in range(len(uxs))]
-                azis = ['{:.0f}'.format(abs(180 / math.pi * (a, a + 2 * math.pi)[a < 0])) for a in azis]
+                azis = ['{:.1f}'.format(abs(180 / math.pi * (a, a + 2 * math.pi)[a < 0])) for a in azis]
+
+                if self.frame_menu != 'All':
+                    self['res']['azimuth'][self.ref_point] = float(azis[int(self.frame_menu) - int(frames[0])])
+
                 reslists.append(['All', 'Probe', self.ref_point, 'Azimuths', ' '.join(azis)])
-            except Exception:
-                pass
 
             self['reslists'] = reslists
 
@@ -4744,6 +4760,7 @@ class No_Flo_NG(Node, ViNodes):
     ofbm: BoolProperty(name='', description='Create Blender mesh', default=1)
     b_only: BoolProperty(name='', description='Only generate a boundary Blender mesh', default=1)
     debug_step: BoolProperty(name='', description='Export STEP debug files', default=0)
+    static_mesh: BoolProperty(name='', description='Only create a single mesh for paramteric analysis', default=0)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -4761,6 +4778,9 @@ class No_Flo_NG(Node, ViNodes):
 
         if self.inputs and self.inputs['Case in'].links:
             if all(flo_libs):
+                if self.inputs['Case in'].links[0].from_node.parametric:
+                    newrow(layout, 'Static mesh:', self, 'static_mesh')
+
                 newrow(layout, 'Max cell size:', self, 'maxcs')
                 newrow(layout, 'Refinement:', self, 'refinement')
                 newrow(layout, 'Inflation:', self, 'grading')
@@ -5245,6 +5265,7 @@ class No_En_Net_Zone(Node, EnViNodes):
                 self.inputs.new('So_En_Net_Bound', '{}_{}_b'.format(odm[bface.material_index].name, bface.index)).sn = bface.index
                 self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[bface.index].value)
                 self.inputs[-1].link_limit = 1
+
             for sface in sfacelist:
                 self.afs += 1
                 self.outputs.new('So_En_Net_SFlow', '{}_{}_s'.format(odm[sface.material_index].name, sface.index)).sn = sface.index
@@ -5253,6 +5274,7 @@ class No_En_Net_Zone(Node, EnViNodes):
                 self.inputs.new('So_En_Net_SFlow', '{}_{}_s'.format(odm[sface.material_index].name, sface.index)).sn = sface.index
                 self.inputs[-1].viuid = '{}#{}'.format(obj.name, obj.data.attributes["viuid"].data[sface.index].value)
                 self.inputs[-1].link_limit = 1
+
             for ssface in ssfacelist:
                 self.afs += 1
                 self.outputs.new('So_En_Net_SSFlow', '{}_{}_s'.format(odm[ssface.material_index].name, ssface.index)).sn = ssface.index
@@ -5276,7 +5298,7 @@ class No_En_Net_Zone(Node, EnViNodes):
 
     def tspsupdate(self, context):
         if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
-            remlink(self, self.inputs['TSPSchedule'].links)
+            remlink(self.id_data, self.inputs['TSPSchedule'].links)
         self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
         self.update()
 
@@ -5743,10 +5765,10 @@ class No_En_Net_SSFlow(Node, EnViNodes):
     def supdate(self, context):
         if self.linkmenu in ('Crack', 'EF', 'ELA') or self.controls != 'Temperature':
             if self.inputs['TSPSchedule'].is_linked:
-                remlink(self, self.inputs['TSPSchedule'].links)
+                remlink(self.id_data, self.inputs['TSPSchedule'].links)
         if self.linkmenu in ('Crack', 'EF', 'ELA') or self.controls in ('ZoneLevel', 'NoVent'):
             if self.inputs['VASchedule'].is_linked:
-                remlink(self, self.inputs['VASchedule'].links)
+                remlink(self.id_data, self.inputs['VASchedule'].links)
 
         self.inputs['TSPSchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else True
         self.inputs['VASchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') else True
@@ -5893,8 +5915,9 @@ class No_En_Net_SSFlow(Node, EnViNodes):
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
                 othernode = (link.from_node, link.to_node)[sock.is_output]
-                if othernode.bl_idname == 'No_En_Net_Ext' and enng['enviparams']['wpca'] == 1:
+                if othernode.bl_idname == 'No_En_Net_Ext' and enng['enviparams']['wpca'] in (1, 2):
                     en = othernode.name
+                    print(en)
 
         if self.linkmenu == 'DO':
             cfparams = ('Name', 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)', 'Air Mass Flow Exponent When Opening is Closed (dimensionless)',
@@ -6005,7 +6028,7 @@ class No_En_Net_Ext(Node, EnViNodes):
                 self['WPCs'] = list(zip(azis, wpcs))
 
     height: FloatProperty(default=1.0)
-    val_type: EnumProperty(items=[('0', 'Manual', 'Manual WPC entry'), ('1', 'CSV', 'Get WPCs from CSV file')], name='', default='0', description='Source of WPC values')
+    val_type: EnumProperty(items=[('0', 'Manual', 'Manual WPC entry'), ('1', 'CSV', 'Get WPCs from CSV file'), ('2', 'Material', 'Get WPCs from face material')], name='', default='0', description='Source of WPC values')
     press_ob: EnumProperty(items=ret_empty_menu, name='', description='Object containing WPC values')
     csv_file: StringProperty(name="", description="Name of CSV file", default="", subtype="FILE_PATH")
     csv_probe: EnumProperty(items=ret_probes, name='', description='Object conatining WPC values', update=wpc_vals)
@@ -6055,7 +6078,7 @@ class No_En_Net_Ext(Node, EnViNodes):
                 row.label(text="WPC{}:".format(w))
                 row.prop(self, 'wpc{}'.format(w))
 
-        else:
+        elif self.val_type == '1':
             newrow(layout, 'Select', self, 'csv_file')
 
             if self.csv_file and os.path.isfile(bpy.path.abspath(self.csv_file)):
@@ -6081,8 +6104,37 @@ class No_En_Net_Ext(Node, EnViNodes):
             i_angs = sorted([self.ang1, self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12])
             angs = [(a, ai) for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai - 1] < i_angs[ai]]
             wpcs = [[x for _, x in sorted(zip(azis, wpcs))][a[1]] for a in angs]
-        else:
+
+        elif self.val_type == '1':
             wpcs = [w[1] for w in self['WPCs']]
+
+        else:
+            if self.inputs['Sub surface'].links:
+                surface_node = self.inputs['Sub surface'].links[0].from_node
+                surface_sock = self.inputs['Sub surface'].links[0].from_socket
+                zone_sock = surface_node.inputs[('Node 1', 'Node 2')[surface_sock.name == 'Node 1']].from_socket
+                # zone_node = surface_sock.links[0].from_node
+                # zone_sock = surface_sock.links[0].from_socket
+            elif self.inputs['Surface'].links:
+                surface_node = self.inputs['Surface'].links[0].from_node
+                surface_sock = self.inputs['Surface'].links[0].from_socket
+                zone_sock = surface_node.inputs[('Node 1', 'Node 2')[surface_sock.name == 'Node 1']].links[0].from_socket
+                # zone_node = surface_sock.links[0].from_node
+                # zone_sock = surface_sock.links[0].from_socket
+            elif self.outputs['Sub surface'].links:
+                surface_node = self.outputs['Sub surface'].links[0].to_node
+                surface_sock = self.outputs['Sub surface'].links[0].to_socket
+                zone_sock = surface_node.outputs[('Node 1', 'Node 2')[surface_sock.name == 'Node 1']].to_socket
+                # zone_node = surface_sock.links[0].to_node
+                # zone_sock = surface_sock.links[0].to_socket
+            elif self.outputs['Surface'].links:
+                surface_node = self.outputs['Surface'].links[0].to_node
+                surface_sock = self.outputs['Surface'].links[0].to_socket
+                zone_sock = surface_node.outputs[('Node 1', 'Node 2')[surface_sock.name == 'Node 1']].to_socket
+                # zone_node = surface_sock.links[0].to_node
+                # zone_sock = surface_sock.links[0].to_socket
+
+            wpcs = bpy.context.scene.vi_params['flparams']['wpcs'][('_'.join(zone_sock.name.split('_')[:-2]))].split()
 
         wpcparams = ['Name', 'AirflowNetwork:MultiZone:WindPressureCoefficientArray Name'] + ['Wind Pressure Coefficient Value {} (dimensionless)'.format(w + 1) for w in range(len(wpcs))]
         wpcparamvs = [f'{self.name} WPC array', 'Azimuth array'] + wpcs
@@ -6193,7 +6245,8 @@ class No_En_Net_SFlow(Node, EnViNodes):
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
                 othernode = (link.from_node, link.to_node)[sock.is_output]
-                if othernode.bl_idname == 'No_En_Net_Ext' and enng['enviparams']['wpca'] == 1:
+
+                if othernode.bl_idname == 'No_En_Net_Ext' and enng['enviparams']['wpca'] in (1, 2):
                     en = othernode.name
 
         if self.linkmenu == 'ELA':
@@ -6234,7 +6287,9 @@ class No_En_Net_SFlow(Node, EnViNodes):
             for link in sock.links:
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
                 othernode = (link.from_node, link.to_node)[sock.is_output]
+
                 if sock.bl_idname == 'So_En_Net_SFlow' and othernode.bl_idname == 'No_En_Net_Zone':
+                    # en = f'{othersock.name}_ext'
                     # The conditional below checks if the airflow surface is also on a boundary. If so only the surface belonging to the outputting zone node is written.
                     if (othersock.name[0:-1] + 'b' in [s.name for s in othernode.outputs[:]] and othernode.outputs[othersock.name[0:-1] + 'b'].links) or othersock.name[0:-1] + 'b' not in [s.name for s in othernode.outputs]:
                         sn = othersock.sn
@@ -6250,7 +6305,7 @@ class No_En_Net_SFlow(Node, EnViNodes):
 
     def legal(self):
         try:
-            nodecolour(self, 1) if not self.extnode and self.id_data['enviparams']['wpca'] and self.partnode != 2 else nodecolour(self, 0)
+            nodecolour(self, 1) if not self.extnode and self.id_data['enviparams']['wpca'] in (1, 2) and self.partnode != 2 else nodecolour(self, 0)
             self.id_data.interface_update(bpy.context)
         except Exception:
             nodecolour(self, 1)
@@ -6265,12 +6320,23 @@ class No_En_Net_ACon(Node, EnViNodes):
     def wpcupdate(self, context):
         if self.wpctype == 'SurfaceAverageCalculation':
             if self.inputs['Azimuth array'].is_linked:
-                remlink(self, self.inputs['WPC Array'].links)
+                remlink(self.id_data, self.inputs['Azimuth array'].links)
+
             self.inputs['Azimuth array'].hide = True
             self.id_data['enviparams']['wpca'] = 0
+
         elif self.wpctype == 'Input':
             self.id_data['enviparams']['wpca'] = 1
             self.inputs['Azimuth array'].hide = False
+
+        elif self.wpctype == 'Material':
+            self.id_data['enviparams']['wpca'] = 2
+
+            if self.inputs['Azimuth array'].is_linked:
+                remlink(self.id_data, self.inputs['Azimuth array'].links)
+
+            self.inputs['Azimuth array'].hide = True
+
         self.legal()
 
     afnname: StringProperty(name='')
@@ -6280,7 +6346,7 @@ class No_En_Net_ACon(Node, EnViNodes):
                                  ('NoMultizoneOrDistribution', 'NoMultizoneOrDistribution', 'Only zone infiltration controls are modelled')], name="", default='MultizoneWithoutDistribution')
 
     wpctype: EnumProperty(items=[('SurfaceAverageCalculation', 'SurfaceAverageCalculation', 'Calculate wind pressure coefficients based on oblong building assumption'),
-                                 ('Input', 'Input', 'Input wind pressure coefficients from an external source')], name="", default='SurfaceAverageCalculation', update=wpcupdate)
+                                 ('Input', 'Input', 'Input wind pressure coefficients from an external source'), ('Material', 'Material', 'Read wind pressure coefficients material WPCs')], name="", default='SurfaceAverageCalculation', update=wpcupdate)
     wpcaname: StringProperty()
     wpchs: EnumProperty(items=[('OpeningHeight', 'OpeningHeight', 'Calculate wind pressure coefficients based on opening height'),
                                ('ExternalNode', 'ExternalNode', 'Calculate wind pressure coefficients based on external node height')], name="", default='OpeningHeight')
@@ -6301,20 +6367,21 @@ class No_En_Net_ACon(Node, EnViNodes):
         self.inputs.new('So_En_Net_WPC', 'Azimuth array')
 
     def draw_buttons(self, context, layout):
-        yesno = (1, 1, 1, self.wpctype == 'Input', self.wpctype != 'Input' and self.wpctype == 'SurfaceAverageCalculation', 1, 1, 1, 1, 1, self.wpctype == 'SurfaceAverageCalculation', self.wpctype == 'SurfaceAverageCalculation')
+        yesno = (1, 1, 1, self.wpctype in ('Input', 'Material'), self.wpctype != 'Input' and self.wpctype == 'SurfaceAverageCalculation', 1, 1, 1, 1, 1, self.wpctype == 'SurfaceAverageCalculation', self.wpctype == 'SurfaceAverageCalculation')
         vals = (('Name:', 'afnname'), ('Type:', 'afntype'), ('WPC type:', 'wpctype'), ('WPC height', 'wpchs'), ('Build type:', 'buildtype'), ('Max iter:', 'maxiter'), ('Init method:', 'initmet'),
                 ('Rel Converge:', 'rcontol'), ('Abs Converge:', 'acontol'), ('Converge Lim:', 'conal'), ('Azimuth:', 'aalax'), ('Axis ratio:', 'rsala'))
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
 
     def ep_write(self, exp_op, enng):
         wpcaentry = ''
+
         if self.wpctype == 'Input' and not self.inputs['Azimuth array'].is_linked:
             exp_op.report({'ERROR'}, "Azimuth array input has been selected in the control node, but no Azimuth array node is attached")
             return 'ERROR'
 
         self.afnname = 'default' if not self.afnname else self.afnname
-        wpctype = 1 if self.wpctype == 'Input' else 0
-        paramvs = (self.afnname, self.afntype, self.wpctype, ("", self.wpchs)[wpctype], (self.buildtype, "")[wpctype], self.maxiter, self.initmet,
+        wpctype = 1 if self.wpctype in ('Input', 'Material') else 0
+        paramvs = (self.afnname, self.afntype, ('SurfaceAverageCalculation', 'Input')[self.wpctype in ('Input', 'Material')], ("", self.wpchs)[wpctype], (self.buildtype, "")[wpctype], self.maxiter, self.initmet,
                    '{:.3E}'.format(self.rcontol), '{:.3E}'.format(self.acontol), '{:.3E}'.format(self.conal), (self.aalax, "")[wpctype], (self.rsala, "")[wpctype])
 
         params = ('Name', 'AirflowNetwork Control', 'Wind Pressure Coefficient Type',
@@ -6325,8 +6392,11 @@ class No_En_Net_ACon(Node, EnViNodes):
         simentry = epentry('AirflowNetwork:SimulationControl', params, paramvs)
 
         if self.inputs['Azimuth array'].is_linked:
-            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['Azimuth array'].links[0].from_node.ep_write() if wpctype == 1 else ('', 0)
+            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['Azimuth array'].links[0].from_node.ep_write() if self.wpctype == 1 else ('', 0)
             enng['enviparams']['wpca'] = 1
+
+        elif self.wpctype == 'Material':
+            enng['enviparams']['wpca'] = 2
 
         self.legal()
         return simentry + wpcaentry
@@ -6336,10 +6406,11 @@ class No_En_Net_ACon(Node, EnViNodes):
 
     def legal(self):
         try:
-            # self.id_data['enviparams']['wpca'] = 1 if self.wpctype == 'Input' and self.inputs['WPC Array'].is_linked else 0
             nodecolour(self, self.wpctype == 'Input' and not self.inputs['WPC Array'].is_linked)
+
             for node in [node for node in self.id_data.nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
                 node.legal()
+
         except Exception:
             pass
 
@@ -6409,11 +6480,6 @@ class No_En_Net_Azi(Node, EnViNodes):
 
         elif self.azi_type == '1':
             azis = list(self['azis'])
-            # with open(bpy.path.abspath(self.csv_file), 'r') as csv_file:
-            #     csv_lines = csv_file.readlines()
-            #     azi_col = [pi for pi, p in enumerate(csv_lines[0].split(',')) if 'Azimuths' in p]
-            #     azis = sorted([float(al.split(',')[azi_col[0]]) for al in csv_lines[1:] if al and al != '\n'])
-            #     azis = [a for ai, a in enumerate(i_angs) if ai == 0 or i_angs[ai-1] < i_angs[ai]]
 
         aparamvs = ['Azimuth array'] + azis
         aparams = ['Name'] + ['Wind Direction {} (deg)'.format(w + 1) for w in range(len(azis))]
@@ -6443,10 +6509,13 @@ class No_En_Net_Sched(Node, EnViNodes):
                             self.t4 = 365
 
                 tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
+
                 if max((self.t1, self.t2, self.t3, self.t4)[:tn]) != 365:
                     err = 1
+
                 if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
                     err = 1
+
                 if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
                     err = 1
 
@@ -6460,6 +6529,7 @@ class No_En_Net_Sched(Node, EnViNodes):
                         for ud in uf.split(','):
                             if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
                                 err = 1
+
                 nodecolour(self, err)
 
         except Exception:

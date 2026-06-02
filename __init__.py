@@ -100,12 +100,10 @@ else:
             if plat_path not in os.environ['PYTHONPATH']:
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.environ['PYTHONPATH']
 
-                #if sys.platform != 'linux':
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
         else:
             os.environ['PYTHONPATH'] = plat_path
 
-            #if sys.platform != 'linux':
             os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages')
 
         if sys.platform == 'linux':
@@ -149,7 +147,7 @@ else:
         if sys.platform == 'darwin':
             ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
+            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2604'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
             src_path = os.path.join(addonpath, 'Python', sys.platform, 'lib')
             dest_path = os.path.join(addonpath, 'Python')
@@ -164,7 +162,7 @@ else:
         elif sys.platform == 'win32':
             ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, addonpath)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
+            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2604'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
 
         elif sys.platform == 'linux':
@@ -264,7 +262,7 @@ else:
     from .vi_operators import NODE_OT_Chart, NODE_OT_HMChart, NODE_OT_En_PVA, NODE_OT_En_PVS, NODE_OT_En_LayS, NODE_OT_En_EcS, NODE_OT_En_ConS, TREE_OT_goto_mat, TREE_OT_goto_group
     from .vi_operators import OBJECT_OT_Li_GBSDF, OBJECT_OT_GOct, MATERIAL_OT_Li_LBSDF, MATERIAL_OT_Li_SBSDF, MATERIAL_OT_Li_DBSDF, NODE_OT_EcE
     from .vi_operators import NODE_OT_Flo_Case, NODE_OT_Flo_NG, NODE_OT_Flo_Bound, NODE_OT_Flo_Sim, NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Conv, NODE_OT_Au_Play, NODE_OT_Au_Stop
-    from .vi_operators import NODE_OT_Au_PlayC, NODE_OT_Au_Save, NODE_OT_RIR_Save
+    from .vi_operators import NODE_OT_Au_PlayC, NODE_OT_Au_Save, NODE_OT_RIR_Save, NODE_OT_WPC_Save
     from .vi_display import VIEW3D_OT_WRDisplay, VIEW3D_OT_SVFDisplay, VIEW3D_OT_Li_BD, VIEW3D_OT_Li_DBSDF, VIEW3D_OT_SSDisplay, VIEW3D_OT_RTDisplay, NODE_OT_SunPath, NODE_OT_Vi_Info
     from .vi_display import script_update, col_update, leg_update, w_update, t_update, livires_update, e_update
     from .vi_ui import VI_PT_3D, VI_PT_Mat, VI_PT_Ob, VI_PT_Col, VI_PT_Gridify, TREE_PT_envim, TREE_PT_envin, TREE_PT_vi
@@ -765,8 +763,8 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
     flovi_u_azi: fprop("deg.", "Flow azimuth direction", 0, 360, 0)
     flovi_u_speed: fprop("m/s", "Flow speed", 0, 1000, 1)
-    flovi_u_uref: fprop("m/s", "Reference speed", 0, 500, 0)
-    flovi_u_zref: fprop("m", "Reference z height", 10, 500, 0)
+    flovi_u_uref: fprop("m/s", "Reference speed", 0, 500, 5)
+    flovi_u_zref: fprop("m", "Reference z height", 1, 500, 1)
     flovi_u_zdir: fvprop(3, '', 'Up direction', [0, 0, 1], 'XYZ', -100, 100)
     flovi_u_fdir: fvprop(3, '', 'Flow direction', [1, 0, 0], 'XYZ', -100, 100)
     flovi_u_z0: fprop("m", "	Surface roughness length", 0.1, 500, 0)
@@ -1002,7 +1000,7 @@ classes = (VIPreferences, ViNetwork, No_Loc, So_Vi_Loc, No_Vi_SP, NODE_OT_SunPat
            NODE_OT_ASCImport, No_ASC_Import, So_Flo_Mesh, No_Flo_Case, So_Flo_Case, NODE_OT_Flo_Case, No_Flo_NG, NODE_OT_Flo_NG,
            So_Flo_Con, No_Flo_Bound, NODE_OT_Flo_Bound, No_Flo_Sim, NODE_OT_Flo_Sim, No_En_IF, No_En_RF, So_En_Net_WPC, No_En_Net_Azi, MAT_EnVi_Node_Remove, No_Anim, So_Anim,
            No_En_Net_Anim, No_En_Mat_Anim, VI_PT_Col, NODE_OT_Vi_Info, ViEnRIn, NODE_OT_EcE, So_Au_Scene, So_Au_IR, No_Au_Sim, No_Au_Conv, NODE_OT_Au_Conv,
-           NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Play, NODE_OT_Au_Stop, NODE_OT_Au_PlayC, NODE_OT_Au_Save, NODE_OT_RIR_Save)
+           NODE_OT_Au_Rir, NODE_OT_WavSelect, NODE_OT_Au_Play, NODE_OT_Au_Stop, NODE_OT_Au_PlayC, NODE_OT_Au_Save, NODE_OT_RIR_Save, NODE_OT_WPC_Save)
 
 
 def register():

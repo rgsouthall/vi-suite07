@@ -238,17 +238,17 @@ def retuval(mat):
             for li, lay in enumerate(lays):
                 if lay == '1':
                     dtc = em.matdat[laymats[li]][2] if em.matdat[laymats[li]][0] == 'Gas' else em.matdat[laymats[li]][1]
-                    resists.append((thicks[li]/float(dtc), float(dtc))[em.matdat[laymats[li]][0] == 'Gas'])
+                    resists.append((thicks[li] / float(dtc), float(dtc))[em.matdat[laymats[li]][0] == 'Gas'])
                 if lay == '2':
-                    resists.append(thicks[li]/ctcs[l])
+                    resists.append(thicks[li] / ctcs[l])
 
         elif mat.envi_con_makeup == '0':
             for p, psmat in enumerate(ec.propdict[mat.envi_con_type][mat.envi_con_list]):
                 pi = 2 if psmat in em.gas_dat else 1
                 pstcs.append(float(em.matdat[psmat][pi]))
-                resists.append((thicks[p]/float(em.matdat[psmat][pi]), float(em.matdat[psmat][pi]))[em.matdat[psmat][0] == 'Gas'])
+                resists.append((thicks[p] / float(em.matdat[psmat][pi]), float(em.matdat[psmat][pi]))[em.matdat[psmat][0] == 'Gas'])
 
-        uv = 1/(sum(resists) + 0.12 + 0.08)
+        uv = 1 / (sum(resists) + 0.12 + 0.08)
         mat.envi_material_uv = '{:.3f}'.format(uv)
         return uv
     else:
@@ -259,8 +259,6 @@ def envi_layertype(self, context):
     if not self.em.updated:
         self.em.update()
 
-    # em_types = [(k, k, '{} type'.format(k)) for k in self.em.propdict.keys()]
-    # return em_types
     return retmatdict(self.em, self.envi_con_type, 1, self.bl_idname == 'No_En_Mat_Gas')
 
 
@@ -300,7 +298,7 @@ def envi_emattype(self, context):
 
     try:
         source_id = self.bl_idname
-    except:
+    except Exception:
         source_id = 'None'
 
     if source_id in ('No_En_Mat_Op', 'No_En_Mat_Tr', 'No_En_Mat_Con'):
@@ -324,7 +322,6 @@ class envi_embodied(object):
         self.updated = 0
 
     def update(self):
-        print(ret_datab('EC_database.json', 'r'))
         with open(ret_datab('EC_database.json', 'r'), 'r') as ec_jfile:
             self.ecsd, self.ecs = {}, {}
             ec_dict = json.loads(ec_jfile.read())
@@ -334,6 +331,7 @@ class envi_embodied(object):
                 self.ecs[k.capitalize()] = OrderedDict(sorted(ec_dict[k].items()))
 
             self.propdict = {k: self.ecs[k] for k in self.ecs}
+
         self.updated = 1
 
     def get_dat(self):

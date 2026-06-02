@@ -520,9 +520,8 @@ class MainWindow(QMainWindow):\n\
         self.setWindowTitle('" + calctype + "')\n\
         self.setFixedWidth(350)\n\
         self.btn = QPushButton('Cancel')\n\
-        #self.connect(self.update)\n\
+        self.btn.setDefault(False)\n\
         self.btn.pressed.connect(self.stop_process)\n\
-        #self.text = QPlainTextEdit()\n\
         self.progress = QProgressBar()\n\
         self.progress.setTextVisible(False)\n\
         self.label = QLabel('Initialsing')\n\
@@ -655,6 +654,7 @@ class MainWindow(QMainWindow):\n\
         self.setWindowTitle('{}')\n\
         self.setFixedWidth(300)\n\
         self.btn = QPushButton('Cancel')\n\
+        self.btn.setDefault(False)\n\
         self.btn.pressed.connect(self.stop_process)\n\
         l = QVBoxLayout()\n\
         l.addWidget(self.btn)\n\
@@ -699,6 +699,7 @@ class MainWindow(QMainWindow):\n\
         self.setWindowTitle('OpenFOAM " + str(frame) + " Residuals')\n\
         self.setFixedWidth(370)\n\
         self.btn = QPushButton('Cancel')\n\
+        self.btn.setDefault(False)\n\
         self.btn.pressed.connect(self.stop_process)\n\
         l = QVBoxLayout()\n\
         residual = QHBoxLayout()\n\
@@ -2269,7 +2270,7 @@ def sunapply(scene, sun, values, solposs, frames, sdist):
     sun.data.animation_data_clear()
     sun.animation_data_clear()
     action = bpy.data.actions.get("EnVi Sun")
-    print('hi')
+
     if action:
         bpy.data.actions.remove(action, do_unlink=True)
 

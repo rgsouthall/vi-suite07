@@ -202,22 +202,22 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                                         paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', '{}-frame'.format(mat.name), coll.name, '', obc, obco, se, we, 'autocalculate',
                                                    len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
                                         en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
-                                        obound = ('win-', 'door-')[emecc == 'Door']+obco if obco else obco
+                                        obound = ('win-', 'door-')[emecc == 'Door'] + obco if obco else obco
                                         params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground',
                                                   'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
 
                                         if emnode.fclass in ('0', '2'):
-                                            paramvs = [('win-', 'door-')[emecc == 'Door']+'{}_{}'.format(obj.name, face.index), emecc, mat.name,
+                                            paramvs = [('win-', 'door-')[emecc == 'Door'] + '{}_{}'.format(obj.name, face.index), emecc, mat.name,
                                                        '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '1',
-                                                       len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*(1 - emnode.farea * 0.01),
-                                                                                                                          yav+(vco[1]-yav)*(1 - emnode.farea * 0.01),
-                                                                                                                          zav+(vco[2]-zav)*(1 - emnode.farea * 0.01))) for vco in vcos]
+                                                       len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav + (vco[0] - xav) * (1 - emnode.farea * 0.01),
+                                                                                                                          yav + (vco[1] - yav) * (1 - emnode.farea * 0.01),
+                                                                                                                          zav + (vco[2] - zav) * (1 - emnode.farea * 0.01))) for vco in vcos]
                                         else:
-                                            paramvs = [('win-', 'door-')[emecc == 'Door']+'{}_{}'.format(obj.name, face.index), emecc, mat.name,
+                                            paramvs = [('win-', 'door-')[emecc == 'Door'] + '{}_{}'.format(obj.name, face.index), emecc, mat.name,
                                                        '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '{}-fad'.format(mat.name), '1',
-                                                       len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((vco[0] + (1, -1)[vco[0] - xav > 0]*(0.001+emnode.fw, 0)[abs(vco[0] - xav) < 0.0001],
-                                                                                                                          vco[1] + (1, -1)[vco[1] - yav > 0]*(0.001+emnode.fw, 0)[abs(vco[1] - yav) < 0.0001],
-                                                                                                                          vco[2] + (1, -1)[vco[2] - zav > 0]*(0.001+emnode.fw, 0)[abs(vco[2] - zav) < 0.0001])) for vco in vcos]
+                                                       len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((vco[0] + (1, -1)[vco[0] - xav > 0] * (0.001 + emnode.fw, 0)[abs(vco[0] - xav) < 0.0001],
+                                                                                                                          vco[1] + (1, -1)[vco[1] - yav > 0] * (0.001 + emnode.fw, 0)[abs(vco[1] - yav) < 0.0001],
+                                                                                                                          vco[2] + (1, -1)[vco[2] - zav > 0] * (0.001 + emnode.fw, 0)[abs(vco[2] - zav) < 0.0001])) for vco in vcos]
 
                                         en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
 
@@ -294,7 +294,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
 
                     try:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone+'_hvacsched', 'Fraction'))
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone + '_hvacsched', 'Fraction'))
                     except Exception:
                         en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00, 1']]]]))
 
@@ -303,7 +303,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
 
                     for sschedtype in hsdict:
                         if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
-                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.ep_write(zn.zone+hsdict[sschedtype], 'Temperature'))
+                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.ep_write(zn.zone + hsdict[sschedtype], 'Temperature'))
                         else:
                             en_idf.write(epschedwrite(zn.zone + hsdict[sschedtype], 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(tvaldict[sschedtype])]]]]))
 
@@ -325,19 +325,19 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
                         en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
                     else:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone+'_eqsched', 'Fraction'))
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone + '_eqsched', 'Fraction'))
 
                 elif schedtype == 'Infiltration' and zn.inputs[schedtype].links:
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
                         en_idf.write(epschedwrite(zn.zone + '_infsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
                     else:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone+'_infsched', 'Fraction'))
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.ep_write(zn.zone + '_infsched', 'Fraction'))
 
                 elif schedtype == 'VASchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write(zn.zone+'_vasched', 'Fraction'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write(zn.zone + '_vasched', 'Fraction'))
 
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write(zn.zone+'_tspsched', 'Temperature'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write(zn.zone + '_tspsched', 'Temperature'))
 
         ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_SSFlow']
 
@@ -355,9 +355,6 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
             for schedtype in ('Fan Schedule',):
                 if zn.inputs.get(schedtype) and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write('{}_fansched'.format(zn.name), 'Fraction'))
-
-                #elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
-                    #en_idf.write(zn.inputs[schedtype].links[0].from_node.ep_write('{}_tspsched'.format(zn.name), 'Temperature'))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: GENERATORS ===========\n\n")
 
@@ -382,7 +379,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
             en_idf.write(epentry("ElectricLoadCenter:Generators", params, paramvs))
 
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
-        
+
         for zn in zonenodes:
             for hvaclink in zn.inputs['HVAC'].links:
                 en_idf.write(hvaclink.from_node.eptspwrite(zn.zone))
@@ -470,6 +467,7 @@ def enpolymatexport(exp_op, geo_coll, node, locnode, em, ec):
                        "Output:Variable,*,Zone Exfiltration Sensible Heat Transfer Rate, hourly;\n": node.resihl,
                        "Output:Variable,*,Enclosure Windows Total Transmitted Solar Radiation Rate,hourly;\n": node.reswsg,
                        "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2 and enng['enviparams']['afn'],
+                       "Output:Variable,*,AFN Node Wind Pressure,hourly;\n": node.reswp and enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Air CO2 Concentration,hourly;\n": node.resco2 and not enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt,
                        "Output:Variable,*,Zone People Occupant Count,hourly;\n": node.resocc,
@@ -556,275 +554,6 @@ def solid_pregeo(context, op, coll):
 
             ob.vi_params.vi_type = '1'
 
-    # dp = context.evaluated_depsgraph_get()
-    # scene = context.scene
-    # svp = scene.vi_params
-    # c_geos = [ob for ob in coll.objects if ob.visible_get()]
-    # g_geos = []
-    # g_names = []
-    # fi = 1
-    # bb_mesh = ret_coll_bb(coll)
-    # bm = bmesh.new()
-    # bm.from_mesh(bb_mesh)
-    # lbm = len(bm.faces)
-    # faces = []
-
-    # for fi, face in enumerate(bm.faces[:lbm]):
-    #     edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
-    #     wire = occ.Wire(edges)
-    #     f = occ.Face(wire)
-    #     f.name = None
-    #     faces.append(f)
-    #     fi += 1
-
-    # bm.free()
-    # d_geo = occ.OCCGeometry(occ.Compound(faces))
-    # d_geo.Heal(tolerance=0.01)
-
-    # for oi, ob in enumerate(c_geos):
-    #     fi = 0
-    #     faces = []
-    #     bm = bmesh.new()
-    #     bm.from_object(ob, dp)
-    #     bmesh.ops.triangulate(bm, faces=bm.faces)
-    #     bm.transform(ob.matrix_world)
-    #     lbm = len(bm.faces)
-
-    #     for fi, face in enumerate(bm.faces[:lbm]):
-    #         edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 4) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 4) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
-    #         wire = occ.Wire(edges)
-    #         f = occ.Face(wire)
-
-    #         if len(f.edges) > 2 and ob.material_slots and ob.material_slots[face.material_index].material:
-    #             matname = ob.material_slots[face.material_index].material.name
-    #             f.name = matname
-    #             f.mat(matname)
-    #             f.bc(matname)
-    #             f.layer = oi
-
-    #         faces.append(f)
-    #         fi += 1
-
-    #     g_geo = occ.OCCGeometry(occ.Compound(faces))
-    #     fns = [face.name for face in g_geo.faces]
-    #     fcs = [face.center for face in g_geo.faces]
-    #     print(f'Healing {ob.name}')
-    #     g_geo.Heal(tolerance=0.001)
-
-    #     if None in set([face.name for face in g_geo.shape.faces]):
-    #         for fi, face in enumerate(g_geo.shape.faces):
-    #             if face.name is None:
-    #                 for fci, fc in enumerate(fcs):
-    #                     if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
-    #                         face.name = fns[fci]
-    #                         break
-    #                 if face.name is None:
-    #                     face.name = fns[fi]
-
-    #     g_geos.append(g_geo)
-    #     g_names.append(ob.name)
-    #     bm.free()
-
-    # solids = []
-
-    # for gi, g_geo in enumerate(g_geos):
-    #     if len(g_geo.shape.SubShapes(occ.SOLID)) == len(g_geo.shape.SubShapes(occ.SHELL)):
-    #         for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
-    #             g_geo_solid.name = g_names[gi]
-    #             solids.append(g_geo_solid)
-
-    #     else:
-    #         for g_shell in g_geo.shape.SubShapes(occ.SHELL):
-    #             g_shell_solid = occ.OCCGeometry(g_shell)
-    #             fns = [face.name for face in g_shell_solid.faces]
-    #             fcs = [face.center for face in g_shell_solid.faces]
-    #             g_shell_solid.Heal(tolerance=0.0001)
-
-    #             if None in set([face.name for face in g_shell_solid.shape.faces]):
-    #                 for fi, face in enumerate(g_shell_solid.shape.faces):
-    #                     if face.name is None:
-    #                         for fci, fc in enumerate(fcs):
-    #                             if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
-    #                                 face.name = fns[fci]
-    #                                 break
-    #                         if face.name is None:
-    #                             face.name = fns[fi]
-
-    #             for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
-    #                 solids.append(g_solid)
-    #                 print('shell to solid', g_names[gi])
-
-    #             if not g_shell_solid.shape.SubShapes(occ.SOLID):
-    #                 g_shell_solid.shape.WriteStep(os.path.join(svp['viparams']['newdir'], 'temp.step'))
-    #                 g_shell_solid = occ.OCCGeometry(os.path.join(svp['viparams']['newdir'], 'temp.step'))
-    #                 fns = [face.name for face in g_shell_solid.faces]
-    #                 fcs = [face.center for face in g_shell_solid.faces]
-    #                 g_shell_solid.Heal(tolerance=0.0001)
-
-    #                 if None in set([face.name for face in g_shell_solid.shape.faces]):
-    #                     for fi, face in enumerate(g_shell_solid.shape.faces):
-    #                         if face.name is None:
-    #                             for fci, fc in enumerate(fcs):
-    #                                 if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
-    #                                     face.name = fns[fci]
-    #                                     break
-    #                             if face.name is None:
-    #                                 face.name = fns[fi]
-
-    #                 for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
-    #                     solids.append(g_solid)
-
-    # solids = [occ.Fuse(solids)]
-
-    # for si, solid in enumerate(solids):
-    #     d_geo = d_geo.shape - solid if not si else d_geo - solid
-    #     fns = [face.name for face in d_geo.faces]
-    #     fcs = [face.center for face in d_geo.faces]
-
-    #     if None in set([face.name for face in d_geo.faces]):
-    #         for fi, face in enumerate(d_geo.faces):
-    #             if face.name is None:
-    #                 for fci, fc in enumerate(fcs):
-    #                     if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
-    #                         face.name = fns[fci]
-    #                         break
-
-    #                 if face.name is None:
-    #                     face.name = fns[fi]
-
-    # if context.node.write_step:
-    #     d_geo.WriteStep(os.path.join(svp['viparams']['newdir'], 'd_geo.step'))
-
-    # for si, solid in enumerate(d_geo.solids[1:]):
-    #     if any([len(face.wires) > 1 for face in solid.faces]):
-    #         fis, verts, mat_list, vno = [], [], [], 0
-    #         solid.MakeTriangulation()
-    #         solid.WriteBrep(os.path.join(svp['viparams']['newdir'], 'temp.brep'), withTriangles=1)
-
-    #         with open(os.path.join(svp['viparams']['newdir'], 'temp.brep')) as brep_file:
-    #             brep_lines = brep_file.readlines()
-            
-    #         for li, line in enumerate(brep_lines):
-    #             if line.split() and line.split()[0] == 'Triangulations':
-    #                 t_lines = brep_lines[li + 1: li + 1 + 2 * int(line.split()[1])]
-    #                 break
-            
-    #         for li, line in enumerate(t_lines):
-    #             if not li % 2:
-    #                 verts.append(t_lines[li + 1].split()[:int(line.split()[0]) * 3])
-    #                 fis.append([int(f) - 1 + vno for f in t_lines[li + 1].split()[-int(line.split()[1]) * 3:]])
-    #                 vno += int(line.split()[0])
-
-    #                 for m in range(int(line.split()[1])):
-    #                     mat_list.append(solid.faces[int(li/2)].name)
-
-    #         fis = [int(f) for fi in fis for f in fi]
-    #         step_fs = [[fis[i], fis[i + 1], fis[i + 2]] for i in range(len(fis)) if not i % 3]
-    #         vps = [float(v) for p in verts for v in p]
-    #         step_vs = [[vps[i], vps[i + 1], vps[i + 2]] for i in range(len(vps)) if not i % 3]
-            
-    #     else:   
-    #         all_vps = []
-    #         mat_list = [face.name for face in solid.faces]
-
-    #         if mat_list and len(set(mat_list)) > 1:
-    #             for fi, face in enumerate(solid.faces):
-    #                 vps = [tuple(v.p) for v in face.wires[0].vertices]
-
-    #                 if not len(vps) % 2:
-    #                     if vps[0] not in (vps[-2], vps[-1]):
-    #                         vps[0], vps[1] = vps[1], vps[0]
-
-    #                     for vi in [vi for vi in range(1, len(vps) - 1) if vi % 2]:
-    #                         if vps[vi] != vps[vi + 1]:
-    #                             vps[vi + 1], vps[vi + 2] = vps[vi + 2], vps[vi + 1]
-
-    #                     if not all([vps[vi] == vps[vi+1] for vi in range(len(vps) -1) if vi % 2]):
-    #                         evps = [[tuple([round(p, 5) for p in e.start]), tuple([round(p, 5) for p in e.end])] for e in face.edges]
-
-    #                         for evi in range(len(evps) - 1):
-    #                             if evps[evi] not in evps[evi+1] and evps[evi] not in evps[evi+1]:
-    #                                 for vi in range(evi + 2, len(evps)):
-    #                                     if evps[evi][0] in evps[vi] or evps[evi][1] in evps[vi]:
-    #                                         evps[evi + 1], evps[vi] = evps[vi], evps[evi + 1]
-    #                                         break
-
-    #                         for evi in range(len(evps) - 1):
-    #                             if evps[evi][0] in evps[evi + 1]:
-    #                                 evps[evi][0], evps[evi][1] = evps[evi][1], evps[evi][0]
-    #                             if evps[evi + 1][1] in evps[evi]:
-    #                                 evps[evi + 1][0], evps[evi + 1][1] = evps[evi + 1][1], evps[evi + 1][0]
-
-    #                         vps = [x for xs in evps for x in xs]
-
-    #                     all_vps.append([vps[vi] for vi in range(len(vps)) if not vi % 2])
-
-    #             fis = [len(step_v) for step_v in all_vps]
-    #             step_vs = [x for xs in all_vps for x in xs ]
-    #             step_fs = []
-    #             f = 0
-
-    #             for fi in fis:
-    #                 step_fs.append([i for i in range(f, f + int(fi))])
-    #                 f += int(fi)
-
-    #     if f'Zone{si}' not in [mesh.name for mesh in bpy.data.meshes]:
-    #         mesh = bpy.data.meshes.new(f'Zone{si}')
-    #     else:
-    #         mesh = bpy.data.meshes[f'Zone{si}']
-    #         bm = bmesh.new()
-    #         bm.to_mesh(mesh)
-    #         bm.free()
-
-    #     mesh.from_pydata(step_vs, [], step_fs, shade_flat=True)
-    #     bm = bmesh.new()
-    #     bm.from_mesh(mesh)
-    #     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist = 0.00001)
-    #     manifold = all([e.is_manifold for e in bm.edges])
-
-    #     if not manifold:
-    #         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-
-    #     manifold = all([e.is_manifold for e in bm.edges])
-
-    #     for mi, mat in enumerate(set(mat_list)):
-    #         if mat:
-    #             if len(mesh.materials) < mi + 1:
-    #                 mesh.materials.append(bpy.data.materials[mat])
-    #             else:
-    #                 mesh.materials[mi] = bpy.data.materials[mat]
-
-    #     for poly in bm.faces:
-    #         poly.material_index = list(set(mat_list)).index(mat_list[poly.index])
-
-    #     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    #     bmesh.ops.dissolve_limit(bm, angle_limit=0.1, use_dissolve_boundaries=False, verts=bm.verts, edges=bm.edges, delimit={'NORMAL', 'MATERIAL'})
-    #     bm.to_mesh(mesh)
-    #     bm.free()
-
-    #     if manifold:
-    #         if f'Zone {si}' not in bpy.data.collections:
-    #             z_coll = bpy.data.collections.new(f'Zone {si}')
-    #         else:
-    #             z_coll = bpy.data.collections[f'Zone {si}']
-
-    #         z_coll.vi_params.envi_zone = 1
-
-    #         if f'Zone {si}' not in bpy.context.scene.collection.children:
-    #             bpy.context.scene.collection.children.link(z_coll)
-
-    #         if f'Zone {si}' not in [ob.name for ob in bpy.data.objects]:
-    #             ob = bpy.data.objects.new(f'Zone {si}', mesh)
-    #             ob.data = mesh
-    #         else:
-    #             ob = bpy.data.objects[f'Zone {si}']
-    #             ob.data = mesh
-
-    #         if ob.name not in z_coll.objects:
-    #             z_coll.objects.link(ob)
-
-    #         ob.vi_params.vi_type = '1'
-
 
 def pregeo(context, op):
     scene = context.scene
@@ -864,7 +593,6 @@ def pregeo(context, op):
             cobs = [o for o in c.objects if o.visible_get() and o.type == 'MESH']
             if cobs:
                 for ob in cobs:
-                    print(ob.name)
                     fi = 0
                     faces = []
                     bm = bmesh.new()
@@ -912,15 +640,15 @@ def pregeo(context, op):
                         verts = [occ.Vertex(p) for p in points]
 
                         for vi, vert in enumerate(verts[:-1]):
-                            edges.append(occ.Edge(vert, verts[vi+1]))
+                            edges.append(occ.Edge(vert, verts[vi + 1]))
 
                         edges.append(occ.Edge(verts[-1], verts[0]))
                         wire = occ.Wire(edges)
                         f = occ.Face(wire)
                         matname = ob.material_slots[face.material_index].material.name
-                        f.name = ob.name+'_'+matname
-                        f.mat(ob.name+'_'+matname)
-                        f.bc(ob.name+'_'+matname)
+                        f.name = ob.name + '_' + matname
+                        f.mat(ob.name + '_' + matname)
+                        f.bc(ob.name + '_' + matname)
                         faces.append(f)
 
                     # if ob == dobs[0]:
@@ -954,10 +682,8 @@ def pregeo(context, op):
                 fv_mesh.from_pydata(v_data, [], f_data)
                 nbm = bmesh.new()
                 nbm.from_mesh(fv_mesh)
-                #nm_v = [v for v in nbm.verts if not v.is_manifold]
                 fv_obj = bpy.data.objects.new('floviMesh', fv_mesh)
                 scene.collection.objects.link(fv_obj)
-
 
         c.vi_params.envi_collection = 1 if any([o.vi_params.vi_type == '1' for o in c.objects]) else 0
         c_name = c.name.upper().replace('-', '_').replace('/', '_')
@@ -973,7 +699,7 @@ def pregeo(context, op):
 
                 if [f for f in ob.data.polygons if oms and f.material_index < len(oms) and oms[f.material_index].material and oms[f.material_index].material.vi_params.envi_nodes and
                         get_con_node(oms[f.material_index].material.vi_params).envi_con_type != 'None']:
-                    
+
                     selobj(context.view_layer, ob)
 
                     if context.active_object and context.active_object.mode == 'EDIT':
@@ -1201,6 +927,7 @@ def pregeo(context, op):
     scene.frame_set(scene.frame_current)
     print('Geometry export finished')
 
+
 def writeafn(exp_op, en_idf, enng):
     if [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_ACon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'No_En_Net_Zone']:
         [enng.nodes.remove(enode) for enode in enng.nodes if enode.bl_idname == 'No_En_Net_ACon']
@@ -1220,7 +947,288 @@ def writeafn(exp_op, en_idf, enng):
     if enng['enviparams']['wpca'] == 1:
         for extnode in extnodes:
             en_idf.write(extnode.ep_write(enng))
+
+    elif enng['enviparams']['wpca'] == 2:
+        ref_point = list(bpy.context.scene.vi_params['flparams']['azis'])[0]
+        azis = bpy.context.scene.vi_params['flparams']['azis'][ref_point].split()
+        params = ['WPC Array Name'] + [f'Wind Direction #{d + 1} {{deg}}' for d in range(len(azis))]
+        paramvs = ['Azimuth array'] + azis
+        en_idf.write(epentry('AirflowNetwork:MultiZone:WindPressureCoefficientArray', params, paramvs))
+
+        for extnode in extnodes:
+            en_idf.write(extnode.ep_write(enng))
+
     for enode in zonenodes:
         en_idf.write(enode.ep_write())
     for enode in ssafnodes + safnodes:
         en_idf.write(enode.ep_write(exp_op, enng))
+
+
+    # dp = context.evaluated_depsgraph_get()
+    # scene = context.scene
+    # svp = scene.vi_params
+    # c_geos = [ob for ob in coll.objects if ob.visible_get()]
+    # g_geos = []
+    # g_names = []
+    # fi = 1
+    # bb_mesh = ret_coll_bb(coll)
+    # bm = bmesh.new()
+    # bm.from_mesh(bb_mesh)
+    # lbm = len(bm.faces)
+    # faces = []
+
+    # for fi, face in enumerate(bm.faces[:lbm]):
+    #     edges = [occ.Segment(occ.gp_Pnt(tuple(loop.vert.co)), occ.gp_Pnt(tuple(loop.link_loop_next.vert.co))) for loop in face.loops]
+    #     wire = occ.Wire(edges)
+    #     f = occ.Face(wire)
+    #     f.name = None
+    #     faces.append(f)
+    #     fi += 1
+
+    # bm.free()
+    # d_geo = occ.OCCGeometry(occ.Compound(faces))
+    # d_geo.Heal(tolerance=0.01)
+
+    # for oi, ob in enumerate(c_geos):
+    #     fi = 0
+    #     faces = []
+    #     bm = bmesh.new()
+    #     bm.from_object(ob, dp)
+    #     bmesh.ops.triangulate(bm, faces=bm.faces)
+    #     bm.transform(ob.matrix_world)
+    #     lbm = len(bm.faces)
+
+    #     for fi, face in enumerate(bm.faces[:lbm]):
+    #         edges = [occ.Segment(occ.gp_Pnt(tuple(round(co, 4) for co in loop.vert.co)), occ.gp_Pnt(tuple(round(co, 4) for co in loop.link_loop_next.vert.co))) for loop in face.loops]
+    #         wire = occ.Wire(edges)
+    #         f = occ.Face(wire)
+
+    #         if len(f.edges) > 2 and ob.material_slots and ob.material_slots[face.material_index].material:
+    #             matname = ob.material_slots[face.material_index].material.name
+    #             f.name = matname
+    #             f.mat(matname)
+    #             f.bc(matname)
+    #             f.layer = oi
+
+    #         faces.append(f)
+    #         fi += 1
+
+    #     g_geo = occ.OCCGeometry(occ.Compound(faces))
+    #     fns = [face.name for face in g_geo.faces]
+    #     fcs = [face.center for face in g_geo.faces]
+    #     print(f'Healing {ob.name}')
+    #     g_geo.Heal(tolerance=0.001)
+
+    #     if None in set([face.name for face in g_geo.shape.faces]):
+    #         for fi, face in enumerate(g_geo.shape.faces):
+    #             if face.name is None:
+    #                 for fci, fc in enumerate(fcs):
+    #                     if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
+    #                         face.name = fns[fci]
+    #                         break
+    #                 if face.name is None:
+    #                     face.name = fns[fi]
+
+    #     g_geos.append(g_geo)
+    #     g_names.append(ob.name)
+    #     bm.free()
+
+    # solids = []
+
+    # for gi, g_geo in enumerate(g_geos):
+    #     if len(g_geo.shape.SubShapes(occ.SOLID)) == len(g_geo.shape.SubShapes(occ.SHELL)):
+    #         for g_geo_solid in g_geo.shape.SubShapes(occ.SOLID):
+    #             g_geo_solid.name = g_names[gi]
+    #             solids.append(g_geo_solid)
+
+    #     else:
+    #         for g_shell in g_geo.shape.SubShapes(occ.SHELL):
+    #             g_shell_solid = occ.OCCGeometry(g_shell)
+    #             fns = [face.name for face in g_shell_solid.faces]
+    #             fcs = [face.center for face in g_shell_solid.faces]
+    #             g_shell_solid.Heal(tolerance=0.0001)
+
+    #             if None in set([face.name for face in g_shell_solid.shape.faces]):
+    #                 for fi, face in enumerate(g_shell_solid.shape.faces):
+    #                     if face.name is None:
+    #                         for fci, fc in enumerate(fcs):
+    #                             if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
+    #                                 face.name = fns[fci]
+    #                                 break
+    #                         if face.name is None:
+    #                             face.name = fns[fi]
+
+    #             for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
+    #                 solids.append(g_solid)
+    #                 print('shell to solid', g_names[gi])
+
+    #             if not g_shell_solid.shape.SubShapes(occ.SOLID):
+    #                 g_shell_solid.shape.WriteStep(os.path.join(svp['viparams']['newdir'], 'temp.step'))
+    #                 g_shell_solid = occ.OCCGeometry(os.path.join(svp['viparams']['newdir'], 'temp.step'))
+    #                 fns = [face.name for face in g_shell_solid.faces]
+    #                 fcs = [face.center for face in g_shell_solid.faces]
+    #                 g_shell_solid.Heal(tolerance=0.0001)
+
+    #                 if None in set([face.name for face in g_shell_solid.shape.faces]):
+    #                     for fi, face in enumerate(g_shell_solid.shape.faces):
+    #                         if face.name is None:
+    #                             for fci, fc in enumerate(fcs):
+    #                                 if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
+    #                                     face.name = fns[fci]
+    #                                     break
+    #                             if face.name is None:
+    #                                 face.name = fns[fi]
+
+    #                 for gs, g_solid in enumerate(g_shell_solid.shape.SubShapes(occ.SOLID)):
+    #                     solids.append(g_solid)
+
+    # solids = [occ.Fuse(solids)]
+
+    # for si, solid in enumerate(solids):
+    #     d_geo = d_geo.shape - solid if not si else d_geo - solid
+    #     fns = [face.name for face in d_geo.faces]
+    #     fcs = [face.center for face in d_geo.faces]
+
+    #     if None in set([face.name for face in d_geo.faces]):
+    #         for fi, face in enumerate(d_geo.faces):
+    #             if face.name is None:
+    #                 for fci, fc in enumerate(fcs):
+    #                     if (mathutils.Vector(face.center) - mathutils.Vector(fc)).length < 0.0001:
+    #                         face.name = fns[fci]
+    #                         break
+
+    #                 if face.name is None:
+    #                     face.name = fns[fi]
+
+    # if context.node.write_step:
+    #     d_geo.WriteStep(os.path.join(svp['viparams']['newdir'], 'd_geo.step'))
+
+    # for si, solid in enumerate(d_geo.solids[1:]):
+    #     if any([len(face.wires) > 1 for face in solid.faces]):
+    #         fis, verts, mat_list, vno = [], [], [], 0
+    #         solid.MakeTriangulation()
+    #         solid.WriteBrep(os.path.join(svp['viparams']['newdir'], 'temp.brep'), withTriangles=1)
+
+    #         with open(os.path.join(svp['viparams']['newdir'], 'temp.brep')) as brep_file:
+    #             brep_lines = brep_file.readlines()
+
+    #         for li, line in enumerate(brep_lines):
+    #             if line.split() and line.split()[0] == 'Triangulations':
+    #                 t_lines = brep_lines[li + 1: li + 1 + 2 * int(line.split()[1])]
+    #                 break
+
+    #         for li, line in enumerate(t_lines):
+    #             if not li % 2:
+    #                 verts.append(t_lines[li + 1].split()[:int(line.split()[0]) * 3])
+    #                 fis.append([int(f) - 1 + vno for f in t_lines[li + 1].split()[-int(line.split()[1]) * 3:]])
+    #                 vno += int(line.split()[0])
+
+    #                 for m in range(int(line.split()[1])):
+    #                     mat_list.append(solid.faces[int(li/2)].name)
+
+    #         fis = [int(f) for fi in fis for f in fi]
+    #         step_fs = [[fis[i], fis[i + 1], fis[i + 2]] for i in range(len(fis)) if not i % 3]
+    #         vps = [float(v) for p in verts for v in p]
+    #         step_vs = [[vps[i], vps[i + 1], vps[i + 2]] for i in range(len(vps)) if not i % 3]
+
+    #     else:
+    #         all_vps = []
+    #         mat_list = [face.name for face in solid.faces]
+
+    #         if mat_list and len(set(mat_list)) > 1:
+    #             for fi, face in enumerate(solid.faces):
+    #                 vps = [tuple(v.p) for v in face.wires[0].vertices]
+
+    #                 if not len(vps) % 2:
+    #                     if vps[0] not in (vps[-2], vps[-1]):
+    #                         vps[0], vps[1] = vps[1], vps[0]
+
+    #                     for vi in [vi for vi in range(1, len(vps) - 1) if vi % 2]:
+    #                         if vps[vi] != vps[vi + 1]:
+    #                             vps[vi + 1], vps[vi + 2] = vps[vi + 2], vps[vi + 1]
+
+    #                     if not all([vps[vi] == vps[vi+1] for vi in range(len(vps) -1) if vi % 2]):
+    #                         evps = [[tuple([round(p, 5) for p in e.start]), tuple([round(p, 5) for p in e.end])] for e in face.edges]
+
+    #                         for evi in range(len(evps) - 1):
+    #                             if evps[evi] not in evps[evi+1] and evps[evi] not in evps[evi+1]:
+    #                                 for vi in range(evi + 2, len(evps)):
+    #                                     if evps[evi][0] in evps[vi] or evps[evi][1] in evps[vi]:
+    #                                         evps[evi + 1], evps[vi] = evps[vi], evps[evi + 1]
+    #                                         break
+
+    #                         for evi in range(len(evps) - 1):
+    #                             if evps[evi][0] in evps[evi + 1]:
+    #                                 evps[evi][0], evps[evi][1] = evps[evi][1], evps[evi][0]
+    #                             if evps[evi + 1][1] in evps[evi]:
+    #                                 evps[evi + 1][0], evps[evi + 1][1] = evps[evi + 1][1], evps[evi + 1][0]
+
+    #                         vps = [x for xs in evps for x in xs]
+
+    #                     all_vps.append([vps[vi] for vi in range(len(vps)) if not vi % 2])
+
+    #             fis = [len(step_v) for step_v in all_vps]
+    #             step_vs = [x for xs in all_vps for x in xs ]
+    #             step_fs = []
+    #             f = 0
+
+    #             for fi in fis:
+    #                 step_fs.append([i for i in range(f, f + int(fi))])
+    #                 f += int(fi)
+
+    #     if f'Zone{si}' not in [mesh.name for mesh in bpy.data.meshes]:
+    #         mesh = bpy.data.meshes.new(f'Zone{si}')
+    #     else:
+    #         mesh = bpy.data.meshes[f'Zone{si}']
+    #         bm = bmesh.new()
+    #         bm.to_mesh(mesh)
+    #         bm.free()
+
+    #     mesh.from_pydata(step_vs, [], step_fs, shade_flat=True)
+    #     bm = bmesh.new()
+    #     bm.from_mesh(mesh)
+    #     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist = 0.00001)
+    #     manifold = all([e.is_manifold for e in bm.edges])
+
+    #     if not manifold:
+    #         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+    #     manifold = all([e.is_manifold for e in bm.edges])
+
+    #     for mi, mat in enumerate(set(mat_list)):
+    #         if mat:
+    #             if len(mesh.materials) < mi + 1:
+    #                 mesh.materials.append(bpy.data.materials[mat])
+    #             else:
+    #                 mesh.materials[mi] = bpy.data.materials[mat]
+
+    #     for poly in bm.faces:
+    #         poly.material_index = list(set(mat_list)).index(mat_list[poly.index])
+
+    #     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    #     bmesh.ops.dissolve_limit(bm, angle_limit=0.1, use_dissolve_boundaries=False, verts=bm.verts, edges=bm.edges, delimit={'NORMAL', 'MATERIAL'})
+    #     bm.to_mesh(mesh)
+    #     bm.free()
+
+    #     if manifold:
+    #         if f'Zone {si}' not in bpy.data.collections:
+    #             z_coll = bpy.data.collections.new(f'Zone {si}')
+    #         else:
+    #             z_coll = bpy.data.collections[f'Zone {si}']
+
+    #         z_coll.vi_params.envi_zone = 1
+
+    #         if f'Zone {si}' not in bpy.context.scene.collection.children:
+    #             bpy.context.scene.collection.children.link(z_coll)
+
+    #         if f'Zone {si}' not in [ob.name for ob in bpy.data.objects]:
+    #             ob = bpy.data.objects.new(f'Zone {si}', mesh)
+    #             ob.data = mesh
+    #         else:
+    #             ob = bpy.data.objects[f'Zone {si}']
+    #             ob.data = mesh
+
+    #         if ob.name not in z_coll.objects:
+    #             z_coll.objects.link(ob)
+
+    #         ob.vi_params.vi_type = '1'
