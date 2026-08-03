@@ -96,7 +96,7 @@ else:
         sys.path.insert(0, os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages'))
         sys.path.insert(0, plat_path)
 
-        if os.environ.get('PYTHONPATH'):
+        if os.environ.get('PYTHONPATH') and not bpy.app.portable:
             if plat_path not in os.environ['PYTHONPATH']:
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.environ['PYTHONPATH']
 
@@ -107,11 +107,11 @@ else:
             os.environ['PYTHONPATH'] += os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages')
 
         if sys.platform == 'linux':
-            if not os.environ.get('LD_LIBRARY_PATH'):
+            if not os.environ.get('LD_LIBRARY_PATH') or bpy.app.portable:
                 os.environ['LD_LIBRARY_PATH'] = plat_path
 
             elif plat_path not in os.environ['LD_LIBRARY_PATH']:
-                os.environ['LD_LIBRARY_PATH'] += os.pathsep + plat_path
+                os.environ['LD_LIBRARY_PATH'] = plat_path + os.pathsep + os.environ['LD_LIBRARY_PATH']
 
         elif sys.platform == 'darwin':
             if not os.environ.get('DYLD_LIBRARY_PATH'):
@@ -147,7 +147,7 @@ else:
         if sys.platform == 'darwin':
             ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2604'.format(sys.executable, plat_path)
+            ng_cmd = '"{0}" -m pip install --upgrade --force --target "{1}" netgen-mesher==6.2.2606'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
             src_path = os.path.join(addonpath, 'Python', sys.platform, 'lib')
             dest_path = os.path.join(addonpath, 'Python')
@@ -162,7 +162,7 @@ else:
         elif sys.platform == 'win32':
             ngocc_cmd = '"{0}" -m pip install --target "{1}" --upgrade netgen-occt==7.8.1'.format(sys.executable, addonpath)
             Popen(shlex.split(ngocc_cmd)).wait()
-            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2604'.format(sys.executable, plat_path)
+            ng_cmd = '"{0}" -m pip install --target "{1}" netgen-mesher==6.2.2606'.format(sys.executable, plat_path)
             Popen(shlex.split(ng_cmd)).wait()
 
         elif sys.platform == 'linux':
@@ -171,7 +171,7 @@ else:
             except Exception:
                 ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
                 Popen(shlex.split(ngocc_cmd)).wait()
-                ng_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-mesher==6.2.2506'.format(sys.executable, plat_path)
+                ng_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-mesher==6.2.2606'.format(sys.executable, plat_path)
                 Popen(shlex.split(ng_cmd)).wait()
 
         try:
@@ -185,7 +185,7 @@ else:
 
     except Exception:
         if sys.platform == 'linux':
-            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.10.0-cp313-cp313-linux_x86_64.whl'))
+            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.10.1-cp313-cp313-linux_x86_64.whl'))
             Popen(shlex.split(pyr_cmd)).wait()
             print('Installing built-in pyroomacoustics')
             #print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
@@ -281,10 +281,6 @@ def abspath(self, context):
         self.epweath = bpy.path.abspath(self.epweath)
     if self.ofbin != bpy.path.abspath(self.ofbin):
         self.ofbin = bpy.path.abspath(self.ofbin)
-    if self.oflib != bpy.path.abspath(self.oflib):
-        self.oflib = bpy.path.abspath(self.oflib)
-    if self.ofetc != bpy.path.abspath(self.ofetc):
-        self.ofetc = bpy.path.abspath(self.ofetc)
     if self.datab != bpy.path.abspath(self.datab):
         self.datab = bpy.path.abspath(self.datab)
 
@@ -294,8 +290,19 @@ def abspath(self, context):
         if not svp.get('viparams'):
             svp['viparams'] = {}
 
-        if self.datab:
-            svp['viparams']['datab'] = bpy.path.abspath(self.datab)
+        fds = (self.datab, self.epbin, self.epweath, self.radlib, self.radbin, self.ofbin)
+        fd_names = ('datab', 'epbin', 'epweath', 'radlib', 'radbin', 'ofbin')
+        if any(fds):
+            with open(os.path.join(addonpath, 'addon_dirs'), 'w') as ad_file:
+                for fdi, fd in enumerate(fds):
+                    if fd:
+                        ad_file.write(f'{fd_names[fdi]}: {fd}')
+
+            # svp['viparams']['datab'] = bpy.path.abspath(self.datab)
+        # if self.ofbin:
+        #     svp['viparams']['ofbin'] = bpy.path.abspath(self.ofbin)
+        # elif svp['viparams'].get['ofbin']:
+        #     self.ofbin = svp['viparams']['ofbin']
 
     path_update()
 
@@ -407,8 +414,6 @@ class VIPreferences(AddonPreferences):
     epbin: StringProperty(name='', description='EnergyPlus binary directory location', default='', subtype='DIR_PATH', update=abspath)
     epweath: StringProperty(name='', description='EnergyPlus weather directory location', default='', subtype='DIR_PATH', update=abspath)
     ofbin: StringProperty(name='', description='OpenFOAM binary directory location', default='', subtype='DIR_PATH', update=abspath)
-    oflib: StringProperty(name='', description='OpenFOAM library directory location', default='', subtype='DIR_PATH', update=abspath)
-    ofetc: StringProperty(name='', description='OpenFOAM etc directory location', default='', subtype='DIR_PATH', update=abspath)
     datab: StringProperty(name='', description='Database directory', default='', subtype='DIR_PATH', update=abspath)
     ui_dict = {"Radiance bin directory:": 'radbin', "Radiance lib directory:": 'radlib', "EnergyPlus bin directory:": 'epbin',
                "EnergyPlus weather directory:": 'epweath', 'Database directory': 'datab', 'OpenFOAM bin directory': 'ofbin'}
@@ -891,7 +896,7 @@ def update_dir(dummy):
 
 @persistent
 def display_off(dummy):
-    if bpy.context.scene.vi_params.get('viparams') and bpy.context.scene.vi_params['viparams'].get('vidisp'):
+    if bpy.context.scene.get('vi_params') and bpy.context.scene.vi_params.get('viparams') and bpy.context.scene.vi_params['viparams'].get('vidisp'):
         ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en', 'bsdf_panel': 'bsdf'}
 
         if bpy.context.scene.vi_params['viparams']['vidisp'] in ifdict:
@@ -958,10 +963,28 @@ def getEnViMaterialSpaces():
 
 def path_update():
     vi_prefs = bpy.context.preferences.addons[__name__].preferences
+    fds = (vi_prefs.datab, vi_prefs.epbin, vi_prefs.radlib, vi_prefs.radbin, vi_prefs.ofbin)
+
+    if not all(fds) and os.path.isfile(os.path.join(addonpath, 'addon_dirs')):
+        with open(os.path.join(os.path.join(addonpath, 'addon_dirs')), 'r') as ad_file:
+            for line in ad_file.readlines():
+                if line[:6] == 'datab:' and not vi_prefs.datab:
+                    vi_prefs.datab = line[7:]
+                elif line[:8] == 'epweath:' and not vi_prefs.epweath:
+                    vi_prefs.epweath = line[9:]
+                elif line[:6] == 'epbin:' and not vi_prefs.epbin:
+                    vi_prefs.epbin = line[7:]
+                elif line[:7] == 'radbin:' and not vi_prefs.radbin:
+                    vi_prefs.radlib = line[8:]
+                elif line[:7] == 'radlib:' and not vi_prefs.radlib:
+                    vi_prefs.radbin = line[8:]
+                if line[:6] == 'ofbin:' and not vi_prefs.ofbin:
+                    vi_prefs.ofbin = line[7:]
+
     epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', str(sys.platform))
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'RadFiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'RadFiles', str(sys.platform), 'bin')
-    ofbdir = os.path.abspath(vi_prefs.ofbin) if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', str(sys.platform), 'bin')
+    ofbdir = os.path.abspath(vi_prefs.ofbin) if vi_prefs and os.path.isdir(vi_prefs.ofbin) else ""
 
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH'] or epdir not in os.environ['PATH'] or ofbdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):

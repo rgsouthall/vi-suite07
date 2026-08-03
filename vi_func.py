@@ -340,7 +340,7 @@ def move_obs(s_coll, coll, t_string):
 
 
 def cmap(svp):
-    cols = retcols(ret_mcm().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
+    cols = retcols(ret_plt().get_cmap(svp.vi_leg_col), svp.vi_leg_levels)
     cols = [[col[0], col[1], col[2], 1 - svp.vi_disp_trans] for col in cols]
 
     for i in range(svp.vi_leg_levels):
@@ -1534,7 +1534,7 @@ def wind_compass(loc, scale, wro, mat):
     matrot = Matrix.Rotation(pi * 0.25, 4, 'Z')
     degmatrot = Matrix.Rotation(pi * 0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
-    direc = Vector((0, 1, 0)) 
+    direc = Vector((0, 1, 0))
 
     for i, edge in enumerate(bm.edges[-8:]):
         verts = bmesh.ops.extrude_edge_only(bm, edges=[edge], use_select_history=False)['geom'][:2]

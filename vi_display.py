@@ -45,7 +45,7 @@ try:
     import matplotlib.pyplot as plt
     plt.ion()
     plt.ioff()
-    import matplotlib.cm as mcm
+    # import matplotlib.pyplot as mcm
     import matplotlib.colors as mcolors
     from matplotlib.patches import Rectangle
     from matplotlib.collections import PatchCollection
@@ -847,7 +847,7 @@ class draw_bsdf(Base_Display):
         sa = repeat(kfsa, self.phis)
         act = repeat(kfact, self.phis)
         patchdat = selectdat[self.sseg - 1] * act * sa * 100
-        bg = self.plt.Rectangle((0, 0), 2 * pi, 1, color=mcm.get_cmap(svp.vi_leg_col)((0, 0.01)[svp.vi_bsdfleg_scale == '1']), zorder=0)
+        bg = self.plt.Rectangle((0, 0), 2 * pi, 1, color=plt.get_cmap(svp.vi_leg_col)((0, 0.01)[svp.vi_bsdfleg_scale == '1']), zorder=0)
 
         for ring in range(1, 10):
             angdiv = pi / self.phis[ring - 1]
@@ -1068,7 +1068,7 @@ class wr_legend(Base_Display):
             self.levels = simnode['nbins']
             maxres = simnode['maxres']
 
-        self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+        self.cols = retcols(plt.get_cmap(svp.vi_leg_col), self.levels)
         self.colours = [item for item in [self.cols[i] for i in range(self.levels)] for i in range(4)]
 
         if not svp.get('liparams'):
@@ -1377,11 +1377,11 @@ class draw_legend(Base_Display):
             self.levels = svp.vi_leg_levels
             self.lh = 1 / (self.levels + 1.5)
             self.cao = context.active_object
-            self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+            self.cols = retcols(plt.get_cmap(svp.vi_leg_col), self.levels)
             (self.minres, self.maxres) = leg_min_max(svp)
             self.col, self.scale = svp.vi_leg_col, svp.vi_leg_scale
             self.unit = res2unit[svp.li_disp_menu] if not svp.vi_leg_unit else svp.vi_leg_unit
-            self.cols = retcols(mcm.get_cmap(svp.vi_leg_col), self.levels)
+            self.cols = retcols(plt.get_cmap(svp.vi_leg_col), self.levels)
             resdiff = self.maxres - self.minres
 
             if not svp.get('liparams'):
@@ -1452,7 +1452,7 @@ class draw_legend(Base_Display):
             self.basel_batch.draw(self.basel_shader)
             self.unit = svp.vi_leg_unit if svp.vi_leg_unit else res2unit[svp.li_disp_menu]
 
-            if self.levels != svp.vi_leg_levels or self.cols != retcols(mcm.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
+            if self.levels != svp.vi_leg_levels or self.cols != retcols(plt.get_cmap(svp.vi_leg_col), self.levels) or (self.minres, self.maxres) != leg_min_max(svp):
                 self.update(context)
                 (vl_coords, fl_indices) = self.ret_coords()
                 self.line_batch = batch_for_shader(self.line_shader, 'LINE_LOOP', {"position": vl_coords})

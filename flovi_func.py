@@ -33,7 +33,7 @@ ofheader = r'''/*--------------------------------*- C++ -*----------------------
 |    \\/     M anipulation  | Created by:  FloVi (part of the VI-Suite)       |
 \*---------------------------------------------------------------------------*/''' + '\n\n'
 
-valid_dockers = ('13', '13-20260212')
+valid_dockers = ('13')
 
 
 def fileheader(o):
@@ -865,7 +865,7 @@ def fvobjwrite(scene, fvos, bmo):
     for frame in range(svp['flparams']['start_frame'], svp['flparams']['end_frame'] + 1):
         for o in fvos:
             mats = [mat for mat in o.data.materials if mat]
-            
+
             with open(os.path.join(scene['flparams']['offilebase'], str(frame), 'constant', 'trisurface', '{}.obj'.format(o.name)), 'w') as objfile:
                 bm = bmesh.new()
                 tempmesh = o.to_mesh(scene=scene, apply_modifiers=True, settings='PREVIEW')
@@ -1018,12 +1018,12 @@ def ret_of_docker():
                     # Below is required to register the lines
                     print(lds[0], lds[1])
 
-                    if lds[0] == 'dicehub/openfoam' and lds[1] in valid_dockers:
+                    if lds[0] == 'microfluidica/openfoam' and lds[1] in valid_dockers:
                         return f"{lds[0]}:{lds[1]}"
                     else:
                         lds0 = lds[0].split(':')
 
-                        if lds0[0] == 'dicehub/openfoam' and lds0[1] in valid_dockers:
+                        if lds0[0] == 'microfluidica/openfoam' and lds0[1] in valid_dockers:
                             return f"{lds0[0]}:{lds0[1]}"
             else:
                 return ''
