@@ -99,7 +99,6 @@ else:
         if os.environ.get('PYTHONPATH') and not bpy.app.portable:
             if plat_path not in os.environ['PYTHONPATH']:
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.environ['PYTHONPATH']
-
                 os.environ['PYTHONPATH'] = plat_path + os.pathsep + os.path.join(addonpath, 'Python', sys.platform, '{}ib'.format(('l', 'L')[win]), ('python{}.{}'.format(sys.version_info.major, sys.version_info.minor), '')[win], 'site-packages') + os.pathsep + os.environ['PYTHONPATH']
         else:
             os.environ['PYTHONPATH'] = plat_path
@@ -169,9 +168,9 @@ else:
             try:
                 import netgen
             except Exception:
-                ngocc_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
+                ngocc_cmd = '"{0}" -m pip install --no-deps --upgrade --force --prefix "{1}" netgen-occt==7.8.1'.format(sys.executable, plat_path)
                 Popen(shlex.split(ngocc_cmd)).wait()
-                ng_cmd = '"{0}" -m pip install --upgrade --force --prefix "{1}" netgen-mesher==6.2.2606'.format(sys.executable, plat_path)
+                ng_cmd = '"{0}" -m pip install --no-deps --upgrade --force --prefix "{1}" netgen-mesher==6.2.2606'.format(sys.executable, plat_path)
                 Popen(shlex.split(ng_cmd)).wait()
 
         try:
@@ -183,9 +182,10 @@ else:
     try:
         import pyroomacoustics as pra
 
-    except Exception:
+    except Exception as e:
+        print('hello', e)
         if sys.platform == 'linux':
-            pyr_cmd = '"{0}" -m pip install --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.10.1-cp313-cp313-linux_x86_64.whl'))
+            pyr_cmd = '"{0}" -m pip install --no-deps --target {1} {2}'.format(sys.executable, plat_path, os.path.join(plat_path, 'pyroomacoustics-0.10.1-cp313-cp313-linux_x86_64.whl'))
             Popen(shlex.split(pyr_cmd)).wait()
             print('Installing built-in pyroomacoustics')
             #print('For pyroomacoustics functionality on linux, a system install of Blender, PySide6, Matplotlib, Netgen and pyroomacoustics is required')
