@@ -3527,6 +3527,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             if ob == dobs[0]:
                 d_geo = occ.OCCGeometry(occ.Compound(faces))
                 heal_geo(occ, d_geo, min_elen * 0.8)
+                d_geo.solids.name = 'air'
 
                 if self.expnode.debug_step:
                     d_geo.shape.WriteStep(os.path.join(svp['flparams']['offilebase'], 'empty_domain.step'))
@@ -3701,7 +3702,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
             with open(os.path.join(svp['flparams']['offilebase'], 'ngpy.py'), 'w') as ngpyfile:
                 ngpyfile.write(inspect.cleandoc('''
                 import os
-                from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh
+                from netgen.meshing import MeshingParameters, FaceDescriptor, Element2D, Mesh, BoundaryLayerParameters
                 from pyngcore import SetNumThreads, TaskManager
                 mp = MeshingParameters(maxh={3}, grading={4}, optsteps3d={5}, optimize3d='cmdmustm')
                 SetNumThreads({0})
@@ -3720,9 +3721,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             pmap[v] = tot_mesh.Add(surf_mesh[v])
 
                     tot_mesh.Add(Element2D(el.index, [pmap[v] for v in el.vertices]))
-
+                #B = BoundaryLayerParameters(boundary=1, thickness=[0.02], domain='air', new_material='air')
                 with TaskManager():
                     tot_mesh.GenerateVolumeMesh(mp=mp)
+                    #tot_mesh.GenerateVolumeMesh(mp=mp, boundary_layers=[B])
 
                 tot_mesh.Save(os.path.join(r'{1}', 'ng.vol'))
                 tot_mesh.Export(os.path.join(r'{1}', 'ng.mesh'), format='Neutral Format')
@@ -4072,10 +4074,10 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                 if sys.platform == 'linux':
                     self.runs.append(Popen(shlex.split('mpirun -np {} foamExec {} -parallel -case {}'.format(self.processes,
                                                                                                              svp['flparams']['solver'],
-                                                                                                             fframe_offb)), stdout=fvprogress))
+                                                                                                             fframe_offb)), stderr=PIPE, stdout=fvprogress))
                 elif sys.platform in ('darwin', 'win32'):
                     self.runs.append(Popen('{} run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "mpirun --oversubscribe -np {} {} -parallel"'.format(docker_path, fframe_offb, self.of_docker, self.processes,
-                                                                                                                                                           svp['flparams']['solver']), shell=True, stdout=fvprogress))
+                                                                                                                                                           svp['flparams']['solver']), shell=True, stderr=PIPE, stdout=fvprogress))
             else:
                 if sys.platform == 'linux':
                     sol_cmd = '{} {} {} {}'.format('foamExec', svp['flparams']['solver'], "-case", fframe_offb)
@@ -4149,11 +4151,12 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
         elif self.pb.poll() is None or self.runs[-1].poll is not None:
             self.pb.kill()
             dline = ['', '']
-
-            if self.runs[-1].stderr:
-                for li, line in enumerate(self.runs[-1].stderr):
+            # if self.runs[-1].stderr:
+            with open(self.fpfile, 'r') as fpfile:
+                for li, line in enumerate(fpfile.readlines()[::-1]):
+                # for li, line in enumerate(self.runs[-1].stderr):
                     dline[0] = dline[1]
-                    dline[1] = line.decode()
+                    dline[1] = line
 
                     if 'Unable to set reference cell for field p' in dline[1]:
                         self.runs[-1].kill()
@@ -4275,7 +4278,6 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
                     Popen(shlex.split('foamExec foamPostProcess -func "triSurfaceAverage\\(triSurface={0}.stl,field=p\\)" -case {1}'.format(oname, frame_coffb)), stdout=PIPE).wait()
 
                 elif sys.platform in ('darwin', 'win32'):
-                    # This does not currently work with OS X
                     Popen(f'{docker_path} run -it --rm -w /home/openfoam/data -v "{frame_coffb}":/home/openfoam/data {self.of_docker} bash -c "foamPostProcess -func triSurfaceVolumetricFlowRate\\(triSurface="{oname}.stl"\\)"', stdout=PIPE, stderr=PIPE, shell=True).wait()
                     Popen(f'{docker_path} run -it --rm -w /home/openfoam/data -v "{frame_coffb}":/home/openfoam/data {self.of_docker} bash -c "foamPostProcess -func triSurfaceAverage\\(triSurface="{oname}.stl",field=p\\)"', stdout=PIPE, stderr=PIPE, shell=True).wait()
 
@@ -4418,9 +4420,8 @@ class NODE_OT_Flo_Sim(bpy.types.Operator):
 
                     elif sys.platform in ('darwin', 'win32'):
                         if self.processes > 1:
-                            self.runs.append(Popen('{} run -it --rm -w /home/openfoam/data -v {}:/home/openfoam/data {} bash -c "mpirun --oversubscribe -np {} {} -parallel"'.format(docker_path, frame_noffb, self.of_docker,
-                                                                                                                                                                                      self.processes,
-                                                                                                                                                                                      svp['flparams']['solver']), stderr=PIPE, stdout=fvprogress))
+                            self.runs.append(Popen('{} run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "mpirun --oversubscribe -np {} {} -parallel"'.format(docker_path, frame_noffb, self.of_docker, self.processes,
+                                                                                                                                                                   svp['flparams']['solver']), shell=True, stderr=PIPE, stdout=fvprogress))
                         else:
                             self.runs.append(Popen('{} run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "{}"'.format(docker_path, frame_noffb, self.of_docker, svp['flparams']['solver']), shell=True, stderr=PIPE, stdout=fvprogress))
 
