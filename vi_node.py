@@ -4744,7 +4744,7 @@ class No_Flo_NG(Node, ViNodes):
     bl_icon = 'MESH_ICOSPHERE'
 
     def ret_params(self):
-        return [str(x) for x in (self.poly, self.maxcs, self.grading, self.optimisations, self.b_only, self.debug_step)]
+        return [str(x) for x in (self.poly, self.maxcs, self.grading, self.optimisations, self.b_only, self.debug_step, self.b_layer, self.b_layer_ex, self.b_layer_tt)]
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != self.ret_params())
@@ -4761,6 +4761,9 @@ class No_Flo_NG(Node, ViNodes):
     b_only: BoolProperty(name='', description='Only generate a boundary Blender mesh', default=1)
     debug_step: BoolProperty(name='', description='Export STEP debug files', default=0)
     static_mesh: BoolProperty(name='', description='Only create a single mesh for paramteric analysis', default=0)
+    b_layer: BoolProperty(name='', description='Create boundary layers', default=0, update=nodeupdate)
+    b_layer_ex: FloatProperty(name="", description="Boundary layer expansion ratio", min=1, max=2, default=1, update=nodeupdate)
+    b_layer_tt: FloatProperty(name="m", description="Max global cell size", min=0.01, max=10, default=0.1, update=nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
@@ -4789,6 +4792,11 @@ class No_Flo_NG(Node, ViNodes):
                 newrow(layout, 'Polygonal:', self, 'poly')
                 newrow(layout, 'Blender boundary:', self, 'b_only')
                 newrow(layout, 'Write STEPs:', self, 'debug_step')
+                newrow(layout, 'Boundary layers:', self, 'b_layer')
+
+                if self.b_layer:
+                    newrow(layout, ' Expansion ratio:', self, 'b_layer_ex')
+                    newrow(layout, ' Total thickness:', self, 'b_layer_tt')
 
                 if not self.running:
                     row = layout.row()

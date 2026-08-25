@@ -17,6 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy
+from math import log
 from collections import OrderedDict
 from .vi_func import newrow, retdates, get_materials
 
@@ -33,9 +34,6 @@ class VI_PT_3D(bpy.types.Panel):
         svp = scene.vi_params
         cao = context.active_object
         layout = self.layout
-
-        # if cao:
-        #     covp = cao.vi_params
 
         if cao and cao.active_material and cao.active_material.vi_params.get('bsdf'):
             if cao.active_material.vi_params['bsdf'].get('type') and cao.active_material.vi_params['bsdf']['type'] == 'LBNL/Klems Full' and not svp.vi_display:
@@ -220,11 +218,18 @@ class VI_PT_Mat(bpy.types.Panel):
                             newrow(layout, "U field value:", mvp, "flovi_u_field")
 
                             if mvp.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
-                                newrow(layout, "Reference height:", mvp, "flovi_u_zref")
-                                newrow(layout, "Up vector:", mvp, "flovi_u_zdir")
-                                newrow(layout, "Roughness:", mvp, "flovi_u_z0")
-                                newrow(layout, "Ground height:", mvp, "flovi_u_zground")
-                                newrow(layout, "Displacement:", mvp, "flovi_u_d")
+                                newrow(layout, "Boundary layer:", mvp, "flovi_u_atm")
+                                if mvp.flovi_u_atm == '5':
+                                    newrow(layout, "Reference height:", mvp, "flovi_u_zref")
+                                    newrow(layout, "Up vector:", mvp, "flovi_u_zdir")
+                                    newrow(layout, "Roughness:", mvp, "flovi_u_z0")
+                                    newrow(layout, "Ground height:", mvp, "flovi_u_zground")
+                                    newrow(layout, "Domain height:", mvp, "flovi_dheight")
+                                    tds = mvp.flovi_u_uref/log((mvp.flovi_u_zref + mvp.flovi_u_z0)/mvp.flovi_u_z0)*log((mvp.flovi_dheight + mvp.flovi_u_z0)/mvp.flovi_u_z0)
+                                    row = layout.row()
+                                    row.label(text=f'Upper speed: {tds:.3f}m/s')
+
+                                    # newrow(layout, "Displacement:", mvp, "flovi_u_d")
 
                                 if not mvp.flovi_u_field:
                                     newrow(layout, "Reference speed:", mvp, "flovi_u_uref")
@@ -247,6 +252,9 @@ class VI_PT_Mat(bpy.types.Panel):
 
                                 if not mvp.flovi_u_field:
                                     newrow(layout, "Nut value:", mvp, "flovi_bmbnut_val")
+
+                            elif mvp.flovi_bmbnut_subtype == 'nutkAtmRoughWallFunction':
+                                newrow(layout, "Roughness (m):", mvp, "flovi_nut_z0")
 
                             if 'k' in svp['flparams']['params']:
                                 newrow(layout, "k type:", mvp, "flovi_k_subtype")
@@ -280,7 +288,11 @@ class VI_PT_Mat(bpy.types.Panel):
                                     newrow(layout, "Epsilon field value:", mvp, "flovi_e_field")
 
                                     if not mvp.flovi_e_field:
-                                        newrow(layout, f"Epsilon value ({0.09**0.75 * mvp.flovi_k_val**1.5 / 10:.3f}):", mvp, "flovi_bmbe_val")
+                                        if mvp.flovi_u_type == '0':
+                                            speed = (mvp.flovi_bmbu_val[0]**2 + mvp.flovi_bmbu_val[1]**2 + mvp.flovi_bmbu_val[2]**2)**0.5
+                                            newrow(layout, f"Epsilon value ({0.09**0.75 * (1.5 * (0.1 * speed)**2)**1.5 / 10:.3f}):", mvp, "flovi_bmbe_val")
+                                        else:
+                                            newrow(layout, f"Epsilon value ({0.09**0.75 * (1.5 * (0.1 * mvp.flovi_u_speed)**2)**1.5 / 10:.3f}):", mvp, "flovi_bmbe_val")
 
                                 elif mvp.flovi_bmbe_subtype == 'inletOutlet':
                                     newrow(layout, "Epsilon field value:", mvp, "flovi_e_field")
@@ -325,6 +337,7 @@ class VI_PT_Mat(bpy.types.Panel):
 
                                 if svp['flparams']['features']['rad']:
                                     newrow(layout, "Rad type:", mvp, "flovi_rad_subtype")
+
                                     if mvp.flovi_rad_subtype == 'MarshakRadiation':
                                         newrow(layout, "Emissivity mode:", mvp, "flovi_rad_em")
                                         newrow(layout, "Emissivity value:", mvp, "flovi_rad_e")
@@ -335,6 +348,11 @@ class VI_PT_Mat(bpy.types.Panel):
                                         newrow(layout, "I mode:", mvp, "flovi_i_em")
                                         newrow(layout, "I emissivity:", mvp, "flovi_i_e")
                                         newrow(layout, "I value:", mvp, "flovi_i_val")
+
+                    newrow(layout, "Boundary layer:", mvp, "flovi_bl")
+
+                    if mvp.flovi_bl:
+                        newrow(layout, "Number of layers:", mvp, "flovi_bl_nl")
 
                     newrow(layout, "Probe:", mvp, "flovi_probe")
 
@@ -760,4 +778,3 @@ class TREE_PT_envin(bpy.types.Panel):
             col.label(text="No EnVi Network")
 
         col.separator()
-

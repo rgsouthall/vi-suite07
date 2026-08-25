@@ -292,17 +292,12 @@ def abspath(self, context):
 
         fds = (self.datab, self.epbin, self.epweath, self.radlib, self.radbin, self.ofbin)
         fd_names = ('datab', 'epbin', 'epweath', 'radlib', 'radbin', 'ofbin')
+
         if any(fds):
             with open(os.path.join(addonpath, 'addon_dirs'), 'w') as ad_file:
                 for fdi, fd in enumerate(fds):
                     if fd:
                         ad_file.write(f'{fd_names[fdi]}: {fd}')
-
-            # svp['viparams']['datab'] = bpy.path.abspath(self.datab)
-        # if self.ofbin:
-        #     svp['viparams']['ofbin'] = bpy.path.abspath(self.ofbin)
-        # elif svp['viparams'].get['ofbin']:
-        #     self.ofbin = svp['viparams']['ofbin']
 
     path_update()
 
@@ -768,17 +763,22 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_u_field: bprop("", "Take boundary velocity from the field velocity", False)
     flovi_u_azi: fprop("deg.", "Flow azimuth direction", 0, 360, 0)
     flovi_u_speed: fprop("m/s", "Flow speed", 0, 1000, 1)
+    flovi_u_atm:eprop([("0", "City", "Towns, city outskirts, centre of large cities"),
+                        ("1", "Urban", "Urban, Industrial, Forest"), ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
+                        ("3", "Country", "Flat, Open Country"), ("4", "Ocean", "Ocean, very flat country"),
+                        ("5", "Custom", "Custom boundary layer")], "", "Boundary type", "0")
     flovi_u_uref: fprop("m/s", "Reference speed", 0, 500, 5)
     flovi_u_zref: fprop("m", "Reference z height", 1, 500, 1)
     flovi_u_zdir: fvprop(3, '', 'Up direction', [0, 0, 1], 'XYZ', -100, 100)
     flovi_u_fdir: fvprop(3, '', 'Flow direction', [1, 0, 0], 'XYZ', -100, 100)
-    flovi_u_z0: fprop("m", "	Surface roughness length", 0.1, 500, 0)
+    flovi_u_z0: FloatProperty(name="m", description="	Surface roughness length", min=0.001, max=500, default=0, precision=3)
     flovi_u_zground: fprop("m", "Ground height in global Z", 0, 500, 0)
     flovi_u_d: fprop("", "Displacement value", 0, 500, 0)
 
     flovi_bmbnut_subtype: EnumProperty(items=ret_fvbnut_menu, name="", description="FloVi sub-type boundary")
     flovi_bmbnut_val: fprop("", "Nut value", -1000, 1000, 0.0)
     flovi_nut_field: bprop("", "Take boundary nut from the field nut", False)
+    flovi_nut_z0: fprop("", "Roughness height in metres", 0, 1, 0.1)
 
     flovi_k_subtype: EnumProperty(items=ret_fvbk_menu, name="", description="FloVi k sub-type boundary")
     flovi_k_val: FloatProperty(name="", description="k value", min=0.0001, max=1, default=0.001, precision=4)
@@ -819,7 +819,9 @@ class VI_Params_Material(bpy.types.PropertyGroup):
     flovi_i_val: fprop("", "Radiation value", 0, 10000, 0)
     flovi_probe: bprop("", "Turn on pressure monitoring", False)
     flovi_htc: bprop("", "Turn on heat transfer coefficient calculation", False)
-
+    flovi_bl: bprop("", "Turn on boundary layer creation", False)
+    flovi_bl_nl: iprop("", "Number of boundary layers", 1, 20, 3)
+    flovi_dheight: fprop("", "Domain height", 0.1, 10000, 20)
     # AuVi materials
     auvi_abs_class: eprop([('0', 'Database', 'Database material'), ('1', 'Custom', 'Custom material')], "", "AuVi material class", '0')
     auvi_scatt_class: eprop([('0', 'Database', 'Database material'), ('1', 'Custom', 'Custom material')], "", "AuVi material class", '1')

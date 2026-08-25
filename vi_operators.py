@@ -45,7 +45,7 @@ from .envi_mat import envi_materials, envi_constructions, envi_embodied, envi_ec
 from .envi_func import write_ec, write_ob_ec
 from .vi_func import selobj, joinobj, solarPosition, viparams, wind_compass
 from .flovi_func import ofheader, fvcdwrite, fvfuncwrite, fvvarwrite, fvsolwrite, fvschwrite, fvtpwrite, fvmtwrite, simplify_shape, heal_geo
-from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite, ret_of_docker
+from .flovi_func import fvdcpwrite, write_ffile, write_bound, fvtppwrite, fvgwrite, fvrpwrite, fvprefwrite, oftomesh, fvmodwrite, ret_of_docker, fvshmwrite
 from .vi_func import ret_plt, logentry, rettree, cmap, fvprogressfile, cancel_window, qtfvprogress
 from .vi_func import windnum, wind_rose, create_coll, create_empty_coll, move_to_coll, retobjs, progressfile
 from .vi_func import chunks, clearlayers, clearscene, clearfiles, objmode, clear_coll, qtprogressbar, rm_coll, sys_exe
@@ -63,7 +63,7 @@ if sys.platform != 'win32':
 
 try:
     from netgen import occ
-    from netgen.meshing import FaceDescriptor, Mesh  # , BoundaryLayerParameters
+    from netgen.meshing import FaceDescriptor, Mesh
     from pyngcore import SetNumThreads
 except Exception as e:
     print(e)
@@ -3355,7 +3355,7 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
 
         SetNumThreads(int(svp['viparams']['nproc']))
         self.omats = []
-        self.matnames, g_geos = [], []
+        self.matnames, self.bmatnames, g_geos = [], [], []
         totmesh = Mesh()
         totmesh.SetMaterial(1, 'air')
         surf_no = 0
@@ -3436,6 +3436,10 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 if ms.material:
                     fd = FaceDescriptor(bc=surf_no, domin=1, surfnr=surf_no + 1)
                     self.matnames.append(ob.name + '_' + ms.material.name)
+
+                    if ms.material.vi_params.flovi_bl:
+                        self.bmatnames.append(ob.name + '_' + ms.material.name)
+
                     e_maxs[ob.name + '_' + ms.material.name] = ms.material.vi_params.flovi_ng_emax
                     self.omats.append(ms.material)
                     fd.bcname = ms.material.name
@@ -3769,7 +3773,6 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                 st = '0'
 
                 if not fi:
-
                     if os.path.isfile(os.path.join(frame_offb, st, 'polyMesh', 'points')):
                         os.remove(os.path.join(frame_offb, st, 'polyMesh', 'points'))
 
@@ -3837,6 +3840,17 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                             shutil.copy(os.path.join(os.path.join(frame_ofcfb, 'polyMesh'), file),
                                         os.path.join(frame_offb, st, 'polyMesh'))
 
+                        if sys.platform == 'linux':
+                            cm = Popen(shlex.split('foamExec checkMesh -allGeometry -noFunctionObjects -case {}'.format(frame_offb)), stdout=PIPE)
+                        elif sys.platform in ('darwin', 'win32'):
+                            cm_cmd = 'docker run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "checkMesh -allTopology -allGeometry -noFunctionObjects"'.format(frame_offb, self.of_docker)
+                            cm = Popen(cm_cmd, shell=True, stdout=PIPE)
+
+                        for line in cm.stdout:
+                            print(line.decode())
+                            if '***Error' in line.decode():
+                                logentry('Mesh errors:{}'.format(line.decode()))
+
                         if self.expnode.poly:
                             if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
                                 pdm = Popen(shlex.split('foamExec polyDualMesh -case ./{} -noFunctionObjects -doNotPreserveFaceZones -overwrite {}'.format(frame, 5)), stdout=PIPE, stderr=PIPE)
@@ -3863,15 +3877,16 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                                                                                                                                                     self.of_docker, 5)
                                 Popen(cpf_cmd, shell=True).wait()
 
-                            if sys.platform == 'linux':
-                                cm = Popen(shlex.split('foamExec checkMesh -noFunctionObjects -case {}'.format(frame_offb)), stdout=PIPE)
-                            elif sys.platform in ('darwin', 'win32'):
-                                cm_cmd = 'docker run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "checkMesh -noFunctionObjects"'.format(frame_offb, self.of_docker)
-                                cm = Popen(cm_cmd, shell=True, stdout=PIPE)
+                            # if sys.platform == 'linux':
+                            #     cm = Popen(shlex.split('foamExec checkMesh -allGeometry -noFunctionObjects -case {}'.format(frame_offb)), stdout=PIPE)
+                            # elif sys.platform in ('darwin', 'win32'):
+                            #     cm_cmd = 'docker run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "checkMesh -allGeometry -noFunctionObjects"'.format(frame_offb, self.of_docker)
+                            #     cm = Popen(cm_cmd, shell=True, stdout=PIPE)
 
-                            for line in cm.stdout:
-                                if '***Error' in line.decode():
-                                    logentry('Mesh errors:{}'.format(line.decode()))
+                            # for line in cm.stdout:
+                            #     print(line.decode())
+                            #     if '***Error' in line.decode():
+                            #         logentry('Mesh errors:{}'.format(line.decode()))
 
                             for entry in os.scandir(os.path.join(frame_offb, st, 'polyMesh')):
                                 if entry.is_file():
@@ -3903,7 +3918,47 @@ class NODE_OT_Flo_NG(bpy.types.Operator):
                                 bfile.write(')\n\n// **\n')
 
                             for file in os.listdir(os.path.join(frame_ofcfb, 'polyMesh')):
-                                shutil.copy(os.path.join(os.path.join(frame_ofcfb, 'polyMesh'), file), os.path.join(frame_offb, st, 'polyMesh'))
+                                if file in ('cellLevel', 'pointLevel'):
+                                    os.remove(os.path.join(frame_ofcfb, 'polyMesh', file))
+                                    os.remove(os.path.join(frame_offb, st, 'polyMesh', file))
+                                if file not in ('cellLevel', 'pointLevel'):
+                                    shutil.copy(os.path.join(os.path.join(frame_ofcfb, 'polyMesh'), file), os.path.join(frame_offb, st, 'polyMesh'))
+
+
+                            if self.expnode.b_layer and self.bmatnames:
+                                with open(os.path.join(frame_offb, 'system', 'snappyHexMeshDict'), 'w') as shmfile:
+                                    shmfile.write(fvshmwrite(self.expnode, self.bmatnames, [mat for mat in self.omats if mat.vi_params.flovi_bl]))
+
+                                if sys.platform == 'linux' and os.path.isdir(self.vi_prefs.ofbin):
+                                    shm = Popen(shlex.split('foamExec snappyHexMesh -case ./{}'.format(frame)), stdout=PIPE, stderr=PIPE)
+
+                                elif sys.platform in ('darwin', 'win32'):
+                                    shm_cmd = '{} run -it --rm -w /home/openfoam/data -v "{}":/home/openfoam/data {} bash -c "snappyHexMesh"'.format(docker_path, frame_offb, self.of_docker)
+                                    shm = Popen(shm_cmd, shell=True, stdout=PIPE, stderr=PIPE)
+
+                                for line in shm.stdout:
+                                    print(line.decode())
+                                    if 'FOAM aborting' in line.decode():
+                                        logentry('snappyHexMesh error. Check the mesh in Netgen')
+                                        shm_error = 1
+
+                                for file in os.listdir(os.path.join(frame_ofcfb, 'polyMesh')):
+                                    if file in ('cellLevel', 'pointLevel'):
+                                        os.remove(os.path.join(frame_ofcfb, 'polyMesh', file))
+                                        os.remove(os.path.join(frame_offb, st, 'polyMesh', file))
+                                    if file not in ('cellLevel', 'pointLevel'):
+                                        shutil.copy(os.path.join(os.path.join(frame_offb, st, 'polyMesh'), file), os.path.join(frame_ofcfb, 'polyMesh'))
+
+                                if os.path.isfile(os.path.join(frame_ofcfb, 'polyMesh', 'boundary')):
+                                    with open(os.path.join(frame_ofcfb, 'polyMesh', 'boundary'), 'r') as bfile:
+                                        nf = []
+                                        ns = []
+
+                                        for line in bfile.readlines():
+                                            if 'nFaces' in line:
+                                                nf.append(int(line.split()[1].strip(';')))
+                                            if 'startFace' in line:
+                                                ns.append(int(line.split()[1].strip(';')))
 
                     open("{}".format(os.path.join(frame_offb, '{}.foam'.format(frame))), "w")
 
