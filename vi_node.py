@@ -3382,12 +3382,12 @@ class No_Vi_Metrics(Node, ViNodes):
                             for m in self['res']:
                                 if self['res'][m].get(self.ref_point) is not None and m == 'azimuth':
                                     row = layout.row()
-                                    row.label(text="{} {} at final timestep: {:.2f}".format(self.ref_point, m, self['res'][m][self.ref_point]))
+                                    row.label(text="{} {} at final timestep: {:.3f}".format(self.ref_point, m, self['res'][m][self.ref_point]))
 
                             for m in self['res']:
                                 if self['res'][m].get(self.zone_menu):
                                     row = layout.row()
-                                    row.label(text="{} {} at final timestep: {:.2f}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
+                                    row.label(text="{} {} at final timestep: {:.3f}".format(self.zone_menu, m, self['res'][m][self.zone_menu]))
 
                                     if m == 'WPC':
                                         row = layout.row()
@@ -4602,6 +4602,10 @@ class No_Flo_Case(Node, ViNodes):
     met: FloatProperty(name="met", description="Metabolic rate", min=0.5, max=5, default=1, update=nodeupdate)
     rh: FloatProperty(name="%", description="Relative humidity", min=0, max=100, default=60, update=nodeupdate)
     age: BoolProperty(name='', description='Air age', default=0, update=nodeupdate)
+    terrain: EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
+                        ("1", "Urban", "Urban, rough country"), ("2", "Sub-urban", "Sub-urban, rough country"),
+                        ("3", "Country", "Flat, Open Country"), ("4", "Ocean", "Ocean, very flat country"),
+                        ("5", "Custom", "Custom boundary layer")], name="", description="Terrian type", default="5")
 
     def init(self, context):
         self['exportstate'] = ''
@@ -4615,6 +4619,10 @@ class No_Flo_Case(Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Scenario:', self, 'scenario')
+
+        if self.scenario == '0':
+            newrow(layout, 'Terrain:', self, 'terrain')
+
         newrow(layout, 'Parametric:', self, 'parametric')
 
         if self.parametric:

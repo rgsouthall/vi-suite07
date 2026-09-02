@@ -310,10 +310,31 @@ def fvmat(self, svp, mn, bound, frame):
             val = 'uniform ({:.4f} {:.4f} {:.4f})'.format(*v_vec) if not self.flovi_u_field else '$internalField'
 
         if self.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
+            zref = self.flovi_u_uref if svp['flparams']['terrain'] == '5' else 10
+
+            if svp['flparams']['terrain'] == '0':
+                uref = 2.343 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.231
+            elif svp['flparams']['terrain'] == '1':
+                uref = 3.746 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.036
+            elif svp['flparams']['terrain'] == '2':
+                uref = 3.75 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.036
+            elif svp['flparams']['terrain'] == '3':
+                uref = 5.0 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.0024
+            elif svp['flparams']['terrain'] == '4':
+                uref = 6.11 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.000144
+            else:
+                uref = self.flovi_u_uref
+                z0 = self.flovi_u_z0
+
             fd_val = v_vec.normalized() if not self.flovi_u_field else svp['flparams'][str(frame)]['Udir']
-            s_val = self.flovi_u_uref if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+            s_val = uref
         else:
-            fd_val, s_val = (0, 0, 0), 0
+            fd_val, s_val, uref, z0, zref = (0, 0, 0), 0, 0, 0, 10
 
         Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip',
                   'uniformFixedValue': 'uniformFixedValue;\n    value    {0};\n    uniformValue    {0}'.format(val),
@@ -324,11 +345,11 @@ def fvmat(self, svp, mn, bound, frame):
                   'freestream': 'freestream;\n    freestreamValue    $internalField',
                   'freestreamVelocity': 'freestreamVelocity;\n    freestreamValue    $internalField',
                   'calculated': 'calculated;\n    value    $internalField',
-                  'atmBoundaryLayerInletVelocity': 'atmBoundaryLayerInletVelocity;\n    Uref {0:.3f};\n    Zref {1:.3f};\n    zDir ({2[0]:.3f} {2[1]:.3f} {2[2]:.3f});\n    flowDir    ({3[0]:.3f} {3[1]:.3f} {3[2]:.3f});\n    z0 uniform {4:.4f};\n    zGround uniform {5:.3f}'.format(s_val,
+                  'atmBoundaryLayerInletVelocity': 'atmBoundaryLayerInletVelocity;\n    Uref {0:.3f};\n    Zref {1:.3f};\n    zDir ({2[0]:.3f} {2[1]:.3f} {2[2]:.3f});\n    flowDir    ({3[0]:.3f} {3[1]:.3f} {3[2]:.3f});\n    z0 uniform {4:.6f};\n    zGround uniform {5:.3f}'.format(s_val,
                                                                                                                                                                                                                                  self.flovi_u_zref,
                                                                                                                                                                                                                                  self.flovi_u_zdir,
                                                                                                                                                                                                                                  fd_val,
-                                                                                                                                                                                                                                 self.flovi_u_z0,
+                                                                                                                                                                                                                                 z0,
                                                                                                                                                                                                                                  self.flovi_u_zground,
                                                                                                                                                                                                                                  self.flovi_u_d,
                                                                                                                                                                                                                                  val),
@@ -338,8 +359,9 @@ def fvmat(self, svp, mn, bound, frame):
             entry = Utdict[self.flovi_bmbu_subtype]
 
     elif bound == 'nut':
+        nut_z0 = (0.231, 0.036, 0.036, 0.0024, 0.000144, self.flovi_nut_z0)[int(svp['flparams']['terrain'])]
         ntdict = {'nutkWallFunction': 'nutkWallFunction;\n    value    $internalField',
-                  'nutkAtmRoughWallFunction': f'nutkAtmRoughWallFunction;\n    z0    uniform {self.flovi_nut_z0:.4f};\n    value    $internalField',
+                  'nutkAtmRoughWallFunction': f'nutkAtmRoughWallFunction;\n    z0    uniform {nut_z0:.6f};\n    value    $internalField',
                   'nutUSpaldingWallFunction': 'nutUSpaldingWallFunction;\n    value    $internalField',
                   'calculated': 'calculated;\n    value    $internalField',
                   'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
@@ -357,6 +379,32 @@ def fvmat(self, svp, mn, bound, frame):
         else:
             v_vec = Vector((self.flovi_u_speed * sin(pi * self.flovi_u_azi / 180), self.flovi_u_speed * cos(pi * self.flovi_u_azi / 180), 0))
 
+        if self.flovi_k_subtype == 'atmBoundaryLayerInletK':
+            zref = self.flovi_u_uref if svp['flparams']['terrain'] == '5' else 10
+
+            if svp['flparams']['terrain'] == '0':
+                uref = 2.343 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.231
+            elif svp['flparams']['terrain'] == '1':
+                uref = 3.746 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.036
+            elif svp['flparams']['terrain'] == '2':
+                uref = 3.75 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.036
+            elif svp['flparams']['terrain'] == '3':
+                uref = 5.0 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.0024
+            elif svp['flparams']['terrain'] == '4':
+                uref = 6.11 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.000144
+            else:
+                uref = self.flovi_u_uref
+                z0 = self.flovi_u_z0
+
+            s_val = uref
+        else:
+            s_val, uref, z0, zref = 0, (0, 0, 0), 0, 10
+
         fd_val = '({:.4f} {:.4f} {:.4f})'.format(*v_vec.normalized()) if not self.flovi_u_field else '$internalField'
         ktdict = {'zeroGradient': 'zeroGradient',
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
@@ -370,7 +418,7 @@ def fvmat(self, svp, mn, bound, frame):
                                                                                                                                                                                                                                  self.flovi_u_zref,
                                                                                                                                                                                                                                  self.flovi_u_zdir,
                                                                                                                                                                                                                                  fd_val,
-                                                                                                                                                                                                                                 self.flovi_u_z0,
+                                                                                                                                                                                                                                 z0,
                                                                                                                                                                                                                                  self.flovi_u_zground)
                 }
 
@@ -418,11 +466,38 @@ def fvmat(self, svp, mn, bound, frame):
     elif bound == 'e':
         val = 'uniform {:.4f}'.format(self.flovi_bmbe_val) if not self.flovi_e_field else '$internalField'
         s_val = self.flovi_u_uref if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+
         if self.flovi_u_type == '0':
             v_vec = self.flovi_bmbu_val
 
         else:
             v_vec = Vector((self.flovi_u_speed * sin(pi * self.flovi_u_azi / 180), self.flovi_u_speed * cos(pi * self.flovi_u_azi / 180), 0))
+
+        if self.flovi_bmbe_subtype == 'atmBoundaryLayerInletEpsilon':
+            zref = self.flovi_u_uref if svp['flparams']['terrain'] == '5' else 10
+
+            if svp['flparams']['terrain'] == '0':
+                uref = 2.343 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.231
+            elif svp['flparams']['terrain'] == '1':
+                uref = 3.746 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.036
+            elif svp['flparams']['terrain'] == '2':
+                uref = 3.75 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.036
+            elif svp['flparams']['terrain'] == '3':
+                uref = 5.0 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.0024
+            elif svp['flparams']['terrain'] == '4':
+                uref = 6.11 if not self.flovi_u_field else svp['flparams'][str(frame)]['Uspeed']
+                z0 = 0.000144
+            else:
+                uref = self.flovi_u_uref
+                z0 = self.flovi_u_z0
+
+            s_val = uref
+        else:
+            s_val, uref, z0, zref = 0, (0, 0, 0), 0, 10
 
         fd_val = '({:.4f} {:.4f} {:.4f})'.format(*v_vec.normalized()) if not self.flovi_u_field else '$internalField'
 
@@ -433,10 +508,10 @@ def fvmat(self, svp, mn, bound, frame):
                   'fixedValue': 'fixedValue;\n    value    {}'.format(val),
                   'epsilonWallFunction': 'epsilonWallFunction;\n    value    {}'.format(val),
                   'atmBoundaryLayerInletEpsilon': 'atmBoundaryLayerInletEpsilon;\n    Uref {0:.3f};\n    Zref {1:.3f};\n    zDir ({2[0]:.3f} {2[1]:.3f} {2[2]:.3f});\n    flowDir    {3};\n    z0 uniform {4:.4f};\n    zGround uniform {5:.3f}'.format(s_val,
-                                                                                                                                                                                                                                 self.flovi_u_zref,
+                                                                                                                                                                                                                                 zref,
                                                                                                                                                                                                                                  self.flovi_u_zdir,
                                                                                                                                                                                                                                  fd_val,
-                                                                                                                                                                                                                                 self.flovi_u_z0,
+                                                                                                                                                                                                                                 z0,
                                                                                                                                                                                                                                  self.flovi_u_zground),
                   'calculated': 'calculated;\n    value    {}'.format(val),
                   'turbulentMixingLengthDissipationRateInlet': 'turbulentMixingLengthDissipationRateInlet;\n    mixingLength  {:.5f};\n    value    {}'.format(self.flovi_eml_val, val)}

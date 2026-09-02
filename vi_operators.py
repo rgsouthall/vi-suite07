@@ -3220,6 +3220,7 @@ class NODE_OT_Flo_Case(bpy.types.Operator):
             svp['flparams']['features'] = {'turb': {'kEpsilon': 'kE'}}
             svp['flparams']['features']['rad'] = casenode.buoyancy and casenode.radiation
             svp['flparams']['radmodel'] = casenode.radmodel
+            svp['flparams']['terrain'] = casenode.terrain
             svp['flparams']['features']['buoy'] = casenode.buoyancy
             base_residuals = ['Ux', 'Uy', 'Uz']
             turb_residuals = ['k', 'epsilon']

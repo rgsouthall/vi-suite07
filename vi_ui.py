@@ -218,28 +218,38 @@ class VI_PT_Mat(bpy.types.Panel):
                             newrow(layout, "U field value:", mvp, "flovi_u_field")
 
                             if mvp.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
-                                newrow(layout, "Boundary layer:", mvp, "flovi_u_atm")
-                                if mvp.flovi_u_atm == '5':
+                                # newrow(layout, "Boundary layer:", mvp, "flovi_u_atm")
+
+                                if svp['flparams']['terrain'] == '5':
+                                    if not mvp.flovi_u_field:
+                                        newrow(layout, "Reference speed:", mvp, "flovi_u_uref")
                                     newrow(layout, "Reference height:", mvp, "flovi_u_zref")
-                                    newrow(layout, "Up vector:", mvp, "flovi_u_zdir")
                                     newrow(layout, "Roughness:", mvp, "flovi_u_z0")
-                                    newrow(layout, "Ground height:", mvp, "flovi_u_zground")
-                                    newrow(layout, "Domain height:", mvp, "flovi_dheight")
-                                    tds = mvp.flovi_u_uref/log((mvp.flovi_u_zref + mvp.flovi_u_z0)/mvp.flovi_u_z0)*log((mvp.flovi_dheight + mvp.flovi_u_z0)/mvp.flovi_u_z0)
-                                    row = layout.row()
-                                    row.label(text=f'Upper speed: {tds:.3f}m/s')
+
+                                newrow(layout, "Up vector:", mvp, "flovi_u_zdir")
+                                newrow(layout, "Ground height:", mvp, "flovi_u_zground")
+                                newrow(layout, "Domain height:", mvp, "flovi_dheight")
+                                uref = (2.34, 3.75, 3.75, 5.0, 6.1, mvp.flovi_u_uref)[int(svp['flparams']['terrain'])]
+                                zref = mvp.flovi_u_zref if svp['flparams']['terrain'] == '5' else 10
+                                z0 = (0.23, 0.036, 0.036, 0.0024, 0.000145, mvp.flovi_u_z0)[int(svp['flparams']['terrain'])]
+                                tds = uref/log((zref + z0)/z0)*log((mvp.flovi_dheight + z0)/z0)
+                                row = layout.row()
+                                row.label(text=f'Upper speed: {tds:.3f}m/s')
 
                                     # newrow(layout, "Displacement:", mvp, "flovi_u_d")
 
-                                if not mvp.flovi_u_field:
-                                    newrow(layout, "Reference speed:", mvp, "flovi_u_uref")
+                                # if not mvp.flovi_u_field:
+                                #     newrow(layout, "Reference speed:", mvp, "flovi_u_uref")
                                     # newrow(layout, "Flow direction:", mvp, "flovi_u_fdir")
 
                             if not mvp.flovi_u_field:
                                 newrow(layout, "U direction:", mvp, "flovi_u_type")
 
                                 if mvp.flovi_u_type == '0':
-                                    newrow(layout, "U value:", mvp, "flovi_bmbu_val")
+                                    if mvp.flovi_bmbu_subtype == 'atmBoundaryLayerInletVelocity':
+                                        newrow(layout, "U vector:", mvp, "flovi_bmbu_val")
+                                    else:
+                                        newrow(layout, "U value:", mvp, "flovi_bmbu_val")
                                 else:
                                     newrow(layout, "Azimuth:", mvp, "flovi_u_azi")
                                     newrow(layout, "Speed:", mvp, "flovi_u_speed")
@@ -254,7 +264,10 @@ class VI_PT_Mat(bpy.types.Panel):
                                     newrow(layout, "Nut value:", mvp, "flovi_bmbnut_val")
 
                             elif mvp.flovi_bmbnut_subtype == 'nutkAtmRoughWallFunction':
-                                newrow(layout, "Roughness (m):", mvp, "flovi_nut_z0")
+                                # newrow(layout, "Boundary layer:", mvp, "flovi_u_atm")
+
+                                if svp['flparams']['terrain'] == '4':
+                                    newrow(layout, "Roughness (m):", mvp, "flovi_nut_z0")
 
                             if 'k' in svp['flparams']['params']:
                                 newrow(layout, "k type:", mvp, "flovi_k_subtype")
