@@ -233,8 +233,15 @@ class VI_PT_Mat(bpy.types.Panel):
                                 zref = mvp.flovi_u_zref if svp['flparams']['terrain'] == '5' else 10
                                 z0 = (0.23, 0.036, 0.036, 0.0024, 0.000145, mvp.flovi_u_z0)[int(svp['flparams']['terrain'])]
                                 tds = uref/log((zref + z0)/z0)*log((mvp.flovi_dheight + z0)/z0)
+                                ustar = 0.41*uref/log((zref+z0)/z0)
+                                tdk = (ustar**2)/0.09**0.5
+                                tde = (ustar**3)/(0.41*(mvp.flovi_dheight + z0))
                                 row = layout.row()
                                 row.label(text=f'Upper speed: {tds:.3f}m/s')
+                                row = layout.row()
+                                row.label(text=f'Upper k: {tdk:.5f}m/s')
+                                row = layout.row()
+                                row.label(text=f'Upper e: {tde:.5f}m/s')
 
                                     # newrow(layout, "Displacement:", mvp, "flovi_u_d")
 
